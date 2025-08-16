@@ -30,6 +30,18 @@ export default function HomePage() {
         <div className="mt-6 text-center text-sm text-muted-foreground">
           <p>Trusted by 2000+ Nigerian pharmacies</p>
           <p className="mt-1">NAFDAC compliant • Secure • Reliable</p>
+          <p className="mt-3 text-xs">
+            Built by{" "}
+            <a
+              href="https://dumostech.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary hover:underline font-medium"
+            >
+              Dumos Technologies
+            </a>
+          </p>
+          <p className="text-xs opacity-75">© 2019 - 2025</p>
         </div>
       </div>
     </div>

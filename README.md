@@ -50,8 +50,7 @@ dumosrx-pharmacy/
 │   ├── package.json      # Backend dependencies
 │   ├── nest-cli.json     # NestJS CLI configuration
 │   └── tsconfig.json     # TypeScript configuration
-├── scripts/              # Database migration scripts
-└── docs/                 # Additional documentation
+└── scripts/              # Database migration scripts
 \`\`\`
 
 ## 🚀 Quick Start

@@ -4,6 +4,7 @@ import { Montserrat } from "next/font/google"
 import { Open_Sans } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
+import { AuthProvider } from "@/lib/auth/context"
 
 const montserrat = Montserrat({
   subsets: ["latin"],
@@ -34,7 +35,7 @@ export default function RootLayout({
     <html lang="en" className={`${montserrat.variable} ${openSans.variable} antialiased`}>
       <body className="font-sans">
         <ThemeProvider defaultTheme="system" storageKey="dumosrx-ui-theme">
-          {children}
+          <AuthProvider>{children}</AuthProvider>
         </ThemeProvider>
       </body>
     </html>

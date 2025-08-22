@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Patch, UseGuards } from "@nestjs/common"
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from "@nestjs/swagger"
-import type { InventoryService } from "./inventory.service"
+import { InventoryService } from "./inventory.service"
 import type { CreateInventoryDto } from "./dto/create-inventory.dto"
 import type { UpdateInventoryDto } from "./dto/update-inventory.dto"
 import type { StockAdjustmentDto } from "./dto/stock-adjustment.dto"

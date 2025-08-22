@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Patch, UseGuards } from "@nestjs/common"
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from "@nestjs/swagger"
-import type { SalesService } from "./sales.service"
+import { SalesService } from "./sales.service"
 import type { CreateSaleDto } from "./dto/create-sale.dto"
 import type { SalesReportDto } from "./dto/sales-report.dto"
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard"

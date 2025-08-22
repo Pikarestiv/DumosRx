@@ -5,9 +5,9 @@ import { UsersModule } from "./modules/users/users.module"
 import { MedicinesModule } from "./modules/medicines/medicines.module"
 import { InventoryModule } from "./modules/inventory/inventory.module"
 import { SalesModule } from "./modules/sales/sales.module"
-import { PrescriptionsModule } from "./modules/prescriptions/prescriptions.module"
-import { CustomersModule } from "./modules/customers/customers.module"
-import { AnalyticsModule } from "./modules/analytics/analytics.module"
+// import { PrescriptionsModule } from "./modules/prescriptions/prescriptions.module"
+// import { CustomersModule } from "./modules/customers/customers.module"
+// import { AnalyticsModule } from "./modules/analytics/analytics.module"
 import { SupabaseModule } from "./modules/supabase/supabase.module"
 
 @Module({
@@ -22,9 +22,9 @@ import { SupabaseModule } from "./modules/supabase/supabase.module"
     MedicinesModule,
     InventoryModule,
     SalesModule,
-    PrescriptionsModule,
-    CustomersModule,
-    AnalyticsModule,
+    // PrescriptionsModule,
+    // CustomersModule,
+    // AnalyticsModule,
   ],
 })
 export class AppModule {}

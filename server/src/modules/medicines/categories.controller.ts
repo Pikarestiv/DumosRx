@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Patch, Param, Delete, UseGuards, Query } from "@nestjs/common"
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from "@nestjs/swagger"
-import type { CategoriesService } from "./categories.service"
+import { CategoriesService } from "./categories.service"
 import type { CreateCategoryDto } from "./dto/create-category.dto"
 import type { UpdateCategoryDto } from "./dto/update-category.dto"
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard"

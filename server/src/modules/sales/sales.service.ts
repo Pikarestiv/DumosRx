@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException, BadRequestException } from "@nestjs/common"
-import type { SupabaseService } from "../supabase/supabase.service"
+import { SupabaseService } from "../supabase/supabase.service"
 import type { CreateSaleDto } from "./dto/create-sale.dto"
 import type { SalesReportDto } from "./dto/sales-report.dto"
 

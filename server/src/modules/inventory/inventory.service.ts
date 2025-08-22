@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException, BadRequestException } from "@nestjs/common"
-import type { SupabaseService } from "../supabase/supabase.service"
+import { SupabaseService } from "../supabase/supabase.service"
 import type { CreateInventoryDto } from "./dto/create-inventory.dto"
 import type { UpdateInventoryDto } from "./dto/update-inventory.dto"
 import type { StockAdjustmentDto } from "./dto/stock-adjustment.dto"

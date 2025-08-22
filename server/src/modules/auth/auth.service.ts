@@ -1,6 +1,6 @@
 import { Injectable, UnauthorizedException, ConflictException } from "@nestjs/common"
-import type { JwtService } from "@nestjs/jwt"
-import type { UsersService } from "../users/users.service"
+import { JwtService } from "@nestjs/jwt"
+import { UsersService } from "../users/users.service"
 import type { LoginDto } from "./dto/login.dto"
 import type { RegisterDto } from "./dto/register.dto"
 import type { JwtPayload } from "./interfaces/jwt-payload.interface"

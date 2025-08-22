@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException, ConflictException } from "@nestjs/common"
-import type { SupabaseService } from "../supabase/supabase.service"
+import { SupabaseService } from "../supabase/supabase.service"
 import type { CreateCategoryDto } from "./dto/create-category.dto"
 import type { UpdateCategoryDto } from "./dto/update-category.dto"
 

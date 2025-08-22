@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Patch, Delete, UseGuards } from "@nestjs/common"
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from "@nestjs/swagger"
-import type { MedicinesService } from "./medicines.service"
+import { MedicinesService } from "./medicines.service"
 import type { CreateMedicineDto } from "./dto/create-medicine.dto"
 import type { UpdateMedicineDto } from "./dto/update-medicine.dto"
 import type { SearchMedicinesDto } from "./dto/search-medicines.dto"

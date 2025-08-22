@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException, ConflictException } from "@nestjs/common"
-import type { SupabaseService } from "../supabase/supabase.service"
+import { SupabaseService } from "../supabase/supabase.service"
 import type { CreateMedicineDto } from "./dto/create-medicine.dto"
 import type { UpdateMedicineDto } from "./dto/update-medicine.dto"
 import type { SearchMedicinesDto } from "./dto/search-medicines.dto"

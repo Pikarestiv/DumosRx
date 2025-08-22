@@ -1,6 +1,6 @@
 import { Controller, Post, UseGuards, Get } from "@nestjs/common"
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from "@nestjs/swagger"
-import type { AuthService } from "./auth.service"
+import  { AuthService } from "./auth.service"
 import type { LoginDto } from "./dto/login.dto"
 import type { RegisterDto } from "./dto/register.dto"
 import type { ChangePasswordDto } from "./dto/change-password.dto"

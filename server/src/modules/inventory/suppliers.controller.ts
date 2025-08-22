@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Patch, Delete, UseGuards } from "@nestjs/common"
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from "@nestjs/swagger"
-import type { SuppliersService } from "./suppliers.service"
+import { SuppliersService } from "./suppliers.service"
 import type { CreateSupplierDto } from "./dto/create-supplier.dto"
 import type { UpdateSupplierDto } from "./dto/update-supplier.dto"
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard"

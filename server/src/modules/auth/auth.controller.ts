@@ -1,9 +1,9 @@
-import { Controller, Post, UseGuards, Get } from "@nestjs/common"
+import { Controller, Post, UseGuards, Get, Body, Req } from "@nestjs/common"
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from "@nestjs/swagger"
-import  { AuthService } from "./auth.service"
-import type { LoginDto } from "./dto/login.dto"
-import type { RegisterDto } from "./dto/register.dto"
-import type { ChangePasswordDto } from "./dto/change-password.dto"
+import { AuthService } from "./auth.service"
+import { LoginDto } from "./dto/login.dto"
+import { RegisterDto } from "./dto/register.dto"
+import { ChangePasswordDto } from "./dto/change-password.dto"
 import { JwtAuthGuard } from "./guards/jwt-auth.guard"
 import { LocalAuthGuard } from "./guards/local-auth.guard"
 
@@ -17,7 +17,7 @@ export class AuthController {
   @ApiResponse({ status: 401, description: "Invalid credentials" })
   @UseGuards(LocalAuthGuard)
   @Post("login")
-  async login(loginDto: LoginDto, req) {
+  async login(@Req() req, @Body() loginDto: LoginDto) {
     return this.authService.login(loginDto)
   }
 
@@ -25,7 +25,7 @@ export class AuthController {
   @ApiResponse({ status: 201, description: "User registered successfully" })
   @ApiResponse({ status: 409, description: "User already exists" })
   @Post("register")
-  async register(registerDto: RegisterDto) {
+  async register(@Body() registerDto: RegisterDto) {
     return this.authService.register(registerDto)
   }
 
@@ -34,7 +34,7 @@ export class AuthController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @Get("profile")
-  getProfile(req) {
+  getProfile(@Req() req) {
     return req.user
   }
 
@@ -43,7 +43,7 @@ export class AuthController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @Post("change-password")
-  async changePassword(req, changePasswordDto: ChangePasswordDto) {
+  async changePassword(@Req() req, @Body() changePasswordDto: ChangePasswordDto) {
     return this.authService.changePassword(
       req.user.id,
       changePasswordDto.currentPassword,

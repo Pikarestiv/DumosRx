@@ -14,7 +14,12 @@ export class AuthService {
   ) {}
 
   async validateUser(email: string, password: string): Promise<any> {
+    console.log("🚀 ~ AuthService ~ validateUser ~ email:", email)
+    
     const user = await this.usersService.findByEmail(email)
+    
+    console.log("🚀 ~ AuthService ~ validateUser ~ user:", user)
+
     if (user && (await bcrypt.compare(password, user.password_hash))) {
       const { password_hash, ...result } = user
       return result
@@ -24,6 +29,9 @@ export class AuthService {
 
   async login(loginDto: LoginDto) {
     const user = await this.validateUser(loginDto.email, loginDto.password)
+    
+    console.log("ValidateUser -> Found user:", user)
+
     if (!user) {
       throw new UnauthorizedException("Invalid credentials")
     }
@@ -71,9 +79,13 @@ export class AuthService {
 
     // Create user
     const user = await this.usersService.create({
-      ...registerDto,
-      password_hash: hashedPassword,
-    })
+    email: registerDto.email,
+    password_hash: hashedPassword,
+    first_name: registerDto.first_name,
+    last_name: registerDto.last_name,
+    phone: registerDto.phone,
+    role: registerDto.role,
+  })
 
     const { password_hash, ...result } = user
     return result

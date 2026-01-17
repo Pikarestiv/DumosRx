@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - "laravel-server/**"
+  workflow_dispatch:
 
 jobs:
   web-deploy:

@@ -1,21 +1,26 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Eye, EyeOff } from "lucide-react"
-import { useAuth } from "@/lib/auth/context"
-import { useRouter } from "next/navigation"
+import type React from "react";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Eye, EyeOff } from "lucide-react";
+import { useAuthStore } from "@/lib/auth/store";
+import { useRouter } from "next/navigation";
 
-type UserRole = "super_admin" | "manager" | "pharmacist" | "sales_staff" | "auditor"
+type UserRole =
+  | "super_admin"
+  | "manager"
+  | "pharmacist"
+  | "sales_staff"
+  | "auditor";
 
 interface LoginFormData {
-  email: string
-  password: string
-  role: UserRole | ""
+  email: string;
+  password: string;
+  role: UserRole | "";
 }
 
 export function LoginForm() {
@@ -23,35 +28,31 @@ export function LoginForm() {
     email: "",
     password: "",
     role: "",
-  })
-  const [showPassword, setShowPassword] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState("")
+  });
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
 
-  const { login } = useAuth()
-  const router = useRouter()
+  const login = useAuthStore((state) => state.login);
+  const storeIsLoading = useAuthStore((state) => state.isLoading);
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
-    setIsLoading(true)
+    e.preventDefault();
+    setError("");
 
     // Basic validation
     if (!formData.email || !formData.password) {
-      setError("Please fill in all fields")
-      setIsLoading(false)
-      return
+      setError("Please fill in all fields");
+      return;
     }
 
     try {
-      await login(formData.email, formData.password)
-      router.push("/dashboard")
+      await login(formData.email, formData.password);
+      router.push("/dashboard");
     } catch (err: any) {
-      setError(err.message || "Invalid credentials. Please try again.")
-    } finally {
-      setIsLoading(false)
+      setError(err.message || "Invalid credentials. Please try again.");
     }
-  }
+  };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -68,7 +69,9 @@ export function LoginForm() {
           type="email"
           placeholder="Enter your email"
           value={formData.email}
-          onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
+          onChange={(e) =>
+            setFormData((prev) => ({ ...prev, email: e.target.value }))
+          }
           className="bg-input border-border focus:ring-accent"
           required
         />
@@ -82,7 +85,9 @@ export function LoginForm() {
             type={showPassword ? "text" : "password"}
             placeholder="Enter your password"
             value={formData.password}
-            onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))}
+            onChange={(e) =>
+              setFormData((prev) => ({ ...prev, password: e.target.value }))
+            }
             className="bg-input border-border focus:ring-accent pr-10"
             required
           />
@@ -105,16 +110,19 @@ export function LoginForm() {
       <Button
         type="submit"
         className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
-        disabled={isLoading}
+        disabled={storeIsLoading}
       >
-        {isLoading ? "Signing In..." : "Sign In"}
+        {storeIsLoading ? "Signing In..." : "Sign In"}
       </Button>
 
       <div className="text-center">
-        <Button variant="link" className="text-accent hover:text-accent/80 text-sm">
+        <Button
+          variant="link"
+          className="text-accent hover:text-accent/80 text-sm"
+        >
           Forgot your password?
         </Button>
       </div>
     </form>
-  )
+  );
 }

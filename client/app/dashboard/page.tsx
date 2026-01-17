@@ -1,20 +1,21 @@
-"use client"
+"use client";
 
-import { useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
-import { DashboardOverview } from "@/components/dashboard/dashboard-overview"
-import { useAuth } from "@/lib/auth/context"
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
+import { DashboardOverview } from "@/components/dashboard/dashboard-overview";
+import { useAuthStore } from "@/lib/auth/store";
 
 export default function DashboardPage() {
-  const { isAuthenticated, isLoading } = useAuth()
-  const router = useRouter()
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const isLoading = useAuthStore((state) => state.isLoading);
+  const router = useRouter();
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.push("/")
+      router.push("/");
     }
-  }, [isAuthenticated, isLoading, router])
+  }, [isAuthenticated, isLoading, router]);
 
   if (isLoading) {
     return (
@@ -24,16 +25,16 @@ export default function DashboardPage() {
           <p className="text-muted-foreground">Loading...</p>
         </div>
       </div>
-    )
+    );
   }
 
   if (!isAuthenticated) {
-    return null
+    return null;
   }
 
   return (
     <DashboardLayout>
       <DashboardOverview />
     </DashboardLayout>
-  )
+  );
 }

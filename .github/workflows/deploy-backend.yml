@@ -22,7 +22,16 @@ jobs:
           php-version: "8.2"
           extensions: mbstring, intl, pdo, pdo_mysql
 
-      - name: 📦 Install Dependencies
+      - name: � Setup Directory Structure
+        run: |
+          cd laravel-server
+          mkdir -p bootstrap/cache
+          mkdir -p storage/framework/sessions
+          mkdir -p storage/framework/views
+          mkdir -p storage/framework/cache
+          chmod -R 777 storage bootstrap/cache
+
+      - name: �📦 Install Dependencies
         run: |
           cd laravel-server
           composer install --no-dev --optimize-autoloader

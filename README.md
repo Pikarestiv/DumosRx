@@ -161,16 +161,16 @@ After running the database scripts, use these default credentials:
 
 \`\`\`
 Super Admin:
-Email: admin@dumosrx.com
-Password: Admin123!
+Email: admin@rx.dumostech.com
+Password: Admin123#
 
 Pharmacist:
-Email: pharmacist@dumosrx.com  
-Password: Pharmacist123!
+Email: pharmacist@rx.dumostech.com  
+Password: Pharmacist123#
 
 Sales Staff:
-Email: sales@dumosrx.com
-Password: Sales123!
+Email: sales@rx.dumostech.com
+Password: Sales123#
 \`\`\`
 
 ## 🛠️ Technology Stack
@@ -222,7 +222,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🆘 Support
 
 For support and questions:
-- **Email**: support@dumosrx.com
+- **Email**: support@rx.dumostech.com
 - **Documentation**: Check the `/docs` folder
 - **Issues**: Create a GitHub issue
 

@@ -20,5 +20,5 @@ CREATE INDEX IF NOT EXISTS idx_users_active ON users(is_active);
 
 -- Insert default super admin user
 INSERT INTO users (email, password_hash, first_name, last_name, role) 
-VALUES ('admin@dumosrx.com', '$2b$10$example_hash', 'Super', 'Admin', 'super_admin')
+VALUES ('admin@rx.dumostech.com', '$2b$10$example_hash', 'Super', 'Admin', 'super_admin')
 ON CONFLICT (email) DO NOTHING;

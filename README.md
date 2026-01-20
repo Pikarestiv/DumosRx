@@ -153,7 +153,34 @@ npm run start:prod
 
 - **[API Documentation](docs/API.md)** - Complete REST API reference
 - **[Database Schema](docs/DATABASE.md)** - Database structure and relationships
-- **[Deployment Guide](docs/DEPLOYMENT.md)** - Production deployment instructions
+- **[API Documentation](docs/API.md)** - Complete REST API reference
+- **[Database Schema](docs/DATABASE.md)** - Database structure and relationships
+
+## 🚀 Deployment
+
+### 1. Database Setup (Important!)
+Before deploying, you must:
+1.  **Create the Database**: Log in to your hosting control panel (cPanel, etc.) and create a new MySQL database (e.g., `dumosrx_db`).
+2.  **Environment Variables**: Create a `.env` file in your server's root directory (or `laravel-server` directory if using subfolders) with your database credentials:
+    ```env
+    DB_CONNECTION=mysql
+    DB_HOST=127.0.0.1
+    DB_PORT=3306
+    DB_DATABASE=your_database_name
+    DB_USERNAME=your_database_user
+    DB_PASSWORD=your_database_password
+    APP_ENV=production
+    APP_DEBUG=false
+    APP_URL=https://api.rx.dumostech.com
+    ```
+
+### 2. Auto-Deployment
+Pushing to the `main` branch will automatically deploy the code via FTP.
+
+### 3. Run Migrations
+After deployment, visit:
+`https://api.rx.dumostech.com/migrate-db?key=dumos-setup`
+This will install all tables and seed default data.
 
 ## 🔑 Default Login Credentials
 

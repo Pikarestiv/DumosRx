@@ -51,3 +51,4 @@ jobs:
             **/tests/**
             **/storage/*.key
             .env.example
+            .env

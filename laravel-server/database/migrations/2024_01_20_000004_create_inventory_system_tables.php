@@ -68,7 +68,7 @@ return new class extends Migration
             $table->timestamps();
 
             // Full text index - syntax depends on DB driver, adding simple indexes for now
-            $table->index(['name', 'generic_name']);
+            // $table->index(['name', 'generic_name']);
         });
 
         // Inventory

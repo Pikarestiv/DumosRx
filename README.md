@@ -3,17 +3,17 @@
 *A comprehensive pharmacy management solution for Nigerian pharmacies*
 
 [![Built with Next.js](https://img.shields.io/badge/Built%20with-Next.js-black?style=for-the-badge&logo=next.js)](https://nextjs.org)
-[![Powered by NestJS](https://img.shields.io/badge/Powered%20by-NestJS-red?style=for-the-badge&logo=nestjs)](https://nestjs.com)
-[![Database](https://img.shields.io/badge/Database-Supabase-green?style=for-the-badge&logo=supabase)](https://supabase.com)
+[![Powered by Laravel](https://img.shields.io/badge/Powered%20by-Laravel-FF2D20?style=for-the-badge&logo=laravel)](https://laravel.com)
+[![Database](https://img.shields.io/badge/Database-MySQL-4479A1?style=for-the-badge&logo=mysql)](https://mysql.com)
 
 ## 🏥 Overview
 
-DumosRx is a modern, comprehensive pharmacy management system specifically designed for Nigerian pharmacies. It replaces unreliable legacy systems with a robust, offline-first solution that handles medicine inventory, sales transactions, prescription management, and business analytics.
+DumosRx is a modern, comprehensive pharmacy management system specifically designed for Nigerian pharmacies. It provides a robust solution that handles medicine inventory, sales transactions, prescription management, and business analytics, tailored for the local market.
 
 ### 🎯 Key Features
 
 - **🔐 Role-Based Authentication** - Super Admin, Manager, Pharmacist, Sales Staff, Auditor roles
-- **💊 Medicine Database** - 5,000+ Nigerian medicines with NAFDAC compliance
+- **💊 Medicine Database** - Management of Nigerian medicines with NAFDAC compliance support
 - **📦 Inventory Management** - Real-time stock tracking, batch management, expiry alerts
 - **🛒 Point of Sale (POS)** - Complete transaction processing with Nigerian payment methods
 - **📋 Prescription Management** - Digital prescription handling and dispensing tracking
@@ -26,213 +26,145 @@ DumosRx is a modern, comprehensive pharmacy management system specifically desig
 - **NAFDAC Compliance** - Medicine registration and regulatory compliance
 - **Naira Currency** - Proper ₦ formatting and 7.5% VAT calculations
 - **Local Suppliers** - Nigerian pharmaceutical distributors and manufacturers
-- **Payment Integration** - Support for Paystack, Flutterwave, OPay, and other local payment methods
+- **Payment Integration** - Support for local payment methods (planned)
 
 ## 🏗️ Architecture
 
-This repository contains two completely independent applications:
+This repository contains two independently deployable applications:
 
-\`\`\`
-dumosrx-pharmacy/
-├── client/                 # Next.js Frontend (Independent)
-│   ├── app/               # Next.js 13+ App Router
-│   ├── components/        # React Components
+```
+dumosrx/
+├── client/                 # Next.js Frontend
+│   ├── app/               # Next.js App Router
+│   ├── components/        # Shadcn/ui React Components
 │   ├── lib/              # Client utilities & API client
 │   ├── hooks/            # Custom React hooks
 │   ├── public/           # Static assets
 │   ├── package.json      # Frontend dependencies
-│   ├── next.config.mjs   # Next.js configuration
-│   └── tsconfig.json     # TypeScript configuration
-├── server/                # NestJS Backend (Independent)
-│   ├── src/              # NestJS application
-│   │   ├── modules/      # Feature modules (auth, medicines, etc.)
-│   │   └── main.ts       # Application entry point
-│   ├── package.json      # Backend dependencies
-│   ├── nest-cli.json     # NestJS CLI configuration
-│   └── tsconfig.json     # TypeScript configuration
-└── scripts/              # Database migration scripts
-\`\`\`
+│   └── next.config.mjs   # Next.js configuration
+├── laravel-server/         # Laravel Backend
+│   ├── app/              # Core Application Logic (Models, Controllers)
+│   ├── routes/           # API Routes
+│   ├── database/         # Migrations & Seeders
+│   ├── bootstrap/        # App Bootstrap & Middleware
+│   ├── tests/            # Feature & Unit Tests
+│   └── composer.json     # Backend dependencies
+└── .github/              # CI/CD Workflows
+```
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
 - Node.js 18+ and npm 8+
-- Supabase account and project
+- PHP 8.2+ and Composer (for local backend)
+- MySQL 5.7+ or 8.0+
 - Git
 
 ### 1. Clone Repository
 
-\`\`\`bash
+```bash
 git clone <repository-url>
-cd dumosrx-pharmacy
-\`\`\`
+cd dumosrx
+```
 
 ### 2. Setup Frontend (Client)
 
-\`\`\`bash
+```bash
 cd client
 npm install
-\`\`\`
+```
 
-Create `.env.local` in the client folder:
-\`\`\`env
-NEXT_PUBLIC_API_URL=http://localhost:3001/api/v1
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-\`\`\`
+Create `.env.local` in the client folder (optional, defaults to remote API if not set, or local if configured):
+```env
+NEXT_PUBLIC_API_URL=http://127.0.0.1:8000/api/v1
+```
 
-### 3. Setup Backend (Server)
+### 3. Setup Backend (Laravel Server)
 
-\`\`\`bash
-cd ../server
-npm install
-\`\`\`
+```bash
+cd ../laravel-server
+composer install
+cp .env.example .env
+php artisan key:generate
+```
 
-Create `.env` in the server folder:
-\`\`\`env
-SUPABASE_URL=your_supabase_url
-SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-JWT_SECRET=your_jwt_secret_key
-CLIENT_URL=http://localhost:3000
-PORT=3001
-\`\`\`
+Configure your `.env` file with your local database credentials:
+```env
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=dumosrx
+DB_USERNAME=root
+DB_PASSWORD=
+```
 
 ### 4. Database Setup
 
-Run the database migration scripts in order:
-
-\`\`\`bash
-# Execute these SQL scripts in your Supabase SQL editor or via API
-scripts/01_create_users_table.sql
-scripts/02_create_categories_table.sql
-scripts/03_create_suppliers_table.sql
-scripts/04_create_medicines_table.sql
-scripts/05_create_inventory_table.sql
-scripts/06_create_customers_table.sql
-scripts/07_create_prescriptions_table.sql
-scripts/08_create_sales_table.sql
-scripts/09_create_stock_movements_table.sql
-scripts/10_create_loyalty_program_table.sql
-\`\`\`
+Run the migrations and seeders:
+```bash
+php artisan migrate --seed
+```
 
 ### 5. Run Applications
 
 **Start Backend (Terminal 1):**
-\`\`\`bash
-cd server
-npm run start:dev
-\`\`\`
-Backend runs on: http://localhost:3001
+```bash
+cd laravel-server
+php artisan serve
+```
+Backend runs on: http://127.0.0.1:8000
 
 **Start Frontend (Terminal 2):**
-\`\`\`bash
+```bash
 cd client
 npm run dev
-\`\`\`
+```
 Frontend runs on: http://localhost:3000
-
-### 6. Production Build
-
-**Build Frontend:**
-\`\`\`bash
-cd client
-npm run build
-npm run start
-\`\`\`
-
-**Build Backend:**
-\`\`\`bash
-cd server
-npm run build
-npm run start:prod
-\`\`\`
-
-## 📚 Documentation
-
-- **[API Documentation](docs/API.md)** - Complete REST API reference
-- **[Database Schema](docs/DATABASE.md)** - Database structure and relationships
-- **[API Documentation](docs/API.md)** - Complete REST API reference
-- **[Database Schema](docs/DATABASE.md)** - Database structure and relationships
 
 ## 🚀 Deployment
 
-### 1. Database Setup (Important!)
-Before deploying, you must:
-1.  **Create the Database**: Log in to your hosting control panel (cPanel, etc.) and create a new MySQL database (e.g., `dumosrx_db`).
-2.  **Environment Variables**: Create a `.env` file in your server's root directory (or `laravel-server` directory if using subfolders) with your database credentials:
-    ```env
-    DB_CONNECTION=mysql
-    DB_HOST=127.0.0.1
-    DB_PORT=3306
-    DB_DATABASE=your_database_name
-    DB_USERNAME=your_database_user
-    DB_PASSWORD=your_database_password
-    APP_ENV=production
-    APP_DEBUG=false
-    APP_URL=https://api.rx.dumostech.com
-    ```
+### 1. Backend Deployment
+The backend is deployed to a shared hosting environment via FTP/Git.
+- **Push to Main**: Commits pushed to `main` branch trigger the deployment workflow.
+- **Environment**: The production `.env` is securely managed on the server.
+- **Migrations**: Access `/migrate-db?key=<secret>` to run pending migrations if shell access is restricted.
 
-### 2. Auto-Deployment
-Pushing to the `main` branch will automatically deploy the code via FTP.
-
-### 3. Run Migrations
-After deployment, visit:
-`https://api.rx.dumostech.com/migrate-db?key=dumos-setup`
-This will install all tables and seed default data.
+### 2. Frontend Deployment
+The frontend can be deployed to Vercel, Netlify, or any Node.js hosting.
 
 ## 🔑 Default Login Credentials
 
-After running the database scripts, use these default credentials:
+After running the database seeders, use these default credentials:
 
-\`\`\`
+```
 Super Admin:
 Email: admin@rx.dumostech.com
-Password: Admin123#
-
-Pharmacist:
-Email: pharmacist@rx.dumostech.com  
-Password: Pharmacist123#
-
-Sales Staff:
-Email: sales@rx.dumostech.com
-Password: Sales123#
-\`\`\`
+Password: password
+```
 
 ## 🛠️ Technology Stack
 
 ### Frontend (Client)
-- **Next.js 15** - React framework with App Router
+- **Next.js 14** - React framework with App Router
 - **TypeScript** - Type-safe development
 - **Tailwind CSS** - Utility-first styling
-- **Radix UI** - Accessible component primitives
-- **React Hook Form** - Form management
-- **Recharts** - Data visualization
+- **Shadcn/ui** - Reusable component library
+- **Lucide React** - Iconography
+- **Zustand** - State management
+- **TanStack Query** - Server state management
 
 ### Backend (Server)
-- **NestJS** - Progressive Node.js framework
-- **TypeScript** - Type-safe backend development
-- **Supabase** - PostgreSQL database and authentication
-- **JWT** - JSON Web Token authentication
-- **Swagger** - API documentation
+- **Laravel 11** - Modern PHP Framework
+- **MySQL** - Relational Database
+- **Sanctum** - API Token Authentication
+- **Eloquent ORM** - Active Record implementation
+- **Pest/PHPUnit** - Testing
 
-## 🔒 Security Features
+## � Documentation
 
-- **JWT Authentication** with role-based access control
-- **Password Hashing** using bcrypt
-- **Input Validation** with class-validator
-- **SQL Injection Protection** via parameterized queries
-- **CORS Configuration** for secure API access
-- **Rate Limiting** on authentication endpoints
-
-## 📊 Business Intelligence
-
-- **Sales Analytics** - Daily, monthly, yearly revenue tracking
-- **Inventory Reports** - Stock levels, turnover rates, expiry tracking
-- **Customer Insights** - Purchase patterns, loyalty analytics
-- **Medicine Performance** - Top-selling products, profitability analysis
-- **Operational Metrics** - Staff performance, prescription processing times
+- **[API Documentation](docs/API.md)** - (Coming Soon)
+- **[Database Schema](docs/DATABASE.md)** - (Coming Soon)
 
 ## 🤝 Contributing
 
@@ -245,13 +177,6 @@ Password: Sales123#
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🆘 Support
-
-For support and questions:
-- **Email**: support@rx.dumostech.com
-- **Documentation**: Check the `/docs` folder
-- **Issues**: Create a GitHub issue
 
 ---
 

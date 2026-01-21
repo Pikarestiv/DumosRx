@@ -26,6 +26,7 @@ jobs:
       - name: 📦 Install Dependencies
         run: |
           cd client
+          rm package-lock.json
           npm install --legacy-peer-deps
 
       - name: 🏗️ Build Application

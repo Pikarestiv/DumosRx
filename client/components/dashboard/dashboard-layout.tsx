@@ -87,7 +87,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         <div className="p-4 border-t border-sidebar-border">
           <Button
             variant="ghost"
-            className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer"
             onClick={() => useAuthStore.getState().logout()}
           >
             <LogOut className="h-4 w-4 mr-3" />

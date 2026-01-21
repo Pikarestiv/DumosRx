@@ -161,6 +161,31 @@ class ApiClient {
     return this.request<any>("/categories");
   }
 
+  // Dashboard endpoints
+  async getDashboardStats() {
+    // Aggregate stats from multiple endpoints
+    const [medicines, dailySales, expiringItems, lowStockItems] =
+      await Promise.all([
+        this.getMedicines(1, 1).catch(() => ({ total: 0 })),
+        this.getDailySales().catch(() => ({ total: 0, revenue: 0 })),
+        this.getExpiringItems(30).catch(() => ({ data: [] })),
+        this.getLowStockItems().catch(() => ({ data: [] })),
+      ]);
+
+    return {
+      totalMedicines: medicines.total || medicines.data?.length || 0,
+      dailySalesRevenue: dailySales.revenue || dailySales.total || 0,
+      expiringSoon: expiringItems.count || expiringItems.data?.length || 0,
+      lowStockCount: lowStockItems.count || lowStockItems.data?.length || 0,
+    };
+  }
+
+  async getRecentActivity(limit = 5) {
+    return this.request<any>(`/activity?limit=${limit}`).catch(() => ({
+      data: [],
+    }));
+  }
+
   // Suppliers endpoints
   async getSuppliers(page = 1, limit = 50) {
     return this.request<any>(`/suppliers?page=${page}&limit=${limit}`);
@@ -171,6 +196,34 @@ class ApiClient {
       method: "POST",
       body: JSON.stringify(data),
     });
+  }
+
+  // Stock Movements endpoints
+  async getStockMovements(page = 1, limit = 50) {
+    return this.request<any>(
+      `/stock-movements?page=${page}&limit=${limit}`,
+    ).catch(() => ({ data: [] }));
+  }
+
+  // Purchase Orders endpoints
+  async getPurchaseOrders(page = 1, limit = 50) {
+    return this.request<any>(
+      `/purchase-orders?page=${page}&limit=${limit}`,
+    ).catch(() => ({ data: [] }));
+  }
+
+  // Stock Adjustments endpoints
+  async getStockAdjustments(page = 1, limit = 50) {
+    return this.request<any>(
+      `/stock-adjustments?page=${page}&limit=${limit}`,
+    ).catch(() => ({ data: [] }));
+  }
+
+  // Prescriptions endpoints
+  async getPrescriptions(page = 1, limit = 50) {
+    return this.request<any>(
+      `/prescriptions?page=${page}&limit=${limit}`,
+    ).catch(() => ({ data: [] }));
   }
 }
 

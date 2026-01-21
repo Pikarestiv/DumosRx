@@ -46,6 +46,7 @@ import {
 } from "lucide-react";
 import { apiClient } from "@/lib/api/client";
 import { AddCustomerDialog } from "@/components/customers/add-customer-dialog";
+import { toast } from "sonner";
 
 interface Customer {
   id: string;
@@ -176,14 +177,9 @@ export function CustomerManagement() {
       setIsAddCustomerOpen(false);
     } catch (error: any) {
       console.error("Failed to create customer", error);
-      // Attempt to get a useful error message
       const message =
-        error.message || "Failed to create customer. Please checks fields.";
-      alert(message);
-      // Re-throw so the dialog knows to keep the loading state (or stop it if we handled it there)
-      // Actually, since we are handling it here, we should probably throw it so the dialog stays in loading if we wanted,
-      // but the dialog catches effectively.
-      // Let's create a clearer contract. The dialog catches. We should throw.
+        error.message || "Failed to create customer. Please check fields.";
+      toast.error(message);
       throw error;
     }
   };
@@ -212,11 +208,10 @@ export function CustomerManagement() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">2,847</div>
-            <div className="flex items-center text-xs text-green-600">
-              <TrendingUp className="h-3 w-3 mr-1" />
-              +12.5% this month
+            <div className="text-2xl font-bold">
+              {customers.length.toLocaleString()}
             </div>
+            <div className="text-xs text-muted-foreground">In database</div>
           </CardContent>
         </Card>
 
@@ -228,36 +223,43 @@ export function CustomerManagement() {
             <Award className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">1,923</div>
-            <div className="text-xs text-gray-500">
-              67.5% of total customers
+            <div className="text-2xl font-bold">
+              {customers.filter((c) => c.points > 0).length.toLocaleString()}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              With loyalty points
             </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Points Redeemed
-            </CardTitle>
+            <CardTitle className="text-sm font-medium">Total Points</CardTitle>
             <Gift className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">45,230</div>
-            <div className="text-xs text-gray-500">This month</div>
+            <div className="text-2xl font-bold">
+              {customers.reduce((sum, c) => sum + c.points, 0).toLocaleString()}
+            </div>
+            <div className="text-xs text-muted-foreground">Accumulated</div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Avg. Customer Value
-            </CardTitle>
+            <CardTitle className="text-sm font-medium">Avg. Points</CardTitle>
             <Heart className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₦285,400</div>
-            <div className="text-xs text-gray-500">Lifetime value</div>
+            <div className="text-2xl font-bold">
+              {customers.length > 0
+                ? Math.round(
+                    customers.reduce((sum, c) => sum + c.points, 0) /
+                      customers.length,
+                  ).toLocaleString()
+                : 0}
+            </div>
+            <div className="text-xs text-muted-foreground">Per customer</div>
           </CardContent>
         </Card>
       </div>

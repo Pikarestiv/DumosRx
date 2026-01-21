@@ -26,7 +26,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Search, Edit, Eye, AlertTriangle, Loader2 } from "lucide-react";
+import {
+  Plus,
+  Search,
+  Edit,
+  Eye,
+  AlertTriangle,
+  Loader2,
+  Package,
+} from "lucide-react";
 import { AddMedicineDialog } from "./add-medicine-dialog";
 import { MedicineDetailsDialog } from "./medicine-details-dialog";
 import { apiClient } from "@/lib/api/client";
@@ -353,57 +361,75 @@ export function MedicineDatabase() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredMedicines.map((medicine) => (
-                  <TableRow key={medicine.id}>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{medicine.name}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {medicine.genericName}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>{medicine.brand}</TableCell>
-                    <TableCell>{medicine.category}</TableCell>
-                    <TableCell className="font-mono text-sm">
-                      {medicine.nafdacNumber}
-                    </TableCell>
-                    <TableCell>{medicine.strength}</TableCell>
-                    <TableCell>
-                      <div
-                        className={
-                          medicine.stockQuantity <= medicine.reorderLevel
-                            ? "text-destructive font-medium"
-                            : ""
-                        }
-                      >
-                        {medicine.stockQuantity}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        Min: {medicine.reorderLevel}
-                      </div>
-                    </TableCell>
-                    <TableCell>{formatCurrency(medicine.costPrice)}</TableCell>
-                    <TableCell>
-                      {formatCurrency(medicine.sellingPrice)}
-                    </TableCell>
-                    <TableCell>{getStatusBadge(medicine.status)}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleViewDetails(medicine)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm">
-                          <Edit className="h-4 w-4" />
-                        </Button>
+                {filteredMedicines.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={10} className="h-32 text-center">
+                      <div className="flex flex-col items-center justify-center text-muted-foreground">
+                        <Package className="h-8 w-8 mb-2 opacity-50" />
+                        <p className="font-medium">No medicines found</p>
+                        <p className="text-sm">
+                          {medicines.length === 0
+                            ? "Add your first medicine to get started"
+                            : "Try adjusting your search or filters"}
+                        </p>
                       </div>
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : (
+                  filteredMedicines.map((medicine) => (
+                    <TableRow key={medicine.id}>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium">{medicine.name}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {medicine.genericName}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>{medicine.brand}</TableCell>
+                      <TableCell>{medicine.category}</TableCell>
+                      <TableCell className="font-mono text-sm">
+                        {medicine.nafdacNumber}
+                      </TableCell>
+                      <TableCell>{medicine.strength}</TableCell>
+                      <TableCell>
+                        <div
+                          className={
+                            medicine.stockQuantity <= medicine.reorderLevel
+                              ? "text-destructive font-medium"
+                              : ""
+                          }
+                        >
+                          {medicine.stockQuantity}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Min: {medicine.reorderLevel}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {formatCurrency(medicine.costPrice)}
+                      </TableCell>
+                      <TableCell>
+                        {formatCurrency(medicine.sellingPrice)}
+                      </TableCell>
+                      <TableCell>{getStatusBadge(medicine.status)}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleViewDetails(medicine)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="sm">
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </div>

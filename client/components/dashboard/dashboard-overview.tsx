@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Card,
@@ -6,37 +9,186 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Package, ShoppingCart, AlertTriangle, TrendingUp } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Package,
+  ShoppingCart,
+  AlertTriangle,
+  TrendingUp,
+  Clock,
+  Activity,
+} from "lucide-react";
+import { apiClient } from "@/lib/api/client";
+
+interface DashboardStats {
+  totalMedicines: number;
+  dailySalesRevenue: number;
+  expiringSoon: number;
+  lowStockCount: number;
+}
+
+interface ActivityItem {
+  id: string;
+  type: string;
+  message: string;
+  timestamp: string;
+}
 
 export function DashboardOverview() {
-  const stats = [
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [activities, setActivities] = useState<ActivityItem[]>([]);
+
+  useEffect(() => {
+    async function fetchDashboardData() {
+      setLoading(true);
+      try {
+        const [statsData, activityData] = await Promise.all([
+          apiClient.getDashboardStats(),
+          apiClient.getRecentActivity(5),
+        ]);
+
+        setStats(statsData);
+        setActivities(activityData.data || []);
+      } catch (error) {
+        console.error("Failed to fetch dashboard data:", error);
+        // Set fallback empty state
+        setStats({
+          totalMedicines: 0,
+          dailySalesRevenue: 0,
+          expiringSoon: 0,
+          lowStockCount: 0,
+        });
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchDashboardData();
+  }, []);
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat("en-NG", {
+      style: "currency",
+      currency: "NGN",
+      minimumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  const getActivityColor = (type: string) => {
+    switch (type) {
+      case "sale":
+        return "bg-accent";
+      case "restock":
+        return "bg-primary";
+      case "alert":
+        return "bg-destructive";
+      default:
+        return "bg-muted-foreground";
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="font-serif font-bold text-3xl text-foreground">
+            Dashboard Overview
+          </h1>
+          <p className="text-muted-foreground mt-2">
+            Monitor your pharmacy operations and key metrics
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i} className="border-border">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-4" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-8 w-20 mb-2" />
+                <Skeleton className="h-3 w-32" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card className="border-border">
+            <CardHeader>
+              <Skeleton className="h-6 w-32" />
+              <Skeleton className="h-4 w-48" />
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {[...Array(3)].map((_, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-3 p-3 bg-muted rounded-lg"
+                >
+                  <Skeleton className="w-2 h-2 rounded-full" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-40" />
+                    <Skeleton className="h-3 w-32" />
+                  </div>
+                  <Skeleton className="h-3 w-16" />
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          <Card className="border-border">
+            <CardHeader>
+              <Skeleton className="h-6 w-28" />
+              <Skeleton className="h-4 w-40" />
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-3">
+                {[...Array(4)].map((_, i) => (
+                  <Skeleton key={i} className="h-20 w-full" />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  const statsCards = [
     {
       title: "Total Medicines",
-      value: "2,847",
+      value: stats?.totalMedicines.toLocaleString() || "0",
       description: "Active inventory items",
       icon: Package,
-      trend: "+12% from last month",
+      trend: "In database",
     },
     {
       title: "Daily Sales",
-      value: "₦847,230",
+      value: formatCurrency(stats?.dailySalesRevenue || 0),
       description: "Today's revenue",
       icon: ShoppingCart,
-      trend: "+8% from yesterday",
+      trend: "Today",
     },
     {
       title: "Expiring Soon",
-      value: "23",
+      value: stats?.expiringSoon.toString() || "0",
       description: "Items expiring in 30 days",
       icon: AlertTriangle,
-      trend: "Requires attention",
+      trend:
+        stats?.expiringSoon && stats.expiringSoon > 0
+          ? "Requires attention"
+          : "All clear",
     },
     {
-      title: "Monthly Growth",
-      value: "18.2%",
-      description: "Revenue increase",
+      title: "Low Stock",
+      value: stats?.lowStockCount.toString() || "0",
+      description: "Items below reorder level",
       icon: TrendingUp,
-      trend: "Above target",
+      trend:
+        stats?.lowStockCount && stats.lowStockCount > 0
+          ? "Needs restock"
+          : "Healthy",
     },
   ];
 
@@ -52,7 +204,7 @@ export function DashboardOverview() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat) => (
+        {statsCards.map((stat) => (
           <Card key={stat.title} className="border-border">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -84,42 +236,34 @@ export function DashboardOverview() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-                <div className="w-2 h-2 bg-accent rounded-full"></div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium">New prescription filled</p>
-                  <p className="text-xs text-muted-foreground">
-                    Patient: John Doe - ₦15,400
-                  </p>
-                </div>
-                <span className="text-xs text-muted-foreground">2 min ago</span>
+            {activities.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                <Activity className="h-8 w-8 mb-2 opacity-50" />
+                <p className="text-sm">No recent activity</p>
+                <p className="text-xs">
+                  Activities will appear here as they happen
+                </p>
               </div>
-              <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-                <div className="w-2 h-2 bg-primary rounded-full"></div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium">Inventory restocked</p>
-                  <p className="text-xs text-muted-foreground">
-                    Paracetamol 500mg - 200 units
-                  </p>
-                </div>
-                <span className="text-xs text-muted-foreground">
-                  15 min ago
-                </span>
+            ) : (
+              <div className="space-y-4">
+                {activities.map((activity) => (
+                  <div
+                    key={activity.id}
+                    className="flex items-center gap-3 p-3 bg-muted rounded-lg"
+                  >
+                    <div
+                      className={`w-2 h-2 ${getActivityColor(activity.type)} rounded-full`}
+                    ></div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{activity.message}</p>
+                    </div>
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(activity.timestamp).toLocaleTimeString()}
+                    </span>
+                  </div>
+                ))}
               </div>
-              <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-                <div className="w-2 h-2 bg-destructive rounded-full"></div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium">Low stock alert</p>
-                  <p className="text-xs text-muted-foreground">
-                    Amoxicillin 250mg - 5 units left
-                  </p>
-                </div>
-                <span className="text-xs text-muted-foreground">
-                  1 hour ago
-                </span>
-              </div>
-            </div>
+            )}
           </CardContent>
         </Card>
 
@@ -134,28 +278,28 @@ export function DashboardOverview() {
             <div className="grid grid-cols-2 gap-3">
               <Link
                 href="/medicines"
-                className="p-4 bg-accent text-accent-foreground rounded-lg hover:bg-accent/90 transition-colors flex flex-col items-center justify-center text-center"
+                className="p-4 bg-accent text-accent-foreground rounded-lg hover:bg-accent/90 transition-colors flex flex-col items-center justify-center text-center cursor-pointer"
               >
                 <Package className="h-6 w-6 mb-2" />
                 <span className="text-sm font-medium">Add Medicine</span>
               </Link>
               <Link
                 href="/pos"
-                className="p-4 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors flex flex-col items-center justify-center text-center"
+                className="p-4 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors flex flex-col items-center justify-center text-center cursor-pointer"
               >
                 <ShoppingCart className="h-6 w-6 mb-2" />
                 <span className="text-sm font-medium">New Sale</span>
               </Link>
               <Link
                 href="/inventory"
-                className="p-4 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/90 transition-colors flex flex-col items-center justify-center text-center"
+                className="p-4 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/90 transition-colors flex flex-col items-center justify-center text-center cursor-pointer"
               >
                 <AlertTriangle className="h-6 w-6 mb-2" />
                 <span className="text-sm font-medium">Check Expiry</span>
               </Link>
               <Link
                 href="/reports"
-                className="p-4 bg-muted text-muted-foreground rounded-lg hover:bg-muted/80 transition-colors flex flex-col items-center justify-center text-center"
+                className="p-4 bg-muted text-muted-foreground rounded-lg hover:bg-muted/80 transition-colors flex flex-col items-center justify-center text-center cursor-pointer"
               >
                 <TrendingUp className="h-6 w-6 mb-2" />
                 <span className="text-sm font-medium">View Reports</span>

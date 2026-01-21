@@ -327,7 +327,8 @@ export function POSSystem() {
                 </div>
                 <Button
                   variant="outline"
-                  className="flex items-center gap-2 bg-transparent"
+                  className="flex items-center gap-2 bg-transparent cursor-pointer"
+                  onClick={() => toast.info("Barcode scanner coming soon!")}
                 >
                   <Scan className="h-4 w-4" />
                   Scan

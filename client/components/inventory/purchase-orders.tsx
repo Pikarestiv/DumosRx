@@ -1,87 +1,90 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { Plus, Search, Eye, Edit, FileText } from "lucide-react"
+import { useState, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
+import { Plus, Search, Eye, Edit, FileText, PackageX } from "lucide-react";
+import { apiClient } from "@/lib/api/client";
 
 interface PurchaseOrder {
-  id: string
-  orderNumber: string
-  supplier: string
-  orderDate: string
-  expectedDate: string
-  status: "draft" | "sent" | "confirmed" | "received" | "cancelled"
-  totalAmount: number
-  itemCount: number
-  createdBy: string
+  id: string;
+  orderNumber: string;
+  supplier: string;
+  orderDate: string;
+  expectedDate: string;
+  status: "draft" | "sent" | "confirmed" | "received" | "cancelled";
+  totalAmount: number;
+  itemCount: number;
+  createdBy: string;
 }
 
-const purchaseOrdersData: PurchaseOrder[] = [
-  {
-    id: "1",
-    orderNumber: "PO-2024-001",
-    supplier: "Emzor Pharmaceuticals",
-    orderDate: "2024-01-15",
-    expectedDate: "2024-01-22",
-    status: "received",
-    totalAmount: 450000,
-    itemCount: 5,
-    createdBy: "John Pharmacist",
-  },
-  {
-    id: "2",
-    orderNumber: "PO-2024-002",
-    supplier: "GSK Nigeria",
-    orderDate: "2024-01-18",
-    expectedDate: "2024-01-25",
-    status: "confirmed",
-    totalAmount: 320000,
-    itemCount: 3,
-    createdBy: "Mary Manager",
-  },
-  {
-    id: "3",
-    orderNumber: "PO-2024-003",
-    supplier: "May & Baker Nigeria",
-    orderDate: "2024-01-20",
-    expectedDate: "2024-01-27",
-    status: "sent",
-    totalAmount: 180000,
-    itemCount: 4,
-    createdBy: "John Pharmacist",
-  },
-  {
-    id: "4",
-    orderNumber: "PO-2024-004",
-    supplier: "Chi Pharmaceuticals",
-    orderDate: "2024-01-21",
-    expectedDate: "2024-01-28",
-    status: "draft",
-    totalAmount: 95000,
-    itemCount: 2,
-    createdBy: "Mary Manager",
-  },
-]
-
 export function PurchaseOrders() {
-  const [orders, setOrders] = useState<PurchaseOrder[]>(purchaseOrdersData)
-  const [searchTerm, setSearchTerm] = useState("")
-  const [statusFilter, setStatusFilter] = useState("all")
+  const [orders, setOrders] = useState<PurchaseOrder[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+
+  useEffect(() => {
+    async function fetchOrders() {
+      setLoading(true);
+      try {
+        const res = await apiClient.getPurchaseOrders(1, 100);
+        const items = (res.data || []).map((o: any) => ({
+          id: o.id,
+          orderNumber: o.order_number || o.orderNumber || `PO-${o.id}`,
+          supplier: o.supplier?.name || o.supplier_name || "Unknown",
+          orderDate: o.order_date || o.created_at,
+          expectedDate: o.expected_date || o.order_date,
+          status: o.status || "draft",
+          totalAmount: Number(o.total_amount) || 0,
+          itemCount: o.items?.length || o.item_count || 0,
+          createdBy: o.created_by?.name || o.user_name || "System",
+        }));
+        setOrders(items);
+      } catch (error) {
+        console.error("Failed to fetch purchase orders:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchOrders();
+  }, []);
 
   const filteredOrders = orders.filter((order) => {
     const matchesSearch =
       order.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.supplier.toLowerCase().includes(searchTerm.toLowerCase())
+      order.supplier.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesStatus = statusFilter === "all" || order.status === statusFilter
+    const matchesStatus =
+      statusFilter === "all" || order.status === statusFilter;
 
-    return matchesSearch && matchesStatus
-  })
+    return matchesSearch && matchesStatus;
+  });
 
   const getStatusBadge = (status: PurchaseOrder["status"]) => {
     const variants = {
@@ -90,7 +93,7 @@ export function PurchaseOrders() {
       confirmed: "default",
       received: "default",
       cancelled: "destructive",
-    } as const
+    } as const;
 
     const labels = {
       draft: "Draft",
@@ -98,34 +101,102 @@ export function PurchaseOrders() {
       confirmed: "Confirmed",
       received: "Received",
       cancelled: "Cancelled",
-    }
+    };
 
     return (
       <Badge variant={variants[status]} className="text-xs">
         {labels[status]}
       </Badge>
-    )
-  }
+    );
+  };
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-NG", {
       style: "currency",
       currency: "NGN",
       minimumFractionDigits: 0,
-    }).format(amount)
-  }
+    }).format(amount);
+  };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-NG", {
       year: "numeric",
       month: "short",
       day: "numeric",
-    })
-  }
+    });
+  };
 
-  const totalOrderValue = orders.reduce((sum, order) => sum + order.totalAmount, 0)
-  const pendingOrders = orders.filter((order) => ["sent", "confirmed"].includes(order.status)).length
-  const draftOrders = orders.filter((order) => order.status === "draft").length
+  const handleNewPurchaseOrder = () => {
+    toast.info("New Purchase Order dialog coming soon!");
+  };
+
+  const totalOrderValue = orders.reduce(
+    (sum, order) => sum + order.totalAmount,
+    0,
+  );
+  const pendingOrders = orders.filter((order) =>
+    ["sent", "confirmed"].includes(order.status),
+  ).length;
+  const draftOrders = orders.filter((order) => order.status === "draft").length;
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-8 w-16" />
+                  </div>
+                  <Skeleton className="h-8 w-8" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="space-y-2">
+                <Skeleton className="h-6 w-40" />
+                <Skeleton className="h-4 w-56" />
+              </div>
+              <Skeleton className="h-10 w-40" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col md:flex-row gap-4">
+              <Skeleton className="h-10 flex-1" />
+              <Skeleton className="h-10 w-48" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-32" />
+            <Skeleton className="h-4 w-48" />
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="flex gap-4 items-center">
+                  <Skeleton className="h-4 w-28" />
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-6 w-20" />
+                  <Skeleton className="h-4 w-20" />
+                  <Skeleton className="h-8 w-16" />
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -148,7 +219,9 @@ export function PurchaseOrders() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Pending Orders</p>
-                <p className="text-2xl font-bold text-orange-600">{pendingOrders}</p>
+                <p className="text-2xl font-bold text-orange-600">
+                  {pendingOrders}
+                </p>
               </div>
               <FileText className="h-8 w-8 text-orange-600" />
             </div>
@@ -160,7 +233,9 @@ export function PurchaseOrders() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Draft Orders</p>
-                <p className="text-2xl font-bold text-muted-foreground">{draftOrders}</p>
+                <p className="text-2xl font-bold text-muted-foreground">
+                  {draftOrders}
+                </p>
               </div>
               <FileText className="h-8 w-8 text-muted-foreground" />
             </div>
@@ -172,7 +247,9 @@ export function PurchaseOrders() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Total Value</p>
-                <p className="text-2xl font-bold">{formatCurrency(totalOrderValue)}</p>
+                <p className="text-2xl font-bold">
+                  {formatCurrency(totalOrderValue)}
+                </p>
               </div>
               <FileText className="h-8 w-8 text-accent" />
             </div>
@@ -185,10 +262,17 @@ export function PurchaseOrders() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="font-serif font-semibold">Purchase Orders</CardTitle>
-              <CardDescription>Manage supplier orders and deliveries</CardDescription>
+              <CardTitle className="font-serif font-semibold">
+                Purchase Orders
+              </CardTitle>
+              <CardDescription>
+                Manage supplier orders and deliveries
+              </CardDescription>
             </div>
-            <Button className="bg-accent hover:bg-accent/90">
+            <Button
+              className="bg-accent hover:bg-accent/90 cursor-pointer"
+              onClick={handleNewPurchaseOrder}
+            >
               <Plus className="h-4 w-4 mr-2" />
               New Purchase Order
             </Button>
@@ -227,7 +311,9 @@ export function PurchaseOrders() {
       {/* Orders Table */}
       <Card>
         <CardHeader>
-          <CardTitle className="font-serif font-semibold">Order History</CardTitle>
+          <CardTitle className="font-serif font-semibold">
+            Order History
+          </CardTitle>
           <CardDescription>
             Showing {filteredOrders.length} of {orders.length} purchase orders
           </CardDescription>
@@ -249,41 +335,69 @@ export function PurchaseOrders() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredOrders.map((order) => (
-                  <TableRow key={order.id}>
-                    <TableCell>
-                      <code className="text-sm bg-muted px-2 py-1 rounded">{order.orderNumber}</code>
-                    </TableCell>
-                    <TableCell>
-                      <div className="font-medium">{order.supplier}</div>
-                    </TableCell>
-                    <TableCell>{formatDate(order.orderDate)}</TableCell>
-                    <TableCell>{formatDate(order.expectedDate)}</TableCell>
-                    <TableCell>{getStatusBadge(order.status)}</TableCell>
-                    <TableCell>
-                      <div className="text-center">{order.itemCount}</div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="font-medium">{formatCurrency(order.totalAmount)}</div>
-                    </TableCell>
-                    <TableCell>{order.createdBy}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="sm">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm">
-                          <Edit className="h-4 w-4" />
-                        </Button>
+                {filteredOrders.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={9} className="h-32 text-center">
+                      <div className="flex flex-col items-center justify-center text-muted-foreground">
+                        <PackageX className="h-8 w-8 mb-2 opacity-50" />
+                        <p className="font-medium">No purchase orders found</p>
+                        <p className="text-sm">
+                          {orders.length === 0
+                            ? "Create your first purchase order to get started"
+                            : "Try adjusting your search or filters"}
+                        </p>
                       </div>
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : (
+                  filteredOrders.map((order) => (
+                    <TableRow key={order.id}>
+                      <TableCell>
+                        <code className="text-sm bg-muted px-2 py-1 rounded">
+                          {order.orderNumber}
+                        </code>
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-medium">{order.supplier}</div>
+                      </TableCell>
+                      <TableCell>{formatDate(order.orderDate)}</TableCell>
+                      <TableCell>{formatDate(order.expectedDate)}</TableCell>
+                      <TableCell>{getStatusBadge(order.status)}</TableCell>
+                      <TableCell>
+                        <div className="text-center">{order.itemCount}</div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-medium">
+                          {formatCurrency(order.totalAmount)}
+                        </div>
+                      </TableCell>
+                      <TableCell>{order.createdBy}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="cursor-pointer"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="cursor-pointer"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </div>
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

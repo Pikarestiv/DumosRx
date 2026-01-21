@@ -1,77 +1,63 @@
-"use client"
+"use client";
 
-import type React from "react"
-
-import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { Plus, Search, RotateCcw, AlertTriangle } from "lucide-react"
+import type React from "react";
+import { useState, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
+import { Plus, Search, RotateCcw, AlertTriangle, PackageX } from "lucide-react";
+import { apiClient } from "@/lib/api/client";
 
 interface StockAdjustment {
-  id: string
-  date: string
-  medicine: string
-  adjustmentType: "increase" | "decrease"
-  quantity: number
-  reason: string
-  notes: string
-  user: string
-  approved: boolean
+  id: string;
+  date: string;
+  medicine: string;
+  adjustmentType: "increase" | "decrease";
+  quantity: number;
+  reason: string;
+  notes: string;
+  user: string;
+  approved: boolean;
 }
 
-const adjustmentsData: StockAdjustment[] = [
-  {
-    id: "1",
-    date: "2024-01-20T14:30:00",
-    medicine: "Paracetamol 500mg",
-    adjustmentType: "decrease",
-    quantity: -5,
-    reason: "Damaged Goods",
-    notes: "Water damage during storage",
-    user: "John Pharmacist",
-    approved: true,
-  },
-  {
-    id: "2",
-    date: "2024-01-19T10:15:00",
-    medicine: "Vitamin C 1000mg",
-    adjustmentType: "increase",
-    quantity: 10,
-    reason: "Found Stock",
-    notes: "Found additional stock during audit",
-    user: "Mary Manager",
-    approved: true,
-  },
-  {
-    id: "3",
-    date: "2024-01-18T16:45:00",
-    medicine: "Amoxicillin 250mg",
-    adjustmentType: "decrease",
-    quantity: -3,
-    reason: "Expired",
-    notes: "Expired medicines removed from shelf",
-    user: "Peter Sales",
-    approved: false,
-  },
-]
-
 export function StockAdjustments() {
-  const [adjustments, setAdjustments] = useState<StockAdjustment[]>(adjustmentsData)
-  const [showAddForm, setShowAddForm] = useState(false)
-  const [searchTerm, setSearchTerm] = useState("")
+  const [adjustments, setAdjustments] = useState<StockAdjustment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
   const [newAdjustment, setNewAdjustment] = useState({
     medicine: "",
     adjustmentType: "decrease" as "increase" | "decrease",
     quantity: 0,
     reason: "",
     notes: "",
-  })
+  });
 
   const reasons = [
     "Damaged Goods",
@@ -82,20 +68,50 @@ export function StockAdjustments() {
     "Quality Issues",
     "Transfer",
     "Other",
-  ]
+  ];
+
+  useEffect(() => {
+    async function fetchAdjustments() {
+      setLoading(true);
+      try {
+        const res = await apiClient.getStockAdjustments(1, 100);
+        const items = (res.data || []).map((a: any) => ({
+          id: a.id,
+          date: a.created_at || a.date,
+          medicine: a.medicine?.name || a.medicine_name || "Unknown",
+          adjustmentType: a.adjustment_type || a.type || "decrease",
+          quantity: a.quantity || 0,
+          reason: a.reason || "",
+          notes: a.notes || "",
+          user: a.user?.name || a.user_name || "System",
+          approved: a.approved ?? false,
+        }));
+        setAdjustments(items);
+      } catch (error) {
+        console.error("Failed to fetch stock adjustments:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchAdjustments();
+  }, []);
 
   const filteredAdjustments = adjustments.filter(
     (adjustment) =>
       adjustment.medicine.toLowerCase().includes(searchTerm.toLowerCase()) ||
       adjustment.reason.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
+  );
 
   const handleSubmitAdjustment = (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
-    if (!newAdjustment.medicine || !newAdjustment.reason || newAdjustment.quantity === 0) {
-      alert("Please fill in all required fields")
-      return
+    if (
+      !newAdjustment.medicine ||
+      !newAdjustment.reason ||
+      newAdjustment.quantity === 0
+    ) {
+      toast.error("Please fill in all required fields");
+      return;
     }
 
     const adjustment: StockAdjustment = {
@@ -109,20 +125,21 @@ export function StockAdjustments() {
           : Math.abs(newAdjustment.quantity),
       reason: newAdjustment.reason,
       notes: newAdjustment.notes,
-      user: "Current User", // This would come from auth context
+      user: "Current User",
       approved: false,
-    }
+    };
 
-    setAdjustments([adjustment, ...adjustments])
+    setAdjustments([adjustment, ...adjustments]);
     setNewAdjustment({
       medicine: "",
       adjustmentType: "decrease",
       quantity: 0,
       reason: "",
       notes: "",
-    })
-    setShowAddForm(false)
-  }
+    });
+    setShowAddForm(false);
+    toast.success("Stock adjustment submitted for approval");
+  };
 
   const formatDateTime = (dateString: string) => {
     return new Date(dateString).toLocaleString("en-NG", {
@@ -131,19 +148,79 @@ export function StockAdjustments() {
       day: "numeric",
       hour: "2-digit",
       minute: "2-digit",
-    })
-  }
+    });
+  };
 
-  const getAdjustmentBadge = (adjustmentType: StockAdjustment["adjustmentType"]) => {
+  const getAdjustmentBadge = (
+    adjustmentType: StockAdjustment["adjustmentType"],
+  ) => {
     return (
-      <Badge variant={adjustmentType === "increase" ? "default" : "destructive"} className="text-xs">
+      <Badge
+        variant={adjustmentType === "increase" ? "default" : "destructive"}
+        className="text-xs"
+      >
         {adjustmentType === "increase" ? "Increase" : "Decrease"}
       </Badge>
-    )
-  }
+    );
+  };
 
-  const pendingAdjustments = adjustments.filter((adj) => !adj.approved).length
-  const totalAdjustments = adjustments.length
+  const pendingAdjustments = adjustments.filter((adj) => !adj.approved).length;
+  const totalAdjustments = adjustments.length;
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {[...Array(3)].map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-28" />
+                    <Skeleton className="h-8 w-12" />
+                  </div>
+                  <Skeleton className="h-8 w-8" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="space-y-2">
+                <Skeleton className="h-6 w-40" />
+                <Skeleton className="h-4 w-56" />
+              </div>
+              <Skeleton className="h-10 w-36" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-10 w-full" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-40" />
+            <Skeleton className="h-4 w-48" />
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="flex gap-4 items-center">
+                  <Skeleton className="h-4 w-28" />
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-6 w-20" />
+                  <Skeleton className="h-4 w-16" />
+                  <Skeleton className="h-4 w-24" />
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -153,7 +230,9 @@ export function StockAdjustments() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Total Adjustments</p>
+                <p className="text-sm text-muted-foreground">
+                  Total Adjustments
+                </p>
                 <p className="text-2xl font-bold">{totalAdjustments}</p>
               </div>
               <RotateCcw className="h-8 w-8 text-primary" />
@@ -165,8 +244,12 @@ export function StockAdjustments() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Pending Approval</p>
-                <p className="text-2xl font-bold text-orange-600">{pendingAdjustments}</p>
+                <p className="text-sm text-muted-foreground">
+                  Pending Approval
+                </p>
+                <p className="text-2xl font-bold text-orange-600">
+                  {pendingAdjustments}
+                </p>
               </div>
               <AlertTriangle className="h-8 w-8 text-orange-600" />
             </div>
@@ -179,7 +262,12 @@ export function StockAdjustments() {
               <div>
                 <p className="text-sm text-muted-foreground">This Month</p>
                 <p className="text-2xl font-bold">
-                  {adjustments.filter((adj) => new Date(adj.date).getMonth() === new Date().getMonth()).length}
+                  {
+                    adjustments.filter(
+                      (adj) =>
+                        new Date(adj.date).getMonth() === new Date().getMonth(),
+                    ).length
+                  }
                 </p>
               </div>
               <RotateCcw className="h-8 w-8 text-accent" />
@@ -192,8 +280,12 @@ export function StockAdjustments() {
       {showAddForm && (
         <Card>
           <CardHeader>
-            <CardTitle className="font-serif font-semibold">New Stock Adjustment</CardTitle>
-            <CardDescription>Record inventory adjustments for audit purposes</CardDescription>
+            <CardTitle className="font-serif font-semibold">
+              New Stock Adjustment
+            </CardTitle>
+            <CardDescription>
+              Record inventory adjustments for audit purposes
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmitAdjustment} className="space-y-4">
@@ -203,7 +295,12 @@ export function StockAdjustments() {
                   <Input
                     id="medicine"
                     value={newAdjustment.medicine}
-                    onChange={(e) => setNewAdjustment((prev) => ({ ...prev, medicine: e.target.value }))}
+                    onChange={(e) =>
+                      setNewAdjustment((prev) => ({
+                        ...prev,
+                        medicine: e.target.value,
+                      }))
+                    }
                     placeholder="Enter medicine name"
                     required
                   />
@@ -214,7 +311,10 @@ export function StockAdjustments() {
                   <Select
                     value={newAdjustment.adjustmentType}
                     onValueChange={(value: "increase" | "decrease") =>
-                      setNewAdjustment((prev) => ({ ...prev, adjustmentType: value }))
+                      setNewAdjustment((prev) => ({
+                        ...prev,
+                        adjustmentType: value,
+                      }))
                     }
                   >
                     <SelectTrigger>
@@ -234,7 +334,10 @@ export function StockAdjustments() {
                     type="number"
                     value={newAdjustment.quantity}
                     onChange={(e) =>
-                      setNewAdjustment((prev) => ({ ...prev, quantity: Number.parseInt(e.target.value) || 0 }))
+                      setNewAdjustment((prev) => ({
+                        ...prev,
+                        quantity: Number.parseInt(e.target.value) || 0,
+                      }))
                     }
                     placeholder="0"
                     min="1"
@@ -246,7 +349,9 @@ export function StockAdjustments() {
                   <Label htmlFor="reason">Reason *</Label>
                   <Select
                     value={newAdjustment.reason}
-                    onValueChange={(value) => setNewAdjustment((prev) => ({ ...prev, reason: value }))}
+                    onValueChange={(value) =>
+                      setNewAdjustment((prev) => ({ ...prev, reason: value }))
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select reason" />
@@ -267,17 +372,30 @@ export function StockAdjustments() {
                 <Textarea
                   id="notes"
                   value={newAdjustment.notes}
-                  onChange={(e) => setNewAdjustment((prev) => ({ ...prev, notes: e.target.value }))}
+                  onChange={(e) =>
+                    setNewAdjustment((prev) => ({
+                      ...prev,
+                      notes: e.target.value,
+                    }))
+                  }
                   placeholder="Additional notes or explanation..."
                   rows={3}
                 />
               </div>
 
               <div className="flex gap-2">
-                <Button type="submit" className="bg-accent hover:bg-accent/90">
+                <Button
+                  type="submit"
+                  className="bg-accent hover:bg-accent/90 cursor-pointer"
+                >
                   Submit Adjustment
                 </Button>
-                <Button type="button" variant="outline" onClick={() => setShowAddForm(false)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowAddForm(false)}
+                  className="cursor-pointer"
+                >
                   Cancel
                 </Button>
               </div>
@@ -291,10 +409,17 @@ export function StockAdjustments() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="font-serif font-semibold">Stock Adjustments</CardTitle>
-              <CardDescription>Track and manage inventory adjustments</CardDescription>
+              <CardTitle className="font-serif font-semibold">
+                Stock Adjustments
+              </CardTitle>
+              <CardDescription>
+                Track and manage inventory adjustments
+              </CardDescription>
             </div>
-            <Button onClick={() => setShowAddForm(true)} className="bg-accent hover:bg-accent/90">
+            <Button
+              onClick={() => setShowAddForm(true)}
+              className="bg-accent hover:bg-accent/90 cursor-pointer"
+            >
               <Plus className="h-4 w-4 mr-2" />
               New Adjustment
             </Button>
@@ -320,9 +445,12 @@ export function StockAdjustments() {
       {/* Adjustments Table */}
       <Card>
         <CardHeader>
-          <CardTitle className="font-serif font-semibold">Adjustment History</CardTitle>
+          <CardTitle className="font-serif font-semibold">
+            Adjustment History
+          </CardTitle>
           <CardDescription>
-            Showing {filteredAdjustments.length} of {adjustments.length} adjustments
+            Showing {filteredAdjustments.length} of {adjustments.length}{" "}
+            adjustments
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -341,38 +469,65 @@ export function StockAdjustments() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredAdjustments.map((adjustment) => (
-                  <TableRow key={adjustment.id}>
-                    <TableCell>
-                      <div className="text-sm">{formatDateTime(adjustment.date)}</div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="font-medium">{adjustment.medicine}</div>
-                    </TableCell>
-                    <TableCell>{getAdjustmentBadge(adjustment.adjustmentType)}</TableCell>
-                    <TableCell>
-                      <div className={`font-medium ${adjustment.quantity > 0 ? "text-green-600" : "text-red-600"}`}>
-                        {adjustment.quantity > 0 ? "+" : ""}
-                        {adjustment.quantity}
+                {filteredAdjustments.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="h-32 text-center">
+                      <div className="flex flex-col items-center justify-center text-muted-foreground">
+                        <PackageX className="h-8 w-8 mb-2 opacity-50" />
+                        <p className="font-medium">No adjustments found</p>
+                        <p className="text-sm">
+                          {adjustments.length === 0
+                            ? "Stock adjustments will appear here after they're created"
+                            : "Try adjusting your search"}
+                        </p>
                       </div>
                     </TableCell>
-                    <TableCell>{adjustment.reason}</TableCell>
-                    <TableCell>
-                      <div className="max-w-xs truncate text-sm text-muted-foreground">{adjustment.notes || "—"}</div>
-                    </TableCell>
-                    <TableCell>{adjustment.user}</TableCell>
-                    <TableCell>
-                      <Badge variant={adjustment.approved ? "default" : "outline"} className="text-xs">
-                        {adjustment.approved ? "Approved" : "Pending"}
-                      </Badge>
-                    </TableCell>
                   </TableRow>
-                ))}
+                ) : (
+                  filteredAdjustments.map((adjustment) => (
+                    <TableRow key={adjustment.id}>
+                      <TableCell>
+                        <div className="text-sm">
+                          {formatDateTime(adjustment.date)}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-medium">{adjustment.medicine}</div>
+                      </TableCell>
+                      <TableCell>
+                        {getAdjustmentBadge(adjustment.adjustmentType)}
+                      </TableCell>
+                      <TableCell>
+                        <div
+                          className={`font-medium ${adjustment.quantity > 0 ? "text-green-600" : "text-red-600"}`}
+                        >
+                          {adjustment.quantity > 0 ? "+" : ""}
+                          {adjustment.quantity}
+                        </div>
+                      </TableCell>
+                      <TableCell>{adjustment.reason}</TableCell>
+                      <TableCell>
+                        <div className="max-w-xs truncate text-sm text-muted-foreground">
+                          {adjustment.notes || "—"}
+                        </div>
+                      </TableCell>
+                      <TableCell>{adjustment.user}</TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={adjustment.approved ? "default" : "outline"}
+                          className="text-xs"
+                        >
+                          {adjustment.approved ? "Approved" : "Pending"}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </div>
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

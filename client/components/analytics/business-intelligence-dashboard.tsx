@@ -1,12 +1,28 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
+import { useState } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
 import {
   BarChart,
   Bar,
@@ -19,8 +35,17 @@ import {
   ResponsiveContainer,
   Area,
   AreaChart,
-} from "recharts"
-import { TrendingUp, TrendingDown, DollarSign, Package, Users, FileText, AlertTriangle, Calendar } from "lucide-react"
+} from "recharts";
+import {
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  Package,
+  Users,
+  FileText,
+  AlertTriangle,
+  Calendar,
+} from "lucide-react";
 
 // Sample data for analytics
 const salesData = [
@@ -30,15 +55,35 @@ const salesData = [
   { month: "Apr", revenue: 3200000, transactions: 1680, profit: 640000 },
   { month: "May", revenue: 2900000, transactions: 1520, profit: 580000 },
   { month: "Jun", revenue: 3500000, transactions: 1820, profit: 700000 },
-]
+];
 
 const topMedicines = [
-  { name: "Paracetamol 500mg", sales: 1250000, units: 2500, category: "Analgesics" },
-  { name: "Amoxicillin 250mg", sales: 980000, units: 1960, category: "Antibiotics" },
-  { name: "Vitamin C 1000mg", sales: 750000, units: 1500, category: "Vitamins" },
-  { name: "Ibuprofen 400mg", sales: 680000, units: 1360, category: "Anti-inflammatory" },
+  {
+    name: "Paracetamol 500mg",
+    sales: 1250000,
+    units: 2500,
+    category: "Analgesics",
+  },
+  {
+    name: "Amoxicillin 250mg",
+    sales: 980000,
+    units: 1960,
+    category: "Antibiotics",
+  },
+  {
+    name: "Vitamin C 1000mg",
+    sales: 750000,
+    units: 1500,
+    category: "Vitamins",
+  },
+  {
+    name: "Ibuprofen 400mg",
+    sales: 680000,
+    units: 1360,
+    category: "Anti-inflammatory",
+  },
   { name: "Omeprazole 20mg", sales: 620000, units: 1240, category: "Gastric" },
-]
+];
 
 const categoryData = [
   { name: "Antibiotics", value: 35, color: "#0ea5e9" },
@@ -46,24 +91,56 @@ const categoryData = [
   { name: "Vitamins", value: 20, color: "#f59e0b" },
   { name: "Anti-inflammatory", value: 12, color: "#ef4444" },
   { name: "Others", value: 8, color: "#8b5cf6" },
-]
+];
 
 const inventoryAlerts = [
-  { medicine: "Paracetamol 500mg", issue: "Low Stock", quantity: 45, threshold: 100, severity: "high" },
-  { medicine: "Insulin Glargine", issue: "Expiring Soon", expiryDate: "2024-02-15", severity: "critical" },
-  { medicine: "Amoxicillin 250mg", issue: "Low Stock", quantity: 78, threshold: 150, severity: "medium" },
-  { medicine: "Vitamin D3", issue: "Expiring Soon", expiryDate: "2024-02-28", severity: "high" },
-]
+  {
+    medicine: "Paracetamol 500mg",
+    issue: "Low Stock",
+    quantity: 45,
+    threshold: 100,
+    severity: "high",
+  },
+  {
+    medicine: "Insulin Glargine",
+    issue: "Expiring Soon",
+    expiryDate: "2024-02-15",
+    severity: "critical",
+  },
+  {
+    medicine: "Amoxicillin 250mg",
+    issue: "Low Stock",
+    quantity: 78,
+    threshold: 150,
+    severity: "medium",
+  },
+  {
+    medicine: "Vitamin D3",
+    issue: "Expiring Soon",
+    expiryDate: "2024-02-28",
+    severity: "high",
+  },
+];
 
 const customerMetrics = [
   { metric: "Total Customers", value: "2,847", change: "+12.5%", trend: "up" },
   { metric: "Loyalty Members", value: "1,923", change: "+8.3%", trend: "up" },
-  { metric: "Avg. Transaction", value: "₦15,420", change: "+5.2%", trend: "up" },
-  { metric: "Customer Retention", value: "78.5%", change: "-2.1%", trend: "down" },
-]
+  {
+    metric: "Avg. Transaction",
+    value: "₦15,420",
+    change: "+5.2%",
+    trend: "up",
+  },
+  {
+    metric: "Customer Retention",
+    value: "78.5%",
+    change: "-2.1%",
+    trend: "down",
+  },
+];
 
 export function BusinessIntelligenceDashboard() {
-  const [timeRange, setTimeRange] = useState("6months")
+  const [timeRange, setTimeRange] = useState("6months");
 
   return (
     <div className="space-y-6">
@@ -81,6 +158,9 @@ export function BusinessIntelligenceDashboard() {
               <SelectItem value="1year">Last Year</SelectItem>
             </SelectContent>
           </Select>
+          <Badge variant="secondary" className="text-xs">
+            Demo Data
+          </Badge>
           <Button variant="outline" size="sm">
             <Calendar className="h-4 w-4 mr-2" />
             Custom Range
@@ -88,6 +168,18 @@ export function BusinessIntelligenceDashboard() {
         </div>
         <Button>Export Report</Button>
       </div>
+
+      {/* Demo Data Notice */}
+      <Card className="border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30">
+        <CardContent className="p-4 flex items-center gap-3">
+          <AlertTriangle className="h-5 w-5 text-amber-600" />
+          <p className="text-sm text-amber-800 dark:text-amber-200">
+            This dashboard displays sample data for demonstration purposes.
+            Actual data will be loaded once your pharmacy has sufficient
+            transaction history.
+          </p>
+        </CardContent>
+      </Card>
 
       {/* Key Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -107,7 +199,9 @@ export function BusinessIntelligenceDashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Transactions</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Total Transactions
+            </CardTitle>
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -121,7 +215,9 @@ export function BusinessIntelligenceDashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Inventory Value</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Inventory Value
+            </CardTitle>
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -135,7 +231,9 @@ export function BusinessIntelligenceDashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Customers</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Active Customers
+            </CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -164,7 +262,9 @@ export function BusinessIntelligenceDashboard() {
             <Card>
               <CardHeader>
                 <CardTitle>Revenue Trend</CardTitle>
-                <CardDescription>Monthly revenue and profit analysis</CardDescription>
+                <CardDescription>
+                  Monthly revenue and profit analysis
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <ChartContainer
@@ -178,7 +278,11 @@ export function BusinessIntelligenceDashboard() {
                     <AreaChart data={salesData}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="month" />
-                      <YAxis tickFormatter={(value) => `₦${(value / 1000000).toFixed(1)}M`} />
+                      <YAxis
+                        tickFormatter={(value) =>
+                          `₦${(value / 1000000).toFixed(1)}M`
+                        }
+                      />
                       <ChartTooltip content={<ChartTooltipContent />} />
                       <Area
                         type="monotone"
@@ -206,24 +310,35 @@ export function BusinessIntelligenceDashboard() {
             <Card>
               <CardHeader>
                 <CardTitle>Top Selling Medicines</CardTitle>
-                <CardDescription>Best performing products by revenue</CardDescription>
+                <CardDescription>
+                  Best performing products by revenue
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   {topMedicines.map((medicine, index) => (
-                    <div key={medicine.name} className="flex items-center justify-between">
+                    <div
+                      key={medicine.name}
+                      className="flex items-center justify-between"
+                    >
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-sm font-medium text-blue-600">
                           {index + 1}
                         </div>
                         <div>
                           <p className="font-medium">{medicine.name}</p>
-                          <p className="text-sm text-gray-500">{medicine.category}</p>
+                          <p className="text-sm text-gray-500">
+                            {medicine.category}
+                          </p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="font-medium">₦{medicine.sales.toLocaleString()}</p>
-                        <p className="text-sm text-gray-500">{medicine.units} units</p>
+                        <p className="font-medium">
+                          ₦{medicine.sales.toLocaleString()}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          {medicine.units} units
+                        </p>
                       </div>
                     </div>
                   ))}
@@ -236,7 +351,9 @@ export function BusinessIntelligenceDashboard() {
           <Card>
             <CardHeader>
               <CardTitle>Sales by Category</CardTitle>
-              <CardDescription>Revenue distribution across medicine categories</CardDescription>
+              <CardDescription>
+                Revenue distribution across medicine categories
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-center">
@@ -275,12 +392,17 @@ export function BusinessIntelligenceDashboard() {
             <Card>
               <CardHeader>
                 <CardTitle>Inventory Alerts</CardTitle>
-                <CardDescription>Critical stock and expiry notifications</CardDescription>
+                <CardDescription>
+                  Critical stock and expiry notifications
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   {inventoryAlerts.map((alert, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-3 border rounded-lg"
+                    >
                       <div className="flex items-center gap-3">
                         <AlertTriangle
                           className={`h-5 w-5 ${
@@ -317,7 +439,9 @@ export function BusinessIntelligenceDashboard() {
             <Card>
               <CardHeader>
                 <CardTitle>Stock Movement Trends</CardTitle>
-                <CardDescription>Inventory in/out flow analysis</CardDescription>
+                <CardDescription>
+                  Inventory in/out flow analysis
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <ChartContainer
@@ -333,7 +457,11 @@ export function BusinessIntelligenceDashboard() {
                       <XAxis dataKey="month" />
                       <YAxis />
                       <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar dataKey="transactions" fill="#10b981" name="Stock In" />
+                      <Bar
+                        dataKey="transactions"
+                        fill="#10b981"
+                        name="Stock In"
+                      />
                       <Bar dataKey="profit" fill="#ef4444" name="Stock Out" />
                     </BarChart>
                   </ResponsiveContainer>
@@ -349,7 +477,9 @@ export function BusinessIntelligenceDashboard() {
             {customerMetrics.map((metric) => (
               <Card key={metric.metric}>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">{metric.metric}</CardTitle>
+                  <CardTitle className="text-sm font-medium">
+                    {metric.metric}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{metric.value}</div>
@@ -373,7 +503,9 @@ export function BusinessIntelligenceDashboard() {
           <Card>
             <CardHeader>
               <CardTitle>Prescription Analytics</CardTitle>
-              <CardDescription>Prescription processing and fulfillment metrics</CardDescription>
+              <CardDescription>
+                Prescription processing and fulfillment metrics
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -386,7 +518,9 @@ export function BusinessIntelligenceDashboard() {
                   <p className="text-sm text-gray-500">Fulfillment Rate</p>
                 </div>
                 <div className="text-center">
-                  <div className="text-3xl font-bold text-orange-600">2.3 hrs</div>
+                  <div className="text-3xl font-bold text-orange-600">
+                    2.3 hrs
+                  </div>
                   <p className="text-sm text-gray-500">Avg. Processing Time</p>
                 </div>
               </div>
@@ -398,21 +532,35 @@ export function BusinessIntelligenceDashboard() {
           <Card>
             <CardHeader>
               <CardTitle>System Alerts & Reports</CardTitle>
-              <CardDescription>Critical notifications and compliance reports</CardDescription>
+              <CardDescription>
+                Critical notifications and compliance reports
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 <div className="p-4 border-l-4 border-red-500 bg-red-50">
-                  <h4 className="font-medium text-red-800">Critical Stock Alert</h4>
-                  <p className="text-sm text-red-600">12 medicines below minimum stock levels</p>
+                  <h4 className="font-medium text-red-800">
+                    Critical Stock Alert
+                  </h4>
+                  <p className="text-sm text-red-600">
+                    12 medicines below minimum stock levels
+                  </p>
                 </div>
                 <div className="p-4 border-l-4 border-orange-500 bg-orange-50">
-                  <h4 className="font-medium text-orange-800">Expiry Warning</h4>
-                  <p className="text-sm text-orange-600">8 medicines expiring within 30 days</p>
+                  <h4 className="font-medium text-orange-800">
+                    Expiry Warning
+                  </h4>
+                  <p className="text-sm text-orange-600">
+                    8 medicines expiring within 30 days
+                  </p>
                 </div>
                 <div className="p-4 border-l-4 border-green-500 bg-green-50">
-                  <h4 className="font-medium text-green-800">Compliance Status</h4>
-                  <p className="text-sm text-green-600">All NAFDAC requirements up to date</p>
+                  <h4 className="font-medium text-green-800">
+                    Compliance Status
+                  </h4>
+                  <p className="text-sm text-green-600">
+                    All NAFDAC requirements up to date
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -420,5 +568,5 @@ export function BusinessIntelligenceDashboard() {
         </TabsContent>
       </Tabs>
     </div>
-  )
+  );
 }

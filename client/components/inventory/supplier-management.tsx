@@ -290,14 +290,23 @@ export function SupplierManagement() {
                     </TableCell>
                     <TableCell>
                       <div className="space-y-1">
-                        <div className="flex items-center gap-1 text-sm">
-                          <Mail className="h-3 w-3" />
-                          <span className="text-xs">{supplier.email}</span>
-                        </div>
-                        <div className="flex items-center gap-1 text-sm">
-                          <Phone className="h-3 w-3" />
-                          <span className="text-xs">{supplier.phone}</span>
-                        </div>
+                        {supplier.email && (
+                          <div className="flex items-center gap-1 text-sm">
+                            <Mail className="h-3 w-3" />
+                            <span className="text-xs">{supplier.email}</span>
+                          </div>
+                        )}
+                        {supplier.phone && (
+                          <div className="flex items-center gap-1 text-sm">
+                            <Phone className="h-3 w-3" />
+                            <span className="text-xs">{supplier.phone}</span>
+                          </div>
+                        )}
+                        {!supplier.email && !supplier.phone && (
+                          <span className="text-xs text-muted-foreground">
+                            -
+                          </span>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>

@@ -338,14 +338,21 @@ export function CustomerManagement() {
                         </TableCell>
                         <TableCell>
                           <div className="space-y-1">
-                            <div className="flex items-center gap-1 text-sm">
-                              <Mail className="h-3 w-3" />
-                              {customer.email}
-                            </div>
-                            <div className="flex items-center gap-1 text-sm">
-                              <Phone className="h-3 w-3" />
-                              {customer.phone}
-                            </div>
+                            {customer.email && (
+                              <div className="flex items-center gap-1 text-sm">
+                                <Mail className="h-3 w-3" />
+                                {customer.email}
+                              </div>
+                            )}
+                            {customer.phone && (
+                              <div className="flex items-center gap-1 text-sm">
+                                <Phone className="h-3 w-3" />
+                                {customer.phone}
+                              </div>
+                            )}
+                            {!customer.email && !customer.phone && (
+                              <span className="text-sm text-gray-400">-</span>
+                            )}
                           </div>
                         </TableCell>
                         <TableCell>

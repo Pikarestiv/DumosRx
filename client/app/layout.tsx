@@ -6,6 +6,8 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AuthListener } from "@/components/auth-listener";
 import { Toaster } from "@/components/ui/sonner";
+import { DatabaseProvider } from "@/lib/db/DatabaseProvider";
+import { DevSeedButton } from "@/components/dev/seed-button";
 
 const montserrat = Montserrat({
   subsets: ["latin"],
@@ -40,9 +42,13 @@ export default function RootLayout({
     >
       <body className="font-sans">
         <ThemeProvider defaultTheme="system" storageKey="dumosrx-ui-theme">
-          <AuthListener />
-          {children}
-          <Toaster />
+          <DatabaseProvider>
+            <AuthListener />
+            {children}
+            <Toaster />
+            {/* Dev utility: remove in production */}
+            <DevSeedButton />
+          </DatabaseProvider>
         </ThemeProvider>
       </body>
     </html>

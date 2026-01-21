@@ -18,7 +18,7 @@ import {
   Clock,
   Activity,
 } from "lucide-react";
-import { apiClient } from "@/lib/api/client";
+import { useLocalData } from "@/lib/db/hooks/useLocalData";
 
 interface DashboardStats {
   totalMedicines: number;
@@ -35,36 +35,33 @@ interface ActivityItem {
 }
 
 export function DashboardOverview() {
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [activities, setActivities] = useState<ActivityItem[]>([]);
+  // Fetch stats directly from local SQLite
+  const { data: medicines } = useLocalData<{ count: number }>(
+    'SELECT COUNT(*) as count FROM medicines WHERE status = "active" AND _deleted = 0',
+  );
 
-  useEffect(() => {
-    async function fetchDashboardData() {
-      setLoading(true);
-      try {
-        const [statsData, activityData] = await Promise.all([
-          apiClient.getDashboardStats(),
-          apiClient.getRecentActivity(5),
-        ]);
+  const { data: salesToday } = useLocalData<{ total: number }>(
+    "SELECT SUM(total) as total FROM sales WHERE date(created_at) = date('now') AND _deleted = 0",
+  );
 
-        setStats(statsData);
-        setActivities(activityData.data || []);
-      } catch (error) {
-        console.error("Failed to fetch dashboard data:", error);
-        // Set fallback empty state
-        setStats({
-          totalMedicines: 0,
-          dailySalesRevenue: 0,
-          expiringSoon: 0,
-          lowStockCount: 0,
-        });
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchDashboardData();
-  }, []);
+  const { data: expiring } = useLocalData<{ count: number }>(
+    "SELECT COUNT(*) as count FROM inventory WHERE date(expiry_date) <= date('now', '+30 days') AND _deleted = 0",
+  );
+
+  const { data: lowStock } = useLocalData<{ count: number }>(
+    "SELECT COUNT(*) as count FROM medicines WHERE stock_quantity <= reorder_level AND _deleted = 0",
+  );
+
+  const stats = {
+    totalMedicines: medicines[0]?.count || 0,
+    dailySalesRevenue: salesToday[0]?.total || 0,
+    expiringSoon: expiring[0]?.count || 0,
+    lowStockCount: lowStock[0]?.count || 0,
+  };
+
+  // Mock activites for now as we don't have an activity table yet
+  const activities: ActivityItem[] = [];
+  const loading = false; // Instant load from local DB
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-NG", {

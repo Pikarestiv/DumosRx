@@ -35,9 +35,11 @@ import {
   Loader2,
   Package,
 } from "lucide-react";
+import { toast } from "sonner";
 import { AddMedicineDialog } from "./add-medicine-dialog";
 import { MedicineDetailsDialog } from "./medicine-details-dialog";
-import { apiClient } from "@/lib/api/client";
+import { insert } from "@/lib/db/local-database";
+import { useLocalData } from "@/lib/db/hooks/useLocalData";
 
 interface Medicine {
   id: string;
@@ -59,18 +61,18 @@ interface Medicine {
   status: "active" | "inactive" | "expired" | "low_stock";
 }
 
-// Helper to transform API response (snake_case) to UI model (camelCase)
+// Helper to transform API/Local response to UI model (camelCase)
 const transformMedicine = (apiData: any): Medicine => ({
   id: apiData.id,
   name: apiData.name,
   genericName: apiData.generic_name || "",
-  brand: apiData.brand_name || "",
-  category: apiData.category?.name || "Uncategorized", // Handle relation or fallback
+  brand: apiData.brand_name || apiData.brand || "",
+  category: apiData.category || apiData.category?.name || "Uncategorized",
   nafdacNumber: apiData.nafdac_number || "",
   strength: apiData.strength || "",
   dosageForm: apiData.dosage_form || "",
-  manufacturer: apiData.manufacturer || "", // If manufacturer is string in DB
-  supplier: apiData.supplier?.name || "Unknown",
+  manufacturer: apiData.manufacturer || "",
+  supplier: apiData.supplier || apiData.supplier?.name || "Unknown",
   costPrice: Number(apiData.cost_price) || 0,
   sellingPrice: Number(apiData.selling_price) || 0,
   stockQuantity: Number(apiData.stock_quantity) || 0,
@@ -79,12 +81,10 @@ const transformMedicine = (apiData: any): Medicine => ({
     ? new Date(apiData.expiry_date).toISOString().split("T")[0]
     : "",
   batchNumber: apiData.batch_number || "",
-  status: (apiData.status as any) || "active", // Verify status mapping if enum differs
+  status: (apiData.status as any) || "active",
 });
 
 export function MedicineDatabase() {
-  const [medicines, setMedicines] = useState<Medicine[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -95,6 +95,17 @@ export function MedicineDatabase() {
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
 
+  // Fetch medicines from local DB
+  const {
+    data: medicines,
+    loading,
+    refetch,
+  } = useLocalData<Medicine>(
+    "SELECT * FROM medicines WHERE _deleted = 0 ORDER BY created_at DESC",
+    [],
+    { transform: transformMedicine },
+  );
+
   const categories = [
     "all",
     "Analgesics",
@@ -104,6 +115,32 @@ export function MedicineDatabase() {
     "Antacids",
   ];
   const statuses = ["all", "active", "inactive", "expired", "low_stock"];
+
+  const handleAddMedicine = async (payload: any) => {
+    setIsCreating(true);
+    try {
+      // Create locally
+      // Ensure local schema compatibility (category string vs id)
+      const localPayload = {
+        ...payload,
+        // If the dialog sends category_id: null, we might want to capture the string if available
+        // For now, let's assume payload matches what we want or we fix the dialog logic?
+        // Actually, AddMedicineDialog sends category_id: null, but we need the category string.
+        // We'll fix AddMedicineDialog next. For now, let's assume proper payload.
+      };
+
+      insert("medicines", localPayload);
+
+      toast.success("Medicine added successfully (Local)");
+      refetch(); // Refresh list
+      setShowAddDialog(false);
+    } catch (error) {
+      console.error("Failed to create medicine:", error);
+      toast.error("Failed to save medicine.");
+    } finally {
+      setIsCreating(false);
+    }
+  };
 
   const filteredMedicines = medicines.filter((medicine) => {
     const matchesSearch =
@@ -148,44 +185,6 @@ export function MedicineDatabase() {
       currency: "NGN",
       minimumFractionDigits: 0,
     }).format(amount);
-  };
-
-  // Fetch medicines on mount
-  useEffect(() => {
-    fetchMedicines();
-  }, []);
-
-  const fetchMedicines = async () => {
-    setLoading(true);
-    try {
-      const response = await apiClient.getMedicines(1, 100);
-      // Laravel pagination structure: response.data or response is array?
-      // Controller returns response()->json($medicines) which is a LengthAwarePaginator
-      // So data is in response.data
-      const data = response.data || [];
-      const transformed = data.map(transformMedicine);
-      setMedicines(transformed);
-    } catch (error) {
-      console.error("Failed to fetch medicines:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleAddMedicine = async (payload: any) => {
-    setIsCreating(true);
-    try {
-      // payload is already snake_case from the dialog
-      const response = await apiClient.createMedicine(payload);
-      const newMedicine = transformMedicine(response);
-      setMedicines([newMedicine, ...medicines]);
-      setShowAddDialog(false);
-    } catch (error) {
-      console.error("Failed to create medicine:", error);
-      alert("Failed to save medicine. Check console for details.");
-    } finally {
-      setIsCreating(false);
-    }
   };
 
   const handleViewDetails = (medicine: Medicine) => {

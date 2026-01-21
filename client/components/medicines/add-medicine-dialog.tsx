@@ -120,12 +120,14 @@ export function AddMedicineDialog({
       name: formData.name,
       generic_name: formData.genericName,
       brand_name: formData.brand,
-      category_id: null, // TODO: Map string category to ID
+      category: formData.category, // Store locally as string
+      // category_id: null,
       nafdac_number: formData.nafdacNumber,
       strength: formData.strength,
       dosage_form: formData.dosageForm,
       manufacturer: formData.manufacturer,
-      supplier_id: null, // TODO: Map string supplier to ID
+      supplier: formData.supplier, // Store locally as string
+      // supplier_id: null,
       cost_price: formData.costPrice,
       selling_price: formData.sellingPrice,
       stock_quantity: formData.stockQuantity,

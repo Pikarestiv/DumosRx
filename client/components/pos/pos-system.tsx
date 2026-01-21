@@ -43,7 +43,8 @@ import {
   PackageX,
   Loader2,
 } from "lucide-react";
-import { apiClient } from "@/lib/api/client";
+import { insert, update } from "@/lib/db/local-database";
+import { useLocalData } from "@/lib/db/hooks/useLocalData";
 
 interface Medicine {
   id: string;
@@ -71,10 +72,10 @@ interface Customer {
 
 export function POSSystem() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [medicines, setMedicines] = useState<Medicine[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [loadingMedicines, setLoadingMedicines] = useState(true);
-  const [loadingCustomers, setLoadingCustomers] = useState(true);
+  // const [medicines, setMedicines] = useState<Medicine[]>([]); // Replaced by hook
+  // const [customers, setCustomers] = useState<Customer[]>([]); // Replaced by hook
+  // const [loadingMedicines, setLoadingMedicines] = useState(true); // Replaced by hook
+  // const [loadingCustomers, setLoadingCustomers] = useState(true); // Replaced by hook
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
     null,
@@ -88,52 +89,42 @@ export function POSSystem() {
   const [lastTransaction, setLastTransaction] = useState<any>(null);
   const [processingPayment, setProcessingPayment] = useState(false);
 
-  useEffect(() => {
-    async function fetchMedicines() {
-      setLoadingMedicines(true);
-      try {
-        const res = await apiClient.getMedicines(1, 100);
-        const items = (res.data || []).map((m: any) => ({
-          id: m.id,
-          name: m.name,
-          generic_name: m.generic_name || m.genericName || "",
-          brand: m.brand || "",
-          strength: m.strength || "",
-          unit_price: m.unit_price || m.price || 0,
-          stock: m.stock_quantity || m.stock || 0,
-          barcode: m.barcode || "",
-        }));
-        setMedicines(items);
-      } catch (error) {
-        console.error("Failed to fetch medicines:", error);
-        toast.error("Failed to load medicines");
-      } finally {
-        setLoadingMedicines(false);
-      }
-    }
+  // Fetch medicines from local DB
+  const {
+    data: medicines,
+    loading: loadingMedicines,
+    refetch: refetchMedicines,
+  } = useLocalData<Medicine>(
+    'SELECT * FROM medicines WHERE status = "active" AND _deleted = 0 ORDER BY name ASC',
+    [],
+    {
+      transform: (m: any) => ({
+        id: m.id,
+        name: m.name,
+        generic_name: m.generic_name || "",
+        brand: m.brand || "",
+        strength: m.strength || "",
+        unit_price: m.selling_price || 0, // Note: using selling_price as unit_price
+        stock: m.stock_quantity || 0,
+        barcode: m.barcode || "",
+      }),
+    },
+  );
 
-    async function fetchCustomers() {
-      setLoadingCustomers(true);
-      try {
-        const res = await apiClient.getCustomers(1, 100);
-        const items = (res.data || []).map((c: any) => ({
-          id: c.id,
-          first_name: c.first_name || "",
-          last_name: c.last_name || "",
-          phone: c.phone || "",
-          loyalty_points: c.loyalty_points || 0,
-        }));
-        setCustomers(items);
-      } catch (error) {
-        console.error("Failed to fetch customers:", error);
-      } finally {
-        setLoadingCustomers(false);
-      }
-    }
-
-    fetchMedicines();
-    fetchCustomers();
-  }, []);
+  // Fetch customers from local DB
+  const { data: customers, loading: loadingCustomers } = useLocalData<Customer>(
+    "SELECT * FROM customers WHERE _deleted = 0 ORDER BY first_name ASC",
+    [],
+    {
+      transform: (c: any) => ({
+        id: c.id,
+        first_name: c.first_name || "",
+        last_name: c.last_name || "",
+        phone: c.phone || "",
+        loyalty_points: c.loyalty_points || 0,
+      }),
+    },
+  );
 
   const filteredMedicines = medicines.filter(
     (medicine) =>
@@ -233,28 +224,39 @@ export function POSSystem() {
     setProcessingPayment(true);
 
     try {
-      // Create sale via API
-      const saleData = {
-        items: cart.map((item) => ({
+      // 1. Create Sale
+      const saleId = insert("sales", {
+        customer_id: selectedCustomer?.id || null,
+        subtotal,
+        discount,
+        vat: tax,
+        total,
+        payment_method: paymentMethod,
+        payment_status: "completed",
+        notes: "POS Sale",
+      });
+
+      // 2. Create Sale Items and Update Stock
+      cart.forEach((item) => {
+        // Add sale item
+        insert("sale_items", {
+          sale_id: saleId,
           medicine_id: item.id,
           quantity: item.quantity,
           unit_price: item.unit_price,
-          subtotal: item.subtotal,
-        })),
-        customer_id: selectedCustomer?.id || null,
-        subtotal,
-        tax,
-        discount,
-        total,
-        payment_method: paymentMethod,
-        amount_paid:
-          paymentMethod === "cash" ? Number.parseFloat(amountPaid) : total,
-      };
+          total_price: item.subtotal,
+        });
 
-      await apiClient.createSale(saleData);
+        // Deduct stock
+        const newStock = Math.max(0, item.stock - item.quantity);
+        update("medicines", item.id, { stock_quantity: newStock });
+      });
+
+      // 3. Refresh Medicines List
+      refetchMedicines();
 
       const transaction = {
-        id: Date.now().toString(),
+        id: saleId, // Use the generated ID
         date: new Date().toISOString(),
         items: cart,
         customer: selectedCustomer,
@@ -272,7 +274,7 @@ export function POSSystem() {
       setLastTransaction(transaction);
       setShowPaymentDialog(false);
       setShowReceiptDialog(true);
-      toast.success("Payment successful!");
+      toast.success("Payment successful (Local)");
 
       // Clear cart and reset
       clearCart();

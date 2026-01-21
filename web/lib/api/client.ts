@@ -56,7 +56,10 @@ class WebApiClient {
       message: string;
     }>("/register", {
       method: "POST",
-      body: payload,
+      body: {
+        ...payload,
+        device_name: "Web Client",
+      },
     });
   }
 
@@ -67,7 +70,10 @@ class WebApiClient {
       message: string;
     }>("/login", {
       method: "POST",
-      body: payload,
+      body: {
+        ...payload,
+        device_name: "Web Client",
+      },
     });
   }
 }

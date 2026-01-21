@@ -5,12 +5,12 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Database } from "lucide-react";
-import { toast } from "sonner";
-import { insert } from "@/lib/db/local-database";
+import { sync } from "@/lib/db/sync-engine";
+import { RefreshCw, Database } from "lucide-react";
 
 export function DevSeedButton() {
   const [loading, setLoading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   const seedData = async () => {
     try {
@@ -75,16 +75,47 @@ export function DevSeedButton() {
     }
   };
 
+  const handleSync = async () => {
+    try {
+      setSyncing(true);
+      const result = await sync();
+      if (result.success) {
+        toast.success(
+          `Sync Complete: Pushed ${result.pushed}, Pulled ${result.pulled}`,
+        );
+      } else {
+        toast.error("Sync failed");
+      }
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   return (
-    <Button
-      variant="outline"
-      size="sm"
-      onClick={seedData}
-      disabled={loading}
-      className="fixed bottom-4 right-4 z-50 shadow-lg border-2 border-primary"
-    >
-      <Database className="h-4 w-4 mr-2" />
-      {loading ? "Seeding..." : "Seed Local DB"}
-    </Button>
+    <div className="fixed bottom-4 right-4 z-50 flex gap-2">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={handleSync}
+        disabled={syncing}
+        className="shadow-lg border-2 border-primary bg-background cursor-pointer"
+      >
+        <RefreshCw
+          className={`h-4 w-4 mr-2 ${syncing ? "animate-spin" : ""}`}
+        />
+        {syncing ? "Syncing..." : "Sync Now"}
+      </Button>
+
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={seedData}
+        disabled={loading}
+        className="shadow-lg border-2 border-primary bg-background cursor-pointer"
+      >
+        <Database className="h-4 w-4 mr-2" />
+        {loading ? "Seeding..." : "Seed Local DB"}
+      </Button>
+    </div>
   );
 }

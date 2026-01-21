@@ -410,7 +410,10 @@ export function AddMedicineDialog({
             >
               Cancel
             </Button>
-            <Button type="submit" className="bg-accent hover:bg-accent/90">
+            <Button
+              type="submit"
+              className="bg-accent hover:bg-accent/90 cursor-pointer"
+            >
               Add Medicine
             </Button>
           </DialogFooter>

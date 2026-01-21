@@ -63,6 +63,10 @@ Route::prefix('v1')->group(function () {
 
         // Activity Logs
         Route::get('/logs', [ActivityLogController::class, 'index']);
+
+        // Offline Sync
+        Route::post('/sync/push', [App\Http\Controllers\Api\SyncController::class, 'push']);
+        Route::post('/sync/pull', [App\Http\Controllers\Api\SyncController::class, 'pull']);
     });
 });
 

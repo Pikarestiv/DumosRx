@@ -225,6 +225,21 @@ class ApiClient {
       `/prescriptions?page=${page}&limit=${limit}`,
     ).catch(() => ({ data: [] }));
   }
+
+  // Sync Endpoints
+  async pushChanges(payload: { changes: any[] }) {
+    return this.request("/sync/push", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async pullChanges(payload: { last_synced: Record<string, string> }) {
+    return this.request("/sync/pull", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
 }
 
 export const apiClient = new ApiClient();

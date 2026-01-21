@@ -1,9 +1,9 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
   LayoutDashboard,
   Package,
@@ -16,13 +16,14 @@ import {
   Menu,
   X,
   Pill,
-} from "lucide-react"
-import { cn } from "@/lib/utils"
-import { ThemeToggle } from "@/components/ui/theme-toggle"
-import { ThemeCustomizer } from "@/components/ui/theme-customizer"
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { ThemeCustomizer } from "@/components/ui/theme-customizer";
+import { useAuthStore } from "@/lib/auth/store";
 
 interface DashboardLayoutProps {
-  children: React.ReactNode
+  children: React.ReactNode;
 }
 
 const navigationItems = [
@@ -34,16 +35,19 @@ const navigationItems = [
   { name: "Customers", href: "/customers", icon: Users },
   { name: "Reports", href: "/reports", icon: BarChart3 },
   { name: "Settings", href: "/settings", icon: Settings },
-]
+];
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-background">
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
-        <div className="fixed inset-0 z-40 bg-black bg-opacity-50 lg:hidden" onClick={() => setSidebarOpen(false)} />
+        <div
+          className="fixed inset-0 z-40 bg-black bg-opacity-50 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
       )}
 
       {/* Sidebar */}
@@ -54,8 +58,15 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         )}
       >
         <div className="flex items-center justify-between h-16 px-6 border-b border-sidebar-border">
-          <h1 className="font-serif font-black text-xl text-sidebar-foreground">DumosRx</h1>
-          <Button variant="ghost" size="sm" className="lg:hidden" onClick={() => setSidebarOpen(false)}>
+          <h1 className="font-serif font-black text-xl text-sidebar-foreground">
+            DumosRx
+          </h1>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          >
             <X className="h-4 w-4" />
           </Button>
         </div>
@@ -77,6 +88,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           <Button
             variant="ghost"
             className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            onClick={() => useAuthStore.getState().logout()}
           >
             <LogOut className="h-4 w-4 mr-3" />
             Sign Out
@@ -88,12 +100,19 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       <div className="lg:pl-64">
         {/* Top header */}
         <header className="h-16 bg-background border-b border-border flex items-center justify-between px-6">
-          <Button variant="ghost" size="sm" className="lg:hidden" onClick={() => setSidebarOpen(true)}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="lg:hidden"
+            onClick={() => setSidebarOpen(true)}
+          >
             <Menu className="h-4 w-4" />
           </Button>
 
           <div className="flex items-center gap-4">
-            <div className="text-sm text-muted-foreground">Welcome back, Pharmacist</div>
+            <div className="text-sm text-muted-foreground">
+              Welcome back, Pharmacist
+            </div>
             <div className="flex items-center gap-2">
               <ThemeToggle />
               <ThemeCustomizer />
@@ -105,5 +124,5 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         <main className="p-6">{children}</main>
       </div>
     </div>
-  )
+  );
 }

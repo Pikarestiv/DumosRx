@@ -1,9 +1,9 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -11,37 +11,47 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface Medicine {
-  name: string
-  genericName: string
-  brand: string
-  category: string
-  nafdacNumber: string
-  strength: string
-  dosageForm: string
-  manufacturer: string
-  supplier: string
-  costPrice: number
-  sellingPrice: number
-  stockQuantity: number
-  reorderLevel: number
-  expiryDate: string
-  batchNumber: string
-  status: "active" | "inactive" | "expired" | "low_stock"
+  name: string;
+  genericName: string;
+  brand: string;
+  category: string;
+  nafdacNumber: string;
+  strength: string;
+  dosageForm: string;
+  manufacturer: string;
+  supplier: string;
+  costPrice: number;
+  sellingPrice: number;
+  stockQuantity: number;
+  reorderLevel: number;
+  expiryDate: string;
+  batchNumber: string;
+  status: "active" | "inactive" | "expired" | "low_stock";
 }
 
 interface AddMedicineDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onAddMedicine: (medicine: Medicine) => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onAddMedicine: (medicine: Medicine) => void;
 }
 
-export function AddMedicineDialog({ open, onOpenChange, onAddMedicine }: AddMedicineDialogProps) {
+export function AddMedicineDialog({
+  open,
+  onOpenChange,
+  onAddMedicine,
+}: AddMedicineDialogProps) {
   const [formData, setFormData] = useState<Medicine>({
     name: "",
     genericName: "",
@@ -59,10 +69,25 @@ export function AddMedicineDialog({ open, onOpenChange, onAddMedicine }: AddMedi
     expiryDate: "",
     batchNumber: "",
     status: "active",
-  })
+  });
 
-  const categories = ["Analgesics", "Antibiotics", "Antimalarials", "Vitamins", "Antacids", "Antihypertensives"]
-  const dosageForms = ["Tablet", "Capsule", "Syrup", "Injection", "Cream", "Drops", "Inhaler"]
+  const categories = [
+    "Analgesics",
+    "Antibiotics",
+    "Antimalarials",
+    "Vitamins",
+    "Antacids",
+    "Antihypertensives",
+  ];
+  const dosageForms = [
+    "Tablet",
+    "Capsule",
+    "Syrup",
+    "Injection",
+    "Cream",
+    "Drops",
+    "Inhaler",
+  ];
   const manufacturers = [
     "GSK Nigeria",
     "Pfizer Nigeria",
@@ -70,27 +95,47 @@ export function AddMedicineDialog({ open, onOpenChange, onAddMedicine }: AddMedi
     "Emzor Pharmaceuticals",
     "May & Baker Nigeria",
     "Chi Pharmaceuticals",
-  ]
+  ];
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     // Basic validation
     if (!formData.name || !formData.genericName || !formData.nafdacNumber) {
-      alert("Please fill in all required fields")
-      return
+      alert("Please fill in all required fields");
+      return;
     }
 
     // Determine status based on stock and expiry
-    let status: Medicine["status"] = "active"
+    let status: Medicine["status"] = "active";
     if (formData.stockQuantity <= formData.reorderLevel) {
-      status = "low_stock"
+      status = "low_stock";
     }
     if (new Date(formData.expiryDate) < new Date()) {
-      status = "expired"
+      status = "expired";
     }
 
-    onAddMedicine({ ...formData, status })
+    // Convert to snake_case for backend
+    const payload = {
+      name: formData.name,
+      generic_name: formData.genericName,
+      brand_name: formData.brand,
+      category_id: null, // TODO: Map string category to ID
+      nafdac_number: formData.nafdacNumber,
+      strength: formData.strength,
+      dosage_form: formData.dosageForm,
+      manufacturer: formData.manufacturer,
+      supplier_id: null, // TODO: Map string supplier to ID
+      cost_price: formData.costPrice,
+      selling_price: formData.sellingPrice,
+      stock_quantity: formData.stockQuantity,
+      reorder_level: formData.reorderLevel,
+      expiry_date: formData.expiryDate,
+      batch_number: formData.batchNumber,
+      status: status,
+    };
+
+    onAddMedicine(payload as any);
 
     // Reset form
     setFormData({
@@ -110,20 +155,23 @@ export function AddMedicineDialog({ open, onOpenChange, onAddMedicine }: AddMedi
       expiryDate: "",
       batchNumber: "",
       status: "active",
-    })
-  }
+    });
+  };
 
   const handleInputChange = (field: keyof Medicine, value: string | number) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
-  }
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="font-serif font-bold">Add New Medicine</DialogTitle>
+          <DialogTitle className="font-serif font-bold">
+            Add New Medicine
+          </DialogTitle>
           <DialogDescription>
-            Enter the details for the new medicine. All fields marked with * are required.
+            Enter the details for the new medicine. All fields marked with * are
+            required.
           </DialogDescription>
         </DialogHeader>
 
@@ -145,7 +193,9 @@ export function AddMedicineDialog({ open, onOpenChange, onAddMedicine }: AddMedi
               <Input
                 id="genericName"
                 value={formData.genericName}
-                onChange={(e) => handleInputChange("genericName", e.target.value)}
+                onChange={(e) =>
+                  handleInputChange("genericName", e.target.value)
+                }
                 placeholder="e.g., Acetaminophen"
                 required
               />
@@ -163,7 +213,10 @@ export function AddMedicineDialog({ open, onOpenChange, onAddMedicine }: AddMedi
 
             <div className="space-y-2">
               <Label htmlFor="category">Category</Label>
-              <Select value={formData.category} onValueChange={(value) => handleInputChange("category", value)}>
+              <Select
+                value={formData.category}
+                onValueChange={(value) => handleInputChange("category", value)}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
@@ -182,7 +235,9 @@ export function AddMedicineDialog({ open, onOpenChange, onAddMedicine }: AddMedi
               <Input
                 id="nafdacNumber"
                 value={formData.nafdacNumber}
-                onChange={(e) => handleInputChange("nafdacNumber", e.target.value)}
+                onChange={(e) =>
+                  handleInputChange("nafdacNumber", e.target.value)
+                }
                 placeholder="e.g., 04-1234"
                 required
               />
@@ -200,7 +255,12 @@ export function AddMedicineDialog({ open, onOpenChange, onAddMedicine }: AddMedi
 
             <div className="space-y-2">
               <Label htmlFor="dosageForm">Dosage Form</Label>
-              <Select value={formData.dosageForm} onValueChange={(value) => handleInputChange("dosageForm", value)}>
+              <Select
+                value={formData.dosageForm}
+                onValueChange={(value) =>
+                  handleInputChange("dosageForm", value)
+                }
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select dosage form" />
                 </SelectTrigger>
@@ -216,7 +276,12 @@ export function AddMedicineDialog({ open, onOpenChange, onAddMedicine }: AddMedi
 
             <div className="space-y-2">
               <Label htmlFor="manufacturer">Manufacturer</Label>
-              <Select value={formData.manufacturer} onValueChange={(value) => handleInputChange("manufacturer", value)}>
+              <Select
+                value={formData.manufacturer}
+                onValueChange={(value) =>
+                  handleInputChange("manufacturer", value)
+                }
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select manufacturer" />
                 </SelectTrigger>
@@ -246,7 +311,12 @@ export function AddMedicineDialog({ open, onOpenChange, onAddMedicine }: AddMedi
                 id="costPrice"
                 type="number"
                 value={formData.costPrice}
-                onChange={(e) => handleInputChange("costPrice", Number.parseFloat(e.target.value) || 0)}
+                onChange={(e) =>
+                  handleInputChange(
+                    "costPrice",
+                    Number.parseFloat(e.target.value) || 0,
+                  )
+                }
                 placeholder="0.00"
                 min="0"
                 step="0.01"
@@ -259,7 +329,12 @@ export function AddMedicineDialog({ open, onOpenChange, onAddMedicine }: AddMedi
                 id="sellingPrice"
                 type="number"
                 value={formData.sellingPrice}
-                onChange={(e) => handleInputChange("sellingPrice", Number.parseFloat(e.target.value) || 0)}
+                onChange={(e) =>
+                  handleInputChange(
+                    "sellingPrice",
+                    Number.parseFloat(e.target.value) || 0,
+                  )
+                }
                 placeholder="0.00"
                 min="0"
                 step="0.01"
@@ -272,7 +347,12 @@ export function AddMedicineDialog({ open, onOpenChange, onAddMedicine }: AddMedi
                 id="stockQuantity"
                 type="number"
                 value={formData.stockQuantity}
-                onChange={(e) => handleInputChange("stockQuantity", Number.parseInt(e.target.value) || 0)}
+                onChange={(e) =>
+                  handleInputChange(
+                    "stockQuantity",
+                    Number.parseInt(e.target.value) || 0,
+                  )
+                }
                 placeholder="0"
                 min="0"
               />
@@ -284,7 +364,12 @@ export function AddMedicineDialog({ open, onOpenChange, onAddMedicine }: AddMedi
                 id="reorderLevel"
                 type="number"
                 value={formData.reorderLevel}
-                onChange={(e) => handleInputChange("reorderLevel", Number.parseInt(e.target.value) || 0)}
+                onChange={(e) =>
+                  handleInputChange(
+                    "reorderLevel",
+                    Number.parseInt(e.target.value) || 0,
+                  )
+                }
                 placeholder="0"
                 min="0"
               />
@@ -296,7 +381,9 @@ export function AddMedicineDialog({ open, onOpenChange, onAddMedicine }: AddMedi
                 id="expiryDate"
                 type="date"
                 value={formData.expiryDate}
-                onChange={(e) => handleInputChange("expiryDate", e.target.value)}
+                onChange={(e) =>
+                  handleInputChange("expiryDate", e.target.value)
+                }
               />
             </div>
 
@@ -305,14 +392,20 @@ export function AddMedicineDialog({ open, onOpenChange, onAddMedicine }: AddMedi
               <Input
                 id="batchNumber"
                 value={formData.batchNumber}
-                onChange={(e) => handleInputChange("batchNumber", e.target.value)}
+                onChange={(e) =>
+                  handleInputChange("batchNumber", e.target.value)
+                }
                 placeholder="e.g., PAR2024001"
               />
             </div>
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+            >
               Cancel
             </Button>
             <Button type="submit" className="bg-accent hover:bg-accent/90">
@@ -322,5 +415,5 @@ export function AddMedicineDialog({ open, onOpenChange, onAddMedicine }: AddMedi
         </form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

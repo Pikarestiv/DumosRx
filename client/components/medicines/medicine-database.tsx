@@ -1,121 +1,116 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, Search, Edit, Eye, AlertTriangle } from "lucide-react"
-import { AddMedicineDialog } from "./add-medicine-dialog"
-import { MedicineDetailsDialog } from "./medicine-details-dialog"
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Plus, Search, Edit, Eye, AlertTriangle, Loader2 } from "lucide-react";
+import { AddMedicineDialog } from "./add-medicine-dialog";
+import { MedicineDetailsDialog } from "./medicine-details-dialog";
+import { apiClient } from "@/lib/api/client";
 
 interface Medicine {
-  id: string
-  name: string
-  genericName: string
-  brand: string
-  category: string
-  nafdacNumber: string
-  strength: string
-  dosageForm: string
-  manufacturer: string
-  supplier: string
-  costPrice: number
-  sellingPrice: number
-  stockQuantity: number
-  reorderLevel: number
-  expiryDate: string
-  batchNumber: string
-  status: "active" | "inactive" | "expired" | "low_stock"
+  id: string;
+  name: string;
+  genericName: string;
+  brand: string;
+  category: string;
+  nafdacNumber: string;
+  strength: string;
+  dosageForm: string;
+  manufacturer: string;
+  supplier: string;
+  costPrice: number;
+  sellingPrice: number;
+  stockQuantity: number;
+  reorderLevel: number;
+  expiryDate: string;
+  batchNumber: string;
+  status: "active" | "inactive" | "expired" | "low_stock";
 }
 
-// Sample Nigerian medicines data
-const sampleMedicines: Medicine[] = [
-  {
-    id: "1",
-    name: "Paracetamol",
-    genericName: "Acetaminophen",
-    brand: "Panadol",
-    category: "Analgesics",
-    nafdacNumber: "04-1234",
-    strength: "500mg",
-    dosageForm: "Tablet",
-    manufacturer: "GSK Nigeria",
-    supplier: "Emzor Pharmaceuticals",
-    costPrice: 50,
-    sellingPrice: 80,
-    stockQuantity: 500,
-    reorderLevel: 100,
-    expiryDate: "2025-12-31",
-    batchNumber: "PAR2024001",
-    status: "active",
-  },
-  {
-    id: "2",
-    name: "Amoxicillin",
-    genericName: "Amoxicillin",
-    brand: "Amoxil",
-    category: "Antibiotics",
-    nafdacNumber: "04-5678",
-    strength: "250mg",
-    dosageForm: "Capsule",
-    manufacturer: "Pfizer Nigeria",
-    supplier: "May & Baker Nigeria",
-    costPrice: 120,
-    sellingPrice: 180,
-    stockQuantity: 15,
-    reorderLevel: 50,
-    expiryDate: "2024-08-15",
-    batchNumber: "AMX2024002",
-    status: "low_stock",
-  },
-  {
-    id: "3",
-    name: "Chloroquine",
-    genericName: "Chloroquine Phosphate",
-    brand: "Nivaquine",
-    category: "Antimalarials",
-    nafdacNumber: "04-9012",
-    strength: "250mg",
-    dosageForm: "Tablet",
-    manufacturer: "Sanofi Nigeria",
-    supplier: "Chi Pharmaceuticals",
-    costPrice: 30,
-    sellingPrice: 50,
-    stockQuantity: 200,
-    reorderLevel: 75,
-    expiryDate: "2024-03-20",
-    batchNumber: "CHL2024003",
-    status: "expired",
-  },
-]
+// Helper to transform API response (snake_case) to UI model (camelCase)
+const transformMedicine = (apiData: any): Medicine => ({
+  id: apiData.id,
+  name: apiData.name,
+  genericName: apiData.generic_name || "",
+  brand: apiData.brand_name || "",
+  category: apiData.category?.name || "Uncategorized", // Handle relation or fallback
+  nafdacNumber: apiData.nafdac_number || "",
+  strength: apiData.strength || "",
+  dosageForm: apiData.dosage_form || "",
+  manufacturer: apiData.manufacturer || "", // If manufacturer is string in DB
+  supplier: apiData.supplier?.name || "Unknown",
+  costPrice: Number(apiData.cost_price) || 0,
+  sellingPrice: Number(apiData.selling_price) || 0,
+  stockQuantity: Number(apiData.stock_quantity) || 0,
+  reorderLevel: Number(apiData.reorder_level) || 0,
+  expiryDate: apiData.expiry_date
+    ? new Date(apiData.expiry_date).toISOString().split("T")[0]
+    : "",
+  batchNumber: apiData.batch_number || "",
+  status: (apiData.status as any) || "active", // Verify status mapping if enum differs
+});
 
 export function MedicineDatabase() {
-  const [medicines, setMedicines] = useState<Medicine[]>(sampleMedicines)
-  const [searchTerm, setSearchTerm] = useState("")
-  const [categoryFilter, setCategoryFilter] = useState("all")
-  const [statusFilter, setStatusFilter] = useState("all")
-  const [showAddDialog, setShowAddDialog] = useState(false)
-  const [selectedMedicine, setSelectedMedicine] = useState<Medicine | null>(null)
-  const [showDetailsDialog, setShowDetailsDialog] = useState(false)
+  const [medicines, setMedicines] = useState<Medicine[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [selectedMedicine, setSelectedMedicine] = useState<Medicine | null>(
+    null,
+  );
+  const [showDetailsDialog, setShowDetailsDialog] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
 
-  const categories = ["all", "Analgesics", "Antibiotics", "Antimalarials", "Vitamins", "Antacids"]
-  const statuses = ["all", "active", "inactive", "expired", "low_stock"]
+  const categories = [
+    "all",
+    "Analgesics",
+    "Antibiotics",
+    "Antimalarials",
+    "Vitamins",
+    "Antacids",
+  ];
+  const statuses = ["all", "active", "inactive", "expired", "low_stock"];
 
   const filteredMedicines = medicines.filter((medicine) => {
     const matchesSearch =
       medicine.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       medicine.genericName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       medicine.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      medicine.nafdacNumber.toLowerCase().includes(searchTerm.toLowerCase())
+      medicine.nafdacNumber.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesCategory = categoryFilter === "all" || medicine.category === categoryFilter
-    const matchesStatus = statusFilter === "all" || medicine.status === statusFilter
+    const matchesCategory =
+      categoryFilter === "all" || medicine.category === categoryFilter;
+    const matchesStatus =
+      statusFilter === "all" || medicine.status === statusFilter;
 
-    return matchesSearch && matchesCategory && matchesStatus
-  })
+    return matchesSearch && matchesCategory && matchesStatus;
+  });
 
   const getStatusBadge = (status: Medicine["status"]) => {
     const variants = {
@@ -123,52 +118,88 @@ export function MedicineDatabase() {
       inactive: "secondary",
       expired: "destructive",
       low_stock: "outline",
-    } as const
+    } as const;
 
     const labels = {
       active: "Active",
       inactive: "Inactive",
       expired: "Expired",
       low_stock: "Low Stock",
-    }
+    };
 
     return (
       <Badge variant={variants[status]} className="text-xs">
         {labels[status]}
       </Badge>
-    )
-  }
+    );
+  };
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-NG", {
       style: "currency",
       currency: "NGN",
       minimumFractionDigits: 0,
-    }).format(amount)
-  }
+    }).format(amount);
+  };
 
-  const handleAddMedicine = (newMedicine: Omit<Medicine, "id">) => {
-    const medicine: Medicine = {
-      ...newMedicine,
-      id: Date.now().toString(),
+  // Fetch medicines on mount
+  useEffect(() => {
+    fetchMedicines();
+  }, []);
+
+  const fetchMedicines = async () => {
+    setLoading(true);
+    try {
+      const response = await apiClient.getMedicines(1, 100);
+      // Laravel pagination structure: response.data or response is array?
+      // Controller returns response()->json($medicines) which is a LengthAwarePaginator
+      // So data is in response.data
+      const data = response.data || [];
+      const transformed = data.map(transformMedicine);
+      setMedicines(transformed);
+    } catch (error) {
+      console.error("Failed to fetch medicines:", error);
+    } finally {
+      setLoading(false);
     }
-    setMedicines([...medicines, medicine])
-    setShowAddDialog(false)
-  }
+  };
+
+  const handleAddMedicine = async (payload: any) => {
+    setIsCreating(true);
+    try {
+      // payload is already snake_case from the dialog
+      const response = await apiClient.createMedicine(payload);
+      const newMedicine = transformMedicine(response);
+      setMedicines([newMedicine, ...medicines]);
+      setShowAddDialog(false);
+    } catch (error) {
+      console.error("Failed to create medicine:", error);
+      alert("Failed to save medicine. Check console for details.");
+    } finally {
+      setIsCreating(false);
+    }
+  };
 
   const handleViewDetails = (medicine: Medicine) => {
-    setSelectedMedicine(medicine)
-    setShowDetailsDialog(true)
-  }
+    setSelectedMedicine(medicine);
+    setShowDetailsDialog(true);
+  };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-serif font-bold text-3xl text-foreground">Medicine Database</h1>
-          <p className="text-muted-foreground mt-2">Manage your pharmacy's medicine inventory and information</p>
+          <h1 className="font-serif font-bold text-3xl text-foreground">
+            Medicine Database
+          </h1>
+          <p className="text-muted-foreground mt-2">
+            Manage your pharmacy's medicine inventory and information
+          </p>
         </div>
-        <Button onClick={() => setShowAddDialog(true)} className="bg-accent hover:bg-accent/90">
+        <Button
+          onClick={() => setShowAddDialog(true)}
+          className="bg-accent hover:bg-accent/90"
+        >
           <Plus className="h-4 w-4 mr-2" />
           Add Medicine
         </Button>
@@ -194,8 +225,12 @@ export function MedicineDatabase() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Active Medicines</p>
-                <p className="text-2xl font-bold">{medicines.filter((m) => m.status === "active").length}</p>
+                <p className="text-sm text-muted-foreground">
+                  Active Medicines
+                </p>
+                <p className="text-2xl font-bold">
+                  {medicines.filter((m) => m.status === "active").length}
+                </p>
               </div>
               <div className="h-8 w-8 bg-primary/10 rounded-full flex items-center justify-center">
                 <Eye className="h-4 w-4 text-primary" />
@@ -240,8 +275,12 @@ export function MedicineDatabase() {
       {/* Search and Filters */}
       <Card>
         <CardHeader>
-          <CardTitle className="font-serif font-semibold">Search & Filter</CardTitle>
-          <CardDescription>Find medicines by name, brand, NAFDAC number, or other criteria</CardDescription>
+          <CardTitle className="font-serif font-semibold">
+            Search & Filter
+          </CardTitle>
+          <CardDescription>
+            Find medicines by name, brand, NAFDAC number, or other criteria
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col md:flex-row gap-4">
@@ -275,7 +314,9 @@ export function MedicineDatabase() {
               <SelectContent>
                 {statuses.map((status) => (
                   <SelectItem key={status} value={status}>
-                    {status === "all" ? "All Status" : status.replace("_", " ").toUpperCase()}
+                    {status === "all"
+                      ? "All Status"
+                      : status.replace("_", " ").toUpperCase()}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -287,7 +328,9 @@ export function MedicineDatabase() {
       {/* Medicine Table */}
       <Card>
         <CardHeader>
-          <CardTitle className="font-serif font-semibold">Medicine Inventory</CardTitle>
+          <CardTitle className="font-serif font-semibold">
+            Medicine Inventory
+          </CardTitle>
           <CardDescription>
             Showing {filteredMedicines.length} of {medicines.length} medicines
           </CardDescription>
@@ -315,29 +358,43 @@ export function MedicineDatabase() {
                     <TableCell>
                       <div>
                         <div className="font-medium">{medicine.name}</div>
-                        <div className="text-sm text-muted-foreground">{medicine.genericName}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {medicine.genericName}
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell>{medicine.brand}</TableCell>
                     <TableCell>{medicine.category}</TableCell>
-                    <TableCell className="font-mono text-sm">{medicine.nafdacNumber}</TableCell>
+                    <TableCell className="font-mono text-sm">
+                      {medicine.nafdacNumber}
+                    </TableCell>
                     <TableCell>{medicine.strength}</TableCell>
                     <TableCell>
                       <div
                         className={
-                          medicine.stockQuantity <= medicine.reorderLevel ? "text-destructive font-medium" : ""
+                          medicine.stockQuantity <= medicine.reorderLevel
+                            ? "text-destructive font-medium"
+                            : ""
                         }
                       >
                         {medicine.stockQuantity}
                       </div>
-                      <div className="text-xs text-muted-foreground">Min: {medicine.reorderLevel}</div>
+                      <div className="text-xs text-muted-foreground">
+                        Min: {medicine.reorderLevel}
+                      </div>
                     </TableCell>
                     <TableCell>{formatCurrency(medicine.costPrice)}</TableCell>
-                    <TableCell>{formatCurrency(medicine.sellingPrice)}</TableCell>
+                    <TableCell>
+                      {formatCurrency(medicine.sellingPrice)}
+                    </TableCell>
                     <TableCell>{getStatusBadge(medicine.status)}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="sm" onClick={() => handleViewDetails(medicine)}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleViewDetails(medicine)}
+                        >
                           <Eye className="h-4 w-4" />
                         </Button>
                         <Button variant="ghost" size="sm">
@@ -354,9 +411,17 @@ export function MedicineDatabase() {
       </Card>
 
       {/* Dialogs */}
-      <AddMedicineDialog open={showAddDialog} onOpenChange={setShowAddDialog} onAddMedicine={handleAddMedicine} />
+      <AddMedicineDialog
+        open={showAddDialog}
+        onOpenChange={setShowAddDialog}
+        onAddMedicine={handleAddMedicine}
+      />
 
-      <MedicineDetailsDialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog} medicine={selectedMedicine} />
+      <MedicineDetailsDialog
+        open={showDetailsDialog}
+        onOpenChange={setShowDetailsDialog}
+        medicine={selectedMedicine}
+      />
     </div>
-  )
+  );
 }

@@ -109,7 +109,7 @@ export function LoginForm() {
 
       <Button
         type="submit"
-        className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
+        className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium cursor-pointer"
         disabled={storeIsLoading}
       >
         {storeIsLoading ? "Signing In..." : "Sign In"}
@@ -118,7 +118,7 @@ export function LoginForm() {
       <div className="text-center">
         <Button
           variant="link"
-          className="text-accent hover:text-accent/80 text-sm"
+          className="text-accent hover:text-accent/80 text-sm cursor-pointer"
         >
           Forgot your password?
         </Button>

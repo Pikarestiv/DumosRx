@@ -12,7 +12,7 @@ export const authApi = {
   },
 
   login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
-    await authApi.getCsrfCookie();
+    // Pure token auth - no CSRF cookie needed
     const response = await api.post<AuthResponse>("/login", credentials);
     return response.data;
   },

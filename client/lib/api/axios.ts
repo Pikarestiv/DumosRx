@@ -10,7 +10,7 @@ const api = axios.create({
     "Content-Type": "application/json",
     Accept: "application/json",
   },
-  withCredentials: true, // For cookie-based auth if needed, mostly for Sanctum SPA
+  withCredentials: false, // Using Bearer token auth, not cookies
 });
 
 // Request interceptor to add token if using Bearer tokens (Sanctum Mobile/API mode)

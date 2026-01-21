@@ -1,18 +1,18 @@
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
-import { CustomerManagement } from "@/components/customers/customer-management";
+import { BusinessIntelligenceDashboard } from "@/components/analytics/business-intelligence-dashboard";
 
-export default function CustomersPage() {
+export default function ReportsPage() {
   return (
     <DashboardLayout>
       <div className="mb-6">
         <h1 className="font-serif font-bold text-3xl text-foreground">
-          Customer & Loyalty Management
+          Business Intelligence & Reports
         </h1>
         <p className="text-muted-foreground mt-2">
-          Manage customer relationships and loyalty programs
+          Comprehensive analytics and insights for your pharmacy operations
         </p>
       </div>
-      <CustomerManagement />
+      <BusinessIntelligenceDashboard />
     </DashboardLayout>
   );
 }

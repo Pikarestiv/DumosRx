@@ -5,6 +5,7 @@ import { Open_Sans } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AuthListener } from "@/components/auth-listener";
+import { Toaster } from "@/components/ui/sonner";
 
 const montserrat = Montserrat({
   subsets: ["latin"],
@@ -41,6 +42,7 @@ export default function RootLayout({
         <ThemeProvider defaultTheme="system" storageKey="dumosrx-ui-theme">
           <AuthListener />
           {children}
+          <Toaster />
         </ThemeProvider>
       </body>
     </html>

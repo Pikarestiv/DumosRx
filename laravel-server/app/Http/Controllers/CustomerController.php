@@ -23,13 +23,18 @@ class CustomerController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'nullable|email',
-            'phone' => 'nullable|string',
-            'address' => 'nullable|string',
+            'first_name' => 'required|string|max:255',
+            'last_name' => 'required|string|max:255',
+            'email' => 'nullable|email|max:255',
+            'phone' => 'nullable|string|max:20',
+            'address' => 'nullable|string|max:500',
+            'date_of_birth' => 'nullable|date',
+            'gender' => 'nullable|string|max:20',
+            'allergies' => 'nullable|array',
+            'medical_conditions' => 'nullable|string|max:1000',
         ]);
 
-        $customer = Customer::create($request->all());
+        $customer = Customer::create($validated);
         return response()->json($customer, 201);
     }
 }

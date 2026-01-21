@@ -1,138 +1,152 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { Plus, Search, Phone, Mail, MapPin, Edit, Eye } from "lucide-react"
+import { useState, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import {
+  Plus,
+  Search,
+  Phone,
+  Mail,
+  MapPin,
+  Edit,
+  Eye,
+  Loader2,
+} from "lucide-react";
+import { apiClient } from "@/lib/api/client";
+import { AddSupplierDialog } from "@/components/suppliers/add-supplier-dialog";
 
 interface Supplier {
-  id: string
-  name: string
-  contactPerson: string
-  email: string
-  phone: string
-  address: string
-  city: string
-  state: string
-  status: "active" | "inactive"
-  totalOrders: number
-  totalValue: number
-  lastOrderDate: string
-  paymentTerms: string
-  rating: number
+  id: string;
+  name: string;
+  contactPerson: string;
+  email: string;
+  phone: string;
+  address: string;
+  city: string;
+  state: string;
+  status: "active" | "inactive";
+  totalOrders: number;
+  totalValue: number;
+  lastOrderDate: string;
+  paymentTerms: string;
+  rating: number;
 }
 
-const suppliersData: Supplier[] = [
-  {
-    id: "1",
-    name: "Emzor Pharmaceuticals",
-    contactPerson: "Dr. Adebayo Johnson",
-    email: "orders@emzor.com.ng",
-    phone: "+234-1-234-5678",
-    address: "3-5 Adeyemo Alakija Street",
-    city: "Lagos",
-    state: "Lagos",
-    status: "active",
-    totalOrders: 45,
-    totalValue: 2500000,
-    lastOrderDate: "2024-01-15",
-    paymentTerms: "30 days",
-    rating: 4.8,
-  },
-  {
-    id: "2",
-    name: "GSK Nigeria",
-    contactPerson: "Mrs. Funmi Adebayo",
-    email: "sales@gsk.com.ng",
-    phone: "+234-1-345-6789",
-    address: "1 Keystone Bank Crescent",
-    city: "Lagos",
-    state: "Lagos",
-    status: "active",
-    totalOrders: 32,
-    totalValue: 1800000,
-    lastOrderDate: "2024-01-18",
-    paymentTerms: "45 days",
-    rating: 4.6,
-  },
-  {
-    id: "3",
-    name: "May & Baker Nigeria",
-    contactPerson: "Mr. Chidi Okafor",
-    email: "info@maybaker.com.ng",
-    phone: "+234-1-456-7890",
-    address: "3/5 Sapara Williams Street",
-    city: "Lagos",
-    state: "Lagos",
-    status: "active",
-    totalOrders: 28,
-    totalValue: 1200000,
-    lastOrderDate: "2024-01-20",
-    paymentTerms: "30 days",
-    rating: 4.4,
-  },
-  {
-    id: "4",
-    name: "Chi Pharmaceuticals",
-    contactPerson: "Dr. Ngozi Okwu",
-    email: "orders@chi-pharma.com.ng",
-    phone: "+234-1-567-8901",
-    address: "Plot 1 Industrial Estate",
-    city: "Abuja",
-    state: "FCT",
-    status: "inactive",
-    totalOrders: 15,
-    totalValue: 650000,
-    lastOrderDate: "2023-12-10",
-    paymentTerms: "60 days",
-    rating: 4.2,
-  },
-]
+// Helper to transform API response (snake_case) to UI model (camelCase)
+const transformSupplier = (apiData: any): Supplier => ({
+  id: apiData.id,
+  name: apiData.name,
+  contactPerson: apiData.contact_person || "",
+  email: apiData.email || "",
+  phone: apiData.phone || "",
+  address: apiData.address || "",
+  city: apiData.city || "",
+  state: apiData.state || "",
+  status: apiData.is_active ? "active" : "inactive",
+  totalOrders: 0, // Mock for now
+  totalValue: 0, // Mock for now
+  lastOrderDate: new Date().toISOString(), // Mock for now
+  paymentTerms: apiData.payment_terms || "30 days",
+  rating: Number(apiData.rating) || 5.0,
+});
 
 export function SupplierManagement() {
-  const [suppliers, setSuppliers] = useState<Supplier[]>(suppliersData)
-  const [searchTerm, setSearchTerm] = useState("")
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showAddDialog, setShowAddDialog] = useState(false);
+
+  // Fetch suppliers on mount
+  useEffect(() => {
+    fetchSuppliers();
+  }, []);
+
+  const fetchSuppliers = async () => {
+    setLoading(true);
+    try {
+      const response = await apiClient.getSuppliers(1, 100);
+      const data = response.data || [];
+      const transformed = data.map(transformSupplier);
+      setSuppliers(transformed);
+    } catch (error) {
+      console.error("Failed to fetch suppliers:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddSupplier = async (payload: any) => {
+    try {
+      const response = await apiClient.createSupplier(payload);
+      const newSupplier = transformSupplier(response);
+      setSuppliers([newSupplier, ...suppliers]);
+      setShowAddDialog(false);
+    } catch (error) {
+      console.error("Failed to create supplier:", error);
+      alert("Failed to create supplier. Check console.");
+    }
+  };
 
   const filteredSuppliers = suppliers.filter(
     (supplier) =>
       supplier.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       supplier.contactPerson.toLowerCase().includes(searchTerm.toLowerCase()) ||
       supplier.city.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
+  );
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-NG", {
       style: "currency",
       currency: "NGN",
       minimumFractionDigits: 0,
-    }).format(amount)
-  }
+    }).format(amount);
+  };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-NG", {
       year: "numeric",
       month: "short",
       day: "numeric",
-    })
-  }
+    });
+  };
 
   const getStatusBadge = (status: Supplier["status"]) => {
     return (
-      <Badge variant={status === "active" ? "default" : "secondary"} className="text-xs">
+      <Badge
+        variant={status === "active" ? "default" : "secondary"}
+        className="text-xs"
+      >
         {status === "active" ? "Active" : "Inactive"}
       </Badge>
-    )
-  }
+    );
+  };
 
   const getRatingStars = (rating: number) => {
-    return "★".repeat(Math.floor(rating)) + "☆".repeat(5 - Math.floor(rating))
-  }
+    return "★".repeat(Math.floor(rating)) + "☆".repeat(5 - Math.floor(rating));
+  };
 
-  const activeSuppliers = suppliers.filter((s) => s.status === "active").length
-  const totalSupplierValue = suppliers.reduce((sum, supplier) => sum + supplier.totalValue, 0)
+  const activeSuppliers = suppliers.filter((s) => s.status === "active").length;
+  const totalSupplierValue = suppliers.reduce(
+    (sum, supplier) => sum + supplier.totalValue,
+    0,
+  );
 
   return (
     <div className="space-y-6">
@@ -147,7 +161,9 @@ export function SupplierManagement() {
               </div>
               <div className="text-right">
                 <p className="text-sm text-muted-foreground">Active</p>
-                <p className="text-lg font-semibold text-primary">{activeSuppliers}</p>
+                <p className="text-lg font-semibold text-primary">
+                  {activeSuppliers}
+                </p>
               </div>
             </div>
           </CardContent>
@@ -157,8 +173,12 @@ export function SupplierManagement() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Total Purchase Value</p>
-                <p className="text-2xl font-bold">{formatCurrency(totalSupplierValue)}</p>
+                <p className="text-sm text-muted-foreground">
+                  Total Purchase Value
+                </p>
+                <p className="text-2xl font-bold">
+                  {formatCurrency(totalSupplierValue)}
+                </p>
               </div>
             </div>
           </CardContent>
@@ -170,13 +190,19 @@ export function SupplierManagement() {
               <div>
                 <p className="text-sm text-muted-foreground">Average Rating</p>
                 <p className="text-2xl font-bold">
-                  {(suppliers.reduce((sum, s) => sum + s.rating, 0) / suppliers.length).toFixed(1)}
+                  {(
+                    suppliers.reduce((sum, s) => sum + s.rating, 0) /
+                    suppliers.length
+                  ).toFixed(1)}
                 </p>
               </div>
               <div className="text-right">
                 <p className="text-sm text-muted-foreground">Stars</p>
                 <p className="text-lg">
-                  {getRatingStars(suppliers.reduce((sum, s) => sum + s.rating, 0) / suppliers.length)}
+                  {getRatingStars(
+                    suppliers.reduce((sum, s) => sum + s.rating, 0) /
+                      suppliers.length,
+                  )}
                 </p>
               </div>
             </div>
@@ -189,10 +215,17 @@ export function SupplierManagement() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="font-serif font-semibold">Supplier Management</CardTitle>
-              <CardDescription>Manage your pharmaceutical suppliers and vendors</CardDescription>
+              <CardTitle className="font-serif font-semibold">
+                Supplier Management
+              </CardTitle>
+              <CardDescription>
+                Manage your pharmaceutical suppliers and vendors
+              </CardDescription>
             </div>
-            <Button className="bg-accent hover:bg-accent/90">
+            <Button
+              className="bg-accent hover:bg-accent/90"
+              onClick={() => setShowAddDialog(true)}
+            >
               <Plus className="h-4 w-4 mr-2" />
               Add Supplier
             </Button>
@@ -218,7 +251,9 @@ export function SupplierManagement() {
       {/* Suppliers Table */}
       <Card>
         <CardHeader>
-          <CardTitle className="font-serif font-semibold">Supplier Directory</CardTitle>
+          <CardTitle className="font-serif font-semibold">
+            Supplier Directory
+          </CardTitle>
           <CardDescription>
             Showing {filteredSuppliers.length} of {suppliers.length} suppliers
           </CardDescription>
@@ -245,8 +280,12 @@ export function SupplierManagement() {
                     <TableCell>
                       <div>
                         <div className="font-medium">{supplier.name}</div>
-                        <div className="text-sm text-muted-foreground">{supplier.contactPerson}</div>
-                        <div className="text-xs text-muted-foreground">Terms: {supplier.paymentTerms}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {supplier.contactPerson}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Terms: {supplier.paymentTerms}
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -266,22 +305,30 @@ export function SupplierManagement() {
                         <MapPin className="h-3 w-3 mt-0.5" />
                         <div className="text-sm">
                           <div>{supplier.city}</div>
-                          <div className="text-xs text-muted-foreground">{supplier.state}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {supplier.state}
+                          </div>
                         </div>
                       </div>
                     </TableCell>
                     <TableCell>{getStatusBadge(supplier.status)}</TableCell>
                     <TableCell>
-                      <div className="text-center font-medium">{supplier.totalOrders}</div>
+                      <div className="text-center font-medium">
+                        {supplier.totalOrders}
+                      </div>
                     </TableCell>
                     <TableCell>
-                      <div className="font-medium">{formatCurrency(supplier.totalValue)}</div>
+                      <div className="font-medium">
+                        {formatCurrency(supplier.totalValue)}
+                      </div>
                     </TableCell>
                     <TableCell>{formatDate(supplier.lastOrderDate)}</TableCell>
                     <TableCell>
                       <div className="text-center">
                         <div className="font-medium">{supplier.rating}</div>
-                        <div className="text-xs text-yellow-600">{getRatingStars(supplier.rating)}</div>
+                        <div className="text-xs text-yellow-600">
+                          {getRatingStars(supplier.rating)}
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -301,6 +348,12 @@ export function SupplierManagement() {
           </div>
         </CardContent>
       </Card>
+
+      <AddSupplierDialog
+        open={showAddDialog}
+        onOpenChange={setShowAddDialog}
+        onAddSupplier={handleAddSupplier}
+      />
     </div>
-  )
+  );
 }

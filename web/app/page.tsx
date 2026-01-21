@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ModeToggle } from "@/components/mode-toggle";
+import { PricingSection } from "@/components/landing/pricing-section";
 
 export default function Home() {
   return (
@@ -205,123 +206,7 @@ export default function Home() {
         </section>
 
         {/* Pricing Section */}
-        <section id="pricing" className="py-20">
-          <div className="container space-y-16">
-            <div className="text-center space-y-4 max-w-3xl mx-auto">
-              <h2 className="text-3xl md:text-4xl font-bold">
-                Simple, transparent pricing
-              </h2>
-              <p className="text-muted-foreground text-lg">
-                Start for free, scale as you grow. No hidden fees.
-              </p>
-            </div>
-
-            <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-              {/* Starter Plan */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-xl">Starter</CardTitle>
-                  <CardDescription>For new pharmacies</CardDescription>
-                  <div className="mt-4">
-                    <span className="text-4xl font-bold">Free</span>
-                    <span className="text-muted-foreground">/month</span>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                    <span>Up to 100 Products</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                    <span>Basic POS</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                    <span>1 User Account</span>
-                  </div>
-                </CardContent>
-                <CardFooter>
-                  <Button className="w-full" variant="outline" asChild>
-                    <Link href="/register">Get Started</Link>
-                  </Button>
-                </CardFooter>
-              </Card>
-
-              {/* Pro Plan */}
-              <Card className="border-primary shadow-lg relative">
-                <div className="absolute -top-4 left-0 right-0 mx-auto w-fit bg-primary text-primary-foreground px-3 py-1 rounded-full text-sm font-medium">
-                  Most Popular
-                </div>
-                <CardHeader>
-                  <CardTitle className="text-xl">Professional</CardTitle>
-                  <CardDescription>For growing businesses</CardDescription>
-                  <div className="mt-4">
-                    <span className="text-4xl font-bold">₦15,000</span>
-                    <span className="text-muted-foreground">/month</span>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                    <span>Unlimited Products</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                    <span>Advanced Analytics</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                    <span>5 User Accounts</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                    <span>Offline Sync</span>
-                  </div>
-                </CardContent>
-                <CardFooter>
-                  <Button className="w-full" asChild>
-                    <Link href="/register">Start Free Trial</Link>
-                  </Button>
-                </CardFooter>
-              </Card>
-
-              {/* Enterprise Plan */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-xl">Enterprise</CardTitle>
-                  <CardDescription>For chains & hospitals</CardDescription>
-                  <div className="mt-4">
-                    <span className="text-4xl font-bold">Custom</span>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                    <span>Multiple Locations</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                    <span>Dedicated Support</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                    <span>Custom Integration</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                    <span>SLA Guarantee</span>
-                  </div>
-                </CardContent>
-                <CardFooter>
-                  <Button className="w-full" variant="outline">
-                    Contact Sales
-                  </Button>
-                </CardFooter>
-              </Card>
-            </div>
-          </div>
-        </section>
+        <PricingSection />
 
         {/* CTA Section */}
         <section className="py-20 bg-primary text-primary-foreground">
@@ -429,7 +314,10 @@ export default function Home() {
           </div>
         </div>
         <div className="container border-t border-slate-800 pt-8 text-center text-sm">
-          <p>© 2024 DumosTech Solutions. All rights reserved.</p>
+          <p>
+            © 2019 - {new Date().getFullYear()} Dumos Technologies. All rights
+            reserved.
+          </p>
         </div>
       </footer>
     </div>

@@ -1,16 +1,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ShieldCheck, Download, LayoutDashboard, Settings } from "lucide-react";
-import dynamic from "next/dynamic";
-
-// Dynamically import SubscriptionCard to avoid 'window not defined' error from react-paystack during SSR
-const SubscriptionCard = dynamic(
-  () =>
-    import("@/components/dashboard/subscription-card").then(
-      (mod) => mod.SubscriptionCard,
-    ),
-  { ssr: false },
-);
+import { SubscriptionWrapper } from "@/components/dashboard/subscription-wrapper";
 import {
   Card,
   CardContent,
@@ -45,7 +36,7 @@ export default function DashboardPage() {
 
         <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
           {/* Subscription Module */}
-          <SubscriptionCard />
+          <SubscriptionWrapper />
 
           {/* Download Module */}
           <Card>

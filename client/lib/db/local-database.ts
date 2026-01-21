@@ -1,0 +1,403 @@
+/**
+ * LocalDatabase - SQLite wrapper for offline-first operation
+ *
+ * Platform detection:
+ * - Browser: uses sql.js (WASM)
+ * - Tauri: will use tauri-plugin-sql (native)
+ */
+
+import initSqlJs, { Database, SqlJsStatic } from "sql.js";
+
+// Schema SQL (will be loaded from file in production)
+const SCHEMA_SQL = `
+CREATE TABLE IF NOT EXISTS medicines (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  generic_name TEXT,
+  brand TEXT,
+  category TEXT,
+  nafdac_number TEXT,
+  dosage_form TEXT,
+  strength TEXT,
+  description TEXT,
+  cost_price REAL DEFAULT 0,
+  selling_price REAL DEFAULT 0,
+  stock_quantity INTEGER DEFAULT 0,
+  reorder_level INTEGER DEFAULT 10,
+  requires_prescription INTEGER DEFAULT 0,
+  is_controlled INTEGER DEFAULT 0,
+  status TEXT DEFAULT 'active',
+  created_at TEXT,
+  updated_at TEXT,
+  _version INTEGER DEFAULT 1,
+  _synced INTEGER DEFAULT 0,
+  _synced_at TEXT,
+  _deleted INTEGER DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS categories (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT,
+  created_at TEXT,
+  updated_at TEXT,
+  _version INTEGER DEFAULT 1,
+  _synced INTEGER DEFAULT 0,
+  _synced_at TEXT,
+  _deleted INTEGER DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS customers (
+  id TEXT PRIMARY KEY,
+  first_name TEXT NOT NULL,
+  last_name TEXT,
+  email TEXT,
+  phone TEXT,
+  address TEXT,
+  date_of_birth TEXT,
+  gender TEXT,
+  loyalty_points INTEGER DEFAULT 0,
+  notes TEXT,
+  created_at TEXT,
+  updated_at TEXT,
+  _version INTEGER DEFAULT 1,
+  _synced INTEGER DEFAULT 0,
+  _synced_at TEXT,
+  _deleted INTEGER DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS suppliers (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  contact_person TEXT,
+  email TEXT,
+  phone TEXT,
+  address TEXT,
+  city TEXT,
+  state TEXT,
+  payment_terms TEXT,
+  rating REAL,
+  is_active INTEGER DEFAULT 1,
+  created_at TEXT,
+  updated_at TEXT,
+  _version INTEGER DEFAULT 1,
+  _synced INTEGER DEFAULT 0,
+  _synced_at TEXT,
+  _deleted INTEGER DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS sales (
+  id TEXT PRIMARY KEY,
+  customer_id TEXT,
+  staff_id TEXT,
+  subtotal REAL DEFAULT 0,
+  discount REAL DEFAULT 0,
+  vat REAL DEFAULT 0,
+  total REAL DEFAULT 0,
+  payment_method TEXT,
+  payment_status TEXT DEFAULT 'completed',
+  notes TEXT,
+  created_at TEXT,
+  updated_at TEXT,
+  _version INTEGER DEFAULT 1,
+  _synced INTEGER DEFAULT 0,
+  _synced_at TEXT,
+  _deleted INTEGER DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS sale_items (
+  id TEXT PRIMARY KEY,
+  sale_id TEXT NOT NULL,
+  medicine_id TEXT NOT NULL,
+  quantity INTEGER NOT NULL,
+  unit_price REAL NOT NULL,
+  total_price REAL NOT NULL,
+  created_at TEXT,
+  _version INTEGER DEFAULT 1,
+  _synced INTEGER DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS prescriptions (
+  id TEXT PRIMARY KEY,
+  prescription_number TEXT,
+  customer_id TEXT,
+  patient_name TEXT,
+  patient_phone TEXT,
+  patient_age INTEGER,
+  doctor_name TEXT,
+  doctor_license TEXT,
+  status TEXT DEFAULT 'pending',
+  priority TEXT DEFAULT 'normal',
+  insurance TEXT,
+  total_cost REAL DEFAULT 0,
+  notes TEXT,
+  issued_at TEXT,
+  created_at TEXT,
+  updated_at TEXT,
+  _version INTEGER DEFAULT 1,
+  _synced INTEGER DEFAULT 0,
+  _synced_at TEXT,
+  _deleted INTEGER DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS _sync_queue (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  table_name TEXT NOT NULL,
+  record_id TEXT NOT NULL,
+  operation TEXT NOT NULL,
+  payload TEXT,
+  created_at TEXT NOT NULL,
+  retry_count INTEGER DEFAULT 0,
+  last_error TEXT
+);
+
+CREATE TABLE IF NOT EXISTS _sync_state (
+  table_name TEXT PRIMARY KEY,
+  last_synced_at TEXT,
+  server_cursor TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_medicines_name ON medicines(name);
+CREATE INDEX IF NOT EXISTS idx_medicines_synced ON medicines(_synced);
+CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone);
+CREATE INDEX IF NOT EXISTS idx_sales_created ON sales(created_at);
+CREATE INDEX IF NOT EXISTS idx_sync_queue_table ON _sync_queue(table_name);
+`;
+
+let SQL: SqlJsStatic | null = null;
+let db: Database | null = null;
+
+/**
+ * Check if running in Tauri environment
+ */
+export function isTauri(): boolean {
+  return typeof window !== "undefined" && "__TAURI__" in window;
+}
+
+/**
+ * Generate a UUID v4
+ */
+export function generateId(): string {
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+/**
+ * Initialize the local database
+ */
+export async function initDatabase(): Promise<Database> {
+  if (db) return db;
+
+  if (isTauri()) {
+    // TODO: Implement Tauri native SQLite
+    throw new Error("Tauri SQLite not yet implemented");
+  }
+
+  // Browser: use sql.js
+  if (!SQL) {
+    SQL = await initSqlJs({
+      locateFile: (file: string) => `https://sql.js.org/dist/${file}`,
+    });
+  }
+
+  // Try to load existing database from localStorage
+  const savedData = localStorage.getItem("dumosrx_db");
+  if (savedData) {
+    const data = new Uint8Array(JSON.parse(savedData));
+    db = new SQL.Database(data);
+  } else {
+    db = new SQL.Database();
+    // Initialize schema
+    db.run(SCHEMA_SQL);
+  }
+
+  return db;
+}
+
+/**
+ * Save database to localStorage (browser only)
+ */
+export function saveDatabase(): void {
+  if (!db) return;
+
+  const data = db.export();
+  const arr = Array.from(data);
+  localStorage.setItem("dumosrx_db", JSON.stringify(arr));
+}
+
+/**
+ * Execute a SQL query and return results
+ */
+export function query<T = Record<string, unknown>>(
+  sql: string,
+  params: (string | number | null | Uint8Array)[] = [],
+): T[] {
+  if (!db) throw new Error("Database not initialized");
+
+  const stmt = db.prepare(sql);
+  stmt.bind(params);
+
+  const results: T[] = [];
+  while (stmt.step()) {
+    const row = stmt.getAsObject() as T;
+    results.push(row);
+  }
+  stmt.free();
+
+  return results;
+}
+
+/**
+ * Execute a SQL statement (INSERT, UPDATE, DELETE)
+ */
+export function execute(
+  sql: string,
+  params: (string | number | null | Uint8Array)[] = [],
+): void {
+  if (!db) throw new Error("Database not initialized");
+
+  db.run(sql, params);
+  saveDatabase(); // Auto-save after writes
+}
+
+/**
+ * Insert a record and add to sync queue
+ */
+export function insert(table: string, data: Record<string, unknown>): string {
+  const id = (data.id as string) || generateId();
+  const now = new Date().toISOString();
+
+  const record: Record<string, unknown> = {
+    ...data,
+    id,
+    created_at: data.created_at || now,
+    updated_at: now,
+    _version: 1,
+    _synced: 0,
+  };
+
+  const columns = Object.keys(record);
+  const placeholders = columns.map(() => "?").join(", ");
+  const values = columns.map((col) => record[col]) as (
+    | string
+    | number
+    | null
+    | Uint8Array
+  )[];
+
+  execute(
+    `INSERT INTO ${table} (${columns.join(", ")}) VALUES (${placeholders})`,
+    values,
+  );
+
+  // Add to sync queue
+  addToSyncQueue(table, id, "INSERT", record);
+
+  return id;
+}
+
+/**
+ * Update a record and add to sync queue
+ */
+export function update(
+  table: string,
+  id: string,
+  data: Record<string, unknown>,
+): void {
+  const now = new Date().toISOString();
+
+  // Get current version
+  const current = query<{ _version: number }>(
+    `SELECT _version FROM ${table} WHERE id = ?`,
+    [id],
+  );
+  const version = current[0]?._version || 0;
+
+  const record = {
+    ...data,
+    updated_at: now,
+    _version: version + 1,
+    _synced: 0,
+  };
+
+  const setClause = Object.keys(record)
+    .map((col) => `${col} = ?`)
+    .join(", ");
+  const values = [...Object.values(record), id] as (
+    | string
+    | number
+    | null
+    | Uint8Array
+  )[];
+
+  execute(`UPDATE ${table} SET ${setClause} WHERE id = ?`, values);
+
+  // Add to sync queue
+  addToSyncQueue(table, id, "UPDATE", record);
+}
+
+/**
+ * Soft delete a record
+ */
+export function softDelete(table: string, id: string): void {
+  const now = new Date().toISOString();
+
+  execute(
+    `UPDATE ${table} SET _deleted = 1, updated_at = ?, _synced = 0 WHERE id = ?`,
+    [now, id],
+  );
+
+  addToSyncQueue(table, id, "DELETE", { id });
+}
+
+/**
+ * Add an operation to the sync queue
+ */
+function addToSyncQueue(
+  table: string,
+  recordId: string,
+  operation: "INSERT" | "UPDATE" | "DELETE",
+  payload: Record<string, unknown>,
+): void {
+  const now = new Date().toISOString();
+
+  execute(
+    `INSERT INTO _sync_queue (table_name, record_id, operation, payload, created_at)
+     VALUES (?, ?, ?, ?, ?)`,
+    [table, recordId, operation, JSON.stringify(payload), now],
+  );
+}
+
+/**
+ * Get pending sync items
+ */
+export function getPendingSyncItems(): Array<{
+  id: number;
+  table_name: string;
+  record_id: string;
+  operation: string;
+  payload: string;
+  created_at: string;
+}> {
+  return query("SELECT * FROM _sync_queue ORDER BY created_at ASC");
+}
+
+/**
+ * Mark sync items as completed
+ */
+export function markSynced(queueIds: number[]): void {
+  if (queueIds.length === 0) return;
+
+  const placeholders = queueIds.map(() => "?").join(", ");
+  execute(`DELETE FROM _sync_queue WHERE id IN (${placeholders})`, queueIds);
+}
+
+/**
+ * Get database instance (for advanced queries)
+ */
+export function getDatabase(): Database | null {
+  return db;
+}

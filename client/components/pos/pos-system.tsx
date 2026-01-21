@@ -225,14 +225,34 @@ export function POSSystem() {
 
     try {
       // 1. Create Sale
+      const user = JSON.parse(localStorage.getItem("dumos_user") || "{}");
+      const cashierId = user?.id || null;
+      const transactionNumber = `TXN${Date.now()}`;
+
       const saleId = insert("sales", {
+        transaction_number: transactionNumber,
         customer_id: selectedCustomer?.id || null,
+        cashier_id: cashierId,
         subtotal,
-        discount,
-        vat: tax,
-        total,
+        discount_amount: discount,
+        discount_percentage: 0, // Calculate if needed
+        tax_amount: tax,
+        tax_percentage: 7.5,
+        total_amount: total,
+        amount_paid:
+          paymentMethod === "cash"
+            ? Number.parseFloat(amountPaid) || total
+            : total,
+        change_given:
+          paymentMethod === "cash"
+            ? Math.max(0, (Number.parseFloat(amountPaid) || 0) - total)
+            : 0,
+        points_earned: 0, // Implement points logic if needed
+        points_redeemed: 0,
         payment_method: paymentMethod,
         payment_status: "completed",
+        transaction_date: new Date().toISOString(),
+        receipt_printed: 0,
         notes: "POS Sale",
       });
 

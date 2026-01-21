@@ -127,7 +127,7 @@ export async function pullChanges(): Promise<{
             // We use soft delete locally too usually, but if server says deleted, we can hard delete or soft delete
             // Let's mirror server: if server soft deleted, record._deleted is 1
             const columns = Object.keys(data);
-            const placeholders = columns.map(() => "?").join(", ");
+            const placeholders = columns.map(() => "?");
             const values = columns.map((c) => data[c]);
 
             // Upsert (Insert or Replace)
@@ -140,7 +140,7 @@ export async function pullChanges(): Promise<{
 
             // Flatten object values for binding
             const allCols = ["id", ...columns, "_synced"];
-            const allPlaceholders = ["?", ...placeholders, "1"];
+            const allPlaceholders = ["?", ...placeholders, "?"];
             const allValues = [id, ...values, 1]; // _synced = 1 means it came from server
 
             db.run(
@@ -150,10 +150,10 @@ export async function pullChanges(): Promise<{
           } else {
             // Same logic for Active records
             const columns = Object.keys(data);
-            const placeholders = columns.map(() => "?").join(", ");
+            const placeholders = columns.map(() => "?");
             // Add id
             const allCols = ["id", ...columns, "_synced"];
-            const allPlaceholders = ["?", ...placeholders, "1"];
+            const allPlaceholders = ["?", ...placeholders, "?"];
             const allValues = [id, ...Object.values(data), 1];
 
             db.run(

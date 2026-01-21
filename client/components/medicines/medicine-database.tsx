@@ -123,11 +123,10 @@ export function MedicineDatabase() {
       // Ensure local schema compatibility (category string vs id)
       const localPayload = {
         ...payload,
-        // If the dialog sends category_id: null, we might want to capture the string if available
-        // For now, let's assume payload matches what we want or we fix the dialog logic?
-        // Actually, AddMedicineDialog sends category_id: null, but we need the category string.
-        // We'll fix AddMedicineDialog next. For now, let's assume proper payload.
+        is_active: payload.status === "active" ? 1 : 0,
+        // Remove status key as it's not in DB
       };
+      delete localPayload.status;
 
       insert("medicines", localPayload);
 

@@ -18,3 +18,20 @@ Route::get('/migrate-db', function () {
         return 'Error: ' . $e->getMessage();
     }
 });
+
+Route::get('/debug-config', function () {
+    if (request()->get('key') !== 'dumos-setup') {
+        abort(403, 'Unauthorized');
+    }
+
+    return response()->json([
+        'session_driver' => config('session.driver'),
+        'session_domain' => config('session.domain'),
+        'session_secure' => config('session.secure'),
+        'session_same_site' => config('session.same_site'),
+        'sanctum_stateful' => config('sanctum.stateful'),
+        'cors_allowed_origins' => config('cors.allowed_origins'),
+        'cors_supports_credentials' => config('cors.supports_credentials'),
+        'app_url' => config('app.url'),
+    ]);
+});

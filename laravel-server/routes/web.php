@@ -3,7 +3,7 @@
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return view('welcome');
+    return 'DumosRx API is running. Access /api/v1 for endpoints.';
 });
 
 Route::get('/migrate-db', function () {

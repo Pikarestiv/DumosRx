@@ -7,6 +7,12 @@ use App\Http\Controllers\StaffController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\BackupController;
 use App\Http\Controllers\ActivityLogController;
+use App\Http\Controllers\MedicineController;
+use App\Http\Controllers\InventoryController;
+use App\Http\Controllers\SaleController;
+use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\SupplierController;
+use App\Http\Controllers\CategoryController;
 
 Route::prefix('v1')->group(function () {
     // Public Routes
@@ -33,6 +39,27 @@ Route::prefix('v1')->group(function () {
         Route::post('/backups/upload', [BackupController::class, 'upload']);
         Route::get('/backups', [BackupController::class, 'list']);
         Route::get('/backups/{backup}/download', [BackupController::class, 'download']);
+
+
+        // Medicine Database
+        Route::get('/medicines/search', [MedicineController::class, 'search']);
+        Route::apiResource('medicines', MedicineController::class);
+
+        // Inventory
+        Route::get('/inventory/low-stock', [InventoryController::class, 'lowStock']);
+        Route::get('/inventory/expiring', [InventoryController::class, 'expiring']);
+        Route::get('/inventory/value', [InventoryController::class, 'value']);
+        Route::get('/inventory', [InventoryController::class, 'index']);
+
+        // Sales & POS
+        Route::get('/sales/daily', [SaleController::class, 'dailySales']);
+        Route::get('/sales/top-medicines', [SaleController::class, 'topMedicines']);
+        Route::apiResource('sales', SaleController::class)->only(['index', 'store', 'show']);
+
+        // CRM & Supply Chain
+        Route::apiResource('customers', CustomerController::class);
+        Route::apiResource('suppliers', SupplierController::class);
+        Route::apiResource('categories', CategoryController::class);
 
         // Activity Logs
         Route::get('/logs', [ActivityLogController::class, 'index']);

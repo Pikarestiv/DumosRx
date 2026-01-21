@@ -2,6 +2,11 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\StaffController;
+use App\Http\Controllers\SubscriptionController;
+use App\Http\Controllers\BackupController;
+use App\Http\Controllers\ActivityLogController;
 
 Route::prefix('v1')->group(function () {
     // Public Routes

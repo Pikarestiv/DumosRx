@@ -3,7 +3,13 @@
 import type React from "react";
 
 import { useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { ThemeCustomizer } from "@/components/ui/theme-customizer";
+import { useAuthStore } from "@/lib/auth/store";
 import {
   LayoutDashboard,
   Package,
@@ -17,10 +23,6 @@ import {
   X,
   Pill,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { ThemeToggle } from "@/components/ui/theme-toggle";
-import { ThemeCustomizer } from "@/components/ui/theme-customizer";
-import { useAuthStore } from "@/lib/auth/store";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -39,6 +41,7 @@ const navigationItems = [
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const pathname = usePathname();
 
   return (
     <div className="min-h-screen bg-background">
@@ -72,16 +75,25 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         </div>
 
         <nav className="flex-1 px-4 py-6 space-y-2">
-          {navigationItems.map((item) => (
-            <a
-              key={item.name}
-              href={item.href}
-              className="flex items-center gap-3 px-3 py-2 text-sm font-medium text-sidebar-foreground rounded-lg hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
-            >
-              <item.icon className="h-4 w-4" />
-              {item.name}
-            </a>
-          ))}
+          {navigationItems.map((item) => {
+            const isActive = pathname === item.href;
+            return (
+              <Link
+                key={item.name}
+                href={isActive ? "#" : item.href}
+                onClick={(e) => isActive && e.preventDefault()}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors",
+                  isActive
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground cursor-default"
+                    : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                )}
+              >
+                <item.icon className="h-4 w-4" />
+                {item.name}
+              </Link>
+            );
+          })}
         </nav>
 
         <div className="p-4 border-t border-sidebar-border">

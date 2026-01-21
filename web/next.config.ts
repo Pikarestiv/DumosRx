@@ -1,7 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  output: "export",
+  images: {
+    unoptimized: true,
+  },
+  // Ensure trailing slashes for direct FTP hosting compatibility
+  trailingSlash: true,
 };
 
 export default nextConfig;

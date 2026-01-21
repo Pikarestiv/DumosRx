@@ -6,7 +6,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { initDatabase, query } from "../local-database";
 
 export interface UseLocalDataOptions<T> {
@@ -47,6 +47,13 @@ export function useLocalData<T = Record<string, unknown>>(
   const [error, setError] = useState<Error | null>(null);
   const [dbReady, setDbReady] = useState(false);
 
+  // Use ref for transform to avoid infinite loops if inline function is passed
+  const transformRef = useRef(transform);
+
+  useEffect(() => {
+    transformRef.current = transform;
+  }, [transform]);
+
   // Initialize database
   useEffect(() => {
     initDatabase()
@@ -61,8 +68,10 @@ export function useLocalData<T = Record<string, unknown>>(
     try {
       setLoading(true);
       const results = query<Record<string, unknown>>(sql, params);
-      const transformed = transform
-        ? results.map(transform)
+      const currentTransform = transformRef.current;
+
+      const transformed = currentTransform
+        ? results.map(currentTransform)
         : (results as unknown as T[]);
       setData(transformed);
       setError(null);
@@ -71,7 +80,7 @@ export function useLocalData<T = Record<string, unknown>>(
     } finally {
       setLoading(false);
     }
-  }, [sql, JSON.stringify(params), dbReady, transform]);
+  }, [sql, JSON.stringify(params), dbReady]);
 
   // Initial fetch
   useEffect(() => {

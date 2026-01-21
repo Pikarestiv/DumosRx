@@ -7,6 +7,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { sync } from "@/lib/db/sync-engine";
 import { RefreshCw, Database } from "lucide-react";
+import { toast } from "sonner";
+import { insert } from "@/lib/db/local-database";
 
 export function DevSeedButton() {
   const [loading, setLoading] = useState(false);

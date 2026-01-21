@@ -13,12 +13,31 @@ import { toast } from "sonner";
  * Handles bidirectional synchronization between SQLite and Laravel
  */
 
+interface PushResponse {
+  success: boolean;
+  message?: string;
+  processed?: number;
+}
+
+interface PullResponse {
+  success: boolean;
+  server_timestamp: string;
+  changes: Record<string, Record<string, unknown>[]>;
+}
+
+interface SyncResult {
+  success: boolean;
+  pushed: number;
+  pulled: number;
+  error?: unknown;
+}
+
 const SYNC_BATCH_SIZE = 50;
 
 /**
  * Push local changes to server
  */
-export async function pushChanges() {
+export async function pushChanges(): Promise<{ pushed: number }> {
   const pending = getPendingSyncItems();
 
   if (pending.length === 0) return { pushed: 0 };
@@ -36,7 +55,9 @@ export async function pushChanges() {
         payload: JSON.parse(item.payload),
       }));
 
-      const response = await apiClient.pushChanges({ changes });
+      const response = (await apiClient.pushChanges({
+        changes,
+      })) as PushResponse;
 
       // If successful, mark as synced
       if (response.success) {
@@ -57,7 +78,10 @@ export async function pushChanges() {
 /**
  * Pull changes from server
  */
-export async function pullChanges() {
+export async function pullChanges(): Promise<{
+  pulled: number;
+  error?: unknown;
+}> {
   try {
     // Get last sync timestamp for each table
     const syncState = query<{ table_name: string; last_synced_at: string }>(
@@ -74,9 +98,9 @@ export async function pullChanges() {
     );
 
     // Fetch changes from server
-    const response = await apiClient.pullChanges({
+    const response = (await apiClient.pullChanges({
       last_synced: lastSyncedMap,
-    });
+    })) as PullResponse;
     const { changes, server_timestamp } = response;
 
     if (!changes || Object.keys(changes).length === 0) {
@@ -164,7 +188,7 @@ export async function pullChanges() {
 /**
  * Main Sync Function
  */
-export async function sync() {
+export async function sync(): Promise<SyncResult> {
   try {
     const pushResult = await pushChanges();
     const pullResult = await pullChanges();
@@ -176,10 +200,19 @@ export async function sync() {
       // toast.success("Data synced successfully");
     }
 
-    return { success: true, ...pushResult, ...pullResult };
+    return {
+      success: true,
+      pushed: pushResult.pushed,
+      pulled: pullResult.pulled,
+    };
   } catch (error) {
     console.error("Sync failed:", error);
     // toast.error("Sync failed");
-    return { success: false, error };
+    return {
+      success: false,
+      pushed: 0,
+      pulled: 0,
+      error,
+    };
   }
 }

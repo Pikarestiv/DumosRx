@@ -45,7 +45,10 @@ export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
       user: null,
-      token: null,
+      token:
+        typeof window !== "undefined"
+          ? localStorage.getItem("auth_token")
+          : null,
       isLoading: true,
       isAuthenticated: false,
 
@@ -133,7 +136,16 @@ export const useAuthStore = create<AuthState>()(
       },
 
       setUser: (user) => set({ user, isAuthenticated: !!user }),
-      setToken: (token) => set({ token, isAuthenticated: !!token }),
+      setToken: (token) => {
+        if (typeof window !== "undefined") {
+          if (token) {
+            localStorage.setItem("auth_token", token);
+          } else {
+            localStorage.removeItem("auth_token");
+          }
+        }
+        set({ token, isAuthenticated: !!token });
+      },
     }),
     {
       name: "auth-storage",
@@ -147,7 +159,7 @@ export const useAuthStore = create<AuthState>()(
           removeItem: () => {},
         };
       }),
-      partialize: (state) => ({ token: state.token, user: state.user }),
+      partialize: (state) => ({ user: state.user }), // Don't persist token here, it's in auth_token
     },
   ),
 );

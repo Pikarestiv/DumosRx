@@ -4,7 +4,7 @@ class ApiClient {
 
   constructor() {
     this.baseURL =
-      process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1";
+      process.env.NEXT_PUBLIC_API_URL || "https://api.rx.dumostech.com/api/v1";
 
     // Load token from localStorage on client side
     if (typeof window !== "undefined") {
@@ -32,11 +32,17 @@ class ApiClient {
   ): Promise<T> {
     const url = `${this.baseURL}${endpoint}`;
 
+    // Dynamic token retrieval for client-side
+    const currentToken =
+      typeof window !== "undefined"
+        ? localStorage.getItem("auth_token") || this.token
+        : this.token;
+
     const config: RequestInit = {
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json",
-        ...(this.token && { Authorization: `Bearer ${this.token}` }),
+        ...(currentToken && { Authorization: `Bearer ${currentToken}` }),
         ...options.headers,
       },
       ...options,

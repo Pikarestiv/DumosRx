@@ -40,7 +40,7 @@ export default function RootLayout({
       lang="en"
       className={`${montserrat.variable} ${openSans.variable} antialiased`}
     >
-      <body className="font-sans">
+      <body className="font-sans" suppressHydrationWarning>
         <ThemeProvider defaultTheme="system" storageKey="dumosrx-ui-theme">
           <DatabaseProvider>
             <AuthListener />

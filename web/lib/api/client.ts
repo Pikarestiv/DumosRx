@@ -59,6 +59,17 @@ class WebApiClient {
       body: payload,
     });
   }
+
+  async login(payload: { email: string; password: string }) {
+    return this.request<{
+      user: any;
+      token: string;
+      message: string;
+    }>("/login", {
+      method: "POST",
+      body: payload,
+    });
+  }
 }
 
 export const webApiClient = new WebApiClient(API_URL);

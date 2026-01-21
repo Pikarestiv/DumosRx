@@ -19,7 +19,7 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['http://localhost:3000', 'https://rx.dumostech.com', 'https://*.rx.dumostech.com'],
+    'allowed_origins' => ['http://localhost:3000', 'http://localhost:3001', 'https://rx.dumostech.com', 'https://*.rx.dumostech.com'],
 
     'allowed_origins_patterns' => [],
 

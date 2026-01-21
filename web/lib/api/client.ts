@@ -76,6 +76,28 @@ class WebApiClient {
       },
     });
   }
+
+  async getSubscriptionStatus() {
+    return this.request<{
+      status: string;
+      plan?: string;
+      days_remaining?: number;
+    }>("/subscription/status");
+  }
+
+  async initiatePayment(payload: {
+    amount: number;
+    provider: "paystack" | "flutterwave";
+  }) {
+    return this.request<{
+      message: string;
+      transaction_reference: string;
+      payment_url?: string;
+    }>("/subscription/pay", {
+      method: "POST",
+      body: payload,
+    });
+  }
 }
 
 export const webApiClient = new WebApiClient(API_URL);

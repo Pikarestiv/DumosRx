@@ -10,6 +10,9 @@
 
 DumosRx is a modern, comprehensive pharmacy management system specifically designed for Nigerian pharmacies. It provides a robust solution that handles medicine inventory, sales transactions, prescription management, and business analytics, tailored for the local market.
 
+> [!TIP]
+> **For AI Assistants & Developers**: See [PROJECT_KNOWLEDGE.md](PROJECT_KNOWLEDGE.md) for a deep dive into the project's architecture, sync engine, and design philosophy.
+
 ### 🎯 Key Features
 
 - **🔐 Role-Based Authentication** - Super Admin, Manager, Pharmacist, Sales Staff, Auditor roles

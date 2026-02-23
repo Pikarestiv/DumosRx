@@ -19,6 +19,7 @@ import {
   Activity,
 } from "lucide-react";
 import { useLocalData } from "@/lib/db/hooks/useLocalData";
+import { useStore } from "@/lib/context/store-context";
 
 interface DashboardStats {
   totalMedicines: number;
@@ -35,9 +36,10 @@ interface ActivityItem {
 }
 
 export function DashboardOverview() {
+  const { t } = useStore();
   // Fetch stats directly from local SQLite
   const { data: medicines } = useLocalData<{ count: number }>(
-    'SELECT COUNT(*) as count FROM medicines WHERE status = "active" AND _deleted = 0',
+    'SELECT COUNT(*) as count FROM medicines WHERE is_active = 1 AND _deleted = 0',
   );
 
   const { data: salesToday } = useLocalData<{ total: number }>(
@@ -154,9 +156,9 @@ export function DashboardOverview() {
 
   const statsCards = [
     {
-      title: "Total Medicines",
+      title: `Total ${t('products')}`,
       value: stats?.totalMedicines.toLocaleString() || "0",
-      description: "Active inventory items",
+      description: `Active ${t('products').toLowerCase()} in stock`,
       icon: Package,
       trend: "In database",
     },
@@ -278,7 +280,7 @@ export function DashboardOverview() {
                 className="p-4 bg-accent text-accent-foreground rounded-lg hover:bg-accent/90 transition-colors flex flex-col items-center justify-center text-center cursor-pointer"
               >
                 <Package className="h-6 w-6 mb-2" />
-                <span className="text-sm font-medium">Add Medicine</span>
+                <span className="text-sm font-medium">Add {t('product')}</span>
               </Link>
               <Link
                 href="/pos"

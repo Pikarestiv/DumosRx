@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { ThemeCustomizer } from "@/components/ui/theme-customizer";
 import { useAuthStore } from "@/lib/auth/store";
+import { useStore } from "@/lib/context/store-context";
 import {
   LayoutDashboard,
   Package,
@@ -22,26 +23,34 @@ import {
   Menu,
   X,
   Pill,
+  ShoppingBasket,
 } from "lucide-react";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
 }
 
-const navigationItems = [
-  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Medicine Database", href: "/medicines", icon: Pill },
-  { name: "Inventory", href: "/inventory", icon: Package },
-  { name: "Point of Sale", href: "/pos", icon: ShoppingCart },
-  { name: "Prescriptions", href: "/prescriptions", icon: FileText },
-  { name: "Customers", href: "/customers", icon: Users },
-  { name: "Reports", href: "/reports", icon: BarChart3 },
-  { name: "Settings", href: "/settings", icon: Settings },
-];
-
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
+  const { storeType, t, storeProfile } = useStore();
+
+  const navigationItems = [
+    { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+    { 
+      name: `${t('products')} Database`, 
+      href: "/medicines", 
+      icon: storeType === 'pharmacy' ? Pill : ShoppingBasket 
+    },
+    { name: "Inventory", href: "/inventory", icon: Package },
+    { name: "Point of Sale", href: "/pos", icon: ShoppingCart },
+    ...(storeType === 'pharmacy' 
+      ? [{ name: "Prescriptions", href: "/prescriptions", icon: FileText }] 
+      : []),
+    { name: "Customers", href: "/customers", icon: Users },
+    { name: "Reports", href: "/reports", icon: BarChart3 },
+    { name: "Settings", href: "/settings", icon: Settings },
+  ];
 
   return (
     <div className="min-h-screen bg-background">
@@ -61,8 +70,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         )}
       >
         <div className="flex items-center justify-between h-16 px-6 border-b border-sidebar-border">
-          <h1 className="font-serif font-black text-xl text-sidebar-foreground">
-            DumosRx
+          <h1 className="font-serif font-black text-xl text-sidebar-foreground truncate pr-2">
+            {storeProfile?.name || "Dumos"}
           </h1>
           <Button
             variant="ghost"
@@ -123,7 +132,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
           <div className="flex items-center gap-4">
             <div className="text-sm text-muted-foreground">
-              Welcome back, Pharmacist
+              Welcome back, {storeType === 'pharmacy' ? 'Pharmacist' : 'Admin'}
             </div>
             <div className="flex items-center gap-2">
               <ThemeToggle />

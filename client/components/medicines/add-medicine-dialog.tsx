@@ -22,6 +22,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+import { useStore } from "@/lib/context/store-context";
+
 interface Medicine {
   name: string;
   genericName: string;
@@ -52,6 +54,7 @@ export function AddMedicineDialog({
   onOpenChange,
   onAddMedicine,
 }: AddMedicineDialogProps) {
+  const { t, storeType } = useStore();
   const [formData, setFormData] = useState<Medicine>({
     name: "",
     genericName: "",
@@ -71,38 +74,29 @@ export function AddMedicineDialog({
     status: "active",
   });
 
-  const categories = [
-    "Analgesics",
-    "Antibiotics",
-    "Antimalarials",
-    "Vitamins",
-    "Antacids",
-    "Antihypertensives",
-  ];
-  const dosageForms = [
-    "Tablet",
-    "Capsule",
-    "Syrup",
-    "Injection",
-    "Cream",
-    "Drops",
-    "Inhaler",
-  ];
-  const manufacturers = [
-    "GSK Nigeria",
-    "Pfizer Nigeria",
-    "Sanofi Nigeria",
-    "Emzor Pharmaceuticals",
-    "May & Baker Nigeria",
-    "Chi Pharmaceuticals",
-  ];
+  const isPharmacy = storeType === "pharmacy";
+
+  const categories = isPharmacy 
+    ? ["Analgesics", "Antibiotics", "Antimalarials", "Vitamins", "Antacids", "Antihypertensives"]
+    : ["Groceries", "Beverages", "Personal Care", "Household", "Snacks", "Dairy"];
+
+  const dosageForms = ["Tablet", "Capsule", "Syrup", "Injection", "Cream", "Drops", "Inhaler"];
+  
+  const manufacturers = isPharmacy
+    ? ["GSK Nigeria", "Pfizer Nigeria", "Sanofi Nigeria", "Emzor Pharmaceuticals", "May & Baker Nigeria"]
+    : ["Unilever Nigeria", "Nestle Nigeria", "PZ Cussons", "Dangote Group", "Flour Mills of Nigeria"];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Basic validation
-    if (!formData.name || !formData.genericName || !formData.nafdacNumber) {
-      alert("Please fill in all required fields");
+    // Validation
+    if (!formData.name) {
+      alert("Please enter a name");
+      return;
+    }
+
+    if (isPharmacy && (!formData.genericName || !formData.nafdacNumber)) {
+      alert("Generic Name and NAFDAC Number are required for pharmacies");
       return;
     }
 
@@ -169,10 +163,10 @@ export function AddMedicineDialog({
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-serif font-bold">
-            Add New Medicine
+            Add New {t('product')}
           </DialogTitle>
           <DialogDescription>
-            Enter the details for the new medicine. All fields marked with * are
+            Enter the details for the new {t('product').toLowerCase()}. All fields marked with * are
             required.
           </DialogDescription>
         </DialogHeader>
@@ -180,28 +174,30 @@ export function AddMedicineDialog({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Medicine Name *</Label>
+              <Label htmlFor="name">{t('product')} Name *</Label>
               <Input
                 id="name"
                 value={formData.name}
                 onChange={(e) => handleInputChange("name", e.target.value)}
-                placeholder="e.g., Paracetamol"
+                placeholder={`e.g., ${isPharmacy ? 'Paracetamol' : 'Product Name'}`}
                 required
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="genericName">Generic Name *</Label>
-              <Input
-                id="genericName"
-                value={formData.genericName}
-                onChange={(e) =>
-                  handleInputChange("genericName", e.target.value)
-                }
-                placeholder="e.g., Acetaminophen"
-                required
-              />
-            </div>
+            {isPharmacy && (
+              <div className="space-y-2">
+                <Label htmlFor="genericName">Generic Name *</Label>
+                <Input
+                  id="genericName"
+                  value={formData.genericName}
+                  onChange={(e) =>
+                    handleInputChange("genericName", e.target.value)
+                  }
+                  placeholder="e.g., Acetaminophen"
+                  required
+                />
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="brand">Brand Name</Label>
@@ -209,12 +205,12 @@ export function AddMedicineDialog({
                 id="brand"
                 value={formData.brand}
                 onChange={(e) => handleInputChange("brand", e.target.value)}
-                placeholder="e.g., Panadol"
+                placeholder={`e.g., ${isPharmacy ? 'Panadol' : 'Brand Name'}`}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="category">Category</Label>
+              <Label htmlFor="category">{t('category')}</Label>
               <Select
                 value={formData.category}
                 onValueChange={(value) => handleInputChange("category", value)}
@@ -233,7 +229,7 @@ export function AddMedicineDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="nafdacNumber">NAFDAC Number *</Label>
+              <Label htmlFor="nafdacNumber">{t('registration_number')} {isPharmacy ? '*' : ''}</Label>
               <Input
                 id="nafdacNumber"
                 value={formData.nafdacNumber}
@@ -241,40 +237,42 @@ export function AddMedicineDialog({
                   handleInputChange("nafdacNumber", e.target.value)
                 }
                 placeholder="e.g., 04-1234"
-                required
+                required={isPharmacy}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="strength">Strength</Label>
+              <Label htmlFor="strength">Strength / Size</Label>
               <Input
                 id="strength"
                 value={formData.strength}
                 onChange={(e) => handleInputChange("strength", e.target.value)}
-                placeholder="e.g., 500mg"
+                placeholder="e.g., 500mg or 1L"
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="dosageForm">Dosage Form</Label>
-              <Select
-                value={formData.dosageForm}
-                onValueChange={(value) =>
-                  handleInputChange("dosageForm", value)
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select dosage form" />
-                </SelectTrigger>
-                <SelectContent>
-                  {dosageForms.map((form) => (
-                    <SelectItem key={form} value={form}>
-                      {form}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {isPharmacy && (
+              <div className="space-y-2">
+                <Label htmlFor="dosageForm">Dosage Form</Label>
+                <Select
+                  value={formData.dosageForm}
+                  onValueChange={(value) =>
+                    handleInputChange("dosageForm", value)
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select dosage form" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {dosageForms.map((form) => (
+                      <SelectItem key={form} value={form}>
+                        {form}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="manufacturer">Manufacturer</Label>
@@ -390,14 +388,14 @@ export function AddMedicineDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="batchNumber">Batch Number</Label>
+              <Label htmlFor="batchNumber">Batch / Serial Number</Label>
               <Input
                 id="batchNumber"
                 value={formData.batchNumber}
                 onChange={(e) =>
                   handleInputChange("batchNumber", e.target.value)
                 }
-                placeholder="e.g., PAR2024001"
+                placeholder="e.g., ABC12345"
               />
             </div>
           </div>
@@ -414,7 +412,7 @@ export function AddMedicineDialog({
               type="submit"
               className="bg-accent hover:bg-accent/90 cursor-pointer"
             >
-              Add Medicine
+              Add {t('product')}
             </Button>
           </DialogFooter>
         </form>

@@ -30,6 +30,10 @@ import {
 } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 
+import { useStore, StoreType } from "@/lib/context/store-context";
+import { toast } from "sonner";
+import { Pill, ShoppingBasket, ShoppingCart, Check } from "lucide-react";
+
 // Color themes from ThemeCustomizer
 const colorThemes = [
   { name: "Professional", primary: "#1f2937", accent: "#8b5cf6" },
@@ -41,7 +45,14 @@ const colorThemes = [
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
+  const { storeProfile, storeType, updateStoreProfile, t } = useStore();
   const [selectedColorTheme, setSelectedColorTheme] = useState(0);
+
+  // Local state for profile form
+  const [localName, setLocalName] = useState(storeProfile?.name || "");
+  const [localAddress, setLocalAddress] = useState(storeProfile?.address || "");
+  const [localPhone, setLocalPhone] = useState(storeProfile?.phone || "");
+  const [localEmail, setLocalEmail] = useState(storeProfile?.email || "");
 
   const applyColorTheme = (themeIndex: number) => {
     const colorTheme = colorThemes[themeIndex];
@@ -49,6 +60,22 @@ export default function SettingsPage() {
     root.style.setProperty("--primary", colorTheme.primary);
     root.style.setProperty("--accent", colorTheme.accent);
     setSelectedColorTheme(themeIndex);
+  };
+
+  const handleSaveProfile = () => {
+    updateStoreProfile({
+      name: localName,
+      address: localAddress,
+      phone: localPhone,
+      email: localEmail,
+      updated_at: new Date().toISOString(),
+    });
+    toast.success("Store profile updated");
+  };
+
+  const handleSwitchVertical = (type: StoreType) => {
+    updateStoreProfile({ store_type: type });
+    toast.success(`Switched to ${type.charAt(0).toUpperCase() + type.slice(1)} mode`);
   };
 
   return (
@@ -59,7 +86,7 @@ export default function SettingsPage() {
             Settings
           </h1>
           <p className="text-muted-foreground mt-2">
-            Manage your pharmacy configuration and preferences
+            Manage your {storeType} configuration and preferences
           </p>
         </div>
 
@@ -69,9 +96,9 @@ export default function SettingsPage() {
               <Palette className="w-4 h-4 mr-2" />
               General
             </TabsTrigger>
-            <TabsTrigger value="pharmacy" className="py-3">
+            <TabsTrigger value="store" className="py-3">
               <Store className="w-4 h-4 mr-2" />
-              Pharmacy
+              Store Profile
             </TabsTrigger>
             <TabsTrigger value="notifications" className="py-3">
               <Bell className="w-4 h-4 mr-2" />
@@ -93,7 +120,7 @@ export default function SettingsPage() {
               <CardHeader>
                 <CardTitle>Appearance</CardTitle>
                 <CardDescription>
-                  Customize how DumosRx looks on this device.
+                  Customize how Dumos looks on this device.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -102,7 +129,7 @@ export default function SettingsPage() {
                   <div className="grid grid-cols-3 gap-4">
                     <button
                       onClick={() => setTheme("light")}
-                      className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all ${
+                      className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all cursor-pointer ${
                         theme === "light"
                           ? "border-primary bg-primary/5"
                           : "border-muted hover:border-primary/50"
@@ -113,7 +140,7 @@ export default function SettingsPage() {
                     </button>
                     <button
                       onClick={() => setTheme("dark")}
-                      className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all ${
+                      className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all cursor-pointer ${
                         theme === "dark"
                           ? "border-primary bg-primary/5"
                           : "border-muted hover:border-primary/50"
@@ -124,7 +151,7 @@ export default function SettingsPage() {
                     </button>
                     <button
                       onClick={() => setTheme("system")}
-                      className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all ${
+                      className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all cursor-pointer ${
                         theme === "system"
                           ? "border-primary bg-primary/5"
                           : "border-muted hover:border-primary/50"
@@ -143,7 +170,7 @@ export default function SettingsPage() {
                       <button
                         key={t.name}
                         onClick={() => applyColorTheme(index)}
-                        className={`flex items-center gap-3 p-3 rounded-lg border transition-all ${
+                        className={`flex items-center gap-3 p-3 rounded-lg border transition-all cursor-pointer ${
                           selectedColorTheme === index
                             ? "border-primary bg-primary/5"
                             : "border-border hover:bg-muted"
@@ -179,7 +206,7 @@ export default function SettingsPage() {
                   <Label htmlFor="currency">Currency Symbol</Label>
                   <Input
                     id="currency"
-                    defaultValue="₦ (NGN)"
+                    defaultValue={storeProfile?.currency || "₦ (NGN)"}
                     readOnly
                     className="bg-muted"
                   />
@@ -188,47 +215,97 @@ export default function SettingsPage() {
             </Card>
           </TabsContent>
 
-          {/* PHARMACY DETAILS */}
-          <TabsContent value="pharmacy">
+          {/* STORE DETAILS */}
+          <TabsContent value="store" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Pharmacy Information</CardTitle>
+                <CardTitle>Business Vertical</CardTitle>
+                <CardDescription>
+                  Switching modes changes the terminology and active modules.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {[
+                    { id: 'pharmacy', label: 'Pharmacy', icon: Pill },
+                    { id: 'grocery', label: 'Grocery', icon: ShoppingBasket },
+                    { id: 'supermarket', label: 'Supermarket', icon: ShoppingCart },
+                    { id: 'general', label: 'General', icon: Check },
+                  ].map((vertical) => (
+                    <button
+                      key={vertical.id}
+                      onClick={() => handleSwitchVertical(vertical.id as StoreType)}
+                      className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all cursor-pointer ${
+                        storeType === vertical.id
+                          ? "border-primary bg-primary/5"
+                          : "border-muted hover:border-primary/50"
+                      }`}
+                    >
+                      <vertical.icon className="h-6 w-6 mb-2 text-primary" />
+                      <span className="text-sm font-medium">{vertical.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Store Information</CardTitle>
                 <CardDescription>
                   These details will appear on printed receipts and reports.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="store-name">Pharmacy Name</Label>
+                  <Label htmlFor="store-name">Business Name</Label>
                   <Input
                     id="store-name"
-                    placeholder="e.g. Dumos Pharmacy"
-                    defaultValue="Dumos Pharmacy"
+                    placeholder="e.g. My Business"
+                    value={localName}
+                    onChange={(e) => setLocalName(e.target.value)}
                   />
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="address">Address</Label>
-                  <Input id="address" placeholder="123 Health Avenue, Lagos" />
+                  <Input 
+                    id="address" 
+                    placeholder="123 Health Avenue, Lagos" 
+                    value={localAddress}
+                    onChange={(e) => setLocalAddress(e.target.value)}
+                  />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="grid gap-2">
                     <Label htmlFor="phone">Phone Number</Label>
-                    <Input id="phone" placeholder="+234..." />
+                    <Input 
+                      id="phone" 
+                      placeholder="+234..." 
+                      value={localPhone}
+                      onChange={(e) => setLocalPhone(e.target.value)}
+                    />
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="email">Email</Label>
-                    <Input id="email" placeholder="contact@dumos.com" />
+                    <Input 
+                      id="email" 
+                      placeholder="contact@example.com" 
+                      value={localEmail}
+                      onChange={(e) => setLocalEmail(e.target.value)}
+                    />
                   </div>
                 </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="pcn">PCN License Number</Label>
-                  <Input id="pcn" placeholder="PCN/..." />
-                </div>
+                {storeType === 'pharmacy' && (
+                  <div className="grid gap-2">
+                    <Label htmlFor="pcn">PCN License Number</Label>
+                    <Input id="pcn" placeholder="PCN/..." />
+                  </div>
+                )}
               </CardContent>
               <CardFooter className="border-t px-6 py-4">
-                <Button>
+                <Button onClick={handleSaveProfile} className="cursor-pointer">
                   <Save className="w-4 h-4 mr-2" />
-                  Save Details
+                  Save Changes
                 </Button>
               </CardFooter>
             </Card>

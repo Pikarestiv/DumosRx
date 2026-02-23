@@ -41,6 +41,8 @@ import { MedicineDetailsDialog } from "./medicine-details-dialog";
 import { insert } from "@/lib/db/local-database";
 import { useLocalData } from "@/lib/db/hooks/useLocalData";
 
+import { useStore } from "@/lib/context/store-context";
+
 interface Medicine {
   id: string;
   name: string;
@@ -85,6 +87,7 @@ const transformMedicine = (apiData: any): Medicine => ({
 });
 
 export function MedicineDatabase() {
+  const { t, storeType } = useStore();
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -94,6 +97,8 @@ export function MedicineDatabase() {
   );
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+
+  const isPharmacy = storeType === "pharmacy";
 
   // Fetch medicines from local DB
   const {
@@ -106,36 +111,30 @@ export function MedicineDatabase() {
     { transform: transformMedicine },
   );
 
-  const categories = [
-    "all",
-    "Analgesics",
-    "Antibiotics",
-    "Antimalarials",
-    "Vitamins",
-    "Antacids",
-  ];
+  const categories = isPharmacy 
+    ? ["all", "Analgesics", "Antibiotics", "Antimalarials", "Vitamins", "Antacids"]
+    : ["all", "Groceries", "Beverages", "Personal Care", "Household", "Snacks", "Dairy"];
+    
   const statuses = ["all", "active", "inactive", "expired", "low_stock"];
 
   const handleAddMedicine = async (payload: any) => {
     setIsCreating(true);
     try {
       // Create locally
-      // Ensure local schema compatibility (category string vs id)
       const localPayload = {
         ...payload,
         is_active: payload.status === "active" ? 1 : 0,
-        // Remove status key as it's not in DB
       };
       delete localPayload.status;
 
       insert("medicines", localPayload);
 
-      toast.success("Medicine added successfully (Local)");
-      refetch(); // Refresh list
+      toast.success(`${t('product')} added successfully`);
+      refetch();
       setShowAddDialog(false);
     } catch (error) {
-      console.error("Failed to create medicine:", error);
-      toast.error("Failed to save medicine.");
+      console.error(`Failed to create ${t('product')}:`, error);
+      toast.error(`Failed to save ${t('product')}.`);
     } finally {
       setIsCreating(false);
     }
@@ -196,10 +195,10 @@ export function MedicineDatabase() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-serif font-bold text-3xl text-foreground">
-            Medicine Database
+            {t('products')} Database
           </h1>
           <p className="text-muted-foreground mt-2">
-            Manage your pharmacy's medicine inventory and information
+            Manage your store's {t('products').toLowerCase()} inventory and information
           </p>
         </div>
         <Button
@@ -207,7 +206,7 @@ export function MedicineDatabase() {
           className="bg-accent hover:bg-accent/90"
         >
           <Plus className="h-4 w-4 mr-2" />
-          Add Medicine
+          Add {t('product')}
         </Button>
       </div>
 
@@ -217,7 +216,7 @@ export function MedicineDatabase() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Total Medicines</p>
+                <p className="text-sm text-muted-foreground">Total {t('products')}</p>
                 <p className="text-2xl font-bold">{medicines.length}</p>
               </div>
               <div className="h-8 w-8 bg-accent/10 rounded-full flex items-center justify-center">
@@ -232,7 +231,7 @@ export function MedicineDatabase() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">
-                  Active Medicines
+                  Active {t('products')}
                 </p>
                 <p className="text-2xl font-bold">
                   {medicines.filter((m) => m.status === "active").length}
@@ -285,7 +284,7 @@ export function MedicineDatabase() {
             Search & Filter
           </CardTitle>
           <CardDescription>
-            Find medicines by name, brand, NAFDAC number, or other criteria
+            Find {t('products').toLowerCase()} by name, brand, {t('registration_number').toLowerCase()}, or other criteria
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -294,7 +293,7 @@ export function MedicineDatabase() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search medicines, brands, NAFDAC numbers..."
+                  placeholder={`Search ${t('products').toLowerCase()}, brands, ${t('registration_number').toLowerCase()}...`}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
@@ -303,12 +302,12 @@ export function MedicineDatabase() {
             </div>
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
               <SelectTrigger className="w-full md:w-48">
-                <SelectValue placeholder="Category" />
+                <SelectValue placeholder={t('category')} />
               </SelectTrigger>
               <SelectContent>
                 {categories.map((category) => (
                   <SelectItem key={category} value={category}>
-                    {category === "all" ? "All Categories" : category}
+                    {category === "all" ? `All ${t('category')}s` : category}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -335,10 +334,10 @@ export function MedicineDatabase() {
       <Card>
         <CardHeader>
           <CardTitle className="font-serif font-semibold">
-            Medicine Inventory
+            {t('products')} Inventory
           </CardTitle>
           <CardDescription>
-            Showing {filteredMedicines.length} of {medicines.length} medicines
+            Showing {filteredMedicines.length} of {medicines.length} {t('products').toLowerCase()}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -346,12 +345,12 @@ export function MedicineDatabase() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Medicine Name</TableHead>
+                  <TableHead>{t('product')} Name</TableHead>
                   <TableHead>Brand</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>NAFDAC No.</TableHead>
-                  <TableHead>Strength</TableHead>
-                  <TableHead>Stock</TableHead>
+                  <TableHead>{t('category')}</TableHead>
+                  <TableHead>{t('registration_number')}</TableHead>
+                  <TableHead>Size / Strength</TableHead>
+                  <TableHead>{t('stock')}</TableHead>
                   <TableHead>Cost Price</TableHead>
                   <TableHead>Selling Price</TableHead>
                   <TableHead>Status</TableHead>
@@ -364,10 +363,10 @@ export function MedicineDatabase() {
                     <TableCell colSpan={10} className="h-32 text-center">
                       <div className="flex flex-col items-center justify-center text-muted-foreground">
                         <Package className="h-8 w-8 mb-2 opacity-50" />
-                        <p className="font-medium">No medicines found</p>
+                        <p className="font-medium">No {t('products').toLowerCase()} found</p>
                         <p className="text-sm">
                           {medicines.length === 0
-                            ? "Add your first medicine to get started"
+                            ? `Add your first ${t('product').toLowerCase()} to get started`
                             : "Try adjusting your search or filters"}
                         </p>
                       </div>
@@ -379,9 +378,11 @@ export function MedicineDatabase() {
                       <TableCell>
                         <div>
                           <div className="font-medium">{medicine.name}</div>
-                          <div className="text-sm text-muted-foreground">
-                            {medicine.genericName}
-                          </div>
+                          {isPharmacy && medicine.genericName && (
+                            <div className="text-sm text-muted-foreground">
+                              {medicine.genericName}
+                            </div>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell>{medicine.brand}</TableCell>

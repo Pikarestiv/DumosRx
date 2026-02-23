@@ -7,6 +7,8 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { AuthListener } from "@/components/auth-listener";
 import { Toaster } from "@/components/ui/sonner";
 import { DatabaseProvider } from "@/lib/db/DatabaseProvider";
+import { StoreProvider } from "@/lib/context/store-context";
+import { QuickSetupWizard } from "@/components/setup/quick-setup-wizard";
 import { DevSeedButton } from "@/components/dev/seed-button";
 
 const montserrat = Montserrat({
@@ -43,11 +45,14 @@ export default function RootLayout({
       <body className="font-sans" suppressHydrationWarning>
         <ThemeProvider defaultTheme="system" storageKey="dumosrx-ui-theme">
           <DatabaseProvider>
-            <AuthListener />
-            {children}
-            <Toaster />
-            {/* Dev utility: remove in production */}
-            <DevSeedButton />
+            <StoreProvider>
+              <AuthListener />
+              <QuickSetupWizard />
+              {children}
+              <Toaster />
+              {/* Dev utility: remove in production */}
+              <DevSeedButton />
+            </StoreProvider>
           </DatabaseProvider>
         </ThemeProvider>
       </body>

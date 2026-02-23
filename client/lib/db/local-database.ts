@@ -190,6 +190,22 @@ CREATE TABLE IF NOT EXISTS _sync_state (
   server_cursor TEXT
 );
 
+CREATE TABLE IF NOT EXISTS store_profile (
+  id TEXT PRIMARY KEY,
+  name TEXT,
+  store_type TEXT DEFAULT 'pharmacy',
+  address TEXT,
+  phone TEXT,
+  email TEXT,
+  logo_url TEXT,
+  currency TEXT DEFAULT 'NGN',
+  vat_percentage REAL DEFAULT 7.5,
+  is_initialized INTEGER DEFAULT 0,
+  updated_at TEXT,
+  _version INTEGER DEFAULT 1,
+  _synced INTEGER DEFAULT 0
+);
+
 CREATE INDEX IF NOT EXISTS idx_medicines_name ON medicines(name);
 CREATE INDEX IF NOT EXISTS idx_medicines_synced ON medicines(_synced);
 CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone);

@@ -12,6 +12,10 @@ interface StoreProfile {
   store_type: StoreType;
   is_initialized: number;
   currency: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  updated_at?: string;
 }
 
 interface StoreContextType {

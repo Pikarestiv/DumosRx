@@ -220,6 +220,9 @@ export function BusinessIntelligenceDashboard() {
           <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
             Live Data Active
           </Badge>
+          <span className="text-xs text-muted-foreground">
+            Last updated: {new Date().toLocaleTimeString()}
+          </span>
           <Button variant="outline" size="sm">
             <Calendar className="h-4 w-4 mr-2" />
             Custom Range

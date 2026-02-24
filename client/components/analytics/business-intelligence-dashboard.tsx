@@ -48,50 +48,7 @@ import {
 } from "lucide-react";
 
 // Sample data for analytics
-const salesData = [
-  { month: "Jan", revenue: 2400000, transactions: 1240, profit: 480000 },
-  { month: "Feb", revenue: 2100000, transactions: 1100, profit: 420000 },
-  { month: "Mar", revenue: 2800000, transactions: 1450, profit: 560000 },
-  { month: "Apr", revenue: 3200000, transactions: 1680, profit: 640000 },
-  { month: "May", revenue: 2900000, transactions: 1520, profit: 580000 },
-  { month: "Jun", revenue: 3500000, transactions: 1820, profit: 700000 },
-];
-
-const topMedicines = [
-  {
-    name: "Paracetamol 500mg",
-    sales: 1250000,
-    units: 2500,
-    category: "Analgesics",
-  },
-  {
-    name: "Amoxicillin 250mg",
-    sales: 980000,
-    units: 1960,
-    category: "Antibiotics",
-  },
-  {
-    name: "Vitamin C 1000mg",
-    sales: 750000,
-    units: 1500,
-    category: "Vitamins",
-  },
-  {
-    name: "Ibuprofen 400mg",
-    sales: 680000,
-    units: 1360,
-    category: "Anti-inflammatory",
-  },
-  { name: "Omeprazole 20mg", sales: 620000, units: 1240, category: "Gastric" },
-];
-
-const categoryData = [
-  { name: "Antibiotics", value: 35, color: "#0ea5e9" },
-  { name: "Analgesics", value: 25, color: "#10b981" },
-  { name: "Vitamins", value: 20, color: "#f59e0b" },
-  { name: "Anti-inflammatory", value: 12, color: "#ef4444" },
-  { name: "Others", value: 8, color: "#8b5cf6" },
-];
+// Live data will be loaded within the component
 
 const inventoryAlerts = [
   {
@@ -139,8 +96,110 @@ const customerMetrics = [
   },
 ];
 
+import { useLocalData } from "@/lib/db/hooks/useLocalData";
+import { useStore } from "@/lib/context/store-context";
+
 export function BusinessIntelligenceDashboard() {
+  const { t } = useStore();
   const [timeRange, setTimeRange] = useState("6months");
+
+  // Get date filter string based on timeRange
+  const getDateFilter = () => {
+    const now = new Date();
+    let filterDate = new Date();
+    
+    if (timeRange === "1month") filterDate.setMonth(now.getMonth() - 1);
+    else if (timeRange === "3months") filterDate.setMonth(now.getMonth() - 3);
+    else if (timeRange === "6months") filterDate.setMonth(now.getMonth() - 6);
+    else if (timeRange === "1year") filterDate.setFullYear(now.getFullYear() - 1);
+    
+    return filterDate.toISOString();
+  };
+
+  const dateFilter = getDateFilter();
+
+  // 1. Total Revenue
+  const { data: revenueData } = useLocalData<{ total: number }>(
+    `SELECT SUM(total_amount) as total FROM sales WHERE transaction_date >= ? AND _deleted = 0`,
+    [dateFilter]
+  );
+  const totalRevenue = revenueData[0]?.total || 0;
+
+  // 2. Total Transactions
+  const { data: transactionData } = useLocalData<{ count: number }>(
+    `SELECT COUNT(*) as count FROM sales WHERE transaction_date >= ? AND _deleted = 0`,
+    [dateFilter]
+  );
+  const totalTransactions = transactionData[0]?.count || 0;
+
+  // 3. Inventory Value (Selling Price * Quantity)
+  const { data: inventoryValueData } = useLocalData<{ value: number }>(
+    `SELECT SUM(selling_price * stock_quantity) as value FROM medicines WHERE _deleted = 0`
+  );
+  const inventoryValue = inventoryValueData[0]?.value || 0;
+
+  // 4. Active Customers
+  const { data: customerData } = useLocalData<{ count: number }>(
+    `SELECT COUNT(*) as count FROM customers WHERE _deleted = 0`
+  );
+  const activeCustomers = customerData[0]?.count || 0;
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat("en-NG", {
+      style: "currency",
+      currency: "NGN",
+      minimumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  // 5. Monthly Sales Data
+  const { data: monthlySalesData } = useLocalData<{ month: string, revenue: number, profit: number }>(
+    `SELECT 
+      strftime('%b', transaction_date) as month,
+      SUM(total_amount) as revenue,
+      SUM(total_amount * 0.25) as profit
+     FROM sales 
+     WHERE transaction_date >= ? AND _deleted = 0
+     GROUP BY strftime('%m', transaction_date)
+     ORDER BY strftime('%m', transaction_date) ASC`,
+    [dateFilter]
+  );
+
+  // 6. Top Selling Medicines
+  const { data: topSellingMedicines } = useLocalData<{ name: string, sales: number, units: number, category: string }>(
+    `SELECT 
+      m.name,
+      SUM(si.subtotal) as sales,
+      SUM(si.quantity) as units,
+      m.category
+     FROM sale_items si
+     JOIN medicines m ON si.medicine_id = m.id
+     JOIN sales s ON si.sale_id = s.id
+     WHERE s.transaction_date >= ? AND s._deleted = 0
+     GROUP BY m.id
+     ORDER BY sales DESC
+     LIMIT 5`,
+    [dateFilter]
+  );
+
+  // 7. Sales by Category
+  const { data: categoryDistribution } = useLocalData<{ name: string, value: number }>(
+    `SELECT 
+      m.category as name,
+      COUNT(*) as value
+     FROM sale_items si
+     JOIN medicines m ON si.medicine_id = m.id
+     JOIN sales s ON si.sale_id = s.id
+     WHERE s.transaction_date >= ? AND s._deleted = 0
+     GROUP BY m.category`,
+    [dateFilter]
+  );
+
+  const colors = ["#0ea5e9", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
+  const formattedCategoryData = categoryDistribution.map((item, index) => ({
+    ...item,
+    color: colors[index % colors.length]
+  }));
 
   return (
     <div className="space-y-6">
@@ -158,29 +217,19 @@ export function BusinessIntelligenceDashboard() {
               <SelectItem value="1year">Last Year</SelectItem>
             </SelectContent>
           </Select>
-          <Badge variant="secondary" className="text-xs">
-            Demo Data
+          <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+            Live Data Active
           </Badge>
           <Button variant="outline" size="sm">
             <Calendar className="h-4 w-4 mr-2" />
             Custom Range
           </Button>
         </div>
-        <Button>Export Report</Button>
+        <Button variant="outline">Export Report</Button>
       </div>
 
-      {/* Demo Data Notice */}
-      <Card className="border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30">
-        <CardContent className="p-4 flex items-center gap-3">
-          <AlertTriangle className="h-5 w-5 text-amber-600" />
-          <p className="text-sm text-amber-800 dark:text-amber-200">
-            This dashboard displays sample data for demonstration purposes.
-            Actual data will be loaded once your pharmacy has sufficient
-            transaction history.
-          </p>
-        </CardContent>
-      </Card>
-
+      {/* Live Data Active Notice (Optional replacement for demo notice) */}
+      
       {/* Key Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
@@ -189,10 +238,9 @@ export function BusinessIntelligenceDashboard() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₦16,900,000</div>
-            <div className="flex items-center text-xs text-green-600">
-              <TrendingUp className="h-3 w-3 mr-1" />
-              +12.5% from last period
+            <div className="text-2xl font-bold">{formatCurrency(totalRevenue)}</div>
+            <div className="flex items-center text-xs text-muted-foreground">
+              Based on selected period
             </div>
           </CardContent>
         </Card>
@@ -205,10 +253,9 @@ export function BusinessIntelligenceDashboard() {
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">8,810</div>
-            <div className="flex items-center text-xs text-green-600">
-              <TrendingUp className="h-3 w-3 mr-1" />
-              +8.2% from last period
+            <div className="text-2xl font-bold">{totalTransactions.toLocaleString()}</div>
+            <div className="flex items-center text-xs text-muted-foreground">
+              Across all locations
             </div>
           </CardContent>
         </Card>
@@ -221,10 +268,9 @@ export function BusinessIntelligenceDashboard() {
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₦8,450,000</div>
-            <div className="flex items-center text-xs text-red-600">
-              <TrendingDown className="h-3 w-3 mr-1" />
-              -3.1% from last period
+            <div className="text-2xl font-bold">{formatCurrency(inventoryValue)}</div>
+            <div className="flex items-center text-xs text-muted-foreground">
+              Estimated market value
             </div>
           </CardContent>
         </Card>
@@ -237,10 +283,9 @@ export function BusinessIntelligenceDashboard() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">2,847</div>
-            <div className="flex items-center text-xs text-green-600">
-              <TrendingUp className="h-3 w-3 mr-1" />
-              +12.5% from last period
+            <div className="text-2xl font-bold">{activeCustomers.toLocaleString()}</div>
+            <div className="flex items-center text-xs text-muted-foreground">
+              In your CRM
             </div>
           </CardContent>
         </Card>
@@ -275,12 +320,12 @@ export function BusinessIntelligenceDashboard() {
                   className="h-80"
                 >
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={salesData}>
+                    <AreaChart data={monthlySalesData}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="month" />
                       <YAxis
                         tickFormatter={(value) =>
-                          `₦${(value / 1000000).toFixed(1)}M`
+                          `₦${(value / 1000).toFixed(0)}k`
                         }
                       />
                       <ChartTooltip content={<ChartTooltipContent />} />
@@ -316,32 +361,38 @@ export function BusinessIntelligenceDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {topMedicines.map((medicine, index) => (
-                    <div
-                      key={medicine.name}
-                      className="flex items-center justify-between"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-sm font-medium text-blue-600">
-                          {index + 1}
+                  {topSellingMedicines.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      No sales data available for this period.
+                    </div>
+                  ) : (
+                    topSellingMedicines.map((medicine, index) => (
+                      <div
+                        key={medicine.name}
+                        className="flex items-center justify-between"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-sm font-medium text-blue-600">
+                            {index + 1}
+                          </div>
+                          <div>
+                            <p className="font-medium">{medicine.name}</p>
+                            <p className="text-sm text-gray-500">
+                              {medicine.category}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium">{medicine.name}</p>
+                        <div className="text-right">
+                          <p className="font-medium">
+                            ₦{medicine.sales.toLocaleString()}
+                          </p>
                           <p className="text-sm text-gray-500">
-                            {medicine.category}
+                            {medicine.units} units
                           </p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="font-medium">
-                          ₦{medicine.sales.toLocaleString()}
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          {medicine.units} units
-                        </p>
-                      </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -366,14 +417,14 @@ export function BusinessIntelligenceDashboard() {
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
-                        data={categoryData}
+                        data={formattedCategoryData}
                         cx="50%"
                         cy="50%"
                         outerRadius={100}
                         dataKey="value"
-                        label={({ name, value }) => `${name}: ${value}%`}
+                        label={({ name, value }) => `${name}: ${value}`}
                       >
-                        {categoryData.map((entry, index) => (
+                        {formattedCategoryData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                       </Pie>

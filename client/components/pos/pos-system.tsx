@@ -71,9 +71,23 @@ interface Customer {
 }
 
 import { useStore } from "@/lib/context/store-context";
+import { useEffect } from "react";
 
 export function POSSystem() {
   const { t } = useStore();
+  const searchInputRef = React.useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.altKey || e.ctrlKey) && e.key === "s") {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   const [searchTerm, setSearchTerm] = useState("");
   // const [medicines, setMedicines] = useState<Medicine[]>([]); // Replaced by hook
   // const [customers, setCustomers] = useState<Customer[]>([]); // Replaced by hook
@@ -353,6 +367,7 @@ export function POSSystem() {
                 <div className="flex-1 relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
+                    ref={searchInputRef}
                     placeholder={`Search ${t('products').toLowerCase()} or scan barcode...`}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}

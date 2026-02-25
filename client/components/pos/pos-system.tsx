@@ -375,12 +375,12 @@ export function POSSystem() {
           <Card>
             <CardHeader>
               <CardTitle className="font-serif font-semibold">
-                Available Medicines
+                Available {t('products')}
               </CardTitle>
               <CardDescription>
                 {loadingMedicines
                   ? "Loading..."
-                  : `Showing ${filteredMedicines.length} of ${medicines.length} medicines`}
+                  : `Showing ${filteredMedicines.length} of ${medicines.length} ${t('products').toLowerCase()}`}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -397,9 +397,9 @@ export function POSSystem() {
               ) : filteredMedicines.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                   <PackageX className="h-12 w-12 mb-4" />
-                  <p className="font-medium">No medicines found</p>
+                  <p className="font-medium">No {t('products').toLowerCase()} found</p>
                   <p className="text-sm">
-                    Try a different search term or add medicines to inventory.
+                    Try a different search term or add {t('products').toLowerCase()} to inventory.
                   </p>
                 </div>
               ) : (

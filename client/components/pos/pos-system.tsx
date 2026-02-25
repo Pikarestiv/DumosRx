@@ -70,7 +70,10 @@ interface Customer {
   loyalty_points: number;
 }
 
+import { useStore } from "@/lib/context/store-context";
+
 export function POSSystem() {
+  const { t } = useStore();
   const [searchTerm, setSearchTerm] = useState("");
   // const [medicines, setMedicines] = useState<Medicine[]>([]); // Replaced by hook
   // const [customers, setCustomers] = useState<Customer[]>([]); // Replaced by hook
@@ -306,10 +309,19 @@ export function POSSystem() {
     } finally {
       setProcessingPayment(false);
     }
-  };
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && searchTerm.trim()) {
+      // Check for exact barcode match first
+      const barcodeMatch = medicines.find(
+        (m) => m.barcode?.toLowerCase() === searchTerm.toLowerCase().trim()
+      );
 
-  const selectCustomer = (customer: Customer) => {
-    setSelectedCustomer(customer);
+      if (barcodeMatch) {
+        addToCart(barcodeMatch);
+        setSearchTerm("");
+        toast.success(`Scanned: ${barcodeMatch.name}`);
+      }
+    }
   };
 
   return (
@@ -319,7 +331,7 @@ export function POSSystem() {
           Point of Sale
         </h1>
         <p className="text-muted-foreground mt-2">
-          Process sales transactions and manage customer orders
+          Process sales transactions and manage {t('products').toLowerCase()} orders
         </p>
       </div>
 
@@ -330,10 +342,10 @@ export function POSSystem() {
             <CardHeader>
               <CardTitle className="font-serif font-semibold flex items-center gap-2">
                 <Search className="h-5 w-5" />
-                Product Search
+                {t('product')} Search
               </CardTitle>
               <CardDescription>
-                Search by name, brand, generic name, or scan barcode
+                Search by name, brand, or scan barcode
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -341,16 +353,17 @@ export function POSSystem() {
                 <div className="flex-1 relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search medicines or scan barcode..."
+                    placeholder={`Search ${t('products').toLowerCase()} or scan barcode...`}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
+                    onKeyDown={handleKeyPress}
                     className="pl-10"
                   />
                 </div>
                 <Button
                   variant="outline"
                   className="flex items-center gap-2 bg-transparent cursor-pointer"
-                  onClick={() => toast.info("Barcode scanner coming soon!")}
+                  onClick={() => toast.info("Camera scanner coming soon! Keyboard scanners work in the search box.")}
                 >
                   <Scan className="h-4 w-4" />
                   Scan

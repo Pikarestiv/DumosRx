@@ -200,6 +200,8 @@ export async function sync(): Promise<SyncResult> {
       // toast.success("Data synced successfully");
     }
 
+    localStorage.setItem("last_sync_time", new Date().toISOString());
+
     return {
       success: true,
       pushed: pushResult.pushed,

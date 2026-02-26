@@ -11,6 +11,7 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { ThemeCustomizer } from "@/components/ui/theme-customizer";
 import { useAuthStore } from "@/lib/auth/store";
 import { useStore } from "@/lib/context/store-context";
+import { SyncIndicator } from "./sync-indicator";
 import {
   LayoutDashboard,
   Package,
@@ -83,7 +84,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </Button>
         </div>
 
-        <nav className="flex-1 px-4 py-6 space-y-2">
+        <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
           {navigationItems.map((item) => {
             const isActive = pathname === item.href;
             return (
@@ -104,6 +105,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             );
           })}
         </nav>
+
+        <SyncIndicator />
 
         <div className="p-4 border-t border-sidebar-border">
           <Button

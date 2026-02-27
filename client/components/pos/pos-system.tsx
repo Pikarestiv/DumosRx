@@ -71,11 +71,15 @@ interface Customer {
 }
 
 import { useStore } from "@/lib/context/store-context";
-import { useEffect } from "react";
+import { ReceiptView } from "./receipt-view";
+import React from "react";
 
 export function POSSystem() {
   const { t } = useStore();
   const searchInputRef = React.useRef<HTMLInputElement>(null);
+
+  const [completedTransaction, setCompletedTransaction] = useState<any>(null);
+  const [showReceiptDialog, setShowReceiptDialog] = useState(false);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -89,21 +93,11 @@ export function POSSystem() {
   }, []);
 
   const [searchTerm, setSearchTerm] = useState("");
-  // const [medicines, setMedicines] = useState<Medicine[]>([]); // Replaced by hook
-  // const [customers, setCustomers] = useState<Customer[]>([]); // Replaced by hook
-  // const [loadingMedicines, setLoadingMedicines] = useState(true); // Replaced by hook
-  // const [loadingCustomers, setLoadingCustomers] = useState(true); // Replaced by hook
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
-    null,
-  );
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<
-    "cash" | "card" | "mobile" | ""
-  >("");
+  const [paymentMethod, setPaymentMethod] = useState<"cash" | "card" | "mobile" | "">("");
   const [amountPaid, setAmountPaid] = useState("");
-  const [showReceiptDialog, setShowReceiptDialog] = useState(false);
-  const [lastTransaction, setLastTransaction] = useState<any>(null);
   const [processingPayment, setProcessingPayment] = useState(false);
 
   // Fetch medicines from local DB
@@ -308,7 +302,7 @@ export function POSSystem() {
           paymentMethod === "cash" ? Number.parseFloat(amountPaid) - total : 0,
       };
 
-      setLastTransaction(transaction);
+      setCompletedTransaction(transaction);
       setShowPaymentDialog(false);
       setShowReceiptDialog(true);
       toast.success("Payment successful (Local)");
@@ -323,6 +317,12 @@ export function POSSystem() {
     } finally {
       setProcessingPayment(false);
     }
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && searchTerm.trim()) {
       // Check for exact barcode match first
@@ -787,6 +787,33 @@ export function POSSystem() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+      {/* Receipt Dialog */}
+      <Dialog open={showReceiptDialog} onOpenChange={setShowReceiptDialog}>
+        <DialogContent className="max-w-[450px] p-0 overflow-hidden">
+          <DialogHeader className="p-6 bg-muted/50 border-b">
+            <DialogTitle>Sale Completed</DialogTitle>
+            <DialogDescription>
+              Transaction ID: {completedTransaction?.id?.slice(0, 8).toUpperCase()}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="max-h-[60vh] overflow-y-auto">
+            {completedTransaction && (
+              <ReceiptView transaction={completedTransaction} />
+            )}
+          </div>
+          
+          <div className="flex gap-3 p-6 bg-muted/50 border-t">
+            <Button variant="outline" className="flex-1" onClick={() => setShowReceiptDialog(false)}>
+              Close
+            </Button>
+            <Button className="flex-1" onClick={handlePrint}>
+              <Receipt className="h-4 w-4 mr-2" />
+              Print Receipt
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

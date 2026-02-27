@@ -383,6 +383,17 @@ export function POSSystem() {
                   <Scan className="h-4 w-4" />
                   Scan
                 </Button>
+                {completedTransaction && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
+                    onClick={() => setShowReceiptDialog(true)}
+                  >
+                    <Receipt className="h-4 w-4" />
+                    Last Receipt
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>

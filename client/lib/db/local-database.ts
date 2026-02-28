@@ -37,6 +37,27 @@ CREATE TABLE IF NOT EXISTS medicines (
   is_controlled INTEGER DEFAULT 0,
   is_active INTEGER DEFAULT 1,
   barcode TEXT,
+  expiry_date TEXT,
+  batch_number TEXT,
+  created_at TEXT,
+  updated_at TEXT,
+  deleted_at TEXT,
+  _version INTEGER DEFAULT 1,
+  _synced INTEGER DEFAULT 0,
+  _synced_at TEXT,
+  _deleted INTEGER DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS inventory (
+  id TEXT PRIMARY KEY,
+  medicine_id TEXT NOT NULL,
+  batch_number TEXT,
+  expiry_date TEXT,
+  quantity INTEGER DEFAULT 0,
+  cost_price REAL,
+  selling_price REAL,
+  location TEXT,
+  is_active INTEGER DEFAULT 1,
   created_at TEXT,
   updated_at TEXT,
   deleted_at TEXT,

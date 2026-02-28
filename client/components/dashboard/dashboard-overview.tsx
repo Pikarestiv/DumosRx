@@ -47,11 +47,18 @@ export function DashboardOverview() {
   );
 
   const { data: expiring } = useLocalData<{ count: number }>(
-    "SELECT COUNT(*) as count FROM inventory WHERE date(expiry_date) <= date('now', '+30 days') AND _deleted = 0",
+    `SELECT (
+      (SELECT COUNT(*) FROM medicines WHERE date(expiry_date) <= date('now', '+30 days') AND _deleted = 0) +
+      (SELECT COUNT(*) FROM inventory WHERE date(expiry_date) <= date('now', '+30 days') AND _deleted = 0)
+    ) as count`
   );
 
   const { data: lowStock } = useLocalData<{ count: number }>(
     "SELECT COUNT(*) as count FROM medicines WHERE stock_quantity <= reorder_level AND _deleted = 0",
+  );
+
+  const { data: recentSales } = useLocalData<any>(
+    "SELECT * FROM sales WHERE _deleted = 0 ORDER BY created_at DESC LIMIT 5"
   );
 
   const stats = {
@@ -61,8 +68,12 @@ export function DashboardOverview() {
     lowStockCount: lowStock[0]?.count || 0,
   };
 
-  // Mock activites for now as we don't have an activity table yet
-  const activities: ActivityItem[] = [];
+  const activities: ActivityItem[] = recentSales.map((sale: any) => ({
+    id: sale.id,
+    type: "sale",
+    message: `${t('product')} sale: ${sale.transaction_number}`,
+    timestamp: sale.created_at,
+  }));
   const loading = false; // Instant load from local DB
 
   const formatCurrency = (amount: number) => {

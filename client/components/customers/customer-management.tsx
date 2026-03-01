@@ -64,47 +64,6 @@ interface Customer {
   status: string;
 }
 
-const loyaltyTiers = [
-  {
-    name: "Bronze",
-    minSpent: 0,
-    pointsMultiplier: 1,
-    benefits: ["Basic rewards", "Birthday discount 5%"],
-    color: "bg-amber-600",
-  },
-  {
-    name: "Silver",
-    minSpent: 100000,
-    pointsMultiplier: 1.5,
-    benefits: ["Enhanced rewards", "Birthday discount 10%", "Priority support"],
-    color: "bg-gray-400",
-  },
-  {
-    name: "Gold",
-    minSpent: 300000,
-    pointsMultiplier: 2,
-    benefits: [
-      "Premium rewards",
-      "Birthday discount 15%",
-      "Free delivery",
-      "Exclusive offers",
-    ],
-    color: "bg-yellow-500",
-  },
-  {
-    name: "Platinum",
-    minSpent: 500000,
-    pointsMultiplier: 3,
-    benefits: [
-      "VIP rewards",
-      "Birthday discount 20%",
-      "Free delivery",
-      isPharmacy ? "Personal pharmacist" : "Shopping assistant",
-      "Early access",
-    ],
-    color: "bg-purple-600",
-  },
-];
 
 const recentTransactions = [
   {
@@ -147,7 +106,50 @@ const transformCustomer = (apiData: any): Customer => ({
 
 export function CustomerManagement() {
   const { storeType } = useStore();
-  const isPharmacy = storeType === 'pharmacy';
+  const isPharmacy = storeType === "pharmacy";
+
+  const loyaltyTiers = [
+    {
+      name: "Bronze",
+      minSpent: 0,
+      pointsMultiplier: 1,
+      benefits: ["Basic rewards", "Birthday discount 5%"],
+      color: "bg-amber-600",
+    },
+    {
+      name: "Silver",
+      minSpent: 100000,
+      pointsMultiplier: 1.5,
+      benefits: ["Enhanced rewards", "Birthday discount 10%", "Priority support"],
+      color: "bg-gray-400",
+    },
+    {
+      name: "Gold",
+      minSpent: 300000,
+      pointsMultiplier: 2,
+      benefits: [
+        "Premium rewards",
+        "Birthday discount 15%",
+        "Free delivery",
+        "Exclusive offers",
+      ],
+      color: "bg-yellow-500",
+    },
+    {
+      name: "Platinum",
+      minSpent: 500000,
+      pointsMultiplier: 3,
+      benefits: [
+        "VIP rewards",
+        "Birthday discount 20%",
+        "Free delivery",
+        isPharmacy ? "Personal pharmacist" : "Shopping assistant",
+        "Early access",
+      ],
+      color: "bg-purple-600",
+    },
+  ];
+
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [isAddCustomerOpen, setIsAddCustomerOpen] = useState(false);

@@ -96,7 +96,7 @@ export function AddMedicineDialog({
     }
 
     if (isPharmacy && (!formData.genericName || !formData.nafdacNumber)) {
-      alert("Generic Name and NAFDAC Number are required for pharmacies");
+      alert(`Generic Name and ${t('registration_number')} are required for ${t('store').toLowerCase()}s`);
       return;
     }
 

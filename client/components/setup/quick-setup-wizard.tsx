@@ -112,7 +112,7 @@ export function QuickSetupWizard() {
                 <Label htmlFor="store-name">Store Name</Label>
                 <Input 
                   id="store-name" 
-                  placeholder="e.g. HealthFirst Pharmacy" 
+                  placeholder={storeType === 'pharmacy' ? "e.g. HealthFirst Pharmacy" : "e.g. Green Groceries"} 
                   value={storeName}
                   onChange={(e) => setStoreName(e.target.value)}
                 />

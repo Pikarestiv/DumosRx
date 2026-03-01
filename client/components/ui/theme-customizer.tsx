@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { Label } from "@/components/ui/label"
 import { Slider } from "@/components/ui/slider"
+import { useStore } from "@/lib/context/store-context"
 
 const colorThemes = [
   { name: "Professional", primary: "#1f2937", accent: "#8b5cf6" },
@@ -16,6 +17,7 @@ const colorThemes = [
 ]
 
 export function ThemeCustomizer() {
+  const { t } = useStore()
   const [borderRadius, setBorderRadius] = React.useState([8])
   const [selectedTheme, setSelectedTheme] = React.useState(0)
 
@@ -50,7 +52,7 @@ export function ThemeCustomizer() {
             <Settings className="h-5 w-5" />
             Theme Customization
           </SheetTitle>
-          <SheetDescription>Customize the appearance of your pharmacy management system</SheetDescription>
+          <SheetDescription>Customize the appearance of your {t('store').toLowerCase()} management system</SheetDescription>
         </SheetHeader>
 
         <div className="space-y-6 py-6">

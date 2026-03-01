@@ -26,9 +26,9 @@ const openSans = Open_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "DumosRx - Pharmacy Management System",
+  title: "DumosRx - NextGen Retail & Pharmacy OS",
   description:
-    "Professional pharmacy management system for Nigerian pharmacies",
+    "Professional business management system for retail stores and pharmacies",
   generator: "v0.app",
 };
 

@@ -105,7 +105,7 @@ export function DashboardOverview() {
             Dashboard Overview
           </h1>
           <p className="text-muted-foreground mt-2">
-            Monitor your pharmacy operations and key metrics
+            Monitor your {t('store').toLowerCase()} operations and key metrics
           </p>
         </div>
 
@@ -209,7 +209,7 @@ export function DashboardOverview() {
           Dashboard Overview
         </h1>
         <p className="text-muted-foreground mt-2">
-          Monitor your pharmacy operations and key metrics
+          Monitor your {t('store').toLowerCase()} operations and key metrics
         </p>
       </div>
 
@@ -242,7 +242,7 @@ export function DashboardOverview() {
               Recent Activity
             </CardTitle>
             <CardDescription>
-              Latest pharmacy transactions and updates
+              Latest {t('store').toLowerCase()} transactions and updates
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -282,7 +282,7 @@ export function DashboardOverview() {
             <CardTitle className="font-serif font-semibold">
               Quick Actions
             </CardTitle>
-            <CardDescription>Common pharmacy management tasks</CardDescription>
+            <CardDescription>Common {t('store').toLowerCase()} management tasks</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 gap-3">

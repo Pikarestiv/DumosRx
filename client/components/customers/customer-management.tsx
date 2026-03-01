@@ -47,6 +47,7 @@ import {
 import { apiClient } from "@/lib/api/client";
 import { AddCustomerDialog } from "@/components/customers/add-customer-dialog";
 import { toast } from "sonner";
+import { useStore } from "@/lib/context/store-context";
 
 interface Customer {
   id: string;
@@ -98,7 +99,7 @@ const loyaltyTiers = [
       "VIP rewards",
       "Birthday discount 20%",
       "Free delivery",
-      "Personal pharmacist",
+      isPharmacy ? "Personal pharmacist" : "Shopping assistant",
       "Early access",
     ],
     color: "bg-purple-600",
@@ -145,6 +146,8 @@ const transformCustomer = (apiData: any): Customer => ({
 });
 
 export function CustomerManagement() {
+  const { storeType } = useStore();
+  const isPharmacy = storeType === 'pharmacy';
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [isAddCustomerOpen, setIsAddCustomerOpen] = useState(false);

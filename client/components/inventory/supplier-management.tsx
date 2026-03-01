@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import { apiClient } from "@/lib/api/client";
 import { AddSupplierDialog } from "@/components/suppliers/add-supplier-dialog";
+import { useStore } from "@/lib/context/store-context";
 
 interface Supplier {
   id: string;
@@ -69,6 +70,7 @@ const transformSupplier = (apiData: any): Supplier => ({
 });
 
 export function SupplierManagement() {
+  const { t } = useStore();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -224,7 +226,7 @@ export function SupplierManagement() {
                 Supplier Management
               </CardTitle>
               <CardDescription>
-                Manage your pharmaceutical suppliers and vendors
+                Manage your {t('store').toLowerCase()} suppliers and vendors
               </CardDescription>
             </div>
             <Button

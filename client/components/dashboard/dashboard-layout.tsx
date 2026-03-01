@@ -134,9 +134,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </Button>
 
           <div className="flex items-center gap-4">
-            <div className="text-sm text-muted-foreground">
-              Welcome back, {storeType === 'pharmacy' ? 'Pharmacist' : 'Admin'}
-            </div>
+            <span className="text-sm font-medium">
+              Welcome back, {t('role')}
+            </span>
             <div className="flex items-center gap-2">
               <ThemeToggle />
               <ThemeCustomizer />

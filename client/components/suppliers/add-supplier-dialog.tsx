@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { useStore } from "@/lib/context/store-context";
 
 interface Supplier {
   name: string;
@@ -41,6 +42,8 @@ export function AddSupplierDialog({
   onOpenChange,
   onAddSupplier,
 }: AddSupplierDialogProps) {
+  const { storeType } = useStore();
+  const isPharmacy = storeType === 'pharmacy';
   const [formData, setFormData] = useState<Supplier>({
     name: "",
     contactPerson: "",
@@ -122,7 +125,7 @@ export function AddSupplierDialog({
               id="name"
               value={formData.name}
               onChange={(e) => handleInputChange("name", e.target.value)}
-              placeholder="e.g., Emzor Pharmaceuticals"
+              placeholder={isPharmacy ? "e.g., Emzor Pharmaceuticals" : "e.g., Global Distributors"}
               required
             />
           </div>

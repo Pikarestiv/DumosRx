@@ -12,14 +12,14 @@ export default function HomePage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="font-serif font-black text-3xl text-foreground mb-2">DumosRx</h1>
-          <p className="text-muted-foreground">Professional Pharmacy Management System</p>
+          <p className="text-muted-foreground">NextGen Retail & Pharmacy Management System</p>
         </div>
 
         <Card className="border-border shadow-lg">
           <CardHeader className="space-y-1">
             <CardTitle className="font-serif font-bold text-2xl text-center">Sign In</CardTitle>
             <CardDescription className="text-center">
-              Enter your credentials to access your pharmacy dashboard
+              Enter your credentials to access your business dashboard
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -28,8 +28,8 @@ export default function HomePage() {
         </Card>
 
         <div className="mt-6 text-center text-sm text-muted-foreground">
-          <p>Trusted by 2000+ Nigerian pharmacies</p>
-          <p className="mt-1">NAFDAC compliant • Secure • Reliable</p>
+          <p>Trusted by 2000+ Nigerian businesses</p>
+          <p className="mt-1">Compliant • Secure • Reliable</p>
           <p className="mt-3 text-xs">
             Built by{" "}
             <a

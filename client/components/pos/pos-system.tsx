@@ -513,7 +513,7 @@ export function POSSystem() {
                 <Select
                   onValueChange={(value) => {
                     const customer = customers.find((c) => c.id === value);
-                    if (customer) selectCustomer(customer);
+                    if (customer) setSelectedCustomer(customer);
                   }}
                 >
                   <SelectTrigger>
@@ -737,69 +737,6 @@ export function POSSystem() {
         </DialogContent>
       </Dialog>
 
-      {/* Receipt Dialog */}
-      <Dialog open={showReceiptDialog} onOpenChange={setShowReceiptDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="font-serif font-bold flex items-center gap-2">
-              <Receipt className="h-5 w-5" />
-              Transaction Complete
-            </DialogTitle>
-          </DialogHeader>
-
-          {lastTransaction && (
-            <div className="space-y-4">
-              <div className="text-center p-4 bg-muted rounded-lg">
-                <p className="font-bold text-lg text-accent">
-                  Payment Successful!
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Transaction ID: {lastTransaction.id}
-                </p>
-              </div>
-
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span>Subtotal:</span>
-                  <span>{formatCurrency(lastTransaction.subtotal)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>VAT:</span>
-                  <span>{formatCurrency(lastTransaction.tax)}</span>
-                </div>
-                {lastTransaction.discount > 0 && (
-                  <div className="flex justify-between text-accent">
-                    <span>Discount:</span>
-                    <span>-{formatCurrency(lastTransaction.discount)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between font-bold">
-                  <span>Total:</span>
-                  <span>{formatCurrency(lastTransaction.total)}</span>
-                </div>
-                {lastTransaction.change > 0 && (
-                  <div className="flex justify-between font-bold text-primary">
-                    <span>Change:</span>
-                    <span>{formatCurrency(lastTransaction.change)}</span>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex gap-2">
-                <Button variant="outline" className="flex-1 bg-transparent">
-                  Print Receipt
-                </Button>
-                <Button
-                  onClick={() => setShowReceiptDialog(false)}
-                  className="flex-1"
-                >
-                  New Sale
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
       {/* Receipt Dialog */}
       <Dialog open={showReceiptDialog} onOpenChange={setShowReceiptDialog}>
         <DialogContent className="max-w-[450px] p-0 overflow-hidden">

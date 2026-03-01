@@ -1,3 +1,10 @@
+"use client";
+
+import React, { useEffect, useState } from "react";
+import { Cloud, RefreshCw } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useLocalData } from "@/lib/db/hooks/useLocalData";
+import { formatDistanceToNow } from "date-fns";
 import { sync } from "@/lib/db/sync-engine";
 
 export function SyncIndicator() {

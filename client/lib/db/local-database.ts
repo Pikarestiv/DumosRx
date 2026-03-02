@@ -90,6 +90,8 @@ CREATE TABLE IF NOT EXISTS customers (
   gender TEXT,
   allergies TEXT,
   medical_conditions TEXT,
+  credit_limit REAL DEFAULT 0,
+  outstanding_balance REAL DEFAULT 0,
   loyalty_points INTEGER DEFAULT 0,
   notes TEXT,
   created_at TEXT,

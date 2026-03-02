@@ -42,6 +42,7 @@ import {
   Scan,
   PackageX,
   Loader2,
+  Wallet,
 } from "lucide-react";
 import { insert, update } from "@/lib/db/local-database";
 import { useLocalData } from "@/lib/db/hooks/useLocalData";
@@ -96,7 +97,7 @@ export function POSSystem() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<"cash" | "card" | "mobile" | "">("");
+  const [paymentMethod, setPaymentMethod] = useState<"cash" | "card" | "mobile" | "credit" | "">("");
   const [amountPaid, setAmountPaid] = useState("");
   const [processingPayment, setProcessingPayment] = useState(false);
 
@@ -253,15 +254,17 @@ export function POSSystem() {
         amount_paid:
           paymentMethod === "cash"
             ? Number.parseFloat(amountPaid) || total
-            : total,
+            : paymentMethod === "credit"
+              ? 0
+              : total,
         change_given:
           paymentMethod === "cash"
             ? Math.max(0, (Number.parseFloat(amountPaid) || 0) - total)
             : 0,
-        points_earned: 0, // Implement points logic if needed
+        points_earned: 0,
         points_redeemed: 0,
         payment_method: paymentMethod,
-        payment_status: "completed",
+        payment_status: paymentMethod === "credit" ? "pending" : "completed",
         transaction_date: new Date().toISOString(),
         receipt_printed: 0,
         notes: "POS Sale",
@@ -282,6 +285,14 @@ export function POSSystem() {
         const newStock = Math.max(0, item.stock - item.quantity);
         update("medicines", item.id, { stock_quantity: newStock });
       });
+
+      // Update customer balance if credit
+      if (paymentMethod === "credit" && selectedCustomer) {
+        const currentBalance = (selectedCustomer as any).outstanding_balance || 0;
+        update("customers", selectedCustomer.id, {
+          outstanding_balance: currentBalance + total
+        });
+      }
 
       // 3. Refresh Medicines List
       refetchMedicines();
@@ -690,6 +701,20 @@ export function POSSystem() {
                 >
                   <Smartphone className="h-5 w-5" />
                   <span className="text-xs">Mobile</span>
+                </Button>
+                <Button
+                  variant={paymentMethod === "credit" ? "default" : "outline"}
+                  onClick={() => {
+                    if (!selectedCustomer) {
+                      toast.error("Please select a customer for credit sales");
+                      return;
+                    }
+                    setPaymentMethod("credit");
+                  }}
+                  className="flex flex-col gap-1 h-16"
+                >
+                  <Wallet className="h-5 w-5" />
+                  <span className="text-xs">Credit</span>
                 </Button>
               </div>
             </div>

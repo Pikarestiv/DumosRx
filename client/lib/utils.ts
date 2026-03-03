@@ -1,3 +1,6 @@
+/**
+ * Shared utility functions for the DumosRx client application.
+ */
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 

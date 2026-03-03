@@ -48,21 +48,8 @@ import { apiClient } from "@/lib/api/client";
 import { AddCustomerDialog } from "@/components/customers/add-customer-dialog";
 import { toast } from "sonner";
 import { useStore } from "@/lib/context/store-context";
-
-interface Customer {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  address: string;
-  joinDate: string;
-  tier: string;
-  points: number;
-  totalSpent: number;
-  lastVisit: string;
-  birthday: string;
-  status: string;
-}
+import { useCustomerData, Customer } from "@/lib/hooks/use-customer-data";
+import { LoyaltyTiersView } from "./loyalty-tiers-view";
 
 
 const recentTransactions = [
@@ -86,27 +73,12 @@ const recentTransactions = [
   },
 ];
 
-// Helper to transform API response
-const transformCustomer = (apiData: any): Customer => ({
-  id: apiData.id,
-  name: `${apiData.first_name} ${apiData.last_name}`,
-  email: apiData.email || "",
-  phone: apiData.phone || "",
-  address: apiData.address || "",
-  joinDate: new Date(apiData.created_at || new Date())
-    .toISOString()
-    .split("T")[0],
-  tier: "Bronze", // Calculate based on points/spent
-  points: apiData.loyalty_points || 0,
-  totalSpent: 0, // Need to sum sales
-  lastVisit: "-",
-  birthday: apiData.date_of_birth || "",
-  status: "active",
-});
 
 export function CustomerManagement() {
   const { storeType } = useStore();
   const isPharmacy = storeType === "pharmacy";
+
+  const { customers, loading, addCustomer } = useCustomerData();
 
   const loyaltyTiers = [
     {
@@ -151,42 +123,12 @@ export function CustomerManagement() {
   ];
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [isAddCustomerOpen, setIsAddCustomerOpen] = useState(false);
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchCustomers();
-  }, []);
-
-  const fetchCustomers = async () => {
-    setLoading(true);
-    try {
-      const response = await apiClient.getCustomers(1, 100);
-      const data = response.data || [];
-      const transformed = data.map(transformCustomer);
-      setCustomers(transformed);
-    } catch (error) {
-      console.error("Failed to fetch customers", error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleAddCustomer = async (payload: any) => {
-    try {
-      const response = await apiClient.createCustomer(payload);
-      const newCustomer = transformCustomer(response);
-      setCustomers([newCustomer, ...customers]);
-      setIsAddCustomerOpen(false);
-    } catch (error: any) {
-      console.error("Failed to create customer", error);
-      const message =
-        error.message || "Failed to create customer. Please check fields.";
-      toast.error(message);
-      throw error;
-    }
+    await addCustomer(payload);
+    setIsAddCustomerOpen(false);
   };
 
   const filteredCustomers = customers.filter(
@@ -398,53 +340,7 @@ export function CustomerManagement() {
         </TabsContent>
 
         <TabsContent value="loyalty" className="space-y-6">
-          {/* Loyalty Tiers */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Loyalty Program Tiers</CardTitle>
-              <CardDescription>
-                Membership levels and benefits structure
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {loyaltyTiers.map((tier) => (
-                  <Card key={tier.name} className="relative">
-                    <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-lg">{tier.name}</CardTitle>
-                        <div className={`w-4 h-4 rounded-full ${tier.color}`} />
-                      </div>
-                      <CardDescription>
-                        Minimum spend: ₦{tier.minSpent.toLocaleString()}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-2">
-                          <Star className="h-4 w-4 text-yellow-500" />
-                          <span className="text-sm">
-                            {tier.pointsMultiplier}x points multiplier
-                          </span>
-                        </div>
-                        <div className="space-y-1">
-                          {tier.benefits.map((benefit, index) => (
-                            <div
-                              key={index}
-                              className="flex items-center gap-2"
-                            >
-                              <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                              <span className="text-sm">{benefit}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          <LoyaltyTiersView tiers={loyaltyTiers} />
 
           {/* Points Redemption */}
           <Card>

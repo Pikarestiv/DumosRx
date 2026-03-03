@@ -46,6 +46,7 @@ import {
 } from "lucide-react";
 import { insert, update } from "@/lib/db/local-database";
 import { useLocalData } from "@/lib/db/hooks/useLocalData";
+import { cn, formatCurrency } from "@/lib/utils";
 
 interface Medicine {
   id: string;
@@ -69,37 +70,22 @@ interface Customer {
   last_name: string;
   phone: string;
   loyalty_points: number;
+  outstanding_balance: number;
 }
 
 import { useStore } from "@/lib/context/store-context";
 import { ReceiptView } from "./receipt-view";
 import React from "react";
 
+import { usePOSCart } from "@/lib/hooks/use-pos-cart";
+import { usePOSPayment } from "@/lib/hooks/use-pos-payment";
+
 export function POSSystem() {
   const { t } = useStore();
   const searchInputRef = React.useRef<HTMLInputElement>(null);
 
-  const [completedTransaction, setCompletedTransaction] = useState<any>(null);
-  const [showReceiptDialog, setShowReceiptDialog] = useState(false);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.altKey || e.ctrlKey) && e.key === "s") {
-        e.preventDefault();
-        searchInputRef.current?.focus();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
-
   const [searchTerm, setSearchTerm] = useState("");
-  const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
-  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<"cash" | "card" | "mobile" | "credit" | "">("");
-  const [amountPaid, setAmountPaid] = useState("");
-  const [processingPayment, setProcessingPayment] = useState(false);
 
   // Fetch medicines from local DB
   const {
@@ -134,9 +120,57 @@ export function POSSystem() {
         last_name: c.last_name || "",
         phone: c.phone || "",
         loyalty_points: c.loyalty_points || 0,
+        outstanding_balance: c.outstanding_balance || 0,
       }),
     },
   );
+
+  const {
+    cart,
+    addToCart,
+    updateQuantity,
+    removeFromCart,
+    clearCart,
+    subtotal,
+    tax,
+    total,
+    discount,
+    setDiscount,
+  } = usePOSCart(medicines);
+
+  const {
+    paymentMethod,
+    setPaymentMethod,
+    amountPaid,
+    setAmountPaid,
+    processingPayment,
+    handlePayment,
+    completedTransaction,
+    showPaymentDialog,
+    setShowPaymentDialog,
+    showReceiptDialog,
+    setShowReceiptDialog,
+  } = usePOSPayment({
+    cart,
+    subtotal,
+    tax,
+    total,
+    discount,
+    selectedCustomer,
+    clearCart,
+    refetchMedicines,
+  });
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.altKey || e.ctrlKey) && e.key === "s") {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   const filteredMedicines = medicines.filter(
     (medicine) =>
@@ -145,194 +179,6 @@ export function POSSystem() {
       medicine.brand?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       medicine.barcode?.includes(searchTerm),
   );
-
-  const addToCart = (medicine: Medicine) => {
-    const existingItem = cart.find((item) => item.id === medicine.id);
-
-    if (existingItem) {
-      if (existingItem.quantity < medicine.stock) {
-        updateQuantity(medicine.id, existingItem.quantity + 1);
-      } else {
-        toast.warning("Insufficient stock available");
-      }
-    } else {
-      if (medicine.stock > 0) {
-        const cartItem: CartItem = {
-          ...medicine,
-          quantity: 1,
-          subtotal: medicine.unit_price,
-        };
-        setCart([...cart, cartItem]);
-        toast.success(`${medicine.name} added to cart`);
-      } else {
-        toast.error("This item is out of stock");
-      }
-    }
-  };
-
-  const updateQuantity = (id: string, newQuantity: number) => {
-    if (newQuantity <= 0) {
-      removeFromCart(id);
-      return;
-    }
-
-    const medicine = medicines.find((m) => m.id === id);
-    if (medicine && newQuantity > medicine.stock) {
-      toast.warning("Insufficient stock available");
-      return;
-    }
-
-    setCart(
-      cart.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              quantity: newQuantity,
-              subtotal: item.unit_price * newQuantity,
-            }
-          : item,
-      ),
-    );
-  };
-
-  const removeFromCart = (id: string) => {
-    setCart(cart.filter((item) => item.id !== id));
-  };
-
-  const clearCart = () => {
-    setCart([]);
-    setSelectedCustomer(null);
-  };
-
-  const subtotal = cart.reduce((sum, item) => sum + item.subtotal, 0);
-  const tax = subtotal * 0.075; // 7.5% VAT in Nigeria
-  const discount = selectedCustomer
-    ? Math.floor(selectedCustomer.loyalty_points / 10) * 5
-    : 0;
-  const total = subtotal + tax - discount;
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-NG", {
-      style: "currency",
-      currency: "NGN",
-      minimumFractionDigits: 0,
-    }).format(amount);
-  };
-
-  const handlePayment = async () => {
-    if (!paymentMethod) {
-      toast.error("Please select a payment method");
-      return;
-    }
-
-    if (paymentMethod === "cash") {
-      const paid = Number.parseFloat(amountPaid);
-      if (!paid || paid < total) {
-        toast.error("Insufficient payment amount");
-        return;
-      }
-    }
-
-    setProcessingPayment(true);
-
-    try {
-      // 1. Create Sale
-      const user = JSON.parse(localStorage.getItem("dumos_user") || "{}");
-      const cashierId = user?.id || null;
-      const transactionNumber = `TXN${Date.now()}`;
-
-      const saleId = insert("sales", {
-        transaction_number: transactionNumber,
-        customer_id: selectedCustomer?.id || null,
-        cashier_id: cashierId,
-        subtotal,
-        discount_amount: discount,
-        discount_percentage: 0, // Calculate if needed
-        tax_amount: tax,
-        tax_percentage: 7.5,
-        total_amount: total,
-        amount_paid:
-          paymentMethod === "cash"
-            ? Number.parseFloat(amountPaid) || total
-            : paymentMethod === "credit"
-              ? 0
-              : total,
-        change_given:
-          paymentMethod === "cash"
-            ? Math.max(0, (Number.parseFloat(amountPaid) || 0) - total)
-            : 0,
-        points_earned: 0,
-        points_redeemed: 0,
-        payment_method: paymentMethod,
-        payment_status: paymentMethod === "credit" ? "pending" : "completed",
-        transaction_date: new Date().toISOString(),
-        receipt_printed: 0,
-        notes: "POS Sale",
-      });
-
-      // 2. Create Sale Items and Update Stock
-      cart.forEach((item) => {
-        // Add sale item
-        insert("sale_items", {
-          sale_id: saleId,
-          medicine_id: item.id,
-          quantity: item.quantity,
-          unit_price: item.unit_price,
-          total_price: item.subtotal,
-        });
-
-        // Deduct stock
-        const newStock = Math.max(0, item.stock - item.quantity);
-        update("medicines", item.id, { stock_quantity: newStock });
-      });
-
-      // Update customer balance if credit
-      if (paymentMethod === "credit" && selectedCustomer) {
-        const currentBalance = (selectedCustomer as any).outstanding_balance || 0;
-        update("customers", selectedCustomer.id, {
-          outstanding_balance: currentBalance + total
-        });
-      }
-
-      // 3. Refresh Medicines List
-      refetchMedicines();
-
-      const transaction = {
-        id: saleId, // Use the generated ID
-        date: new Date().toISOString(),
-        items: cart,
-        customer: selectedCustomer,
-        subtotal,
-        tax,
-        discount,
-        total,
-        paymentMethod,
-        amountPaid:
-          paymentMethod === "cash" ? Number.parseFloat(amountPaid) : total,
-        change:
-          paymentMethod === "cash" ? Number.parseFloat(amountPaid) - total : 0,
-      };
-
-      setCompletedTransaction(transaction);
-      setShowPaymentDialog(false);
-      setShowReceiptDialog(true);
-      toast.success("Payment successful (Local)");
-
-      // Clear cart and reset
-      clearCart();
-      setPaymentMethod("");
-      setAmountPaid("");
-    } catch (error) {
-      console.error("Payment failed:", error);
-      toast.error("Payment failed. Please try again.");
-    } finally {
-      setProcessingPayment(false);
-    }
-  };
-
-  const handlePrint = () => {
-    window.print();
-  };
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && searchTerm.trim()) {
@@ -347,6 +193,10 @@ export function POSSystem() {
         toast.success(`Scanned: ${barcodeMatch.name}`);
       }
     }
+  };
+
+  const handlePrint = () => {
+    window.print();
   };
 
   return (

@@ -11,15 +11,6 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Table,
   TableBody,
@@ -33,8 +24,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { Plus, Search, RotateCcw, AlertTriangle, PackageX } from "lucide-react";
 import { apiClient } from "@/lib/api/client";
+import { AddStockAdjustmentForm } from "./add-stock-adjustment-form";
 
-interface StockAdjustment {
+export interface StockAdjustment {
   id: string;
   date: string;
   medicine: string;
@@ -230,9 +222,7 @@ export function StockAdjustments() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">
-                  Total Adjustments
-                </p>
+                <p className="text-sm text-muted-foreground">Total Adjustments</p>
                 <p className="text-2xl font-bold">{totalAdjustments}</p>
               </div>
               <RotateCcw className="h-8 w-8 text-primary" />
@@ -244,12 +234,8 @@ export function StockAdjustments() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">
-                  Pending Approval
-                </p>
-                <p className="text-2xl font-bold text-orange-600">
-                  {pendingAdjustments}
-                </p>
+                <p className="text-sm text-muted-foreground">Pending Approval</p>
+                <p className="text-2xl font-bold text-orange-600">{pendingAdjustments}</p>
               </div>
               <AlertTriangle className="h-8 w-8 text-orange-600" />
             </div>
@@ -264,8 +250,7 @@ export function StockAdjustments() {
                 <p className="text-2xl font-bold">
                   {
                     adjustments.filter(
-                      (adj) =>
-                        new Date(adj.date).getMonth() === new Date().getMonth(),
+                      (adj) => new Date(adj.date).getMonth() === new Date().getMonth(),
                     ).length
                   }
                 </p>
@@ -278,130 +263,13 @@ export function StockAdjustments() {
 
       {/* Add Adjustment Form */}
       {showAddForm && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="font-serif font-semibold">
-              New Stock Adjustment
-            </CardTitle>
-            <CardDescription>
-              Record inventory adjustments for audit purposes
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmitAdjustment} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="medicine">Medicine *</Label>
-                  <Input
-                    id="medicine"
-                    value={newAdjustment.medicine}
-                    onChange={(e) =>
-                      setNewAdjustment((prev) => ({
-                        ...prev,
-                        medicine: e.target.value,
-                      }))
-                    }
-                    placeholder="Enter medicine name"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="adjustmentType">Adjustment Type *</Label>
-                  <Select
-                    value={newAdjustment.adjustmentType}
-                    onValueChange={(value: "increase" | "decrease") =>
-                      setNewAdjustment((prev) => ({
-                        ...prev,
-                        adjustmentType: value,
-                      }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="increase">Increase Stock</SelectItem>
-                      <SelectItem value="decrease">Decrease Stock</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="quantity">Quantity *</Label>
-                  <Input
-                    id="quantity"
-                    type="number"
-                    value={newAdjustment.quantity}
-                    onChange={(e) =>
-                      setNewAdjustment((prev) => ({
-                        ...prev,
-                        quantity: Number.parseInt(e.target.value) || 0,
-                      }))
-                    }
-                    placeholder="0"
-                    min="1"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="reason">Reason *</Label>
-                  <Select
-                    value={newAdjustment.reason}
-                    onValueChange={(value) =>
-                      setNewAdjustment((prev) => ({ ...prev, reason: value }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select reason" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {reasons.map((reason) => (
-                        <SelectItem key={reason} value={reason}>
-                          {reason}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="notes">Notes</Label>
-                <Textarea
-                  id="notes"
-                  value={newAdjustment.notes}
-                  onChange={(e) =>
-                    setNewAdjustment((prev) => ({
-                      ...prev,
-                      notes: e.target.value,
-                    }))
-                  }
-                  placeholder="Additional notes or explanation..."
-                  rows={3}
-                />
-              </div>
-
-              <div className="flex gap-2">
-                <Button
-                  type="submit"
-                  className="bg-accent hover:bg-accent/90 cursor-pointer"
-                >
-                  Submit Adjustment
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowAddForm(false)}
-                  className="cursor-pointer"
-                >
-                  Cancel
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
+        <AddStockAdjustmentForm
+          newAdjustment={newAdjustment}
+          setNewAdjustment={setNewAdjustment}
+          onSubmit={handleSubmitAdjustment}
+          onCancel={() => setShowAddForm(false)}
+          reasons={reasons}
+        />
       )}
 
       {/* Search and Actions */}
@@ -409,12 +277,8 @@ export function StockAdjustments() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="font-serif font-semibold">
-                Stock Adjustments
-              </CardTitle>
-              <CardDescription>
-                Track and manage inventory adjustments
-              </CardDescription>
+              <CardTitle className="font-serif font-semibold">Stock Adjustments</CardTitle>
+              <CardDescription>Track and manage inventory adjustments</CardDescription>
             </div>
             <Button
               onClick={() => setShowAddForm(true)}
@@ -445,12 +309,9 @@ export function StockAdjustments() {
       {/* Adjustments Table */}
       <Card>
         <CardHeader>
-          <CardTitle className="font-serif font-semibold">
-            Adjustment History
-          </CardTitle>
+          <CardTitle className="font-serif font-semibold">Adjustment History</CardTitle>
           <CardDescription>
-            Showing {filteredAdjustments.length} of {adjustments.length}{" "}
-            adjustments
+            Showing {filteredAdjustments.length} of {adjustments.length} adjustments
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -487,16 +348,12 @@ export function StockAdjustments() {
                   filteredAdjustments.map((adjustment) => (
                     <TableRow key={adjustment.id}>
                       <TableCell>
-                        <div className="text-sm">
-                          {formatDateTime(adjustment.date)}
-                        </div>
+                        <div className="text-sm">{formatDateTime(adjustment.date)}</div>
                       </TableCell>
                       <TableCell>
                         <div className="font-medium">{adjustment.medicine}</div>
                       </TableCell>
-                      <TableCell>
-                        {getAdjustmentBadge(adjustment.adjustmentType)}
-                      </TableCell>
+                      <TableCell>{getAdjustmentBadge(adjustment.adjustmentType)}</TableCell>
                       <TableCell>
                         <div
                           className={`font-medium ${adjustment.quantity > 0 ? "text-green-600" : "text-red-600"}`}

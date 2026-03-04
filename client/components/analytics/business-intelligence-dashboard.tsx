@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import {
   Card,
   CardContent,
@@ -39,17 +38,14 @@ import {
 import {
   TrendingUp,
   TrendingDown,
-  DollarSign,
-  Package,
-  Users,
-  FileText,
   AlertTriangle,
   Calendar,
 } from "lucide-react";
+import { useBIData } from "@/lib/hooks/use-bi-data";
+import { formatCurrency } from "@/lib/utils";
+import { BIKeyMetrics } from "./bi-key-metrics";
 
 // Sample data for analytics
-// Live data will be loaded within the component
-
 const inventoryAlerts = [
   {
     medicine: "Paracetamol 500mg",
@@ -96,110 +92,18 @@ const customerMetrics = [
   },
 ];
 
-import { useLocalData } from "@/lib/db/hooks/useLocalData";
-import { useStore } from "@/lib/context/store-context";
-
 export function BusinessIntelligenceDashboard() {
-  const { t } = useStore();
-  const [timeRange, setTimeRange] = useState("6months");
-
-  // Get date filter string based on timeRange
-  const getDateFilter = () => {
-    const now = new Date();
-    let filterDate = new Date();
-    
-    if (timeRange === "1month") filterDate.setMonth(now.getMonth() - 1);
-    else if (timeRange === "3months") filterDate.setMonth(now.getMonth() - 3);
-    else if (timeRange === "6months") filterDate.setMonth(now.getMonth() - 6);
-    else if (timeRange === "1year") filterDate.setFullYear(now.getFullYear() - 1);
-    
-    return filterDate.toISOString();
-  };
-
-  const dateFilter = getDateFilter();
-
-  // 1. Total Revenue
-  const { data: revenueData } = useLocalData<{ total: number }>(
-    `SELECT SUM(total_amount) as total FROM sales WHERE transaction_date >= ? AND _deleted = 0`,
-    [dateFilter]
-  );
-  const totalRevenue = revenueData[0]?.total || 0;
-
-  // 2. Total Transactions
-  const { data: transactionData } = useLocalData<{ count: number }>(
-    `SELECT COUNT(*) as count FROM sales WHERE transaction_date >= ? AND _deleted = 0`,
-    [dateFilter]
-  );
-  const totalTransactions = transactionData[0]?.count || 0;
-
-  // 3. Inventory Value (Selling Price * Quantity)
-  const { data: inventoryValueData } = useLocalData<{ value: number }>(
-    `SELECT SUM(selling_price * stock_quantity) as value FROM medicines WHERE _deleted = 0`
-  );
-  const inventoryValue = inventoryValueData[0]?.value || 0;
-
-  // 4. Active Customers
-  const { data: customerData } = useLocalData<{ count: number }>(
-    `SELECT COUNT(*) as count FROM customers WHERE _deleted = 0`
-  );
-  const activeCustomers = customerData[0]?.count || 0;
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-NG", {
-      style: "currency",
-      currency: "NGN",
-      minimumFractionDigits: 0,
-    }).format(amount);
-  };
-
-  // 5. Monthly Sales Data
-  const { data: monthlySalesData } = useLocalData<{ month: string, revenue: number, profit: number }>(
-    `SELECT 
-      strftime('%b', transaction_date) as month,
-      SUM(total_amount) as revenue,
-      SUM(total_amount * 0.25) as profit
-     FROM sales 
-     WHERE transaction_date >= ? AND _deleted = 0
-     GROUP BY strftime('%m', transaction_date)
-     ORDER BY strftime('%m', transaction_date) ASC`,
-    [dateFilter]
-  );
-
-  // 6. Top Selling Medicines
-  const { data: topSellingMedicines } = useLocalData<{ name: string, sales: number, units: number, category: string }>(
-    `SELECT 
-      m.name,
-      SUM(si.subtotal) as sales,
-      SUM(si.quantity) as units,
-      m.category
-     FROM sale_items si
-     JOIN medicines m ON si.medicine_id = m.id
-     JOIN sales s ON si.sale_id = s.id
-     WHERE s.transaction_date >= ? AND s._deleted = 0
-     GROUP BY m.id
-     ORDER BY sales DESC
-     LIMIT 5`,
-    [dateFilter]
-  );
-
-  // 7. Sales by Category
-  const { data: categoryDistribution } = useLocalData<{ name: string, value: number }>(
-    `SELECT 
-      m.category as name,
-      COUNT(*) as value
-     FROM sale_items si
-     JOIN medicines m ON si.medicine_id = m.id
-     JOIN sales s ON si.sale_id = s.id
-     WHERE s.transaction_date >= ? AND s._deleted = 0
-     GROUP BY m.category`,
-    [dateFilter]
-  );
-
-  const colors = ["#0ea5e9", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
-  const formattedCategoryData = categoryDistribution.map((item, index) => ({
-    ...item,
-    color: colors[index % colors.length]
-  }));
+  const {
+    timeRange,
+    setTimeRange,
+    totalRevenue,
+    totalTransactions,
+    inventoryValue,
+    activeCustomers,
+    monthlySalesData,
+    topSellingMedicines,
+    formattedCategoryData,
+  } = useBIData();
 
   return (
     <div className="space-y-6">
@@ -233,66 +137,12 @@ export function BusinessIntelligenceDashboard() {
 
       {/* Live Data Active Notice (Optional replacement for demo notice) */}
       
-      {/* Key Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(totalRevenue)}</div>
-            <div className="flex items-center text-xs text-muted-foreground">
-              Based on selected period
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Total Transactions
-            </CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalTransactions.toLocaleString()}</div>
-            <div className="flex items-center text-xs text-muted-foreground">
-              Across all locations
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Inventory Value
-            </CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(inventoryValue)}</div>
-            <div className="flex items-center text-xs text-muted-foreground">
-              Estimated market value
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Active Customers
-            </CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{activeCustomers.toLocaleString()}</div>
-            <div className="flex items-center text-xs text-muted-foreground">
-              In your CRM
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <BIKeyMetrics
+        totalRevenue={totalRevenue}
+        totalTransactions={totalTransactions}
+        inventoryValue={inventoryValue}
+        activeCustomers={activeCustomers}
+      />
 
       {/* Main Analytics Tabs */}
       <Tabs defaultValue="sales" className="space-y-6">

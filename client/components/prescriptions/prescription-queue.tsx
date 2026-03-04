@@ -1,6 +1,5 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -26,13 +25,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Search,
@@ -45,103 +37,29 @@ import {
   Pill,
   Phone,
 } from "lucide-react";
-import { apiClient } from "@/lib/api/client";
-
-interface Prescription {
-  id: string;
-  prescriptionNumber: string;
-  patientName: string;
-  patientPhone: string;
-  patientAge: number;
-  doctorName: string;
-  doctorLicense: string;
-  dateIssued: string;
-  status: "pending" | "in_progress" | "ready" | "dispensed" | "on_hold";
-  priority: "normal" | "urgent" | "stat";
-  medications: PrescriptionMedication[];
-  insurance?: string;
-  totalCost: number;
-  notes?: string;
-}
-
-interface PrescriptionMedication {
-  id: string;
-  medicineName: string;
-  strength: string;
-  dosage: string;
-  quantity: number;
-  instructions: string;
-  available: boolean;
-  cost: number;
-}
+import { usePrescriptionQueue, Prescription } from "@/lib/hooks/use-prescription-queue";
+import { PrescriptionStats } from "./prescription-stats";
+import { PrescriptionDetailsDialog } from "./prescription-details-dialog";
+import { formatCurrency } from "@/lib/utils";
 
 export function PrescriptionQueue() {
-  const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [priorityFilter, setPriorityFilter] = useState("all");
-  const [selectedPrescription, setSelectedPrescription] =
-    useState<Prescription | null>(null);
-  const [showDetailsDialog, setShowDetailsDialog] = useState(false);
-
-  useEffect(() => {
-    async function fetchPrescriptions() {
-      setLoading(true);
-      try {
-        const res = await apiClient.getPrescriptions(1, 100);
-        const items = (res.data || []).map((p: any) => ({
-          id: p.id,
-          prescriptionNumber: p.prescription_number || `RX-${p.id}`,
-          patientName: p.patient?.name || p.patient_name || "Unknown",
-          patientPhone: p.patient?.phone || p.patient_phone || "",
-          patientAge: p.patient?.age || p.patient_age || 0,
-          doctorName: p.doctor?.name || p.doctor_name || "Unknown",
-          doctorLicense: p.doctor?.license || p.doctor_license || "",
-          dateIssued: p.issued_at || p.created_at,
-          status: p.status || "pending",
-          priority: p.priority || "normal",
-          medications: (p.medications || p.items || []).map((m: any) => ({
-            id: m.id,
-            medicineName: m.medicine?.name || m.medicine_name || m.name,
-            strength: m.strength || "",
-            dosage: m.dosage || "",
-            quantity: m.quantity || 0,
-            instructions: m.instructions || "",
-            available: m.available ?? true,
-            cost: Number(m.cost) || 0,
-          })),
-          insurance: p.insurance,
-          totalCost: Number(p.total_cost) || 0,
-          notes: p.notes,
-        }));
-        setPrescriptions(items);
-      } catch (error) {
-        console.error("Failed to fetch prescriptions:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchPrescriptions();
-  }, []);
-
-  const filteredPrescriptions = prescriptions.filter((prescription) => {
-    const matchesSearch =
-      prescription.patientName
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase()) ||
-      prescription.prescriptionNumber
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase()) ||
-      prescription.doctorName.toLowerCase().includes(searchTerm.toLowerCase());
-
-    const matchesStatus =
-      statusFilter === "all" || prescription.status === statusFilter;
-    const matchesPriority =
-      priorityFilter === "all" || prescription.priority === priorityFilter;
-
-    return matchesSearch && matchesStatus && matchesPriority;
-  });
+  const {
+    loading,
+    searchTerm,
+    setSearchTerm,
+    statusFilter,
+    setStatusFilter,
+    priorityFilter,
+    setPriorityFilter,
+    filteredPrescriptions,
+    selectedPrescription,
+    showDetailsDialog,
+    setShowDetailsDialog,
+    updatePrescriptionStatus,
+    viewPrescriptionDetails,
+    stats,
+    prescriptions,
+  } = usePrescriptionQueue();
 
   const getStatusBadge = (status: Prescription["status"]) => {
     const variants = {
@@ -187,14 +105,6 @@ export function PrescriptionQueue() {
     );
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-NG", {
-      style: "currency",
-      currency: "NGN",
-      minimumFractionDigits: 0,
-    }).format(amount);
-  };
-
   const formatDateTime = (dateString: string) => {
     return new Date(dateString).toLocaleString("en-NG", {
       year: "numeric",
@@ -204,35 +114,6 @@ export function PrescriptionQueue() {
       minute: "2-digit",
     });
   };
-
-  const updatePrescriptionStatus = (
-    id: string,
-    newStatus: Prescription["status"],
-  ) => {
-    setPrescriptions(
-      prescriptions.map((prescription) =>
-        prescription.id === id
-          ? { ...prescription, status: newStatus }
-          : prescription,
-      ),
-    );
-  };
-
-  const viewPrescriptionDetails = (prescription: Prescription) => {
-    setSelectedPrescription(prescription);
-    setShowDetailsDialog(true);
-  };
-
-  const pendingCount = prescriptions.filter(
-    (p) => p.status === "pending",
-  ).length;
-  const inProgressCount = prescriptions.filter(
-    (p) => p.status === "in_progress",
-  ).length;
-  const readyCount = prescriptions.filter((p) => p.status === "ready").length;
-  const urgentCount = prescriptions.filter(
-    (p) => p.priority === "urgent" || p.priority === "stat",
-  ).length;
 
   if (loading) {
     return (
@@ -291,61 +172,7 @@ export function PrescriptionQueue() {
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Pending</p>
-                <p className="text-2xl font-bold text-orange-600">
-                  {pendingCount}
-                </p>
-              </div>
-              <Clock className="h-8 w-8 text-orange-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">In Progress</p>
-                <p className="text-2xl font-bold text-blue-600">
-                  {inProgressCount}
-                </p>
-              </div>
-              <Pill className="h-8 w-8 text-blue-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Ready</p>
-                <p className="text-2xl font-bold text-green-600">
-                  {readyCount}
-                </p>
-              </div>
-              <CheckCircle className="h-8 w-8 text-green-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Urgent</p>
-                <p className="text-2xl font-bold text-red-600">{urgentCount}</p>
-              </div>
-              <AlertTriangle className="h-8 w-8 text-red-600" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <PrescriptionStats stats={stats} />
 
       {/* Filters */}
       <Card>
@@ -577,196 +404,14 @@ export function PrescriptionQueue() {
         </CardContent>
       </Card>
 
-      {/* Prescription Details Dialog */}
-      <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="font-serif font-bold">
-              Prescription Details
-            </DialogTitle>
-            <DialogDescription>
-              {selectedPrescription?.prescriptionNumber} -{" "}
-              {selectedPrescription?.patientName}
-            </DialogDescription>
-          </DialogHeader>
-
-          {selectedPrescription && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Patient Information */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="font-serif font-semibold flex items-center gap-2">
-                      <User className="h-5 w-5" />
-                      Patient Information
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Name</p>
-                      <p className="font-medium">
-                        {selectedPrescription.patientName}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Phone</p>
-                      <p className="font-medium">
-                        {selectedPrescription.patientPhone || "-"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Age</p>
-                      <p className="font-medium">
-                        {selectedPrescription.patientAge || "-"} years
-                      </p>
-                    </div>
-                    {selectedPrescription.insurance && (
-                      <div>
-                        <p className="text-sm text-muted-foreground">
-                          Insurance
-                        </p>
-                        <p className="font-medium">
-                          {selectedPrescription.insurance}
-                        </p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                {/* Doctor Information */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="font-serif font-semibold flex items-center gap-2">
-                      <FileText className="h-5 w-5" />
-                      Prescriber Information
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Doctor</p>
-                      <p className="font-medium">
-                        {selectedPrescription.doctorName}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">
-                        License Number
-                      </p>
-                      <p className="font-medium">
-                        {selectedPrescription.doctorLicense || "-"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">
-                        Date Issued
-                      </p>
-                      <p className="font-medium">
-                        {formatDateTime(selectedPrescription.dateIssued)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Priority</p>
-                      <p className="font-medium">
-                        {getPriorityBadge(selectedPrescription.priority)}
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Medications */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="font-serif font-semibold flex items-center gap-2">
-                    <Pill className="h-5 w-5" />
-                    Prescribed Medications
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {selectedPrescription.medications.length === 0 ? (
-                    <p className="text-muted-foreground text-center py-4">
-                      No medications listed
-                    </p>
-                  ) : (
-                    <div className="space-y-4">
-                      {selectedPrescription.medications.map((medication) => (
-                        <div
-                          key={medication.id}
-                          className="p-4 border border-border rounded-lg"
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2">
-                                <h4 className="font-medium">
-                                  {medication.medicineName}
-                                </h4>
-                                <Badge
-                                  variant={
-                                    medication.available
-                                      ? "default"
-                                      : "destructive"
-                                  }
-                                  className="text-xs"
-                                >
-                                  {medication.available
-                                    ? "Available"
-                                    : "Out of Stock"}
-                                </Badge>
-                              </div>
-                              <p className="text-sm text-muted-foreground mt-1">
-                                Strength: {medication.strength || "-"} •
-                                Quantity: {medication.quantity}
-                              </p>
-                              <p className="text-sm text-muted-foreground">
-                                Dosage: {medication.dosage || "-"}
-                              </p>
-                              {medication.instructions && (
-                                <p className="text-sm mt-2 p-2 bg-muted rounded text-muted-foreground">
-                                  Instructions: {medication.instructions}
-                                </p>
-                              )}
-                            </div>
-                            <div className="text-right">
-                              <p className="font-bold">
-                                {formatCurrency(medication.cost)}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  <div className="mt-4 pt-4 border-t border-border">
-                    <div className="flex justify-between items-center">
-                      <span className="font-bold">Total Cost:</span>
-                      <span className="font-bold text-lg">
-                        {formatCurrency(selectedPrescription.totalCost)}
-                      </span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Notes */}
-              {selectedPrescription.notes && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="font-serif font-semibold">
-                      Clinical Notes
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm p-3 bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-                      {selectedPrescription.notes}
-                    </p>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <PrescriptionDetailsDialog
+        prescription={selectedPrescription}
+        open={showDetailsDialog}
+        onOpenChange={setShowDetailsDialog}
+        getStatusBadge={getStatusBadge}
+        getPriorityBadge={getPriorityBadge}
+        formatDateTime={formatDateTime}
+      />
     </div>
   );
 }

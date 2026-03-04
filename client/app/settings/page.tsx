@@ -45,7 +45,7 @@ const colorThemes = [
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
-  const { storeProfile, storeType, updateStoreProfile, t } = useStore();
+  const { storeProfile, storeType, updateStoreProfile } = useStore();
   const [selectedColorTheme, setSelectedColorTheme] = useState(0);
 
   // Local state for profile form

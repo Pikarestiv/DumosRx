@@ -21,7 +21,7 @@ import { ShoppingBasket, Pill, Store, Check, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 
 export function QuickSetupWizard() {
-  const { isInitialized, updateStoreProfile, storeProfile } = useStore();
+  const { isInitialized, updateStoreProfile } = useStore();
   const [step, setStep] = useState(1);
   const [storeType, setStoreType] = useState<StoreType>("pharmacy");
   const [storeName, setStoreName] = useState("");

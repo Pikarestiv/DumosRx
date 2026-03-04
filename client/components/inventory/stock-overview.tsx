@@ -90,9 +90,6 @@ export function StockOverview() {
   const criticalItems = stockData.filter(
     (item) => item.status === "critical",
   ).length;
-  const overstockItems = stockData.filter(
-    (item) => item.status === "overstock",
-  ).length;
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-NG", {

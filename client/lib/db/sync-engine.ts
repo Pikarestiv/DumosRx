@@ -1,12 +1,10 @@
 import {
   getPendingSyncItems,
   markSynced,
-  execute,
   query,
   getDatabase,
 } from "./local-database";
 import { apiClient } from "@/lib/api/client";
-import { toast } from "sonner";
 
 /**
  * Sync Engine

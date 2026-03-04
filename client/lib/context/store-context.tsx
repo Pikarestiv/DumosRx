@@ -1,7 +1,7 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { query, execute, update, insert } from "@/lib/db/local-database";
+import React, { createContext, useContext, ReactNode } from "react";
+import { update, insert } from "@/lib/db/local-database";
 import { useLocalData } from "@/lib/db/hooks/useLocalData";
 
 export type StoreType = "pharmacy" | "grocery" | "supermarket" | "general";

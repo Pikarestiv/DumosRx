@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ShieldCheck, Download, LayoutDashboard, Settings } from "lucide-react";
+import { ShieldCheck, Download } from "lucide-react";
 import { SubscriptionWrapper } from "@/components/dashboard/subscription-wrapper";
 import {
   Card,

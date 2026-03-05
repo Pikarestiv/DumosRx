@@ -10,7 +10,6 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
   Select,
@@ -26,7 +25,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Skeleton } from "@/components/ui/skeleton";
+
 import { toast } from "sonner";
 import {
   Search,
@@ -34,19 +33,12 @@ import {
   Plus,
   Minus,
   Trash2,
-  CreditCard,
-  Banknote,
-  Smartphone,
   Receipt,
   User,
   Scan,
-  PackageX,
-  Loader2,
-  Wallet,
 } from "lucide-react";
-import { insert, update } from "@/lib/db/local-database";
 import { useLocalData } from "@/lib/db/hooks/useLocalData";
-import { cn, formatCurrency } from "@/lib/utils";
+import { formatCurrency } from "@/lib/utils";
 
 interface Medicine {
   id: string;
@@ -59,10 +51,6 @@ interface Medicine {
   barcode?: string;
 }
 
-interface CartItem extends Medicine {
-  quantity: number;
-  subtotal: number;
-}
 
 interface Customer {
   id: string;
@@ -79,6 +67,8 @@ import React from "react";
 
 import { usePOSCart } from "@/lib/hooks/use-pos-cart";
 import { usePOSPayment } from "@/lib/hooks/use-pos-payment";
+import { POSProductList } from "./pos-product-list";
+import { POSPaymentDialog } from "./pos-payment-dialog";
 
 export function POSSystem() {
   const { t } = useStore();
@@ -135,7 +125,6 @@ export function POSSystem() {
     tax,
     total,
     discount,
-    setDiscount,
   } = usePOSCart(medicines);
 
   const {
@@ -259,80 +248,13 @@ export function POSSystem() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="font-serif font-semibold">
-                Available {t('products')}
-              </CardTitle>
-              <CardDescription>
-                {loadingMedicines
-                  ? "Loading..."
-                  : `Showing ${filteredMedicines.length} of ${medicines.length} ${t('products').toLowerCase()}`}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loadingMedicines ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {[...Array(4)].map((_, i) => (
-                    <div key={i} className="p-3 border rounded-lg space-y-2">
-                      <Skeleton className="h-4 w-3/4" />
-                      <Skeleton className="h-3 w-1/2" />
-                      <Skeleton className="h-4 w-1/3" />
-                    </div>
-                  ))}
-                </div>
-              ) : filteredMedicines.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                  <PackageX className="h-12 w-12 mb-4" />
-                  <p className="font-medium">No {t('products').toLowerCase()} found</p>
-                  <p className="text-sm">
-                    Try a different search term or add {t('products').toLowerCase()} to inventory.
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-96 overflow-y-auto">
-                  {filteredMedicines.map((medicine) => (
-                    <div
-                      key={medicine.id}
-                      className="p-3 border border-border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
-                      onClick={() => addToCart(medicine)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <h4 className="font-medium text-sm">
-                            {medicine.name}
-                          </h4>
-                          <p className="text-xs text-muted-foreground">
-                            {medicine.brand} • {medicine.strength}
-                          </p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className="font-bold text-accent">
-                              {formatCurrency(medicine.unit_price)}
-                            </span>
-                            <Badge
-                              variant={
-                                medicine.stock > 10
-                                  ? "default"
-                                  : medicine.stock > 0
-                                    ? "outline"
-                                    : "destructive"
-                              }
-                              className="text-xs"
-                            >
-                              {medicine.stock} in stock
-                            </Badge>
-                          </div>
-                        </div>
-                        <Button size="sm" variant="ghost" className="ml-2">
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <POSProductList
+            loadingMedicines={loadingMedicines}
+            filteredMedicines={filteredMedicines}
+            medicinesLength={medicines.length}
+            addToCart={addToCart}
+            productTerm={t('products')}
+          />
         </div>
 
         {/* Shopping Cart and Checkout */}
@@ -514,103 +436,18 @@ export function POSSystem() {
         </div>
       </div>
 
-      {/* Payment Dialog */}
-      <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="font-serif font-bold">Payment</DialogTitle>
-            <DialogDescription>
-              Total amount: {formatCurrency(total)}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium">Payment Method</label>
-              <div className="grid grid-cols-3 gap-2 mt-2">
-                <Button
-                  variant={paymentMethod === "cash" ? "default" : "outline"}
-                  onClick={() => setPaymentMethod("cash")}
-                  className="flex flex-col gap-1 h-16"
-                >
-                  <Banknote className="h-5 w-5" />
-                  <span className="text-xs">Cash</span>
-                </Button>
-                <Button
-                  variant={paymentMethod === "card" ? "default" : "outline"}
-                  onClick={() => setPaymentMethod("card")}
-                  className="flex flex-col gap-1 h-16"
-                >
-                  <CreditCard className="h-5 w-5" />
-                  <span className="text-xs">Card</span>
-                </Button>
-                <Button
-                  variant={paymentMethod === "mobile" ? "default" : "outline"}
-                  onClick={() => setPaymentMethod("mobile")}
-                  className="flex flex-col gap-1 h-16"
-                >
-                  <Smartphone className="h-5 w-5" />
-                  <span className="text-xs">Mobile</span>
-                </Button>
-                <Button
-                  variant={paymentMethod === "credit" ? "default" : "outline"}
-                  onClick={() => {
-                    if (!selectedCustomer) {
-                      toast.error("Please select a customer for credit sales");
-                      return;
-                    }
-                    setPaymentMethod("credit");
-                  }}
-                  className="flex flex-col gap-1 h-16"
-                >
-                  <Wallet className="h-5 w-5" />
-                  <span className="text-xs">Credit</span>
-                </Button>
-              </div>
-            </div>
-
-            {paymentMethod === "cash" && (
-              <div>
-                <label className="text-sm font-medium">Amount Paid</label>
-                <Input
-                  type="number"
-                  placeholder="0.00"
-                  value={amountPaid}
-                  onChange={(e) => setAmountPaid(e.target.value)}
-                  className="mt-1"
-                />
-                {amountPaid && Number.parseFloat(amountPaid) >= total && (
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Change:{" "}
-                    {formatCurrency(Number.parseFloat(amountPaid) - total)}
-                  </p>
-                )}
-              </div>
-            )}
-
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setShowPaymentDialog(false)}
-                className="flex-1"
-                disabled={processingPayment}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handlePayment}
-                className="flex-1 bg-accent hover:bg-accent/90"
-                disabled={processingPayment}
-              >
-                {processingPayment && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                )}
-                {processingPayment ? "Processing..." : "Process Payment"}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <POSPaymentDialog
+        showPaymentDialog={showPaymentDialog}
+        setShowPaymentDialog={setShowPaymentDialog}
+        total={total}
+        paymentMethod={paymentMethod}
+        setPaymentMethod={setPaymentMethod}
+        amountPaid={amountPaid}
+        setAmountPaid={setAmountPaid}
+        processingPayment={processingPayment}
+        handlePayment={handlePayment}
+        selectedCustomer={selectedCustomer}
+      />
 
       {/* Receipt Dialog */}
       <Dialog open={showReceiptDialog} onOpenChange={setShowReceiptDialog}>

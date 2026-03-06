@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Card,
   CardContent,
@@ -12,16 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+
 import {
   Table,
   TableBody,
@@ -34,51 +25,27 @@ import {
   Search,
   Plus,
   Star,
-  Gift,
-  Phone,
-  Mail,
-  MapPin,
-  Calendar,
-  TrendingUp,
   Users,
   Award,
   Heart,
+  Gift,
+  Mail,
+  Phone,
 } from "lucide-react";
-import { apiClient } from "@/lib/api/client";
 import { AddCustomerDialog } from "@/components/customers/add-customer-dialog";
-import { toast } from "sonner";
 import { useStore } from "@/lib/context/store-context";
 import { useCustomerData, Customer } from "@/lib/hooks/use-customer-data";
 import { LoyaltyTiersView } from "./loyalty-tiers-view";
+import { CustomerTransactions } from "./customer-transactions";
+import { CustomerDetailsDialog } from "./customer-details-dialog";
 
-
-const recentTransactions = [
-  {
-    id: "TXN001",
-    customerId: "CUST001",
-    customerName: "Adebayo Johnson",
-    amount: 25400,
-    pointsEarned: 254,
-    date: "2024-01-10",
-    items: ["Paracetamol 500mg", "Vitamin C 1000mg"],
-  },
-  {
-    id: "TXN002",
-    customerId: "CUST002",
-    customerName: "Fatima Abdullahi",
-    amount: 45600,
-    pointsEarned: 456,
-    date: "2024-01-12",
-    items: ["Insulin Glargine", "Blood glucose strips"],
-  },
-];
 
 
 export function CustomerManagement() {
   const { storeType } = useStore();
   const isPharmacy = storeType === "pharmacy";
 
-  const { customers, loading, addCustomer } = useCustomerData();
+  const { customers, addCustomer } = useCustomerData();
 
   const loyaltyTiers = [
     {
@@ -388,53 +355,7 @@ export function CustomerManagement() {
         </TabsContent>
 
         <TabsContent value="transactions" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent Customer Transactions</CardTitle>
-              <CardDescription>
-                Latest purchases and points activity
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Transaction ID</TableHead>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Points Earned</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Items</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {recentTransactions.map((transaction) => (
-                    <TableRow key={transaction.id}>
-                      <TableCell className="font-medium">
-                        {transaction.id}
-                      </TableCell>
-                      <TableCell>{transaction.customerName}</TableCell>
-                      <TableCell>
-                        ₦{transaction.amount.toLocaleString()}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Star className="h-4 w-4 text-yellow-500" />
-                          {transaction.pointsEarned}
-                        </div>
-                      </TableCell>
-                      <TableCell>{transaction.date}</TableCell>
-                      <TableCell>
-                        <div className="text-sm">
-                          {transaction.items.join(", ")}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+          <CustomerTransactions />
         </TabsContent>
 
         <TabsContent value="analytics" className="space-y-6">
@@ -524,84 +445,11 @@ export function CustomerManagement() {
         </TabsContent>
       </Tabs>
 
-      {/* Customer Details Modal */}
-      {selectedCustomer && (
-        <Dialog
-          open={!!selectedCustomer}
-          onOpenChange={() => setSelectedCustomer(null)}
-        >
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>{selectedCustomer.name}</DialogTitle>
-              <DialogDescription>
-                Customer ID: {selectedCustomer.id}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <h4 className="font-medium mb-3">Contact Information</h4>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex items-center gap-2">
-                      <Mail className="h-4 w-4" />
-                      {selectedCustomer.email}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Phone className="h-4 w-4" />
-                      {selectedCustomer.phone}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4" />
-                      {selectedCustomer.address}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4" />
-                      Birthday: {selectedCustomer.birthday}
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <h4 className="font-medium mb-3">Loyalty Information</h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span>Tier:</span>
-                      <Badge
-                        className={`${getTierColor(selectedCustomer.tier)} text-white`}
-                      >
-                        {selectedCustomer.tier}
-                      </Badge>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Points:</span>
-                      <span className="font-medium">
-                        {selectedCustomer.points.toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Total Spent:</span>
-                      <span className="font-medium">
-                        ₦{selectedCustomer.totalSpent.toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Member Since:</span>
-                      <span>{selectedCustomer.joinDate}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Last Visit:</span>
-                      <span>{selectedCustomer.lastVisit}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button variant="outline">Edit Customer</Button>
-                <Button>Send Message</Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
+      <CustomerDetailsDialog
+        selectedCustomer={selectedCustomer}
+        setSelectedCustomer={setSelectedCustomer}
+        getTierColor={getTierColor}
+      />
     </div>
   );
 }

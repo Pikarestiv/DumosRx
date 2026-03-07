@@ -11,7 +11,6 @@ interface PrescriptionDetailsDialogProps {
   prescription: Prescription | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  getStatusBadge: (status: Prescription["status"]) => React.ReactNode;
   getPriorityBadge: (priority: Prescription["priority"]) => React.ReactNode;
   formatDateTime: (dateString: string) => string;
 }
@@ -20,7 +19,6 @@ export function PrescriptionDetailsDialog({
   prescription,
   open,
   onOpenChange,
-  getStatusBadge,
   getPriorityBadge,
   formatDateTime,
 }: PrescriptionDetailsDialogProps) {

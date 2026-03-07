@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Card,
@@ -15,18 +14,10 @@ import {
   ShoppingCart,
   AlertTriangle,
   TrendingUp,
-  Clock,
   Activity,
 } from "lucide-react";
 import { useLocalData } from "@/lib/db/hooks/useLocalData";
 import { useStore } from "@/lib/context/store-context";
-
-interface DashboardStats {
-  totalMedicines: number;
-  dailySalesRevenue: number;
-  expiringSoon: number;
-  lowStockCount: number;
-}
 
 interface ActivityItem {
   id: string;

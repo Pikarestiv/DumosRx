@@ -42,7 +42,6 @@ import {
   Calendar,
 } from "lucide-react";
 import { useBIData } from "@/lib/hooks/use-bi-data";
-import { formatCurrency } from "@/lib/utils";
 import { BIKeyMetrics } from "./bi-key-metrics";
 
 // Sample data for analytics

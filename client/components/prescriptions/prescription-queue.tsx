@@ -28,13 +28,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Search,
-  Clock,
-  CheckCircle,
-  AlertTriangle,
   Eye,
   FileText,
-  User,
-  Pill,
   Phone,
 } from "lucide-react";
 import { usePrescriptionQueue, Prescription } from "@/lib/hooks/use-prescription-queue";
@@ -408,7 +403,6 @@ export function PrescriptionQueue() {
         prescription={selectedPrescription}
         open={showDetailsDialog}
         onOpenChange={setShowDetailsDialog}
-        getStatusBadge={getStatusBadge}
         getPriorityBadge={getPriorityBadge}
         formatDateTime={formatDateTime}
       />

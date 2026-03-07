@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -32,7 +32,6 @@ import {
   Edit,
   Eye,
   AlertTriangle,
-  Loader2,
   Package,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -96,14 +95,12 @@ export function MedicineDatabase() {
     null,
   );
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
 
   const isPharmacy = storeType === "pharmacy";
 
   // Fetch medicines from local DB
   const {
     data: medicines,
-    loading,
     refetch,
   } = useLocalData<Medicine>(
     "SELECT * FROM medicines WHERE _deleted = 0 ORDER BY created_at DESC",

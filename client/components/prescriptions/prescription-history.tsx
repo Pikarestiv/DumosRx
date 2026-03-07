@@ -98,7 +98,7 @@ const historyData: PrescriptionHistory[] = [
 ]
 
 export function PrescriptionHistory() {
-  const [history, setHistory] = useState<PrescriptionHistory[]>(historyData)
+  const [history] = useState<PrescriptionHistory[]>(historyData)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [dateFilter, setDateFilter] = useState("all")

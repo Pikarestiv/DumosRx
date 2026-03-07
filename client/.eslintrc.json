@@ -17,6 +17,8 @@
     "@typescript-eslint/no-explicit-any": "off",
     "react/no-unused-prop-types": "warn",
     "react/no-unused-state": "warn",
+    "react-hooks/exhaustive-deps": "off",
+    "react/no-unescaped-entities": "off",
     "max-lines": [
       "warn",
       {

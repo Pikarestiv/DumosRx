@@ -27,7 +27,6 @@ import {
   MapPin,
   Edit,
   Eye,
-  Loader2,
   Users,
 } from "lucide-react";
 import { apiClient } from "@/lib/api/client";
@@ -72,7 +71,6 @@ const transformSupplier = (apiData: any): Supplier => ({
 export function SupplierManagement() {
   const { t } = useStore();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [showAddDialog, setShowAddDialog] = useState(false);
 

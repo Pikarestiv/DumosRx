@@ -73,6 +73,7 @@ export function SupplierManagement() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   // Fetch suppliers on mount
   useEffect(() => {

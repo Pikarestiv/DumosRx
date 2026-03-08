@@ -115,7 +115,6 @@ export function MedicineDatabase() {
   const statuses = ["all", "active", "inactive", "expired", "low_stock"];
 
   const handleAddMedicine = async (payload: any) => {
-    setIsCreating(true);
     try {
       // Create locally
       const localPayload = {
@@ -132,8 +131,6 @@ export function MedicineDatabase() {
     } catch (error) {
       console.error(`Failed to create ${t('product')}:`, error);
       toast.error(`Failed to save ${t('product')}.`);
-    } finally {
-      setIsCreating(false);
     }
   };
 

@@ -7,6 +7,7 @@
  */
 
 import initSqlJs, { Database, SqlJsStatic } from "sql.js";
+import { APP_NAME } from "@/lib/constants";
 
 // Schema SQL (will be loaded from file in production)
 const SCHEMA_SQL = `
@@ -276,7 +277,7 @@ export async function initDatabase(): Promise<Database> {
   }
 
   // Try to load existing database from localStorage
-  const savedData = localStorage.getItem("dumosrx_db");
+  const savedData = localStorage.getItem(`${APP_NAME.toLowerCase()}_db`);
   if (savedData) {
     const data = new Uint8Array(JSON.parse(savedData));
     db = new SQL.Database(data);
@@ -297,7 +298,7 @@ export function saveDatabase(): void {
 
   const data = db.export();
   const arr = Array.from(data);
-  localStorage.setItem("dumosrx_db", JSON.stringify(arr));
+  localStorage.setItem(`${APP_NAME.toLowerCase()}_db`, JSON.stringify(arr));
 }
 
 /**

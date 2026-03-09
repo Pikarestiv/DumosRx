@@ -19,6 +19,7 @@ import {
 import { useStore, StoreType } from "@/lib/context/store-context";
 import { ShoppingBasket, Pill, Store, Check, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
+import { APP_NAME } from "@/lib/constants";
 
 export function QuickSetupWizard() {
   const { isInitialized, updateStoreProfile } = useStore();
@@ -26,6 +27,7 @@ export function QuickSetupWizard() {
   const [storeType, setStoreType] = useState<StoreType>("pharmacy");
   const [storeName, setStoreName] = useState("");
   const [location, setLocation] = useState("");
+  const [open, setOpen] = useState(true);
 
   const handleComplete = () => {
     if (!storeName) {
@@ -41,17 +43,17 @@ export function QuickSetupWizard() {
       updated_at: new Date().toISOString(),
     });
 
-    toast.success("Welcome to Dumos! Setup complete.");
+    toast.success(`Welcome to ${APP_NAME}! Setup complete.`);
   };
 
   if (isInitialized) return null;
 
   return (
-    <Dialog open={!isInitialized} onOpenChange={() => {}}>
-      <DialogContent className="sm:max-w-[500px] border-accent/20">
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent className="sm:max-w-[500px] border-accent/20 dark:border-white/20">
         <DialogHeader>
           <DialogTitle className="font-serif text-2xl font-bold text-center">
-            Welcome to Dumos
+            Welcome to {APP_NAME}
           </DialogTitle>
           <DialogDescription className="text-center">
             Let's customize the platform for your business.

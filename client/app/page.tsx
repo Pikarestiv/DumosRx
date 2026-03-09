@@ -1,6 +1,7 @@
 import { LoginForm } from "@/components/auth/login-form"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
+import { APP_NAME } from "@/lib/constants"
 
 export default function HomePage() {
   return (
@@ -11,7 +12,7 @@ export default function HomePage() {
 
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="font-serif font-black text-3xl text-foreground mb-2">DumosRx</h1>
+          <h1 className="font-serif font-black text-3xl text-foreground mb-2">{APP_NAME}</h1>
           <p className="text-muted-foreground">NextGen Retail & Pharmacy Management System</p>
         </div>
 

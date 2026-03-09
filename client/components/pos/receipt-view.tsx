@@ -1,6 +1,7 @@
 "use client";
 
 import { useStore } from "@/lib/context/store-context";
+import { APP_NAME } from "@/lib/constants";
 
 interface ReceiptProps {
   transaction: {
@@ -96,7 +97,7 @@ export function ReceiptView({ transaction }: ReceiptProps) {
 
       <div className="text-center pt-4 border-t italic">
         <p>Thank you for your business!</p>
-        <p>DumosRx - NextGen {storeProfile?.store_type === 'pharmacy' ? 'Pharmacy' : 'Retail'} POS</p>
+        <p>{APP_NAME} - NextGen {storeProfile?.store_type === 'pharmacy' ? 'Pharmacy' : 'Retail'} POS</p>
       </div>
       
       <style jsx global>{`

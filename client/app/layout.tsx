@@ -10,6 +10,7 @@ import { DatabaseProvider } from "@/lib/db/DatabaseProvider";
 import { StoreProvider } from "@/lib/context/store-context";
 import { QuickSetupWizard } from "@/components/setup/quick-setup-wizard";
 import { DevSeedButton } from "@/components/dev/seed-button";
+import { APP_NAME } from "@/lib/constants";
 
 const montserrat = Montserrat({
   subsets: ["latin"],
@@ -26,7 +27,7 @@ const openSans = Open_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "DumosRx - NextGen Retail & Pharmacy OS",
+  title: `${APP_NAME} - NextGen Retail & Pharmacy OS`,
   description:
     "Professional business management system for retail stores and pharmacies",
   generator: "v0.app",

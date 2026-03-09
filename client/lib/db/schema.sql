@@ -1,4 +1,4 @@
--- DumosRx Local SQLite Schema
+-- Local SQLite Schema
 -- Mirrors Laravel/MySQL schema for offline-first operation
 
 -- =====================================================

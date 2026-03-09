@@ -12,6 +12,7 @@ import { ThemeCustomizer } from "@/components/ui/theme-customizer";
 import { useAuthStore } from "@/lib/auth/store";
 import { useStore } from "@/lib/context/store-context";
 import { SyncIndicator } from "./sync-indicator";
+import { APP_NAME } from "@/lib/constants";
 import {
   LayoutDashboard,
   Package,
@@ -72,7 +73,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       >
         <div className="flex items-center justify-between h-16 px-6 border-b border-sidebar-border">
           <h1 className="font-serif font-black text-xl text-sidebar-foreground truncate pr-2">
-            {storeProfile?.name || "Dumos"}
+            {storeProfile?.name || APP_NAME}
           </h1>
           <Button
             variant="ghost"

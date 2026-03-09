@@ -32,6 +32,7 @@ import { useTheme } from "@/components/theme-provider";
 import { useStore, StoreType } from "@/lib/context/store-context";
 import { toast } from "sonner";
 import { Pill, ShoppingBasket, ShoppingCart, Check } from "lucide-react";
+import { APP_NAME } from "@/lib/constants";
 
 // Color themes from ThemeCustomizer
 const colorThemes = [
@@ -119,7 +120,7 @@ export default function SettingsPage() {
               <CardHeader>
                 <CardTitle>Appearance</CardTitle>
                 <CardDescription>
-                  Customize how Dumos looks on this device.
+                  Customize how {APP_NAME} looks on this device.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">

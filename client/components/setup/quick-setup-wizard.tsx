@@ -17,12 +17,14 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { useStore, StoreType } from "@/lib/context/store-context";
+import { useAuthStore } from "@/lib/auth/store";
 import { ShoppingBasket, Pill, Store, Check, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { APP_NAME } from "@/lib/constants";
 
 export function QuickSetupWizard() {
   const { isInitialized, updateStoreProfile } = useStore();
+  const { isAuthenticated } = useAuthStore();
   const [step, setStep] = useState(1);
   const [storeType, setStoreType] = useState<StoreType>("pharmacy");
   const [storeName, setStoreName] = useState("");
@@ -46,7 +48,7 @@ export function QuickSetupWizard() {
     toast.success(`Welcome to ${APP_NAME}! Setup complete.`);
   };
 
-  if (isInitialized) return null;
+  if (isInitialized || !isAuthenticated) return null;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

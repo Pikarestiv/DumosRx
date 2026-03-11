@@ -53,6 +53,8 @@ export default function SettingsPage() {
   const [localAddress, setLocalAddress] = useState(storeProfile?.address || "");
   const [localPhone, setLocalPhone] = useState(storeProfile?.phone || "");
   const [localEmail, setLocalEmail] = useState(storeProfile?.email || "");
+  const [localCurrency, setLocalCurrency] = useState(storeProfile?.currency || "NGN");
+  const [localVat, setLocalVat] = useState(storeProfile?.vat_percentage?.toString() || "7.5");
 
   const applyColorTheme = (themeIndex: number) => {
     const colorTheme = colorThemes[themeIndex];
@@ -71,6 +73,14 @@ export default function SettingsPage() {
       updated_at: new Date().toISOString(),
     });
     toast.success("Store profile updated");
+  };
+  
+  const handleSaveRegional = () => {
+    updateStoreProfile({
+      currency: localCurrency,
+      vat_percentage: parseFloat(localVat) || 0,
+    });
+    toast.success("Regional settings updated");
   };
 
   const handleSwitchVertical = (type: StoreType) => {
@@ -203,15 +213,32 @@ export default function SettingsPage() {
               </CardHeader>
               <CardContent className="grid gap-6">
                 <div className="grid gap-2">
-                  <Label htmlFor="currency">Currency Symbol</Label>
+                  <Label htmlFor="currency">Currency Code (ISO)</Label>
                   <Input
                     id="currency"
-                    defaultValue={storeProfile?.currency || "₦ (NGN)"}
-                    readOnly
-                    className="bg-muted"
+                    value={localCurrency}
+                    onChange={(e) => setLocalCurrency(e.target.value.toUpperCase())}
+                    placeholder="e.g. NGN, USD, GHS"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="vat">VAT Percentage (%)</Label>
+                  <Input
+                    id="vat"
+                    type="number"
+                    step="0.1"
+                    value={localVat}
+                    onChange={(e) => setLocalVat(e.target.value)}
+                    placeholder="e.g. 7.5"
                   />
                 </div>
               </CardContent>
+              <CardFooter className="border-t px-6 py-4">
+                <Button onClick={handleSaveRegional}>
+                  <Save className="w-4 h-4 mr-2" />
+                  Save Regional Settings
+                </Button>
+              </CardFooter>
             </Card>
           </TabsContent>
 

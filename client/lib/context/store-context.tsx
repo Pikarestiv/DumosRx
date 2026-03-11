@@ -12,6 +12,7 @@ interface StoreProfile {
   store_type: StoreType;
   is_initialized: number;
   currency: string;
+  vat_percentage: number;
   address?: string;
   phone?: string;
   email?: string;
@@ -23,6 +24,7 @@ interface StoreContextType {
   loading: boolean;
   storeType: StoreType;
   isInitialized: boolean;
+  vatPercentage: number;
   updateStoreProfile: (data: Partial<StoreProfile>) => void;
   t: (key: string) => string;
 }
@@ -68,6 +70,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const storeProfile = profiles[0] || null;
   const storeType = storeProfile?.store_type || "pharmacy";
   const isInitialized = storeProfile?.is_initialized === 1;
+  const vatPercentage = storeProfile?.vat_percentage ?? 7.5;
 
   const updateStoreProfile = (data: Partial<StoreProfile>) => {
     if (!storeProfile) {
@@ -76,6 +79,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         name: "My Store",
         store_type: "pharmacy",
         is_initialized: 0,
+        vat_percentage: 7.5,
+        currency: "NGN",
         ...data,
       });
     } else {
@@ -95,6 +100,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         loading,
         storeType,
         isInitialized,
+        vatPercentage,
         updateStoreProfile,
         t,
       }}

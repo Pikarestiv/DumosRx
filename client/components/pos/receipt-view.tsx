@@ -20,12 +20,12 @@ interface ReceiptProps {
 }
 
 export function ReceiptView({ transaction }: ReceiptProps) {
-  const { storeProfile, t } = useStore();
+  const { storeProfile, vatPercentage, t } = useStore();
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-NG", {
       style: "currency",
-      currency: "NGN",
+      currency: storeProfile?.currency?.replace(/[^A-Z]/g, "") || "NGN",
       minimumFractionDigits: 0,
     }).format(amount);
   };
@@ -66,7 +66,7 @@ export function ReceiptView({ transaction }: ReceiptProps) {
         </div>
         {transaction.tax > 0 && (
           <div className="flex justify-between">
-            <span>Tax (7.5%):</span>
+            <span>Tax ({vatPercentage}%):</span>
             <span>{formatCurrency(transaction.tax)}</span>
           </div>
         )}

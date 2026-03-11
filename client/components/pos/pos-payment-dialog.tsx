@@ -24,6 +24,7 @@ interface POSPaymentDialogProps {
   processingPayment: boolean;
   handlePayment: () => void;
   selectedCustomer: any;
+  currencyCode?: string;
 }
 
 export function POSPaymentDialog({
@@ -37,6 +38,7 @@ export function POSPaymentDialog({
   processingPayment,
   handlePayment,
   selectedCustomer,
+  currencyCode,
 }: POSPaymentDialogProps) {
   return (
     <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
@@ -44,7 +46,7 @@ export function POSPaymentDialog({
         <DialogHeader>
           <DialogTitle className="font-serif font-bold">Payment</DialogTitle>
           <DialogDescription>
-            Total amount: {formatCurrency(total)}
+            Total amount: {formatCurrency(total, currencyCode)}
           </DialogDescription>
         </DialogHeader>
 
@@ -106,7 +108,7 @@ export function POSPaymentDialog({
               {amountPaid && Number.parseFloat(amountPaid) >= total && (
                 <p className="text-sm text-muted-foreground mt-1">
                   Change:{" "}
-                  {formatCurrency(Number.parseFloat(amountPaid) - total)}
+                  {formatCurrency(Number.parseFloat(amountPaid) - total, currencyCode)}
                 </p>
               )}
             </div>

@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
+import { useStore } from "@/lib/context/store-context";
 
 export interface Medicine {
   id: string;
@@ -20,6 +21,7 @@ export interface CartItem extends Medicine {
 }
 
 export function usePOSCart(medicines: Medicine[]) {
+  const { vatPercentage } = useStore();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [discount, setDiscount] = useState(0);
 
@@ -28,7 +30,7 @@ export function usePOSCart(medicines: Medicine[]) {
     [cart],
   );
 
-  const tax = useMemo(() => subtotal * 0.075, [subtotal]);
+  const tax = useMemo(() => subtotal * (vatPercentage / 100), [subtotal, vatPercentage]);
   const total = useMemo(() => subtotal + tax - discount, [subtotal, tax, discount]);
 
   const addToCart = (medicine: Medicine) => {

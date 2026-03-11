@@ -13,6 +13,7 @@ interface POSProductListProps {
   medicinesLength: number;
   addToCart: (medicine: any) => void;
   productTerm: string;
+  currencyCode?: string;
 }
 
 export function POSProductList({
@@ -20,7 +21,8 @@ export function POSProductList({
   filteredMedicines,
   medicinesLength,
   addToCart,
-  productTerm
+  productTerm,
+  currencyCode
 }: POSProductListProps) {
   return (
     <Card>
@@ -69,7 +71,7 @@ export function POSProductList({
                     </p>
                     <div className="flex items-center gap-2 mt-1">
                       <span className="font-bold text-accent">
-                        {formatCurrency(medicine.unit_price)}
+                        {formatCurrency(medicine.unit_price, currencyCode)}
                       </span>
                       <Badge
                         variant={

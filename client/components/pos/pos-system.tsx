@@ -71,7 +71,7 @@ import { POSProductList } from "./pos-product-list";
 import { POSPaymentDialog } from "./pos-payment-dialog";
 
 export function POSSystem() {
-  const { t } = useStore();
+  const { t, storeProfile, vatPercentage } = useStore();
   const searchInputRef = React.useRef<HTMLInputElement>(null);
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -253,7 +253,8 @@ export function POSSystem() {
             filteredMedicines={filteredMedicines}
             medicinesLength={medicines.length}
             addToCart={addToCart}
-            productTerm={t('products')}
+            productTerm={t('product')}
+            currencyCode={storeProfile?.currency}
           />
         </div>
 
@@ -395,22 +396,22 @@ export function POSSystem() {
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span>Subtotal:</span>
-                      <span>{formatCurrency(subtotal)}</span>
+                      <span>{formatCurrency(subtotal, storeProfile?.currency)}</span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span>VAT (7.5%):</span>
-                      <span>{formatCurrency(tax)}</span>
+                      <span>VAT ({vatPercentage}%):</span>
+                      <span>{formatCurrency(tax, storeProfile?.currency)}</span>
                     </div>
                     {discount > 0 && (
                       <div className="flex justify-between text-sm text-accent">
                         <span>Loyalty Discount:</span>
-                        <span>-{formatCurrency(discount)}</span>
+                        <span>-{formatCurrency(discount, storeProfile?.currency)}</span>
                       </div>
                     )}
                     <Separator />
                     <div className="flex justify-between font-bold">
                       <span>Total:</span>
-                      <span>{formatCurrency(total)}</span>
+                      <span>{formatCurrency(total, storeProfile?.currency)}</span>
                     </div>
                   </div>
 
@@ -447,6 +448,7 @@ export function POSSystem() {
         processingPayment={processingPayment}
         handlePayment={handlePayment}
         selectedCustomer={selectedCustomer}
+        currencyCode={storeProfile?.currency}
       />
 
       {/* Receipt Dialog */}

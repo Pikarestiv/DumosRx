@@ -26,6 +26,7 @@ interface Customer {
   gender: string;
   allergies: string;
   medicalConditions: string;
+  creditLimit: string;
 }
 
 interface AddCustomerDialogProps {
@@ -49,6 +50,7 @@ export function AddCustomerDialog({
     gender: "",
     allergies: "",
     medicalConditions: "",
+    creditLimit: "0",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -75,6 +77,8 @@ export function AddCustomerDialog({
           ? formData.allergies.split(",").map((s) => s.trim())
           : null,
         medical_conditions: formData.medicalConditions || null,
+        credit_limit: parseFloat(formData.creditLimit) || 0,
+        outstanding_balance: 0,
       };
 
       await onAddCustomer(payload);
@@ -90,6 +94,7 @@ export function AddCustomerDialog({
         gender: "",
         allergies: "",
         medicalConditions: "",
+        creditLimit: "0",
       });
     } catch (error) {
       console.error("Error submitting form:", error);
@@ -199,6 +204,18 @@ export function AddCustomerDialog({
               onChange={(e) => handleInputChange("allergies", e.target.value)}
               placeholder="e.g. Peanuts, Penicillin"
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="creditLimit">Credit Limit (₦)</Label>
+            <Input
+              id="creditLimit"
+              type="number"
+              value={formData.creditLimit}
+              onChange={(e) => handleInputChange("creditLimit", e.target.value)}
+              placeholder="0.00"
+            />
+            <p className="text-xs text-muted-foreground">Maximum debt allowed for this customer.</p>
           </div>
 
           <DialogFooter>

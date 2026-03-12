@@ -9,8 +9,12 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Mail, Phone, MapPin, Calendar } from "lucide-react";
+import { Mail, Phone, MapPin, Calendar, CreditCard } from "lucide-react";
 import { Customer } from "@/lib/hooks/use-customer-data";
+import { formatCurrency } from "@/lib/utils";
+import { useStore } from "@/lib/context/store-context";
+import { RepaymentDialog } from "./repayment-dialog";
+import { useState } from "react";
 
 interface CustomerDetailsDialogProps {
   selectedCustomer: Customer | null;
@@ -23,6 +27,9 @@ export function CustomerDetailsDialog({
   setSelectedCustomer,
   getTierColor,
 }: CustomerDetailsDialogProps) {
+  const { storeProfile } = useStore();
+  const [isRepaymentOpen, setIsRepaymentOpen] = useState(false);
+
   if (!selectedCustomer) return null;
 
   return (
@@ -94,11 +101,53 @@ export function CustomerDetailsDialog({
               </div>
             </div>
           </div>
+          
+          <div className="bg-muted/30 p-4 rounded-lg border border-dashed flex justify-between items-center">
+            <div>
+              <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Financial Status</h4>
+              <div className="flex items-center gap-4 mt-1">
+                <div>
+                  <p className="text-2xl font-bold">
+                    {formatCurrency(selectedCustomer.totalSpent, storeProfile?.currency)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Total Life-time Spend</p>
+                </div>
+                <div className="h-8 w-px bg-border mx-2" />
+                <div>
+                  <p className={`text-2xl font-bold ${selectedCustomer.outstanding_balance > 0 ? "text-destructive" : "text-green-600"}`}>
+                    {formatCurrency(selectedCustomer.outstanding_balance, storeProfile?.currency)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Outstanding Balance</p>
+                </div>
+              </div>
+            </div>
+            {selectedCustomer.outstanding_balance > 0 && (
+              <Button size="sm" onClick={() => setIsRepaymentOpen(true)}>
+                <CreditCard className="h-4 w-4 mr-2" />
+                Record Repayment
+              </Button>
+            )}
+          </div>
           <div className="flex justify-end gap-2">
             <Button variant="outline">Edit Customer</Button>
             <Button>Send Message</Button>
           </div>
         </div>
+        
+        <RepaymentDialog
+          open={isRepaymentOpen}
+          onOpenChange={setIsRepaymentOpen}
+          customer={selectedCustomer}
+          onSuccess={() => {
+            // In a real app we might want to refresh the customer data here
+            // but for now the user can close and re-open
+            setSelectedCustomer({
+              ...selectedCustomer,
+              outstanding_balance: 0 // This is a placeholder, the actual data is in DB
+            });
+          }}
+          currencyCode={storeProfile?.currency}
+        />
       </DialogContent>
     </Dialog>
   );

@@ -17,6 +17,7 @@ export interface Customer {
   lastVisit: string;
   birthday: string;
   status: string;
+  outstanding_balance: number;
 }
 
 const transformCustomer = (apiData: any): Customer => ({
@@ -32,6 +33,7 @@ const transformCustomer = (apiData: any): Customer => ({
   lastVisit: "-",
   birthday: apiData.date_of_birth || "",
   status: "active",
+  outstanding_balance: apiData.outstanding_balance || 0,
 });
 
 export function useCustomerData() {

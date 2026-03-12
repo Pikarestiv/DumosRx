@@ -11,6 +11,7 @@ export interface Customer {
   last_name: string;
   phone: string;
   loyalty_points: number;
+  outstanding_balance: number;
 }
 
 interface UsePOSPaymentProps {
@@ -105,9 +106,8 @@ export function usePOSPayment({
       });
 
       if (paymentMethod === "credit" && selectedCustomer) {
-        const currentBalance = (selectedCustomer as any).outstanding_balance || 0;
         update("customers", selectedCustomer.id, {
-          outstanding_balance: currentBalance + total
+          outstanding_balance: (selectedCustomer.outstanding_balance || 0) + total
         });
       }
 

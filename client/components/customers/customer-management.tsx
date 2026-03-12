@@ -35,14 +35,16 @@ import {
 import { AddCustomerDialog } from "@/components/customers/add-customer-dialog";
 import { useStore } from "@/lib/context/store-context";
 import { useCustomerData, Customer } from "@/lib/hooks/use-customer-data";
+import { formatCurrency } from "@/lib/utils";
 import { LoyaltyTiersView } from "./loyalty-tiers-view";
 import { CustomerTransactions } from "./customer-transactions";
 import { CustomerDetailsDialog } from "./customer-details-dialog";
+import { DebtDashboard } from "./debt-dashboard";
 
 
 
 export function CustomerManagement() {
-  const { storeType } = useStore();
+  const { storeType, storeProfile } = useStore();
   const isPharmacy = storeType === "pharmacy";
 
   const { customers, addCustomer } = useCustomerData();
@@ -180,8 +182,9 @@ export function CustomerManagement() {
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="customers" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="customers">Customer Directory</TabsTrigger>
+          <TabsTrigger value="debt">Debt Management</TabsTrigger>
           <TabsTrigger value="loyalty">Loyalty Program</TabsTrigger>
           <TabsTrigger value="transactions">Recent Activity</TabsTrigger>
           <TabsTrigger value="analytics">Customer Analytics</TabsTrigger>
@@ -229,6 +232,7 @@ export function CustomerManagement() {
                     <TableHead>Contact</TableHead>
                     <TableHead>Tier</TableHead>
                     <TableHead>Points</TableHead>
+                    <TableHead>Balance</TableHead>
                     <TableHead>Total Spent</TableHead>
                     <TableHead>Last Visit</TableHead>
                     <TableHead>Actions</TableHead>
@@ -285,7 +289,12 @@ export function CustomerManagement() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          ₦{customer.totalSpent.toLocaleString()}
+                          <span className={customer.outstanding_balance > 0 ? "text-destructive font-bold" : ""}>
+                            {formatCurrency(customer.outstanding_balance, storeProfile?.currency)}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          {formatCurrency(customer.totalSpent, storeProfile?.currency)}
                         </TableCell>
                         <TableCell>{customer.lastVisit}</TableCell>
                         <TableCell>
@@ -304,6 +313,10 @@ export function CustomerManagement() {
               </Table>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="debt" className="space-y-6">
+          <DebtDashboard />
         </TabsContent>
 
         <TabsContent value="loyalty" className="space-y-6">

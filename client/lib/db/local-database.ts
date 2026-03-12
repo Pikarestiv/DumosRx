@@ -214,6 +214,22 @@ CREATE TABLE IF NOT EXISTS _sync_state (
   server_cursor TEXT
 );
 
+CREATE TABLE IF NOT EXISTS customer_payments (
+  id TEXT PRIMARY KEY,
+  customer_id TEXT NOT NULL,
+  amount REAL NOT NULL,
+  payment_method TEXT,
+  notes TEXT,
+  payment_date TEXT,
+  created_at TEXT,
+  updated_at TEXT,
+  _version INTEGER DEFAULT 1,
+  _synced INTEGER DEFAULT 0,
+  _synced_at TEXT,
+  _deleted INTEGER DEFAULT 0,
+  FOREIGN KEY (customer_id) REFERENCES customers(id)
+);
+
 CREATE TABLE IF NOT EXISTS store_profile (
   id TEXT PRIMARY KEY,
   name TEXT,
@@ -234,6 +250,7 @@ CREATE INDEX IF NOT EXISTS idx_medicines_name ON medicines(name);
 CREATE INDEX IF NOT EXISTS idx_medicines_synced ON medicines(_synced);
 CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone);
 CREATE INDEX IF NOT EXISTS idx_sales_created ON sales(created_at);
+CREATE INDEX IF NOT EXISTS idx_customer_payments_customer ON customer_payments(customer_id);
 CREATE INDEX IF NOT EXISTS idx_sync_queue_table ON _sync_queue(table_name);
 `;
 

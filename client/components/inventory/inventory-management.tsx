@@ -5,6 +5,7 @@ import { StockMovements } from "./stock-movements"
 import { PurchaseOrders } from "./purchase-orders"
 import { SupplierManagement } from "./supplier-management"
 import { StockAdjustments } from "./stock-adjustments"
+import { BatchTracking } from "./batch-tracking"
 
 export function InventoryManagement() {
   return (
@@ -17,8 +18,9 @@ export function InventoryManagement() {
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="batches">Batches & Expiry</TabsTrigger>
           <TabsTrigger value="movements">Stock Movements</TabsTrigger>
           <TabsTrigger value="purchases">Purchase Orders</TabsTrigger>
           <TabsTrigger value="suppliers">Suppliers</TabsTrigger>
@@ -27,6 +29,10 @@ export function InventoryManagement() {
 
         <TabsContent value="overview">
           <StockOverview />
+        </TabsContent>
+
+        <TabsContent value="batches">
+          <BatchTracking />
         </TabsContent>
 
         <TabsContent value="movements">

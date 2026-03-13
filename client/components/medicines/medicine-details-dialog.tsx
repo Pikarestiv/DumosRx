@@ -4,7 +4,11 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-import { Calendar, Package, DollarSign, AlertTriangle, Building, Truck } from "lucide-react"
+import { Calendar, Package, DollarSign, AlertTriangle, Building, Truck, Clock } from "lucide-react"
+import { useLocalData } from "@/lib/db/hooks/useLocalData"
+import { useStore } from "@/lib/context/store-context"
+import { formatCurrency } from "@/lib/utils"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
 interface Medicine {
   id: string
@@ -33,14 +37,15 @@ interface MedicineDetailsDialogProps {
 }
 
 export function MedicineDetailsDialog({ open, onOpenChange, medicine }: MedicineDetailsDialogProps) {
+  const { storeProfile } = useStore()
+  const { data: batches, loading: loadingBatches } = useLocalData<any>(
+    medicine ? `SELECT * FROM inventory WHERE medicine_id = "${medicine.id}" AND _deleted = 0 ORDER BY expiry_date ASC` : ""
+  );
+
   if (!medicine) return null
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-NG", {
-      style: "currency",
-      currency: "NGN",
-      minimumFractionDigits: 0,
-    }).format(amount)
+  const formatPrice = (amount: number) => {
+    return formatCurrency(amount, storeProfile?.currency);
   }
 
   const formatDate = (dateString: string) => {
@@ -170,11 +175,11 @@ export function MedicineDetailsDialog({ open, onOpenChange, medicine }: Medicine
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-muted-foreground">Cost Price</p>
-                  <p className="font-bold text-lg">{formatCurrency(medicine.costPrice)}</p>
+                  <p className="font-bold text-lg">{formatPrice(medicine.costPrice)}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Selling Price</p>
-                  <p className="font-bold text-lg text-accent">{formatCurrency(medicine.sellingPrice)}</p>
+                  <p className="font-bold text-lg text-accent">{formatPrice(medicine.sellingPrice)}</p>
                 </div>
               </div>
               <Separator />
@@ -185,7 +190,7 @@ export function MedicineDetailsDialog({ open, onOpenChange, medicine }: Medicine
               <div>
                 <p className="text-sm text-muted-foreground">Profit per Unit</p>
                 <p className="font-bold text-lg text-primary">
-                  {formatCurrency(medicine.sellingPrice - medicine.costPrice)}
+                  {formatPrice(medicine.sellingPrice - medicine.costPrice)}
                 </p>
               </div>
             </CardContent>
@@ -253,6 +258,55 @@ export function MedicineDetailsDialog({ open, onOpenChange, medicine }: Medicine
             </CardContent>
           </Card>
         </div>
+
+        {/* Batch Information Section */}
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle className="font-serif font-semibold flex items-center gap-2">
+              <Clock className="h-5 w-5" />
+              Batch History & Tracking
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loadingBatches ? (
+              <p className="text-center py-4">Loading batches...</p>
+            ) : batches.length === 0 ? (
+              <p className="text-center py-4 text-muted-foreground italic">No batch records found for this {storeProfile?.store_type === 'pharmacy' ? 'medicine' : 'product'}.</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Batch Number</TableHead>
+                    <TableHead>Quantity</TableHead>
+                    <TableHead>Expiry Date</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {batches.map((batch: any) => {
+                    const days = Math.ceil((new Date(batch.expiry_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                    return (
+                      <TableRow key={batch.id}>
+                        <TableCell className="font-mono">{batch.batch_number}</TableCell>
+                        <TableCell>{batch.quantity} units</TableCell>
+                        <TableCell>{new Date(batch.expiry_date).toLocaleDateString()}</TableCell>
+                        <TableCell>
+                          {days <= 0 ? (
+                            <Badge variant="destructive">Expired</Badge>
+                          ) : days <= 90 ? (
+                            <Badge variant="outline" className="border-orange-500 text-orange-600">Near Expiry</Badge>
+                          ) : (
+                            <Badge variant="default">Healthy</Badge>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
       </DialogContent>
     </Dialog>
   )

@@ -28,6 +28,20 @@ import {
 
 import { toast } from "sonner";
 import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
   Search,
   ShoppingCart,
   Plus,
@@ -37,6 +51,8 @@ import {
   User,
   Scan,
   Zap,
+  LogOut,
+  RotateCcw,
 } from "lucide-react";
 import { useLocalData } from "@/lib/db/hooks/useLocalData";
 import { formatCurrency } from "@/lib/utils";
@@ -63,6 +79,7 @@ interface Customer {
 }
 
 import { useStore } from "@/lib/context/store-context";
+import { useAuth } from "@/lib/context/auth-context";
 import { ReceiptView } from "./receipt-view";
 import React from "react";
 
@@ -71,14 +88,18 @@ import { usePOSPayment } from "@/lib/hooks/use-pos-payment";
 import { POSProductList } from "./pos-product-list";
 import { POSPaymentDialog } from "./pos-payment-dialog";
 import { RetailSpeedPOS } from "./retail-speed-pos";
+import { ReturnDialog } from "./return-dialog";
 
 export function POSSystem() {
   const { t, storeProfile, vatPercentage } = useStore();
+  const { user, logout } = useAuth();
   const searchInputRef = React.useRef<HTMLInputElement>(null);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [posMode, setPosMode] = useState<"standard" | "speed">("standard");
+  const [showReturnDialog, setShowReturnDialog] = useState(false);
+  const [saleToReturn, setSaleToReturn] = useState<any>(null);
 
   // Fetch medicines from local DB
   const {
@@ -100,6 +121,10 @@ export function POSSystem() {
         barcode: m.barcode || "",
       }),
     },
+  );
+
+  const { data: recentSales } = useLocalData<any>(
+    "SELECT s.*, c.first_name || ' ' || c.last_name as customer_name FROM sales s LEFT JOIN customers c ON s.customer_id = c.id WHERE s._deleted = 0 ORDER BY s.created_at DESC LIMIT 10"
   );
 
   // Fetch customers from local DB
@@ -250,6 +275,13 @@ export function POSSystem() {
             <Zap className="h-4 w-4" />
             Retail Speed
           </Button>
+          <div className="flex items-center gap-2 px-3 py-1 bg-muted rounded-full border">
+            <User className="h-3 w-3 text-muted-foreground" />
+            <span className="text-xs font-medium">{user?.name}</span>
+            <Button variant="ghost" size="icon" className="h-4 w-4 p-0 ml-1" onClick={logout}>
+              <LogOut className="h-3 w-3" />
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -279,7 +311,14 @@ export function POSSystem() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Product Search and Selection */}
         <div className="lg:col-span-2 space-y-4">
-          <Card>
+          <Tabs defaultValue="products" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-4">
+              <TabsTrigger value="products">Products</TabsTrigger>
+              <TabsTrigger value="history">Recent Transactions</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="products" className="space-y-4">
+              <Card>
             <CardHeader>
               <CardTitle className="font-serif font-semibold flex items-center gap-2">
                 <Search className="h-5 w-5" />
@@ -333,6 +372,64 @@ export function POSSystem() {
             productTerm={t('product')}
             currencyCode={storeProfile?.currency}
           />
+        </TabsContent>
+
+            <TabsContent value="history">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="font-serif font-semibold flex items-center gap-2">
+                    <Receipt className="h-5 w-5" />
+                    Sales History
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="border rounded-lg overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Trans #</TableHead>
+                          <TableHead>Customer</TableHead>
+                          <TableHead className="text-right">Total</TableHead>
+                          <TableHead className="text-right">Action</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {recentSales?.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={4} className="text-center py-4 text-muted-foreground">
+                              No recent sales
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          recentSales?.map((sale: any) => (
+                            <TableRow key={sale.id}>
+                              <TableCell className="font-mono text-xs">{sale.transaction_number}</TableCell>
+                              <TableCell>{sale.customer_name || 'Walk-in'}</TableCell>
+                              <TableCell className="text-right font-bold">{formatCurrency(sale.total_amount, storeProfile?.currency)}</TableCell>
+                              <TableCell className="text-right">
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  className="text-accent hover:text-accent hover:bg-accent/10"
+                                  onClick={() => {
+                                    setSaleToReturn(sale);
+                                    setShowReturnDialog(true);
+                                  }}
+                                >
+                                  <RotateCcw className="h-3 w-3 mr-1" />
+                                  Return
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
         </div>
 
         {/* Shopping Cart and Checkout */}
@@ -556,6 +653,17 @@ export function POSSystem() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <ReturnDialog 
+        open={showReturnDialog}
+        onOpenChange={setShowReturnDialog}
+        sale={saleToReturn}
+        onSuccess={() => {
+          refetchMedicines();
+          toast.success("Inventory updated after return");
+        }}
+        currencyCode={storeProfile?.currency}
+      />
     </div>
   );
 }

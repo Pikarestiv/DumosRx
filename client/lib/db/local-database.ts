@@ -246,16 +246,92 @@ CREATE TABLE IF NOT EXISTS store_profile (
   _synced INTEGER DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS users (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  username TEXT UNIQUE NOT NULL,
+  password_hash TEXT,
+  role TEXT DEFAULT 'cashier', -- admin, pharmacist, cashier
+  pin TEXT, -- For quick switching in POS
+  is_active INTEGER DEFAULT 1,
+  created_at TEXT,
+  updated_at TEXT,
+  _version INTEGER DEFAULT 1,
+  _synced INTEGER DEFAULT 0,
+  _deleted INTEGER DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id TEXT PRIMARY KEY,
+  user_id TEXT,
+  action TEXT NOT NULL, -- INSERT, UPDATE, DELETE, LOGIN, RETURN
+  table_name TEXT,
+  record_id TEXT,
+  details TEXT, -- JSON string of changes
+  created_at TEXT,
+  _synced INTEGER DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS returns (
+  id TEXT PRIMARY KEY,
+  sale_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  reason TEXT,
+  total_refunded REAL DEFAULT 0,
+  created_at TEXT,
+  updated_at TEXT,
+  _version INTEGER DEFAULT 1,
+  _synced INTEGER DEFAULT 0,
+  _deleted INTEGER DEFAULT 0,
+  FOREIGN KEY (sale_id) REFERENCES sales(id),
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS return_items (
+  id TEXT PRIMARY KEY,
+  return_id TEXT NOT NULL,
+  medicine_id TEXT NOT NULL,
+  quantity INTEGER NOT NULL,
+  unit_price REAL NOT NULL,
+  subtotal REAL NOT NULL,
+  created_at TEXT,
+  _version INTEGER DEFAULT 1,
+  _synced INTEGER DEFAULT 0,
+  FOREIGN KEY (return_id) REFERENCES returns(id),
+  FOREIGN KEY (medicine_id) REFERENCES medicines(id)
+);
+
 CREATE INDEX IF NOT EXISTS idx_medicines_name ON medicines(name);
 CREATE INDEX IF NOT EXISTS idx_medicines_synced ON medicines(_synced);
 CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone);
 CREATE INDEX IF NOT EXISTS idx_sales_created ON sales(created_at);
 CREATE INDEX IF NOT EXISTS idx_customer_payments_customer ON customer_payments(customer_id);
 CREATE INDEX IF NOT EXISTS idx_sync_queue_table ON _sync_queue(table_name);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_user ON audit_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_returns_sale ON returns(sale_id);
+CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 `;
 
 let SQL: SqlJsStatic | null = null;
 let db: Database | null = null;
+let currentUser: { id: string; name: string; role: string } | null = null;
+
+export function setCurrentUser(user: { id: string; name: string; role: string } | null) {
+  currentUser = user;
+}
+
+function logAction(action: string, table: string, recordId: string, details?: any) {
+  if (!db) return;
+  const id = generateId();
+  const now = new Date().toISOString();
+  
+  db.run(
+    `INSERT INTO audit_logs (id, user_id, action, table_name, record_id, details, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [id, currentUser?.id || null, action, table, recordId, details ? JSON.stringify(details) : null, now]
+  );
+  saveDatabase();
+}
 
 /**
  * Check if running in Tauri environment
@@ -385,6 +461,7 @@ export function insert(table: string, data: Record<string, unknown>): string {
 
   // Add to sync queue
   addToSyncQueue(table, id, "INSERT", record);
+  logAction("INSERT", table, id, record);
 
   return id;
 }
@@ -427,6 +504,7 @@ export function update(
 
   // Add to sync queue
   addToSyncQueue(table, id, "UPDATE", record);
+  logAction("UPDATE", table, id, record);
 }
 
 /**
@@ -441,6 +519,7 @@ export function softDelete(table: string, id: string): void {
   );
 
   addToSyncQueue(table, id, "DELETE", { id });
+  logAction("DELETE", table, id, { id });
 }
 
 /**

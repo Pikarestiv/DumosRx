@@ -8,6 +8,7 @@ import { AuthListener } from "@/components/auth-listener";
 import { Toaster } from "@/components/ui/sonner";
 import { DatabaseProvider } from "@/lib/db/DatabaseProvider";
 import { StoreProvider } from "@/lib/context/store-context";
+import { AuthProvider } from "@/lib/context/auth-context";
 import { QuickSetupWizard } from "@/components/setup/quick-setup-wizard";
 import { DevSeedButton } from "@/components/dev/seed-button";
 import { APP_NAME } from "@/lib/constants";
@@ -47,12 +48,14 @@ export default function RootLayout({
         <ThemeProvider defaultTheme="system" storageKey="dumosrx-ui-theme">
           <DatabaseProvider>
             <StoreProvider>
-              <AuthListener />
-              <QuickSetupWizard />
-              {children}
-              <Toaster />
-              {/* Dev utility: remove in production */}
-              <DevSeedButton />
+              <AuthProvider>
+                <AuthListener />
+                <QuickSetupWizard />
+                {children}
+                <Toaster />
+                {/* Dev utility: remove in production */}
+                <DevSeedButton />
+              </AuthProvider>
             </StoreProvider>
           </DatabaseProvider>
         </ThemeProvider>

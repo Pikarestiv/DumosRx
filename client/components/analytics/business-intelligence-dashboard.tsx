@@ -8,6 +8,14 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -41,6 +49,7 @@ import {
   AlertTriangle,
   Calendar,
 } from "lucide-react";
+import { useLocalData } from "@/lib/db/hooks/useLocalData";
 import { useBIData } from "@/lib/hooks/use-bi-data";
 import { BIKeyMetrics } from "./bi-key-metrics";
 
@@ -104,6 +113,14 @@ export function BusinessIntelligenceDashboard() {
     formattedCategoryData,
   } = useBIData();
 
+  const { data: auditLogs } = useLocalData<any>(
+    "SELECT al.*, u.name as user_name FROM audit_logs al LEFT JOIN users u ON al.user_id = u.id ORDER BY al.created_at DESC LIMIT 20"
+  );
+
+  const { data: returnsData } = useLocalData<any>(
+    "SELECT r.*, s.transaction_number, u.name as user_name FROM returns r JOIN sales s ON r.sale_id = s.id JOIN users u ON r.user_id = u.id ORDER BY r.created_at DESC"
+  );
+
   return (
     <div className="space-y-6">
       {/* Header Controls */}
@@ -150,6 +167,8 @@ export function BusinessIntelligenceDashboard() {
           <TabsTrigger value="inventory">Inventory Insights</TabsTrigger>
           <TabsTrigger value="customers">Customer Analytics</TabsTrigger>
           <TabsTrigger value="prescriptions">Prescriptions</TabsTrigger>
+          <TabsTrigger value="returns">Returns</TabsTrigger>
+          <TabsTrigger value="audit">Audit Trail</TabsTrigger>
           <TabsTrigger value="alerts">Alerts & Reports</TabsTrigger>
         </TabsList>
 
@@ -426,6 +445,101 @@ export function BusinessIntelligenceDashboard() {
                   </div>
                   <p className="text-sm text-gray-500">Avg. Processing Time</p>
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+
+        <TabsContent value="returns" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Sales Returns History</CardTitle>
+              <CardDescription>Track all product returns and refunds</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="border rounded-lg overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Transaction #</TableHead>
+                      <TableHead>User</TableHead>
+                      <TableHead>Reason</TableHead>
+                      <TableHead className="text-right">Amount Refunded</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {returnsData.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                          No returns found.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      returnsData.map((r: any) => (
+                        <TableRow key={r.id}>
+                          <TableCell>{new Date(r.created_at).toLocaleDateString()}</TableCell>
+                          <TableCell className="font-mono">{r.transaction_number}</TableCell>
+                          <TableCell>{r.user_name}</TableCell>
+                          <TableCell>{r.reason}</TableCell>
+                          <TableCell className="text-right font-bold">
+                            ₦{r.total_refunded.toLocaleString()}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="audit" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>System Audit Trail</CardTitle>
+              <CardDescription>Security log of all data modifications</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="border rounded-lg overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Timestamp</TableHead>
+                      <TableHead>Action</TableHead>
+                      <TableHead>User</TableHead>
+                      <TableHead>Module</TableHead>
+                      <TableHead>Details</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {auditLogs.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                          No logs found.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      auditLogs.map((log: any) => (
+                        <TableRow key={log.id}>
+                          <TableCell className="text-xs">
+                            {new Date(log.created_at).toLocaleString()}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{log.action}</Badge>
+                          </TableCell>
+                          <TableCell>{log.user_name || 'System'}</TableCell>
+                          <TableCell className="font-medium">{log.table_name}</TableCell>
+                          <TableCell className="text-xs max-w-[200px] truncate">
+                            {log.details || '-'}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
               </div>
             </CardContent>
           </Card>

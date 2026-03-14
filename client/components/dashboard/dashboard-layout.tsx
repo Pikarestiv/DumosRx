@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { ThemeCustomizer } from "@/components/ui/theme-customizer";
-import { useAuthStore } from "@/lib/auth/store";
+import { useAuth } from "@/lib/context/auth-context";
 import { useStore } from "@/lib/context/store-context";
 import { SyncIndicator } from "./sync-indicator";
 import { APP_NAME } from "@/lib/constants";
@@ -36,6 +36,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
   const { storeType, t, storeProfile } = useStore();
+  const { user, logout, isAdmin } = useAuth();
 
   const navigationItems = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -51,7 +52,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       : []),
     { name: "Customers", href: "/customers", icon: Users },
     { name: "Reports", href: "/reports", icon: BarChart3 },
-    { name: "Settings", href: "/settings", icon: Settings },
+    ...(isAdmin ? [{ name: "Settings", href: "/settings", icon: Settings }] : []),
+    ...(isAdmin ? [{ name: "Analytics", href: "/analytics", icon: BarChart3 }] : []),
   ];
 
   return (
@@ -113,7 +115,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           <Button
             variant="ghost"
             className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer"
-            onClick={() => useAuthStore.getState().logout()}
+            onClick={logout}
           >
             <LogOut className="h-4 w-4 mr-3" />
             Sign Out
@@ -136,7 +138,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
           <div className="flex items-center gap-4">
             <span className="text-sm font-medium">
-              Welcome back, {t('role')}
+              Welcome back, {user?.name || 'User'}
             </span>
             <div className="flex items-center gap-2">
               <ThemeToggle />

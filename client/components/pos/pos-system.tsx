@@ -36,6 +36,7 @@ import {
   Receipt,
   User,
   Scan,
+  Zap,
 } from "lucide-react";
 import { useLocalData } from "@/lib/db/hooks/useLocalData";
 import { formatCurrency } from "@/lib/utils";
@@ -69,6 +70,7 @@ import { usePOSCart } from "@/lib/hooks/use-pos-cart";
 import { usePOSPayment } from "@/lib/hooks/use-pos-payment";
 import { POSProductList } from "./pos-product-list";
 import { POSPaymentDialog } from "./pos-payment-dialog";
+import { RetailSpeedPOS } from "./retail-speed-pos";
 
 export function POSSystem() {
   const { t, storeProfile, vatPercentage } = useStore();
@@ -76,6 +78,7 @@ export function POSSystem() {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [posMode, setPosMode] = useState<"standard" | "speed">("standard");
 
   // Fetch medicines from local DB
   const {
@@ -152,14 +155,44 @@ export function POSSystem() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.altKey || e.ctrlKey) && e.key === "s") {
+      // Focus Search: Alt+S or F1
+      if (((e.altKey || e.ctrlKey) && e.key === "s") || e.key === "F1") {
         e.preventDefault();
         searchInputRef.current?.focus();
+      }
+      
+      // Fast Payment Methods
+      if (cart.length > 0) {
+        if (e.key === "F2") { // Cash
+          e.preventDefault();
+          setPaymentMethod("cash");
+          setShowPaymentDialog(true);
+        }
+        if (e.key === "F3") { // Card
+          e.preventDefault();
+          setPaymentMethod("card");
+          setShowPaymentDialog(true);
+        }
+        if (e.key === "F4" && selectedCustomer) { // Credit
+          e.preventDefault();
+          setPaymentMethod("credit");
+          setShowPaymentDialog(true);
+        }
+      }
+
+      // Clear/Close
+      if (e.key === "Escape") {
+        if (showPaymentDialog) setShowPaymentDialog(false);
+        else if (showReceiptDialog) setShowReceiptDialog(false);
+        else if (searchTerm) setSearchTerm("");
+        else if (cart.length > 0) {
+          if (confirm("Clear cart?")) clearCart();
+        }
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [cart, selectedCustomer, showPaymentDialog, showReceiptDialog, searchTerm, clearCart, setShowPaymentDialog, setPaymentMethod]);
 
   const filteredMedicines = medicines.filter(
     (medicine) =>
@@ -190,16 +223,60 @@ export function POSSystem() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-serif font-bold text-3xl text-foreground">
-          Point of Sale
-        </h1>
-        <p className="text-muted-foreground mt-2">
-          Process sales transactions and manage {t('products').toLowerCase()} orders
-        </p>
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="font-serif font-bold text-3xl text-foreground">
+            Point of Sale
+          </h1>
+          <p className="text-muted-foreground mt-2">
+            Process sales transactions and manage {t('products').toLowerCase()} orders
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button 
+            variant={posMode === "standard" ? "default" : "outline"} 
+            size="sm"
+            onClick={() => setPosMode("standard")}
+            className="flex items-center gap-2"
+          >
+            Standard View
+          </Button>
+          <Button 
+            variant={posMode === "speed" ? "default" : "outline"} 
+            size="sm"
+            onClick={() => setPosMode("speed")}
+            className="flex items-center gap-2"
+          >
+            <Zap className="h-4 w-4" />
+            Retail Speed
+          </Button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {posMode === "speed" ? (
+        <RetailSpeedPOS
+          cart={cart}
+          subtotal={subtotal}
+          tax={tax}
+          total={total}
+          discount={discount}
+          vatPercentage={vatPercentage}
+          currencyCode={storeProfile?.currency}
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          filteredMedicines={filteredMedicines}
+          addToCart={addToCart}
+          updateQuantity={updateQuantity}
+          removeFromCart={removeFromCart}
+          clearCart={clearCart}
+          selectedCustomer={selectedCustomer}
+          setSelectedCustomer={setSelectedCustomer}
+          handlePayment={handlePayment}
+          setPaymentMethod={setPaymentMethod}
+          setShowPaymentDialog={setShowPaymentDialog}
+        />
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Product Search and Selection */}
         <div className="lg:col-span-2 space-y-4">
           <Card>
@@ -436,6 +513,7 @@ export function POSSystem() {
           </Card>
         </div>
       </div>
+    )}
 
       <POSPaymentDialog
         showPaymentDialog={showPaymentDialog}

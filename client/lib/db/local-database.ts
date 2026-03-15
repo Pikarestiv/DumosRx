@@ -301,6 +301,21 @@ CREATE TABLE IF NOT EXISTS return_items (
   FOREIGN KEY (medicine_id) REFERENCES medicines(id)
 );
 
+CREATE TABLE IF NOT EXISTS expenses (
+  id TEXT PRIMARY KEY,
+  category TEXT NOT NULL, -- Rent, Utilities, Salaries, Transport, Others
+  amount REAL NOT NULL,
+  description TEXT,
+  date TEXT NOT NULL,
+  payment_method TEXT,
+  created_at TEXT,
+  updated_at TEXT,
+  _version INTEGER DEFAULT 1,
+  _synced INTEGER DEFAULT 0,
+  _synced_at TEXT,
+  _deleted INTEGER DEFAULT 0
+);
+
 CREATE INDEX IF NOT EXISTS idx_medicines_name ON medicines(name);
 CREATE INDEX IF NOT EXISTS idx_medicines_synced ON medicines(_synced);
 CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone);
@@ -310,6 +325,7 @@ CREATE INDEX IF NOT EXISTS idx_sync_queue_table ON _sync_queue(table_name);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_user ON audit_logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_returns_sale ON returns(sale_id);
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date);
 `;
 
 let SQL: SqlJsStatic | null = null;

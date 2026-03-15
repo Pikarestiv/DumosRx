@@ -26,6 +26,7 @@ import {
   X,
   Pill,
   ShoppingBasket,
+  Wallet,
 } from "lucide-react";
 
 interface DashboardLayoutProps {
@@ -51,6 +52,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       ? [{ name: "Prescriptions", href: "/prescriptions", icon: FileText }] 
       : []),
     { name: "Customers", href: "/customers", icon: Users },
+    { name: "Expenses", href: "/expenses", icon: Wallet },
     { name: "Reports", href: "/reports", icon: BarChart3 },
     ...(isAdmin ? [{ name: "Settings", href: "/settings", icon: Settings }] : []),
     ...(isAdmin ? [{ name: "Analytics", href: "/analytics", icon: BarChart3 }] : []),

@@ -19,31 +19,64 @@ export function DevSeedButton() {
     try {
       setLoading(true);
 
-      // Seed Medicines
+      // Seed Medicines with UoM
       await insert("medicines", {
         id: "m1",
         name: "Paracetamol",
         brand_name: "Emzor",
-        category_id: "c1",
+        category: "Analgesics",
         stock_quantity: 500,
+        base_unit: "Tablet",
+        bulk_unit: "Pack",
+        units_per_bulk: 50,
         is_active: 1,
       });
       await insert("medicines", {
         id: "m2",
         name: "Amoxicillin",
         brand_name: "Beecham",
-        category_id: "c2",
+        category: "Antibiotics",
         stock_quantity: 120,
+        base_unit: "Capsule",
+        bulk_unit: "Carton",
+        units_per_bulk: 100,
         is_active: 1,
       });
       await insert("medicines", {
         id: "m3",
         name: "Vitamin C",
         brand_name: "Emzor",
-        category_id: "c4",
+        category: "Vitamins",
         stock_quantity: 50,
+        base_unit: "Sachet",
         is_active: 1,
         reorder_level: 100,
+      });
+
+      // Seed Vendors
+      await insert("suppliers", {
+        id: "v1",
+        name: "Emzor Pharmaceuticals",
+        contact_person: "Mr. Emeka",
+        phone: "08033344455",
+        payment_terms: "Net 30",
+      });
+      await insert("suppliers", {
+        id: "v2",
+        name: "GSK Nigeria",
+        contact_person: "Sarah Okon",
+        phone: "08099887766",
+        payment_terms: "Pay on Delivery",
+      });
+
+      // Seed Expenses
+      await insert("expenses", {
+        id: "e1",
+        category: "Rent",
+        amount: 150000,
+        description: "Monthly shop rent",
+        date: new Date().toISOString().split('T')[0],
+        payment_method: "Bank Transfer",
       });
 
       // Seed Sales (today)

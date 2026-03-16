@@ -59,6 +59,9 @@ interface Medicine {
   reorderLevel: number;
   expiryDate: string;
   batchNumber: string;
+  baseUnit: string;
+  bulkUnit: string;
+  unitsPerBulk: number;
   status: "active" | "inactive" | "expired" | "low_stock";
 }
 
@@ -82,6 +85,9 @@ const transformMedicine = (apiData: any): Medicine => ({
     ? new Date(apiData.expiry_date).toISOString().split("T")[0]
     : "",
   batchNumber: apiData.batch_number || "",
+  baseUnit: apiData.base_unit || "Unit",
+  bulkUnit: apiData.bulk_unit || "",
+  unitsPerBulk: Number(apiData.units_per_bulk) || 1,
   status: (apiData.status as any) || "active",
 });
 
@@ -393,7 +399,7 @@ export function MedicineDatabase() {
                               : ""
                           }
                         >
-                          {medicine.stockQuantity}
+                          {medicine.stockQuantity} {medicine.baseUnit}
                         </div>
                         <div className="text-xs text-muted-foreground">
                           Min: {medicine.reorderLevel}

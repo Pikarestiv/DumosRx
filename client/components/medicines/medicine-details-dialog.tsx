@@ -27,6 +27,9 @@ interface Medicine {
   reorderLevel: number
   expiryDate: string
   batchNumber: string
+  baseUnit: string
+  bulkUnit: string
+  unitsPerBulk: number
   status: "active" | "inactive" | "expired" | "low_stock"
 }
 
@@ -211,14 +214,26 @@ export function MedicineDetailsDialog({ open, onOpenChange, medicine }: Medicine
                   <p
                     className={`font-bold text-lg ${medicine.stockQuantity <= medicine.reorderLevel ? "text-destructive" : "text-primary"}`}
                   >
-                    {medicine.stockQuantity} units
+                    {medicine.stockQuantity} {medicine.baseUnit}(s)
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Reorder Level</p>
-                  <p className="font-medium">{medicine.reorderLevel} units</p>
+                  <p className="font-medium">{medicine.reorderLevel} {medicine.baseUnit}(s)</p>
                 </div>
               </div>
+              {medicine.bulkUnit && (
+                <>
+                  <Separator />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Unit Conversion</p>
+                    <p className="font-medium">1 {medicine.bulkUnit} = {medicine.unitsPerBulk} {medicine.baseUnit}(s)</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Total Stock in {medicine.bulkUnit}: {(medicine.stockQuantity / medicine.unitsPerBulk).toFixed(2)}
+                    </p>
+                  </div>
+                </>
+              )}
               <Separator />
               <div>
                 <p className="text-sm text-muted-foreground flex items-center gap-2">

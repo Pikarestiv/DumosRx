@@ -40,6 +40,9 @@ interface Medicine {
   reorderLevel: number;
   expiryDate: string;
   batchNumber: string;
+  baseUnit: string;
+  bulkUnit: string;
+  unitsPerBulk: number;
   status: "active" | "inactive" | "expired" | "low_stock";
 }
 
@@ -71,6 +74,9 @@ export function AddMedicineDialog({
     reorderLevel: 0,
     expiryDate: "",
     batchNumber: "",
+    baseUnit: "Unit",
+    bulkUnit: "",
+    unitsPerBulk: 1,
     status: "active",
   });
 
@@ -128,6 +134,9 @@ export function AddMedicineDialog({
       reorder_level: formData.reorderLevel,
       expiry_date: formData.expiryDate,
       batch_number: formData.batchNumber,
+      base_unit: formData.baseUnit,
+      bulk_unit: formData.bulkUnit,
+      units_per_bulk: formData.unitsPerBulk,
       status: status,
     };
 
@@ -150,6 +159,9 @@ export function AddMedicineDialog({
       reorderLevel: 0,
       expiryDate: "",
       batchNumber: "",
+      baseUnit: "Unit",
+      bulkUnit: "",
+      unitsPerBulk: 1,
       status: "active",
     });
   };
@@ -398,6 +410,46 @@ export function AddMedicineDialog({
                 placeholder="e.g., ABC12345"
               />
             </div>
+          </div>
+
+          <div className="border-t pt-4 space-y-4">
+            <h4 className="font-medium text-sm">Inventory Units (Conversions)</h4>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="baseUnit">Base Unit *</Label>
+                <Input
+                  id="baseUnit"
+                  value={formData.baseUnit}
+                  onChange={(e) => handleInputChange("baseUnit", e.target.value)}
+                  placeholder="e.g. Sachet, Tablet, Piece"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="bulkUnit">Bulk Unit (Optional)</Label>
+                <Input
+                  id="bulkUnit"
+                  value={formData.bulkUnit}
+                  onChange={(e) => handleInputChange("bulkUnit", e.target.value)}
+                  placeholder="e.g. Carton, Pack, Box"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="unitsPerBulk">Units per Bulk</Label>
+                <Input
+                  id="unitsPerBulk"
+                  type="number"
+                  value={formData.unitsPerBulk}
+                  onChange={(e) =>
+                    handleInputChange("unitsPerBulk", Number.parseInt(e.target.value) || 1)
+                  }
+                  min="1"
+                />
+              </div>
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              Example: 1 {formData.bulkUnit || 'Bulk Unit'} = {formData.unitsPerBulk} {formData.baseUnit || 'Base Unit'}(s)
+            </p>
           </div>
 
           <DialogFooter>

@@ -33,7 +33,7 @@ interface Expense {
 export function ExpenseList() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const { store } = useStore();
+  const { storeProfile } = useStore();
 
   const fetchExpenses = async () => {
     try {
@@ -77,7 +77,7 @@ export function ExpenseList() {
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold">{formatCurrency(totalExpenses, store?.currency || "NGN")}</div>
+            <div className="text-2xl font-bold">{formatCurrency(totalExpenses, storeProfile?.currency || "NGN")}</div>
             <p className="text-xs text-muted-foreground">Total Expenses (All Time)</p>
           </CardContent>
         </Card>
@@ -120,7 +120,7 @@ export function ExpenseList() {
                     </TableCell>
                     <TableCell>{expense.payment_method}</TableCell>
                     <TableCell className="text-right font-medium">
-                      {formatCurrency(expense.amount, store?.currency || "NGN")}
+                      {formatCurrency(expense.amount, storeProfile?.currency || "NGN")}
                     </TableCell>
                     <TableCell>
                       <Button

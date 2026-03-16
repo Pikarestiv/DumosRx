@@ -649,9 +649,33 @@ export function getDatabase(): Database | null {
 
 // --- Purchase Order Helpers ---
 
+interface PurchaseOrder {
+  id: string;
+  vendor_id: string;
+  status: string;
+  total_amount: number;
+  notes?: string;
+  created_at: string;
+  received_at?: string;
+  vendor_name: string;
+}
+
+interface PurchaseOrderItem {
+  id: string;
+  po_id: string;
+  medicine_id: string;
+  bulk_quantity: number;
+  units_per_bulk: number;
+  unit_cost: number;
+  subtotal: number;
+  medicine_name: string;
+  base_unit: string;
+  bulk_unit: string;
+}
+
 export async function getPurchaseOrders(page = 1, limit = 50) {
   const offset = (page - 1) * limit;
-  const results = await query(
+  const results = await query<PurchaseOrder>(
     `SELECT po.*, v.name as vendor_name 
      FROM purchase_orders po 
      JOIN vendors v ON po.vendor_id = v.id 
@@ -664,7 +688,7 @@ export async function getPurchaseOrders(page = 1, limit = 50) {
 }
 
 export async function getPurchaseOrderById(id: string) {
-  const po = await query(
+  const po = await query<PurchaseOrder>(
     `SELECT po.*, v.name as vendor_name 
      FROM purchase_orders po 
      JOIN vendors v ON po.vendor_id = v.id 
@@ -674,7 +698,7 @@ export async function getPurchaseOrderById(id: string) {
   
   if (!po[0]) return null;
 
-  const items = await query(
+  const items = await query<PurchaseOrderItem>(
     `SELECT poi.*, m.name as medicine_name, m.base_unit, m.bulk_unit 
      FROM purchase_order_items poi 
      JOIN medicines m ON poi.medicine_id = m.id 
@@ -737,7 +761,9 @@ export async function receivePurchaseOrder(id: string) {
 
   // 1. Update stock for each item
   for (const item of poData.items) {
-    const totalBaseUnits = item.bulk_quantity * item.units_per_bulk;
+    const bulkQty = Number(item.bulk_quantity);
+    const unitsPerBulk = Number(item.units_per_bulk);
+    const totalBaseUnits = bulkQty * unitsPerBulk;
     
     // Update medicine stock
     await execute(
@@ -749,7 +775,7 @@ export async function receivePurchaseOrder(id: string) {
     await insert("inventory", {
       medicine_id: item.medicine_id,
       quantity: totalBaseUnits,
-      cost_price: item.unit_cost / item.units_per_bulk, // Calculated cost per base unit
+      cost_price: Number(item.unit_cost) / unitsPerBulk, // Calculated cost per base unit
       selling_price: 0, // Will be set manually or via markup
       batch_number: poData.id.split('-')[0].toUpperCase(), // Reference PO as batch prefix
       expiry_date: null, // Should be provided during reception in a real app

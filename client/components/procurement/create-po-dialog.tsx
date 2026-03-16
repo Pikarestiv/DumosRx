@@ -30,7 +30,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { query, createPurchaseOrder } from "@/lib/db/local-database";
 import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
@@ -41,11 +41,25 @@ interface CreatePODialogProps {
   onPOIconCreated: () => void;
 }
 
+interface Vendor {
+  id: string;
+  name: string;
+}
+
+interface Medicine {
+  id: string;
+  name: string;
+  bulk_unit: string;
+  base_unit: string;
+  units_per_bulk: number;
+  cost_price: number;
+}
+
 export function CreatePODialog({ onPOIconCreated }: CreatePODialogProps) {
   const { t, storeType } = useStore();
   const [open, setOpen] = useState(false);
-  const [vendors, setVendors] = useState<any[]>([]);
-  const [medicines, setMedicines] = useState<any[]>([]);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [selectedVendorId, setSelectedVendorId] = useState("");
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<any[]>([]);
@@ -67,8 +81,8 @@ export function CreatePODialog({ onPOIconCreated }: CreatePODialogProps) {
 
   const fetchData = async () => {
     try {
-      const vendorData = await query("SELECT id, name FROM vendors WHERE _deleted = 0");
-      const medData = await query("SELECT id, name, bulk_unit, base_unit, units_per_bulk, cost_price FROM medicines WHERE _deleted = 0");
+      const vendorData = await query<Vendor>("SELECT id, name FROM vendors WHERE _deleted = 0");
+      const medData = await query<Medicine>("SELECT id, name, bulk_unit, base_unit, units_per_bulk, cost_price FROM medicines WHERE _deleted = 0");
       setVendors(vendorData);
       setMedicines(medData);
     } catch (error) {
@@ -219,7 +233,7 @@ export function CreatePODialog({ onPOIconCreated }: CreatePODialogProps) {
                 </div>
                 <div className="md:col-span-2 space-y-2">
                   <Label className="text-[10px] uppercase font-bold text-muted-foreground flex items-center gap-1">
-                    Conversion <Info className="w-3 h-3 opacity-50" title="Units per Bulk" />
+                    Conversion <Info className="w-3 h-3 opacity-50" />
                   </Label>
                   <Input 
                     type="number" 

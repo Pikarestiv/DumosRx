@@ -25,6 +25,25 @@ export function useBIData() {
   );
   const totalRevenue = revenueData[0]?.total || 0;
 
+  // 1b. Total COGS (Cost of Goods Sold)
+  const { data: cogsData } = useLocalData<{ total: number }>(
+    `SELECT SUM(cost_price * quantity) as total FROM sale_items si 
+     JOIN sales s ON si.sale_id = s.id 
+     WHERE s.transaction_date >= ? AND s._deleted = 0`,
+    [dateFilter]
+  );
+  const totalCogs = cogsData[0]?.total || 0;
+
+  // 1c. Total Expenses
+  const { data: expensesData } = useLocalData<{ total: number }>(
+    `SELECT SUM(amount) as total FROM expenses WHERE date >= ? AND _deleted = 0`,
+    [dateFilter]
+  );
+  const totalExpenses = expensesData[0]?.total || 0;
+
+  const grossProfit = totalRevenue - totalCogs;
+  const netProfit = grossProfit - totalExpenses;
+
   // 2. Total Transactions
   const { data: transactionData } = useLocalData<{ count: number }>(
     `SELECT COUNT(*) as count FROM sales WHERE transaction_date >= ? AND _deleted = 0`,
@@ -34,7 +53,7 @@ export function useBIData() {
 
   // 3. Inventory Value
   const { data: inventoryValueData } = useLocalData<{ value: number }>(
-    `SELECT SUM(selling_price * stock_quantity) as value FROM medicines WHERE _deleted = 0`
+    `SELECT SUM(cost_price * stock_quantity) as value FROM medicines WHERE _deleted = 0`
   );
   const inventoryValue = inventoryValueData[0]?.value || 0;
 
@@ -44,18 +63,41 @@ export function useBIData() {
   );
   const activeCustomers = customerData[0]?.count || 0;
 
-  // 5. Monthly Sales Data
-  const { data: monthlySalesData } = useLocalData<{ month: string, revenue: number, profit: number }>(
+  // 5. Monthly Sales Data (with real profit)
+  const { data: rawMonthlyData } = useLocalData<{ month: string, revenue: number, cogs: number, transactions: number }>(
     `SELECT 
-      strftime('%b', transaction_date) as month,
-      SUM(total_amount) as revenue,
-      SUM(total_amount * 0.25) as profit
-     FROM sales 
-     WHERE transaction_date >= ? AND _deleted = 0
-     GROUP BY strftime('%m', transaction_date)
-     ORDER BY strftime('%m', transaction_date) ASC`,
+      strftime('%b', s.transaction_date) as month,
+      SUM(s.total_amount) as revenue,
+      SUM(si.cost_price * si.quantity) as cogs,
+      COUNT(DISTINCT s.id) as transactions
+     FROM sales s
+     LEFT JOIN sale_items si ON s.id = si.sale_id
+     WHERE s.transaction_date >= ? AND s._deleted = 0
+     GROUP BY strftime('%m', s.transaction_date)
+     ORDER BY strftime('%m', s.transaction_date) ASC`,
     [dateFilter]
   );
+
+  const { data: rawExpenseData } = useLocalData<{ month: string, expenses: number }>(
+    `SELECT 
+      strftime('%b', date) as month,
+      SUM(amount) as expenses
+     FROM expenses
+     WHERE date >= ? AND _deleted = 0
+     GROUP BY strftime('%m', date)`,
+    [dateFilter]
+  );
+
+  const monthlySalesData = useMemo(() => {
+    return rawMonthlyData.map(item => {
+      const exp = rawExpenseData.find(e => e.month === item.month)?.expenses || 0;
+      return {
+        ...item,
+        profit: item.revenue - item.cogs - exp,
+        expenses: exp
+      };
+    });
+  }, [rawMonthlyData, rawExpenseData]);
 
   // 6. Top Selling Medicines
   const { data: topSellingMedicines } = useLocalData<{ name: string, sales: number, units: number, category: string }>(
@@ -99,6 +141,10 @@ export function useBIData() {
     timeRange,
     setTimeRange,
     totalRevenue,
+    totalCogs,
+    totalExpenses,
+    grossProfit,
+    netProfit,
     totalTransactions,
     inventoryValue,
     activeCustomers,

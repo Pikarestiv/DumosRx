@@ -4,9 +4,10 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Loader2, AlertCircle } from "lucide-react";
+import { Loader2, AlertCircle, Mail, Lock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { webApiClient } from "@/lib/api/client";
+import { motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -18,14 +19,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const loginSchema = z.object({
@@ -52,10 +45,8 @@ export function LoginForm() {
 
     try {
       const response = await webApiClient.login(values);
-      // Store token (in a real app, use a secure cookie or context)
-      // For now, we'll simpler redirect to indicate success
       console.log("Login successful", response);
-      router.push("/dashboard?loggedin=true"); // Redirecting to a dashboard/account page
+      router.push("/dashboard?loggedin=true");
     } catch (err: any) {
       setError(err.message || "Invalid credentials. Please try again.");
     } finally {
@@ -63,79 +54,112 @@ export function LoginForm() {
     }
   }
 
+  const container = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1,
+        delayChildren: 0.2,
+      },
+    },
+  };
+
+  const item = {
+    hidden: { opacity: 0, y: 10 },
+    show: { opacity: 1, y: 0 },
+  };
+
   return (
-    <Card className="w-full max-w-md mx-auto">
-      <CardHeader>
-        <CardTitle>Welcome Back</CardTitle>
-        <CardDescription>Login to your DumosRx account</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {error && (
-          <Alert variant="destructive" className="mb-4">
+    <div className="w-full">
+      {error && (
+        <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="mb-6">
+          <Alert variant="destructive" className="bg-destructive/10 border-destructive/20 text-destructive">
             <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Error</AlertTitle>
+            <AlertTitle>Auth Error</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>
-        )}
+        </motion.div>
+      )}
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="name@example.com"
-                      type="email"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)}>
+          <motion.div variants={container} initial="hidden" animate="show" className="space-y-5">
+            <motion.div variants={item}>
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-gray-300">Email Address</FormLabel>
+                    <FormControl>
+                      <div className="relative group">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 group-focus-within:text-primary transition-colors" />
+                        <Input
+                          placeholder="name@example.com"
+                          type="email"
+                          className="pl-10 bg-white/5 border-white/10 text-white focus:border-primary/50 focus:ring-primary/20 transition-all h-11"
+                          {...field}
+                        />
+                      </div>
+                    </FormControl>
+                    <FormMessage className="text-xs text-red-400" />
+                  </FormItem>
+                )}
+              />
+            </motion.div>
 
-            <FormField
-              control={form.control}
-              name="password"
-              render={({ field }) => (
-                <FormItem>
-                  <div className="flex items-center justify-between">
-                    <FormLabel>Password</FormLabel>
-                    <a href="#" className="text-xs text-primary underline">
-                      Forgot password?
-                    </a>
-                  </div>
-                  <FormControl>
-                    <Input type="password" placeholder="******" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <motion.div variants={item}>
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <div className="flex items-center justify-between">
+                      <FormLabel className="text-gray-300">Password</FormLabel>
+                      <a href="#" className="text-xs text-primary/70 hover:text-primary transition-colors">
+                        Forgot?
+                      </a>
+                    </div>
+                    <FormControl>
+                      <div className="relative group">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 group-focus-within:text-primary transition-colors" />
+                        <Input 
+                          type="password" 
+                          placeholder="******" 
+                          className="pl-10 bg-white/5 border-white/10 text-white focus:border-primary/50 focus:ring-primary/20 transition-all h-11"
+                          {...field} 
+                        />
+                      </div>
+                    </FormControl>
+                    <FormMessage className="text-xs text-red-400" />
+                  </FormItem>
+                )}
+              />
+            </motion.div>
 
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {loading ? "Logging in..." : "Login"}
-            </Button>
-          </form>
-        </Form>
-      </CardContent>
-      <CardFooter className="flex justify-center">
-        <p className="text-sm text-muted-foreground">
-          Don't have an account?{" "}
-          <Button
-            variant="link"
-            className="p-0 h-auto font-semibold"
-            onClick={() => router.push("/register")}
-          >
-            Sign up
-          </Button>
-        </p>
-      </CardFooter>
-    </Card>
+            <motion.div variants={item} className="pt-2">
+              <Button type="submit" className="w-full h-12 text-lg font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/10 transition-all active:scale-[0.98]" disabled={loading}>
+                {loading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : "Sign In"}
+              </Button>
+            </motion.div>
+
+            <motion.div variants={item} className="text-center pt-4">
+              <p className="text-sm text-gray-500">
+                New to DumosRx?{" "}
+                <Button
+                  variant="link"
+                  type="button"
+                  className="p-0 h-auto font-bold text-primary/80 hover:text-primary"
+                  onClick={() => router.push("/register")}
+                >
+                  Create Account
+                </Button>
+              </p>
+            </motion.div>
+          </motion.div>
+        </form>
+      </Form>
+    </div>
   );
 }

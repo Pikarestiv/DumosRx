@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -210,14 +211,12 @@ export function RegisterForm() {
             <motion.div variants={item} className="text-center pt-2">
               <p className="text-sm text-gray-500">
                 Already registered?{" "}
-                <Button
-                  variant="link"
-                  type="button"
-                  className="p-0 h-auto font-bold text-accent/80 hover:text-accent"
-                  onClick={() => router.push("/login")}
+                <Link
+                  href="/login"
+                  className="font-bold text-accent/80 hover:text-accent transition-colors cursor-pointer"
                 >
                   Sign In
-                </Button>
+                </Link>
               </p>
             </motion.div>
           </motion.div>

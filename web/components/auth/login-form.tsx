@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -147,14 +148,12 @@ export function LoginForm() {
             <motion.div variants={item} className="text-center pt-4">
               <p className="text-sm text-gray-500">
                 New to DumosRx?{" "}
-                <Button
-                  variant="link"
-                  type="button"
-                  className="p-0 h-auto font-bold text-primary/80 hover:text-primary"
-                  onClick={() => router.push("/register")}
+                <Link
+                  href="/register"
+                  className="font-bold text-primary/80 hover:text-primary transition-colors cursor-pointer"
                 >
                   Create Account
-                </Button>
+                </Link>
               </p>
             </motion.div>
           </motion.div>

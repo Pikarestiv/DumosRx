@@ -1,12 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { ShieldCheck, ArrowLeft, Pill } from "lucide-react";
+import { ArrowLeft, Pill } from "lucide-react";
 import { LoginForm } from "@/components/auth/login-form";
 import { Suspense } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
-import { APP_NAME } from "@/lib/constants";
 
 export default function LoginPage() {
   return (

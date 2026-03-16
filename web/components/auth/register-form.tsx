@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Loader2, AlertCircle, Building, Mail, Phone, Lock } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { webApiClient } from "@/lib/api/client";
 import { motion } from "framer-motion";
 
@@ -38,8 +38,6 @@ const registerSchema = z
 
 export function RegisterForm() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const plan = searchParams.get("plan");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

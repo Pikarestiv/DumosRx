@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Pill, ArrowLeft, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ShieldCheck } from "lucide-react";
 import { RegisterForm } from "@/components/auth/register-form";
 import { Suspense } from "react";
 import { motion } from "framer-motion";

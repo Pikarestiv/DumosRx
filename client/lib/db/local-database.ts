@@ -319,6 +319,38 @@ CREATE TABLE IF NOT EXISTS expenses (
   _deleted INTEGER DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS purchase_orders (
+  id TEXT PRIMARY KEY,
+  vendor_id TEXT NOT NULL,
+  status TEXT DEFAULT 'draft', -- draft, sent, received, cancelled
+  total_amount REAL DEFAULT 0,
+  notes TEXT,
+  created_at TEXT,
+  received_at TEXT,
+  _version INTEGER DEFAULT 1,
+  _synced INTEGER DEFAULT 0,
+  _synced_at TEXT,
+  _deleted INTEGER DEFAULT 0,
+  FOREIGN KEY (vendor_id) REFERENCES vendors(id)
+);
+
+CREATE TABLE IF NOT EXISTS purchase_order_items (
+  id TEXT PRIMARY KEY,
+  po_id TEXT NOT NULL,
+  medicine_id TEXT NOT NULL,
+  bulk_quantity INTEGER NOT NULL,
+  units_per_bulk INTEGER NOT NULL, -- Per-batch override
+  unit_cost REAL NOT NULL, -- Per bulk unit
+  subtotal REAL NOT NULL,
+  created_at TEXT,
+  updated_at TEXT,
+  _version INTEGER DEFAULT 1,
+  _synced INTEGER DEFAULT 0,
+  _synced_at TEXT,
+  FOREIGN KEY (po_id) REFERENCES purchase_orders(id),
+  FOREIGN KEY (medicine_id) REFERENCES medicines(id)
+);
+
 CREATE INDEX IF NOT EXISTS idx_medicines_name ON medicines(name);
 CREATE INDEX IF NOT EXISTS idx_medicines_synced ON medicines(_synced);
 CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone);
@@ -329,6 +361,8 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_user ON audit_logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_returns_sale ON returns(sale_id);
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date);
+CREATE INDEX IF NOT EXISTS idx_purchase_orders_vendor ON purchase_orders(vendor_id);
+CREATE INDEX IF NOT EXISTS idx_purchase_orders_status ON purchase_orders(status);
 `;
 
 let SQL: SqlJsStatic | null = null;
@@ -611,4 +645,120 @@ export async function markSynced(queueIds: number[]): Promise<void> {
  */
 export function getDatabase(): Database | null {
   return db;
+}
+
+// --- Purchase Order Helpers ---
+
+export async function getPurchaseOrders(page = 1, limit = 50) {
+  const offset = (page - 1) * limit;
+  const results = await query(
+    `SELECT po.*, v.name as vendor_name 
+     FROM purchase_orders po 
+     JOIN vendors v ON po.vendor_id = v.id 
+     WHERE po._deleted = 0 
+     ORDER BY po.created_at DESC 
+     LIMIT ? OFFSET ?`,
+    [limit, offset]
+  );
+  return { data: results, page, limit };
+}
+
+export async function getPurchaseOrderById(id: string) {
+  const po = await query(
+    `SELECT po.*, v.name as vendor_name 
+     FROM purchase_orders po 
+     JOIN vendors v ON po.vendor_id = v.id 
+     WHERE po.id = ? AND po._deleted = 0`,
+    [id]
+  );
+  
+  if (!po[0]) return null;
+
+  const items = await query(
+    `SELECT poi.*, m.name as medicine_name, m.base_unit, m.bulk_unit 
+     FROM purchase_order_items poi 
+     JOIN medicines m ON poi.medicine_id = m.id 
+     WHERE poi.po_id = ?`,
+    [id]
+  );
+
+  return { ...po[0], items };
+}
+
+export async function createPurchaseOrder(vendorId: string, notes: string, items: any[]) {
+  const poId = generateId();
+  const now = new Date().toISOString();
+  let totalAmount = 0;
+
+  for (const item of items) {
+    totalAmount += item.subtotal;
+  }
+
+  // Create PO
+  await insert("purchase_orders", {
+    id: poId,
+    vendor_id: vendorId,
+    status: "draft",
+    total_amount: totalAmount,
+    notes,
+    created_at: now
+  });
+
+  // Create PO Items
+  for (const item of items) {
+    await insert("purchase_order_items", {
+      id: generateId(),
+      po_id: poId,
+      medicine_id: item.medicine_id,
+      bulk_quantity: item.bulk_quantity,
+      units_per_bulk: item.units_per_bulk,
+      unit_cost: item.unit_cost,
+      subtotal: item.subtotal,
+      created_at: now
+    });
+  }
+
+  return poId;
+}
+
+export async function updatePurchaseOrderStatus(id: string, status: string) {
+  const updateData: any = { status };
+  if (status === "received") {
+    updateData.received_at = new Date().toISOString();
+  }
+  await update("purchase_orders", id, updateData);
+}
+
+export async function receivePurchaseOrder(id: string) {
+  const poData = await getPurchaseOrderById(id);
+  if (!poData || poData.status === "received") return;
+
+  const now = new Date().toISOString();
+
+  // 1. Update stock for each item
+  for (const item of poData.items) {
+    const totalBaseUnits = item.bulk_quantity * item.units_per_bulk;
+    
+    // Update medicine stock
+    await execute(
+      `UPDATE medicines SET stock_quantity = stock_quantity + ?, updated_at = ? WHERE id = ?`,
+      [totalBaseUnits, now, item.medicine_id]
+    );
+
+    // Create inventory record (batch)
+    await insert("inventory", {
+      medicine_id: item.medicine_id,
+      quantity: totalBaseUnits,
+      cost_price: item.unit_cost / item.units_per_bulk, // Calculated cost per base unit
+      selling_price: 0, // Will be set manually or via markup
+      batch_number: poData.id.split('-')[0].toUpperCase(), // Reference PO as batch prefix
+      expiry_date: null, // Should be provided during reception in a real app
+      created_at: now
+    });
+  }
+
+  // 2. Mark PO as received
+  await updatePurchaseOrderStatus(id, "received");
+  
+  await logAction("RECEIVE_PO", "purchase_orders", id, { total_items: poData.items.length });
 }

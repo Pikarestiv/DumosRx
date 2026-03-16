@@ -28,6 +28,7 @@ import {
   ShoppingBasket,
   Wallet,
   Truck,
+  ClipboardList,
 } from "lucide-react";
 
 interface DashboardLayoutProps {
@@ -53,6 +54,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       ? [{ name: "Prescriptions", href: "/prescriptions", icon: FileText }] 
       : []),
     { name: "Customers", href: "/customers", icon: Users },
+    { name: "Procurement", href: "/procurement", icon: ClipboardList },
     { name: "Expenses", href: "/expenses", icon: Wallet },
     { name: "Vendors", href: "/vendors", icon: Truck },
     { name: "Reports", href: "/reports", icon: BarChart3 },

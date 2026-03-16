@@ -10,16 +10,16 @@ import Image from "next/image";
 export default function RegisterPage() {
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-[#0a0a0a]">
-       {/* Background Layer */}
-       <div className="absolute inset-0 z-0">
+      {/* Background Layer */}
+      <div className="absolute inset-0 z-0">
         <Image
           src="/auth-bg.png"
           alt="Background"
           fill
-          className="object-cover opacity-10 filter blur-[4px]"
+          className="object-cover opacity-10 filter blur-xs"
           priority
         />
-        <div className="absolute inset-0 bg-gradient-to-tr from-accent/10 via-transparent to-primary/10 animate-pulse duration-[12s]" />
+        <div className="absolute inset-0 bg-linear-to-tr from-accent/10 via-transparent to-primary/10 animate-pulse duration-[12s]" />
       </div>
 
       <motion.div
@@ -28,17 +28,25 @@ export default function RegisterPage() {
         transition={{ duration: 0.8 }}
         className="w-full max-w-lg z-10"
       >
-        <Link href="/" className="inline-flex items-center text-sm text-gray-500 hover:text-white mb-8 transition-colors group">
+        <Link
+          href="/"
+          className="inline-flex items-center text-sm text-gray-500 hover:text-white mb-8 transition-colors group"
+        >
           <ArrowLeft className="h-4 w-4 mr-2 transform group-hover:-translate-x-1 transition-transform" />
           Back to Home
         </Link>
 
         <div className="bg-black/60 backdrop-blur-2xl border border-white/10 rounded-3xl p-8 shadow-2xl relative group">
-           <div className="flex flex-col items-center text-center space-y-2 mb-8">
-            <motion.div 
+          <div className="flex flex-col items-center text-center space-y-2 mb-8">
+            <motion.div
               initial={{ scale: 0, rotate: -20 }}
               animate={{ scale: 1, rotate: 0 }}
-              transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.2 }}
+              transition={{
+                type: "spring",
+                stiffness: 260,
+                damping: 20,
+                delay: 0.2,
+              }}
               className="h-16 w-16 bg-accent/20 rounded-2xl flex items-center justify-center mb-4 border border-accent/30"
             >
               <ShieldCheck className="h-8 w-8 text-accent" />
@@ -51,18 +59,30 @@ export default function RegisterPage() {
             </p>
           </div>
 
-          <Suspense fallback={<div className="text-white text-center">Opening secure channel...</div>}>
+          <Suspense
+            fallback={
+              <div className="text-white text-center">
+                Opening secure channel...
+              </div>
+            }
+          >
             <RegisterForm />
           </Suspense>
         </div>
 
         <div className="mt-8 text-center text-xs text-gray-500">
           By joining, you agree to our{" "}
-          <Link href="#" className="text-gray-400 underline hover:text-white transition-colors">
+          <Link
+            href="#"
+            className="text-gray-400 underline hover:text-white transition-colors"
+          >
             Terms
           </Link>{" "}
           and{" "}
-          <Link href="#" className="text-gray-400 underline hover:text-white transition-colors">
+          <Link
+            href="#"
+            className="text-gray-400 underline hover:text-white transition-colors"
+          >
             Privacy Policy
           </Link>
           .

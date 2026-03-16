@@ -38,7 +38,7 @@ import { Badge } from "@/components/ui/badge";
 import { useStore } from "@/lib/context/store-context";
 
 interface CreatePODialogProps {
-  onPOIconCreated: () => void;
+  onPOCreated: () => void;
 }
 
 interface Vendor {
@@ -55,7 +55,7 @@ interface Medicine {
   cost_price: number;
 }
 
-export function CreatePODialog({ onPOIconCreated }: CreatePODialogProps) {
+export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
   const { t, storeType } = useStore();
   const [open, setOpen] = useState(false);
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -140,7 +140,7 @@ export function CreatePODialog({ onPOIconCreated }: CreatePODialogProps) {
       await createPurchaseOrder(selectedVendorId, notes, items);
       toast.success("Purchase Order created successfully");
       setOpen(false);
-      onPOIconCreated();
+      onPOCreated();
       // Reset form
       setItems([]);
       setSelectedVendorId("");

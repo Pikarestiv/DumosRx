@@ -649,7 +649,7 @@ export function getDatabase(): Database | null {
 
 // --- Purchase Order Helpers ---
 
-interface PurchaseOrder {
+export interface PurchaseOrder {
   id: string;
   vendor_id: string;
   status: string;
@@ -660,7 +660,7 @@ interface PurchaseOrder {
   vendor_name: string;
 }
 
-interface PurchaseOrderItem {
+export interface PurchaseOrderItem {
   id: string;
   po_id: string;
   medicine_id: string;

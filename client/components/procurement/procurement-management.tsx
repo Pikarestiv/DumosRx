@@ -36,14 +36,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrency } from "@/lib/utils";
-import { getPurchaseOrders, receivePurchaseOrder } from "@/lib/db/local-database";
+import { getPurchaseOrders, receivePurchaseOrder, type PurchaseOrder } from "@/lib/db/local-database";
 import { toast } from "sonner";
 import { CreatePODialog } from "./create-po-dialog";
 import { useStore } from "@/lib/context/store-context";
 
 export function ProcurementManagement() {
   const { t, storeType } = useStore();
-  const [purchaseOrders, setPurchaseOrders] = useState<any[]>([]);
+  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("all");
@@ -58,7 +58,7 @@ export function ProcurementManagement() {
     setLoading(true);
     try {
       const { data } = await getPurchaseOrders(1, 100);
-      setPurchaseOrders(data);
+      setPurchaseOrders(data as PurchaseOrder[]);
     } catch (error) {
       console.error("Failed to fetch POs:", error);
       toast.error("Could not load purchase orders");
@@ -105,7 +105,7 @@ export function ProcurementManagement() {
           <h1 className="font-serif font-bold text-3xl text-foreground">Procurement</h1>
           <p className="text-muted-foreground">Manage vendor purchase orders and inventory replenishment</p>
         </div>
-        <CreatePODialog onPOIconCreated={fetchPurchaseOrders} />
+        <CreatePODialog onPOCreated={fetchPurchaseOrders} />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

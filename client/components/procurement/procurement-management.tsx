@@ -38,7 +38,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrency } from "@/lib/utils";
 import { getPurchaseOrders, receivePurchaseOrder, type PurchaseOrder } from "@/lib/db/local-database";
 import { toast } from "sonner";
-import { CreatePODialog } from "./create-po-dialog";
+import { CreatePODialog } from "@/components/procurement/create-po-dialog";
 import { useStore } from "@/lib/context/store-context";
 
 export function ProcurementManagement() {

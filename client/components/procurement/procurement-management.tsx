@@ -2,14 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { 
-  Plus, 
   Search, 
   FileText, 
   CheckCircle2, 
   Clock, 
   MoreHorizontal,
-  ChevronRight,
-  Truck,
   ArrowRight,
   Pill,
   Package
@@ -34,7 +31,7 @@ import {
   DropdownMenuSeparator, 
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrency } from "@/lib/utils";
 import { getPurchaseOrders, receivePurchaseOrder, type PurchaseOrder } from "@/lib/db/local-database";
 import { toast } from "sonner";
@@ -42,13 +39,11 @@ import { CreatePODialog } from "@/components/procurement/create-po-dialog";
 import { useStore } from "@/lib/context/store-context";
 
 export function ProcurementManagement() {
-  const { t, storeType } = useStore();
+  const { storeType } = useStore();
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("all");
-
-  const ProductIcon = storeType === 'pharmacy' ? Pill : Package;
 
   useEffect(() => {
     fetchPurchaseOrders();

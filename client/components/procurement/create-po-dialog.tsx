@@ -6,8 +6,6 @@ import {
   Trash2, 
   ShoppingCart, 
   Package, 
-  Search,
-  ChevronRight,
   Info,
   Pill
 } from "lucide-react";
@@ -16,7 +14,6 @@ import {
   Dialog, 
   DialogContent, 
   DialogDescription, 
-  DialogFooter, 
   DialogHeader, 
   DialogTitle, 
   DialogTrigger 

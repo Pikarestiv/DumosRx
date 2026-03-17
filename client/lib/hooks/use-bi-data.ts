@@ -3,14 +3,19 @@
 import { useState, useMemo } from "react";
 import { useLocalData } from "@/lib/db/hooks/useLocalData";
 
-export function useBIData() {
-  const [timeRange, setTimeRange] = useState("6months");
+export function useBIData(externalTimeRange?: string) {
+  const [internalTimeRange, setInternalTimeRange] = useState("6months");
+  const timeRange = externalTimeRange || internalTimeRange;
 
   const dateFilter = useMemo(() => {
     const now = new Date();
     const filterDate = new Date();
     
-    if (timeRange === "1month") filterDate.setMonth(now.getMonth() - 1);
+    if (timeRange === "7d") filterDate.setDate(now.getDate() - 7);
+    else if (timeRange === "30d") filterDate.setDate(now.getDate() - 30);
+    else if (timeRange === "90d") filterDate.setMonth(now.getMonth() - 3);
+    else if (timeRange === "1y") filterDate.setFullYear(now.getFullYear() - 1);
+    else if (timeRange === "1month") filterDate.setMonth(now.getMonth() - 1);
     else if (timeRange === "3months") filterDate.setMonth(now.getMonth() - 3);
     else if (timeRange === "6months") filterDate.setMonth(now.getMonth() - 6);
     else if (timeRange === "1year") filterDate.setFullYear(now.getFullYear() - 1);
@@ -139,7 +144,6 @@ export function useBIData() {
 
   return {
     timeRange,
-    setTimeRange,
     totalRevenue,
     totalCogs,
     totalExpenses,
@@ -151,5 +155,7 @@ export function useBIData() {
     monthlySalesData,
     topSellingMedicines,
     formattedCategoryData,
+    salesByCategory: categoryDistribution,
+    setInternalTimeRange,
   };
 }

@@ -228,6 +228,10 @@ CREATE TABLE IF NOT EXISTS store_profile (
   currency TEXT DEFAULT 'NGN',
   vat_percentage REAL DEFAULT 7.5,
   is_initialized INTEGER DEFAULT 0,
+  theme TEXT DEFAULT 'default',
+  license_token TEXT,
+  subscription_tier TEXT DEFAULT 'free',
+  last_monotonic_time TEXT,
   updated_at TEXT,
   _version INTEGER DEFAULT 1,
   _synced INTEGER DEFAULT 0

@@ -13,6 +13,7 @@ interface StoreProfile {
   is_initialized: number;
   currency: string;
   vat_percentage: number;
+  theme: string;
   address?: string;
   phone?: string;
   email?: string;
@@ -23,9 +24,11 @@ interface StoreContextType {
   storeProfile: StoreProfile | null;
   loading: boolean;
   storeType: StoreType;
+  theme: string;
   isInitialized: boolean;
   vatPercentage: number;
   updateStoreProfile: (data: Partial<StoreProfile>) => void;
+  setTheme: (theme: string) => void;
   t: (key: string) => string;
 }
 
@@ -69,8 +72,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const storeProfile = profiles[0] || null;
   const storeType = storeProfile?.store_type || "pharmacy";
+  const theme = storeProfile?.theme || "default";
   const isInitialized = storeProfile?.is_initialized === 1;
   const vatPercentage = storeProfile?.vat_percentage ?? 7.5;
+
+  // Apply theme class to root
+  React.useEffect(() => {
+    if (typeof document !== "undefined") {
+      const root = document.documentElement;
+      // Remove all previous theme classes (they start with theme-)
+      const classes = Array.from(root.classList).filter(c => c.startsWith('theme-'));
+      classes.forEach(c => root.classList.remove(c));
+      
+      if (theme !== 'default') {
+        root.classList.add(`theme-${theme}`);
+      }
+    }
+  }, [theme]);
 
   const updateStoreProfile = async (data: Partial<StoreProfile>) => {
     if (!storeProfile) {
@@ -81,12 +99,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         is_initialized: 0,
         vat_percentage: 7.5,
         currency: "NGN",
+        theme: "default",
         ...data,
       });
     } else {
       await update("store_profile", storeProfile.id, data);
     }
     await refetch();
+  };
+
+  const setTheme = (newTheme: string) => {
+    updateStoreProfile({ theme: newTheme });
   };
 
   const t = (key: string): string => {
@@ -99,9 +122,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         storeProfile,
         loading,
         storeType,
+        theme,
         isInitialized,
         vatPercentage,
         updateStoreProfile,
+        setTheme,
         t,
       }}
     >

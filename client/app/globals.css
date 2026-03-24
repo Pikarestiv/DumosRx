@@ -76,6 +76,33 @@
   --sidebar-ring: oklch(0.439 0 0);
 }
 
+.theme-emerald {
+  --accent: oklch(0.627 0.194 149.214); /* Emerald Green */
+  --ring: oklch(0.627 0.194 149.214 / 0.5);
+}
+
+.theme-midnight {
+  --accent: oklch(0.696 0.151 77.212); /* Golden/Amber */
+  --ring: oklch(0.696 0.151 77.212 / 0.5);
+  --primary: oklch(0.145 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+}
+
+.theme-ruby {
+  --accent: oklch(0.577 0.245 27.325); /* Ruby Red */
+  --ring: oklch(0.577 0.245 27.325 / 0.5);
+}
+
+.theme-slate {
+  --accent: oklch(0.439 0 0); /* Slate Gray */
+  --ring: oklch(0.439 0 0 / 0.5);
+}
+
+.theme-ocean {
+  --accent: oklch(0.588 0.158 241.966); /* Ocean Blue */
+  --ring: oklch(0.588 0.158 241.966 / 0.5);
+}
+
 @theme inline {
   /* Updated font family mappings for professional typography */
   --font-sans: var(--font-open-sans);

@@ -1,23 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -25,7 +9,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-
 import { toast } from "sonner";
 import {
   Tabs,
@@ -34,28 +17,12 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Search,
-  ShoppingCart,
-  Plus,
-  Minus,
-  Trash2,
   Receipt,
   User,
-  Scan,
   Zap,
   LogOut,
-  RotateCcw,
 } from "lucide-react";
 import { useLocalData } from "@/lib/db/hooks/useLocalData";
-import { formatCurrency } from "@/lib/utils";
 
 interface Medicine {
   id: string;
@@ -67,7 +34,6 @@ interface Medicine {
   stock: number;
   barcode?: string;
 }
-
 
 interface Customer {
   id: string;
@@ -89,6 +55,10 @@ import { POSProductList } from "./pos-product-list";
 import { POSPaymentDialog } from "./pos-payment-dialog";
 import { RetailSpeedPOS } from "./retail-speed-pos";
 import { ReturnDialog } from "./return-dialog";
+import { POSSearchCard } from "./pos-search-card";
+import { POSTransactionHistory } from "./pos-transaction-history";
+import { POSCustomerSelector } from "./pos-customer-selector";
+import { POSCart } from "./pos-cart";
 
 export function POSSystem() {
   const { t, storeProfile, vatPercentage } = useStore();
@@ -116,7 +86,7 @@ export function POSSystem() {
         generic_name: m.generic_name || "",
         brand: m.brand || "",
         strength: m.strength || "",
-        unit_price: m.selling_price || 0, // Note: using selling_price as unit_price
+        unit_price: m.selling_price || 0,
         stock: m.stock_quantity || 0,
         barcode: m.barcode || "",
       }),
@@ -180,32 +150,29 @@ export function POSSystem() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Focus Search: Alt+S or F1
       if (((e.altKey || e.ctrlKey) && e.key === "s") || e.key === "F1") {
         e.preventDefault();
         searchInputRef.current?.focus();
       }
       
-      // Fast Payment Methods
       if (cart.length > 0) {
-        if (e.key === "F2") { // Cash
+        if (e.key === "F2") {
           e.preventDefault();
           setPaymentMethod("cash");
           setShowPaymentDialog(true);
         }
-        if (e.key === "F3") { // Card
+        if (e.key === "F3") {
           e.preventDefault();
           setPaymentMethod("card");
           setShowPaymentDialog(true);
         }
-        if (e.key === "F4" && selectedCustomer) { // Credit
+        if (e.key === "F4" && selectedCustomer) {
           e.preventDefault();
           setPaymentMethod("credit");
           setShowPaymentDialog(true);
         }
       }
 
-      // Clear/Close
       if (e.key === "Escape") {
         if (showPaymentDialog) setShowPaymentDialog(false);
         else if (showReceiptDialog) setShowReceiptDialog(false);
@@ -229,7 +196,6 @@ export function POSSystem() {
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && searchTerm.trim()) {
-      // Check for exact barcode match first
       const barcodeMatch = medicines.find(
         (m) => m.barcode?.toLowerCase() === searchTerm.toLowerCase().trim()
       );
@@ -302,315 +268,78 @@ export function POSSystem() {
           removeFromCart={removeFromCart}
           clearCart={clearCart}
           selectedCustomer={selectedCustomer}
-          setSelectedCustomer={setSelectedCustomer}
+          setSelectedCustomer={setSelectedCustomer as any}
           handlePayment={handlePayment}
           setPaymentMethod={setPaymentMethod}
           setShowPaymentDialog={setShowPaymentDialog}
         />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Product Search and Selection */}
-        <div className="lg:col-span-2 space-y-4">
-          <Tabs defaultValue="products" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-4">
-              <TabsTrigger value="products">Products</TabsTrigger>
-              <TabsTrigger value="history">Recent Transactions</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="products" className="space-y-4">
-              <Card>
-            <CardHeader>
-              <CardTitle className="font-serif font-semibold flex items-center gap-2">
-                <Search className="h-5 w-5" />
-                {t('product')} Search
-              </CardTitle>
-              <CardDescription>
-                Search by name, brand, or scan barcode
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex gap-2">
-                <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    ref={searchInputRef}
-                    placeholder={`Search ${t('products').toLowerCase()} or scan barcode...`}
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    onKeyDown={handleKeyPress}
-                    className="pl-10"
-                  />
-                </div>
-                <Button
-                  variant="outline"
-                  className="flex items-center gap-2 bg-transparent cursor-pointer"
-                  onClick={() => toast.info("Camera scanner coming soon! Keyboard scanners work in the search box.")}
-                >
-                  <Scan className="h-4 w-4" />
-                  Scan
-                </Button>
-                {completedTransaction && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
-                    onClick={() => setShowReceiptDialog(true)}
-                  >
-                    <Receipt className="h-4 w-4" />
-                    Last Receipt
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+          <div className="lg:col-span-2 space-y-4">
+            <Tabs defaultValue="products" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 mb-4">
+                <TabsTrigger value="products">Products</TabsTrigger>
+                <TabsTrigger value="history">Recent Transactions</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="products" className="space-y-4">
+                <POSSearchCard 
+                  searchTerm={searchTerm}
+                  onSearchChange={setSearchTerm}
+                  onKeyDown={handleKeyPress}
+                  searchInputRef={searchInputRef}
+                  completedTransaction={completedTransaction}
+                  setShowReceiptDialog={setShowReceiptDialog}
+                  productTerm={t('product')}
+                />
 
-          <POSProductList
-            loadingMedicines={loadingMedicines}
-            filteredMedicines={filteredMedicines}
-            medicinesLength={medicines.length}
-            addToCart={addToCart}
-            productTerm={t('product')}
-            currencyCode={storeProfile?.currency}
-          />
-        </TabsContent>
+                <POSProductList
+                  loadingMedicines={loadingMedicines}
+                  filteredMedicines={filteredMedicines}
+                  medicinesLength={medicines.length}
+                  addToCart={addToCart}
+                  productTerm={t('product')}
+                  currencyCode={storeProfile?.currency}
+                />
+              </TabsContent>
 
-            <TabsContent value="history">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="font-serif font-semibold flex items-center gap-2">
-                    <Receipt className="h-5 w-5" />
-                    Sales History
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="border rounded-lg overflow-hidden">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Trans #</TableHead>
-                          <TableHead>Customer</TableHead>
-                          <TableHead className="text-right">Total</TableHead>
-                          <TableHead className="text-right">Action</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {recentSales?.length === 0 ? (
-                          <TableRow>
-                            <TableCell colSpan={4} className="text-center py-4 text-muted-foreground">
-                              No recent sales
-                            </TableCell>
-                          </TableRow>
-                        ) : (
-                          recentSales?.map((sale: any) => (
-                            <TableRow key={sale.id}>
-                              <TableCell className="font-mono text-xs">{sale.transaction_number}</TableCell>
-                              <TableCell>{sale.customer_name || 'Walk-in'}</TableCell>
-                              <TableCell className="text-right font-bold">{formatCurrency(sale.total_amount, storeProfile?.currency)}</TableCell>
-                              <TableCell className="text-right">
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm" 
-                                  className="text-accent hover:text-accent hover:bg-accent/10"
-                                  onClick={() => {
-                                    setSaleToReturn(sale);
-                                    setShowReturnDialog(true);
-                                  }}
-                                >
-                                  <RotateCcw className="h-3 w-3 mr-1" />
-                                  Return
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          ))
-                        )}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
-        </div>
-
-        {/* Shopping Cart and Checkout */}
-        <div className="space-y-4">
-          {/* Customer Selection */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="font-serif font-semibold flex items-center gap-2">
-                <User className="h-5 w-5" />
-                Customer
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {selectedCustomer ? (
-                <div className="p-3 bg-muted rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">
-                        {selectedCustomer.first_name}{" "}
-                        {selectedCustomer.last_name}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {selectedCustomer.phone}
-                      </p>
-                      <p className="text-xs text-accent">
-                        {selectedCustomer.loyalty_points} loyalty points
-                      </p>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setSelectedCustomer(null)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <Select
-                  onValueChange={(value) => {
-                    const customer = customers.find((c) => c.id === value);
-                    if (customer) setSelectedCustomer(customer);
+              <TabsContent value="history">
+                <POSTransactionHistory 
+                  recentSales={recentSales}
+                  onReturnClick={(sale) => {
+                    setSaleToReturn(sale);
+                    setShowReturnDialog(true);
                   }}
-                >
-                  <SelectTrigger>
-                    <SelectValue
-                      placeholder={
-                        loadingCustomers
-                          ? "Loading..."
-                          : "Select customer (optional)"
-                      }
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {customers.map((customer) => (
-                      <SelectItem key={customer.id} value={customer.id}>
-                        {customer.first_name} {customer.last_name} -{" "}
-                        {customer.phone}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </CardContent>
-          </Card>
+                  currencyCode={storeProfile?.currency}
+                />
+              </TabsContent>
+            </Tabs>
+          </div>
 
-          {/* Shopping Cart */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="font-serif font-semibold flex items-center gap-2">
-                <ShoppingCart className="h-5 w-5" />
-                Shopping Cart ({cart.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3 max-h-64 overflow-y-auto">
-                {cart.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <ShoppingCart className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p>Cart is empty</p>
-                    <p className="text-xs">Click on products to add them</p>
-                  </div>
-                ) : (
-                  cart.map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex items-center gap-2 p-2 border border-border rounded"
-                    >
-                      <div className="flex-1">
-                        <p className="font-medium text-sm">{item.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatCurrency(item.unit_price)} each
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() =>
-                            updateQuantity(item.id, item.quantity - 1)
-                          }
-                        >
-                          <Minus className="h-3 w-3" />
-                        </Button>
-                        <span className="w-8 text-center text-sm">
-                          {item.quantity}
-                        </span>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() =>
-                            updateQuantity(item.id, item.quantity + 1)
-                          }
-                        >
-                          <Plus className="h-3 w-3" />
-                        </Button>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-medium text-sm">
-                          {formatCurrency(item.subtotal)}
-                        </p>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => removeFromCart(item.id)}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
+          <div className="space-y-4">
+            <POSCustomerSelector 
+              selectedCustomer={selectedCustomer}
+              customers={customers}
+              loadingCustomers={loadingCustomers}
+              onSelectCustomer={setSelectedCustomer as any}
+            />
 
-              {cart.length > 0 && (
-                <>
-                  <Separator className="my-4" />
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>Subtotal:</span>
-                      <span>{formatCurrency(subtotal, storeProfile?.currency)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span>VAT ({vatPercentage}%):</span>
-                      <span>{formatCurrency(tax, storeProfile?.currency)}</span>
-                    </div>
-                    {discount > 0 && (
-                      <div className="flex justify-between text-sm text-accent">
-                        <span>Loyalty Discount:</span>
-                        <span>-{formatCurrency(discount, storeProfile?.currency)}</span>
-                      </div>
-                    )}
-                    <Separator />
-                    <div className="flex justify-between font-bold">
-                      <span>Total:</span>
-                      <span>{formatCurrency(total, storeProfile?.currency)}</span>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2 mt-4">
-                    <Button
-                      variant="outline"
-                      onClick={clearCart}
-                      className="flex-1 bg-transparent"
-                    >
-                      Clear Cart
-                    </Button>
-                    <Button
-                      onClick={() => setShowPaymentDialog(true)}
-                      className="flex-1 bg-accent hover:bg-accent/90"
-                    >
-                      Checkout
-                    </Button>
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
+            <POSCart 
+              cart={cart}
+              subtotal={subtotal}
+              tax={tax}
+              total={total}
+              discount={discount}
+              vatPercentage={vatPercentage}
+              currencyCode={storeProfile?.currency}
+              updateQuantity={updateQuantity}
+              removeFromCart={removeFromCart}
+              clearCart={clearCart}
+              onCheckout={() => setShowPaymentDialog(true)}
+            />
+          </div>
         </div>
-      </div>
-    )}
+      )}
 
       <POSPaymentDialog
         showPaymentDialog={showPaymentDialog}
@@ -626,7 +355,6 @@ export function POSSystem() {
         currencyCode={storeProfile?.currency}
       />
 
-      {/* Receipt Dialog */}
       <Dialog open={showReceiptDialog} onOpenChange={setShowReceiptDialog}>
         <DialogContent className="max-w-[450px] p-0 overflow-hidden">
           <DialogHeader className="p-6 bg-muted/50 border-b">

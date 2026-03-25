@@ -19,13 +19,10 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Calendar, AlertCircle, Clock, Package } from "lucide-react";
+import { Search } from "lucide-react";
 import { useLocalData } from "@/lib/db/hooks/useLocalData";
-import { formatCurrency } from "@/lib/utils";
-import { useStore } from "@/lib/context/store-context";
 
 export function BatchTracking() {
-  const { storeProfile } = useStore();
   const [searchTerm, setSearchTerm] = useState("");
 
   const { data: batches, loading } = useLocalData<any>(

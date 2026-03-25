@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useRef, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -34,8 +34,6 @@ interface RetailSpeedPOSProps {
   removeFromCart: (id: string) => void;
   clearCart: () => void;
   selectedCustomer: any;
-  setSelectedCustomer: (customer: any) => void;
-  handlePayment: () => void;
   setPaymentMethod: (method: any) => void;
   setShowPaymentDialog: (show: boolean) => void;
 }
@@ -45,7 +43,6 @@ export function RetailSpeedPOS({
   subtotal,
   tax,
   total,
-  discount,
   vatPercentage,
   currencyCode,
   searchTerm,
@@ -56,8 +53,6 @@ export function RetailSpeedPOS({
   removeFromCart,
   clearCart,
   selectedCustomer,
-  setSelectedCustomer,
-  handlePayment,
   setPaymentMethod,
   setShowPaymentDialog,
 }: RetailSpeedPOSProps) {

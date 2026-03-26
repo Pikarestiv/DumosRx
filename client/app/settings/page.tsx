@@ -45,8 +45,7 @@ const colorThemes = [
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
-  const { storeProfile, storeType, updateStoreProfile } = useStore();
-  const [selectedColorTheme, setSelectedColorTheme] = useState(0);
+  const { storeProfile, storeType, updateStoreProfile, theme: activeTheme, setTheme: setAppTheme } = useStore();
 
   // Local state for profile form
   const [localName, setLocalName] = useState(storeProfile?.name || "");
@@ -56,13 +55,14 @@ export default function SettingsPage() {
   const [localCurrency, setLocalCurrency] = useState(storeProfile?.currency || "NGN");
   const [localVat, setLocalVat] = useState(storeProfile?.vat_percentage?.toString() || "7.5");
 
-  const applyColorTheme = (themeIndex: number) => {
-    const colorTheme = colorThemes[themeIndex];
-    const root = document.documentElement;
-    root.style.setProperty("--primary", colorTheme.primary);
-    root.style.setProperty("--accent", colorTheme.accent);
-    setSelectedColorTheme(themeIndex);
-  };
+  const themes = [
+    { id: "default", name: "Dumos Blue", color: "bg-blue-600" },
+    { id: "ocean", name: "Ocean Breeze", color: "bg-cyan-500" },
+    { id: "emerald", name: "Emerald Health", color: "bg-emerald-500" },
+    { id: "ruby", name: "Ruby Retail", color: "bg-rose-600" },
+    { id: "midnight", name: "Midnight Gold", color: "bg-slate-900" },
+    { id: "slate", name: "Professional Slate", color: "bg-slate-500" },
+  ];
 
   const handleSaveProfile = () => {
     updateStoreProfile({
@@ -174,28 +174,19 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="space-y-3">
-                  <Label>Color Palette</Label>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    {colorThemes.map((t, index) => (
+                  <Label>Color Themes</Label>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {themes.map((t) => (
                       <button
-                        key={t.name}
-                        onClick={() => applyColorTheme(index)}
-                        className={`flex items-center gap-3 p-3 rounded-lg border transition-all cursor-pointer ${
-                          selectedColorTheme === index
+                        key={t.id}
+                        onClick={() => setAppTheme(t.id)}
+                        className={`flex items-center gap-3 p-4 rounded-lg border-2 transition-all cursor-pointer ${
+                          activeTheme === t.id
                             ? "border-primary bg-primary/5"
                             : "border-border hover:bg-muted"
                         }`}
                       >
-                        <div className="flex gap-1">
-                          <div
-                            className="w-4 h-4 rounded-full"
-                            style={{ backgroundColor: t.primary }}
-                          />
-                          <div
-                            className="w-4 h-4 rounded-full"
-                            style={{ backgroundColor: t.accent }}
-                          />
-                        </div>
+                        <div className={`w-6 h-6 rounded-full ${t.color} border shadow-sm`} />
                         <span className="text-sm font-medium">{t.name}</span>
                       </button>
                     ))}
@@ -203,6 +194,7 @@ export default function SettingsPage() {
                 </div>
               </CardContent>
             </Card>
+
 
             <Card>
               <CardHeader>
@@ -333,6 +325,49 @@ export default function SettingsPage() {
                 <Button onClick={handleSaveProfile} className="cursor-pointer">
                   <Save className="w-4 h-4 mr-2" />
                   Save Changes
+                </Button>
+              </CardFooter>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Receipt Customization</CardTitle>
+                <CardDescription>
+                  Configure how your printed receipts look.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="receipt-header">Receipt Header (Optional)</Label>
+                  <Input id="receipt-header" placeholder="e.g. Thanks for your patronage!" />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="receipt-footer">Receipt Footer</Label>
+                  <Input id="receipt-footer" placeholder="e.g. No refund after 24 hours" />
+                </div>
+                <div className="flex items-center justify-between rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <Label className="text-base">Show Logo on Receipt</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Display store logo at the top
+                    </p>
+                  </div>
+                  <Switch />
+                </div>
+                <div className="flex items-center justify-between rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <Label className="text-base">Show Phone & Address</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Include contact details on receipt
+                    </p>
+                  </div>
+                  <Switch defaultChecked />
+                </div>
+              </CardContent>
+              <CardFooter className="border-t px-6 py-4">
+                <Button variant="outline" className="cursor-pointer">
+                  <Save className="w-4 h-4 mr-2" />
+                  Save Receipt Settings
                 </Button>
               </CardFooter>
             </Card>

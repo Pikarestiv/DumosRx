@@ -315,4 +315,17 @@ CREATE TABLE IF NOT EXISTS suppliers (
   _version INTEGER DEFAULT 1,
   _synced INTEGER DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS stock_audits (
+  id TEXT PRIMARY KEY,
+  medicine_id TEXT NOT NULL,
+  expected_quantity INTEGER NOT NULL,
+  actual_quantity INTEGER NOT NULL,
+  difference INTEGER NOT NULL,
+  notes TEXT,
+  user_id TEXT NOT NULL,
+  status TEXT DEFAULT 'pending',
+  created_at TEXT,
+  reconciled_at TEXT,
+  _synced INTEGER DEFAULT 0
+);
 `;

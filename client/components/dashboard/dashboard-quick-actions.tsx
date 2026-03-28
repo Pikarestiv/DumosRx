@@ -5,7 +5,8 @@ import {
   Package, 
   ShoppingCart, 
   AlertTriangle, 
-  TrendingUp 
+  TrendingUp,
+  XCircle 
 } from "lucide-react";
 import { 
   Card, 
@@ -18,11 +19,13 @@ import {
 interface DashboardQuickActionsProps {
   storeTerm: string;
   productTerm: string;
+  onCloseRegister?: () => void;
 }
 
 export function DashboardQuickActions({
   storeTerm,
-  productTerm
+  productTerm,
+  onCloseRegister
 }: DashboardQuickActionsProps) {
   return (
     <Card className="border-border">
@@ -62,6 +65,13 @@ export function DashboardQuickActions({
             <TrendingUp className="h-6 w-6 mb-2" />
             <span className="text-sm font-medium">View Reports</span>
           </Link>
+          <button
+            onClick={onCloseRegister}
+            className="p-4 bg-destructive/10 text-destructive rounded-lg hover:bg-destructive/20 transition-colors flex flex-col items-center justify-center text-center cursor-pointer border border-destructive/20"
+          >
+            <XCircle className="h-6 w-6 mb-2" />
+            <span className="text-sm font-medium">Close Register</span>
+          </button>
         </div>
       </CardContent>
     </Card>

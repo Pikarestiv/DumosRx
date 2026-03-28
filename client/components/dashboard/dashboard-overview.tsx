@@ -17,6 +17,8 @@ import { useStore } from "@/lib/context/store-context";
 import { DashboardStats } from "./dashboard-stats";
 import { DashboardRecentActivity } from "./dashboard-recent-activity";
 import { DashboardQuickActions } from "./dashboard-quick-actions";
+import { EODSummaryDialog } from "./eod-summary-dialog";
+import { useState } from "react";
 
 interface ActivityItem {
   id: string;
@@ -26,14 +28,32 @@ interface ActivityItem {
 }
 
 export function DashboardOverview() {
-  const { t } = useStore();
+  const { t, storeProfile } = useStore();
+  const [showEOD, setShowEOD] = useState(false);
   
   const { data: medicines } = useLocalData<{ count: number }>(
     'SELECT COUNT(*) as count FROM medicines WHERE is_active = 1 AND _deleted = 0',
   );
 
-  const { data: salesToday } = useLocalData<{ total: number }>(
-    "SELECT SUM(total) as total FROM sales WHERE date(created_at) = date('now') AND _deleted = 0",
+  const { data: salesToday } = useLocalData<{ total: number; count: number; cash: number; card: number; debt: number }>(
+    `SELECT 
+      SUM(total_amount) as total, 
+      COUNT(*) as count,
+      SUM(CASE WHEN payment_method = 'cash' THEN total_amount ELSE 0 END) as cash,
+      SUM(CASE WHEN payment_method = 'card' THEN total_amount ELSE 0 END) as card,
+      SUM(CASE WHEN payment_method = 'credit' THEN total_amount ELSE 0 END) as debt
+     FROM sales 
+     WHERE date(created_at) = date('now') AND _deleted = 0`,
+  );
+
+  const { data: topStaff } = useLocalData<{ name: string; total: number }>(
+    `SELECT u.name, SUM(s.total_amount) as total 
+     FROM sales s 
+     JOIN users u ON s.user_id = u.id 
+     WHERE date(s.created_at) = date('now') AND s._deleted = 0 
+     GROUP BY u.name 
+     ORDER BY total DESC 
+     LIMIT 1`
   );
 
   const { data: expiring } = useLocalData<{ count: number }>(
@@ -58,6 +78,15 @@ export function DashboardOverview() {
     lowStockCount: lowStock[0]?.count || 0,
   };
 
+  const eodSummary = {
+    totalSales: salesToday[0]?.total || 0,
+    cashSales: salesToday[0]?.cash || 0,
+    cardSales: salesToday[0]?.card || 0,
+    debtSales: salesToday[0]?.debt || 0,
+    transactionCount: salesToday[0]?.count || 0,
+    topStaff: topStaff[0] || { name: "No sales yet", total: 0 }
+  };
+
   const activities: ActivityItem[] = recentSales.map((sale: any) => ({
     id: sale.id,
     type: "sale",
@@ -68,7 +97,7 @@ export function DashboardOverview() {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-NG", {
       style: "currency",
-      currency: "NGN",
+      currency: storeProfile?.currency || "NGN",
       minimumFractionDigits: 0,
     }).format(amount);
   };
@@ -165,8 +194,16 @@ export function DashboardOverview() {
         <DashboardQuickActions 
           storeTerm={t('store')}
           productTerm={t('product')}
+          onCloseRegister={() => setShowEOD(true)}
         />
       </div>
+
+      <EODSummaryDialog 
+        open={showEOD} 
+        onOpenChange={setShowEOD} 
+        summary={eodSummary}
+        currencyCode={storeProfile?.currency}
+      />
     </div>
   );
 }

@@ -12,6 +12,7 @@ import { apiClient } from "@/lib/api/client";
 import { InventoryMetrics } from "./inventory-metrics";
 import { StockStatusList } from "./stock-status-list";
 import { InventoryQuickActions } from "./inventory-quick-actions";
+import { BarcodePrintDialog } from "./barcode-print-dialog";
 
 interface StockItem {
   id: string;
@@ -32,6 +33,7 @@ export function StockOverview() {
   const [inventoryValue, setInventoryValue] = useState(0);
   const [lowStockCount, setLowStockCount] = useState(0);
   const [expiringCount, setExpiringCount] = useState(0);
+  const [selectedMedicine, setSelectedMedicine] = useState<any>(null);
 
   useEffect(() => {
     async function fetchData() {
@@ -175,6 +177,11 @@ export function StockOverview() {
           stockData={stockData}
           formatCurrency={formatCurrency}
           getStatusBadge={getStatusBadge}
+          onPrintBarcode={(item) => setSelectedMedicine({
+            id: item.id,
+            name: item.medicine_name,
+            unit_price: item.unit_price
+          })}
         />
 
         <InventoryQuickActions 
@@ -182,6 +189,12 @@ export function StockOverview() {
           lowStockCount={lowStockCount}
         />
       </div>
+
+      <BarcodePrintDialog 
+        isOpen={!!selectedMedicine}
+        onClose={() => setSelectedMedicine(null)}
+        medicine={selectedMedicine}
+      />
     </div>
   );
 }

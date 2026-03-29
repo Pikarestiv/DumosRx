@@ -8,7 +8,8 @@ import {
   CardTitle 
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { PackageX } from "lucide-react";
+import { PackageX, Barcode as BarcodeIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface StockItem {
   id: string;
@@ -24,6 +25,7 @@ interface StockStatusListProps {
   stockData: StockItem[];
   formatCurrency: (amount: number) => string;
   getStatusBadge: (status: StockItem["status"]) => React.ReactNode;
+  onPrintBarcode?: (item: StockItem) => void;
 }
 
 export function StockStatusList({
@@ -65,6 +67,14 @@ export function StockStatusList({
                       {formatCurrency(item.quantity * item.unit_price)}
                     </p>
                   </div>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-8 w-8 text-muted-foreground hover:text-primary"
+                    onClick={() => onPrintBarcode?.(item)}
+                  >
+                    <BarcodeIcon className="h-4 w-4" />
+                  </Button>
                 </div>
                 <div className="space-y-1">
                   <Progress

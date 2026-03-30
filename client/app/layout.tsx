@@ -10,6 +10,7 @@ import { DatabaseProvider } from "@/lib/db/DatabaseProvider";
 import { StoreProvider } from "@/lib/context/store-context";
 import { AuthProvider } from "@/lib/context/auth-context";
 import { QuickSetupWizard } from "@/components/setup/quick-setup-wizard";
+import { LicenseGuard } from "@/components/auth/license-guard";
 import { DevSeedButton } from "@/components/dev/seed-button";
 import { APP_NAME } from "@/lib/constants";
 
@@ -51,7 +52,9 @@ export default function RootLayout({
               <AuthProvider>
                 <AuthListener />
                 <QuickSetupWizard />
-                {children}
+                <LicenseGuard>
+                  {children}
+                </LicenseGuard>
                 <Toaster />
                 {/* Dev utility: remove in production */}
                 <DevSeedButton />

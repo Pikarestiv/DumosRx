@@ -268,8 +268,6 @@ export function POSSystem() {
           removeFromCart={removeFromCart}
           clearCart={clearCart}
           selectedCustomer={selectedCustomer}
-          setSelectedCustomer={setSelectedCustomer as any}
-          handlePayment={handlePayment}
           setPaymentMethod={setPaymentMethod}
           setShowPaymentDialog={setShowPaymentDialog}
         />

@@ -6,7 +6,8 @@ import {
   ShoppingCart, 
   AlertTriangle, 
   TrendingUp,
-  XCircle 
+  XCircle,
+  FileBarChart
 } from "lucide-react";
 import { 
   Card, 
@@ -15,6 +16,8 @@ import {
   CardHeader, 
   CardTitle 
 } from "@/components/ui/card";
+import { useState } from "react";
+import { PandLReportDialog } from "./p-and-l-report-dialog";
 
 interface DashboardQuickActionsProps {
   storeTerm: string;
@@ -27,6 +30,8 @@ export function DashboardQuickActions({
   productTerm,
   onCloseRegister
 }: DashboardQuickActionsProps) {
+  const [isReportOpen, setIsReportOpen] = useState(false);
+
   return (
     <Card className="border-border">
       <CardHeader>
@@ -58,13 +63,13 @@ export function DashboardQuickActions({
             <AlertTriangle className="h-6 w-6 mb-2" />
             <span className="text-sm font-medium">Check Expiry</span>
           </Link>
-          <Link
-            href="/reports"
+          <button
+            onClick={() => setIsReportOpen(true)}
             className="p-4 bg-muted text-muted-foreground rounded-lg hover:bg-muted/80 transition-colors flex flex-col items-center justify-center text-center cursor-pointer"
           >
-            <TrendingUp className="h-6 w-6 mb-2" />
-            <span className="text-sm font-medium">View Reports</span>
-          </Link>
+            <FileBarChart className="h-6 w-6 mb-2 text-primary" />
+            <span className="text-sm font-medium">Generate P&L</span>
+          </button>
           <button
             onClick={onCloseRegister}
             className="p-4 bg-destructive/10 text-destructive rounded-lg hover:bg-destructive/20 transition-colors flex flex-col items-center justify-center text-center cursor-pointer border border-destructive/20"
@@ -73,6 +78,11 @@ export function DashboardQuickActions({
             <span className="text-sm font-medium">Close Register</span>
           </button>
         </div>
+
+        <PandLReportDialog 
+            isOpen={isReportOpen}
+            onClose={() => setIsReportOpen(false)}
+        />
       </CardContent>
     </Card>
   );

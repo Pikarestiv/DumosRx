@@ -21,6 +21,8 @@ import {
   User,
   Zap,
   LogOut,
+  PauseCircle,
+  Clock,
 } from "lucide-react";
 import { useLocalData } from "@/lib/db/hooks/useLocalData";
 
@@ -59,6 +61,8 @@ import { POSSearchCard } from "./pos-search-card";
 import { POSTransactionHistory } from "./pos-transaction-history";
 import { POSCustomerSelector } from "./pos-customer-selector";
 import { POSCart } from "./pos-cart";
+import { HeldTransactionsDialog } from "./held-transactions-dialog";
+import { insert, del } from "@/lib/db/local-database";
 
 export function POSSystem() {
   const { t, storeProfile, vatPercentage } = useStore();
@@ -70,6 +74,7 @@ export function POSSystem() {
   const [posMode, setPosMode] = useState<"standard" | "speed">("standard");
   const [showReturnDialog, setShowReturnDialog] = useState(false);
   const [saleToReturn, setSaleToReturn] = useState<any>(null);
+  const [showHeldDialog, setShowHeldDialog] = useState(false);
 
   // Fetch medicines from local DB
   const {
@@ -212,6 +217,64 @@ export function POSSystem() {
     window.print();
   };
 
+  const handleHoldTransaction = async () => {
+    if (cart.length === 0) return;
+
+    try {
+      const id = `held_${Date.now()}`;
+      await insert("held_transactions", {
+        id,
+        customer_id: selectedCustomer?.id || null,
+        customer_name: selectedCustomer ? `${selectedCustomer.first_name} ${selectedCustomer.last_name}` : "Walk-in Customer",
+        items_json: JSON.stringify(cart),
+        total_amount: total,
+        created_at: new Date().toISOString()
+      });
+
+      toast.success("Transaction held successfully");
+      clearCart();
+      setSelectedCustomer(null);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to hold transaction");
+    }
+  };
+
+  const handleRecallTransaction = async (held: any) => {
+    try {
+      // 1. Clear current cart (maybe ask user?)
+      clearCart();
+
+      // 2. Parse items and add to cart
+      const items = JSON.parse(held.items_json);
+      // We need a way to bulk add to cart or loop addToCart
+      // For now, let's assume usePOSCart can be extended or we loop
+      items.forEach((item: any) => {
+        const medicine = medicines.find(m => m.id === item.medicine_id);
+        if (medicine) {
+          // Add to cart with specific quantity
+          for(let i=0; i<item.quantity; i++) {
+             addToCart(medicine);
+          }
+        }
+      });
+
+      if (held.customer_id) {
+        const customer = customers.find(c => c.id === held.customer_id);
+        if (customer) setSelectedCustomer(customer);
+      }
+
+      // 3. Delete from held
+      await del("held_transactions", held.id);
+      
+      toast.success("Transaction recalled");
+      setShowHeldDialog(false);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to recall transaction");
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -240,6 +303,26 @@ export function POSSystem() {
           >
             <Zap className="h-4 w-4" />
             Retail Speed
+          </Button>
+          <div className="w-px h-8 bg-border mx-1" />
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={handleHoldTransaction}
+            disabled={cart.length === 0}
+            className="flex items-center gap-2 border-amber-500/20 hover:bg-amber-500/5 text-amber-600"
+          >
+            <PauseCircle className="h-4 w-4" />
+            Pause
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => setShowHeldDialog(true)}
+            className="flex items-center gap-2"
+          >
+            <Clock className="h-4 w-4" />
+            Held Sales
           </Button>
           <div className="flex items-center gap-2 px-3 py-1 bg-muted rounded-full border">
             <User className="h-3 w-3 text-muted-foreground" />
@@ -378,7 +461,6 @@ export function POSSystem() {
           </div>
         </DialogContent>
       </Dialog>
-
       <ReturnDialog 
         open={showReturnDialog}
         onOpenChange={setShowReturnDialog}
@@ -388,6 +470,12 @@ export function POSSystem() {
           toast.success("Inventory updated after return");
         }}
         currencyCode={storeProfile?.currency}
+      />
+
+      <HeldTransactionsDialog 
+        isOpen={showHeldDialog}
+        onClose={() => setShowHeldDialog(false)}
+        onRecall={handleRecallTransaction}
       />
     </div>
   );

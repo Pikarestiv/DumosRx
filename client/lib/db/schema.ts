@@ -328,4 +328,14 @@ CREATE TABLE IF NOT EXISTS stock_audits (
   reconciled_at TEXT,
   _synced INTEGER DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS held_transactions (
+  id TEXT PRIMARY KEY,
+  customer_id TEXT,
+  customer_name TEXT,
+  items_json TEXT NOT NULL,
+  total_amount REAL NOT NULL,
+  notes TEXT,
+  created_at TEXT,
+  _synced INTEGER DEFAULT 0
+);
 `;

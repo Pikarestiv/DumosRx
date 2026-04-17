@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Eye, EyeOff } from "lucide-react";
-import { useAuthStore } from "@/lib/auth/store";
+import { useAuth } from "@/lib/context/auth-context";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 
@@ -33,8 +33,8 @@ export function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
 
-  const login = useAuthStore((state) => state.login);
-  const storeIsLoading = useAuthStore((state) => state.isLoading);
+  const { login } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -48,10 +48,13 @@ export function LoginForm() {
     }
 
     try {
+      setIsLoading(true);
       await login(formData.email, formData.password);
       router.push("/dashboard");
     } catch (err: any) {
       setError(err.message || "Invalid credentials. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -146,13 +149,13 @@ export function LoginForm() {
           visible: { opacity: 1, y: 0 },
         }}
       >
-        <Button
-          type="submit"
-          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium cursor-pointer"
-          disabled={storeIsLoading}
-        >
-          {storeIsLoading ? "Signing In..." : "Sign In"}
-        </Button>
+          <Button
+            type="submit"
+            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium cursor-pointer"
+            disabled={isLoading}
+          >
+            {isLoading ? "Signing In..." : "Sign In"}
+          </Button>
       </motion.div>
 
       <motion.div

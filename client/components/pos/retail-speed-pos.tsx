@@ -139,6 +139,22 @@ export function RetailSpeedPOS({
           </CardContent>
         </Card>
 
+        {/* Fast Favorites (Top Items) */}
+        <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar min-h-10">
+          {filteredMedicines.slice(0, 6).map(m => (
+            <Button
+              key={`fav-${m.id}`}
+              variant="outline"
+              size="sm"
+              className="whitespace-nowrap bg-accent/5 hover:bg-accent hover:text-white transition-all font-bold border-accent/20 h-9"
+              onClick={() => addToCart(m)}
+            >
+              {m.name}
+            </Button>
+          ))}
+          <Button variant="ghost" size="sm" className="text-xs text-muted-foreground h-9">+ Set Favorites</Button>
+        </div>
+
         {/* Results / Fast Picker */}
         <Card className="flex-1 overflow-hidden">
           <CardContent className="p-4 h-full overflow-y-auto">

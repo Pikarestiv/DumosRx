@@ -31,6 +31,11 @@ interface SyncResult {
 }
 
 const SYNC_BATCH_SIZE = 50;
+let isSyncInProgress = false;
+
+export function isSyncing(): boolean {
+  return isSyncInProgress;
+}
 
 /**
  * Push local changes to server
@@ -159,7 +164,12 @@ export async function pullChanges(): Promise<{
  * Main Sync Function
  */
 export async function sync(): Promise<SyncResult> {
+  if (isSyncInProgress) {
+    return { success: false, pushed: 0, pulled: 0, error: "Sync already in progress" };
+  }
+
   try {
+    isSyncInProgress = true;
     const pushResult = await pushChanges();
     const pullResult = await pullChanges();
 
@@ -186,5 +196,7 @@ export async function sync(): Promise<SyncResult> {
       pulled: 0,
       error,
     };
+  } finally {
+    isSyncInProgress = false;
   }
 }

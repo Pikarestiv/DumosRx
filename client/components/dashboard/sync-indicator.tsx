@@ -1,76 +1,122 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { Cloud, RefreshCw } from "lucide-react";
+import { useEffect, useState } from "react";
+import { 
+  Cloud, 
+  CloudOff, 
+  RefreshCw, 
+  AlertCircle
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { sync, isSyncing as checkIsSyncing } from "@/lib/db/sync-engine";
 import { cn } from "@/lib/utils";
-import { useLocalData } from "@/lib/db/hooks/useLocalData";
 import { formatDistanceToNow } from "date-fns";
-import { sync } from "@/lib/db/sync-engine";
 
 export function SyncIndicator() {
+  const [status, setStatus] = useState<"online" | "offline" | "syncing" | "error">("online");
   const [lastSync, setLastSync] = useState<string | null>(null);
-  const [isSyncing, setIsSyncing] = useState(false);
-  
-  // Get pending count from sync_queue
-  const { data: queueData, refetch } = useLocalData<{ count: number }>(
-    "SELECT COUNT(*) as count FROM _sync_queue"
-  );
-
-  const pendingCount = queueData[0]?.count || 0;
-
-  const handleManualSync = async () => {
-    if (isSyncing) return;
-    setIsSyncing(true);
-    try {
-      await sync();
-      refetch();
-    } finally {
-      setIsSyncing(false);
-    }
-  };
+  const [isSyncInProgress, setIsSyncInProgress] = useState(false);
 
   useEffect(() => {
-    // Polling for updates
+    updateOnlineStatus();
+    window.addEventListener("online", updateOnlineStatus);
+    window.addEventListener("offline", updateOnlineStatus);
+
     const interval = setInterval(() => {
-      refetch();
-      const stored = localStorage.getItem("last_sync_time");
-      if (stored) setLastSync(stored);
-    }, 5000);
+        const stored = localStorage.getItem("last_sync_time");
+        if (stored) setLastSync(stored);
+        setIsSyncInProgress(checkIsSyncing());
+    }, 2000);
 
     const stored = localStorage.getItem("last_sync_time");
     if (stored) setLastSync(stored);
 
-    return () => clearInterval(interval);
-  }, [refetch]);
+    return () => {
+      window.removeEventListener("online", updateOnlineStatus);
+      window.removeEventListener("offline", updateOnlineStatus);
+      clearInterval(interval);
+    };
+  }, []);
+
+  const updateOnlineStatus = () => {
+    setStatus(navigator.onLine ? "online" : "offline");
+  };
+
+  const handleManualSync = async () => {
+    if (isSyncInProgress) return;
+    setStatus("syncing");
+    try {
+      const result = await sync();
+      if (result.success) {
+        setStatus("online");
+        setLastSync(new Date().toISOString());
+      } else {
+        setStatus("error");
+      }
+    } catch (err) {
+      setStatus("error");
+    }
+  };
 
   return (
     <div className="px-4 py-4 border-t border-sidebar-border bg-sidebar-accent/5">
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
-          {isSyncing ? (
-            <RefreshCw className="h-4 w-4 text-blue-500 animate-spin" />
-          ) : pendingCount === 0 ? (
-            <Cloud className="h-4 w-4 text-green-500" />
-          ) : (
-            <RefreshCw className="h-4 w-4 text-amber-500" />
-          )}
-          <span className="text-xs font-medium text-sidebar-foreground">
-            {isSyncing ? "Syncing..." : pendingCount === 0 ? "Synced" : `${pendingCount} pending`}
-          </span>
-        </div>
-        <button 
-          onClick={handleManualSync}
-          disabled={isSyncing}
-          className="p-1 hover:bg-sidebar-accent rounded-md transition-colors disabled:opacity-50 cursor-pointer"
-          title="Sync Now"
-        >
-          <RefreshCw className={cn("h-3 w-3 text-sidebar-foreground/60", isSyncing && "animate-spin")} />
-        </button>
-      </div>
-      
-      <p className="text-[10px] text-sidebar-foreground/60">
-        Last sync: {lastSync ? formatDistanceToNow(new Date(lastSync)) + " ago" : "Never"}
-      </p>
+        <TooltipProvider>
+        <Tooltip>
+            <TooltipTrigger asChild>
+            <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        {isSyncInProgress ? (
+                            <RefreshCw className="h-4 w-4 text-blue-500 animate-spin" />
+                        ) : status === "offline" ? (
+                            <CloudOff className="h-4 w-4 text-muted-foreground" />
+                        ) : status === "error" ? (
+                            <AlertCircle className="h-4 w-4 text-destructive" />
+                        ) : (
+                            <Cloud className="h-4 w-4 text-emerald-500" />
+                        )}
+                        <span className="text-xs font-bold text-sidebar-foreground uppercase tracking-tight">
+                            {isSyncInProgress ? "Syncing..." : status === "offline" ? "Offline" : "Cloud Active"}
+                        </span>
+                    </div>
+                    <button 
+                        onClick={handleManualSync}
+                        disabled={isSyncInProgress || status === "offline"}
+                        className="p-1.5 hover:bg-sidebar-accent rounded-lg transition-colors disabled:opacity-30 cursor-pointer border border-transparent hover:border-sidebar-border"
+                        title="Sync Now"
+                    >
+                        <RefreshCw className={cn("h-3 w-3 text-sidebar-foreground/60", isSyncInProgress && "animate-spin")} />
+                    </button>
+                </div>
+                
+                <div className="flex flex-col gap-1">
+                    <p className="text-[10px] text-sidebar-foreground/50 font-medium">
+                        LAST BACKUP
+                    </p>
+                    <p className="text-[10px] text-sidebar-foreground/80 font-bold">
+                        {lastSync ? formatDistanceToNow(new Date(lastSync)) + " ago" : "Never"}
+                    </p>
+                </div>
+            </div>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="bg-card border-accent/10">
+            <div className="space-y-1">
+                <p className="text-xs font-bold">Cloud Sync Engine</p>
+                <p className="text-[10px] text-muted-foreground leading-relaxed">
+                {status === "offline" 
+                    ? "Offline mode. Changes are saved locally and will sync automatically when your connection is restored."
+                    : "Your data is securely backed up to the DumosRx cloud."}
+                </p>
+            </div>
+            </TooltipContent>
+        </Tooltip>
+        </TooltipProvider>
     </div>
   );
 }

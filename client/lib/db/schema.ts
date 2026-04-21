@@ -338,4 +338,13 @@ CREATE TABLE IF NOT EXISTS held_transactions (
   created_at TEXT,
   _synced INTEGER DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS loyalty_transactions (
+  id TEXT PRIMARY KEY,
+  customer_id TEXT NOT NULL,
+  points REAL NOT NULL,
+  type TEXT NOT NULL, -- 'earned', 'redeemed'
+  transaction_id TEXT,
+  created_at TEXT,
+  _synced INTEGER DEFAULT 0
+);
 `;

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { insert, update } from "@/lib/db/local-database";
 import { CartItem } from "./use-pos-cart";
+import { calculateEarnedPoints } from "@/lib/utils/loyalty-calculator";
 
 export interface Customer {
   id: string;
@@ -62,6 +63,7 @@ export function usePOSPayment({
       const user = JSON.parse(localStorage.getItem("dumos_user") || "{}");
       const cashierId = user?.id || null;
       const transactionNumber = `TXN${Date.now()}`;
+      const earnedPoints = selectedCustomer ? calculateEarnedPoints(total) : 0;
 
       const saleId = await insert("sales", {
         transaction_number: transactionNumber,
@@ -83,7 +85,7 @@ export function usePOSPayment({
           paymentMethod === "cash"
             ? Math.max(0, (Number.parseFloat(amountPaid) || 0) - total)
             : 0,
-        points_earned: 0,
+        points_earned: earnedPoints,
         points_redeemed: 0,
         payment_method: paymentMethod,
         payment_status: paymentMethod === "credit" ? "pending" : "completed",
@@ -108,6 +110,21 @@ export function usePOSPayment({
       if (paymentMethod === "credit" && selectedCustomer) {
         await update("customers", selectedCustomer.id, {
           outstanding_balance: (selectedCustomer.outstanding_balance || 0) + total
+        });
+      }
+
+      if (earnedPoints > 0 && selectedCustomer) {
+        await update("customers", selectedCustomer.id, {
+          loyalty_points: (selectedCustomer.loyalty_points || 0) + earnedPoints
+        });
+
+        await insert("loyalty_transactions", {
+          id: `loyalty_${Date.now()}`,
+          customer_id: selectedCustomer.id,
+          points: earnedPoints,
+          type: 'earned',
+          transaction_id: saleId,
+          created_at: new Date().toISOString()
         });
       }
 

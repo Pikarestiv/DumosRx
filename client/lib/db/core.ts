@@ -45,22 +45,33 @@ export async function initDatabase(): Promise<any> {
     }
   }
 
-  if (!SQL) {
-    SQL = await initSqlJs({
-      locateFile: (file: string) => `/${file}`,
-    });
-  }
+  try {
+    if (!SQL) {
+      SQL = await initSqlJs({
+        locateFile: (file: string) => `/${file}`,
+      });
+    }
 
-  const savedData = localStorage.getItem(`${APP_NAME.toLowerCase()}_db`);
-  if (savedData) {
-    const data = new Uint8Array(JSON.parse(savedData));
-    db = new SQL.Database(data);
-  } else {
-    db = new SQL.Database();
-    db.run(SCHEMA_SQL);
-  }
+    const savedData = localStorage.getItem(`${APP_NAME.toLowerCase()}_db`);
+    if (savedData) {
+      try {
+        const data = new Uint8Array(JSON.parse(savedData));
+        db = new SQL.Database(data);
+      } catch (e) {
+        console.error("[DB] Failed to load saved data, starting fresh", e);
+        db = new SQL.Database();
+        db.run(SCHEMA_SQL);
+      }
+    } else {
+      db = new SQL.Database();
+      db.run(SCHEMA_SQL);
+    }
 
-  return db;
+    return db;
+  } catch (err) {
+    console.error("[DB] Failed to initialize database:", err);
+    throw err;
+  }
 }
 
 export function saveDatabase(): void {

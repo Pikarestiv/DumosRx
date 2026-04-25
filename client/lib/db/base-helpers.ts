@@ -85,6 +85,12 @@ export async function softDelete(table: string, id: string): Promise<void> {
   await logAction("DELETE", table, id, { id });
 }
 
+export async function remove(table: string, id: string): Promise<void> {
+  await execute(`DELETE FROM ${table} WHERE id = ?`, [id]);
+  // Also remove from sync queue if it was pending
+  await execute(`DELETE FROM _sync_queue WHERE table_name = ? AND record_id = ?`, [table, id]);
+}
+
 async function addToSyncQueue(
   table: string,
   recordId: string,

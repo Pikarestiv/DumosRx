@@ -19,7 +19,7 @@ import {
   ShoppingBag
 } from "lucide-react";
 import { query } from "@/lib/db/core";
-import { del } from "@/lib/db/local-database";
+import { remove } from "@/lib/db/local-database";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 
@@ -61,7 +61,7 @@ export function HeldTransactionsDialog({ isOpen, onClose, onRecall }: HeldTransa
 
   const handleDelete = async (id: string) => {
     try {
-      await del("held_transactions", id);
+      await remove("held_transactions", id);
       toast.success("Held transaction discarded");
       loadHeldTransactions();
     } catch (err) {

@@ -62,7 +62,7 @@ import { POSTransactionHistory } from "./pos-transaction-history";
 import { POSCustomerSelector } from "./pos-customer-selector";
 import { POSCart } from "./pos-cart";
 import { HeldTransactionsDialog } from "./held-transactions-dialog";
-import { insert, del } from "@/lib/db/local-database";
+import { insert, remove } from "@/lib/db/local-database";
 
 export function POSSystem() {
   const { t, storeProfile, vatPercentage } = useStore();
@@ -265,7 +265,7 @@ export function POSSystem() {
       }
 
       // 3. Delete from held
-      await del("held_transactions", held.id);
+      await remove("held_transactions", held.id);
       
       toast.success("Transaction recalled");
       setShowHeldDialog(false);

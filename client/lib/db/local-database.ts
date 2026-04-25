@@ -11,7 +11,7 @@ export * from "./procurement";
 export * from "./schema";
 
 import { query, execute } from "./core";
-import { insert } from "./base-helpers";
+import { insert, remove } from "./base-helpers";
 
 // --- Specialized Domain Helpers ---
 

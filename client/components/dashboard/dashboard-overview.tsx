@@ -43,14 +43,14 @@ export function DashboardOverview() {
       SUM(CASE WHEN payment_method = 'card' THEN total_amount ELSE 0 END) as card,
       SUM(CASE WHEN payment_method = 'credit' THEN total_amount ELSE 0 END) as debt
      FROM sales 
-     WHERE date(created_at) = date('now') AND _deleted = 0`,
+     WHERE date(transaction_date) = date('now') AND _deleted = 0`,
   );
 
   const { data: topStaff } = useLocalData<{ name: string; total: number }>(
     `SELECT u.name, SUM(s.total_amount) as total 
      FROM sales s 
-     JOIN users u ON s.user_id = u.id 
-     WHERE date(s.created_at) = date('now') AND s._deleted = 0 
+     JOIN users u ON s.cashier_id = u.id 
+     WHERE date(s.transaction_date) = date('now') AND s._deleted = 0 
      GROUP BY u.name 
      ORDER BY total DESC 
      LIMIT 1`

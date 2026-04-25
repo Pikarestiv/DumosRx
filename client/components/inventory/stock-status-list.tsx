@@ -31,7 +31,8 @@ interface StockStatusListProps {
 export function StockStatusList({
   stockData,
   formatCurrency,
-  getStatusBadge
+  getStatusBadge,
+  onPrintBarcode
 }: StockStatusListProps) {
   return (
     <Card>

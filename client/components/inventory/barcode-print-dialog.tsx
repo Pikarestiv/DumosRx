@@ -10,7 +10,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { 
   Barcode as BarcodeIcon, 
@@ -35,7 +34,7 @@ interface BarcodePrintDialogProps {
 }
 
 export function BarcodePrintDialog({ isOpen, onClose, medicine }: BarcodePrintDialogProps) {
-  const { profile } = useStore();
+  const { storeProfile } = useStore();
   const [quantity, setQuantity] = useState(1);
 
   const handlePrint = () => {
@@ -46,7 +45,7 @@ export function BarcodePrintDialog({ isOpen, onClose, medicine }: BarcodePrintDi
         name: medicine.name,
         price: medicine.unit_price,
         barcode: medicine.id, // Using ID as barcode for now
-        currency: profile?.currency || "NGN"
+        currency: storeProfile?.currency || "NGN"
       }], quantity);
       
       toast.success(`Printing ${quantity} labels for ${medicine.name}`);

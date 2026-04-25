@@ -15,7 +15,6 @@ import {
   Download,
   Calendar,
   TrendingUp,
-  TrendingDown,
   Info
 } from "lucide-react";
 import { exportPLReportToPDF } from "@/lib/utils/pdf-export";
@@ -28,7 +27,7 @@ interface PandLReportDialogProps {
 }
 
 export function PandLReportDialog({ isOpen, onClose }: PandLReportDialogProps) {
-  const { profile } = useStore();
+  const { storeProfile } = useStore();
   const [loading, setLoading] = useState(false);
 
   // Mock data for now - in production this would come from SQL queries
@@ -48,7 +47,7 @@ export function PandLReportDialog({ isOpen, onClose }: PandLReportDialogProps) {
   const handleExport = () => {
     try {
       setLoading(true);
-      exportPLReportToPDF(reportData, profile?.name || "DumosRx Store");
+      exportPLReportToPDF(reportData, storeProfile?.name || "DumosRx Store");
       toast.success("P&L Report exported successfully");
       onClose();
     } catch (err) {

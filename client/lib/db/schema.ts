@@ -157,7 +157,8 @@ CREATE TABLE IF NOT EXISTS sale_items (
   deleted_at TEXT,
   _version INTEGER DEFAULT 1,
   _synced INTEGER DEFAULT 0,
-  _synced_at TEXT
+  _synced_at TEXT,
+  _deleted INTEGER DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS prescriptions (
@@ -234,7 +235,9 @@ CREATE TABLE IF NOT EXISTS store_profile (
   last_monotonic_time TEXT,
   updated_at TEXT,
   _version INTEGER DEFAULT 1,
-  _synced INTEGER DEFAULT 0
+  _synced INTEGER DEFAULT 0,
+  _synced_at TEXT,
+  _deleted INTEGER DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS expenses (
@@ -248,6 +251,9 @@ CREATE TABLE IF NOT EXISTS expenses (
   reference_number TEXT,
   created_at TEXT,
   updated_at TEXT,
+  _version INTEGER DEFAULT 1,
+  _synced INTEGER DEFAULT 0,
+  _synced_at TEXT,
   _deleted INTEGER DEFAULT 0
 );
 
@@ -258,7 +264,13 @@ CREATE TABLE IF NOT EXISTS users (
   email TEXT UNIQUE,
   pin TEXT,
   role TEXT DEFAULT 'staff',
-  is_active INTEGER DEFAULT 1
+  is_active INTEGER DEFAULT 1,
+  created_at TEXT,
+  updated_at TEXT,
+  _version INTEGER DEFAULT 1,
+  _synced INTEGER DEFAULT 0,
+  _synced_at TEXT,
+  _deleted INTEGER DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS audit_logs (
@@ -268,7 +280,13 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   table_name TEXT,
   record_id TEXT,
   details TEXT,
-  created_at TEXT
+  details TEXT,
+  created_at TEXT,
+  updated_at TEXT,
+  _version INTEGER DEFAULT 1,
+  _synced INTEGER DEFAULT 0,
+  _synced_at TEXT,
+  _deleted INTEGER DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS returns (
@@ -277,7 +295,13 @@ CREATE TABLE IF NOT EXISTS returns (
   user_id TEXT NOT NULL,
   reason TEXT,
   total_refunded REAL NOT NULL,
-  created_at TEXT
+  total_refunded REAL NOT NULL,
+  created_at TEXT,
+  updated_at TEXT,
+  _version INTEGER DEFAULT 1,
+  _synced INTEGER DEFAULT 0,
+  _synced_at TEXT,
+  _deleted INTEGER DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS purchase_orders (
@@ -288,6 +312,10 @@ CREATE TABLE IF NOT EXISTS purchase_orders (
   notes TEXT,
   created_at TEXT,
   received_at TEXT,
+  updated_at TEXT,
+  _version INTEGER DEFAULT 1,
+  _synced INTEGER DEFAULT 0,
+  _synced_at TEXT,
   _deleted INTEGER DEFAULT 0
 );
 
@@ -299,7 +327,13 @@ CREATE TABLE IF NOT EXISTS purchase_order_items (
   units_per_bulk INTEGER NOT NULL,
   unit_cost REAL NOT NULL,
   subtotal REAL NOT NULL,
-  created_at TEXT
+  subtotal REAL NOT NULL,
+  created_at TEXT,
+  updated_at TEXT,
+  _version INTEGER DEFAULT 1,
+  _synced INTEGER DEFAULT 0,
+  _synced_at TEXT,
+  _deleted INTEGER DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS suppliers (
   id TEXT PRIMARY KEY,
@@ -313,7 +347,9 @@ CREATE TABLE IF NOT EXISTS suppliers (
   created_at TEXT,
   updated_at TEXT,
   _version INTEGER DEFAULT 1,
-  _synced INTEGER DEFAULT 0
+  _synced INTEGER DEFAULT 0,
+  _synced_at TEXT,
+  _deleted INTEGER DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS stock_audits (
   id TEXT PRIMARY KEY,
@@ -324,9 +360,13 @@ CREATE TABLE IF NOT EXISTS stock_audits (
   notes TEXT,
   user_id TEXT NOT NULL,
   status TEXT DEFAULT 'pending',
-  created_at TEXT,
   reconciled_at TEXT,
-  _synced INTEGER DEFAULT 0
+  created_at TEXT,
+  updated_at TEXT,
+  _version INTEGER DEFAULT 1,
+  _synced INTEGER DEFAULT 0,
+  _synced_at TEXT,
+  _deleted INTEGER DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS held_transactions (
   id TEXT PRIMARY KEY,
@@ -335,8 +375,13 @@ CREATE TABLE IF NOT EXISTS held_transactions (
   items_json TEXT NOT NULL,
   total_amount REAL NOT NULL,
   notes TEXT,
+  notes TEXT,
   created_at TEXT,
-  _synced INTEGER DEFAULT 0
+  updated_at TEXT,
+  _version INTEGER DEFAULT 1,
+  _synced INTEGER DEFAULT 0,
+  _synced_at TEXT,
+  _deleted INTEGER DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS loyalty_transactions (
   id TEXT PRIMARY KEY,
@@ -344,7 +389,12 @@ CREATE TABLE IF NOT EXISTS loyalty_transactions (
   points REAL NOT NULL,
   type TEXT NOT NULL, -- 'earned', 'redeemed'
   transaction_id TEXT,
+  transaction_id TEXT,
   created_at TEXT,
-  _synced INTEGER DEFAULT 0
+  updated_at TEXT,
+  _version INTEGER DEFAULT 1,
+  _synced INTEGER DEFAULT 0,
+  _synced_at TEXT,
+  _deleted INTEGER DEFAULT 0
 );
 `;

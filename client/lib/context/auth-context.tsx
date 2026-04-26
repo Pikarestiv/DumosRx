@@ -64,6 +64,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         username: "admin",
         role: "admin",
       };
+      
+      // Attempt to persist the default admin to DB
+      try {
+        await query(
+          "INSERT OR IGNORE INTO users (id, name, username, pin, role, is_active) VALUES (?, ?, ?, ?, ?, ?)",
+          [defaultAdmin.id, defaultAdmin.name, defaultAdmin.username, "1234", defaultAdmin.role, 1]
+        );
+      } catch (e) {
+        console.error("Failed to persist default admin", e);
+      }
+
       setUser(defaultAdmin);
       setDbUser(defaultAdmin);
       localStorage.setItem("dumos_user", JSON.stringify(defaultAdmin));

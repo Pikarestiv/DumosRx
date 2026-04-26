@@ -129,6 +129,16 @@ export function DevSeedButton() {
         phone: "08012345678",
       });
 
+      // Seed Default Admin User
+      await insert("users", {
+        id: "u1",
+        name: "Default Admin",
+        username: "admin",
+        pin: "1234",
+        role: "admin",
+        is_active: 1,
+      });
+
       toast.success("Database seeded with sample data");
     } catch (err) {
       console.error(err);
@@ -167,6 +177,18 @@ export function DevSeedButton() {
           className={`h-4 w-4 mr-2 ${syncing ? "animate-spin" : ""}`}
         />
         {syncing ? "Syncing..." : "Sync Now"}
+      </Button>
+
+      <Button
+        variant="destructive"
+        size="sm"
+        onClick={() => {
+          localStorage.clear();
+          window.location.reload();
+        }}
+        className="shadow-lg border-2 border-destructive bg-background hover:bg-destructive/10 text-destructive cursor-pointer"
+      >
+        Reset DB
       </Button>
 
       <Button

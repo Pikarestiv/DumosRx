@@ -1,0 +1,69 @@
+"use client";
+
+import Link from "next/link";
+import { 
+  Package, 
+  ShoppingCart, 
+  AlertTriangle, 
+  TrendingUp 
+} from "lucide-react";
+import { 
+  Card, 
+  CardContent, 
+  CardDescription, 
+  CardHeader, 
+  CardTitle 
+} from "@/components/ui/card";
+
+interface DashboardQuickActionsProps {
+  storeTerm: string;
+  productTerm: string;
+}
+
+export function DashboardQuickActions({
+  storeTerm,
+  productTerm
+}: DashboardQuickActionsProps) {
+  return (
+    <Card className="border-border">
+      <CardHeader>
+        <CardTitle className="font-serif font-semibold">
+          Quick Actions
+        </CardTitle>
+        <CardDescription>Common {storeTerm.toLowerCase()} management tasks</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-2 gap-3">
+          <Link
+            href="/medicines"
+            className="p-4 bg-accent text-accent-foreground rounded-lg hover:bg-accent/90 transition-colors flex flex-col items-center justify-center text-center cursor-pointer"
+          >
+            <Package className="h-6 w-6 mb-2" />
+            <span className="text-sm font-medium">Add {productTerm}</span>
+          </Link>
+          <Link
+            href="/pos"
+            className="p-4 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors flex flex-col items-center justify-center text-center cursor-pointer"
+          >
+            <ShoppingCart className="h-6 w-6 mb-2" />
+            <span className="text-sm font-medium">New Sale</span>
+          </Link>
+          <Link
+            href="/inventory"
+            className="p-4 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/90 transition-colors flex flex-col items-center justify-center text-center cursor-pointer"
+          >
+            <AlertTriangle className="h-6 w-6 mb-2" />
+            <span className="text-sm font-medium">Check Expiry</span>
+          </Link>
+          <Link
+            href="/reports"
+            className="p-4 bg-muted text-muted-foreground rounded-lg hover:bg-muted/80 transition-colors flex flex-col items-center justify-center text-center cursor-pointer"
+          >
+            <TrendingUp className="h-6 w-6 mb-2" />
+            <span className="text-sm font-medium">View Reports</span>
+          </Link>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

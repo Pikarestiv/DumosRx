@@ -301,4 +301,18 @@ CREATE TABLE IF NOT EXISTS purchase_order_items (
   subtotal REAL NOT NULL,
   created_at TEXT
 );
+CREATE TABLE IF NOT EXISTS suppliers (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  contact_person TEXT,
+  phone TEXT,
+  email TEXT,
+  address TEXT,
+  payment_terms TEXT,
+  is_active INTEGER DEFAULT 1,
+  created_at TEXT,
+  updated_at TEXT,
+  _version INTEGER DEFAULT 1,
+  _synced INTEGER DEFAULT 0
+);
 `;

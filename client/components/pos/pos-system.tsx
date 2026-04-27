@@ -257,7 +257,6 @@ export function POSSystem() {
           subtotal={subtotal}
           tax={tax}
           total={total}
-          discount={discount}
           vatPercentage={vatPercentage}
           currencyCode={storeProfile?.currency}
           searchTerm={searchTerm}

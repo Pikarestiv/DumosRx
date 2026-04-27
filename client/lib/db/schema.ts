@@ -255,6 +255,7 @@ CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   username TEXT UNIQUE NOT NULL,
+  email TEXT UNIQUE,
   pin TEXT,
   role TEXT DEFAULT 'staff',
   is_active INTEGER DEFAULT 1

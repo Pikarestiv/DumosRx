@@ -19,14 +19,14 @@ type UserRole =
   | "auditor";
 
 interface LoginFormData {
-  email: string;
+  username: string;
   password: string;
   role: UserRole | "";
 }
 
 export function LoginForm() {
   const [formData, setFormData] = useState<LoginFormData>({
-    email: "",
+    username: "",
     password: "",
     role: "",
   });
@@ -42,14 +42,14 @@ export function LoginForm() {
     setError("");
 
     // Basic validation
-    if (!formData.email || !formData.password) {
+    if (!formData.username || !formData.password) {
       setError("Please fill in all fields");
       return;
     }
 
     try {
       setIsLoading(true);
-      await login(formData.email, formData.password);
+      await login(formData.username, formData.password);
       router.push("/dashboard");
     } catch (err: any) {
       setError(err.message || "Invalid credentials. Please try again.");
@@ -93,14 +93,14 @@ export function LoginForm() {
         }}
         className="space-y-2"
       >
-        <Label htmlFor="email">Email Address</Label>
+        <Label htmlFor="username">Email or Username</Label>
         <Input
-          id="email"
-          type="email"
-          placeholder="Enter your email"
-          value={formData.email}
+          id="username"
+          type="text"
+          placeholder="Enter email or username"
+          value={formData.username}
           onChange={(e) =>
-            setFormData((prev) => ({ ...prev, email: e.target.value }))
+            setFormData((prev) => ({ ...prev, username: e.target.value }))
           }
           className="bg-input border-border focus:ring-accent"
           required

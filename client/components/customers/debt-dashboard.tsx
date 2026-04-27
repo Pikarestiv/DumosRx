@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, CreditCard, Filter, ArrowUpRight } from "lucide-react";
+import { Search, CreditCard, Filter } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { useStore } from "@/lib/context/store-context";
 import { useLocalData } from "@/lib/db/hooks/useLocalData";

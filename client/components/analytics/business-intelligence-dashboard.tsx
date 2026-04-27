@@ -13,7 +13,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar } from "lucide-react";
 import { useBIData } from "@/lib/hooks/use-bi-data";
 import { BIKeyMetrics } from "./bi-key-metrics";
-import { useStore } from "@/lib/context/store-context";
 import { inventoryAlerts, customerMetrics } from "./sample-data";
 import { SalesAnalyticsTab } from "./sales-analytics-tab";
 import { ProfitLossTab } from "./profit-loss-tab";
@@ -21,7 +20,6 @@ import { InventoryInsightsTab } from "./inventory-insights-tab";
 import { CustomerBehaviorTab } from "./customer-behavior-tab";
 
 export function BusinessIntelligenceDashboard() {
-  const { storeType } = useStore();
   const [timeRange, setTimeRange] = useState("30d");
 
   const {

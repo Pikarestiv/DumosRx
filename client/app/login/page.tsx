@@ -33,7 +33,7 @@ export default function LoginPage() {
       } else {
         toast.error("Invalid credentials. Try 'admin' to start.");
       }
-    } catch (error) {
+    } catch {
       toast.error("Login failed. Database might not be initialized.");
     } finally {
       setIsLoading(false);

@@ -5,7 +5,7 @@ import { VendorList } from "@/components/vendors/vendor-list";
 import { AddVendorDialog } from "@/components/vendors/add-vendor-dialog";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Users } from "lucide-react";
+import { Plus } from "lucide-react";
 
 export default function VendorsPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);

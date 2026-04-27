@@ -23,7 +23,6 @@ interface RetailSpeedPOSProps {
   subtotal: number;
   tax: number;
   total: number;
-  discount: number;
   vatPercentage: number;
   currencyCode?: string;
   searchTerm: string;

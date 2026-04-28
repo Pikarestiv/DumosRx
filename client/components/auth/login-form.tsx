@@ -55,14 +55,40 @@ export function LoginForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <motion.form
+      initial="hidden"
+      animate="visible"
+      variants={{
+        hidden: { opacity: 0 },
+        visible: {
+          opacity: 1,
+          transition: {
+            staggerChildren: 0.1,
+            delayChildren: 0.3,
+          },
+        },
+      }}
+      onSubmit={handleSubmit}
+      className="space-y-4"
+    >
       {error && (
-        <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
+        <motion.div
+          initial={{ opacity: 0, x: -10 }}
+          animate={{ opacity: 1, x: 0 }}
+        >
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        </motion.div>
       )}
 
-      <div className="space-y-2">
+      <motion.div
+        variants={{
+          hidden: { opacity: 0, y: 10 },
+          visible: { opacity: 1, y: 0 },
+        }}
+        className="space-y-2"
+      >
         <Label htmlFor="email">Email Address</Label>
         <Input
           id="email"
@@ -75,9 +101,15 @@ export function LoginForm() {
           className="bg-input border-border focus:ring-accent"
           required
         />
-      </div>
+      </motion.div>
 
-      <div className="space-y-2">
+      <motion.div
+        variants={{
+          hidden: { opacity: 0, y: 10 },
+          visible: { opacity: 1, y: 0 },
+        }}
+        className="space-y-2"
+      >
         <Label htmlFor="password">Password</Label>
         <div className="relative">
           <Input
@@ -105,24 +137,37 @@ export function LoginForm() {
             )}
           </Button>
         </div>
-      </div>
+      </motion.div>
 
-      <Button
-        type="submit"
-        className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium cursor-pointer"
-        disabled={storeIsLoading}
+      <motion.div
+        variants={{
+          hidden: { opacity: 0, y: 10 },
+          visible: { opacity: 1, y: 0 },
+        }}
       >
-        {storeIsLoading ? "Signing In..." : "Sign In"}
-      </Button>
+        <Button
+          type="submit"
+          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium cursor-pointer"
+          disabled={storeIsLoading}
+        >
+          {storeIsLoading ? "Signing In..." : "Sign In"}
+        </Button>
+      </motion.div>
 
-      <div className="text-center">
+      <motion.div
+        variants={{
+          hidden: { opacity: 0 },
+          visible: { opacity: 1 },
+        }}
+        className="text-center"
+      >
         <Button
           variant="link"
           className="text-accent hover:text-accent/80 text-sm cursor-pointer"
         >
           Forgot your password?
         </Button>
-      </div>
-    </form>
+      </motion.div>
+    </motion.form>
   );
 }

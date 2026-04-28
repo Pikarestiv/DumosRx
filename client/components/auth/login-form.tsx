@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Eye, EyeOff } from "lucide-react";
 import { useAuthStore } from "@/lib/auth/store";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 
 type UserRole =
   | "super_admin"

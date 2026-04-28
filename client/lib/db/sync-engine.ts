@@ -2,7 +2,7 @@ import {
   getPendingSyncItems,
   markSynced,
   query,
-  getDatabase,
+  execute,
 } from "./local-database";
 import { apiClient } from "@/lib/api/client";
 
@@ -36,7 +36,7 @@ const SYNC_BATCH_SIZE = 50;
  * Push local changes to server
  */
 export async function pushChanges(): Promise<{ pushed: number }> {
-  const pending = getPendingSyncItems();
+  const pending = await getPendingSyncItems();
 
   if (pending.length === 0) return { pushed: 0 };
 
@@ -60,7 +60,7 @@ export async function pushChanges(): Promise<{ pushed: number }> {
       // If successful, mark as synced
       if (response.success) {
         const ids = batch.map((b) => b.id);
-        markSynced(ids);
+        await markSynced(ids);
         pushedCount += ids.length;
       }
     } catch (error) {
@@ -82,7 +82,7 @@ export async function pullChanges(): Promise<{
 }> {
   try {
     // Get last sync timestamp for each table
-    const syncState = query<{ table_name: string; last_synced_at: string }>(
+    const syncState = await query<{ table_name: string; last_synced_at: string }>(
       "SELECT table_name, last_synced_at FROM _sync_state",
     );
 
@@ -108,10 +108,7 @@ export async function pullChanges(): Promise<{
     let pulledCount = 0;
 
     // Apply changes transactionally
-    const db = getDatabase();
-    if (!db) throw new Error("DB not initialized");
-
-    db.run("BEGIN TRANSACTION");
+    await execute("BEGIN TRANSACTION");
 
     try {
       for (const [table, records] of Object.entries(changes)) {
@@ -120,59 +117,34 @@ export async function pullChanges(): Promise<{
         for (const record of records) {
           const { id, _deleted, ...data } = record as any;
 
-          if (_deleted) {
-            // Check if exists before deleting? Or just delete
-            // We use soft delete locally too usually, but if server says deleted, we can hard delete or soft delete
-            // Let's mirror server: if server soft deleted, record._deleted is 1
-            const columns = Object.keys(data);
-            const placeholders = columns.map(() => "?");
-            const values = columns.map((c) => data[c]);
+          const columns = Object.keys(data);
+          const placeholders = columns.map(() => "?");
+          const values = columns.map((c) => data[c]);
 
-            // Upsert (Insert or Replace)
-            // We need to disable sync logging for these operations to prevent loops
-            // But our 'insert'/'update' helpers automatically log.
-            // So we must use raw SQL execution here.
+          // Construct UPSERT query
+          const allCols = ["id", ...columns, "_synced"];
+          const allPlaceholders = ["?", ...placeholders, "?"];
+          const allValues = [id, ...values, 1];
 
-            // Construct UPSERT query
-            // SQLite INSERT OR REPLACE works for this
-
-            // Flatten object values for binding
-            const allCols = ["id", ...columns, "_synced"];
-            const allPlaceholders = ["?", ...placeholders, "?"];
-            const allValues = [id, ...values, 1]; // _synced = 1 means it came from server
-
-            db.run(
-              `INSERT OR REPLACE INTO ${table} (${allCols.join(", ")}) VALUES (${allPlaceholders.join(", ")})`,
-              allValues,
-            );
-          } else {
-            // Same logic for Active records
-            const columns = Object.keys(data);
-            const placeholders = columns.map(() => "?");
-            // Add id
-            const allCols = ["id", ...columns, "_synced"];
-            const allPlaceholders = ["?", ...placeholders, "?"];
-            const allValues = [id, ...Object.values(data), 1];
-
-            db.run(
-              `INSERT OR REPLACE INTO ${table} (${allCols.join(", ")}) VALUES (${allPlaceholders.join(", ")})`,
-              allValues,
-            );
-          }
+          await execute(
+            `INSERT OR REPLACE INTO ${table} (${allCols.join(", ")}) VALUES (${allPlaceholders.join(", ")})`,
+            allValues,
+          );
+          
           pulledCount++;
         }
 
         // Update sync state for table
-        db.run(
+        await execute(
           "INSERT OR REPLACE INTO _sync_state (table_name, last_synced_at) VALUES (?, ?)",
           [table, server_timestamp],
         );
       }
 
-      db.run("COMMIT");
+      await execute("COMMIT");
     } catch (err) {
       console.error("Failed to apply pull changes:", err);
-      db.run("ROLLBACK");
+      await execute("ROLLBACK");
       throw err;
     }
 

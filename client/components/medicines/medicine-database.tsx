@@ -123,7 +123,7 @@ export function MedicineDatabase() {
       };
       delete localPayload.status;
 
-      insert("medicines", localPayload);
+      await insert("medicines", localPayload);
 
       toast.success(`${t('product')} added successfully`);
       refetch();

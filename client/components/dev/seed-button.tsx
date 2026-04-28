@@ -20,16 +20,15 @@ export function DevSeedButton() {
       setLoading(true);
 
       // Seed Medicines
-      insert("medicines", {
+      await insert("medicines", {
         id: "m1",
         name: "Paracetamol",
         brand_name: "Emzor",
-        category_id: "c1", // Using ID or string? Schema allows string but usually ID. Let's stick to string for now or ID if foreign key enforced (no FK enforced in schema).
-        // Let's use category name as ID relative for now or just string
+        category_id: "c1",
         stock_quantity: 500,
         is_active: 1,
       });
-      insert("medicines", {
+      await insert("medicines", {
         id: "m2",
         name: "Amoxicillin",
         brand_name: "Beecham",
@@ -37,7 +36,7 @@ export function DevSeedButton() {
         stock_quantity: 120,
         is_active: 1,
       });
-      insert("medicines", {
+      await insert("medicines", {
         id: "m3",
         name: "Vitamin C",
         brand_name: "Emzor",
@@ -52,7 +51,7 @@ export function DevSeedButton() {
       const user = useAuthStore.getState().user;
       const cashierId = user?.id || "u1";
 
-      insert("sales", {
+      await insert("sales", {
         id: "s1",
         cashier_id: cashierId,
         total_amount: 1500,
@@ -70,7 +69,7 @@ export function DevSeedButton() {
         payment_status: "completed",
         receipt_printed: 0,
       });
-      insert("sales", {
+      await insert("sales", {
         id: "s2",
         cashier_id: cashierId,
         total_amount: 2500,
@@ -90,7 +89,7 @@ export function DevSeedButton() {
       });
 
       // Seed Customers
-      insert("customers", {
+      await insert("customers", {
         id: "c1",
         first_name: "John",
         last_name: "Doe",

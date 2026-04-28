@@ -72,9 +72,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const isInitialized = storeProfile?.is_initialized === 1;
   const vatPercentage = storeProfile?.vat_percentage ?? 7.5;
 
-  const updateStoreProfile = (data: Partial<StoreProfile>) => {
+  const updateStoreProfile = async (data: Partial<StoreProfile>) => {
     if (!storeProfile) {
-      insert("store_profile", {
+      await insert("store_profile", {
         id: "default",
         name: "My Store",
         store_type: "pharmacy",
@@ -84,9 +84,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         ...data,
       });
     } else {
-      update("store_profile", storeProfile.id, data);
+      await update("store_profile", storeProfile.id, data);
     }
-    refetch();
+    await refetch();
   };
 
   const t = (key: string): string => {

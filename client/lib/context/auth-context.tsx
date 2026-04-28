@@ -36,7 +36,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (username: string, pin?: string) => {
     // For local-first, we just check the users table
-    const users = query<any>("SELECT * FROM users WHERE username = ? AND is_active = 1", [username]);
+    const users = await query<any>("SELECT * FROM users WHERE username = ? AND is_active = 1", [username]);
     
     if (users.length > 0) {
       const dbUser = users[0];

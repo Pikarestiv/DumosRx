@@ -67,7 +67,7 @@ export function useLocalData<T = Record<string, unknown>>(
 
     try {
       setLoading(true);
-      const results = query<Record<string, unknown>>(sql, params);
+      const results = await query<Record<string, unknown>>(sql, params);
       const currentTransform = transformRef.current;
 
       const transformed = currentTransform

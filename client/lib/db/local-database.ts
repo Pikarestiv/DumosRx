@@ -313,24 +313,23 @@ CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 `;
 
 let SQL: SqlJsStatic | null = null;
-let db: Database | null = null;
+let db: any = null; // Can be sql.js Database or Tauri Database
 let currentUser: { id: string; name: string; role: string } | null = null;
 
 export function setCurrentUser(user: { id: string; name: string; role: string } | null) {
   currentUser = user;
 }
 
-function logAction(action: string, table: string, recordId: string, details?: any) {
+async function logAction(action: string, table: string, recordId: string, details?: any) {
   if (!db) return;
   const id = generateId();
   const now = new Date().toISOString();
   
-  db.run(
+  await execute(
     `INSERT INTO audit_logs (id, user_id, action, table_name, record_id, details, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
     [id, currentUser?.id || null, action, table, recordId, details ? JSON.stringify(details) : null, now]
   );
-  saveDatabase();
 }
 
 /**
@@ -354,12 +353,27 @@ export function generateId(): string {
 /**
  * Initialize the local database
  */
-export async function initDatabase(): Promise<Database> {
+export async function initDatabase(): Promise<any> {
   if (db) return db;
 
   if (isTauri()) {
-    // TODO: Implement Tauri native SQLite
-    throw new Error("Tauri SQLite not yet implemented");
+    try {
+      const TauriDatabase = (await import("@tauri-apps/plugin-sql")).default;
+      db = await TauriDatabase.load("sqlite:dumosrx.db");
+      
+      // Initialize schema if needed (Tauri plugin doesn't have a simple way to check if new, 
+      // so we run CREATE TABLE IF NOT EXISTS)
+      // We split the SCHEMA_SQL into individual statements because some drivers prefer that
+      const statements = SCHEMA_SQL.split(';').filter(s => s.trim());
+      for (const statement of statements) {
+        await db.execute(statement);
+      }
+      
+      return db;
+    } catch (err) {
+      console.error("Failed to init Tauri DB", err);
+      // Fallback to sql.js if Tauri fails for some reason
+    }
   }
 
   // Browser: use sql.js
@@ -397,11 +411,15 @@ export function saveDatabase(): void {
 /**
  * Execute a SQL query and return results
  */
-export function query<T = Record<string, unknown>>(
+export async function query<T = Record<string, unknown>>(
   sql: string,
   params: (string | number | null | Uint8Array)[] = [],
-): T[] {
-  if (!db) throw new Error("Database not initialized");
+): Promise<T[]> {
+  if (!db) await initDatabase();
+
+  if (isTauri()) {
+    return await db.select(sql, params);
+  }
 
   const stmt = db.prepare(sql);
   stmt.bind(params);
@@ -419,11 +437,16 @@ export function query<T = Record<string, unknown>>(
 /**
  * Execute a SQL statement (INSERT, UPDATE, DELETE)
  */
-export function execute(
+export async function execute(
   sql: string,
   params: (string | number | null | Uint8Array)[] = [],
-): void {
-  if (!db) throw new Error("Database not initialized");
+): Promise<void> {
+  if (!db) await initDatabase();
+
+  if (isTauri()) {
+    await db.execute(sql, params);
+    return;
+  }
 
   db.run(sql, params);
   saveDatabase(); // Auto-save after writes
@@ -432,7 +455,7 @@ export function execute(
 /**
  * Insert a record and add to sync queue
  */
-export function insert(table: string, data: Record<string, unknown>): string {
+export async function insert(table: string, data: Record<string, unknown>): Promise<string> {
   const id = (data.id as string) || generateId();
   const now = new Date().toISOString();
 
@@ -454,14 +477,14 @@ export function insert(table: string, data: Record<string, unknown>): string {
     | Uint8Array
   )[];
 
-  execute(
+  await execute(
     `INSERT INTO ${table} (${columns.join(", ")}) VALUES (${placeholders})`,
     values,
   );
 
   // Add to sync queue
-  addToSyncQueue(table, id, "INSERT", record);
-  logAction("INSERT", table, id, record);
+  await addToSyncQueue(table, id, "INSERT", record);
+  await logAction("INSERT", table, id, record);
 
   return id;
 }
@@ -469,15 +492,15 @@ export function insert(table: string, data: Record<string, unknown>): string {
 /**
  * Update a record and add to sync queue
  */
-export function update(
+export async function update(
   table: string,
   id: string,
   data: Record<string, unknown>,
-): void {
+): Promise<void> {
   const now = new Date().toISOString();
 
   // Get current version
-  const current = query<{ _version: number }>(
+  const current = await query<{ _version: number }>(
     `SELECT _version FROM ${table} WHERE id = ?`,
     [id],
   );
@@ -500,40 +523,40 @@ export function update(
     | Uint8Array
   )[];
 
-  execute(`UPDATE ${table} SET ${setClause} WHERE id = ?`, values);
+  await execute(`UPDATE ${table} SET ${setClause} WHERE id = ?`, values);
 
   // Add to sync queue
-  addToSyncQueue(table, id, "UPDATE", record);
-  logAction("UPDATE", table, id, record);
+  await addToSyncQueue(table, id, "UPDATE", record);
+  await logAction("UPDATE", table, id, record);
 }
 
 /**
  * Soft delete a record
  */
-export function softDelete(table: string, id: string): void {
+export async function softDelete(table: string, id: string): Promise<void> {
   const now = new Date().toISOString();
 
-  execute(
+  await execute(
     `UPDATE ${table} SET _deleted = 1, updated_at = ?, _synced = 0 WHERE id = ?`,
     [now, id],
   );
 
-  addToSyncQueue(table, id, "DELETE", { id });
-  logAction("DELETE", table, id, { id });
+  await addToSyncQueue(table, id, "DELETE", { id });
+  await logAction("DELETE", table, id, { id });
 }
 
 /**
  * Add an operation to the sync queue
  */
-function addToSyncQueue(
+async function addToSyncQueue(
   table: string,
   recordId: string,
   operation: "INSERT" | "UPDATE" | "DELETE",
   payload: Record<string, unknown>,
-): void {
+): Promise<void> {
   const now = new Date().toISOString();
 
-  execute(
+  await execute(
     `INSERT INTO _sync_queue (table_name, record_id, operation, payload, created_at)
      VALUES (?, ?, ?, ?, ?)`,
     [table, recordId, operation, JSON.stringify(payload), now],
@@ -543,25 +566,25 @@ function addToSyncQueue(
 /**
  * Get pending sync items
  */
-export function getPendingSyncItems(): Array<{
+export async function getPendingSyncItems(): Promise<Array<{
   id: number;
   table_name: string;
   record_id: string;
   operation: string;
   payload: string;
   created_at: string;
-}> {
-  return query("SELECT * FROM _sync_queue ORDER BY created_at ASC");
+}>> {
+  return await query("SELECT * FROM _sync_queue ORDER BY created_at ASC");
 }
 
 /**
  * Mark sync items as completed
  */
-export function markSynced(queueIds: number[]): void {
+export async function markSynced(queueIds: number[]): Promise<void> {
   if (queueIds.length === 0) return;
 
   const placeholders = queueIds.map(() => "?").join(", ");
-  execute(`DELETE FROM _sync_queue WHERE id IN (${placeholders})`, queueIds);
+  await execute(`DELETE FROM _sync_queue WHERE id IN (${placeholders})`, queueIds);
 }
 
 /**

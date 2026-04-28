@@ -63,7 +63,7 @@ export function usePOSPayment({
       const cashierId = user?.id || null;
       const transactionNumber = `TXN${Date.now()}`;
 
-      const saleId = insert("sales", {
+      const saleId = await insert("sales", {
         transaction_number: transactionNumber,
         customer_id: selectedCustomer?.id || null,
         cashier_id: cashierId,
@@ -92,8 +92,8 @@ export function usePOSPayment({
         notes: "POS Sale",
       });
 
-      cart.forEach((item) => {
-        insert("sale_items", {
+      for (const item of cart) {
+        await insert("sale_items", {
           sale_id: saleId,
           medicine_id: item.id,
           quantity: item.quantity,
@@ -102,11 +102,11 @@ export function usePOSPayment({
         });
 
         const newStock = Math.max(0, item.stock - item.quantity);
-        update("medicines", item.id, { stock_quantity: newStock });
-      });
+        await update("medicines", item.id, { stock_quantity: newStock });
+      }
 
       if (paymentMethod === "credit" && selectedCustomer) {
-        update("customers", selectedCustomer.id, {
+        await update("customers", selectedCustomer.id, {
           outstanding_balance: (selectedCustomer.outstanding_balance || 0) + total
         });
       }

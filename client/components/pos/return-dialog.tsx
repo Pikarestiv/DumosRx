@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/utils";
 import { insert, update, query } from "@/lib/db/local-database";
+import { useLocalData } from "@/lib/db/hooks/useLocalData";
 import { toast } from "sonner";
 import { Loader2, RotateCcw } from "lucide-react";
 import { useAuth } from "@/lib/context/auth-context";
@@ -48,8 +49,9 @@ export function ReturnDialog({
   const [processing, setProcessing] = useState(false);
 
   // Fetch items for this sale
-  const saleItems = query<any>(
-    sale ? `SELECT si.*, m.name as medicine_name FROM sale_items si JOIN medicines m ON si.medicine_id = m.id WHERE si.sale_id = "${sale.id}"` : ""
+  const { data: saleItems } = useLocalData<any>(
+    sale ? `SELECT si.*, m.name as medicine_name FROM sale_items si JOIN medicines m ON si.medicine_id = m.id WHERE si.sale_id = ?` : "",
+    sale ? [sale.id] : []
   );
 
   const handleToggleItem = (itemId: string, maxQty: number) => {
@@ -88,7 +90,7 @@ export function ReturnDialog({
       const totalRefund = itemsToReturn.reduce((sum, item) => sum + (item.unit_price * item.returnQuantity), 0);
       
       // 1. Create return record
-      const returnId = insert("returns", {
+      const returnId = await insert("returns", {
         sale_id: sale.id,
         user_id: user?.id || "system",
         reason: reason,
@@ -98,7 +100,7 @@ export function ReturnDialog({
 
       // 2. Create return items and update stock
       for (const item of itemsToReturn) {
-        insert("return_items", {
+        await insert("return_items", {
           return_id: returnId,
           medicine_id: item.medicine_id,
           quantity: item.returnQuantity,
@@ -107,8 +109,9 @@ export function ReturnDialog({
         });
 
         // Update medicine stock
-        const currentMedicine = query<any>(`SELECT stock_quantity FROM medicines WHERE id = ?`, [item.medicine_id])[0];
-        update("medicines", item.medicine_id, {
+        const medicines = await query<any>(`SELECT stock_quantity FROM medicines WHERE id = ?`, [item.medicine_id]);
+        const currentMedicine = medicines[0];
+        await update("medicines", item.medicine_id, {
           stock_quantity: (currentMedicine?.stock_quantity || 0) + item.returnQuantity
         });
       }

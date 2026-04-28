@@ -59,7 +59,7 @@ export function RepaymentDialog({
     setProcessing(true);
     try {
       // 1. Record the payment
-      insert("customer_payments", {
+      await insert("customer_payments", {
         customer_id: customer.id,
         amount: paymentAmount,
         payment_method: method,
@@ -69,7 +69,7 @@ export function RepaymentDialog({
 
       // 2. Update customer balance
       const newBalance = Math.max(0, customer.outstanding_balance - paymentAmount);
-      update("customers", customer.id, {
+      await update("customers", customer.id, {
         outstanding_balance: newBalance,
       });
 

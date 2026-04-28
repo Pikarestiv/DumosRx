@@ -19,7 +19,7 @@ export interface MutationOptions<TData, TResult> {
 }
 
 export interface UseMutationResult<TData, TResult> {
-  mutate: (data: TData) => TResult | undefined;
+  mutate: (data: TData) => void;
   mutateAsync: (data: TData) => Promise<TResult>;
   isLoading: boolean;
   error: Error | null;
@@ -42,7 +42,7 @@ export function useInsert<T extends Record<string, unknown>>(
       setError(null);
 
       try {
-        const id = insert(tableName, data);
+        const id = await insert(tableName, data);
         options.onSuccess?.(id, data);
         return id;
       } catch (err) {
@@ -59,12 +59,11 @@ export function useInsert<T extends Record<string, unknown>>(
   );
 
   const mutate = useCallback(
-    (data: T): string | undefined => {
+    async (data: T): Promise<void> => {
       try {
-        return insert(tableName, data);
+        await insert(tableName, data);
       } catch (err) {
         setError(err as Error);
-        return undefined;
       }
     },
     [tableName],
@@ -94,7 +93,7 @@ export function useUpdate<T extends Record<string, unknown>>(
       setError(null);
 
       try {
-        update(tableName, id, data);
+        await update(tableName, id, data);
         options.onSuccess?.(undefined, { id, data });
       } catch (err) {
         const error = err as Error;
@@ -110,9 +109,9 @@ export function useUpdate<T extends Record<string, unknown>>(
   );
 
   const mutate = useCallback(
-    ({ id, data }: { id: string; data: T }): void => {
+    async ({ id, data }: { id: string; data: T }): Promise<void> => {
       try {
-        update(tableName, id, data);
+        await update(tableName, id, data);
       } catch (err) {
         setError(err as Error);
       }
@@ -144,7 +143,7 @@ export function useDelete(
       setError(null);
 
       try {
-        softDelete(tableName, id);
+        await softDelete(tableName, id);
         options.onSuccess?.(undefined, id);
       } catch (err) {
         const error = err as Error;
@@ -160,9 +159,9 @@ export function useDelete(
   );
 
   const mutate = useCallback(
-    (id: string): void => {
+    async (id: string): Promise<void> => {
       try {
-        softDelete(tableName, id);
+        await softDelete(tableName, id);
       } catch (err) {
         setError(err as Error);
       }

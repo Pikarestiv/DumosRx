@@ -38,7 +38,7 @@ export default function LoginPage() {
 
         <div className="bg-black/60 backdrop-blur-2xl border border-white/10 rounded-3xl p-8 shadow-2xl overflow-hidden relative group">
           {/* Subtle card glow */}
-          <div className="absolute -inset-0.5 bg-linear-to-r from-primary/30 to-accent/30 rounded-3xl opacity-0 group-hover:opacity-10 transition duration-1000" />
+          <div className="pointer-events-none absolute -inset-0.5 bg-linear-to-r from-primary/30 to-accent/30 rounded-3xl opacity-0 group-hover:opacity-10 transition duration-1000" />
 
           <div className="flex flex-col items-center text-center space-y-2 relative mb-8">
             <motion.div

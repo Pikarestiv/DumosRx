@@ -21,7 +21,7 @@ return [
 
     'allowed_origins' => ['http://localhost:3000', 'http://localhost:3001', 'https://rx.dumostech.com', 'https://*.rx.dumostech.com'],
 
-    'allowed_origins_patterns' => [],
+    'allowed_origins_patterns' => ['#^http://localhost:\d+$#', '#^http://127\.0\.0\.1:\d+$#'],
 
     'allowed_headers' => ['*'],
 

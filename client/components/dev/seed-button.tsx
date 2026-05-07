@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { sync } from "@/lib/db/sync-engine";
 import { RefreshCw, Database } from "lucide-react";
 import { toast } from "sonner";
-import { insert } from "@/lib/db/local-database";
+import { insert, execute } from "@/lib/db/local-database";
 import { useAuthStore } from "@/lib/auth/store";
 
 export function DevSeedButton() {
@@ -18,6 +18,14 @@ export function DevSeedButton() {
   const seedData = async () => {
     try {
       setLoading(true);
+
+      // Clean up previous mock data to avoid UNIQUE constraint errors
+      await execute("DELETE FROM medicines WHERE id IN ('m1', 'm2', 'm3')");
+      await execute("DELETE FROM suppliers WHERE id IN ('v1', 'v2')");
+      await execute("DELETE FROM expenses WHERE id IN ('e1')");
+      await execute("DELETE FROM sales WHERE id IN ('s1', 's2')");
+      await execute("DELETE FROM customers WHERE id IN ('c1')");
+      await execute("DELETE FROM users WHERE id IN ('u1')");
 
       // Seed Medicines with UoM
       await insert("medicines", {

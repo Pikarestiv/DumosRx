@@ -49,7 +49,7 @@ export function DashboardOverview() {
   const { data: topStaff } = useLocalData<{ name: string; total: number }>(
     `SELECT u.name, SUM(s.total_amount) as total 
      FROM sales s 
-     JOIN users u ON s.cashier_id = u.id 
+     JOIN users u ON s.user_id = u.id 
      WHERE date(s.transaction_date) = date('now') AND s._deleted = 0 
      GROUP BY u.name 
      ORDER BY total DESC 

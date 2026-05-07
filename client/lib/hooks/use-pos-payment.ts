@@ -68,7 +68,7 @@ export function usePOSPayment({
       const saleId = await insert("sales", {
         transaction_number: transactionNumber,
         customer_id: selectedCustomer?.id || null,
-        cashier_id: cashierId,
+        user_id: cashierId,
         subtotal,
         discount_amount: discount,
         discount_percentage: 0,

@@ -26,7 +26,7 @@ export const generateEODSummary = async () => {
     const staffRes = await query<{ name: string; total: number }>(`
       SELECT u.name, SUM(s.total_amount) as total 
       FROM sales s
-      JOIN users u ON s.cashier_id = u.id
+      JOIN users u ON s.user_id = u.id
       WHERE date(s.transaction_date) = ? AND s._deleted = 0
       GROUP BY u.id
       ORDER BY total DESC

@@ -86,7 +86,7 @@ export function DevSeedButton() {
 
       await insert("sales", {
         id: "s1",
-        cashier_id: cashierId,
+        user_id: cashierId,
         total_amount: 1500,
         amount_paid: 1500,
         change_given: 0,
@@ -104,7 +104,7 @@ export function DevSeedButton() {
       });
       await insert("sales", {
         id: "s2",
-        cashier_id: cashierId,
+        user_id: cashierId,
         total_amount: 2500,
         amount_paid: 2500,
         change_given: 0,

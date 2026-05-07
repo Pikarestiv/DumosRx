@@ -39,17 +39,17 @@ export default function RegisterPage() {
         <div className="bg-black/60 backdrop-blur-2xl border border-white/10 rounded-3xl p-8 shadow-2xl relative group">
           <div className="flex flex-col items-center text-center space-y-2 mb-8">
             <motion.div
-              initial={{ scale: 0, rotate: -20 }}
-              animate={{ scale: 1, rotate: 0 }}
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
               transition={{
                 type: "spring",
                 stiffness: 260,
                 damping: 20,
                 delay: 0.2,
               }}
-              className="h-16 w-16 bg-accent/20 rounded-2xl flex items-center justify-center mb-4 border border-accent/30"
+              className="mb-4"
             >
-              <ShieldCheck className="h-8 w-8 text-accent" />
+              <Image src="/logo.png" alt="DumosRx Logo" width={200} height={50} className="object-contain" />
             </motion.div>
             <h2 className="text-4xl font-serif font-black text-white tracking-tight">
               Join the Network

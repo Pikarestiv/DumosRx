@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { ShieldCheck, Download } from "lucide-react";
 import { SubscriptionWrapper } from "@/components/dashboard/subscription-wrapper";
@@ -15,9 +16,8 @@ export default function DashboardPage() {
     <div className="flex min-h-screen flex-col bg-muted/40">
       <header className="border-b bg-background">
         <div className="container flex h-16 items-center justify-between">
-          <Link href="/" className="flex items-center space-x-2">
-            <ShieldCheck className="h-8 w-8 text-primary" />
-            <span className="text-xl font-bold">DumosRx</span>
+          <Link href="/" className="flex items-center">
+            <Image src="/logo.png" alt="DumosRx Logo" width={160} height={40} className="object-contain" priority />
           </Link>
           <div className="flex items-center gap-4">
             <Button variant="ghost" asChild>

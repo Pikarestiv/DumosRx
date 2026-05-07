@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -26,9 +27,8 @@ export default function Home() {
       {/* Navigation */}
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
         <div className="container flex h-16 items-center justify-between">
-          <Link href="/" className="flex items-center space-x-2">
-            <ShieldCheck className="h-8 w-8 text-primary" />
-            <span className="text-xl font-bold">DumosRx</span>
+          <Link href="/" className="flex items-center">
+            <Image src="/logo.png" alt="DumosRx Logo" width={160} height={40} className="object-contain" priority />
           </Link>
 
           {/* Desktop Nav */}
@@ -232,9 +232,8 @@ export default function Home() {
       <footer className="py-12 bg-slate-900 text-slate-400">
         <div className="container grid md:grid-cols-4 gap-8 mb-8">
           <div className="space-y-4">
-            <div className="flex items-center space-x-2 text-white">
-              <ShieldCheck className="h-6 w-6" />
-              <span className="text-lg font-bold">DumosRx</span>
+            <div className="flex items-center space-x-2 bg-white/10 p-2 rounded-lg inline-block w-fit">
+              <Image src="/logo.png" alt="DumosRx Logo" width={160} height={40} className="object-contain" />
             </div>
             <p className="text-sm">
               The #1 Pharmacy Management System in Nigeria. Compliant, reliable,

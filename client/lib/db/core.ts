@@ -61,42 +61,43 @@ export async function initDatabase(): Promise<any> {
         console.error("[DB] Failed to load saved data, starting fresh", e);
         db = new SQL.Database();
         db.run(SCHEMA_SQL);
-        // ---- Migration: ensure sync tracking columns exist ----
-        const syncColumns = [
-          { table: 'medicines', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
-          { table: 'inventory', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
-          { table: 'categories', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
-          { table: 'customers', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
-          { table: 'vendors', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
-          { table: 'sales', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
-          { table: 'sale_items', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
-          { table: 'prescriptions', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
-          { table: 'expenses', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
-          { table: 'users', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
-          { table: 'audit_logs', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
-          { table: 'returns', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
-          { table: 'purchase_orders', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
-          { table: 'purchase_order_items', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
-          { table: 'suppliers', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
-          { table: 'stock_audits', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
-          { table: 'held_transactions', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
-          { table: 'loyalty_transactions', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
-        ];
-        for (const { table, columns } of syncColumns) {
-          for (const colDef of columns) {
-            const colName = colDef.split(' ')[0];
-            try {
-              // Attempt to add column; will throw if it already exists
-              db.run(`ALTER TABLE ${table} ADD COLUMN ${colDef}`);
-            } catch (e) {
-              // Column likely already exists; ignore
-            }
-          }
-        }
       }
     } else {
       db = new SQL.Database();
       db.run(SCHEMA_SQL);
+    }
+
+    // ---- Migration: ensure sync tracking and missing columns exist ----
+    const syncColumns = [
+      { table: 'medicines', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
+      { table: 'inventory', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
+      { table: 'categories', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
+      { table: 'customers', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
+      { table: 'vendors', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
+      { table: 'sales', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0', 'amount_paid REAL DEFAULT 0', 'change_given REAL DEFAULT 0', 'tax_percentage REAL DEFAULT 0', 'discount_percentage REAL DEFAULT 0', 'points_earned REAL DEFAULT 0', 'points_redeemed REAL DEFAULT 0'] },
+      { table: 'sale_items', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
+      { table: 'prescriptions', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
+      { table: 'expenses', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
+      { table: 'users', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
+      { table: 'audit_logs', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
+      { table: 'returns', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
+      { table: 'purchase_orders', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
+      { table: 'purchase_order_items', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
+      { table: 'suppliers', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
+      { table: 'stock_audits', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
+      { table: 'held_transactions', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
+      { table: 'loyalty_transactions', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
+    ];
+    
+    for (const { table, columns } of syncColumns) {
+      for (const colDef of columns) {
+        try {
+          // Attempt to add column; will throw if it already exists
+          db.run(`ALTER TABLE ${table} ADD COLUMN ${colDef}`);
+        } catch (e) {
+          // Column likely already exists; ignore
+        }
+      }
     }
 
     return db;

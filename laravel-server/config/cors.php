@@ -19,9 +19,9 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['http://localhost:3000', 'http://localhost:3001', 'https://rx.dumostech.com', 'https://*.rx.dumostech.com'],
+    'allowed_origins' => ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002', 'http://localhost:3003', 'http://127.0.0.1:3000', 'http://127.0.0.1:8000', 'https://rx.dumostech.com', 'https://*.rx.dumostech.com'],
 
-    'allowed_origins_patterns' => ['#^http://localhost:\d+$#', '#^http://127\.0\.0\.1:\d+$#'],
+    'allowed_origins_patterns' => [],
 
     'allowed_headers' => ['*'],
 

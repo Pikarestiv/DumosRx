@@ -94,6 +94,7 @@ export function DevSeedButton() {
 
       await insert("sales", {
         id: "s1",
+        transaction_number: "TRX-SEED-001",
         user_id: cashierId,
         total_amount: 1500,
         amount_paid: 1500,
@@ -101,10 +102,11 @@ export function DevSeedButton() {
         subtotal: 1500,
         tax_amount: 0,
         tax_percentage: 7.5,
-        discount_amount: 0,
+        discount_total: 0,
         discount_percentage: 0,
         points_earned: 0,
         points_redeemed: 0,
+        payment_method: "cash",
         created_at: today,
         transaction_date: today,
         payment_status: "completed",
@@ -112,6 +114,7 @@ export function DevSeedButton() {
       });
       await insert("sales", {
         id: "s2",
+        transaction_number: "TRX-SEED-002",
         user_id: cashierId,
         total_amount: 2500,
         amount_paid: 2500,
@@ -119,10 +122,11 @@ export function DevSeedButton() {
         subtotal: 2500,
         tax_amount: 0,
         tax_percentage: 7.5,
-        discount_amount: 0,
+        discount_total: 0,
         discount_percentage: 0,
         points_earned: 0,
         points_redeemed: 0,
+        payment_method: "card",
         created_at: today,
         transaction_date: today,
         payment_status: "completed",

@@ -1,3 +1,11 @@
+# Force PHP 8.2 for DumosRx API (Laravel 11 requirement)
+<IfModule mime_module>
+  # EasyApache 4
+  AddHandler application/x-httpd-ea-php82 .php .php8 .phtml
+  # CloudLinux / LiteSpeed
+  AddHandler application/x-httpd-alt-php82___lsphp .php .php8 .phtml
+</IfModule>
+
 <IfModule mod_rewrite.c>
     <IfModule mod_negotiation.c>
         Options -MultiViews -Indexes

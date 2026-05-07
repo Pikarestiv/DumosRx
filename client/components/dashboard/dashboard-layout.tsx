@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { ThemeCustomizer } from "@/components/ui/theme-customizer";
+import { useTheme } from "@/components/theme-provider";
 import { useAuth } from "@/lib/context/auth-context";
 import { useStore } from "@/lib/context/store-context";
 import { SyncIndicator } from "./sync-indicator";
@@ -38,6 +39,7 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
+  const { theme } = useTheme();
   const { storeType, t, storeProfile } = useStore();
   const { user, logout, isAdmin } = useAuth();
 
@@ -79,10 +81,22 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           sidebarOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
-        <div className="flex items-center justify-between h-16 px-6 border-b border-sidebar-border">
-          <h1 className="font-serif font-black text-xl text-sidebar-foreground truncate pr-2">
-            {storeProfile?.name || APP_NAME}
-          </h1>
+        <div className="flex items-center gap-3 h-16 px-6 border-b border-sidebar-border">
+          <img 
+            src="/logo.png" 
+            alt="DumosRx Logo" 
+            className="h-8 w-auto object-contain" 
+          />
+          {!storeProfile?.name && (
+            <h1 className="font-serif font-black text-xl text-sidebar-foreground truncate pr-2 hidden sm:block">
+              {APP_NAME}
+            </h1>
+          )}
+          {storeProfile?.name && (
+            <h1 className="font-serif font-black text-xl text-sidebar-foreground truncate pr-2">
+              {storeProfile.name}
+            </h1>
+          )}
           <Button
             variant="ghost"
             size="sm"

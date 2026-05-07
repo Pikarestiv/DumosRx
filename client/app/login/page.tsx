@@ -71,11 +71,10 @@ export default function LoginPage() {
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.2 }}
-              className="h-16 w-16 bg-primary/20 rounded-2xl flex items-center justify-center mb-6 border border-primary/30 shadow-[0_0_20px_-5px_rgba(var(--primary),0.5)]"
+              className="mb-6 overflow-hidden"
             >
-              <Pill className="h-8 w-8 text-primary" />
+              <Image src="/logo.png" alt="Logo" width={200} height={80} className="object-contain" />
             </motion.div>
-            <CardTitle className="text-4xl font-serif font-black text-white">{APP_NAME}</CardTitle>
             <CardDescription className="text-gray-400">Terminal Access • Secure Login</CardDescription>
           </CardHeader>
           <form onSubmit={handleSubmit}>

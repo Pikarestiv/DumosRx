@@ -36,10 +36,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (identifier: string, pin?: string) => {
     // For local-first, we check both username and email
-    const isEmail = identifier.includes("@");
+    const cleanIdentifier = identifier.trim();
+    const isEmail = cleanIdentifier.includes("@");
     const field = isEmail ? "email" : "username";
     
-    const users = await query<any>(`SELECT * FROM users WHERE ${field} = ? AND is_active = 1`, [identifier]);
+    const users = await query<any>(`SELECT * FROM users WHERE LOWER(${field}) = LOWER(?) AND is_active = 1`, [cleanIdentifier]);
     
     if (users.length > 0) {
       const dbUser = users[0];
@@ -60,7 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     
     // Fallback: If no users exist, create a default admin
-    if (identifier === "admin") {
+    if (cleanIdentifier.toLowerCase() === "admin") {
       const defaultAdmin: User = {
         id: "default-admin",
         name: "Default Admin",

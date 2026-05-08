@@ -31,9 +31,11 @@ import { useTheme } from "@/components/theme-provider";
 
 import { useStore, StoreType } from "@/lib/context/store-context";
 import { toast } from "sonner";
-import { Pill, ShoppingBasket, ShoppingCart, Check } from "lucide-react";
+import { Pill, ShoppingBasket, ShoppingCart, Check, Upload } from "lucide-react";
 import { APP_NAME } from "@/lib/constants";
 import { useAuth } from "@/lib/context/auth-context";
+import { getDatabaseBinary, restoreDatabase } from "@/lib/db/core";
+import { sync } from "@/lib/db/sync-engine";
 
 // Color themes from ThemeCustomizer
 const colorThemes = [
@@ -187,6 +189,52 @@ export default function SettingsPage() {
     } else {
       toast.error(result.message);
     }
+  };
+
+  const handleSync = async () => {
+    toast.promise(sync(), {
+      loading: 'Synchronizing data with cloud...',
+      success: (data) => `Sync complete! Pushed ${data.pushed}, Pulled ${data.pulled}`,
+      error: 'Sync failed. Please check your connection.',
+    });
+  };
+
+  const handleDownloadBackup = () => {
+    const binary = getDatabaseBinary();
+    if (!binary) {
+      toast.error("Failed to export database");
+      return;
+    }
+
+    const blob = new Blob([binary as any], { type: "application/x-sqlite3" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${APP_NAME.toLowerCase()}_backup_${new Date().toISOString().split('T')[0]}.db`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success("Backup downloaded successfully");
+  };
+
+  const handleRestoreBackup = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const result = e.target?.result;
+      if (result instanceof ArrayBuffer) {
+        try {
+          await restoreDatabase(new Uint8Array(result));
+          toast.success("Database restored successfully. Page will reload.");
+        } catch (err) {
+          toast.error("Failed to restore database. Invalid file?");
+        }
+      }
+    };
+    reader.readAsArrayBuffer(file);
   };
 
   return (
@@ -582,11 +630,11 @@ export default function SettingsPage() {
                     <div>
                       <p className="font-medium">Sync Status</p>
                       <p className="text-sm text-muted-foreground">
-                        All data is up to date
+                        Last synced: {localStorage.getItem("last_sync_time") ? new Date(localStorage.getItem("last_sync_time")!).toLocaleString() : 'Never'}
                       </p>
                     </div>
                   </div>
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" onClick={handleSync}>
                     Sync Now
                   </Button>
                 </div>
@@ -596,12 +644,33 @@ export default function SettingsPage() {
                 <div className="space-y-4">
                   <h3 className="font-medium">Backup & Restore</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Button variant="outline" className="w-full justify-start">
+                    <Button 
+                      variant="outline" 
+                      className="w-full justify-start cursor-pointer"
+                      onClick={handleDownloadBackup}
+                    >
+                      <Save className="w-4 h-4 mr-2" />
                       Download Local Backup
                     </Button>
-                    <Button variant="outline" className="w-full justify-start">
-                      Restore from File
-                    </Button>
+                    <div className="relative">
+                      <Button 
+                        variant="outline" 
+                        className="w-full justify-start cursor-pointer"
+                        asChild
+                      >
+                        <label htmlFor="restore-db">
+                          <Upload className="w-4 h-4 mr-2" />
+                          Restore from File
+                        </label>
+                      </Button>
+                      <input 
+                        type="file" 
+                        id="restore-db" 
+                        className="hidden" 
+                        accept=".db"
+                        onChange={handleRestoreBackup}
+                      />
+                    </div>
                   </div>
                 </div>
               </CardContent>

@@ -153,6 +153,32 @@ export async function execute(
   saveDatabase();
 }
 
+/**
+ * Returns the raw database binary for export
+ */
+export function getDatabaseBinary(): Uint8Array | null {
+  if (!db) return null;
+  return db.export();
+}
+
+/**
+ * Overwrites the current database with provided binary data
+ */
+export async function restoreDatabase(binaryData: Uint8Array): Promise<void> {
+  if (!SQL) {
+    SQL = await initSqlJs({
+      locateFile: (file: string) => `/${file}`,
+    });
+  }
+  
+  db = new SQL.Database(binaryData);
+  saveDatabase();
+  // Reload page to ensure all contexts pick up new data
+  if (typeof window !== "undefined") {
+    window.location.reload();
+  }
+}
+
 export async function logAction(action: string, table: string, recordId: string, details?: any) {
   if (!db) return;
   const id = generateId();

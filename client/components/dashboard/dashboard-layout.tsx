@@ -86,8 +86,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           <img 
             src="/logo.png" 
             alt="DumosRx Logo" 
-            className="h-8 w-auto object-contain" 
-          />
+            className="h-8 w-auto object-contain transition-all duration-500" 
+            style={{ filter: 'var(--logo-filter)' }}          />
           <div className="flex-1" />
           <Button
             variant="ghost"
@@ -101,17 +101,17 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
         <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
           {navigationItems.map((item) => {
-            const isActive = pathname === item.href;
+            const isActive = pathname.startsWith(item.href);
             return (
               <Link
                 key={item.name}
-                href={isActive ? "#" : item.href}
-                onClick={(e) => isActive && e.preventDefault()}
+                href={item.href}
+                onClick={() => setSidebarOpen(false)}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors",
                   isActive
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground cursor-default"
-                    : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                    ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20 cursor-default"
+                    : "text-sidebar-foreground hover:bg-primary/50 hover:text-primary-foreground",
                 )}
               >
                 <item.icon className="h-4 w-4" />

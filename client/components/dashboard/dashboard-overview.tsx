@@ -107,7 +107,7 @@ export function DashboardOverview() {
   const getActivityColor = (type: string) => {
     switch (type) {
       case "sale":
-        return "bg-accent";
+        return "bg-primary";
       case "restock":
         return "bg-primary";
       case "alert":

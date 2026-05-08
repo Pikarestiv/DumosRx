@@ -168,6 +168,17 @@ export async function sync(): Promise<SyncResult> {
     return { success: false, pushed: 0, pulled: 0, error: "Sync already in progress" };
   }
 
+  // Check for authentication before starting
+  const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+  if (!token) {
+    return { 
+      success: false, 
+      pushed: 0, 
+      pulled: 0, 
+      error: "Unauthenticated. Please link your cloud account in settings." 
+    };
+  }
+
   try {
     isSyncInProgress = true;
     const pushResult = await pushChanges();

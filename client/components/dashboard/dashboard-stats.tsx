@@ -24,7 +24,7 @@ export function DashboardStats({ statsCards }: DashboardStatsProps) {
             <CardTitle className="text-sm font-medium text-muted-foreground">
               {stat.title}
             </CardTitle>
-            <stat.icon className="h-4 w-4 text-accent" />
+            <stat.icon className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-foreground">
@@ -33,7 +33,7 @@ export function DashboardStats({ statsCards }: DashboardStatsProps) {
             <p className="text-xs text-muted-foreground mt-1">
               {stat.description}
             </p>
-            <p className="text-xs text-accent mt-2">{stat.trend}</p>
+            <p className="text-xs text-primary mt-2">{stat.trend}</p>
           </CardContent>
         </Card>
       ))}

@@ -19,6 +19,7 @@ export function SyncIndicator() {
   >("online");
   const [lastSync, setLastSync] = useState<string | null>(null);
   const [isSyncInProgress, setIsSyncInProgress] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     updateOnlineStatus();
@@ -53,11 +54,17 @@ export function SyncIndicator() {
       if (result.success) {
         setStatus("online");
         setLastSync(new Date().toISOString());
+        setErrorMessage(null);
       } else {
         setStatus("error");
+        setErrorMessage(typeof result.error === 'string' ? result.error : "Sync failed");
       }
-    } catch (_err) {
+    } catch (err: any) {
+      console.error("Manual sync failed:", err);
       setStatus("error");
+      setErrorMessage(err.message?.includes("Unauthenticated") 
+        ? "Cloud Account Unauthenticated. Please re-link in settings." 
+        : "Sync failed. Check your connection.");
     }
   };
 
@@ -119,6 +126,8 @@ export function SyncIndicator() {
               <p className="text-[10px] text-muted-foreground leading-relaxed">
                 {status === "offline"
                   ? "Offline mode. Changes are saved locally and will sync automatically when your connection is restored."
+                  : status === "error"
+                  ? errorMessage || "Sync failed. Please try again."
                   : "Your data is securely backed up to the DumosRx cloud."}
               </p>
             </div>

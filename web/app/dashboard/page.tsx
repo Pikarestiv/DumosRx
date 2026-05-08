@@ -22,6 +22,7 @@ import {
   Pill,
   Plus,
   Smartphone,
+  Globe,
   Loader2,
   ChevronRight
 } from "lucide-react";
@@ -44,6 +45,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { SubscriptionWrapper } from "@/components/dashboard/subscription-wrapper";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { webApiClient } from "@/lib/api/client";
 
 export default function DashboardPage() {
@@ -104,6 +113,8 @@ export default function DashboardPage() {
               width={120} 
               height={42} 
               className="h-10 w-auto object-contain brightness-0 invert"
+              style={{ height: "auto" }}
+              priority
             />
           </Link>
         </div>
@@ -151,19 +162,102 @@ export default function DashboardPage() {
                  <Input placeholder="Search records, stores or medicines..." className="pl-10 bg-muted/50 border-none focus-visible:ring-primary" />
               </div>
            </div>
-           <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" className="relative">
-                 <Bell className="h-5 w-5" />
-                 <span className="absolute top-2 right-2 w-2 h-2 bg-destructive rounded-full" />
-              </Button>
-              <Button className="lg:hidden" variant="ghost" size="icon">
-                 <Menu className="h-6 w-6" />
-              </Button>
-           </div>
+            <div className="flex items-center gap-4">
+               <DropdownMenu>
+                 <DropdownMenuTrigger asChild>
+                   <Button variant="ghost" size="icon" className="relative">
+                      <Bell className="h-5 w-5" />
+                      <span className="absolute top-2 right-2 w-2 h-2 bg-destructive rounded-full" />
+                   </Button>
+                 </DropdownMenuTrigger>
+                 <DropdownMenuContent align="end" className="w-80">
+                   <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+                   <DropdownMenuSeparator />
+                   <div className="max-h-[300px] overflow-y-auto">
+                     <DropdownMenuItem className="flex flex-col items-start gap-1 p-3 cursor-pointer">
+                       <div className="flex items-center gap-2 w-full">
+                         <Badge variant="outline" className="bg-orange-100 text-orange-700 border-orange-200">Inventory</Badge>
+                         <span className="text-[10px] text-muted-foreground ml-auto">2h ago</span>
+                       </div>
+                       <p className="text-sm font-bold">Low Stock Alert: Lagos Branch</p>
+                       <p className="text-xs text-muted-foreground">Paracetamol 500mg is below threshold (5 units left).</p>
+                     </DropdownMenuItem>
+                     <DropdownMenuSeparator />
+                     <DropdownMenuItem className="flex flex-col items-start gap-1 p-3 cursor-pointer">
+                       <div className="flex items-center gap-2 w-full">
+                         <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-200">System</Badge>
+                         <span className="text-[10px] text-muted-foreground ml-auto">5h ago</span>
+                       </div>
+                       <p className="text-sm font-bold">New Store Connected</p>
+                       <p className="text-xs text-muted-foreground">"DumosRx Ikeja" has successfully synced its first batch.</p>
+                     </DropdownMenuItem>
+                     <DropdownMenuSeparator />
+                     <DropdownMenuItem className="flex flex-col items-start gap-1 p-3 cursor-pointer">
+                       <div className="flex items-center gap-2 w-full">
+                         <Badge variant="outline" className="bg-red-100 text-red-700 border-red-200">Security</Badge>
+                         <span className="text-[10px] text-muted-foreground ml-auto">1d ago</span>
+                       </div>
+                       <p className="text-sm font-bold">Failed Login Attempt</p>
+                       <p className="text-xs text-muted-foreground">Multiple failed attempts detected for user 'admin@dumosrx.com'.</p>
+                     </DropdownMenuItem>
+                   </div>
+                   <DropdownMenuSeparator />
+                   <DropdownMenuItem 
+                     className="w-full text-center text-xs text-primary font-bold justify-center py-2 cursor-pointer"
+                     onClick={() => setActiveTab("notifications")}
+                   >
+                     View All Notifications
+                   </DropdownMenuItem>
+                 </DropdownMenuContent>
+               </DropdownMenu>
+               <Button className="lg:hidden" variant="ghost" size="icon">
+                  <Menu className="h-6 w-6" />
+               </Button>
+            </div>
         </header>
 
         {/* Scrollable Area */}
         <main className="flex-1 overflow-y-auto p-8">
+           {activeTab === "notifications" && (
+             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="flex items-center justify-between">
+                   <div>
+                      <h1 className="text-3xl font-black tracking-tight">Notifications Center</h1>
+                      <p className="text-muted-foreground">Stay updated with your pharmacy fleet's activity</p>
+                   </div>
+                   <Button variant="outline" onClick={() => setActiveTab("overview")}>Back to Overview</Button>
+                </div>
+                
+                <Card className="border-none shadow-sm">
+                   <CardContent className="p-0">
+                      <div className="divide-y divide-border">
+                         {[
+                            { title: "Low Stock Alert: Lagos Branch", desc: "Paracetamol 500mg is below threshold (5 units left).", time: "2h ago", type: "Inventory", badge: "bg-orange-100 text-orange-700" },
+                            { title: "New Store Connected", desc: "'DumosRx Ikeja' has successfully synced its first batch.", time: "5h ago", type: "System", badge: "bg-blue-100 text-blue-700" },
+                            { title: "Failed Login Attempt", desc: "Multiple failed attempts detected for user 'admin@dumosrx.com'.", time: "1d ago", type: "Security", badge: "bg-red-100 text-red-700" },
+                            { title: "Subscription Renewed", desc: "Your 'Enterprise Plan' has been successfully renewed for another month.", time: "2d ago", type: "Billing", badge: "bg-green-100 text-green-700" },
+                            { title: "Weekly Fleet Report Ready", desc: "Your summary for the period May 1 - May 7 is now available.", time: "3d ago", type: "Reports", badge: "bg-purple-100 text-purple-700" },
+                         ].map((notif, i) => (
+                            <div key={i} className="flex items-start gap-4 p-6 hover:bg-muted/30 transition-colors cursor-pointer group">
+                               <div className={`mt-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${notif.badge}`}>
+                                  {notif.type}
+                               </div>
+                               <div className="flex-1">
+                                  <div className="flex items-center justify-between">
+                                     <h4 className="font-bold text-lg group-hover:text-primary transition-colors">{notif.title}</h4>
+                                     <span className="text-xs text-muted-foreground">{notif.time}</span>
+                                  </div>
+                                  <p className="text-muted-foreground mt-1">{notif.desc}</p>
+                               </div>
+                               <ChevronRight className="h-5 w-5 text-muted-foreground self-center opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </div>
+                         ))}
+                      </div>
+                   </CardContent>
+                </Card>
+             </div>
+           )}
+
            {activeTab === "overview" && (
              <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <div className="flex items-center justify-between">
@@ -271,7 +365,157 @@ export default function DashboardPage() {
              </div>
            )}
 
-           {/* ... Other tabs ... */}
+           {activeTab === "fleet" && (
+             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="flex items-center justify-between">
+                   <div>
+                      <h1 className="text-3xl font-black tracking-tight">Store Fleet</h1>
+                      <p className="text-muted-foreground">Manage and monitor all your connected pharmacy locations</p>
+                   </div>
+                   <Button className="font-bold">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Register New Store
+                   </Button>
+                </div>
+
+                <Card className="border-none shadow-sm">
+                   <CardHeader>
+                      <CardTitle>Connected Store Instances</CardTitle>
+                      <CardDescription>Live status and sales performance across your entire network.</CardDescription>
+                   </CardHeader>
+                   <CardContent>
+                      <Table>
+                         <TableHeader>
+                            <TableRow className="hover:bg-transparent border-muted">
+                               <TableHead className="font-bold text-xs uppercase">Store Name</TableHead>
+                               <TableHead className="font-bold text-xs uppercase text-center">Status</TableHead>
+                               <TableHead className="font-bold text-xs uppercase text-center">Location</TableHead>
+                               <TableHead className="font-bold text-xs uppercase text-center">Last Sync</TableHead>
+                               <TableHead className="font-bold text-xs uppercase text-right">Daily Sales</TableHead>
+                               <TableHead className="w-[50px]"></TableHead>
+                            </TableRow>
+                         </TableHeader>
+                         <TableBody>
+                            {stores.map((store: any) => (
+                               <TableRow key={store.id} className="border-muted hover:bg-muted/30">
+                                  <TableCell className="font-bold py-4">
+                                     <div className="flex flex-col">
+                                        <span>{store.name}</span>
+                                        <span className="text-[10px] font-mono text-muted-foreground">{store.id}</span>
+                                     </div>
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                     <Badge variant="outline" className={`${store.status === 'online' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-slate-50 text-slate-500 border-slate-200'} font-bold`}>
+                                        <Circle className={`h-2 w-2 mr-2 fill-current ${store.status === 'online' ? 'text-green-500' : 'text-slate-300'}`} />
+                                        {store.status}
+                                     </Badge>
+                                  </TableCell>
+                                  <TableCell className="text-center text-sm font-medium">{store.location || "Nigeria"}</TableCell>
+                                  <TableCell className="text-center text-sm text-muted-foreground">{store.lastSync}</TableCell>
+                                  <TableCell className="text-right font-black">{store.sales}</TableCell>
+                                  <TableCell>
+                                     <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
+                                  </TableCell>
+                               </TableRow>
+                            ))}
+                         </TableBody>
+                      </Table>
+                   </CardContent>
+                </Card>
+             </div>
+           )}
+
+           {activeTab === "billing" && (
+             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div>
+                   <h1 className="text-3xl font-black tracking-tight">Subscription & Billing</h1>
+                   <p className="text-muted-foreground">Manage your plan, payment methods, and billing history</p>
+                </div>
+                
+                <SubscriptionWrapper />
+
+                <Card className="border-none shadow-sm">
+                   <CardHeader>
+                      <CardTitle>Billing History</CardTitle>
+                      <CardDescription>View and download your recent invoices.</CardDescription>
+                   </CardHeader>
+                   <CardContent>
+                      <Table>
+                         <TableHeader>
+                            <TableRow className="hover:bg-transparent">
+                               <TableHead>Date</TableHead>
+                               <TableHead>Description</TableHead>
+                               <TableHead>Amount</TableHead>
+                               <TableHead>Status</TableHead>
+                               <TableHead className="text-right">Invoice</TableHead>
+                            </TableRow>
+                         </TableHeader>
+                         <TableBody>
+                            <TableRow>
+                               <TableCell className="text-sm">May 1, 2026</TableCell>
+                               <TableCell className="font-medium text-sm">Enterprise Plan (Monthly)</TableCell>
+                               <TableCell className="text-sm">₦45,000</TableCell>
+                               <TableCell><Badge className="bg-green-500">Paid</Badge></TableCell>
+                               <TableCell className="text-right"><Button variant="ghost" size="sm">Download</Button></TableCell>
+                            </TableRow>
+                            <TableRow>
+                               <TableCell className="text-sm">Apr 1, 2026</TableCell>
+                               <TableCell className="font-medium text-sm">Enterprise Plan (Monthly)</TableCell>
+                               <TableCell className="text-sm">₦45,000</TableCell>
+                               <TableCell><Badge className="bg-green-500">Paid</Badge></TableCell>
+                               <TableCell className="text-right"><Button variant="ghost" size="sm">Download</Button></TableCell>
+                            </TableRow>
+                         </TableBody>
+                      </Table>
+                   </CardContent>
+                </Card>
+             </div>
+           )}
+
+           {activeTab === "downloads" && (
+             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div>
+                   <h1 className="text-3xl font-black tracking-tight">App Downloads</h1>
+                   <p className="text-muted-foreground">Download the DumosRx Local Client for your pharmacy computers</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                   {[
+                      { os: "Windows", icon: Smartphone, version: "v2.1.4", size: "84MB", link: "#" },
+                      { os: "macOS", icon: Activity, version: "v2.1.4 (Apple Silicon)", size: "78MB", link: "#" },
+                      { os: "Linux", icon: Globe, version: "v2.1.4 (AppImage)", size: "92MB", link: "#" },
+                   ].map((app, i) => (
+                      <Card key={i} className="border-none shadow-sm hover:border-primary/50 transition-colors border-2 border-transparent">
+                         <CardContent className="p-8 text-center flex flex-col items-center">
+                            <div className="w-16 h-16 bg-primary/10 rounded-3xl flex items-center justify-center text-primary mb-6">
+                               <app.icon className="h-8 w-8" />
+                            </div>
+                            <h3 className="text-xl font-black mb-1">{app.os}</h3>
+                            <p className="text-sm text-muted-foreground mb-6">{app.version} • {app.size}</p>
+                            <Button className="w-full font-bold group">
+                               <Download className="h-4 w-4 mr-2 group-hover:translate-y-0.5 transition-transform" />
+                               Download Now
+                            </Button>
+                         </CardContent>
+                      </Card>
+                   ))}
+                </div>
+
+                <Card className="bg-muted/50 border-none">
+                   <CardContent className="p-8 flex flex-col md:flex-row items-center gap-8">
+                      <div className="flex-1">
+                         <h4 className="text-lg font-bold mb-2">Why use the Local Client?</h4>
+                         <p className="text-muted-foreground text-sm leading-relaxed">
+                            The local client app allows your pharmacy to operate 100% offline. 
+                            It syncs automatically with this cloud dashboard when the internet is available, 
+                            ensuring zero downtime for your sales and prescriptions.
+                         </p>
+                      </div>
+                      <Button variant="outline" className="font-bold border-2">Installation Guide</Button>
+                   </CardContent>
+                </Card>
+             </div>
+           )}
         </main>
       </div>
     </div>

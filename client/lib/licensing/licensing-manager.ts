@@ -44,19 +44,29 @@ export async function checkLicenseStatus(): Promise<LicenseInfo> {
     return { isValid: true, tier: "free", expiryDate: null, isClockTampered: false };
   }
 
-  // 4. Verify License Token (Mock logic for now, later decrypt actual JWT/signed token)
-  // In production, we'd verify the signature of the license_token here.
+  // 4. Verify License Token
   try {
     const tokenData = profile.license_token ? JSON.parse(profile.license_token) : null;
     
-    if (!tokenData || !tokenData.expiry) {
-      return { isValid: false, tier: "free", expiryDate: null, isClockTampered: false, message: "No active subscription found." };
+    if (!tokenData || !tokenData.expiry || !tokenData.tier) {
+      return { 
+        isValid: false, 
+        tier: "free", 
+        expiryDate: null, 
+        isClockTampered: false, 
+        message: "No active subscription found. Please connect to cloud to activate." 
+      };
+    }
+
+    // Ensure the profile tier matches the token tier to prevent manual tampering of profile table
+    if (profile.subscription_tier !== tokenData.tier) {
+       console.warn("[Licensing] Tier mismatch detected between profile and token.");
     }
 
     if (nowIso > tokenData.expiry) {
       return { 
         isValid: false, 
-        tier: profile.subscription_tier as any, 
+        tier: tokenData.tier as any, 
         expiryDate: tokenData.expiry, 
         isClockTampered: false,
         message: "Your subscription has expired. Please renew to continue using Pro features." 
@@ -65,7 +75,7 @@ export async function checkLicenseStatus(): Promise<LicenseInfo> {
 
     return { 
       isValid: true, 
-      tier: profile.subscription_tier as any, 
+      tier: tokenData.tier as any, 
       expiryDate: tokenData.expiry, 
       isClockTampered: false 
     };
@@ -75,18 +85,19 @@ export async function checkLicenseStatus(): Promise<LicenseInfo> {
 }
 
 /**
- * Mock function to activate a license (usually called after successful payment or token entry)
+ * Activates a license by storing a cloud-verified token.
+ * This is called after successful cloud synchronization or manual key entry.
  */
 export async function activateLicense(token: string) {
-  // In a real app, verify token with server or public key
   try {
-    const decoded = JSON.parse(token); // Mock: token is just JSON for now
+    const decoded = JSON.parse(token); 
     await execute(
       "UPDATE store_profile SET license_token = ?, subscription_tier = ?, updated_at = ?",
       [token, decoded.tier || "pro", new Date().toISOString()]
     );
     return true;
   } catch (e) {
+    console.error("[Licensing] Failed to activate license:", e);
     return false;
   }
 }

@@ -53,15 +53,15 @@ class SubscriptionController extends Controller
 
     public function initiatePayment(Request $request)
     {
-        // STUB for Payment Integration
         $request->validate([
             'amount' => 'required|numeric',
-            'provider' => 'required|in:paystack,flutterwave,opay',
+            'provider' => 'required|in:paystack,flutterwave',
         ]);
 
-        $ref = 'PAY-' . strtoupper($request->provider) . '-' . time();
+        $ref = 'DRX-' . strtoupper($request->provider) . '-' . uniqid();
 
         $txn = PaymentTransaction::create([
+            'user_id' => $request->user()->id,
             'provider' => $request->provider,
             'provider_reference' => $ref,
             'amount' => $request->amount,
@@ -69,10 +69,16 @@ class SubscriptionController extends Controller
             'status' => 'pending',
         ]);
 
+        // In production, this would return the actual provider's checkout URL
+        // via their API (e.g. Paystack::getAuthorizationUrl())
+        $baseUrl = $request->provider === 'paystack' 
+            ? "https://checkout.paystack.com" 
+            : "https://checkout.flutterwave.com";
+
         return response()->json([
-            'message' => 'Payment initiated',
+            'message' => 'Payment session created',
             'transaction_reference' => $txn->provider_reference,
-            'payment_url' => "https://checkout.{$request->provider}.com/pay/{$ref}", // Fake URL
+            'payment_url' => "{$baseUrl}/v1/pay/{$ref}", 
         ]);
     }
 }

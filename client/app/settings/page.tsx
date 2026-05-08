@@ -36,6 +36,8 @@ import { APP_NAME } from "@/lib/constants";
 import { useAuth } from "@/lib/context/auth-context";
 import { getDatabaseBinary, restoreDatabase, resetDatabase } from "@/lib/db/core";
 import { sync } from "@/lib/db/sync-engine";
+import { CloudLinkDialog } from "@/components/settings/cloud-link-dialog";
+import { CloudOff } from "lucide-react";
 
 // Color themes from ThemeCustomizer
 const colorThemes = [
@@ -48,8 +50,9 @@ const colorThemes = [
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
-  const { user, logout, isAdmin, changePin } = useAuth();
-
+  const { user, logout, isAdmin, changePin, isCloudLinked } = useAuth();
+  
+  const [isCloudLinkOpen, setIsCloudLinkOpen] = useState(false);
   const [currentPin, setCurrentPin] = useState("");
   const [newPin, setNewPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
@@ -192,6 +195,11 @@ export default function SettingsPage() {
   };
 
   const handleSync = async () => {
+    if (!isCloudLinked) {
+      setIsCloudLinkOpen(true);
+      return;
+    }
+
     toast.promise(sync(), {
       loading: 'Synchronizing data with cloud...',
       success: (data) => `Sync complete! Pushed ${data.pushed}, Pulled ${data.pulled}`,
@@ -629,21 +637,32 @@ export default function SettingsPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-                  <div className="flex items-center gap-4">
-                    <div className="h-10 w-10 bg-green-100 text-green-600 rounded-full flex items-center justify-center">
-                      <Database className="h-5 w-5" />
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between p-4 border rounded-lg bg-muted/30 gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className={`h-10 w-10 ${isCloudLinked ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'} rounded-full flex items-center justify-center`}>
+                      {isCloudLinked ? <Database className="h-5 w-5" /> : <CloudOff className="h-5 w-5" />}
                     </div>
                     <div>
-                      <p className="font-medium">Sync Status</p>
+                      <p className="font-medium">
+                        {isCloudLinked ? 'Connected to Cloud' : 'Local Mode (Not Linked)'}
+                      </p>
                       <p className="text-sm text-muted-foreground">
-                        Last synced: {localStorage.getItem("last_sync_time") ? new Date(localStorage.getItem("last_sync_time")!).toLocaleString() : 'Never'}
+                        {isCloudLinked 
+                          ? `Last synced: ${localStorage.getItem("last_sync_time") ? new Date(localStorage.getItem("last_sync_time")!).toLocaleString() : 'Never'}`
+                          : 'Connect your cloud account to enable sync'}
                       </p>
                     </div>
                   </div>
-                  <Button variant="outline" size="sm" onClick={handleSync}>
-                    Sync Now
-                  </Button>
+                  <div className="flex gap-2">
+                    {!isCloudLinked && (
+                      <Button variant="outline" size="sm" onClick={() => setIsCloudLinkOpen(true)}>
+                        Link Account
+                      </Button>
+                    )}
+                    <Button variant={isCloudLinked ? "outline" : "default"} size="sm" onClick={handleSync}>
+                      {isCloudLinked ? 'Sync Now' : 'Link & Sync'}
+                    </Button>
+                  </div>
                 </div>
 
                 <Separator />
@@ -757,6 +776,12 @@ export default function SettingsPage() {
           </TabsContent>
         </Tabs>
       </div>
+
+      <CloudLinkDialog 
+        open={isCloudLinkOpen} 
+        onOpenChange={setIsCloudLinkOpen}
+        onSuccess={handleSync}
+      />
     </DashboardLayout>
   );
 }

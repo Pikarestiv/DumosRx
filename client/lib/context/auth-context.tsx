@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { query, setCurrentUser as setDbUser } from "@/lib/db/local-database";
+import { apiClient } from "@/lib/api/client";
 
 interface User {
   id: string;
@@ -18,16 +19,23 @@ interface AuthContextType {
   isAdmin: boolean;
   isPharmacist: boolean;
   changePin: (currentPin: string, newPin: string) => Promise<{ success: boolean; message: string }>;
+  linkCloudAccount: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
+  isCloudLinked: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [isCloudLinked, setIsCloudLinked] = useState(false);
 
   useEffect(() => {
     // Check for saved user in session
     const savedUser = localStorage.getItem("dumos_user");
+    const token = localStorage.getItem("auth_token");
+    
+    setIsCloudLinked(!!token);
+
     if (savedUser) {
       const parsedUser = JSON.parse(savedUser);
       setUser(parsedUser);
@@ -114,6 +122,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const linkCloudAccount = async (email: string, password: string) => {
+    try {
+      const response = await apiClient.login(email, password);
+      
+      if (response.access_token) {
+        apiClient.setToken(response.access_token);
+        setIsCloudLinked(true);
+        
+        // Update local user info if already logged in locally
+        if (user) {
+          const updatedUser = { ...user, email };
+          setUser(updatedUser);
+          localStorage.setItem("dumos_user", JSON.stringify(updatedUser));
+        }
+
+        return { success: true, message: "Cloud account linked successfully!" };
+      }
+      return { success: false, message: "Invalid credentials" };
+    } catch (e: any) {
+      return { success: false, message: e.message || "Failed to connect to cloud" };
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -124,6 +155,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isAdmin: user?.role === "admin",
         isPharmacist: user?.role === "pharmacist",
         changePin,
+        linkCloudAccount,
+        isCloudLinked,
       }}
     >
       {children}

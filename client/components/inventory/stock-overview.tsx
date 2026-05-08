@@ -8,7 +8,8 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { apiClient } from "@/lib/api/client";
+import { useLocalData } from "@/lib/db/hooks/useLocalData";
+import { useStore } from "@/lib/context/store-context";
 import { InventoryMetrics } from "./inventory-metrics";
 import { StockStatusList } from "./stock-status-list";
 import { InventoryQuickActions } from "./inventory-quick-actions";
@@ -21,65 +22,61 @@ interface StockItem {
   batch_number: string;
   quantity: number;
   reorder_level: number;
-  unit_cost: number;
   unit_price: number;
+  unit_cost: number;
   expiry_date: string;
   status: "healthy" | "low" | "critical" | "overstock";
 }
 
 export function StockOverview() {
-  const [loading, setLoading] = useState(true);
-  const [stockData, setStockData] = useState<StockItem[]>([]);
-  const [inventoryValue, setInventoryValue] = useState(0);
-  const [lowStockCount, setLowStockCount] = useState(0);
-  const [expiringCount, setExpiringCount] = useState(0);
-  const [selectedMedicine, setSelectedMedicine] = useState<any>(null);
+  const { storeProfile } = useStore();
+  const expiryThreshold = storeProfile?.expiry_warning_days || 90;
 
-  useEffect(() => {
-    async function fetchData() {
-      setLoading(true);
-      try {
-        const [inventoryRes, lowStockRes, expiringRes, valueRes] =
-          await Promise.all([
-            apiClient.getInventory(1, 20),
-            apiClient.getLowStockItems(),
-            apiClient.getExpiringItems(90),
-            apiClient.getInventoryValue(),
-          ]);
+  // 1. Fetch main inventory list
+  const { data: inventoryData, loading: inventoryLoading } = useLocalData<any>(
+    `SELECT i.*, m.name as medicine_name, m.reorder_level as m_reorder_level
+     FROM inventory i 
+     JOIN medicines m ON i.medicine_id = m.id 
+     WHERE i._deleted = 0 
+     ORDER BY i.created_at DESC LIMIT 20`
+  );
 
-        const items = (inventoryRes.data || []).map((item: any) => ({
-          ...item,
-          medicine_name: item.medicine?.name || item.medicine_name || "Unknown",
-          status: getStatus(item.quantity, item.reorder_level),
-        }));
+  // 2. Fetch aggregate metrics
+  const { data: metricsData } = useLocalData<any>(
+    `SELECT 
+      SUM(quantity * cost_price) as total_value,
+      COUNT(CASE WHEN quantity <= (SELECT reorder_level FROM medicines WHERE id = inventory.medicine_id) * 0.5 THEN 1 END) as critical_count,
+      COUNT(CASE WHEN quantity <= (SELECT reorder_level FROM medicines WHERE id = inventory.medicine_id) THEN 1 END) as low_stock_count,
+      COUNT(CASE WHEN date(expiry_date) <= date('now', '+' || ? || ' days') AND date(expiry_date) >= date('now') THEN 1 END) as expiring_count
+     FROM inventory WHERE _deleted = 0`,
+    [expiryThreshold]
+  );
 
-        setStockData(items);
-        setLowStockCount(lowStockRes.count || lowStockRes.data?.length || 0);
-        setExpiringCount(expiringRes.count || expiringRes.data?.length || 0);
-        setInventoryValue(valueRes.total_value || valueRes.value || 0);
-      } catch (error) {
-        console.error("Failed to fetch inventory data:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchData();
-  }, []);
+  const metrics = metricsData?.[0] || {
+    total_value: 0,
+    critical_count: 0,
+    low_stock_count: 0,
+    expiring_count: 0
+  };
 
-  function getStatus(
-    quantity: number,
-    reorderLevel: number,
-  ): StockItem["status"] {
+  const getStatus = (quantity: number, reorderLevel: number): StockItem["status"] => {
     if (quantity === 0) return "critical";
     if (quantity <= reorderLevel * 0.5) return "critical";
     if (quantity <= reorderLevel) return "low";
     if (quantity > reorderLevel * 3) return "overstock";
     return "healthy";
-  }
+  };
 
-  const criticalItems = stockData.filter(
-    (item) => item.status === "critical",
-  ).length;
+  const stockItems: StockItem[] = inventoryData.map(item => ({
+    ...item,
+    reorder_level: item.m_reorder_level || 10,
+    unit_price: item.selling_price || 0,
+    unit_cost: item.cost_price || 0,
+    status: getStatus(item.quantity, item.m_reorder_level || 10)
+  }));
+
+  const loading = inventoryLoading;
+  const [selectedMedicine, setSelectedMedicine] = useState<any>(null);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-NG", {
@@ -165,16 +162,16 @@ export function StockOverview() {
   return (
     <div className="space-y-6">
       <InventoryMetrics 
-        inventoryValue={inventoryValue}
-        criticalItems={criticalItems}
-        lowStockCount={lowStockCount}
-        expiringCount={expiringCount}
+        inventoryValue={metrics.total_value}
+        criticalItems={metrics.critical_count}
+        lowStockCount={metrics.low_stock_count}
+        expiringCount={metrics.expiring_count}
         formatCurrency={formatCurrency}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <StockStatusList 
-          stockData={stockData}
+          stockData={stockItems}
           formatCurrency={formatCurrency}
           getStatusBadge={getStatusBadge}
           onPrintBarcode={(item) => setSelectedMedicine({
@@ -185,8 +182,8 @@ export function StockOverview() {
         />
 
         <InventoryQuickActions 
-          criticalItems={criticalItems}
-          lowStockCount={lowStockCount}
+          criticalItems={metrics.critical_count}
+          lowStockCount={metrics.low_stock_count}
         />
       </div>
 

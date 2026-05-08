@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { 
   LayoutDashboard, 
   Store, 
@@ -20,7 +21,8 @@ import {
   Menu,
   Pill,
   Plus,
-  Smartphone
+  Smartphone,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,9 +43,32 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { SubscriptionWrapper } from "@/components/dashboard/subscription-wrapper";
+import { webApiClient } from "@/lib/api/client";
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState("overview");
+  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await webApiClient.getDashboardSummary();
+        setData(response);
+      } catch (error) {
+        console.error("Failed to fetch dashboard data:", error);
+        // If unauthorized, redirect to login
+        if (error instanceof Error && error.message.includes("401")) {
+           router.push("/login");
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [router]);
 
   const sidebarItems = [
     { id: "overview", name: "Overview", icon: LayoutDashboard },
@@ -52,10 +77,26 @@ export default function DashboardPage() {
     { id: "downloads", name: "App Downloads", icon: Download },
   ];
 
+  if (loading) {
+    return (
+      <div className="h-screen w-full flex items-center justify-center bg-muted/40">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-12 w-12 text-primary animate-spin" />
+          <p className="text-muted-foreground font-medium">Loading your cloud dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Fallback to empty if data failed but didn't redirect
+  const stats = data?.stats || { total_sales: 0, inventory_value: 0, total_customers: 0, active_stores: 0 };
+  const user = data?.user || { name: "User", email: "", pharmacy_name: "DumosRx Pharmacy" };
+  const recentSales = data?.recent_sales || [];
+
+  // Mocking store status for now as backend doesn't have a formal Store model yet
+  // In future, this would come from a /stores endpoint
   const stores = [
-    { name: "Main Branch - Lagos", id: "STR-001", status: "online", lastSync: "2 mins ago", sales: "₦450,000" },
-    { name: "Abuja Mall Outlet", id: "STR-002", status: "online", lastSync: "15 mins ago", sales: "₦280,000" },
-    { name: "Port Harcourt North", id: "STR-003", status: "offline", lastSync: "4 hours ago", sales: "₦120,000" },
+    { name: user.pharmacy_name + " (HQ)", id: "STR-001", status: "online", lastSync: "Just now", sales: `₦${(stats.total_sales).toLocaleString()}` },
   ];
 
   return (
@@ -91,15 +132,15 @@ export default function DashboardPage() {
         <div className="p-4 border-t">
           <div className="bg-muted/50 rounded-2xl p-4 flex items-center gap-3">
             <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary">
-               JD
+               {user.name.charAt(0)}
             </div>
             <div className="flex-1 overflow-hidden">
-               <p className="text-sm font-bold truncate">John Doe</p>
-               <p className="text-xs text-muted-foreground truncate">john@pharmacy.com</p>
+               <p className="text-sm font-bold truncate">{user.name}</p>
+               <p className="text-xs text-muted-foreground truncate">{user.email}</p>
             </div>
-            <Link href="/login">
+            <button onClick={() => { localStorage.removeItem("drx_token"); router.push("/login"); }}>
                <LogOut className="h-4 w-4 text-muted-foreground hover:text-destructive transition-colors" />
-            </Link>
+            </button>
           </div>
         </div>
       </aside>
@@ -132,7 +173,7 @@ export default function DashboardPage() {
                 <div className="flex items-center justify-between">
                    <div>
                       <h1 className="text-3xl font-black tracking-tight">Cloud Overview</h1>
-                      <p className="text-muted-foreground">Unified insights across your entire pharmacy fleet.</p>
+                      <p className="text-muted-foreground">Unified insights for <span className="font-bold text-foreground">{user.pharmacy_name}</span></p>
                    </div>
                    <Button className="font-bold">
                       <Plus className="h-4 w-4 mr-2" />
@@ -143,10 +184,10 @@ export default function DashboardPage() {
                 {/* Stats Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                    {[
-                      { name: "Total Fleet Sales", value: "₦850,000", change: "+12.5%", icon: TrendingUp, color: "text-green-600", bg: "bg-green-100 dark:bg-green-900/20" },
-                      { name: "Active Stores", value: "2/3", change: "1 Offline", icon: Store, color: "text-blue-600", bg: "bg-blue-100 dark:bg-blue-900/20" },
-                      { name: "Inventory Value", value: "₦12.4M", change: "Across all", icon: Package, color: "text-purple-600", bg: "bg-purple-100 dark:bg-purple-900/20" },
-                      { name: "Fleet Customers", value: "1,240", change: "+84 this week", icon: Users, color: "text-indigo-600", bg: "bg-indigo-100 dark:bg-indigo-900/20" },
+                      { name: "Total Fleet Sales", value: `₦${stats.total_sales.toLocaleString()}`, change: "+12.5%", icon: TrendingUp, color: "text-green-600", bg: "bg-green-100 dark:bg-green-900/20" },
+                      { name: "Active Stores", value: `${stats.active_stores}`, change: "Sync Active", icon: Store, color: "text-blue-600", bg: "bg-blue-100 dark:bg-blue-900/20" },
+                      { name: "Inventory Value", value: `₦${stats.inventory_value.toLocaleString()}`, change: "Across all", icon: Package, color: "text-purple-600", bg: "bg-purple-100 dark:bg-purple-900/20" },
+                      { name: "Fleet Customers", value: `${stats.total_customers.toLocaleString()}`, change: "+84 this week", icon: Users, color: "text-indigo-600", bg: "bg-indigo-100 dark:bg-indigo-900/20" },
                    ].map((stat, i) => (
                       <Card key={i} className="border-none shadow-sm hover:shadow-md transition-shadow">
                          <CardContent className="p-6">
@@ -182,7 +223,7 @@ export default function DashboardPage() {
                                   <TableHead className="font-bold text-xs uppercase">Store Name</TableHead>
                                   <TableHead className="font-bold text-xs uppercase text-center">Status</TableHead>
                                   <TableHead className="font-bold text-xs uppercase text-center">Last Sync</TableHead>
-                                  <TableHead className="font-bold text-xs uppercase text-right">Daily Sales</TableHead>
+                                  <TableHead className="font-bold text-xs uppercase text-right">Total Sales</TableHead>
                                </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -199,6 +240,13 @@ export default function DashboardPage() {
                                      <TableCell className="text-right font-black">{store.sales}</TableCell>
                                   </TableRow>
                                ))}
+                               {stores.length === 0 && (
+                                  <TableRow>
+                                     <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                                        No stores linked yet.
+                                     </TableCell>
+                                  </TableRow>
+                               )}
                             </TableBody>
                          </Table>
                       </CardContent>
@@ -238,8 +286,8 @@ export default function DashboardPage() {
                          <Store className="h-10 w-10 text-muted-foreground" />
                       </div>
                       <h2 className="text-xl font-bold">Detailed Fleet Management</h2>
-                      <p className="text-muted-foreground">This module allows you to remote-manage local store settings and view per-branch inventory levels.</p>
-                      <Button variant="outline">Learn More</Button>
+                      <p className="text-muted-foreground">Manage your branch locations and view per-branch inventory levels.</p>
+                      <Button variant="outline">Link a New Device</Button>
                    </div>
                 </Card>
               </div>

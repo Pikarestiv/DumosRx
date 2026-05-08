@@ -14,6 +14,8 @@ use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\CategoryController;
 
+use App\Http\Controllers\DashboardController;
+
 Route::prefix('v1')->group(function () {
     // Public Routes
     Route::post('/login', [AuthController::class, 'login']);
@@ -26,6 +28,7 @@ Route::prefix('v1')->group(function () {
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::get('/user', [AuthController::class, 'user']);
+        Route::get('/dashboard/summary', [DashboardController::class, 'summary']);
 
         // Staff Management
         Route::apiResource('staff', StaffController::class)->middleware('can:manage-staff');

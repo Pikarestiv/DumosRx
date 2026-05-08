@@ -19,9 +19,12 @@ class WebApiClient {
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
 
+    const token = typeof window !== "undefined" ? localStorage.getItem("drx_token") : null;
+
     const headers = {
       "Content-Type": "application/json",
       Accept: "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     };
 
@@ -97,6 +100,23 @@ class WebApiClient {
       method: "POST",
       body: payload,
     });
+  }
+
+  async getDashboardSummary() {
+    return this.request<{
+      stats: {
+        total_sales: number;
+        inventory_value: number;
+        total_customers: number;
+        active_stores: number;
+      };
+      recent_sales: any[];
+      user: {
+        name: string;
+        email: string;
+        pharmacy_name: string;
+      };
+    }>("/dashboard/summary");
   }
 }
 

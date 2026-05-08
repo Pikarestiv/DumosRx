@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { apiClient } from "@/lib/api/client";
+import { query } from "@/lib/db/local-database";
 
 export interface PrescriptionMedication {
   id: string;

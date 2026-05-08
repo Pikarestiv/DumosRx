@@ -210,7 +210,7 @@ export default function SettingsPage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `${APP_NAME.toLowerCase()}_backup_${new Date().toISOString().split('T')[0]}.db`;
+    link.download = `${APP_NAME.toLowerCase()}_backup_${new Date().toISOString().split('T')[0]}.drx`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -667,7 +667,7 @@ export default function SettingsPage() {
                         type="file" 
                         id="restore-db" 
                         className="hidden" 
-                        accept=".db"
+                        accept=".drx"
                         onChange={handleRestoreBackup}
                       />
                     </div>

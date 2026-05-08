@@ -24,6 +24,8 @@ import {
   AreaChart 
 } from "recharts";
 import { 
+  ChartConfig,
+  ChartContainer,
   ChartTooltip, 
   ChartTooltipContent 
 } from "@/components/ui/chart";
@@ -37,6 +39,21 @@ interface ProfitLossTabProps {
   netProfit: number;
   monthlySalesData: any[];
 }
+
+const chartConfig = {
+  profit: {
+    label: "Net Profit",
+    color: "#10b981",
+  },
+  expenses: {
+    label: "Operating Exp.",
+    color: "#f59e0b",
+  },
+  cogs: {
+    label: "Inventory Cost",
+    color: "#0ea5e9",
+  },
+} satisfies ChartConfig;
 
 export function ProfitLossTab({
   totalRevenue,
@@ -108,8 +125,8 @@ export function ProfitLossTab({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-[250px] w-full flex items-center justify-center">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="h-[250px] w-full">
+              <ChartContainer config={chartConfig} className="h-full w-full">
                 <PieChart>
                   <Pie
                     data={[
@@ -128,9 +145,9 @@ export function ProfitLossTab({
                     <Cell key="cell-1" fill="#f59e0b" className="stroke-transparent" />
                     <Cell key="cell-2" fill="#10b981" className="stroke-transparent" />
                   </Pie>
-                  <ChartTooltip />
+                  <ChartTooltip content={<ChartTooltipContent />} />
                 </PieChart>
-              </ResponsiveContainer>
+              </ChartContainer>
             </div>
             <div className="space-y-3 mt-6">
               <div className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/30 transition-colors">
@@ -166,7 +183,7 @@ export function ProfitLossTab({
         </CardHeader>
         <CardContent className="pt-6">
           <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
+            <ChartContainer config={chartConfig} className="h-full w-full">
               <AreaChart data={monthlySalesData}>
                 <defs>
                   <linearGradient id="profitGradient" x1="0" y1="0" x2="0" y2="1">
@@ -206,10 +223,11 @@ export function ProfitLossTab({
                   name="Operating Exp." 
                 />
               </AreaChart>
-            </ResponsiveContainer>
+            </ChartContainer>
           </div>
         </CardContent>
       </Card>
     </div>
   );
 }
+

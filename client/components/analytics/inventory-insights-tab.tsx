@@ -10,13 +10,16 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle } from "lucide-react";
 import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  ResponsiveContainer 
-} from "recharts";
+  ChartConfig,
+  ChartContainer 
+} from "@/components/ui/chart";
+
+const chartConfig = {
+  inventory: {
+    label: "Inventory Level",
+    color: "#0ea5e9",
+  },
+} satisfies ChartConfig;
 
 interface InventoryInsightsTabProps {
   inventoryAlerts: any[];
@@ -78,14 +81,14 @@ export function InventoryInsightsTab({
         </CardHeader>
         <CardContent>
           <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
+            <ChartContainer config={chartConfig} className="h-full w-full">
               <BarChart data={salesByCategory}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" />
                 <YAxis />
                 <Bar dataKey="value" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
               </BarChart>
-            </ResponsiveContainer>
+            </ChartContainer>
           </div>
         </CardContent>
       </Card>

@@ -10,8 +10,17 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle } from "lucide-react";
 import { 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid 
+} from "recharts";
+import { 
   ChartConfig,
-  ChartContainer 
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent
 } from "@/components/ui/chart";
 
 const chartConfig = {
@@ -86,6 +95,7 @@ export function InventoryInsightsTab({
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" />
                 <YAxis />
+                <ChartTooltip content={<ChartTooltipContent />} />
                 <Bar dataKey="value" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ChartContainer>

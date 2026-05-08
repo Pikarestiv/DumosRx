@@ -33,6 +33,7 @@ import { useStore, StoreType } from "@/lib/context/store-context";
 import { toast } from "sonner";
 import { Pill, ShoppingBasket, ShoppingCart, Check } from "lucide-react";
 import { APP_NAME } from "@/lib/constants";
+import { useAuth } from "@/lib/context/auth-context";
 
 // Color themes from ThemeCustomizer
 const colorThemes = [
@@ -46,27 +47,51 @@ const colorThemes = [
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
   const { user, logout, isAdmin, changePin } = useAuth();
-  
+
   const [currentPin, setCurrentPin] = useState("");
   const [newPin, setNewPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
-  const { storeProfile, storeType, updateStoreProfile, theme: activeTheme, setTheme: setAppTheme } = useStore();
+  const {
+    storeProfile,
+    storeType,
+    updateStoreProfile,
+    theme: activeTheme,
+    setTheme: setAppTheme,
+  } = useStore();
 
   // Local state for profile form
   const [localName, setLocalName] = useState(storeProfile?.name || "");
   const [localAddress, setLocalAddress] = useState(storeProfile?.address || "");
   const [localPhone, setLocalPhone] = useState(storeProfile?.phone || "");
   const [localEmail, setLocalEmail] = useState(storeProfile?.email || "");
-  const [localCurrency, setLocalCurrency] = useState(storeProfile?.currency || "NGN");
-  const [localVat, setLocalVat] = useState(storeProfile?.vat_percentage?.toString() || "7.5");
+  const [localCurrency, setLocalCurrency] = useState(
+    storeProfile?.currency || "NGN",
+  );
+  const [localVat, setLocalVat] = useState(
+    storeProfile?.vat_percentage?.toString() || "7.5",
+  );
   const [localPcn, setLocalPcn] = useState(storeProfile?.pcn_license || "");
-  const [localReceiptHeader, setLocalReceiptHeader] = useState(storeProfile?.receipt_header || "");
-  const [localReceiptFooter, setLocalReceiptFooter] = useState(storeProfile?.receipt_footer || "");
-  const [showLogo, setShowLogo] = useState(storeProfile?.show_logo_on_receipt === 1);
-  const [showContact, setShowContact] = useState(storeProfile?.show_contact_on_receipt === 1);
-  const [lowStockAlert, setLowStockAlert] = useState(storeProfile?.low_stock_warning === 1);
-  const [expiryAlert, setExpiryAlert] = useState(storeProfile?.expiry_warning === 1);
-  const [expiryDays, setExpiryDays] = useState(storeProfile?.expiry_warning_days?.toString() || "90");
+  const [localReceiptHeader, setLocalReceiptHeader] = useState(
+    storeProfile?.receipt_header || "",
+  );
+  const [localReceiptFooter, setLocalReceiptFooter] = useState(
+    storeProfile?.receipt_footer || "",
+  );
+  const [showLogo, setShowLogo] = useState(
+    storeProfile?.show_logo_on_receipt === 1,
+  );
+  const [showContact, setShowContact] = useState(
+    storeProfile?.show_contact_on_receipt === 1,
+  );
+  const [lowStockAlert, setLowStockAlert] = useState(
+    storeProfile?.low_stock_warning === 1,
+  );
+  const [expiryAlert, setExpiryAlert] = useState(
+    storeProfile?.expiry_warning === 1,
+  );
+  const [expiryDays, setExpiryDays] = useState(
+    storeProfile?.expiry_warning_days?.toString() || "90",
+  );
 
   useEffect(() => {
     if (storeProfile) {
@@ -107,7 +132,7 @@ export default function SettingsPage() {
     });
     toast.success("Store profile updated");
   };
-  
+
   const handleSaveRegional = () => {
     updateStoreProfile({
       currency: localCurrency,
@@ -137,7 +162,9 @@ export default function SettingsPage() {
 
   const handleSwitchVertical = (type: StoreType) => {
     updateStoreProfile({ store_type: type });
-    toast.success(`Switched to ${type.charAt(0).toUpperCase() + type.slice(1)} mode`);
+    toast.success(
+      `Switched to ${type.charAt(0).toUpperCase() + type.slice(1)} mode`,
+    );
   };
 
   const handleUpdateSecurity = async () => {
@@ -260,7 +287,9 @@ export default function SettingsPage() {
                             : "border-border hover:bg-muted"
                         }`}
                       >
-                        <div className={`w-6 h-6 rounded-full ${t.color} border shadow-sm`} />
+                        <div
+                          className={`w-6 h-6 rounded-full ${t.color} border shadow-sm`}
+                        />
                         <span className="text-sm font-medium">{t.name}</span>
                       </button>
                     ))}
@@ -268,7 +297,6 @@ export default function SettingsPage() {
                 </div>
               </CardContent>
             </Card>
-
 
             <Card>
               <CardHeader>
@@ -283,7 +311,9 @@ export default function SettingsPage() {
                   <Input
                     id="currency"
                     value={localCurrency}
-                    onChange={(e) => setLocalCurrency(e.target.value.toUpperCase())}
+                    onChange={(e) =>
+                      setLocalCurrency(e.target.value.toUpperCase())
+                    }
                     placeholder="e.g. NGN, USD, GHS"
                   />
                 </div>
@@ -320,14 +350,20 @@ export default function SettingsPage() {
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {[
-                    { id: 'pharmacy', label: 'Pharmacy', icon: Pill },
-                    { id: 'grocery', label: 'Grocery', icon: ShoppingBasket },
-                    { id: 'supermarket', label: 'Supermarket', icon: ShoppingCart },
-                    { id: 'general', label: 'General', icon: Check },
+                    { id: "pharmacy", label: "Pharmacy", icon: Pill },
+                    { id: "grocery", label: "Grocery", icon: ShoppingBasket },
+                    {
+                      id: "supermarket",
+                      label: "Supermarket",
+                      icon: ShoppingCart,
+                    },
+                    { id: "general", label: "General", icon: Check },
                   ].map((vertical) => (
                     <button
                       key={vertical.id}
-                      onClick={() => handleSwitchVertical(vertical.id as StoreType)}
+                      onClick={() =>
+                        handleSwitchVertical(vertical.id as StoreType)
+                      }
                       className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all cursor-pointer ${
                         storeType === vertical.id
                           ? "border-primary bg-primary/5"
@@ -335,7 +371,9 @@ export default function SettingsPage() {
                       }`}
                     >
                       <vertical.icon className="h-6 w-6 mb-2 text-primary" />
-                      <span className="text-sm font-medium">{vertical.label}</span>
+                      <span className="text-sm font-medium">
+                        {vertical.label}
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -361,9 +399,9 @@ export default function SettingsPage() {
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="address">Address</Label>
-                  <Input 
-                    id="address" 
-                    placeholder="123 Health Avenue, Lagos" 
+                  <Input
+                    id="address"
+                    placeholder="123 Health Avenue, Lagos"
                     value={localAddress}
                     onChange={(e) => setLocalAddress(e.target.value)}
                   />
@@ -371,29 +409,29 @@ export default function SettingsPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="grid gap-2">
                     <Label htmlFor="phone">Phone Number</Label>
-                    <Input 
-                      id="phone" 
-                      placeholder="+234..." 
+                    <Input
+                      id="phone"
+                      placeholder="+234..."
                       value={localPhone}
                       onChange={(e) => setLocalPhone(e.target.value)}
                     />
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="email">Email</Label>
-                    <Input 
-                      id="email" 
-                      placeholder="contact@example.com" 
+                    <Input
+                      id="email"
+                      placeholder="contact@example.com"
                       value={localEmail}
                       onChange={(e) => setLocalEmail(e.target.value)}
                     />
                   </div>
                 </div>
-                {storeType === 'pharmacy' && (
+                {storeType === "pharmacy" && (
                   <div className="grid gap-2">
                     <Label htmlFor="pcn">PCN License Number</Label>
-                    <Input 
-                      id="pcn" 
-                      placeholder="PCN/..." 
+                    <Input
+                      id="pcn"
+                      placeholder="PCN/..."
                       value={localPcn}
                       onChange={(e) => setLocalPcn(e.target.value)}
                     />
@@ -417,19 +455,21 @@ export default function SettingsPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="receipt-header">Receipt Header (Optional)</Label>
-                  <Input 
-                    id="receipt-header" 
-                    placeholder="e.g. Thanks for your patronage!" 
+                  <Label htmlFor="receipt-header">
+                    Receipt Header (Optional)
+                  </Label>
+                  <Input
+                    id="receipt-header"
+                    placeholder="e.g. Thanks for your patronage!"
                     value={localReceiptHeader}
                     onChange={(e) => setLocalReceiptHeader(e.target.value)}
                   />
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="receipt-footer">Receipt Footer</Label>
-                  <Input 
-                    id="receipt-footer" 
-                    placeholder="e.g. No refund after 24 hours" 
+                  <Input
+                    id="receipt-footer"
+                    placeholder="e.g. No refund after 24 hours"
                     value={localReceiptFooter}
                     onChange={(e) => setLocalReceiptFooter(e.target.value)}
                   />
@@ -441,10 +481,7 @@ export default function SettingsPage() {
                       Display store logo at the top
                     </p>
                   </div>
-                  <Switch 
-                    checked={showLogo}
-                    onCheckedChange={setShowLogo}
-                  />
+                  <Switch checked={showLogo} onCheckedChange={setShowLogo} />
                 </div>
                 <div className="flex items-center justify-between rounded-lg border p-4">
                   <div className="space-y-0.5">
@@ -453,14 +490,17 @@ export default function SettingsPage() {
                       Include contact details on receipt
                     </p>
                   </div>
-                  <Switch 
+                  <Switch
                     checked={showContact}
                     onCheckedChange={setShowContact}
                   />
                 </div>
               </CardContent>
               <CardFooter className="border-t px-6 py-4">
-                <Button onClick={handleSaveReceiptSettings} className="cursor-pointer">
+                <Button
+                  onClick={handleSaveReceiptSettings}
+                  className="cursor-pointer"
+                >
                   <Save className="w-4 h-4 mr-2" />
                   Save Receipt Settings
                 </Button>
@@ -485,7 +525,7 @@ export default function SettingsPage() {
                       Notify when stock hits reorder level
                     </p>
                   </div>
-                  <Switch 
+                  <Switch
                     checked={lowStockAlert}
                     onCheckedChange={setLowStockAlert}
                   />
@@ -497,7 +537,7 @@ export default function SettingsPage() {
                       Notify before medicines expire
                     </p>
                   </div>
-                  <Switch 
+                  <Switch
                     checked={expiryAlert}
                     onCheckedChange={setExpiryAlert}
                   />
@@ -513,7 +553,10 @@ export default function SettingsPage() {
                 </div>
               </CardContent>
               <CardFooter className="border-t px-6 py-4">
-                <Button onClick={handleSaveAlertSettings} className="cursor-pointer">
+                <Button
+                  onClick={handleSaveAlertSettings}
+                  className="cursor-pointer"
+                >
                   <Save className="w-4 h-4 mr-2" />
                   Save Alert Preferences
                 </Button>
@@ -577,24 +620,24 @@ export default function SettingsPage() {
               <CardContent className="space-y-4">
                 <div className="grid gap-2">
                   <Label>Current PIN</Label>
-                  <Input 
-                    type="password" 
+                  <Input
+                    type="password"
                     value={currentPin}
                     onChange={(e) => setCurrentPin(e.target.value)}
                   />
                 </div>
                 <div className="grid gap-2">
                   <Label>New PIN</Label>
-                  <Input 
-                    type="password" 
+                  <Input
+                    type="password"
                     value={newPin}
                     onChange={(e) => setNewPin(e.target.value)}
                   />
                 </div>
                 <div className="grid gap-2">
                   <Label>Confirm New PIN</Label>
-                  <Input 
-                    type="password" 
+                  <Input
+                    type="password"
                     value={confirmPin}
                     onChange={(e) => setConfirmPin(e.target.value)}
                   />

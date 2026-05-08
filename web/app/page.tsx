@@ -232,7 +232,7 @@ export default function Home() {
       <footer className="py-12 bg-slate-900 text-slate-400">
         <div className="container grid md:grid-cols-4 gap-8 mb-8">
           <div className="space-y-4">
-            <div className="flex items-center space-x-2 bg-white/10 p-2 rounded-lg inline-block w-fit">
+            <div className="flex items-center space-x-2 bg-white/10 p-2 rounded-lg w-fit">
               <Image src="/logo.png" alt="DumosRx Logo" width={160} height={40} className="object-contain" />
             </div>
             <p className="text-sm">

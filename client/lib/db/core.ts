@@ -179,6 +179,34 @@ export async function restoreDatabase(binaryData: Uint8Array): Promise<void> {
   }
 }
 
+/**
+ * Truncates all tables except system-critical ones
+ */
+export async function resetDatabase(): Promise<void> {
+  if (!db) await initDatabase();
+  
+  const tablesToClear = [
+    'medicines', 'inventory', 'sales', 'sale_items', 'customers', 
+    'expenses', 'vendors', 'categories', 'prescriptions', 'audit_logs',
+    'returns', 'purchase_orders', 'purchase_order_items', 'suppliers',
+    'stock_audits', 'held_transactions', 'loyalty_transactions', '_sync_state'
+  ];
+
+  for (const table of tablesToClear) {
+    try {
+      db.run(`DELETE FROM ${table}`);
+    } catch (e) {
+      console.warn(`Failed to clear table ${table}`, e);
+    }
+  }
+  
+  saveDatabase();
+  if (typeof window !== "undefined") {
+    localStorage.removeItem("last_sync_time");
+    window.location.reload();
+  }
+}
+
 export async function logAction(action: string, table: string, recordId: string, details?: any) {
   if (!db) return;
   const id = generateId();

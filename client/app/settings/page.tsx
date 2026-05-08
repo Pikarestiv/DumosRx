@@ -34,7 +34,7 @@ import { toast } from "sonner";
 import { Pill, ShoppingBasket, ShoppingCart, Check, Upload } from "lucide-react";
 import { APP_NAME } from "@/lib/constants";
 import { useAuth } from "@/lib/context/auth-context";
-import { getDatabaseBinary, restoreDatabase } from "@/lib/db/core";
+import { getDatabaseBinary, restoreDatabase, resetDatabase } from "@/lib/db/core";
 import { sync } from "@/lib/db/sync-engine";
 
 // Color themes from ThemeCustomizer
@@ -235,6 +235,13 @@ export default function SettingsPage() {
       }
     };
     reader.readAsArrayBuffer(file);
+  };
+
+  const handleResetDatabase = async () => {
+    if (window.confirm("Are you sure you want to reset the database? This will delete all products, sales, and local data. Your login account will remain.")) {
+      await resetDatabase();
+      toast.success("Database reset successfully.");
+    }
   };
 
   return (
@@ -671,6 +678,27 @@ export default function SettingsPage() {
                         onChange={handleRestoreBackup}
                       />
                     </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-4">
+                  <h3 className="font-medium text-destructive">Danger Zone</h3>
+                  <div className="p-4 border border-destructive/20 rounded-lg bg-destructive/5 flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <p className="text-sm font-semibold">Factory Reset</p>
+                      <p className="text-xs text-muted-foreground">
+                        Wipe all local data (medicines, sales, etc.) and start fresh.
+                      </p>
+                    </div>
+                    <Button 
+                      variant="destructive" 
+                      size="sm"
+                      onClick={handleResetDatabase}
+                    >
+                      Reset All Data
+                    </Button>
                   </div>
                 </div>
               </CardContent>

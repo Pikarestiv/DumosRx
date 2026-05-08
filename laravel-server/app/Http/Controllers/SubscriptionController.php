@@ -61,7 +61,6 @@ class SubscriptionController extends Controller
         $ref = 'DRX-' . strtoupper($request->provider) . '-' . uniqid();
 
         $txn = PaymentTransaction::create([
-            'user_id' => $request->user()->id,
             'provider' => $request->provider,
             'provider_reference' => $ref,
             'amount' => $request->amount,

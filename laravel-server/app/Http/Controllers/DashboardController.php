@@ -23,11 +23,11 @@ class DashboardController extends Controller
         $prev7Days = $now->copy()->subDays(14);
 
         // 1. Sales Stats
-        $totalSales = Sale::where('user_id', $userId)->sum('total_amount');
-        $salesThisWeek = Sale::where('user_id', $userId)
+        $totalSales = Sale::where('cashier_id', $userId)->sum('total_amount');
+        $salesThisWeek = Sale::where('cashier_id', $userId)
             ->where('created_at', '>=', $last7Days)
             ->sum('total_amount');
-        $salesPrevWeek = Sale::where('user_id', $userId)
+        $salesPrevWeek = Sale::where('cashier_id', $userId)
             ->where('created_at', '>=', $prev7Days)
             ->where('created_at', '<', $last7Days)
             ->sum('total_amount');
@@ -40,16 +40,14 @@ class DashboardController extends Controller
         }
 
         // 2. Inventory Stats
-        $inventoryValue = DB::table('inventories')
-            ->where('user_id', $userId)
-            ->select(DB::raw('SUM(quantity * unit_cost) as total_value'))
+        $inventoryValue = DB::table('inventory')
+            ->select(DB::raw('SUM(quantity_in_stock * cost_price) as total_value'))
             ->first()
             ->total_value ?? 0;
         
         // 3. Customer Stats
-        $totalCustomers = Customer::where('user_id', $userId)->count();
-        $newCustomersThisWeek = Customer::where('user_id', $userId)
-            ->where('created_at', '>=', $last7Days)
+        $totalCustomers = Customer::count();
+        $newCustomersThisWeek = Customer::where('created_at', '>=', $last7Days)
             ->count();
 
         // 4. Stores/Sync Info (Inferred from unique IP addresses in logs)
@@ -61,7 +59,7 @@ class DashboardController extends Controller
         $storesCount = $uniqueDevices->count() ?: 1;
         
         $lastSyncedRecord = DB::table('sales')
-            ->where('user_id', $userId)
+            ->where('cashier_id', $userId)
             ->whereNotNull('_synced_at')
             ->orderBy('_synced_at', 'desc')
             ->first();
@@ -69,7 +67,7 @@ class DashboardController extends Controller
         $lastSyncTime = $lastSyncedRecord ? Carbon::parse($lastSyncedRecord->_synced_at)->diffForHumans() : 'Never';
 
         // 5. Recent Sales
-        $recentSales = Sale::where('user_id', $userId)
+        $recentSales = Sale::where('cashier_id', $userId)
             ->orderBy('created_at', 'desc')
             ->limit(5)
             ->get();

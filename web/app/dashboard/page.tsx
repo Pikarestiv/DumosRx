@@ -97,11 +97,14 @@ export default function DashboardPage() {
       {/* Sidebar */}
       <aside className="hidden lg:flex w-72 flex-col bg-background border-r">
         <div className="p-6">
-          <Link href="/" className="flex items-center space-x-2">
-            <div className="bg-primary p-1.5 rounded-lg">
-               <Pill className="h-6 w-6 text-white" />
-            </div>
-            <span className="text-xl font-bold tracking-tight">Dumos<span className="text-primary">Rx</span> Cloud</span>
+          <Link href="/" className="flex items-center">
+            <Image 
+              src="/logo.png" 
+              alt="DumosRx Logo" 
+              width={120} 
+              height={42} 
+              className="h-10 w-auto object-contain brightness-0 invert"
+            />
           </Link>
         </div>
         

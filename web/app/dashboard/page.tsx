@@ -54,14 +54,24 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { webApiClient } from "@/lib/api/client";
+import { ModeToggle } from "@/components/mode-toggle";
 
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("drx_dashboard_tab") || "overview";
+    }
+    return "overview";
+  });
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<any>(null);
+
+  useEffect(() => {
+    localStorage.setItem("drx_dashboard_tab", activeTab);
+  }, [activeTab]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -126,7 +136,7 @@ export default function DashboardPage() {
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
                 activeTab === item.id
                   ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
-                  : "text-muted-foreground hover:bg-muted"
+                  : "text-muted-foreground hover:bg-primary/50 hover:text-primary-foreground"
               }`}
             >
               <item.icon className="h-5 w-5" />
@@ -174,6 +184,7 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="flex items-center gap-4">
+            <ModeToggle />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative">

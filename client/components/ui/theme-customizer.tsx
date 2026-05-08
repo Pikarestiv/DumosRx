@@ -9,27 +9,20 @@ import { Slider } from "@/components/ui/slider"
 import { useStore } from "@/lib/context/store-context"
 
 const colorThemes = [
-  { name: "Professional", primary: "#1f2937", accent: "#8b5cf6" },
-  { name: "Medical Blue", primary: "#1e40af", accent: "#3b82f6" },
-  { name: "Forest Green", primary: "#166534", accent: "#22c55e" },
-  { name: "Warm Orange", primary: "#ea580c", accent: "#f97316" },
-  { name: "Deep Purple", primary: "#7c3aed", accent: "#a855f7" },
+  { id: "default", name: "Dumos Blue", primary: "#2563eb", accent: "#3b82f6" },
+  { id: "ocean", name: "Ocean Breeze", primary: "#0891b2", accent: "#06b6d4" },
+  { id: "emerald", name: "Emerald Health", primary: "#10b981", accent: "#34d399" },
+  { id: "ruby", name: "Ruby Retail", primary: "#e11d48", accent: "#fb7185" },
+  { id: "midnight", name: "Midnight Gold", primary: "#1e293b", accent: "#f59e0b" },
+  { id: "slate", name: "Professional Slate", primary: "#475569", accent: "#94a3b8" },
 ]
 
 export function ThemeCustomizer() {
-  const { t } = useStore()
+  const { t, theme: activeThemeId, setTheme } = useStore()
   const [borderRadius, setBorderRadius] = React.useState([8])
-  const [selectedTheme, setSelectedTheme] = React.useState(0)
 
-  const applyTheme = (themeIndex: number) => {
-    const theme = colorThemes[themeIndex]
-    const root = document.documentElement
-
-    // Convert hex to oklch (simplified - in production you'd use a proper converter)
-    root.style.setProperty("--primary", theme.primary)
-    root.style.setProperty("--accent", theme.accent)
-
-    setSelectedTheme(themeIndex)
+  const applyTheme = (themeId: string) => {
+    setTheme(themeId)
   }
 
   const applyBorderRadius = (value: number[]) => {
@@ -60,12 +53,12 @@ export function ThemeCustomizer() {
           <div className="space-y-3">
             <Label className="text-sm font-medium">Color Themes</Label>
             <div className="grid grid-cols-1 gap-2">
-              {colorThemes.map((theme, index) => (
+              {colorThemes.map((theme) => (
                 <button
-                  key={theme.name}
-                  onClick={() => applyTheme(index)}
+                  key={theme.id}
+                  onClick={() => applyTheme(theme.id)}
                   className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
-                    selectedTheme === index ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"
+                    activeThemeId === theme.id ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"
                   }`}
                 >
                   <div className="flex items-center gap-3">
@@ -75,7 +68,7 @@ export function ThemeCustomizer() {
                     </div>
                     <span className="text-sm font-medium">{theme.name}</span>
                   </div>
-                  {selectedTheme === index && <span className="text-xs text-primary">✓</span>}
+                  {activeThemeId === theme.id && <span className="text-xs text-primary">✓</span>}
                 </button>
               ))}
             </div>

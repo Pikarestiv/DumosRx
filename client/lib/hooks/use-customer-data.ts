@@ -1,8 +1,4 @@
-"use client";
-
-import { useState, useEffect } from "react";
-import { apiClient } from "@/lib/api/client";
-import { toast } from "sonner";
+import { query, insert, generateId } from "@/lib/db/local-database";
 
 export interface Customer {
   id: string;
@@ -20,35 +16,32 @@ export interface Customer {
   outstanding_balance: number;
 }
 
-const transformCustomer = (apiData: any): Customer => ({
-  id: apiData.id,
-  name: `${apiData.first_name} ${apiData.last_name}`,
-  email: apiData.email || "",
-  phone: apiData.phone || "",
-  address: apiData.address || "",
-  joinDate: new Date(apiData.created_at || new Date()).toISOString().split("T")[0],
+const transformCustomer = (dbData: any): Customer => ({
+  id: dbData.id,
+  name: `${dbData.first_name} ${dbData.last_name || ""}`.trim(),
+  email: dbData.email || "",
+  phone: dbData.phone || "",
+  address: dbData.address || "",
+  joinDate: new Date(dbData.created_at || new Date()).toISOString().split("T")[0],
   tier: "Bronze",
-  points: apiData.loyalty_points || 0,
+  points: dbData.loyalty_points || 0,
   totalSpent: 0,
   lastVisit: "-",
-  birthday: apiData.date_of_birth || "",
-  status: "active",
-  outstanding_balance: apiData.outstanding_balance || 0,
+  birthday: dbData.date_of_birth || "",
+  status: dbData.is_active ? "active" : "inactive",
+  outstanding_balance: dbData.outstanding_balance || 0,
 });
 
 export function useCustomerData() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchCustomers();
-  }, []);
-
   const fetchCustomers = async () => {
     setLoading(true);
     try {
-      const response = await apiClient.getCustomers(1, 100);
-      const data = response.data || [];
+      const data = await query<any>(
+        "SELECT * FROM customers WHERE _deleted = 0 ORDER BY created_at DESC"
+      );
       const transformed = data.map(transformCustomer);
       setCustomers(transformed);
     } catch (error) {
@@ -58,16 +51,40 @@ export function useCustomerData() {
     }
   };
 
+  useEffect(() => {
+    fetchCustomers();
+  }, []);
+
   const addCustomer = async (payload: any) => {
     try {
-      const response = await apiClient.createCustomer(payload);
-      const newCustomer = transformCustomer(response);
+      const now = new Date().toISOString();
+      const customerId = generateId();
+      
+      const customerData = {
+        id: customerId,
+        first_name: payload.first_name,
+        last_name: payload.last_name,
+        email: payload.email,
+        phone: payload.phone,
+        address: payload.address,
+        date_of_birth: payload.date_of_birth,
+        gender: payload.gender,
+        allergies: payload.allergies,
+        medical_conditions: payload.medical_conditions,
+        is_active: 1,
+        created_at: now,
+        updated_at: now,
+      };
+
+      await insert("customers", customerData);
+      
+      const newCustomer = transformCustomer(customerData);
       setCustomers((prev) => [newCustomer, ...prev]);
+      toast.success("Customer added successfully");
       return newCustomer;
     } catch (error: any) {
       console.error("Failed to create customer", error);
-      const message = error.message || "Failed to create customer. Please check fields.";
-      toast.error(message);
+      toast.error("Failed to create customer locally");
       throw error;
     }
   };

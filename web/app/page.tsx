@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -28,8 +31,16 @@ import {
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ModeToggle } from "@/components/mode-toggle";
 import { PricingSection } from "@/components/landing/pricing-section";
+import { Separator } from "@/components/ui/separator";
 
 export default function Home() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    const token = localStorage.getItem("drx_token");
+    setIsLoggedIn(!!token);
+  }, []);
+
   return (
     <div className="flex flex-col min-h-screen bg-background">
       {/* Navigation */}
@@ -66,15 +77,23 @@ export default function Home() {
             </Link>
             <div className="h-6 w-px bg-border mx-2" />
             <div className="flex items-center gap-4">
-              <Button variant="ghost" className="font-semibold" asChild>
-                <Link href="/login">Log in</Link>
-              </Button>
-              <Button
-                className="font-semibold shadow-lg shadow-primary/20"
-                asChild
-              >
-                <Link href="/register">Start Free Trial</Link>
-              </Button>
+              {isLoggedIn ? (
+                <Button className="font-semibold shadow-lg shadow-primary/20" asChild>
+                  <Link href="/dashboard">Go to Dashboard</Link>
+                </Button>
+              ) : (
+                <>
+                  <Button variant="ghost" className="font-semibold" asChild>
+                    <Link href="/login">Log in</Link>
+                  </Button>
+                  <Button
+                    className="font-semibold shadow-lg shadow-primary/20"
+                    asChild
+                  >
+                    <Link href="/register">Start Free Trial</Link>
+                  </Button>
+                </>
+              )}
               <ModeToggle />
             </div>
           </nav>
@@ -100,17 +119,25 @@ export default function Home() {
                     Pricing
                   </Link>
                   <Separator />
-                  <Button size="lg" className="w-full" asChild>
-                    <Link href="/register">Get Started</Link>
-                  </Button>
-                  <Button
-                    size="lg"
-                    variant="outline"
-                    className="w-full"
-                    asChild
-                  >
-                    <Link href="/login">Log in</Link>
-                  </Button>
+                  {isLoggedIn ? (
+                    <Button size="lg" className="w-full" asChild>
+                      <Link href="/dashboard">Dashboard</Link>
+                    </Button>
+                  ) : (
+                    <>
+                      <Button size="lg" className="w-full" asChild>
+                        <Link href="/register">Get Started</Link>
+                      </Button>
+                      <Button
+                        size="lg"
+                        variant="outline"
+                        className="w-full"
+                        asChild
+                      >
+                        <Link href="/login">Log in</Link>
+                      </Button>
+                    </>
+                  )}
                 </div>
               </SheetContent>
             </Sheet>
@@ -141,460 +168,245 @@ export default function Home() {
               poor internet.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-20">
-              <Button
-                size="lg"
-                className="h-14 px-8 text-lg font-bold shadow-xl shadow-primary/20"
-                asChild
-              >
-                <Link href="/register">Start 14-Day Free Trial</Link>
-              </Button>
-              <Button
-                size="lg"
-                variant="outline"
-                className="h-14 px-8 text-lg font-bold"
-                asChild
-              >
-                <Link href="#features">Explore Features</Link>
-              </Button>
+              {isLoggedIn ? (
+                <Button
+                  size="lg"
+                  className="h-14 px-8 text-lg font-bold shadow-xl shadow-primary/20"
+                  asChild
+                >
+                  <Link href="/dashboard">Open Dashboard</Link>
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    size="lg"
+                    className="h-14 px-8 text-lg font-bold shadow-xl shadow-primary/20"
+                    asChild
+                  >
+                    <Link href="/register">Start 14-Day Free Trial</Link>
+                  </Button>
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="h-14 px-8 text-lg font-bold"
+                    asChild
+                  >
+                    <Link href="/login">Log in</Link>
+                  </Button>
+                </>
+              )}
             </div>
 
-            {/* Dashboard Preview */}
-            <div className="relative mx-auto max-w-6xl">
-              <div className="rounded-2xl border bg-card/50 p-2 shadow-2xl backdrop-blur-sm">
-                <Image
-                  src="/images/dashboard-preview.png"
-                  alt="DumosRx Dashboard Preview"
-                  width={1200}
-                  height={800}
-                  className="rounded-xl shadow-inner border object-cover"
-                  priority
-                />
-              </div>
-              <div className="absolute -bottom-6 -left-6 hidden lg:block">
-                <div className="bg-background border rounded-2xl p-6 shadow-xl flex items-center gap-4 animate-bounce-subtle">
-                  <div className="bg-green-100 dark:bg-green-900/30 p-3 rounded-full">
-                    <Zap className="h-6 w-6 text-green-600" />
+            {/* App Mockup */}
+            <div className="relative mx-auto max-w-5xl">
+              <div className="absolute -inset-1 bg-linear-to-r from-primary to-blue-600 rounded-2xl blur-sm opacity-25" />
+              <div className="relative bg-background border rounded-xl overflow-hidden shadow-2xl">
+                <div className="h-12 bg-muted/50 border-b flex items-center px-4 gap-2">
+                  <div className="flex gap-1.5">
+                    <div className="w-3 h-3 rounded-full bg-red-500/20" />
+                    <div className="w-3 h-3 rounded-full bg-amber-500/20" />
+                    <div className="w-3 h-3 rounded-full bg-green-500/20" />
                   </div>
-                  <div className="text-left">
-                    <p className="text-sm font-bold">100% Offline Capable</p>
-                    <p className="text-xs text-muted-foreground">
-                      Work without internet
-                    </p>
+                  <div className="mx-auto w-full max-w-sm h-6 bg-background rounded-md border text-[10px] flex items-center px-3 text-muted-foreground">
+                    cloud.dumosrx.com/dashboard
                   </div>
                 </div>
-              </div>
-              <div className="absolute -top-6 -right-6 hidden lg:block">
-                <div className="bg-background border rounded-2xl p-6 shadow-xl flex items-center gap-4">
-                  <div className="bg-blue-100 dark:bg-blue-900/30 p-3 rounded-full">
-                    <ShieldCheck className="h-6 w-6 text-blue-600" />
-                  </div>
-                  <div className="text-left">
-                    <p className="text-sm font-bold">PCN Compliant</p>
-                    <p className="text-xs text-muted-foreground">
-                      Meets local standards
-                    </p>
-                  </div>
+                <div className="aspect-video bg-muted/20 relative">
+                  <Image
+                    src="https://images.unsplash.com/photo-1586023492125-27b2c045efd7?q=80&w=2000&auto=format&fit=crop"
+                    alt="DumosRx Dashboard"
+                    fill
+                    className="object-cover"
+                  />
+                  <div className="absolute inset-0 bg-linear-to-t from-background/40 to-transparent" />
                 </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Logo Cloud / Social Proof */}
-        <section className="py-20 border-y bg-muted/30">
-          <div className="container px-4 mx-auto text-center">
-            <p className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-10">
-              TRUSTED BY INDUSTRY LEADERS ACROSS NIGERIA
-            </p>
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-12 items-center opacity-50 grayscale hover:grayscale-0 transition-all">
-              <div className="flex justify-center">
-                <p className="text-2xl font-black italic">HEALTHPLUS</p>
-              </div>
-              <div className="flex justify-center">
-                <p className="text-2xl font-black italic">MEDPLUS</p>
-              </div>
-              <div className="flex justify-center">
-                <p className="text-2xl font-black italic">NETCARE</p>
-              </div>
-              <div className="flex justify-center">
-                <p className="text-2xl font-black italic">EMZOR</p>
-              </div>
-              <div className="flex justify-center">
-                <p className="text-2xl font-black italic">FIDSON</p>
               </div>
             </div>
           </div>
         </section>
 
         {/* Features Section */}
-        <section id="features" className="py-32">
+        <section id="features" className="py-24 bg-muted/50">
           <div className="container px-4 mx-auto">
-            <div className="text-center max-w-3xl mx-auto mb-20">
-              <h2 className="text-base font-bold text-primary tracking-wide uppercase mb-3">
-                Core Features
+            <div className="text-center max-w-3xl mx-auto mb-16">
+              <h2 className="text-base font-bold text-primary tracking-wider uppercase mb-3">
+                Features
               </h2>
-              <p className="text-4xl md:text-5xl font-extrabold mb-6 tracking-tight">
+              <h3 className="text-4xl font-black mb-6">
                 Everything you need to run a modern pharmacy
-              </p>
-              <p className="text-xl text-muted-foreground leading-relaxed">
-                We&apos;ve built DumosRx with the specific challenges of
-                Nigerian healthcare in mind. Powerful tools that work where you
-                are.
+              </h3>
+              <p className="text-lg text-muted-foreground leading-relaxed">
+                We&apos;ve built DumosRx specifically for the Nigerian market,
+                focusing on the real-world challenges you face every day.
               </p>
             </div>
 
-            <div className="grid md:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {[
                 {
-                  title: "Smart Inventory",
+                  title: "Offline-First Sync",
                   description:
-                    "Automated stock alerts, expiry tracking, and intelligent reordering logic.",
-                  icon: Database,
-                  color: "blue",
-                },
-                {
-                  title: "Fast POS Checkout",
-                  description:
-                    "Process sales in seconds. Supports multiple payment modes including bank transfers.",
+                    "Sell and manage inventory even without internet. Data syncs automatically to the cloud when you're back online.",
                   icon: Zap,
-                  color: "green",
                 },
                 {
-                  title: "Financial Intelligence",
+                  title: "Expiry Tracking",
                   description:
-                    "Real-time profit/loss, daily reports, and EOD reconciliations.",
-                  icon: BarChart3,
-                  color: "purple",
-                },
-                {
-                  title: "Regulatory Compliance",
-                  description:
-                    "Automatic PCN-compliant records and professional digital receipts.",
+                    "Get notified months before medicines expire. Reduce losses and ensure patient safety with automated alerts.",
                   icon: Shield,
-                  color: "red",
                 },
                 {
-                  title: "CRM & Loyalty",
+                  title: "Mobile Dashboard",
                   description:
-                    "Track customer history and build loyalty with reward points.",
-                  icon: Users,
-                  color: "indigo",
-                },
-                {
-                  title: "Multi-Platform",
-                  description:
-                    "Run on Windows, Mac, or Tablet. All data syncs to the cloud securely.",
+                    "Monitor your store sales, staff activity, and inventory levels from your phone, anywhere in the world.",
                   icon: Smartphone,
-                  color: "orange",
+                },
+                {
+                  title: "Multi-Store Support",
+                  description:
+                    "Manage multiple branches from a single cloud account. Aggregate reporting and central stock management.",
+                  icon: Globe,
+                },
+                {
+                  title: "Sales Analytics",
+                  description:
+                    "Deep insights into your most profitable products, peak sales periods, and staff performance.",
+                  icon: BarChart3,
+                },
+                {
+                  title: "Secure Backups",
+                  description:
+                    "Your pharmacy data is encrypted and backed up daily. Never lose a record to system failure or theft.",
+                  icon: Database,
                 },
               ].map((feature, i) => (
-                <Card
-                  key={i}
-                  className="group hover:border-primary/50 transition-all duration-300 hover:shadow-xl hover:shadow-primary/5 border-muted bg-card/50 backdrop-blur"
-                >
+                <Card key={i} className="border-none shadow-sm hover:shadow-md transition-all group">
                   <CardHeader>
-                    <div
-                      className={`w-12 h-12 rounded-xl bg-${feature.color}-500/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}
-                    >
-                      <feature.icon
-                        className={`h-6 w-6 text-${feature.color}-500`}
-                      />
+                    <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center text-primary mb-4 group-hover:scale-110 transition-transform">
+                      <feature.icon className="h-6 w-6" />
                     </div>
-                    <CardTitle className="text-2xl font-bold">
-                      {feature.title}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground leading-relaxed">
+                    <CardTitle className="text-xl">{feature.title}</CardTitle>
+                    <CardDescription className="text-base">
                       {feature.description}
-                    </p>
-                  </CardContent>
+                    </CardDescription>
+                  </CardHeader>
                 </Card>
               ))}
             </div>
           </div>
         </section>
 
-        {/* Offline-First Showcase */}
-        <section
-          id="benefits"
-          className="py-24 bg-slate-900 text-white overflow-hidden"
-        >
-          <div className="container px-4 mx-auto">
-            <div className="grid lg:grid-cols-2 gap-20 items-center">
-              <div>
-                <h2 className="text-4xl md:text-5xl font-extrabold mb-8 tracking-tight">
-                  Built for Nigeria&apos;s <br /> Infrastructure
-                </h2>
-                <div className="space-y-8">
-                  <div className="flex gap-6">
-                    <div className="shrink-0 w-12 h-12 bg-primary/20 rounded-lg flex items-center justify-center">
-                      <Check className="h-6 w-6 text-primary" />
+        {/* Benefits/Why Choose Us */}
+        <section id="benefits" className="py-24 overflow-hidden">
+           <div className="container px-4 mx-auto">
+              <div className="flex flex-col lg:flex-row items-center gap-16">
+                 <div className="flex-1 space-y-8">
+                    <h2 className="text-4xl font-black leading-tight">
+                       Why Nigerian Pharmacists choose <span className="text-primary">DumosRx</span>
+                    </h2>
+                    <div className="space-y-6">
+                       {[
+                          { title: "No Internet? No Problem.", desc: "Our local client app works 100% offline. No more waiting for pages to load during a sale." },
+                          { title: "NAFDAC & Expiry Alerts", desc: "Automated tracking for regulatory compliance and proactive inventory management." },
+                          { title: "Transparent Pricing", desc: "Pay in Naira, no hidden fees. Choose a plan that fits your pharmacy size." }
+                       ].map((item, i) => (
+                          <div key={i} className="flex gap-4">
+                             <div className="mt-1">
+                                <div className="bg-emerald-500/10 p-1 rounded-full">
+                                   <Check className="h-5 w-5 text-emerald-500" />
+                                </div>
+                             </div>
+                             <div>
+                                <h4 className="font-bold text-xl mb-1">{item.title}</h4>
+                                <p className="text-muted-foreground leading-relaxed">{item.desc}</p>
+                             </div>
+                          </div>
+                       ))}
                     </div>
-                    <div>
-                      <h3 className="text-xl font-bold mb-2">
-                        No Internet? No Problem.
-                      </h3>
-                      <p className="text-slate-400">
-                        Continue making sales and managing stock even when your
-                        internet is down. DumosRx syncs automatically once
-                        you&apos;re back online.
-                      </p>
+                    <Button size="lg" className="rounded-full px-8 h-12 font-bold shadow-lg shadow-primary/20" asChild>
+                       <Link href="/register">Join the Community</Link>
+                    </Button>
+                 </div>
+                 <div className="flex-1 relative">
+                    <div className="absolute -inset-4 bg-primary/5 rounded-[40px] rotate-3" />
+                    <div className="relative aspect-square rounded-[32px] overflow-hidden shadow-2xl border-8 border-background">
+                       <Image 
+                          src="https://images.unsplash.com/photo-1576091160550-2173dba999ef?q=80&w=2070&auto=format&fit=crop"
+                          alt="Pharmacist working"
+                          fill
+                          className="object-cover"
+                       />
                     </div>
-                  </div>
-                  <div className="flex gap-6">
-                    <div className="shrink-0 w-12 h-12 bg-primary/20 rounded-lg flex items-center justify-center">
-                      <Check className="h-6 w-6 text-primary" />
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-bold mb-2">
-                        Power Failure Protection
-                      </h3>
-                      <p className="text-slate-400">
-                        Our local-first architecture ensures no data is lost
-                        during sudden power outages or system shutdowns.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex gap-6">
-                    <div className="shrink-0 w-12 h-12 bg-primary/20 rounded-lg flex items-center justify-center">
-                      <Check className="h-6 w-6 text-primary" />
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-bold mb-2">
-                        Bank Transfer Verification
-                      </h3>
-                      <p className="text-slate-400">
-                        Specially designed POS flow for the Nigerian market,
-                        supporting quick bank transfer verification and split
-                        payments.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                <Button size="lg" className="mt-12 group" asChild>
-                  <Link href="/register">
-                    Get Started Now{" "}
-                    <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-                  </Link>
-                </Button>
+                 </div>
               </div>
-              <div className="relative">
-                <div className="rounded-3xl overflow-hidden border-8 border-slate-800 shadow-2xl">
-                  <Image
-                    src="/images/pharmacy-lifestyle.png"
-                    alt="Nigerian Pharmacist"
-                    width={600}
-                    height={600}
-                    className="object-cover"
-                  />
-                </div>
-                <div className="absolute -top-10 -right-10 bg-primary p-8 rounded-2xl shadow-2xl hidden xl:block">
-                  <p className="text-5xl font-black mb-1 leading-none">99.9%</p>
-                  <p className="text-sm font-bold uppercase tracking-widest opacity-80">
-                    System Uptime
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
+           </div>
         </section>
 
-        {/* Pricing */}
-        <section id="pricing" className="py-32">
-          <PricingSection />
-        </section>
-
-        {/* FAQ Section */}
-        <section className="py-32 bg-muted/30">
-          <div className="container px-4 mx-auto max-w-4xl">
-            <div className="text-center mb-16">
-              <h2 className="text-4xl font-extrabold mb-4">
-                Frequently Asked Questions
-              </h2>
-              <p className="text-muted-foreground">
-                Everything you need to know about DumosRx
-              </p>
-            </div>
-            <div className="space-y-6">
-              {[
-                {
-                  q: "Is DumosRx easy to learn?",
-                  a: "Yes! Most pharmacists and cashiers master DumosRx in less than 30 minutes. Our interface is intuitive and mirrors real pharmacy workflows.",
-                },
-                {
-                  q: "Does it work on a laptop?",
-                  a: "Absolutely. DumosRx works on Windows and Mac. You can also access reports on your mobile phone via the cloud dashboard.",
-                },
-                {
-                  q: "What happens if my computer crashes?",
-                  a: "Your data is automatically synced to the DumosRx cloud whenever you have internet. You can restore your entire database to a new machine in minutes.",
-                },
-                {
-                  q: "Is the software PCN compliant?",
-                  a: "Yes, DumosRx generates all mandatory PCN records and handles batch numbers and expiry tracking exactly as required by Nigerian law.",
-                },
-              ].map((faq, i) => (
-                <div
-                  key={i}
-                  className="bg-background border rounded-2xl p-8 shadow-sm"
-                >
-                  <h3 className="text-xl font-bold mb-3">{faq.q}</h3>
-                  <p className="text-muted-foreground leading-relaxed">
-                    {faq.a}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
+        <PricingSection />
 
         {/* CTA Section */}
-        <section className="py-32">
-          <div className="container px-4 mx-auto">
-            <div className="bg-primary rounded-[3rem] p-12 md:p-24 text-white text-center relative overflow-hidden shadow-2xl shadow-primary/20">
-              <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.2),transparent)] pointer-events-none" />
-              <div className="relative z-10">
-                <h2 className="text-4xl md:text-6xl font-black mb-8 leading-tight">
-                  Ready to modernize <br /> your pharmacy?
-                </h2>
-                <p className="text-xl mb-12 opacity-90 max-w-2xl mx-auto leading-relaxed">
-                  Join 500+ forward-thinking pharmacies across Nigeria. Start
-                  your 14-day risk-free trial today. No credit card required.
-                </p>
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
-                  <Button
-                    size="lg"
-                    variant="secondary"
-                    className="h-16 px-10 text-xl font-bold w-full sm:w-auto"
-                    asChild
-                  >
-                    <Link href="/register">Create Account Now</Link>
-                  </Button>
-                  <Button
-                    size="lg"
-                    variant="outline"
-                    className="h-16 px-10 text-xl font-bold bg-transparent border-white text-white hover:bg-white hover:text-primary w-full sm:w-auto"
-                    asChild
-                  >
-                    <Link href="https://wa.me/2348000000000">
-                      Chat with Sales
-                    </Link>
-                  </Button>
-                </div>
+        <section className="py-24 bg-primary text-primary-foreground relative overflow-hidden">
+           <div className="absolute top-0 right-0 w-[50%] h-full bg-white/5 skew-x-[-20deg] translate-x-1/2" />
+           <div className="container px-4 mx-auto relative text-center">
+              <h2 className="text-4xl md:text-5xl font-black mb-6">Ready to modernize your pharmacy?</h2>
+              <p className="text-xl text-primary-foreground/80 mb-10 max-w-2xl mx-auto">
+                 Join hundreds of pharmacies across Nigeria using DumosRx to increase profits and improve patient care.
+              </p>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                 <Button size="lg" variant="secondary" className="h-14 px-10 text-lg font-bold" asChild>
+                    <Link href="/register">Create Your Account</Link>
+                 </Button>
+                 <Button size="lg" variant="outline" className="h-14 px-10 text-lg font-bold bg-transparent text-white border-white hover:bg-white/10" asChild>
+                    <Link href="/login">Sign In</Link>
+                 </Button>
               </div>
-            </div>
-          </div>
+              <p className="mt-8 text-primary-foreground/60 text-sm font-medium italic">
+                 * No credit card required to start your free trial.
+              </p>
+           </div>
         </section>
       </main>
 
-      {/* Footer */}
-      <footer className="pt-24 pb-12 bg-slate-900 text-slate-400">
+      <footer className="bg-background border-t py-12">
         <div className="container px-4 mx-auto">
-          <div className="grid md:grid-cols-4 gap-12 mb-20">
-            <div className="space-y-6">
-              <Link href="/" className="flex items-center space-x-2">
-                <div className="bg-primary p-1 rounded-lg">
-                  <Pill className="h-5 w-5 text-white" />
-                </div>
-                <span className="text-xl font-bold text-white tracking-tight">
-                  DumosRx
-                </span>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
+            <div className="col-span-2">
+              <Link href="/" className="flex items-center space-x-2 mb-6">
+                <Pill className="h-6 w-6 text-primary" />
+                <span className="text-xl font-bold">DumosRx</span>
               </Link>
-              <p className="text-sm leading-relaxed">
-                The #1 Pharmacy Management System in Nigeria. Trusted by 500+
-                pharmacists to provide world-class healthcare.
+              <p className="text-muted-foreground max-w-xs mb-6">
+                The most reliable pharmacy management system for the Nigerian
+                market. Offline-first, cloud-synced, and built for growth.
               </p>
-              <div className="flex space-x-4">
-                {/* Social Icons Placeholder */}
-                <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center hover:bg-primary transition-colors cursor-pointer">
-                  <Globe className="w-4 h-4 text-white" />
-                </div>
-                <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center hover:bg-primary transition-colors cursor-pointer">
-                  <Smartphone className="w-4 h-4 text-white" />
-                </div>
-                <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center hover:bg-primary transition-colors cursor-pointer">
-                  <Zap className="w-4 h-4 text-white" />
-                </div>
-              </div>
             </div>
             <div>
-              <h3 className="font-bold text-white mb-6 uppercase tracking-widest text-xs">
-                Product
-              </h3>
-              <ul className="space-y-4 text-sm">
-                <li>
-                  <Link href="#" className="hover:text-white transition-colors">
-                    Features
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="hover:text-white transition-colors">
-                    Pricing
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="hover:text-white transition-colors">
-                    Offline Sync
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="hover:text-white transition-colors">
-                    Release Notes
-                  </Link>
-                </li>
+              <h4 className="font-bold mb-4 uppercase text-xs tracking-widest text-muted-foreground">Product</h4>
+              <ul className="space-y-2">
+                <li><Link href="#features" className="text-sm text-muted-foreground hover:text-primary">Features</Link></li>
+                <li><Link href="#pricing" className="text-sm text-muted-foreground hover:text-primary">Pricing</Link></li>
+                <li><Link href="/downloads" className="text-sm text-muted-foreground hover:text-primary">Downloads</Link></li>
               </ul>
             </div>
             <div>
-              <h3 className="font-bold text-white mb-6 uppercase tracking-widest text-xs">
-                Company
-              </h3>
-              <ul className="space-y-4 text-sm">
-                <li>
-                  <Link href="#" className="hover:text-white transition-colors">
-                    About Us
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="hover:text-white transition-colors">
-                    Careers
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="hover:text-white transition-colors">
-                    Contact
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="hover:text-white transition-colors">
-                    Privacy Policy
-                  </Link>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="font-bold text-white mb-6 uppercase tracking-widest text-xs">
-                Contact
-              </h3>
-              <ul className="space-y-4 text-sm">
-                <li>Lagos, Nigeria</li>
-                <li>support@dumostech.com</li>
-                <li>+234 (0) 800 DUMOS RX</li>
+              <h4 className="font-bold mb-4 uppercase text-xs tracking-widest text-muted-foreground">Company</h4>
+              <ul className="space-y-2">
+                <li><Link href="/about" className="text-sm text-muted-foreground hover:text-primary">About</Link></li>
+                <li><Link href="/contact" className="text-sm text-muted-foreground hover:text-primary">Contact</Link></li>
+                <li><Link href="/privacy" className="text-sm text-muted-foreground hover:text-primary">Privacy</Link></li>
               </ul>
             </div>
           </div>
-          <div className="pt-8 border-t border-slate-800 text-center text-xs">
-            <p>
-              &copy; {new Date().getFullYear()} Dumos Technologies. All rights
-              reserved.
-            </p>
+          <Separator className="mb-8" />
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-muted-foreground">
+            <p>© {new Date().getFullYear()} DumosRx Technology. All rights reserved.</p>
+            <div className="flex gap-6">
+               <Link href="#" className="hover:text-primary">Twitter</Link>
+               <Link href="#" className="hover:text-primary">LinkedIn</Link>
+            </div>
           </div>
         </div>
       </footer>
     </div>
   );
-}
-
-function Separator() {
-  return <div className="h-px w-full bg-border my-2" />;
 }

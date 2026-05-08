@@ -1,13 +1,35 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Pill } from "lucide-react";
+import { ArrowLeft, Pill, Loader2 } from "lucide-react";
 import { LoginForm } from "@/components/auth/login-form";
 import { Suspense } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 
 export default function LoginPage() {
+  const router = useRouter();
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    const token = localStorage.getItem("drx_token");
+    if (token) {
+      router.push("/dashboard");
+    } else {
+      setChecking(false);
+    }
+  }, [router]);
+
+  if (checking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0a0a0a]">
+        <Loader2 className="h-10 w-10 text-primary animate-spin" />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-[#0a0a0a]">
       {/* Background Layer */}

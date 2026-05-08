@@ -59,7 +59,7 @@ export function RegisterForm() {
 
     try {
       await webApiClient.register(values);
-      router.push("/login?registered=true");
+      router.push("/login");
     } catch (err: any) {
       setError(err.message || "Registration failed. Please try again.");
     } finally {

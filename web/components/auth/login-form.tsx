@@ -47,7 +47,7 @@ export function LoginForm() {
     try {
       const response = await webApiClient.login(values);
       console.log("Login successful", response);
-      router.push("/dashboard?loggedin=true");
+      router.push("/dashboard");
     } catch (err: any) {
       setError(err.message || "Invalid credentials. Please try again.");
     } finally {

@@ -58,8 +58,9 @@ export function RegisterForm() {
     setError(null);
 
     try {
-      await webApiClient.register(values);
-      router.push("/login");
+      const response = await webApiClient.register(values);
+      localStorage.setItem("drx_token", response.token);
+      router.push("/dashboard");
     } catch (err: any) {
       setError(err.message || "Registration failed. Please try again.");
     } finally {

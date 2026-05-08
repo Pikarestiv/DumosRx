@@ -239,6 +239,7 @@ CREATE TABLE IF NOT EXISTS store_profile (
   license_token TEXT,
   subscription_tier TEXT DEFAULT 'free',
   last_monotonic_time TEXT,
+  created_at TEXT,
   updated_at TEXT,
   _version INTEGER DEFAULT 1,
   _synced INTEGER DEFAULT 0,

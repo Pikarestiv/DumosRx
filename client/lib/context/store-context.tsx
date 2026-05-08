@@ -17,6 +17,14 @@ interface StoreProfile {
   address?: string;
   phone?: string;
   email?: string;
+  pcn_license?: string;
+  receipt_header?: string;
+  receipt_footer?: string;
+  show_logo_on_receipt?: number;
+  show_contact_on_receipt?: number;
+  low_stock_warning?: number;
+  expiry_warning?: number;
+  expiry_warning_days?: number;
   updated_at?: string;
 }
 

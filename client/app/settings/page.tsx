@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,6 +45,11 @@ const colorThemes = [
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
+  const { user, logout, isAdmin, changePin } = useAuth();
+  
+  const [currentPin, setCurrentPin] = useState("");
+  const [newPin, setNewPin] = useState("");
+  const [confirmPin, setConfirmPin] = useState("");
   const { storeProfile, storeType, updateStoreProfile, theme: activeTheme, setTheme: setAppTheme } = useStore();
 
   // Local state for profile form
@@ -54,6 +59,33 @@ export default function SettingsPage() {
   const [localEmail, setLocalEmail] = useState(storeProfile?.email || "");
   const [localCurrency, setLocalCurrency] = useState(storeProfile?.currency || "NGN");
   const [localVat, setLocalVat] = useState(storeProfile?.vat_percentage?.toString() || "7.5");
+  const [localPcn, setLocalPcn] = useState(storeProfile?.pcn_license || "");
+  const [localReceiptHeader, setLocalReceiptHeader] = useState(storeProfile?.receipt_header || "");
+  const [localReceiptFooter, setLocalReceiptFooter] = useState(storeProfile?.receipt_footer || "");
+  const [showLogo, setShowLogo] = useState(storeProfile?.show_logo_on_receipt === 1);
+  const [showContact, setShowContact] = useState(storeProfile?.show_contact_on_receipt === 1);
+  const [lowStockAlert, setLowStockAlert] = useState(storeProfile?.low_stock_warning === 1);
+  const [expiryAlert, setExpiryAlert] = useState(storeProfile?.expiry_warning === 1);
+  const [expiryDays, setExpiryDays] = useState(storeProfile?.expiry_warning_days?.toString() || "90");
+
+  useEffect(() => {
+    if (storeProfile) {
+      setLocalName(storeProfile.name || "");
+      setLocalAddress(storeProfile.address || "");
+      setLocalPhone(storeProfile.phone || "");
+      setLocalEmail(storeProfile.email || "");
+      setLocalCurrency(storeProfile.currency || "NGN");
+      setLocalVat(storeProfile.vat_percentage?.toString() || "7.5");
+      setLocalPcn(storeProfile.pcn_license || "");
+      setLocalReceiptHeader(storeProfile.receipt_header || "");
+      setLocalReceiptFooter(storeProfile.receipt_footer || "");
+      setShowLogo(storeProfile.show_logo_on_receipt === 1);
+      setShowContact(storeProfile.show_contact_on_receipt === 1);
+      setLowStockAlert(storeProfile.low_stock_warning === 1);
+      setExpiryAlert(storeProfile.expiry_warning === 1);
+      setExpiryDays(storeProfile.expiry_warning_days?.toString() || "90");
+    }
+  }, [storeProfile]);
 
   const themes = [
     { id: "default", name: "Dumos Blue", color: "bg-blue-600" },
@@ -70,6 +102,7 @@ export default function SettingsPage() {
       address: localAddress,
       phone: localPhone,
       email: localEmail,
+      pcn_license: localPcn,
       updated_at: new Date().toISOString(),
     });
     toast.success("Store profile updated");
@@ -83,9 +116,50 @@ export default function SettingsPage() {
     toast.success("Regional settings updated");
   };
 
+  const handleSaveReceiptSettings = () => {
+    updateStoreProfile({
+      receipt_header: localReceiptHeader,
+      receipt_footer: localReceiptFooter,
+      show_logo_on_receipt: showLogo ? 1 : 0,
+      show_contact_on_receipt: showContact ? 1 : 0,
+    });
+    toast.success("Receipt settings updated");
+  };
+
+  const handleSaveAlertSettings = () => {
+    updateStoreProfile({
+      low_stock_warning: lowStockAlert ? 1 : 0,
+      expiry_warning: expiryAlert ? 1 : 0,
+      expiry_warning_days: parseInt(expiryDays) || 90,
+    });
+    toast.success("Alert preferences updated");
+  };
+
   const handleSwitchVertical = (type: StoreType) => {
     updateStoreProfile({ store_type: type });
     toast.success(`Switched to ${type.charAt(0).toUpperCase() + type.slice(1)} mode`);
+  };
+
+  const handleUpdateSecurity = async () => {
+    if (!currentPin || !newPin || !confirmPin) {
+      toast.error("All fields are required");
+      return;
+    }
+
+    if (newPin !== confirmPin) {
+      toast.error("New PINs do not match");
+      return;
+    }
+
+    const result = await changePin(currentPin, newPin);
+    if (result.success) {
+      toast.success(result.message);
+      setCurrentPin("");
+      setNewPin("");
+      setConfirmPin("");
+    } else {
+      toast.error(result.message);
+    }
   };
 
   return (
@@ -317,7 +391,12 @@ export default function SettingsPage() {
                 {storeType === 'pharmacy' && (
                   <div className="grid gap-2">
                     <Label htmlFor="pcn">PCN License Number</Label>
-                    <Input id="pcn" placeholder="PCN/..." />
+                    <Input 
+                      id="pcn" 
+                      placeholder="PCN/..." 
+                      value={localPcn}
+                      onChange={(e) => setLocalPcn(e.target.value)}
+                    />
                   </div>
                 )}
               </CardContent>
@@ -339,11 +418,21 @@ export default function SettingsPage() {
               <CardContent className="space-y-4">
                 <div className="grid gap-2">
                   <Label htmlFor="receipt-header">Receipt Header (Optional)</Label>
-                  <Input id="receipt-header" placeholder="e.g. Thanks for your patronage!" />
+                  <Input 
+                    id="receipt-header" 
+                    placeholder="e.g. Thanks for your patronage!" 
+                    value={localReceiptHeader}
+                    onChange={(e) => setLocalReceiptHeader(e.target.value)}
+                  />
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="receipt-footer">Receipt Footer</Label>
-                  <Input id="receipt-footer" placeholder="e.g. No refund after 24 hours" />
+                  <Input 
+                    id="receipt-footer" 
+                    placeholder="e.g. No refund after 24 hours" 
+                    value={localReceiptFooter}
+                    onChange={(e) => setLocalReceiptFooter(e.target.value)}
+                  />
                 </div>
                 <div className="flex items-center justify-between rounded-lg border p-4">
                   <div className="space-y-0.5">
@@ -352,7 +441,10 @@ export default function SettingsPage() {
                       Display store logo at the top
                     </p>
                   </div>
-                  <Switch />
+                  <Switch 
+                    checked={showLogo}
+                    onCheckedChange={setShowLogo}
+                  />
                 </div>
                 <div className="flex items-center justify-between rounded-lg border p-4">
                   <div className="space-y-0.5">
@@ -361,11 +453,14 @@ export default function SettingsPage() {
                       Include contact details on receipt
                     </p>
                   </div>
-                  <Switch defaultChecked />
+                  <Switch 
+                    checked={showContact}
+                    onCheckedChange={setShowContact}
+                  />
                 </div>
               </CardContent>
               <CardFooter className="border-t px-6 py-4">
-                <Button variant="outline" className="cursor-pointer">
+                <Button onClick={handleSaveReceiptSettings} className="cursor-pointer">
                   <Save className="w-4 h-4 mr-2" />
                   Save Receipt Settings
                 </Button>
@@ -390,7 +485,10 @@ export default function SettingsPage() {
                       Notify when stock hits reorder level
                     </p>
                   </div>
-                  <Switch defaultChecked />
+                  <Switch 
+                    checked={lowStockAlert}
+                    onCheckedChange={setLowStockAlert}
+                  />
                 </div>
                 <div className="flex items-center justify-between rounded-lg border p-4">
                   <div className="space-y-0.5">
@@ -399,19 +497,26 @@ export default function SettingsPage() {
                       Notify before medicines expire
                     </p>
                   </div>
-                  <Switch defaultChecked />
+                  <Switch 
+                    checked={expiryAlert}
+                    onCheckedChange={setExpiryAlert}
+                  />
                 </div>
                 <div className="grid gap-2 pt-4">
                   <Label>Days before expiry to warn</Label>
                   <Input
                     type="number"
-                    defaultValue="90"
+                    value={expiryDays}
+                    onChange={(e) => setExpiryDays(e.target.value)}
                     className="max-w-[150px]"
                   />
                 </div>
               </CardContent>
               <CardFooter className="border-t px-6 py-4">
-                <Button>Save Preferences</Button>
+                <Button onClick={handleSaveAlertSettings} className="cursor-pointer">
+                  <Save className="w-4 h-4 mr-2" />
+                  Save Alert Preferences
+                </Button>
               </CardFooter>
             </Card>
           </TabsContent>
@@ -471,16 +576,28 @@ export default function SettingsPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid gap-2">
-                  <Label>Current Password</Label>
-                  <Input type="password" />
+                  <Label>Current PIN</Label>
+                  <Input 
+                    type="password" 
+                    value={currentPin}
+                    onChange={(e) => setCurrentPin(e.target.value)}
+                  />
                 </div>
                 <div className="grid gap-2">
-                  <Label>New Password</Label>
-                  <Input type="password" />
+                  <Label>New PIN</Label>
+                  <Input 
+                    type="password" 
+                    value={newPin}
+                    onChange={(e) => setNewPin(e.target.value)}
+                  />
                 </div>
                 <div className="grid gap-2">
-                  <Label>Confirm New Password</Label>
-                  <Input type="password" />
+                  <Label>Confirm New PIN</Label>
+                  <Input 
+                    type="password" 
+                    value={confirmPin}
+                    onChange={(e) => setConfirmPin(e.target.value)}
+                  />
                 </div>
                 <Separator className="my-4" />
                 <div className="flex items-center justify-between">
@@ -494,7 +611,7 @@ export default function SettingsPage() {
                 </div>
               </CardContent>
               <CardFooter className="border-t px-6 py-4">
-                <Button>Update Security</Button>
+                <Button onClick={handleUpdateSecurity}>Update Security</Button>
               </CardFooter>
             </Card>
           </TabsContent>

@@ -17,6 +17,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isAdmin: boolean;
   isPharmacist: boolean;
+  changePin: (currentPin: string, newPin: string) => Promise<{ success: boolean; message: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -94,6 +95,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem("dumos_user");
   };
 
+  const changePin = async (currentPin: string, newPin: string) => {
+    if (!user) return { success: false, message: "Not authenticated" };
+
+    const users = await query<any>("SELECT pin FROM users WHERE id = ?", [user.id]);
+    if (users.length === 0) return { success: false, message: "User not found" };
+
+    if (users[0].pin !== currentPin) {
+      return { success: false, message: "Current PIN is incorrect" };
+    }
+
+    try {
+      await query("UPDATE users SET pin = ? WHERE id = ?", [newPin, user.id]);
+      return { success: true, message: "PIN updated successfully" };
+    } catch (e) {
+      console.error("Failed to update PIN", e);
+      return { success: false, message: "Database error" };
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -102,7 +122,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         logout,
         isAuthenticated: !!user,
         isAdmin: user?.role === "admin",
-        isPharmacist: user?.role === "pharmacist" || user?.role === "admin",
+        isPharmacist: user?.role === "pharmacist",
+        changePin,
       }}
     >
       {children}

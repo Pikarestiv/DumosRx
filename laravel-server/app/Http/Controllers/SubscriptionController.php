@@ -46,9 +46,30 @@ class SubscriptionController extends Controller
             return response()->json(['valid' => false, 'message' => 'Subscription expired.'], 403);
         }
 
-        // Logic to bind machine_id to license if not already bound would go here
+        // Bind machine_id to license if not already bound
+        $license = \App\Models\License::firstOrCreate(
+            [
+                'subscription_id' => $sub->id,
+                'machine_id' => $request->machine_id,
+            ],
+            [
+                'machine_name' => $request->machine_name ?? 'Unknown Device',
+                'is_active' => true,
+            ]
+        );
+
+        // Update last check-in
+        $license->update(['last_check_in' => now()]);
+
+        if (!$license->is_active) {
+            return response()->json(['valid' => false, 'message' => 'This device has been deactivated.'], 403);
+        }
         
-        return response()->json(['valid' => true, 'expires_at' => $sub->end_date]);
+        return response()->json([
+            'valid' => true, 
+            'expires_at' => $sub->end_date,
+            'plan' => $sub->plan_name,
+        ]);
     }
 
     public function initiatePayment(Request $request)

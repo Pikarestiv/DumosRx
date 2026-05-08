@@ -44,6 +44,9 @@ const availableMedicines = [
   { name: "Metformin", strength: "500mg", cost: 200 },
 ]
 
+import { createPrescription, generateId } from "@/lib/db/local-database"
+import { toast } from "sonner"
+
 export function NewPrescription() {
   const [formData, setFormData] = useState<NewPrescriptionForm>({
     patientName: "",
@@ -67,7 +70,7 @@ export function NewPrescription() {
 
   const addMedication = () => {
     if (!newMedication.medicineName || !newMedication.dosage || !newMedication.instructions) {
-      alert("Please fill in all medication fields")
+      toast.error("Please fill in all medication fields")
       return
     }
 
@@ -76,12 +79,12 @@ export function NewPrescription() {
     )
 
     if (!medicine) {
-      alert("Selected medicine not found")
+      toast.error("Selected medicine not found")
       return
     }
 
     const medication: PrescriptionMedication = {
-      id: Date.now().toString(),
+      id: generateId(),
       medicineName: newMedication.medicineName,
       strength: newMedication.strength,
       dosage: newMedication.dosage,
@@ -111,7 +114,7 @@ export function NewPrescription() {
     }))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (
@@ -121,35 +124,65 @@ export function NewPrescription() {
       !formData.doctorLicense ||
       formData.medications.length === 0
     ) {
-      alert("Please fill in all required fields and add at least one medication")
+      toast.error("Please fill in all required fields and add at least one medication")
       return
     }
 
-    // Generate prescription
-    const prescription = {
-      ...formData,
-      id: Date.now().toString(),
-      prescriptionNumber: `RX-${new Date().getFullYear()}-${String(Date.now()).slice(-3)}`,
-      dateIssued: new Date().toISOString(),
-      status: "pending",
-      totalCost: formData.medications.reduce((sum, med) => sum + med.cost, 0),
+    try {
+      // Generate prescription
+      const prescriptionId = generateId()
+      const now = new Date().toISOString()
+      
+      const prescriptionData = {
+        id: prescriptionId,
+        prescription_number: `RX-${new Date().getFullYear()}-${String(Date.now()).slice(-3)}`,
+        patient_name: formData.patientName,
+        patient_phone: formData.patientPhone,
+        patient_age: parseInt(formData.patientAge) || 0,
+        doctor_name: formData.doctorName,
+        doctor_license: formData.doctorLicense,
+        priority: formData.priority,
+        insurance: formData.insurance,
+        notes: formData.notes,
+        status: "pending",
+        total_cost: formData.medications.reduce((sum, med) => sum + med.cost, 0),
+        issued_at: now,
+        created_at: now,
+        updated_at: now,
+      }
+
+      const prescriptionItems = formData.medications.map(med => ({
+        id: generateId(),
+        medicine_name: med.medicineName,
+        strength: med.strength,
+        dosage: med.dosage,
+        quantity: med.quantity,
+        instructions: med.instructions,
+        cost: med.cost,
+        created_at: now,
+        updated_at: now,
+      }))
+
+      await createPrescription(prescriptionData, prescriptionItems)
+      
+      toast.success("Prescription created successfully!")
+
+      // Reset form
+      setFormData({
+        patientName: "",
+        patientPhone: "",
+        patientAge: "",
+        doctorName: "",
+        doctorLicense: "",
+        priority: "normal",
+        insurance: "",
+        medications: [],
+        notes: "",
+      })
+    } catch (err) {
+      console.error("Failed to create prescription", err)
+      toast.error("Failed to save prescription")
     }
-
-    console.log("[v0] New prescription created:", prescription)
-    alert("Prescription created successfully!")
-
-    // Reset form
-    setFormData({
-      patientName: "",
-      patientPhone: "",
-      patientAge: "",
-      doctorName: "",
-      doctorLicense: "",
-      priority: "normal",
-      insurance: "",
-      medications: [],
-      notes: "",
-    })
   }
 
   const formatCurrency = (amount: number) => {

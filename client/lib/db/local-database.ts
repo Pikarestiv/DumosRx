@@ -97,3 +97,19 @@ export async function getExpenses(page = 1, limit = 50) {
 export async function createExpense(data: any) {
   return await insert("expenses", data);
 }
+
+/**
+ * Prescriptions
+ */
+export async function createPrescription(data: any, items: any[]) {
+  const prescriptionId = await insert("prescriptions", data);
+
+  for (const item of items) {
+    await insert("prescription_items", {
+      ...item,
+      prescription_id: prescriptionId,
+    });
+  }
+
+  return prescriptionId;
+}

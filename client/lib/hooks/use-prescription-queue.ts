@@ -40,43 +40,64 @@ export function usePrescriptionQueue() {
   const [selectedPrescription, setSelectedPrescription] = useState<Prescription | null>(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
 
-  useEffect(() => {
-    async function fetchPrescriptions() {
-      setLoading(true);
-      try {
-        const res = await apiClient.getPrescriptions(1, 100);
-        const items = (res.data || []).map((p: any) => ({
-          id: p.id,
-          prescriptionNumber: p.prescription_number || `RX-${p.id}`,
-          patientName: p.patient?.name || p.patient_name || "Unknown",
-          patientPhone: p.patient?.phone || p.patient_phone || "",
-          patientAge: p.patient?.age || p.patient_age || 0,
-          doctorName: p.doctor?.name || p.doctor_name || "Unknown",
-          doctorLicense: p.doctor?.license || p.doctor_license || "",
-          dateIssued: p.issued_at || p.created_at,
-          status: p.status || "pending",
-          priority: p.priority || "normal",
-          medications: (p.medications || p.items || []).map((m: any) => ({
-            id: m.id,
-            medicineName: m.medicine?.name || m.medicine_name || m.name,
-            strength: m.strength || "",
-            dosage: m.dosage || "",
-            quantity: m.quantity || 0,
-            instructions: m.instructions || "",
-            available: m.available ?? true,
-            cost: Number(m.cost) || 0,
-          })),
-          insurance: p.insurance,
-          totalCost: Number(p.total_cost) || 0,
-          notes: p.notes,
-        }));
-        setPrescriptions(items);
-      } catch (error) {
-        console.error("Failed to fetch prescriptions:", error);
-      } finally {
-        setLoading(false);
-      }
+  const fetchPrescriptions = async () => {
+    setLoading(true);
+    try {
+      // 1. Fetch prescriptions
+      const pData = await query<any>(
+        "SELECT * FROM prescriptions WHERE _deleted = 0 ORDER BY created_at DESC"
+      );
+
+      // 2. Fetch all prescription items for these prescriptions
+      const itemsData = await query<any>(
+        "SELECT * FROM prescription_items WHERE _deleted = 0"
+      );
+
+      // 3. Group items by prescription_id
+      const itemsMap: Record<string, any[]> = {};
+      itemsData.forEach((item) => {
+        if (!itemsMap[item.prescription_id]) {
+          itemsMap[item.prescription_id] = [];
+        }
+        itemsMap[item.prescription_id].push({
+          id: item.id,
+          medicineName: item.medicine_name,
+          strength: item.strength,
+          dosage: item.dosage,
+          quantity: item.quantity,
+          instructions: item.instructions,
+          available: true,
+          cost: item.cost,
+        });
+      });
+
+      // 4. Map to Prescription objects
+      const items = pData.map((p: any) => ({
+        id: p.id,
+        prescriptionNumber: p.prescription_number,
+        patientName: p.patient_name,
+        patientPhone: p.patient_phone,
+        patientAge: p.patient_age,
+        doctorName: p.doctor_name,
+        doctorLicense: p.doctor_license,
+        dateIssued: p.issued_at,
+        status: p.status,
+        priority: p.priority,
+        medications: itemsMap[p.id] || [],
+        insurance: p.insurance,
+        totalCost: p.total_cost,
+        notes: p.notes,
+      }));
+
+      setPrescriptions(items);
+    } catch (error) {
+      console.error("Failed to fetch prescriptions:", error);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  useEffect(() => {
     fetchPrescriptions();
   }, []);
 
@@ -94,10 +115,19 @@ export function usePrescriptionQueue() {
     });
   }, [prescriptions, searchTerm, statusFilter, priorityFilter]);
 
-  const updatePrescriptionStatus = (id: string, newStatus: Prescription["status"]) => {
-    setPrescriptions((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, status: newStatus } : p))
-    );
+  const updatePrescriptionStatus = async (id: string, newStatus: Prescription["status"]) => {
+    try {
+      await query("UPDATE prescriptions SET status = ?, updated_at = ? WHERE id = ?", [
+        newStatus,
+        new Date().toISOString(),
+        id,
+      ]);
+      setPrescriptions((prev) =>
+        prev.map((p) => (p.id === id ? { ...p, status: newStatus } : p))
+      );
+    } catch (err) {
+      console.error("Failed to update status", err);
+    }
   };
 
   const viewPrescriptionDetails = (prescription: Prescription) => {
@@ -130,5 +160,6 @@ export function usePrescriptionQueue() {
     updatePrescriptionStatus,
     viewPrescriptionDetails,
     stats,
+    refetch: fetchPrescriptions,
   };
 }

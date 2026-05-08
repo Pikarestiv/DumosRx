@@ -191,6 +191,24 @@ CREATE TABLE IF NOT EXISTS prescriptions (
   _deleted INTEGER DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS prescription_items (
+  id TEXT PRIMARY KEY,
+  prescription_id TEXT NOT NULL,
+  medicine_name TEXT NOT NULL,
+  strength TEXT,
+  dosage TEXT,
+  quantity INTEGER,
+  instructions TEXT,
+  cost REAL DEFAULT 0,
+  created_at TEXT,
+  updated_at TEXT,
+  _version INTEGER DEFAULT 1,
+  _synced INTEGER DEFAULT 0,
+  _synced_at TEXT,
+  _deleted INTEGER DEFAULT 0,
+  FOREIGN KEY (prescription_id) REFERENCES prescriptions(id)
+);
+
 CREATE TABLE IF NOT EXISTS _sync_queue (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   table_name TEXT NOT NULL,

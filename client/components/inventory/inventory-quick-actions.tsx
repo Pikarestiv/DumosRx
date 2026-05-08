@@ -40,28 +40,28 @@ export function InventoryQuickActions({
             variant="outline"
             className="h-20 flex flex-col gap-2 bg-transparent"
           >
-            <ShoppingCart className="h-6 w-6" />
+            <ShoppingCart className="h-6 w-6 hover-rotate-icon" />
             <span className="text-sm">Create Purchase Order</span>
           </Button>
           <Button
             variant="outline"
             className="h-20 flex flex-col gap-2 bg-transparent"
           >
-            <Package className="h-6 w-6" />
+            <Package className="h-6 w-6 hover-rotate-icon" />
             <span className="text-sm">Stock Adjustment</span>
           </Button>
           <Button
             variant="outline"
             className="h-20 flex flex-col gap-2 bg-transparent"
           >
-            <Calendar className="h-6 w-6" />
+            <Calendar className="h-6 w-6 hover-rotate-icon" />
             <span className="text-sm">Expiry Report</span>
           </Button>
           <Button
             variant="outline"
             className="h-20 flex flex-col gap-2 bg-transparent"
           >
-            <BarChart3 className="h-6 w-6" />
+            <BarChart3 className="h-6 w-6 hover-rotate-icon" />
             <span className="text-sm">Inventory Report</span>
           </Button>
         </div>

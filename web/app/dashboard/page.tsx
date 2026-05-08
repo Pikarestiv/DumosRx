@@ -125,11 +125,11 @@ export default function DashboardPage() {
         <div className="p-4 border-t">
           <div className="bg-muted/50 rounded-2xl p-4 flex items-center gap-3">
             <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary">
-               {user.name.charAt(0)}
+               {user?.name?.charAt(0) || "U"}
             </div>
             <div className="flex-1 overflow-hidden">
-               <p className="text-sm font-bold truncate">{user.name}</p>
-               <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+               <p className="text-sm font-bold truncate">{user?.name || "User"}</p>
+               <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
             </div>
             <button onClick={() => { localStorage.removeItem("drx_token"); router.push("/login"); }}>
                <LogOut className="h-4 w-4 text-muted-foreground hover:text-destructive transition-colors" />

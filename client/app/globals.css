@@ -147,6 +147,24 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
+@layer utilities {
+  .hover-scale {
+    @apply transition-transform duration-200 ease-out hover:scale-[1.02] active:scale-[0.98];
+  }
+  
+  .hover-rotate-icon {
+    @apply group-hover:rotate-12 transition-transform duration-300;
+  }
+  
+  .hover-spin-plus svg {
+    @apply transition-transform duration-500 ease-in-out group-hover:rotate-90;
+  }
+
+  .perspective-1000 {
+    perspective: 1000px;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

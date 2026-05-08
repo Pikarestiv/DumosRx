@@ -30,6 +30,7 @@ import {
   Wallet,
   Truck,
   ClipboardList,
+  TrendingUp,
 } from "lucide-react";
 
 interface DashboardLayoutProps {
@@ -60,8 +61,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { name: "Expenses", href: "/expenses", icon: Wallet },
     { name: "Vendors", href: "/vendors", icon: Truck },
     { name: "Reports", href: "/reports", icon: BarChart3 },
+    ...(isAdmin ? [{ name: "Analytics", href: "/analytics", icon: TrendingUp }] : []),
     ...(isAdmin ? [{ name: "Settings", href: "/settings", icon: Settings }] : []),
-    ...(isAdmin ? [{ name: "Analytics", href: "/analytics", icon: BarChart3 }] : []),
   ];
 
   return (

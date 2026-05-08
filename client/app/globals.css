@@ -147,22 +147,35 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
-@layer utilities {
-  .hover-scale {
-    @apply transition-transform duration-200 ease-out hover:scale-[1.02] active:scale-[0.98];
-  }
-  
-  .hover-rotate-icon {
-    @apply group-hover:rotate-12 transition-transform duration-300;
-  }
-  
-  .hover-spin-plus svg {
-    @apply transition-transform duration-500 ease-in-out group-hover:rotate-90;
-  }
+/* Global Animation Overrides */
+.hover-scale {
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
 
-  .perspective-1000 {
-    perspective: 1000px;
-  }
+.hover-scale:hover {
+  transform: scale(1.02) !important;
+}
+
+.hover-scale:active {
+  transform: scale(0.98) !important;
+}
+
+/* Brute-force rotation for all icons inside buttons/groups */
+button:hover svg,
+[data-slot="button"]:hover svg,
+.group:hover svg,
+.group:hover .hover-rotate-icon,
+.group:hover .hover-spin-plus {
+  transform: rotate(12deg) scale(1.1) !important;
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  transform-origin: center center !important;
+  display: inline-block !important;
+}
+
+/* Specific faster spin for plus icons if they have the class */
+.group:hover .hover-spin-plus,
+[data-slot="button"]:hover .hover-spin-plus {
+  transform: rotate(90deg) scale(1.1) !important;
 }
 
 @layer base {

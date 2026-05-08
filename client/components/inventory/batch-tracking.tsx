@@ -22,8 +22,12 @@ import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
 import { useLocalData } from "@/lib/db/hooks/useLocalData";
 
+import { useStore } from "@/lib/context/store-context";
+
 export function BatchTracking() {
   const [searchTerm, setSearchTerm] = useState("");
+  const { storeProfile } = useStore();
+  const expiryThreshold = storeProfile?.expiry_warning_days || 90;
 
   const { data: batches, loading } = useLocalData<any>(
     `SELECT i.*, m.name as medicine_name, m.brand as medicine_brand 
@@ -44,8 +48,8 @@ export function BatchTracking() {
       (new Date(date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
     );
     if (days <= 0) return { label: "Expired", variant: "destructive" as const };
-    if (days <= 90) return { label: `${days} days left`, variant: "outline" as const };
-    if (days <= 180) return { label: "Near Expiry", variant: "secondary" as const };
+    if (days <= expiryThreshold) return { label: `${days} days left`, variant: "outline" as const };
+    if (days <= expiryThreshold * 2) return { label: "Near Expiry", variant: "secondary" as const };
     return { label: "Healthy", variant: "default" as const };
   };
 
@@ -53,7 +57,7 @@ export function BatchTracking() {
     const days = Math.ceil(
       (new Date(b.expiry_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
     );
-    return days > 0 && days <= 90;
+    return days > 0 && days <= expiryThreshold;
   }).length;
 
   const expiredCount = batches.filter((b) => {
@@ -78,7 +82,7 @@ export function BatchTracking() {
 
         <Card className="bg-orange-500/5 border-orange-500/20">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-orange-600">Expiring Soon (90d)</CardTitle>
+            <CardTitle className="text-sm font-medium text-orange-600">Expiring Soon ({expiryThreshold}d)</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-orange-600">{expiringSoonCount}</div>

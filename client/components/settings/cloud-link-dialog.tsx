@@ -40,6 +40,8 @@ export function CloudLinkDialog({ open, onOpenChange, onSuccess }: CloudLinkDial
       const result = await linkCloudAccount(email, password);
       if (result.success) {
         toast.success(result.message);
+        setEmail("");
+        setPassword("");
         onOpenChange(false);
         if (onSuccess) onSuccess();
       } else {

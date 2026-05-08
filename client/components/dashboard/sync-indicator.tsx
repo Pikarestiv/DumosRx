@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Cloud, CloudOff, RefreshCw, AlertCircle } from "lucide-react";
+import { Cloud, CloudOff, RefreshCw, AlertCircle, ArrowRight, ShieldAlert } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -10,6 +10,16 @@ import {
 } from "../ui/tooltip";
 
 import { sync, isSyncing as checkIsSyncing } from "@/lib/db/sync-engine";
+import { useRouter } from "next/navigation";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 
@@ -20,6 +30,9 @@ export function SyncIndicator() {
   const [lastSync, setLastSync] = useState<string | null>(null);
   const [isSyncInProgress, setIsSyncInProgress] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [isLinked, setIsLinked] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     updateOnlineStatus();
@@ -44,10 +57,13 @@ export function SyncIndicator() {
 
   const updateOnlineStatus = () => {
     setStatus(navigator.onLine ? "online" : "offline");
+    const token = localStorage.getItem("auth_token");
+    setIsLinked(!!token);
   };
 
   const handleManualSync = async () => {
     if (isSyncInProgress) return;
+    setIsSyncInProgress(true);
     setStatus("syncing");
     try {
       const result = await sync();
@@ -57,7 +73,11 @@ export function SyncIndicator() {
         setErrorMessage(null);
       } else {
         setStatus("error");
-        setErrorMessage(typeof result.error === 'string' ? result.error : "Sync failed");
+        const errorMsg = typeof result.error === 'string' ? result.error : "Sync failed";
+        setErrorMessage(errorMsg);
+        if (errorMsg.includes("Unauthenticated") || errorMsg.includes("401")) {
+          setShowAuthModal(true);
+        }
       }
     } catch (err: any) {
       console.error("Manual sync failed:", err);
@@ -65,6 +85,12 @@ export function SyncIndicator() {
       setErrorMessage(err.message?.includes("Unauthenticated") 
         ? "Cloud Account Unauthenticated. Please re-link in settings." 
         : "Sync failed. Check your connection.");
+      
+      if (err.message?.includes("Unauthenticated") || err.message?.includes("401")) {
+        setShowAuthModal(true);
+      }
+    } finally {
+      setIsSyncInProgress(false);
     }
   };
 
@@ -90,7 +116,11 @@ export function SyncIndicator() {
                       ? "Syncing..."
                       : status === "offline"
                         ? "Offline"
-                        : "Cloud Active"}
+                        : status === "error"
+                          ? "Sync Error"
+                          : isLinked
+                            ? "Cloud Active"
+                            : "Not Linked"}
                   </span>
                 </div>
                 <button
@@ -124,16 +154,70 @@ export function SyncIndicator() {
             <div className="space-y-1">
               <p className="text-xs font-bold">Cloud Sync Engine</p>
               <p className="text-[10px] text-muted-foreground leading-relaxed">
-                {status === "offline"
-                  ? "Offline mode. Changes are saved locally and will sync automatically when your connection is restored."
-                  : status === "error"
-                  ? errorMessage || "Sync failed. Please try again."
-                  : "Your data is securely backed up to the DumosRx cloud."}
+                  {isSyncInProgress
+                    ? "Syncing your changes to the cloud..."
+                    : status === "offline"
+                      ? "Offline mode. Changes are saved locally."
+                      : status === "error"
+                        ? errorMessage || "Sync failed. Please try again."
+                        : isLinked
+                          ? "Your data is securely backed up to the DumosRx cloud."
+                          : "Connect your cloud account to enable automatic backups and sync."}
               </p>
             </div>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
+
+      <Dialog open={showAuthModal} onOpenChange={setShowAuthModal}>
+        <DialogContent className="sm:max-w-[420px] p-0 overflow-hidden border border-white/5 bg-card shadow-2xl rounded-2xl">
+          <div className="p-8">
+            <DialogHeader className="space-y-4">
+              <div className="mx-auto w-14 h-14 rounded-xl bg-destructive/10 flex items-center justify-center mb-1 border border-destructive/10">
+                <CloudOff className="h-7 w-7 text-destructive" />
+              </div>
+              <div className="text-center">
+                <DialogTitle className="text-xl font-semibold tracking-tight">
+                  Connection Expired
+                </DialogTitle>
+                <DialogDescription className="mt-2 text-sm leading-relaxed">
+                  Your cloud session has timed out. 
+                  Synchronization is <span className="text-destructive font-medium">paused</span> until you re-link.
+                </DialogDescription>
+              </div>
+            </DialogHeader>
+
+            <div className="mt-6 space-y-6">
+              <div className="bg-muted/30 rounded-lg p-4 border border-white/5">
+                <p className="text-xs text-muted-foreground leading-relaxed text-center">
+                  For your security, cloud sessions expire periodically. 
+                  Relinking restores your automatic backups and cross-device sync.
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <Button 
+                  className="h-11 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-lg shadow-primary/20"
+                  onClick={() => {
+                    setShowAuthModal(false);
+                    router.push("/settings?tab=cloud");
+                  }}
+                >
+                  Re-link Cloud Account
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  className="h-11 rounded-lg text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowAuthModal(false)}
+                >
+                  Dismiss for now
+                </Button>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

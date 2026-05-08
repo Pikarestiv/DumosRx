@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,6 +54,9 @@ export default function SettingsPage() {
   const { user, logout, isAdmin, changePin, isCloudLinked } = useAuth();
   
   const [isCloudLinkOpen, setIsCloudLinkOpen] = useState(false);
+  const searchParams = useSearchParams();
+  const [activeTab, setActiveTab] = useState("appearance");
+  
   const [currentPin, setCurrentPin] = useState("");
   const [newPin, setNewPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
@@ -97,6 +101,24 @@ export default function SettingsPage() {
   const [expiryDays, setExpiryDays] = useState(
     storeProfile?.expiry_warning_days?.toString() || "90",
   );
+
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (tab) {
+      if (tab === "cloud" || tab === "data") {
+        setActiveTab("data");
+        if (tab === "cloud") {
+          if (!isCloudLinked) {
+            setIsCloudLinkOpen(true);
+          } else {
+            setIsCloudLinkOpen(false);
+          }
+        }
+      } else if (["appearance", "store", "notifications", "security"].includes(tab)) {
+        setActiveTab(tab);
+      }
+    }
+  }, [searchParams, isCloudLinked]);
 
   useEffect(() => {
     if (storeProfile) {
@@ -264,7 +286,7 @@ export default function SettingsPage() {
           </p>
         </div>
 
-        <Tabs defaultValue="appearance" className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 h-auto">
             <TabsTrigger value="appearance" className="py-3">
               <Palette className="w-4 h-4 mr-2" />

@@ -126,8 +126,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const response = await apiClient.login(email, password);
       
-      if (response.access_token) {
-        apiClient.setToken(response.access_token);
+      if (response.token) {
+        apiClient.setToken(response.token);
         setIsCloudLinked(true);
         
         // Update local user info if already logged in locally

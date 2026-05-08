@@ -113,23 +113,37 @@ export async function pullChanges(): Promise<{
     let pulledCount = 0;
 
     // Apply changes transactionally
-    await execute("BEGIN TRANSACTION");
-
+    let transactionActive = false;
     try {
+      await execute("BEGIN TRANSACTION");
+      transactionActive = true;
+
       for (const [table, records] of Object.entries(changes)) {
         if (!Array.isArray(records)) continue;
 
+        // Fetch local table columns to avoid "no such column" errors
+        const tableInfo = await query<{ name: string }>(`PRAGMA table_info(${table})`);
+        const validColumns = new Set(tableInfo.map(c => c.name));
+
         for (const record of records) {
-          const { id, _deleted, ...data } = record as any;
+          const { id, _deleted, ...rawData } = record as any;
+          
+          // Filter out columns that don't exist in local schema
+          const data: Record<string, any> = {};
+          for (const key in rawData) {
+            if (validColumns.has(key)) {
+              data[key] = rawData[key];
+            }
+          }
 
           const columns = Object.keys(data);
           const placeholders = columns.map(() => "?");
           const values = columns.map((c) => data[c]);
 
           // Construct UPSERT query
-          const allCols = ["id", ...columns, "_synced"];
-          const allPlaceholders = ["?", ...placeholders, "?"];
-          const allValues = [id, ...values, 1];
+          const allCols = ["id", ...columns, "_synced", "_version"];
+          const allPlaceholders = ["?", ...placeholders, "?", "?"];
+          const allValues = [id, ...values, 1, (record as any)._version || 1];
 
           await execute(
             `INSERT OR REPLACE INTO ${table} (${allCols.join(", ")}) VALUES (${allPlaceholders.join(", ")})`,
@@ -147,9 +161,16 @@ export async function pullChanges(): Promise<{
       }
 
       await execute("COMMIT");
+      transactionActive = false;
     } catch (err) {
       console.error("Failed to apply pull changes:", err);
-      await execute("ROLLBACK");
+      if (transactionActive) {
+        try {
+          await execute("ROLLBACK");
+        } catch (rollbackErr) {
+          console.error("Rollback failed:", rollbackErr);
+        }
+      }
       throw err;
     }
 

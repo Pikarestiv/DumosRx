@@ -45,14 +45,21 @@ export default function Home() {
     <div className="flex flex-col min-h-screen bg-background">
       {/* Navigation */}
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
-        <div className="container flex h-20 items-center justify-between">
-          <Link href="/" className="flex items-center space-x-2">
-            <div className="bg-primary p-1.5 rounded-lg">
-              <Pill className="h-6 w-6 text-white" />
+        <div className="container px-6 md:px-12 flex h-24 items-center justify-between mx-auto">
+          <Link
+            href="/"
+            className="flex items-center group transition-transform hover:scale-105"
+          >
+            <div className="relative h-14 w-auto flex items-center justify-center">
+              <Image
+                src="/logo.png"
+                alt="DumosRx Logo"
+                width={160}
+                height={56}
+                className="h-14 w-auto object-contain"
+                priority
+              />
             </div>
-            <span className="text-2xl font-bold tracking-tight">
-              Dumos<span className="text-primary">Rx</span>
-            </span>
           </Link>
 
           {/* Desktop Nav */}
@@ -78,7 +85,10 @@ export default function Home() {
             <div className="h-6 w-px bg-border mx-2" />
             <div className="flex items-center gap-4">
               {isLoggedIn ? (
-                <Button className="font-semibold shadow-lg shadow-primary/20" asChild>
+                <Button
+                  className="font-semibold shadow-lg shadow-primary/20"
+                  asChild
+                >
                   <Link href="/dashboard">Go to Dashboard</Link>
                 </Button>
               ) : (
@@ -280,7 +290,10 @@ export default function Home() {
                   icon: Database,
                 },
               ].map((feature, i) => (
-                <Card key={i} className="border-none shadow-sm hover:shadow-md transition-all group">
+                <Card
+                  key={i}
+                  className="border-none shadow-sm hover:shadow-md transition-all group"
+                >
                   <CardHeader>
                     <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center text-primary mb-4 group-hover:scale-110 transition-transform">
                       <feature.icon className="h-6 w-6" />
@@ -298,72 +311,101 @@ export default function Home() {
 
         {/* Benefits/Why Choose Us */}
         <section id="benefits" className="py-24 overflow-hidden">
-           <div className="container px-4 mx-auto">
-              <div className="flex flex-col lg:flex-row items-center gap-16">
-                 <div className="flex-1 space-y-8">
-                    <h2 className="text-4xl font-black leading-tight">
-                       Why Nigerian Pharmacists choose <span className="text-primary">DumosRx</span>
-                    </h2>
-                    <div className="space-y-6">
-                       {[
-                          { title: "No Internet? No Problem.", desc: "Our local client app works 100% offline. No more waiting for pages to load during a sale." },
-                          { title: "NAFDAC & Expiry Alerts", desc: "Automated tracking for regulatory compliance and proactive inventory management." },
-                          { title: "Transparent Pricing", desc: "Pay in Naira, no hidden fees. Choose a plan that fits your pharmacy size." }
-                       ].map((item, i) => (
-                          <div key={i} className="flex gap-4">
-                             <div className="mt-1">
-                                <div className="bg-emerald-500/10 p-1 rounded-full">
-                                   <Check className="h-5 w-5 text-emerald-500" />
-                                </div>
-                             </div>
-                             <div>
-                                <h4 className="font-bold text-xl mb-1">{item.title}</h4>
-                                <p className="text-muted-foreground leading-relaxed">{item.desc}</p>
-                             </div>
-                          </div>
-                       ))}
+          <div className="container px-4 mx-auto">
+            <div className="flex flex-col lg:flex-row items-center gap-16">
+              <div className="flex-1 space-y-8">
+                <h2 className="text-4xl font-black leading-tight">
+                  Why Nigerian Pharmacists choose{" "}
+                  <span className="text-primary">DumosRx</span>
+                </h2>
+                <div className="space-y-6">
+                  {[
+                    {
+                      title: "No Internet? No Problem.",
+                      desc: "Our local client app works 100% offline. No more waiting for pages to load during a sale.",
+                    },
+                    {
+                      title: "NAFDAC & Expiry Alerts",
+                      desc: "Automated tracking for regulatory compliance and proactive inventory management.",
+                    },
+                    {
+                      title: "Transparent Pricing",
+                      desc: "Pay in Naira, no hidden fees. Choose a plan that fits your pharmacy size.",
+                    },
+                  ].map((item, i) => (
+                    <div key={i} className="flex gap-4">
+                      <div className="mt-1">
+                        <div className="bg-emerald-500/10 p-1 rounded-full">
+                          <Check className="h-5 w-5 text-emerald-500" />
+                        </div>
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-xl mb-1">{item.title}</h4>
+                        <p className="text-muted-foreground leading-relaxed">
+                          {item.desc}
+                        </p>
+                      </div>
                     </div>
-                    <Button size="lg" className="rounded-full px-8 h-12 font-bold shadow-lg shadow-primary/20" asChild>
-                       <Link href="/register">Join the Community</Link>
-                    </Button>
-                 </div>
-                 <div className="flex-1 relative">
-                    <div className="absolute -inset-4 bg-primary/5 rounded-[40px] rotate-3" />
-                    <div className="relative aspect-square rounded-[32px] overflow-hidden shadow-2xl border-8 border-background">
-                       <Image 
-                          src="https://images.unsplash.com/photo-1576091160550-2173dba999ef?q=80&w=2070&auto=format&fit=crop"
-                          alt="Pharmacist working"
-                          fill
-                          className="object-cover"
-                       />
-                    </div>
-                 </div>
+                  ))}
+                </div>
+                <Button
+                  size="lg"
+                  className="rounded-full px-8 h-12 font-bold shadow-lg shadow-primary/20"
+                  asChild
+                >
+                  <Link href="/register">Join the Community</Link>
+                </Button>
               </div>
-           </div>
+              <div className="flex-1 relative">
+                <div className="absolute -inset-4 bg-primary/5 rounded-[40px] rotate-3" />
+                <div className="relative aspect-square rounded-[32px] overflow-hidden shadow-2xl border-8 border-background">
+                  <Image
+                    src="https://images.unsplash.com/photo-1576091160550-2173dba999ef?q=80&w=2070&auto=format&fit=crop"
+                    alt="Pharmacist working"
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
         </section>
 
         <PricingSection />
 
         {/* CTA Section */}
         <section className="py-24 bg-primary text-primary-foreground relative overflow-hidden">
-           <div className="absolute top-0 right-0 w-[50%] h-full bg-white/5 skew-x-[-20deg] translate-x-1/2" />
-           <div className="container px-4 mx-auto relative text-center">
-              <h2 className="text-4xl md:text-5xl font-black mb-6">Ready to modernize your pharmacy?</h2>
-              <p className="text-xl text-primary-foreground/80 mb-10 max-w-2xl mx-auto">
-                 Join hundreds of pharmacies across Nigeria using DumosRx to increase profits and improve patient care.
-              </p>
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                 <Button size="lg" variant="secondary" className="h-14 px-10 text-lg font-bold" asChild>
-                    <Link href="/register">Create Your Account</Link>
-                 </Button>
-                 <Button size="lg" variant="outline" className="h-14 px-10 text-lg font-bold bg-transparent text-white border-white hover:bg-white/10" asChild>
-                    <Link href="/login">Sign In</Link>
-                 </Button>
-              </div>
-              <p className="mt-8 text-primary-foreground/60 text-sm font-medium italic">
-                 * No credit card required to start your free trial.
-              </p>
-           </div>
+          <div className="absolute top-0 right-0 w-[50%] h-full bg-white/5 skew-x-[-20deg] translate-x-1/2" />
+          <div className="container px-4 mx-auto relative text-center">
+            <h2 className="text-4xl md:text-5xl font-black mb-6">
+              Ready to modernize your pharmacy?
+            </h2>
+            <p className="text-xl text-primary-foreground/80 mb-10 max-w-2xl mx-auto">
+              Join hundreds of pharmacies across Nigeria using DumosRx to
+              increase profits and improve patient care.
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <Button
+                size="lg"
+                variant="secondary"
+                className="h-14 px-10 text-lg font-bold"
+                asChild
+              >
+                <Link href="/register">Create Your Account</Link>
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                className="h-14 px-10 text-lg font-bold bg-transparent text-white border-white hover:bg-white/10"
+                asChild
+              >
+                <Link href="/login">Sign In</Link>
+              </Button>
+            </div>
+            <p className="mt-8 text-primary-foreground/60 text-sm font-medium italic">
+              * No credit card required to start your free trial.
+            </p>
+          </div>
         </section>
       </main>
 
@@ -371,9 +413,14 @@ export default function Home() {
         <div className="container px-4 mx-auto">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
             <div className="col-span-2">
-              <Link href="/" className="flex items-center space-x-2 mb-6">
-                <Pill className="h-6 w-6 text-primary" />
-                <span className="text-xl font-bold">DumosRx</span>
+              <Link href="/" className="flex items-center mb-6">
+                <Image
+                  src="/logo.png"
+                  alt="DumosRx Logo"
+                  width={120}
+                  height={42}
+                  className="h-10 w-auto object-contain"
+                />
               </Link>
               <p className="text-muted-foreground max-w-xs mb-6">
                 The most reliable pharmacy management system for the Nigerian
@@ -381,28 +428,81 @@ export default function Home() {
               </p>
             </div>
             <div>
-              <h4 className="font-bold mb-4 uppercase text-xs tracking-widest text-muted-foreground">Product</h4>
+              <h4 className="font-bold mb-4 uppercase text-xs tracking-widest text-muted-foreground">
+                Product
+              </h4>
               <ul className="space-y-2">
-                <li><Link href="#features" className="text-sm text-muted-foreground hover:text-primary">Features</Link></li>
-                <li><Link href="#pricing" className="text-sm text-muted-foreground hover:text-primary">Pricing</Link></li>
-                <li><Link href="/downloads" className="text-sm text-muted-foreground hover:text-primary">Downloads</Link></li>
+                <li>
+                  <Link
+                    href="#features"
+                    className="text-sm text-muted-foreground hover:text-primary"
+                  >
+                    Features
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="#pricing"
+                    className="text-sm text-muted-foreground hover:text-primary"
+                  >
+                    Pricing
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/downloads"
+                    className="text-sm text-muted-foreground hover:text-primary"
+                  >
+                    Downloads
+                  </Link>
+                </li>
               </ul>
             </div>
             <div>
-              <h4 className="font-bold mb-4 uppercase text-xs tracking-widest text-muted-foreground">Company</h4>
+              <h4 className="font-bold mb-4 uppercase text-xs tracking-widest text-muted-foreground">
+                Company
+              </h4>
               <ul className="space-y-2">
-                <li><Link href="/about" className="text-sm text-muted-foreground hover:text-primary">About</Link></li>
-                <li><Link href="/contact" className="text-sm text-muted-foreground hover:text-primary">Contact</Link></li>
-                <li><Link href="/privacy" className="text-sm text-muted-foreground hover:text-primary">Privacy</Link></li>
+                <li>
+                  <Link
+                    href="/about"
+                    className="text-sm text-muted-foreground hover:text-primary"
+                  >
+                    About
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/contact"
+                    className="text-sm text-muted-foreground hover:text-primary"
+                  >
+                    Contact
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/privacy"
+                    className="text-sm text-muted-foreground hover:text-primary"
+                  >
+                    Privacy
+                  </Link>
+                </li>
               </ul>
             </div>
           </div>
           <Separator className="mb-8" />
           <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-muted-foreground">
-            <p>© {new Date().getFullYear()} DumosRx Technology. All rights reserved.</p>
+            <p>
+              © {new Date().getFullYear()} Dumos Technologies. All rights
+              reserved.
+            </p>
             <div className="flex gap-6">
-               <Link href="#" className="hover:text-primary">Twitter</Link>
-               <Link href="#" className="hover:text-primary">LinkedIn</Link>
+              <Link href="#" className="hover:text-primary">
+                Twitter
+              </Link>
+              <Link href="#" className="hover:text-primary">
+                LinkedIn
+              </Link>
             </div>
           </div>
         </div>

@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, CreditCard, CheckCircle, AlertCircle } from "lucide-react";
 import { webApiClient } from "@/lib/api/client";
 import { toast } from "sonner";
+import { PRICING } from "@/lib/constants/pricing";
 
 export function SubscriptionCard() {
   const [loading, setLoading] = useState(true);
@@ -44,7 +45,7 @@ export function SubscriptionCard() {
   const config = {
     reference: new Date().getTime().toString(),
     email: user?.email || "pharmacy@example.com",
-    amount: 1500000, // ₦15,000.00
+    amount: PRICING.PRO.PAYSTACK_AMOUNT_KOBO,
     publicKey: process.env.NEXT_PUBLIC_PAYSTACK_KEY || "pk_test_placeholder",
   };
 
@@ -92,52 +93,52 @@ export function SubscriptionCard() {
           </Badge>
         </div>
         <CardDescription>
-          {isPro ? `${subscription.plan || 'Professional'} Plan` : "DumosRx Free Trial"}
+          {isPro ? `${subscription.plan || PRICING.PRO.NAME} Plan` : "DumosRx Free Trial"}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {!isPro && (
           <div className="p-4 bg-amber-500/10 rounded-2xl text-sm border border-amber-500/20">
-            <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-bold mb-1">
+            <div className="flex items-center gap-2 text-amber-600 font-bold mb-1">
               <AlertCircle className="h-4 w-4" />
-              <span>Action Required</span>
+              <span>Trial Ending Soon</span>
             </div>
-            <p className="text-muted-foreground">
-              Your trial expires in <strong className="text-foreground">{daysLeft} days</strong>.
-              Upgrade to keep your pharmacy data synced.
+            <p className="text-amber-700/80 leading-relaxed">
+              Your free trial expires in <span className="font-bold">{daysLeft} days</span>. Upgrade now to avoid service interruption.
             </p>
           </div>
         )}
-
-        {isPro && (
-          <div className="p-4 bg-emerald-500/10 rounded-2xl text-sm border border-emerald-500/20">
-             <div className="flex items-center gap-2 text-emerald-600 font-bold">
-                <CheckCircle className="h-5 w-5" />
-                <span>Renewing automatically</span>
-             </div>
-             <p className="text-xs text-muted-foreground mt-1 ml-7">
-                Your next billing date is in {daysLeft} days.
-             </p>
+        
+        <div className="space-y-2">
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Status</span>
+            <span className="font-medium capitalize">{subscription?.status || 'Active'}</span>
           </div>
-        )}
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Current Plan</span>
+            <span className="font-medium">{subscription?.plan || PRICING.FREE.NAME}</span>
+          </div>
+          {subscription?.expires_at && (
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Renews on</span>
+              <span className="font-medium">{new Date(subscription.expires_at).toLocaleDateString()}</span>
+            </div>
+          )}
+        </div>
       </CardContent>
       <CardFooter>
         {!isPro ? (
-          <Button
-            className="w-full font-bold h-11 rounded-xl shadow-lg shadow-primary/20"
+          <Button 
+            className="w-full h-12 font-bold shadow-lg shadow-primary/20" 
             onClick={() => initializePayment({ onSuccess, onClose })}
-            disabled={loading}
           >
-            {loading ? (
-              <Loader2 className="animate-spin mr-2" />
-            ) : (
-              <CreditCard className="mr-2 h-4 w-4" />
-            )}
-            Upgrade to Pro (₦15,000)
+            <CreditCard className="h-4 w-4 mr-2" />
+            Upgrade to Pro (₦{PRICING.PRO.PRICE_MONTHLY.toLocaleString()})
           </Button>
         ) : (
-          <Button variant="outline" className="w-full font-bold h-11 rounded-xl">
-            Manage Billing
+          <Button variant="outline" className="w-full h-12 font-bold border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/5">
+            <CheckCircle className="h-4 w-4 mr-2" />
+            Manage Subscription
           </Button>
         )}
       </CardFooter>

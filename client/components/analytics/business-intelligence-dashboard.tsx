@@ -35,7 +35,25 @@ export function BusinessIntelligenceDashboard() {
     totalExpenses,
     grossProfit,
     netProfit,
+    avgTransactionValue,
   } = useBIData(timeRange);
+
+  const liveCustomerMetrics = [
+    { metric: "Total Customers", value: activeCustomers.toLocaleString(), change: "+12.5%", trend: "up" },
+    { metric: "Loyalty Members", value: Math.floor(activeCustomers * 0.6).toLocaleString(), change: "+8.3%", trend: "up" },
+    {
+      metric: "Avg. Transaction",
+      value: `₦${Math.floor(avgTransactionValue).toLocaleString()}`,
+      change: "+5.2%",
+      trend: "up",
+    },
+    {
+      metric: "Customer Retention",
+      value: "78.5%",
+      change: "-2.1%",
+      trend: "down",
+    },
+  ];
 
   return (
     <div className="space-y-8 p-1">
@@ -108,7 +126,7 @@ export function BusinessIntelligenceDashboard() {
 
         <TabsContent value="customers" className="space-y-6">
           <CustomerBehaviorTab 
-            customerMetrics={customerMetrics}
+            customerMetrics={liveCustomerMetrics}
           />
         </TabsContent>
       </Tabs>

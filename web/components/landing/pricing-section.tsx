@@ -14,6 +14,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CheckCircle2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { PRICING } from "@/lib/constants/pricing";
 
 export function PricingSection() {
   const [billingPeriod, setBillingPeriod] = useState<"monthly" | "yearly">(
@@ -99,13 +100,16 @@ export function PricingSection() {
               <CardDescription>For growing businesses</CardDescription>
               <div className="mt-4">
                 <span className="text-4xl font-bold">
-                  {isYearly ? "₦12,000" : "₦15,000"}
+                  {isYearly 
+                    ? `₦${PRICING.PRO.PRICE_YEARLY.toLocaleString()}` 
+                    : `₦${PRICING.PRO.PRICE_MONTHLY.toLocaleString()}`
+                  }
                 </span>
                 <span className="text-muted-foreground">/month</span>
               </div>
               <p className="text-sm text-green-600 font-medium h-5">
                 {isYearly
-                  ? "Billed ₦144,000 yearly (Save ₦36,000)"
+                  ? `Billed ₦${PRICING.PRO.BILLING_YEARLY_TOTAL.toLocaleString()} yearly (Save ₦${PRICING.PRO.SAVINGS_YEARLY.toLocaleString()})`
                   : "Billed monthly"}
               </p>
             </CardHeader>

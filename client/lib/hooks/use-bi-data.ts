@@ -142,6 +142,10 @@ export function useBIData(externalTimeRange?: string) {
     }));
   }, [categoryDistribution]);
 
+  const avgTransactionValue = useMemo(() => {
+    return totalTransactions > 0 ? totalRevenue / totalTransactions : 0;
+  }, [totalRevenue, totalTransactions]);
+
   return {
     timeRange,
     totalRevenue,
@@ -150,6 +154,7 @@ export function useBIData(externalTimeRange?: string) {
     grossProfit,
     netProfit,
     totalTransactions,
+    avgTransactionValue,
     inventoryValue,
     activeCustomers,
     monthlySalesData,

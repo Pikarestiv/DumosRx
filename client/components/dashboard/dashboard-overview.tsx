@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useLocalData } from "@/lib/db/hooks/useLocalData";
 import { useStore } from "@/lib/context/store-context";
+import { useAuth } from "@/lib/context/auth-context";
 import { DashboardStats } from "./dashboard-stats";
 import { DashboardRecentActivity } from "./dashboard-recent-activity";
 import { DashboardQuickActions } from "./dashboard-quick-actions";
@@ -29,6 +30,7 @@ interface ActivityItem {
 
 export function DashboardOverview() {
   const { t, storeProfile } = useStore();
+  const { user } = useAuth();
   const [showEOD, setShowEOD] = useState(false);
   
   const { data: medicines } = useLocalData<{ count: number }>(
@@ -174,6 +176,9 @@ export function DashboardOverview() {
   return (
     <div className="space-y-6">
       <div>
+        <p className="text-primary font-medium mb-1">
+          Welcome back, {user?.name || 'User'}
+        </p>
         <h1 className="font-serif font-bold text-3xl text-foreground">
           Dashboard Overview
         </h1>

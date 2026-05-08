@@ -87,16 +87,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             alt="DumosRx Logo" 
             className="h-8 w-auto object-contain" 
           />
-          {!storeProfile?.name && (
-            <h1 className="font-serif font-black text-xl text-sidebar-foreground truncate pr-2 hidden sm:block">
-              {APP_NAME}
-            </h1>
-          )}
-          {storeProfile?.name && (
-            <h1 className="font-serif font-black text-xl text-sidebar-foreground truncate pr-2">
-              {storeProfile.name}
-            </h1>
-          )}
+          <div className="flex-1" />
           <Button
             variant="ghost"
             size="sm"
@@ -147,23 +138,24 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       <div className="lg:pl-64">
         {/* Top header */}
         <header className="h-16 bg-background border-b border-border flex items-center justify-between px-6">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="lg:hidden"
-            onClick={() => setSidebarOpen(true)}
-          >
-            <Menu className="h-4 w-4" />
-          </Button>
-
           <div className="flex items-center gap-4">
-            <span className="text-sm font-medium">
-              Welcome back, {user?.name || 'User'}
-            </span>
-            <div className="flex items-center gap-2">
-              <ThemeToggle />
-              <ThemeCustomizer />
-            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="lg:hidden"
+              onClick={() => setSidebarOpen(true)}
+            >
+              <Menu className="h-4 w-4" />
+            </Button>
+            
+            <h1 className="font-serif font-black text-xl text-foreground truncate">
+              {storeProfile?.name || APP_NAME}
+            </h1>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <ThemeCustomizer />
           </div>
         </header>
 

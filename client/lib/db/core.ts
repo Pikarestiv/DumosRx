@@ -57,6 +57,8 @@ export async function initDatabase(): Promise<any> {
       try {
         const data = new Uint8Array(JSON.parse(savedData));
         db = new SQL.Database(data);
+        // Ensure new tables from schema updates are created
+        db.run(SCHEMA_SQL);
       } catch (e) {
         console.error("[DB] Failed to load saved data, starting fresh", e);
         db = new SQL.Database();

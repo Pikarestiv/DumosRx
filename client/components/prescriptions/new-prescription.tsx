@@ -34,20 +34,25 @@ interface NewPrescriptionForm {
   notes: string
 }
 
-const availableMedicines = [
-  { name: "Paracetamol", strength: "500mg", cost: 80 },
-  { name: "Amoxicillin", strength: "250mg", cost: 180 },
-  { name: "Amoxicillin", strength: "500mg", cost: 320 },
-  { name: "Ibuprofen", strength: "400mg", cost: 150 },
-  { name: "Vitamin C", strength: "1000mg", cost: 120 },
-  { name: "Lisinopril", strength: "10mg", cost: 240 },
-  { name: "Metformin", strength: "500mg", cost: 200 },
-]
-
+import { useLocalData } from "@/lib/db/hooks/useLocalData"
 import { createPrescription, generateId } from "@/lib/db/local-database"
 import { toast } from "sonner"
 
 export function NewPrescription() {
+  // Fetch available medicines from local inventory
+  const { data: inventoryData, loading: inventoryLoading } = useLocalData<any>(
+    `SELECT i.*, m.name as medicine_name, m.strength as m_strength
+     FROM inventory i 
+     JOIN medicines m ON i.medicine_id = m.id 
+     WHERE i._deleted = 0 AND i.quantity > 0`
+  );
+
+  const availableMedicines = (inventoryData || []).map(item => ({
+    name: item.medicine_name,
+    strength: item.m_strength || item.strength || "",
+    cost: item.selling_price || 0,
+    inventory_id: item.id
+  }));
   const [formData, setFormData] = useState<NewPrescriptionForm>({
     patientName: "",
     patientPhone: "",

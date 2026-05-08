@@ -43,7 +43,7 @@ export function DashboardQuickActions({
       <CardContent>
         <div className="grid grid-cols-2 gap-3">
           <Link
-            href="/medicines"
+            href="/medicines?action=add"
             className="p-4 bg-accent text-accent-foreground rounded-lg hover:bg-accent/90 transition-colors flex flex-col items-center justify-center text-center cursor-pointer"
           >
             <Package className="h-6 w-6 mb-2" />

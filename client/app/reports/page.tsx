@@ -1,3 +1,4 @@
+"use client";
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
 import { ReportCenter } from "@/components/reports/report-center";
 import { useStore } from "@/lib/context/store-context";

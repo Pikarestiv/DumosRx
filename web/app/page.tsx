@@ -45,18 +45,18 @@ export default function Home() {
     <div className="flex flex-col min-h-screen bg-background">
       {/* Navigation */}
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
-        <div className="container px-6 md:px-12 flex h-24 items-center justify-between mx-auto">
+        <div className="container px-6 md:px-12 flex h-20 items-center justify-between mx-auto">
           <Link
             href="/"
             className="flex items-center group transition-transform hover:scale-105"
           >
-            <div className="relative h-14 w-auto flex items-center justify-center">
+            <div className="relative h-10 w-auto flex items-center justify-center">
               <Image
                 src="/logo.png"
                 alt="DumosRx Logo"
-                width={160}
-                height={56}
-                className="h-14 w-auto object-contain brightness-0 invert"
+                width={120}
+                height={40}
+                className="h-10 w-auto object-contain brightness-0 invert"
                 style={{ height: "auto" }}
                 priority
               />

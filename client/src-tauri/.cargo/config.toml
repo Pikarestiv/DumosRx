@@ -1,2 +1,9 @@
 [registries.crates-io]
 protocol = "git"
+
+[net]
+git-fetch-with-cli = true
+
+[http]
+check-revoke = false
+multiplexing = false

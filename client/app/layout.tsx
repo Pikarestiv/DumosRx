@@ -13,6 +13,7 @@ import { QuickSetupWizard } from "@/components/setup/quick-setup-wizard";
 import { LicenseGuard } from "@/components/auth/license-guard";
 import { DevSeedButton } from "@/components/dev/seed-button";
 import { APP_NAME } from "@/lib/constants";
+import { TauriTitleBar } from "@/components/tauri/tauri-title-bar";
 
 const montserrat = Montserrat({
   subsets: ["latin"],
@@ -55,6 +56,7 @@ export default function RootLayout({
       className={`${montserrat.variable} ${openSans.variable} antialiased`}
     >
       <body className="font-sans" suppressHydrationWarning>
+        <TauriTitleBar />
         <ThemeProvider defaultTheme="system" storageKey="dumosrx-ui-theme">
           <DatabaseProvider>
             <StoreProvider>

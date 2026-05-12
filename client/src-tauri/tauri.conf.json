@@ -21,6 +21,7 @@
         "transparent": true
       }
     ],
+    "macOSPrivateApi": true,
     "security": {
       "csp": null
     },

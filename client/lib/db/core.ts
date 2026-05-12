@@ -15,7 +15,7 @@ export function setCurrentUser(user: { id: string; name: string; role: string } 
 }
 
 export function isTauri(): boolean {
-  return typeof window !== "undefined" && "__TAURI__" in window;
+  return typeof window !== "undefined" && ((window as any).__TAURI__ !== undefined || (window as any).__TAURI_INTERNALS__ !== undefined);
 }
 
 export function generateId(): string {
@@ -31,8 +31,10 @@ export async function initDatabase(): Promise<any> {
 
   if (isTauri()) {
     try {
-      const TauriDatabase = (await import("@tauri-apps/plugin-sql")).default;
-      db = await TauriDatabase.load("sqlite:dumosrx.db");
+      const sqlPlugin = await import("@tauri-apps/plugin-sql");
+      const Database = sqlPlugin.default || (sqlPlugin as any).Database;
+      // @ts-ignore - Database.load is a static method in Tauri 2
+      db = await Database.load("sqlite:dumosrx.db");
       
       const statements = SCHEMA_SQL.split(';').filter(s => s.trim());
       for (const statement of statements) {

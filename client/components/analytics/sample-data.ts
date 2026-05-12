@@ -13,7 +13,7 @@ export const inventoryAlerts = [
   {
     medicine: "Insulin Glargine",
     issue: "Expiring Soon",
-    expiryDate: "2024-02-15",
+    expiryDate: "2026-02-15",
     severity: "critical",
   },
   {
@@ -26,7 +26,7 @@ export const inventoryAlerts = [
   {
     medicine: "Vitamin D3",
     issue: "Expiring Soon",
-    expiryDate: "2024-02-28",
+    expiryDate: "2026-02-28",
     severity: "high",
   },
 ];

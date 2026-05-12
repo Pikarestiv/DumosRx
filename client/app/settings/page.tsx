@@ -32,13 +32,24 @@ import { useTheme } from "@/components/theme-provider";
 
 import { useStore, StoreType } from "@/lib/context/store-context";
 import { toast } from "sonner";
-import { Pill, ShoppingBasket, ShoppingCart, Check, Upload } from "lucide-react";
+import {
+  Pill,
+  ShoppingBasket,
+  ShoppingCart,
+  Check,
+  Upload,
+} from "lucide-react";
 import { APP_NAME } from "@/lib/constants";
 import { useAuth } from "@/lib/context/auth-context";
-import { getDatabaseBinary, restoreDatabase, resetDatabase } from "@/lib/db/core";
+import {
+  getDatabaseBinary,
+  restoreDatabase,
+  resetDatabase,
+} from "@/lib/db/core";
 import { sync } from "@/lib/db/sync-engine";
 import { CloudLinkDialog } from "@/components/settings/cloud-link-dialog";
-import { CloudOff } from "lucide-react";
+import { CloudOff, RefreshCw, Download, Info } from "lucide-react";
+import { isTauri } from "@/lib/db/core";
 
 // Color themes from ThemeCustomizer
 const colorThemes = [
@@ -52,14 +63,18 @@ const colorThemes = [
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
   const { user, logout, isAdmin, changePin, isCloudLinked } = useAuth();
-  
+
   const [isCloudLinkOpen, setIsCloudLinkOpen] = useState(false);
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState("appearance");
-  
+
   const [currentPin, setCurrentPin] = useState("");
   const [newPin, setNewPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
+
+  const [updateAvailable, setUpdateAvailable] = useState<any>(null);
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
   const {
     storeProfile,
     storeType,
@@ -114,7 +129,9 @@ export default function SettingsPage() {
             setIsCloudLinkOpen(false);
           }
         }
-      } else if (["appearance", "store", "notifications", "security"].includes(tab)) {
+      } else if (
+        ["appearance", "store", "notifications", "security"].includes(tab)
+      ) {
         setActiveTab(tab);
       }
     }
@@ -223,9 +240,10 @@ export default function SettingsPage() {
     }
 
     toast.promise(sync(), {
-      loading: 'Synchronizing data with cloud...',
-      success: (data) => `Sync complete! Pushed ${data.pushed}, Pulled ${data.pulled}`,
-      error: 'Sync failed. Please check your connection.',
+      loading: "Synchronizing data with cloud...",
+      success: (data) =>
+        `Sync complete! Pushed ${data.pushed}, Pulled ${data.pulled}`,
+      error: "Sync failed. Please check your connection.",
     });
   };
 
@@ -240,7 +258,7 @@ export default function SettingsPage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `${APP_NAME.toLowerCase()}_backup_${new Date().toISOString().split('T')[0]}.drx`;
+    link.download = `${APP_NAME.toLowerCase()}_backup_${new Date().toISOString().split("T")[0]}.drx`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -248,7 +266,52 @@ export default function SettingsPage() {
     toast.success("Backup downloaded successfully");
   };
 
-  const handleRestoreBackup = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCheckForUpdates = async () => {
+    if (!isTauri()) {
+      toast.info("Updates are only available in the desktop application");
+      return;
+    }
+
+    setIsCheckingUpdate(true);
+    try {
+      const { check } = await import("@tauri-apps/plugin-updater");
+      const update = await check();
+
+      if (update) {
+        setUpdateAvailable(update);
+        toast.success(`New version available: ${update.version}`);
+      } else {
+        setUpdateAvailable(null);
+        toast.info("You are on the latest version");
+      }
+    } catch (err) {
+      console.error("Failed to check for updates:", err);
+      toast.error("Failed to check for updates");
+    } finally {
+      setIsCheckingUpdate(false);
+    }
+  };
+
+  const handleInstallUpdate = async () => {
+    if (!updateAvailable) return;
+
+    setIsUpdating(true);
+    try {
+      const { relaunch } = await import("@tauri-apps/plugin-process");
+      toast.info("Downloading and installing update...");
+      await updateAvailable.downloadAndInstall();
+      toast.success("Update installed! Restarting...");
+      await relaunch();
+    } catch (err) {
+      console.error("Failed to install update:", err);
+      toast.error("Failed to install update");
+      setIsUpdating(false);
+    }
+  };
+
+  const handleRestoreBackup = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -268,7 +331,11 @@ export default function SettingsPage() {
   };
 
   const handleResetDatabase = async () => {
-    if (window.confirm("Are you sure you want to reset the database? This will delete all products, sales, and local data. Your login account will remain.")) {
+    if (
+      window.confirm(
+        "Are you sure you want to reset the database? This will delete all products, sales, and local data. Your login account will remain.",
+      )
+    ) {
       await resetDatabase();
       toast.success("Database reset successfully.");
     }
@@ -286,8 +353,12 @@ export default function SettingsPage() {
           </p>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 h-auto">
+        <Tabs
+          value={activeTab}
+          onValueChange={setActiveTab}
+          className="space-y-6"
+        >
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-6 h-auto">
             <TabsTrigger value="appearance" className="py-3">
               <Palette className="w-4 h-4 mr-2" />
               General
@@ -307,6 +378,10 @@ export default function SettingsPage() {
             <TabsTrigger value="security" className="py-3">
               <Shield className="w-4 h-4 mr-2" />
               Security
+            </TabsTrigger>
+            <TabsTrigger value="system" className="py-3">
+              <Globe className="w-4 h-4 mr-2" />
+              System
             </TabsTrigger>
           </TabsList>
 
@@ -661,28 +736,44 @@ export default function SettingsPage() {
               <CardContent className="space-y-6">
                 <div className="flex flex-col md:flex-row items-start md:items-center justify-between p-4 border rounded-lg bg-muted/30 gap-4">
                   <div className="flex items-center gap-3">
-                    <div className={`h-10 w-10 ${isCloudLinked ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'} rounded-full flex items-center justify-center`}>
-                      {isCloudLinked ? <Database className="h-5 w-5" /> : <CloudOff className="h-5 w-5" />}
+                    <div
+                      className={`h-10 w-10 ${isCloudLinked ? "bg-green-100 text-green-600" : "bg-amber-100 text-amber-600"} rounded-full flex items-center justify-center`}
+                    >
+                      {isCloudLinked ? (
+                        <Database className="h-5 w-5" />
+                      ) : (
+                        <CloudOff className="h-5 w-5" />
+                      )}
                     </div>
                     <div>
                       <p className="font-medium">
-                        {isCloudLinked ? 'Connected to Cloud' : 'Local Mode (Not Linked)'}
+                        {isCloudLinked
+                          ? "Connected to Cloud"
+                          : "Local Mode (Not Linked)"}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        {isCloudLinked 
-                          ? `Last synced: ${localStorage.getItem("last_sync_time") ? new Date(localStorage.getItem("last_sync_time")!).toLocaleString() : 'Never'}`
-                          : 'Connect your cloud account to enable sync'}
+                        {isCloudLinked
+                          ? `Last synced: ${localStorage.getItem("last_sync_time") ? new Date(localStorage.getItem("last_sync_time")!).toLocaleString() : "Never"}`
+                          : "Connect your cloud account to enable sync"}
                       </p>
                     </div>
                   </div>
                   <div className="flex gap-2">
                     {!isCloudLinked && (
-                      <Button variant="outline" size="sm" onClick={() => setIsCloudLinkOpen(true)}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsCloudLinkOpen(true)}
+                      >
                         Link Account
                       </Button>
                     )}
-                    <Button variant={isCloudLinked ? "outline" : "default"} size="sm" onClick={handleSync}>
-                      {isCloudLinked ? 'Sync Now' : 'Link & Sync'}
+                    <Button
+                      variant={isCloudLinked ? "outline" : "default"}
+                      size="sm"
+                      onClick={handleSync}
+                    >
+                      {isCloudLinked ? "Sync Now" : "Link & Sync"}
                     </Button>
                   </div>
                 </div>
@@ -692,8 +783,8 @@ export default function SettingsPage() {
                 <div className="space-y-4">
                   <h3 className="font-medium">Backup & Restore</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       className="w-full justify-start cursor-pointer"
                       onClick={handleDownloadBackup}
                     >
@@ -701,8 +792,8 @@ export default function SettingsPage() {
                       Download Local Backup
                     </Button>
                     <div className="relative">
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         className="w-full justify-start cursor-pointer"
                         asChild
                       >
@@ -711,10 +802,10 @@ export default function SettingsPage() {
                           Restore from File
                         </label>
                       </Button>
-                      <input 
-                        type="file" 
-                        id="restore-db" 
-                        className="hidden" 
+                      <input
+                        type="file"
+                        id="restore-db"
+                        className="hidden"
                         accept=".drx"
                         onChange={handleRestoreBackup}
                       />
@@ -730,11 +821,12 @@ export default function SettingsPage() {
                     <div className="space-y-1">
                       <p className="text-sm font-semibold">Factory Reset</p>
                       <p className="text-xs text-muted-foreground">
-                        Wipe all local data (medicines, sales, etc.) and start fresh.
+                        Wipe all local data (medicines, sales, etc.) and start
+                        fresh.
                       </p>
                     </div>
-                    <Button 
-                      variant="destructive" 
+                    <Button
+                      variant="destructive"
                       size="sm"
                       onClick={handleResetDatabase}
                     >
@@ -796,11 +888,116 @@ export default function SettingsPage() {
               </CardFooter>
             </Card>
           </TabsContent>
+          <TabsContent value="system" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>System Updates</CardTitle>
+                <CardDescription>
+                  Manage application updates and system information
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Application Version</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Current version: 0.1.0
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={handleCheckForUpdates}
+                    disabled={isCheckingUpdate || isUpdating}
+                  >
+                    <RefreshCw
+                      className={`w-4 h-4 mr-2 ${isCheckingUpdate ? "animate-spin" : ""}`}
+                    />
+                    {isCheckingUpdate ? "Checking..." : "Check for Updates"}
+                  </Button>
+                </div>
+
+                {updateAvailable && (
+                  <div className="p-4 border rounded-lg bg-primary/5 border-primary/20 space-y-3">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 rounded-full bg-primary/10 text-primary">
+                        <Info className="w-5 h-5" />
+                      </div>
+                      <div className="space-y-1">
+                        <h4 className="font-semibold text-primary">
+                          New Update Available!
+                        </h4>
+                        <p className="text-sm text-muted-foreground">
+                          Version {updateAvailable.version} is now available.
+                          This update includes new features and bug fixes.
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      className="w-full"
+                      onClick={handleInstallUpdate}
+                      disabled={isUpdating}
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      {isUpdating
+                        ? "Installing..."
+                        : `Install Version ${updateAvailable.version}`}
+                    </Button>
+                  </div>
+                )}
+
+                <Separator />
+
+                <div className="space-y-2">
+                  <Label>System Information</Label>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="space-y-1">
+                      <p className="text-muted-foreground">Environment</p>
+                      <p className="font-medium">
+                        {isTauri() ? "Desktop (Tauri)" : "Web Browser"}
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-muted-foreground">Platform</p>
+                      <p className="font-medium">
+                        {typeof window !== "undefined"
+                          ? navigator.userAgent.includes("Mac")
+                            ? "MacOS"
+                            : navigator.userAgent.includes("Win")
+                              ? "Windows"
+                              : "Linux"
+                          : "Unknown"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>About {APP_NAME}</CardTitle>
+                <CardDescription>
+                  Software information and licensing
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="text-sm text-muted-foreground">
+                <p>
+                  DumosRx is a professional pharmacy management system designed
+                  to streamline operations, track inventory, and manage sales
+                  with ease.
+                </p>
+                <p className="mt-4">
+                  © 2019 - {new Date().getFullYear()} {APP_NAME}. All rights
+                  reserved.
+                </p>
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </div>
 
-      <CloudLinkDialog 
-        open={isCloudLinkOpen} 
+      <CloudLinkDialog
+        open={isCloudLinkOpen}
         onOpenChange={setIsCloudLinkOpen}
         onSuccess={handleSync}
       />

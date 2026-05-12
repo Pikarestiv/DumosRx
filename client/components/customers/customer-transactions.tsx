@@ -24,7 +24,7 @@ export const recentTransactions = [
     customerName: "Adebayo Johnson",
     amount: 25400,
     pointsEarned: 254,
-    date: "2024-01-10",
+    date: "2026-01-10",
     items: ["Paracetamol 500mg", "Vitamin C 1000mg"],
   },
   {
@@ -33,7 +33,7 @@ export const recentTransactions = [
     customerName: "Fatima Abdullahi",
     amount: 45600,
     pointsEarned: 456,
-    date: "2024-01-12",
+    date: "2026-01-12",
     items: ["Insulin Glargine", "Blood glucose strips"],
   },
 ];

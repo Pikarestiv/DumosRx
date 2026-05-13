@@ -721,23 +721,23 @@ export default function DashboardPage() {
                   {
                     os: "Windows",
                     icon: Smartphone,
-                    version: "v2.1.4",
+                    version: "v0.0.1",
                     size: "84MB",
-                    link: "#",
+                    link: "https://github.com/Pikarestiv/DumosRx/releases/latest/download/DumosRx.msi",
                   },
                   {
                     os: "macOS",
                     icon: Activity,
-                    version: "v2.1.4 (Apple Silicon)",
+                    version: "v0.0.1",
                     size: "78MB",
-                    link: "#",
+                    link: "https://github.com/Pikarestiv/DumosRx/releases/latest/download/DumosRx.dmg",
                   },
                   {
                     os: "Linux",
                     icon: Globe,
-                    version: "v2.1.4 (AppImage)",
+                    version: "v0.0.1 (AppImage)",
                     size: "92MB",
-                    link: "#",
+                    link: "https://github.com/Pikarestiv/DumosRx/releases/latest/download/DumosRx.AppImage",
                   },
                 ].map((app, i) => (
                   <Card
@@ -752,9 +752,11 @@ export default function DashboardPage() {
                       <p className="text-sm text-muted-foreground mb-6">
                         {app.version} • {app.size}
                       </p>
-                      <Button className="w-full font-bold group">
-                        <Download className="h-4 w-4 mr-2 group-hover:translate-y-0.5 transition-transform" />
-                        Download Now
+                      <Button className="w-full font-bold group" asChild>
+                        <a href={app.link}>
+                          <Download className="h-4 w-4 mr-2 group-hover:translate-y-0.5 transition-transform" />
+                          Download Now
+                        </a>
                       </Button>
                     </CardContent>
                   </Card>

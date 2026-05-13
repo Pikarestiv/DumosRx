@@ -1,0 +1,56 @@
+name: Release
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies (macOS only)
+        if: matrix.platform == 'macos-latest'
+        run: |
+          brew install apple-gcc42 || true
+
+      - name: Install dependencies (Windows only)
+        if: matrix.platform == 'windows-latest'
+        run: |
+          # No extra deps needed for Windows usually
+
+      - name: Install app dependencies
+        run: |
+          cd client
+          npm install
+
+      - name: Build and Release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: client
+          tagName: v__VERSION__ # tauri-action replaces this with the version from tauri.conf.json
+          releaseName: 'DumosRx v__VERSION__'
+          releaseBody: 'See the assets to download the installer.'
+          releaseDraft: true
+          prerelease: false

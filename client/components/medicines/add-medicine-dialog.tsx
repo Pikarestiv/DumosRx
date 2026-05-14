@@ -14,18 +14,10 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Combobox } from "@/components/ui/combobox";
 import { SearchableInput } from "@/components/ui/searchable-input";
-import { cn } from "@/lib/utils";
 
 import { useStore } from "@/lib/context/store-context";
+import { MEDICINE_SUGGESTIONS } from "@/lib/constants/medicine-suggestions";
 
 interface Medicine {
   name: string;
@@ -85,49 +77,14 @@ export function AddMedicineDialog({
 
   const isPharmacy = storeType === "pharmacy";
 
-  const categories = isPharmacy
-    ? [
-        "Analgesics",
-        "Antibiotics",
-        "Antimalarials",
-        "Vitamins",
-        "Antacids",
-        "Antihypertensives",
-      ]
-    : [
-        "Groceries",
-        "Beverages",
-        "Personal Care",
-        "Household",
-        "Snacks",
-        "Dairy",
-      ];
+  const suggestions = isPharmacy
+    ? MEDICINE_SUGGESTIONS.pharmacy
+    : MEDICINE_SUGGESTIONS.retail;
+  const commonSuggestions = MEDICINE_SUGGESTIONS.common;
 
-  const dosageForms = [
-    "Tablet",
-    "Capsule",
-    "Syrup",
-    "Injection",
-    "Cream",
-    "Drops",
-    "Inhaler",
-  ];
-
-  const manufacturers = isPharmacy
-    ? [
-        "GSK Nigeria",
-        "Pfizer Nigeria",
-        "Sanofi Nigeria",
-        "Emzor Pharmaceuticals",
-        "May & Baker Nigeria",
-      ]
-    : [
-        "Unilever Nigeria",
-        "Nestle Nigeria",
-        "PZ Cussons",
-        "Dangote Group",
-        "Flour Mills of Nigeria",
-      ];
+  const categories = suggestions.categories;
+  const dosageForms = isPharmacy ? suggestions.dosageForms : [];
+  const manufacturers = suggestions.manufacturers;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -226,10 +183,11 @@ export function AddMedicineDialog({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="name">{t("product")} Name *</Label>
-              <Input
+              <SearchableInput
                 id="name"
                 value={formData.name}
-                onChange={(e) => handleInputChange("name", e.target.value)}
+                onValueChange={(val) => handleInputChange("name", val)}
+                options={suggestions.names}
                 placeholder={`e.g., ${isPharmacy ? "Paracetamol" : "Product Name"}`}
                 required
               />
@@ -242,7 +200,7 @@ export function AddMedicineDialog({
                   id="genericName"
                   value={formData.genericName}
                   onValueChange={(val) => handleInputChange("genericName", val)}
-                  options={["Paracetamol", "Amoxicillin", "Ciprofloxacin", "Metformin", "Omeprazole"]}
+                  options={suggestions.generics}
                   placeholder="e.g., Acetaminophen"
                   required
                 />
@@ -255,7 +213,7 @@ export function AddMedicineDialog({
                 id="brand"
                 value={formData.brand}
                 onValueChange={(val) => handleInputChange("brand", val)}
-                options={isPharmacy ? ["Panadol", "Emzor", "M&B"] : ["Nestle", "Unilever"]}
+                options={suggestions.names}
                 placeholder={`e.g., ${isPharmacy ? "Panadol" : "Brand Name"}`}
               />
             </div>
@@ -287,10 +245,15 @@ export function AddMedicineDialog({
 
             <div className="space-y-2">
               <Label htmlFor="strength">Strength / Size</Label>
-              <Input
+              <SearchableInput
                 id="strength"
                 value={formData.strength}
-                onChange={(e) => handleInputChange("strength", e.target.value)}
+                onValueChange={(val) => handleInputChange("strength", val)}
+                options={
+                  isPharmacy
+                    ? suggestions.strengths
+                    : ["Small", "Medium", "Large", "1kg", "500g", "1L", "500ml"]
+                }
                 placeholder="e.g., 500mg or 1L"
               />
             </div>
@@ -323,7 +286,12 @@ export function AddMedicineDialog({
                 id="supplier"
                 value={formData.supplier}
                 onValueChange={(val) => handleInputChange("supplier", val)}
-                options={["Wholesale Pharma Ltd", "Global Drugs Inc", "Local Supplier A"]}
+                options={[
+                  "Wholesale Pharma Ltd",
+                  "Global Drugs Inc",
+                  "Local Supplier A",
+                  "Mega Distributors",
+                ]}
                 placeholder="Supplier name"
               />
             </div>
@@ -371,7 +339,9 @@ export function AddMedicineDialog({
               <Input
                 id="stockQuantity"
                 type="number"
-                value={formData.stockQuantity === 0 ? "" : formData.stockQuantity}
+                value={
+                  formData.stockQuantity === 0 ? "" : formData.stockQuantity
+                }
                 onChange={(e) =>
                   handleInputChange(
                     "stockQuantity",
@@ -434,24 +404,22 @@ export function AddMedicineDialog({
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="baseUnit">Base Unit *</Label>
-                <Input
+                <SearchableInput
                   id="baseUnit"
                   value={formData.baseUnit}
-                  onChange={(e) =>
-                    handleInputChange("baseUnit", e.target.value)
-                  }
+                  onValueChange={(val) => handleInputChange("baseUnit", val)}
+                  options={commonSuggestions.units}
                   placeholder="e.g. Sachet, Tablet, Piece"
                   required
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="bulkUnit">Bulk Unit (Optional)</Label>
-                <Input
+                <SearchableInput
                   id="bulkUnit"
                   value={formData.bulkUnit}
-                  onChange={(e) =>
-                    handleInputChange("bulkUnit", e.target.value)
-                  }
+                  onValueChange={(val) => handleInputChange("bulkUnit", val)}
+                  options={commonSuggestions.units}
                   placeholder="e.g. Carton, Pack, Box"
                 />
               </div>
@@ -460,7 +428,9 @@ export function AddMedicineDialog({
                 <Input
                   id="unitsPerBulk"
                   type="number"
-                  value={formData.unitsPerBulk === 0 ? "" : formData.unitsPerBulk}
+                  value={
+                    formData.unitsPerBulk === 0 ? "" : formData.unitsPerBulk
+                  }
                   onChange={(e) =>
                     handleInputChange(
                       "unitsPerBulk",

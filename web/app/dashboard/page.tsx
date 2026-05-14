@@ -118,7 +118,7 @@ export default function DashboardPage() {
           setReleaseLinks({
             windows: win?.browser_download_url || `https://github.com/${GITHUB_REPO}/releases/latest`,
             macos: mac?.browser_download_url || `https://github.com/${GITHUB_REPO}/releases/latest`,
-            linux: linux?.browser_download_url || `https://github.com/${GITHUB_REPO}/releases/latest`,
+            linux: linux?.browser_download_url || null,
             version: releaseData.tag_name || APP_VERSION,
             winSize: formatSize(win?.size),
             macSize: formatSize(mac?.size),
@@ -789,15 +789,26 @@ export default function DashboardPage() {
                       <div className="w-16 h-16 bg-primary/10 rounded-3xl flex items-center justify-center text-primary mb-6">
                         <app.icon className="h-8 w-8" />
                       </div>
-                      <h3 className="text-xl font-black mb-1">{app.os}</h3>
+                      <h3 className="text-xl font-black mb-1">
+                        {app.os}
+                        {!app.link && (
+                          <Badge variant="secondary" className="ml-2 text-[10px] bg-amber-100 text-amber-700 border-amber-200">
+                            Coming Soon
+                          </Badge>
+                        )}
+                      </h3>
                       <p className="text-sm text-muted-foreground mb-6">
-                        {app.version} • {app.size}
+                        {app.version} {app.size ? `• ${app.size}` : ""}
                       </p>
-                      <Button className="w-full font-bold group" asChild>
-                        <a href={app.link}>
-                          <Download className="h-4 w-4 mr-2 group-hover:translate-y-0.5 transition-transform" />
-                          Download Now
-                        </a>
+                      <Button className="w-full font-bold group" asChild disabled={!app.link}>
+                        {app.link ? (
+                          <a href={app.link}>
+                            <Download className="h-4 w-4 mr-2 group-hover:translate-y-0.5 transition-transform" />
+                            Download Now
+                          </a>
+                        ) : (
+                          <span>Coming Soon</span>
+                        )}
                       </Button>
                     </CardContent>
                   </Card>

@@ -1,4 +1,4 @@
-export const MEDICINE_SUGGESTIONS = {
+export const FORM_SUGGESTIONS = {
   pharmacy: {
     names: [
       "Paracetamol", "Panadol", "Emzor Paracetamol", "Amoxicillin", "Augmentin", 
@@ -55,6 +55,15 @@ export const MEDICINE_SUGGESTIONS = {
     units: [
       "Sachet", "Tablet", "Capsule", "Piece", "Bottle", "Pack", "Carton", 
       "Box", "Roll", "Bag", "Jar", "Tube"
+    ],
+    locations: [
+      "Lagos", "Abuja", "Port Harcourt", "Kano", "Ibadan", "Kaduna", "Benin City", 
+      "Enugu", "Onitsha", "Warri", "Jos", "Ilorin", "Abeokuta", "Uyo", "Calabar"
+    ],
+    states: [
+      "Lagos State", "FCT", "Rivers State", "Kano State", "Oyo State", "Kaduna State", 
+      "Edo State", "Enugu State", "Anambra State", "Delta State", "Plateau State", 
+      "Kwara State", "Ogun State", "Akwa Ibom State", "Cross River State"
     ]
   }
 };

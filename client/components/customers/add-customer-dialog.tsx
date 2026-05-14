@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2 } from "lucide-react";
+import { SearchableInput } from "@/components/ui/searchable-input";
 
 interface Customer {
   firstName: string;
@@ -187,21 +188,23 @@ export function AddCustomerDialog({
             </div>
             <div className="space-y-2">
               <Label htmlFor="gender">Gender</Label>
-              <Input
+              <SearchableInput
                 id="gender"
                 value={formData.gender}
-                onChange={(e) => handleInputChange("gender", e.target.value)}
-                placeholder="Male/Female"
+                onValueChange={(val) => handleInputChange("gender", val)}
+                options={["Male", "Female", "Other"]}
+                placeholder="Select or type"
               />
             </div>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="allergies">Allergies (comma separated)</Label>
-            <Input
+            <SearchableInput
               id="allergies"
               value={formData.allergies}
-              onChange={(e) => handleInputChange("allergies", e.target.value)}
+              onValueChange={(val) => handleInputChange("allergies", val)}
+              options={["Penicillin", "Sulfa Drugs", "Peanuts", "Shellfish", "Dairy", "None"]}
               placeholder="e.g. Peanuts, Penicillin"
             />
           </div>
@@ -211,8 +214,9 @@ export function AddCustomerDialog({
             <Input
               id="creditLimit"
               type="number"
-              value={formData.creditLimit}
+              value={formData.creditLimit === "0" ? "" : formData.creditLimit}
               onChange={(e) => handleInputChange("creditLimit", e.target.value)}
+              onFocus={(e) => e.target.select()}
               placeholder="0.00"
             />
             <p className="text-xs text-muted-foreground">Maximum debt allowed for this customer.</p>

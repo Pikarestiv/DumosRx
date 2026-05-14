@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { SearchableInput } from "@/components/ui/searchable-input";
+import { FORM_SUGGESTIONS } from "@/lib/constants/suggestions";
 
 interface AddStockAdjustmentFormProps {
   newAdjustment: {
@@ -45,10 +47,11 @@ export function AddStockAdjustmentForm({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="medicine">Medicine *</Label>
-              <Input
+              <SearchableInput
                 id="medicine"
                 value={newAdjustment.medicine}
-                onChange={(e) => setNewAdjustment((prev) => ({ ...prev, medicine: e.target.value }))}
+                onValueChange={(val) => setNewAdjustment((prev) => ({ ...prev, medicine: val }))}
+                options={FORM_SUGGESTIONS.pharmacy.names}
                 placeholder="Enter medicine name"
                 required
               />
@@ -77,13 +80,14 @@ export function AddStockAdjustmentForm({
               <Input
                 id="quantity"
                 type="number"
-                value={newAdjustment.quantity}
+                value={newAdjustment.quantity === 0 ? "" : newAdjustment.quantity}
                 onChange={(e) =>
                   setNewAdjustment((prev) => ({
                     ...prev,
                     quantity: Number.parseInt(e.target.value) || 0,
                   }))
                 }
+                onFocus={(e) => e.target.select()}
                 placeholder="0"
                 min="1"
                 required
@@ -92,21 +96,12 @@ export function AddStockAdjustmentForm({
 
             <div className="space-y-2">
               <Label htmlFor="reason">Reason *</Label>
-              <Select
+              <SearchableInput
                 value={newAdjustment.reason}
-                onValueChange={(value) => setNewAdjustment((prev) => ({ ...prev, reason: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select reason" />
-                </SelectTrigger>
-                <SelectContent>
-                  {reasons.map((reason) => (
-                    <SelectItem key={reason} value={reason}>
-                      {reason}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                onValueChange={(val) => setNewAdjustment((prev) => ({ ...prev, reason: val }))}
+                options={reasons}
+                placeholder="Select or type reason"
+              />
             </div>
           </div>
 

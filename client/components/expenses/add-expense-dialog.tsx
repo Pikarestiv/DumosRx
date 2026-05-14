@@ -21,6 +21,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { insert } from "@/lib/db/local-database";
 import { toast } from "sonner";
+import { SearchableInput } from "@/components/ui/searchable-input";
 
 interface AddExpenseDialogProps {
   open: boolean;
@@ -92,23 +93,14 @@ export function AddExpenseDialog({ open, onOpenChange }: AddExpenseDialogProps) 
         <form onSubmit={handleSubmit} className="space-y-4 pt-4">
           <div className="grid gap-2">
             <Label htmlFor="category">Category *</Label>
-            <Select
+            <SearchableInput
               value={formData.category}
               onValueChange={(value) =>
                 setFormData((prev) => ({ ...prev, category: value }))
               }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select category" />
-              </SelectTrigger>
-              <SelectContent>
-                {CATEGORIES.map((cat) => (
-                  <SelectItem key={cat} value={cat}>
-                    {cat}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              options={CATEGORIES}
+              placeholder="Select or type category"
+            />
           </div>
 
           <div className="grid gap-2">
@@ -122,6 +114,7 @@ export function AddExpenseDialog({ open, onOpenChange }: AddExpenseDialogProps) 
               onChange={(e) =>
                 setFormData((prev) => ({ ...prev, amount: e.target.value }))
               }
+              onFocus={(e) => e.target.select()}
             />
           </div>
 

@@ -17,7 +17,7 @@ import { Label } from "@/components/ui/label";
 import { SearchableInput } from "@/components/ui/searchable-input";
 
 import { useStore } from "@/lib/context/store-context";
-import { MEDICINE_SUGGESTIONS } from "@/lib/constants/medicine-suggestions";
+import { FORM_SUGGESTIONS } from "@/lib/constants/suggestions";
 
 interface Medicine {
   name: string;
@@ -77,10 +77,8 @@ export function AddMedicineDialog({
 
   const isPharmacy = storeType === "pharmacy";
 
-  const suggestions = isPharmacy
-    ? MEDICINE_SUGGESTIONS.pharmacy
-    : MEDICINE_SUGGESTIONS.retail;
-  const commonSuggestions = MEDICINE_SUGGESTIONS.common;
+  const suggestions = isPharmacy ? FORM_SUGGESTIONS.pharmacy : FORM_SUGGESTIONS.retail;
+  const commonSuggestions = FORM_SUGGESTIONS.common;
 
   const categories = suggestions.categories;
   const dosageForms = isPharmacy ? suggestions.dosageForms : [];

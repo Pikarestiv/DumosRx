@@ -13,6 +13,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { insert } from "@/lib/db/local-database";
 import { toast } from "sonner";
+import { SearchableInput } from "@/components/ui/searchable-input";
+import { FORM_SUGGESTIONS } from "@/lib/constants/suggestions";
 
 interface AddVendorDialogProps {
   open: boolean;
@@ -71,13 +73,12 @@ export function AddVendorDialog({ open, onOpenChange }: AddVendorDialogProps) {
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-2">
               <Label htmlFor="name">Business Name *</Label>
-              <Input
+              <SearchableInput
                 id="name"
-                placeholder="e.g. Pfizer Nigeria"
                 value={formData.name}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, name: e.target.value }))
-                }
+                onValueChange={(val) => setFormData((prev) => ({ ...prev, name: val }))}
+                options={[...FORM_SUGGESTIONS.pharmacy.manufacturers, ...FORM_SUGGESTIONS.retail.manufacturers]}
+                placeholder="e.g. Pfizer Nigeria"
                 required
               />
             </div>

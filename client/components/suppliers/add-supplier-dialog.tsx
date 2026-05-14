@@ -16,6 +16,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { useStore } from "@/lib/context/store-context";
+import { SearchableInput } from "@/components/ui/searchable-input";
+import { FORM_SUGGESTIONS } from "@/lib/constants/suggestions";
 
 interface Supplier {
   name: string;
@@ -121,10 +123,11 @@ export function AddSupplierDialog({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="name">Supplier Name *</Label>
-            <Input
+            <SearchableInput
               id="name"
               value={formData.name}
-              onChange={(e) => handleInputChange("name", e.target.value)}
+              onValueChange={(val) => handleInputChange("name", val)}
+              options={isPharmacy ? FORM_SUGGESTIONS.pharmacy.manufacturers : FORM_SUGGESTIONS.retail.manufacturers}
               placeholder={isPharmacy ? "e.g., Emzor Pharmaceuticals" : "e.g., Global Distributors"}
               required
             />
@@ -178,18 +181,22 @@ export function AddSupplierDialog({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="city">City</Label>
-              <Input
+              <SearchableInput
                 id="city"
                 value={formData.city}
-                onChange={(e) => handleInputChange("city", e.target.value)}
+                onValueChange={(val) => handleInputChange("city", val)}
+                options={FORM_SUGGESTIONS.common.locations}
+                placeholder="Select or type"
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="state">State</Label>
-              <Input
+              <SearchableInput
                 id="state"
                 value={formData.state}
-                onChange={(e) => handleInputChange("state", e.target.value)}
+                onValueChange={(val) => handleInputChange("state", val)}
+                options={FORM_SUGGESTIONS.common.states}
+                placeholder="Select or type"
               />
             </div>
           </div>

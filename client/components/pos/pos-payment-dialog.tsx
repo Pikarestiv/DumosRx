@@ -103,6 +103,7 @@ export function POSPaymentDialog({
                 placeholder="0.00"
                 value={amountPaid}
                 onChange={(e) => setAmountPaid(e.target.value)}
+                onFocus={(e) => e.target.select()}
                 className="mt-1"
               />
               {amountPaid && Number.parseFloat(amountPaid) >= total && (

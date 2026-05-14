@@ -39,7 +39,7 @@ import {
   Check,
   Upload,
 } from "lucide-react";
-import { APP_NAME } from "@/lib/constants";
+import { APP_NAME, APP_VERSION } from "@/lib/constants";
 import { useAuth } from "@/lib/context/auth-context";
 import {
   getDatabaseBinary,
@@ -901,7 +901,7 @@ export default function SettingsPage() {
                   <div className="space-y-0.5">
                     <Label>Application Version</Label>
                     <p className="text-sm text-muted-foreground">
-                      Current version: 0.1.0
+                      Current version: {APP_VERSION}
                     </p>
                   </div>
                   <Button

@@ -67,14 +67,15 @@ export function TauriTitleBar() {
   return (
     <div 
       data-tauri-drag-region 
-      className="h-8 bg-background border-b border-border flex items-center justify-between px-2 select-none z-[9999] fixed top-0 left-0 w-full"
+      className="h-8 bg-background border-b border-border flex items-center justify-between px-0 select-none z-[9999] fixed top-0 left-0 w-full"
+      onDoubleClick={handleMaximize}
     >
-      <div className="flex items-center gap-2 px-2 pointer-events-none">
-        <img src="/favicon.svg" alt="" className="h-4 w-4" />
-        <span className="text-xs font-medium text-muted-foreground">DumosRx</span>
+      <div className="flex items-center gap-2 px-3 pointer-events-none" data-tauri-drag-region>
+        <img src="/favicon.svg" alt="" className="h-4 w-4" data-tauri-drag-region />
+        <span className="text-xs font-medium text-muted-foreground" data-tauri-drag-region>DumosRx</span>
       </div>
       
-      <div className="flex items-center">
+      <div className="flex items-center z-10">
         <Button
           variant="ghost"
           size="icon"

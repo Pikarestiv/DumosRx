@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Lock, User, Loader2, ArrowLeft, UserPlus, CloudDownload, FileUp, Sparkles } from "lucide-react";
-import { APP_NAME } from "@/lib/constants";
+import { Lock, User, Loader2, ArrowLeft, UserPlus, CloudDownload, FileUp, Sparkles, RefreshCw } from "lucide-react";
+import { APP_NAME, APP_VERSION } from "@/lib/constants";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
@@ -23,6 +23,7 @@ export default function LoginPage() {
   const [pin, setPin] = useState("");
   const [name, setName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   const [isFreshInstall, setIsFreshInstall] = useState<boolean | null>(null);
   const [onboardingStep, setOnboardingStep] = useState<OnboardingStep>("welcome");
   
@@ -101,6 +102,36 @@ export default function LoginPage() {
       toast.error("Cloud connection failed");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleCheckForUpdates = async () => {
+    try {
+      const { isTauri } = await import("@/lib/db/core");
+      if (!isTauri()) {
+        toast.info("Updates only available in desktop app");
+        return;
+      }
+
+      setIsCheckingUpdate(true);
+      const { check } = await import("@tauri-apps/plugin-updater");
+      const { relaunch } = await import("@tauri-apps/plugin-process");
+      const update = await check();
+
+      if (update) {
+        toast.success(`Update available: ${update.version}`);
+        if (window.confirm(`Version ${update.version} is available. Install now?`)) {
+          await update.downloadAndInstall();
+          await relaunch();
+        }
+      } else {
+        toast.info("You are on the latest version");
+      }
+    } catch (err) {
+      console.error("Update check failed", err);
+      toast.error("Failed to check for updates");
+    } finally {
+      setIsCheckingUpdate(false);
     }
   };
 
@@ -410,6 +441,18 @@ export default function LoginPage() {
                     <div className="flex items-center gap-2 text-[10px] text-muted-foreground uppercase tracking-widest">
                       <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
                       System Online • Encrypted Session
+                    </div>
+                    <div className="flex items-center justify-between w-full mt-4 border-t border-border pt-4">
+                      <span className="text-[10px] text-muted-foreground font-medium">v{APP_VERSION}</span>
+                      <button 
+                        type="button"
+                        onClick={handleCheckForUpdates}
+                        disabled={isCheckingUpdate}
+                        className="text-[10px] text-muted-foreground hover:text-primary flex items-center gap-1 transition-colors disabled:opacity-50"
+                      >
+                        <RefreshCw className={`h-3 w-3 ${isCheckingUpdate ? 'animate-spin' : ''}`} />
+                        {isCheckingUpdate ? "Checking..." : "Check for Updates"}
+                      </button>
                     </div>
                   </CardFooter>
                 </form>

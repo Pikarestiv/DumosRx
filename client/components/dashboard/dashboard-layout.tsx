@@ -81,6 +81,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           "fixed inset-y-0 left-0 z-50 w-64 bg-sidebar border-r border-sidebar-border transform transition-transform duration-200 ease-in-out lg:translate-x-0",
           sidebarOpen ? "translate-x-0" : "-translate-x-full",
         )}
+        style={{ top: "var(--tauri-top, 0px)", height: "calc(100vh - var(--tauri-top, 0px))" }}
       >
         <div className="flex items-center gap-3 h-16 px-6 border-b border-sidebar-border">
           <img 
@@ -138,7 +139,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* Main content */}
       <div className="lg:pl-64">
         {/* Top header */}
-        <header className="h-16 bg-background border-b border-border flex items-center justify-between px-6">
+        <header 
+          className="h-16 bg-background border-b border-border flex items-center justify-between px-6 sticky z-40"
+          style={{ top: "var(--tauri-top, 0px)" }}
+        >
           <div className="flex items-center gap-4">
             <Button
               variant="ghost"

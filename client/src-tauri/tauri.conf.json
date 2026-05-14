@@ -46,7 +46,7 @@
     "updater": {
       "active": true,
       "endpoints": [
-        "https://github.com/Pikarestiv/DumosRx/releases/latest/download/latest.json"
+        "https://raw.githubusercontent.com/Pikarestiv/DumosRx/main/updater.json"
       ],
       "pubkey": "RWQ//On7ZRE1h4f52RC+NR6tEGjrAoDw60olPbWzdGgB0ULzoQZdnQUm"
     }

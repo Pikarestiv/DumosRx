@@ -59,9 +59,13 @@ export default function RootLayout({
       lang="en"
       className={`${montserrat.variable} ${openSans.variable} antialiased`}
     >
-      <body className="font-sans min-h-screen flex flex-col" suppressHydrationWarning>
+      <body 
+        className="font-sans min-h-screen flex flex-col" 
+        suppressHydrationWarning
+        style={{ "--tauri-top": tauri ? "32px" : "0px" } as React.CSSProperties}
+      >
         <TauriTitleBar />
-        <div className={cn("flex-1 flex flex-col", tauri && "pt-8")}>
+        <div className="flex-1 flex flex-col">
           <ThemeProvider defaultTheme="system" storageKey="dumosrx-ui-theme">
           <DatabaseProvider>
             <StoreProvider>

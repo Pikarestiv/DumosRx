@@ -157,7 +157,7 @@ export default function LoginPage() {
         <div className="absolute inset-0 bg-gradient-to-b from-transparent to-background/60" />
       </div>
 
-      <div className="absolute top-8 right-8 z-20">
+      <div className="absolute z-20" style={{ top: "calc(var(--tauri-top, 0px) + 2rem)", right: "2rem" }}>
         <ThemeToggle />
       </div>
 

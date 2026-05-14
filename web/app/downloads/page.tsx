@@ -39,13 +39,14 @@ export default function DownloadsPage() {
         const data = await res.json();
         
         if (data.assets) {
-          const winAsset = data.assets.find((a: any) => a.name.endsWith(".msi"));
-          const macAsset = data.assets.find((a: any) => a.name.endsWith(".dmg"));
+          // Look for any asset ending in .msi (Windows) or .dmg (macOS)
+          const winAsset = data.assets.find((a: any) => a.name.toLowerCase().endsWith(".msi"));
+          const macAsset = data.assets.find((a: any) => a.name.toLowerCase().endsWith(".dmg"));
           
           setLinks({
-            windows: winAsset?.browser_download_url || links.windows,
-            macos: macAsset?.browser_download_url || links.macos,
-            version: data.tag_name || links.version,
+            windows: winAsset?.browser_download_url || `https://github.com/${GITHUB_REPO}/releases/latest`,
+            macos: macAsset?.browser_download_url || `https://github.com/${GITHUB_REPO}/releases/latest`,
+            version: data.tag_name || "v0.0.5",
             loading: false,
           });
         }

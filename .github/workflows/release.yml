@@ -11,7 +11,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [macos-latest, windows-latest]
+        platform: [macos-latest, windows-latest, ubuntu-latest]
     runs-on: ${{ matrix.platform }}
 
     steps:
@@ -31,10 +31,11 @@ jobs:
         run: |
           brew install apple-gcc42 || true
 
-      - name: Install dependencies (Windows only)
-        if: matrix.platform == 'windows-latest'
+      - name: Install dependencies (Linux only)
+        if: matrix.platform == 'ubuntu-latest'
         run: |
-          # No extra deps needed for Windows usually
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
       - name: Install app dependencies
         run: |

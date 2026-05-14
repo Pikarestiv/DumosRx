@@ -1,19 +1,23 @@
 {
-  "version": "0.0.6",
-  "notes": "DumosRx Production Release v0.0.6. Includes native Mac UI, fixed window dragging, and improved onboarding.",
-  "pub_date": "2026-05-14T18:30:00Z",
+  "version": "0.0.7",
+  "notes": "DumosRx Production Release v0.0.7. Now supporting Linux (AppImage) along with Windows and macOS.",
+  "pub_date": "2026-05-14T19:00:00Z",
   "platforms": {
     "windows-x86_64": {
       "signature": "",
-      "url": "https://github.com/Pikarestiv/DumosRx/releases/download/v0.0.6/DumosRx_0.0.6_x64_en-US.msi"
+      "url": "https://github.com/Pikarestiv/DumosRx/releases/download/v0.0.7/DumosRx_0.0.7_x64_en-US.msi"
     },
     "darwin-aarch64": {
       "signature": "",
-      "url": "https://github.com/Pikarestiv/DumosRx/releases/download/v0.0.6/DumosRx_0.0.6_aarch64.dmg"
+      "url": "https://github.com/Pikarestiv/DumosRx/releases/download/v0.0.7/DumosRx_0.0.7_aarch64.dmg"
     },
     "darwin-x86_64": {
       "signature": "",
-      "url": "https://github.com/Pikarestiv/DumosRx/releases/download/v0.0.6/DumosRx_0.0.6_x64.dmg"
+      "url": "https://github.com/Pikarestiv/DumosRx/releases/download/v0.0.7/DumosRx_0.0.7_x64.dmg"
+    },
+    "linux-x86_64": {
+      "signature": "",
+      "url": "https://github.com/Pikarestiv/DumosRx/releases/download/v0.0.7/DumosRx_0.0.7_amd64.AppImage"
     }
   }
 }

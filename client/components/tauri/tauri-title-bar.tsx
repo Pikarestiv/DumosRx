@@ -67,7 +67,7 @@ export function TauriTitleBar() {
   return (
     <div 
       data-tauri-drag-region 
-      className="h-8 bg-background border-b border-border flex items-center justify-between px-2 select-none z-[9999] relative"
+      className="h-8 bg-background border-b border-border flex items-center justify-between px-2 select-none z-[9999] fixed top-0 left-0 w-full"
     >
       <div className="flex items-center gap-2 px-2 pointer-events-none">
         <img src="/favicon.svg" alt="" className="h-4 w-4" />

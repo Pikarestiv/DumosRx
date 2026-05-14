@@ -55,8 +55,8 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           projectPath: client
-          tagName: v${{ github.ref_name }}
-          releaseName: "DumosRx v${{ github.ref_name }}"
+          tagName: ${{ github.ref_name }}
+          releaseName: "DumosRx ${{ github.ref_name }}"
           releaseBody: "Automated release from GitHub Actions."
           releaseDraft: false
           prerelease: false

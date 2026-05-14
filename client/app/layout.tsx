@@ -12,6 +12,8 @@ import { AuthProvider } from "@/lib/context/auth-context";
 import { QuickSetupWizard } from "@/components/setup/quick-setup-wizard";
 import { LicenseGuard } from "@/components/auth/license-guard";
 import { DevSeedButton } from "@/components/dev/seed-button";
+import { isTauri } from "@/lib/db/core";
+import { cn } from "@/lib/utils";
 import { APP_NAME } from "@/lib/constants";
 import { TauriTitleBar } from "@/components/tauri/tauri-title-bar";
 
@@ -50,14 +52,17 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const tauri = isTauri();
+
   return (
     <html
       lang="en"
       className={`${montserrat.variable} ${openSans.variable} antialiased`}
     >
-      <body className="font-sans" suppressHydrationWarning>
+      <body className="font-sans min-h-screen flex flex-col" suppressHydrationWarning>
         <TauriTitleBar />
-        <ThemeProvider defaultTheme="system" storageKey="dumosrx-ui-theme">
+        <div className={cn("flex-1 flex flex-col", tauri && "pt-8")}>
+          <ThemeProvider defaultTheme="system" storageKey="dumosrx-ui-theme">
           <DatabaseProvider>
             <StoreProvider>
               <AuthProvider>
@@ -68,7 +73,7 @@ export default function RootLayout({
                 </LicenseGuard>
                 <Toaster />
                 {/* Dev utility: remove in production */}
-                <DevSeedButton />
+                {process.env.NODE_ENV === 'development' && <DevSeedButton />}
               </AuthProvider>
             </StoreProvider>
           </DatabaseProvider>

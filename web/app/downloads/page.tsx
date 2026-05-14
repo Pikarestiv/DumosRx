@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { APP_VERSION, GITHUB_REPO } from "@/lib/constants";
+import { cn } from "@/lib/utils";
 import {
   Card,
   CardContent,
@@ -29,45 +30,70 @@ export default function DownloadsPage() {
   const [links, setLinks] = useState({
     windows: `https://github.com/${GITHUB_REPO}/releases/latest`,
     macos: `https://github.com/${GITHUB_REPO}/releases/latest`,
+    linux: `https://github.com/${GITHUB_REPO}/releases/latest`,
     version: APP_VERSION,
-    winSize: "84.5 MB",
-    macSize: "78.2 MB",
+    winSize: "7.0 MB",
+    macSize: "11.0 MB",
+    linuxSize: "80.0 MB",
     loading: true,
   });
 
   useEffect(() => {
     async function fetchLatestRelease() {
       try {
-        const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`);
+        const res = await fetch(
+          `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`,
+        );
         const data = await res.json();
         console.log("GitHub Release Data:", data);
-        
+
         if (data.assets) {
-          console.log("Release Assets:", data.assets.map((a: any) => a.name));
-          // Look for any asset ending in .msi (Windows) or .dmg (macOS)
-          const winAsset = data.assets.find((a: any) => a.name.toLowerCase().endsWith(".msi") || a.name.toLowerCase().endsWith("-setup.exe"));
-          const macAsset = data.assets.find((a: any) => a.name.toLowerCase().endsWith(".dmg"));
-          
+          console.log(
+            "Release Assets:",
+            data.assets.map((a: any) => a.name),
+          );
+          // Look for assets: .msi/.exe (Windows), .dmg (macOS), .AppImage (Linux)
+          const winAsset = data.assets.find(
+            (a: any) =>
+              a.name.toLowerCase().endsWith(".msi") ||
+              a.name.toLowerCase().endsWith("-setup.exe"),
+          );
+          const macAsset = data.assets.find((a: any) =>
+            a.name.toLowerCase().endsWith(".dmg"),
+          );
+          const linuxAsset = data.assets.find((a: any) =>
+            a.name.toLowerCase().endsWith(".appimage"),
+          );
+
           console.log("Discovered Win Asset:", winAsset?.name);
           console.log("Discovered Mac Asset:", macAsset?.name);
-          
+          console.log("Discovered Linux Asset:", linuxAsset?.name);
+
           const formatSize = (bytes: number) => {
             if (!bytes) return "";
             return (bytes / (1024 * 1024)).toFixed(1) + " MB";
           };
 
           setLinks({
-            windows: winAsset?.browser_download_url || `https://github.com/${GITHUB_REPO}/releases/latest`,
-            macos: macAsset?.browser_download_url || `https://github.com/${GITHUB_REPO}/releases/latest`,
+            windows:
+              winAsset?.browser_download_url ||
+              `https://github.com/${GITHUB_REPO}/releases/latest`,
+            macos:
+              macAsset?.browser_download_url ||
+              `https://github.com/${GITHUB_REPO}/releases/latest`,
+            linux:
+              linuxAsset?.browser_download_url ||
+              `https://github.com/${GITHUB_REPO}/releases/latest`,
             version: data.tag_name || APP_VERSION,
             winSize: formatSize(winAsset?.size),
             macSize: formatSize(macAsset?.size),
+            linuxSize: formatSize(linuxAsset?.size),
             loading: false,
           });
         }
       } catch (err) {
         console.error("Failed to fetch latest release:", err);
-        setLinks(prev => ({ ...prev, loading: false }));
+        setLinks((prev) => ({ ...prev, loading: false }));
       }
     }
     fetchLatestRelease();
@@ -75,15 +101,23 @@ export default function DownloadsPage() {
 
   const WINDOWS_URL = links.windows;
   const MACOS_URL = links.macos;
+  const LINUX_URL = links.linux;
+
+  const linuxAssetExists = LINUX_URL && LINUX_URL.includes("/download/");
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
       {/* Simple Header */}
       <header className="border-b bg-background/95 backdrop-blur sticky top-0 z-50">
         <div className="container px-6 flex h-16 items-center justify-between mx-auto">
-          <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+          <Link
+            href="/"
+            className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+          >
             <ChevronLeft className="w-4 h-4" />
-            <span className="text-sm font-bold uppercase tracking-widest">Back to Home</span>
+            <span className="text-sm font-bold uppercase tracking-widest">
+              Back to Home
+            </span>
           </Link>
           <div className="flex items-center gap-4">
             <ModeToggle />
@@ -103,8 +137,8 @@ export default function DownloadsPage() {
               <span className="text-primary">Offline.</span>
             </h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed">
-              Download the DumosRx local client to ensure your business never stops, 
-              even when the internet does.
+              Download the DumosRx local client to ensure your business never
+              stops, even when the internet does.
             </p>
           </div>
         </section>
@@ -135,7 +169,10 @@ export default function DownloadsPage() {
                         Verified Installer (.msi)
                       </div>
                     </div>
-                    <Button className="w-full h-12 font-bold shadow-lg shadow-primary/20" asChild>
+                    <Button
+                      className="w-full h-12 font-bold shadow-lg shadow-primary/20"
+                      asChild
+                    >
                       <a href={WINDOWS_URL}>
                         <Download className="w-4 h-4 mr-2" />
                         Download
@@ -167,7 +204,10 @@ export default function DownloadsPage() {
                         Universal Disk Image (.dmg)
                       </div>
                     </div>
-                    <Button className="w-full h-12 font-bold shadow-lg shadow-primary/20" asChild>
+                    <Button
+                      className="w-full h-12 font-bold shadow-lg shadow-primary/20"
+                      asChild
+                    >
                       <a href={MACOS_URL}>
                         <Download className="w-4 h-4 mr-2" />
                         Download
@@ -178,30 +218,64 @@ export default function DownloadsPage() {
               </Card>
 
               {/* Linux Card */}
-              <Card className="relative overflow-hidden border-2 opacity-80 border-dashed transition-colors group">
-                <div className="absolute top-0 right-0 p-8 opacity-5">
+              <Card
+                className={cn(
+                  "relative overflow-hidden border-2 transition-colors group",
+                  !linuxAssetExists
+                    ? "opacity-80 border-dashed"
+                    : "hover:border-primary/50",
+                )}
+              >
+                <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
                   <Globe className="w-24 h-24" />
                 </div>
                 <CardHeader>
                   <CardTitle className="text-2xl font-bold flex items-center gap-2">
-                    <Globe className="w-6 h-6 text-muted-foreground" />
+                    <Globe className="w-6 h-6 text-primary" />
                     Linux
                   </CardTitle>
                   <CardDescription>
-                    AppImage / Deb • Coming Soon
+                    {linuxAssetExists
+                      ? `Portable AppImage • ${links.linuxSize}`
+                      : "AppImage / Deb • Coming Soon"}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-6">
                     <div className="space-y-2 text-sm text-muted-foreground">
                       <div className="flex items-center gap-2">
-                        <ShieldCheck className="w-4 h-4 text-slate-400" />
-                        Portable AppImage
+                        <ShieldCheck
+                          className={cn(
+                            "w-4 h-4",
+                            linuxAssetExists
+                              ? "text-emerald-500"
+                              : "text-slate-400",
+                          )}
+                        />
+                        {linuxAssetExists
+                          ? "Verified AppImage"
+                          : "Portable AppImage"}
                       </div>
                     </div>
-                    <Button variant="outline" className="w-full h-12 font-bold opacity-50 cursor-not-allowed" disabled>
-                      Coming Soon
-                    </Button>
+                    {linuxAssetExists ? (
+                      <Button
+                        className="w-full h-12 font-bold shadow-lg shadow-primary/20"
+                        asChild
+                      >
+                        <a href={LINUX_URL}>
+                          <Download className="w-4 h-4 mr-2" />
+                          Download
+                        </a>
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        className="w-full h-12 font-bold opacity-50 cursor-not-allowed"
+                        disabled
+                      >
+                        Coming Soon
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -213,22 +287,26 @@ export default function DownloadsPage() {
         <section className="py-20 border-t">
           <div className="container px-6 mx-auto max-w-4xl">
             <div className="text-center mb-16">
-              <h2 className="text-3xl font-bold mb-4">Frequently Asked Questions</h2>
+              <h2 className="text-3xl font-bold mb-4">
+                Frequently Asked Questions
+              </h2>
             </div>
             <div className="grid gap-8">
               <div className="space-y-2">
                 <h4 className="font-bold">Why do I need the desktop app?</h4>
                 <p className="text-muted-foreground leading-relaxed">
-                  While the web dashboard is great for monitoring your business from anywhere, 
-                  the desktop app is built for the "front-line". It works without internet, 
-                  connects directly to thermal printers, and is optimized for fast retail sales.
+                  While the web dashboard is great for monitoring your business
+                  from anywhere, the desktop app is built for the "front-line".
+                  It works without internet, connects directly to thermal
+                  printers, and is optimized for fast retail sales.
                 </p>
               </div>
               <div className="space-y-2">
                 <h4 className="font-bold">Is my data safe?</h4>
                 <p className="text-muted-foreground leading-relaxed">
-                  Yes. All data stored locally is encrypted. As soon as you have an internet connection, 
-                  the app securely syncs your data to our cloud servers so you never lose a record.
+                  Yes. All data stored locally is encrypted. As soon as you have
+                  an internet connection, the app securely syncs your data to
+                  our cloud servers so you never lose a record.
                 </p>
               </div>
             </div>
@@ -240,7 +318,8 @@ export default function DownloadsPage() {
       <footer className="py-12 border-t">
         <div className="container px-6 mx-auto text-center">
           <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} Dumos Technologies. All rights reserved.
+            © {new Date().getFullYear()} Dumos Technologies. All rights
+            reserved.
           </p>
         </div>
       </footer>

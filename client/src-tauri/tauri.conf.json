@@ -43,6 +43,13 @@
     }
   },
   "plugins": {
+    "os": {},
+    "shell": {
+      "allowlist": {
+        "all": true
+      }
+    },
+    "process": {},
     "updater": {
       "active": true,
       "endpoints": [

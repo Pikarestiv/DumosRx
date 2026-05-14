@@ -68,6 +68,12 @@ export default function DashboardPage() {
   });
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<any>(null);
+  const [releaseLinks, setReleaseLinks] = useState({
+    windows: "https://github.com/Pikarestiv/DumosRx/releases/latest",
+    macos: "https://github.com/Pikarestiv/DumosRx/releases/latest",
+    linux: "https://github.com/Pikarestiv/DumosRx/releases/latest",
+    version: "v0.0.6",
+  });
 
   useEffect(() => {
     localStorage.setItem("drx_dashboard_tab", activeTab);
@@ -89,6 +95,29 @@ export default function DashboardPage() {
     };
 
     fetchData();
+
+    // Fetch latest release links
+    const fetchReleaseLinks = async () => {
+      try {
+        const res = await fetch("https://api.github.com/repos/Pikarestiv/DumosRx/releases/latest");
+        const releaseData = await res.json();
+        if (releaseData.assets) {
+          const win = releaseData.assets.find((a: any) => a.name.toLowerCase().endsWith(".msi") || a.name.toLowerCase().endsWith("-setup.exe"));
+          const mac = releaseData.assets.find((a: any) => a.name.toLowerCase().endsWith(".dmg"));
+          const linux = releaseData.assets.find((a: any) => a.name.toLowerCase().endsWith(".appimage"));
+          
+          setReleaseLinks({
+            windows: win?.browser_download_url || releaseLinks.windows,
+            macos: mac?.browser_download_url || releaseLinks.macos,
+            linux: linux?.browser_download_url || releaseLinks.linux,
+            version: releaseData.tag_name || releaseLinks.version,
+          });
+        }
+      } catch (e) {
+        console.error("Failed to fetch release links:", e);
+      }
+    };
+    fetchReleaseLinks();
   }, [router]);
 
   const sidebarItems = [
@@ -721,23 +750,23 @@ export default function DashboardPage() {
                   {
                     os: "Windows",
                     icon: Smartphone,
-                    version: "v0.0.1",
+                    version: releaseLinks.version,
                     size: "84MB",
-                    link: "https://github.com/Pikarestiv/DumosRx/releases/latest/download/DumosRx.msi",
+                    link: releaseLinks.windows,
                   },
                   {
                     os: "macOS",
                     icon: Activity,
-                    version: "v0.0.1",
+                    version: releaseLinks.version,
                     size: "78MB",
-                    link: "https://github.com/Pikarestiv/DumosRx/releases/latest/download/DumosRx.dmg",
+                    link: releaseLinks.macos,
                   },
                   {
                     os: "Linux",
                     icon: Globe,
-                    version: "v0.0.1 (AppImage)",
+                    version: releaseLinks.version + " (AppImage)",
                     size: "92MB",
-                    link: "https://github.com/Pikarestiv/DumosRx/releases/latest/download/DumosRx.AppImage",
+                    link: releaseLinks.linux,
                   },
                 ].map((app, i) => (
                   <Card

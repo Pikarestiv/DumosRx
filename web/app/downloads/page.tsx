@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -18,13 +19,46 @@ import {
   Globe,
   ArrowRight,
   ChevronLeft,
+  Loader2,
 } from "lucide-react";
 import { ModeToggle } from "@/components/mode-toggle";
 
 export default function DownloadsPage() {
   const GITHUB_REPO = "Pikarestiv/DumosRx";
-  const WINDOWS_URL = `https://github.com/${GITHUB_REPO}/releases/latest/download/DumosRx.msi`;
-  const MACOS_URL = `https://github.com/${GITHUB_REPO}/releases/latest/download/DumosRx.dmg`;
+  const [links, setLinks] = useState({
+    windows: `https://github.com/${GITHUB_REPO}/releases/latest`,
+    macos: `https://github.com/${GITHUB_REPO}/releases/latest`,
+    version: "v0.0.3",
+    loading: true,
+  });
+
+  useEffect(() => {
+    async function fetchLatestRelease() {
+      try {
+        const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`);
+        const data = await res.json();
+        
+        if (data.assets) {
+          const winAsset = data.assets.find((a: any) => a.name.endsWith(".msi"));
+          const macAsset = data.assets.find((a: any) => a.name.endsWith(".dmg"));
+          
+          setLinks({
+            windows: winAsset?.browser_download_url || links.windows,
+            macos: macAsset?.browser_download_url || links.macos,
+            version: data.tag_name || links.version,
+            loading: false,
+          });
+        }
+      } catch (err) {
+        console.error("Failed to fetch latest release:", err);
+        setLinks(prev => ({ ...prev, loading: false }));
+      }
+    }
+    fetchLatestRelease();
+  }, []);
+
+  const WINDOWS_URL = links.windows;
+  const MACOS_URL = links.macos;
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -46,7 +80,7 @@ export default function DownloadsPage() {
         <section className="py-20 bg-muted/30">
           <div className="container px-6 mx-auto text-center">
             <div className="inline-flex items-center rounded-full px-3 py-1 text-sm font-medium leading-5 text-primary ring-1 ring-inset ring-primary/20 bg-primary/5 mb-6">
-              Current Version: v0.0.1 (Early Access)
+              Current Version: {links.loading ? "Checking..." : links.version}
             </div>
             <h1 className="text-4xl md:text-6xl font-black mb-6 tracking-tight">
               Take your Pharmacy <br />

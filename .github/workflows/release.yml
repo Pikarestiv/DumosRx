@@ -55,8 +55,9 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           projectPath: client
-          tagName: v__VERSION__ # tauri-action replaces this with the version from tauri.conf.json
-          releaseName: 'DumosRx v__VERSION__'
-          releaseBody: 'See the assets to download the installer.'
-          releaseDraft: true
+          tagName: v${{ github.ref_name }}
+          releaseName: "DumosRx v${{ github.ref_name }}"
+          releaseBody: "Automated release from GitHub Actions."
+          releaseDraft: false
           prerelease: false
+          includeRelease: true

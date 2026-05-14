@@ -61,9 +61,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       { name: "Procurement", href: "/procurement", icon: ClipboardList },
       { name: "Expenses", href: "/expenses", icon: Wallet },
       { name: "Vendors", href: "/vendors", icon: Truck },
-      { name: "Reports", href: "/reports", icon: BarChart3 },
+      { name: "Reports & Analytics", href: "/reports", icon: BarChart3 },
     ] : []),
-    ...(isAdmin ? [{ name: "Analytics", href: "/analytics", icon: TrendingUp }] : []),
     ...(isAdmin ? [{ name: "Settings", href: "/settings", icon: Settings }] : []),
   ];
 

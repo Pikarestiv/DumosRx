@@ -28,7 +28,7 @@ export default function DownloadsPage() {
   const [links, setLinks] = useState({
     windows: `https://github.com/${GITHUB_REPO}/releases/latest`,
     macos: `https://github.com/${GITHUB_REPO}/releases/latest`,
-    version: "v0.0.3",
+    version: "v0.0.5",
     loading: true,
   });
 

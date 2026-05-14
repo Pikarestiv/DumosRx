@@ -78,6 +78,7 @@ export default function RootLayout({
             </StoreProvider>
           </DatabaseProvider>
         </ThemeProvider>
+        </div>
       </body>
     </html>
   );

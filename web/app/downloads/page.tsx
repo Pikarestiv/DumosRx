@@ -112,11 +112,11 @@ export default function DownloadsPage() {
         {/* Download Grid */}
         <section className="py-20">
           <div className="container px-6 mx-auto">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
               {/* Windows Card */}
               <Card className="relative overflow-hidden border-2 hover:border-primary/50 transition-colors group">
                 <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
-                  <Monitor className="w-32 h-32" />
+                  <Monitor className="w-24 h-24" />
                 </div>
                 <CardHeader>
                   <CardTitle className="text-2xl font-bold flex items-center gap-2">
@@ -124,7 +124,7 @@ export default function DownloadsPage() {
                     Windows
                   </CardTitle>
                   <CardDescription>
-                    Requires Windows 10 or later (64-bit) • {links.winSize}
+                    Requires Windows 10+ (64-bit) • {links.winSize}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -134,15 +134,11 @@ export default function DownloadsPage() {
                         <ShieldCheck className="w-4 h-4 text-emerald-500" />
                         Verified Installer (.msi)
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Zap className="w-4 h-4 text-amber-500" />
-                        Full Offline Support
-                      </div>
                     </div>
                     <Button className="w-full h-12 font-bold shadow-lg shadow-primary/20" asChild>
                       <a href={WINDOWS_URL}>
                         <Download className="w-4 h-4 mr-2" />
-                        Download for Windows
+                        Download
                       </a>
                     </Button>
                   </div>
@@ -152,7 +148,7 @@ export default function DownloadsPage() {
               {/* macOS Card */}
               <Card className="relative overflow-hidden border-2 hover:border-primary/50 transition-colors group">
                 <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
-                  <Monitor className="w-32 h-32" />
+                  <Monitor className="w-24 h-24" />
                 </div>
                 <CardHeader>
                   <CardTitle className="text-2xl font-bold flex items-center gap-2">
@@ -160,7 +156,7 @@ export default function DownloadsPage() {
                     macOS
                   </CardTitle>
                   <CardDescription>
-                    Supports Intel & Apple Silicon (M1/M2/M3) • {links.macSize}
+                    Intel & Apple Silicon • {links.macSize}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -170,16 +166,41 @@ export default function DownloadsPage() {
                         <ShieldCheck className="w-4 h-4 text-emerald-500" />
                         Universal Disk Image (.dmg)
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Zap className="w-4 h-4 text-amber-500" />
-                        Native Performance
-                      </div>
                     </div>
                     <Button className="w-full h-12 font-bold shadow-lg shadow-primary/20" asChild>
                       <a href={MACOS_URL}>
                         <Download className="w-4 h-4 mr-2" />
-                        Download for macOS
+                        Download
                       </a>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Linux Card */}
+              <Card className="relative overflow-hidden border-2 opacity-80 border-dashed transition-colors group">
+                <div className="absolute top-0 right-0 p-8 opacity-5">
+                  <Globe className="w-24 h-24" />
+                </div>
+                <CardHeader>
+                  <CardTitle className="text-2xl font-bold flex items-center gap-2">
+                    <Globe className="w-6 h-6 text-muted-foreground" />
+                    Linux
+                  </CardTitle>
+                  <CardDescription>
+                    AppImage / Deb • Coming Soon
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-6">
+                    <div className="space-y-2 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-2">
+                        <ShieldCheck className="w-4 h-4 text-slate-400" />
+                        Portable AppImage
+                      </div>
+                    </div>
+                    <Button variant="outline" className="w-full h-12 font-bold opacity-50 cursor-not-allowed" disabled>
+                      Coming Soon
                     </Button>
                   </div>
                 </CardContent>

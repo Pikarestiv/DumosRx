@@ -113,3 +113,31 @@ export async function createPrescription(data: any, items: any[]) {
 
   return prescriptionId;
 }
+
+/**
+ * Staff & Users
+ */
+export async function getUsers() {
+  return await query<any>("SELECT * FROM users WHERE _deleted = 0 ORDER BY name ASC");
+}
+
+export async function createUser(data: any) {
+  return await insert("users", {
+    ...data,
+    id: data.id || crypto.randomUUID(),
+    is_active: 1,
+    created_at: new Date().toISOString(),
+    _version: 1,
+    _synced: 0
+  });
+}
+
+export async function updateUser(id: string, data: any) {
+  const sets = Object.keys(data).map(key => `${key} = ?`).join(", ");
+  const params = [...Object.values(data), new Date().toISOString(), id] as (string | number | null | Uint8Array)[];
+  return await execute(`UPDATE users SET ${sets}, updated_at = ? WHERE id = ?`, params);
+}
+
+export async function deleteUser(id: string) {
+  return await execute("UPDATE users SET _deleted = 1, updated_at = ? WHERE id = ?", [new Date().toISOString(), id]);
+}

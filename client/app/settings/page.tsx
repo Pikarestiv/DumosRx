@@ -27,6 +27,7 @@ import {
   Palette,
   Globe,
   Save,
+  Users,
 } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 
@@ -50,6 +51,7 @@ import { sync } from "@/lib/db/sync-engine";
 import { CloudLinkDialog } from "@/components/settings/cloud-link-dialog";
 import { CloudOff, RefreshCw, Download, Info } from "lucide-react";
 import { isTauri } from "@/lib/db/core";
+import { StaffManagement } from "@/components/settings/staff-management";
 
 // Color themes from ThemeCustomizer
 const colorThemes = [
@@ -130,7 +132,9 @@ export default function SettingsPage() {
           }
         }
       } else if (
-        ["appearance", "store", "notifications", "security"].includes(tab)
+        ["appearance", "store", "notifications", "security", "staff"].includes(
+          tab,
+        )
       ) {
         setActiveTab(tab);
       }
@@ -343,7 +347,7 @@ export default function SettingsPage() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-5xl">
         <div className="mb-6">
           <h1 className="font-serif font-bold text-3xl text-foreground">
             Settings
@@ -356,643 +360,689 @@ export default function SettingsPage() {
         <Tabs
           value={activeTab}
           onValueChange={setActiveTab}
-          className="space-y-6"
+          orientation="vertical"
+          className="flex flex-col md:flex-row gap-6 md:gap-8 md:items-start"
         >
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-6 h-auto">
-            <TabsTrigger value="appearance" className="py-3">
-              <Palette className="w-4 h-4 mr-2" />
-              General
-            </TabsTrigger>
-            <TabsTrigger value="store" className="py-3">
-              <Store className="w-4 h-4 mr-2" />
-              Store Profile
-            </TabsTrigger>
-            <TabsTrigger value="notifications" className="py-3">
-              <Bell className="w-4 h-4 mr-2" />
-              Alerts
-            </TabsTrigger>
-            <TabsTrigger value="data" className="py-3">
-              <Database className="w-4 h-4 mr-2" />
-              Data & Sync
-            </TabsTrigger>
-            <TabsTrigger value="security" className="py-3">
-              <Shield className="w-4 h-4 mr-2" />
-              Security
-            </TabsTrigger>
-            <TabsTrigger value="system" className="py-3">
-              <Globe className="w-4 h-4 mr-2" />
-              System
-            </TabsTrigger>
-          </TabsList>
+          <aside className="w-full md:w-48 flex-shrink-0">
+            <TabsList className="flex flex-row md:flex-col h-auto bg-transparent border-none p-0 gap-1 overflow-x-auto md:overflow-x-visible justify-start md:w-full">
+              <TabsTrigger
+                value="appearance"
+                className="flex-1 md:w-full justify-center md:justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20"
+              >
+                <Palette className="w-4 h-4 md:mr-3" />
+                <span className="hidden md:inline text-sm">General</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="store"
+                className="flex-1 md:w-full justify-center md:justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20"
+              >
+                <Store className="w-4 h-4 md:mr-3" />
+                <span className="hidden md:inline text-sm">Store Profile</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="notifications"
+                className="flex-1 md:w-full justify-center md:justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20"
+              >
+                <Bell className="w-4 h-4 md:mr-3" />
+                <span className="hidden md:inline text-sm">Alerts</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="data"
+                className="flex-1 md:w-full justify-center md:justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20"
+              >
+                <Database className="w-4 h-4 md:mr-3" />
+                <span className="hidden md:inline text-sm">Data & Sync</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="security"
+                className="flex-1 md:w-full justify-center md:justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20"
+              >
+                <Shield className="w-4 h-4 md:mr-3" />
+                <span className="hidden md:inline text-sm">Security</span>
+              </TabsTrigger>
+              {isAdmin && (
+                <TabsTrigger
+                  value="staff"
+                  className="flex-1 md:w-full justify-center md:justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20"
+                >
+                  <Users className="w-4 h-4 md:mr-3" />
+                  <span className="hidden md:inline text-sm">Staff</span>
+                </TabsTrigger>
+              )}
+              <TabsTrigger
+                value="system"
+                className="flex-1 md:w-full justify-center md:justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20"
+              >
+                <Globe className="w-4 h-4 md:mr-3" />
+                <span className="hidden md:inline text-sm">System</span>
+              </TabsTrigger>
+            </TabsList>
+          </aside>
 
-          {/* APPEARANCE & GENERAL */}
-          <TabsContent value="appearance" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Appearance</CardTitle>
-                <CardDescription>
-                  Customize how {APP_NAME} looks on this device.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-3">
-                  <Label>Theme Mode</Label>
-                  <div className="grid grid-cols-3 gap-4">
-                    <button
-                      onClick={() => setTheme("light")}
-                      className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all cursor-pointer ${
-                        theme === "light"
-                          ? "border-primary bg-primary/5"
-                          : "border-muted hover:border-primary/50"
-                      }`}
-                    >
-                      <Sun className="h-6 w-6 mb-2" />
-                      <span className="text-sm font-medium">Light</span>
-                    </button>
-                    <button
-                      onClick={() => setTheme("dark")}
-                      className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all cursor-pointer ${
-                        theme === "dark"
-                          ? "border-primary bg-primary/5"
-                          : "border-muted hover:border-primary/50"
-                      }`}
-                    >
-                      <Moon className="h-6 w-6 mb-2" />
-                      <span className="text-sm font-medium">Dark</span>
-                    </button>
-                    <button
-                      onClick={() => setTheme("system")}
-                      className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all cursor-pointer ${
-                        theme === "system"
-                          ? "border-primary bg-primary/5"
-                          : "border-muted hover:border-primary/50"
-                      }`}
-                    >
-                      <Globe className="h-6 w-6 mb-2" />
-                      <span className="text-sm font-medium">System</span>
-                    </button>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <Label>Color Themes</Label>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    {themes.map((t) => (
+          <div className="flex-1 min-w-0">
+            {/* APPEARANCE & GENERAL */}
+            <TabsContent value="appearance" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Appearance</CardTitle>
+                  <CardDescription>
+                    Customize how {APP_NAME} looks on this device.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="space-y-3">
+                    <Label>Theme Mode</Label>
+                    <div className="grid grid-cols-3 gap-4">
                       <button
-                        key={t.id}
-                        onClick={() => setAppTheme(t.id)}
-                        className={`flex items-center gap-3 p-4 rounded-lg border-2 transition-all cursor-pointer ${
-                          activeTheme === t.id
+                        onClick={() => setTheme("light")}
+                        className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all cursor-pointer ${
+                          theme === "light"
                             ? "border-primary bg-primary/5"
-                            : "border-border hover:bg-muted"
+                            : "border-muted hover:border-primary/50"
                         }`}
                       >
-                        <div
-                          className={`w-6 h-6 rounded-full ${t.color} border shadow-sm`}
-                        />
-                        <span className="text-sm font-medium">{t.name}</span>
+                        <Sun className="h-6 w-6 mb-2" />
+                        <span className="text-sm font-medium">Light</span>
+                      </button>
+                      <button
+                        onClick={() => setTheme("dark")}
+                        className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all cursor-pointer ${
+                          theme === "dark"
+                            ? "border-primary bg-primary/5"
+                            : "border-muted hover:border-primary/50"
+                        }`}
+                      >
+                        <Moon className="h-6 w-6 mb-2" />
+                        <span className="text-sm font-medium">Dark</span>
+                      </button>
+                      <button
+                        onClick={() => setTheme("system")}
+                        className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all cursor-pointer ${
+                          theme === "system"
+                            ? "border-primary bg-primary/5"
+                            : "border-muted hover:border-primary/50"
+                        }`}
+                      >
+                        <Globe className="h-6 w-6 mb-2" />
+                        <span className="text-sm font-medium">System</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <Label>Color Themes</Label>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                      {themes.map((t) => (
+                        <button
+                          key={t.id}
+                          onClick={() => setAppTheme(t.id)}
+                          className={`flex items-center gap-3 p-4 rounded-lg border-2 transition-all cursor-pointer ${
+                            activeTheme === t.id
+                              ? "border-primary bg-primary/5"
+                              : "border-border hover:bg-muted"
+                          }`}
+                        >
+                          <div
+                            className={`w-6 h-6 rounded-full ${t.color} border shadow-sm`}
+                          />
+                          <span className="text-sm font-medium">{t.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Regional Settings</CardTitle>
+                  <CardDescription>
+                    Configure currency and locale defaults.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-6">
+                  <div className="grid gap-2">
+                    <Label htmlFor="currency">Currency Code (ISO)</Label>
+                    <Input
+                      id="currency"
+                      value={localCurrency}
+                      onChange={(e) =>
+                        setLocalCurrency(e.target.value.toUpperCase())
+                      }
+                      placeholder="e.g. NGN, USD, GHS"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="vat">VAT Percentage (%)</Label>
+                    <Input
+                      id="vat"
+                      type="number"
+                      step="0.1"
+                      value={localVat}
+                      onChange={(e) => setLocalVat(e.target.value)}
+                      placeholder="e.g. 7.5"
+                    />
+                  </div>
+                </CardContent>
+                <CardFooter className="border-t px-6 py-4">
+                  <Button onClick={handleSaveRegional}>
+                    <Save className="w-4 h-4 mr-2" />
+                    Save Regional Settings
+                  </Button>
+                </CardFooter>
+              </Card>
+            </TabsContent>
+
+            {/* STORE DETAILS */}
+            <TabsContent value="store" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Business Vertical</CardTitle>
+                  <CardDescription>
+                    Switching modes changes the terminology and active modules.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {[
+                      { id: "pharmacy", label: "Pharmacy", icon: Pill },
+                      { id: "grocery", label: "Grocery", icon: ShoppingBasket },
+                      {
+                        id: "supermarket",
+                        label: "Supermarket",
+                        icon: ShoppingCart,
+                      },
+                      { id: "general", label: "General", icon: Check },
+                    ].map((vertical) => (
+                      <button
+                        key={vertical.id}
+                        onClick={() =>
+                          handleSwitchVertical(vertical.id as StoreType)
+                        }
+                        className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all cursor-pointer ${
+                          storeType === vertical.id
+                            ? "border-primary bg-primary/5"
+                            : "border-muted hover:border-primary/50"
+                        }`}
+                      >
+                        <vertical.icon className="h-6 w-6 mb-2 text-primary" />
+                        <span className="text-sm font-medium">
+                          {vertical.label}
+                        </span>
                       </button>
                     ))}
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Regional Settings</CardTitle>
-                <CardDescription>
-                  Configure currency and locale defaults.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="grid gap-6">
-                <div className="grid gap-2">
-                  <Label htmlFor="currency">Currency Code (ISO)</Label>
-                  <Input
-                    id="currency"
-                    value={localCurrency}
-                    onChange={(e) =>
-                      setLocalCurrency(e.target.value.toUpperCase())
-                    }
-                    placeholder="e.g. NGN, USD, GHS"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="vat">VAT Percentage (%)</Label>
-                  <Input
-                    id="vat"
-                    type="number"
-                    step="0.1"
-                    value={localVat}
-                    onChange={(e) => setLocalVat(e.target.value)}
-                    placeholder="e.g. 7.5"
-                  />
-                </div>
-              </CardContent>
-              <CardFooter className="border-t px-6 py-4">
-                <Button onClick={handleSaveRegional}>
-                  <Save className="w-4 h-4 mr-2" />
-                  Save Regional Settings
-                </Button>
-              </CardFooter>
-            </Card>
-          </TabsContent>
-
-          {/* STORE DETAILS */}
-          <TabsContent value="store" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Business Vertical</CardTitle>
-                <CardDescription>
-                  Switching modes changes the terminology and active modules.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {[
-                    { id: "pharmacy", label: "Pharmacy", icon: Pill },
-                    { id: "grocery", label: "Grocery", icon: ShoppingBasket },
-                    {
-                      id: "supermarket",
-                      label: "Supermarket",
-                      icon: ShoppingCart,
-                    },
-                    { id: "general", label: "General", icon: Check },
-                  ].map((vertical) => (
-                    <button
-                      key={vertical.id}
-                      onClick={() =>
-                        handleSwitchVertical(vertical.id as StoreType)
-                      }
-                      className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all cursor-pointer ${
-                        storeType === vertical.id
-                          ? "border-primary bg-primary/5"
-                          : "border-muted hover:border-primary/50"
-                      }`}
-                    >
-                      <vertical.icon className="h-6 w-6 mb-2 text-primary" />
-                      <span className="text-sm font-medium">
-                        {vertical.label}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Store Information</CardTitle>
-                <CardDescription>
-                  These details will appear on printed receipts and reports.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="store-name">Business Name</Label>
-                  <Input
-                    id="store-name"
-                    placeholder="e.g. My Business"
-                    value={localName}
-                    onChange={(e) => setLocalName(e.target.value)}
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="address">Address</Label>
-                  <Input
-                    id="address"
-                    placeholder="123 Health Avenue, Lagos"
-                    value={localAddress}
-                    onChange={(e) => setLocalAddress(e.target.value)}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Store Information</CardTitle>
+                  <CardDescription>
+                    These details will appear on printed receipts and reports.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
                   <div className="grid gap-2">
-                    <Label htmlFor="phone">Phone Number</Label>
+                    <Label htmlFor="store-name">Business Name</Label>
                     <Input
-                      id="phone"
-                      placeholder="+234..."
-                      value={localPhone}
-                      onChange={(e) => setLocalPhone(e.target.value)}
+                      id="store-name"
+                      placeholder="e.g. My Business"
+                      value={localName}
+                      onChange={(e) => setLocalName(e.target.value)}
                     />
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="email">Email</Label>
+                    <Label htmlFor="address">Address</Label>
                     <Input
-                      id="email"
-                      placeholder="contact@example.com"
-                      value={localEmail}
-                      onChange={(e) => setLocalEmail(e.target.value)}
+                      id="address"
+                      placeholder="123 Health Avenue, Lagos"
+                      value={localAddress}
+                      onChange={(e) => setLocalAddress(e.target.value)}
                     />
                   </div>
-                </div>
-                {storeType === "pharmacy" && (
-                  <div className="grid gap-2">
-                    <Label htmlFor="pcn">PCN License Number</Label>
-                    <Input
-                      id="pcn"
-                      placeholder="PCN/..."
-                      value={localPcn}
-                      onChange={(e) => setLocalPcn(e.target.value)}
-                    />
-                  </div>
-                )}
-              </CardContent>
-              <CardFooter className="border-t px-6 py-4">
-                <Button onClick={handleSaveProfile} className="cursor-pointer">
-                  <Save className="w-4 h-4 mr-2" />
-                  Save Changes
-                </Button>
-              </CardFooter>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Receipt Customization</CardTitle>
-                <CardDescription>
-                  Configure how your printed receipts look.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="receipt-header">
-                    Receipt Header (Optional)
-                  </Label>
-                  <Input
-                    id="receipt-header"
-                    placeholder="e.g. Thanks for your patronage!"
-                    value={localReceiptHeader}
-                    onChange={(e) => setLocalReceiptHeader(e.target.value)}
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="receipt-footer">Receipt Footer</Label>
-                  <Input
-                    id="receipt-footer"
-                    placeholder="e.g. No refund after 24 hours"
-                    value={localReceiptFooter}
-                    onChange={(e) => setLocalReceiptFooter(e.target.value)}
-                  />
-                </div>
-                <div className="flex items-center justify-between rounded-lg border p-4">
-                  <div className="space-y-0.5">
-                    <Label className="text-base">Show Logo on Receipt</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Display store logo at the top
-                    </p>
-                  </div>
-                  <Switch checked={showLogo} onCheckedChange={setShowLogo} />
-                </div>
-                <div className="flex items-center justify-between rounded-lg border p-4">
-                  <div className="space-y-0.5">
-                    <Label className="text-base">Show Phone & Address</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Include contact details on receipt
-                    </p>
-                  </div>
-                  <Switch
-                    checked={showContact}
-                    onCheckedChange={setShowContact}
-                  />
-                </div>
-              </CardContent>
-              <CardFooter className="border-t px-6 py-4">
-                <Button
-                  onClick={handleSaveReceiptSettings}
-                  className="cursor-pointer"
-                >
-                  <Save className="w-4 h-4 mr-2" />
-                  Save Receipt Settings
-                </Button>
-              </CardFooter>
-            </Card>
-          </TabsContent>
-
-          {/* NOTIFICATIONS */}
-          <TabsContent value="notifications">
-            <Card>
-              <CardHeader>
-                <CardTitle>Inventory Alerts</CardTitle>
-                <CardDescription>
-                  Configure when you want to be warned about stock issues.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between rounded-lg border p-4">
-                  <div className="space-y-0.5">
-                    <Label className="text-base">Low Stock Warning</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Notify when stock hits reorder level
-                    </p>
-                  </div>
-                  <Switch
-                    checked={lowStockAlert}
-                    onCheckedChange={setLowStockAlert}
-                  />
-                </div>
-                <div className="flex items-center justify-between rounded-lg border p-4">
-                  <div className="space-y-0.5">
-                    <Label className="text-base">Expiry Warning</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Notify before medicines expire
-                    </p>
-                  </div>
-                  <Switch
-                    checked={expiryAlert}
-                    onCheckedChange={setExpiryAlert}
-                  />
-                </div>
-                <div className="grid gap-2 pt-4">
-                  <Label>Days before expiry to warn</Label>
-                  <Input
-                    type="number"
-                    value={expiryDays}
-                    onChange={(e) => setExpiryDays(e.target.value)}
-                    className="max-w-[150px]"
-                  />
-                </div>
-              </CardContent>
-              <CardFooter className="border-t px-6 py-4">
-                <Button
-                  onClick={handleSaveAlertSettings}
-                  className="cursor-pointer"
-                >
-                  <Save className="w-4 h-4 mr-2" />
-                  Save Alert Preferences
-                </Button>
-              </CardFooter>
-            </Card>
-          </TabsContent>
-
-          {/* DATA & SYNC */}
-          <TabsContent value="data">
-            <Card>
-              <CardHeader>
-                <CardTitle>Data Synchronization</CardTitle>
-                <CardDescription>
-                  Manage offline data and cloud backups.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="flex flex-col md:flex-row items-start md:items-center justify-between p-4 border rounded-lg bg-muted/30 gap-4">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`h-10 w-10 ${isCloudLinked ? "bg-green-100 text-green-600" : "bg-amber-100 text-amber-600"} rounded-full flex items-center justify-center`}
-                    >
-                      {isCloudLinked ? (
-                        <Database className="h-5 w-5" />
-                      ) : (
-                        <CloudOff className="h-5 w-5" />
-                      )}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="phone">Phone Number</Label>
+                      <Input
+                        id="phone"
+                        placeholder="+234..."
+                        value={localPhone}
+                        onChange={(e) => setLocalPhone(e.target.value)}
+                      />
                     </div>
-                    <div>
-                      <p className="font-medium">
-                        {isCloudLinked
-                          ? "Connected to Cloud"
-                          : "Local Mode (Not Linked)"}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {isCloudLinked
-                          ? `Last synced: ${localStorage.getItem("last_sync_time") ? new Date(localStorage.getItem("last_sync_time")!).toLocaleString() : "Never"}`
-                          : "Connect your cloud account to enable sync"}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    {!isCloudLinked && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setIsCloudLinkOpen(true)}
-                      >
-                        Link Account
-                      </Button>
-                    )}
-                    <Button
-                      variant={isCloudLinked ? "outline" : "default"}
-                      size="sm"
-                      onClick={handleSync}
-                    >
-                      {isCloudLinked ? "Sync Now" : "Link & Sync"}
-                    </Button>
-                  </div>
-                </div>
-
-                <Separator />
-
-                <div className="space-y-4">
-                  <h3 className="font-medium">Backup & Restore</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start cursor-pointer"
-                      onClick={handleDownloadBackup}
-                    >
-                      <Save className="w-4 h-4 mr-2" />
-                      Download Local Backup
-                    </Button>
-                    <div className="relative">
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start cursor-pointer"
-                        asChild
-                      >
-                        <label htmlFor="restore-db">
-                          <Upload className="w-4 h-4 mr-2" />
-                          Restore from File
-                        </label>
-                      </Button>
-                      <input
-                        type="file"
-                        id="restore-db"
-                        className="hidden"
-                        accept=".drx"
-                        onChange={handleRestoreBackup}
+                    <div className="grid gap-2">
+                      <Label htmlFor="email">Email</Label>
+                      <Input
+                        id="email"
+                        placeholder="contact@example.com"
+                        value={localEmail}
+                        onChange={(e) => setLocalEmail(e.target.value)}
                       />
                     </div>
                   </div>
-                </div>
+                  {storeType === "pharmacy" && (
+                    <div className="grid gap-2">
+                      <Label htmlFor="pcn">PCN License Number</Label>
+                      <Input
+                        id="pcn"
+                        placeholder="PCN/..."
+                        value={localPcn}
+                        onChange={(e) => setLocalPcn(e.target.value)}
+                      />
+                    </div>
+                  )}
+                </CardContent>
+                <CardFooter className="border-t px-6 py-4">
+                  <Button
+                    onClick={handleSaveProfile}
+                    className="cursor-pointer"
+                  >
+                    <Save className="w-4 h-4 mr-2" />
+                    Save Changes
+                  </Button>
+                </CardFooter>
+              </Card>
 
-                <Separator />
-
-                <div className="space-y-4">
-                  <h3 className="font-medium text-destructive">Danger Zone</h3>
-                  <div className="p-4 border border-destructive/20 rounded-lg bg-destructive/5 flex flex-col md:flex-row items-center justify-between gap-4">
-                    <div className="space-y-1">
-                      <p className="text-sm font-semibold">Factory Reset</p>
-                      <p className="text-xs text-muted-foreground">
-                        Wipe all local data (medicines, sales, etc.) and start
-                        fresh.
+              <Card>
+                <CardHeader>
+                  <CardTitle>Receipt Customization</CardTitle>
+                  <CardDescription>
+                    Configure how your printed receipts look.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="receipt-header">
+                      Receipt Header (Optional)
+                    </Label>
+                    <Input
+                      id="receipt-header"
+                      placeholder="e.g. Thanks for your patronage!"
+                      value={localReceiptHeader}
+                      onChange={(e) => setLocalReceiptHeader(e.target.value)}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="receipt-footer">Receipt Footer</Label>
+                    <Input
+                      id="receipt-footer"
+                      placeholder="e.g. No refund after 24 hours"
+                      value={localReceiptFooter}
+                      onChange={(e) => setLocalReceiptFooter(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <Label className="text-base">Show Logo on Receipt</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Display store logo at the top
                       </p>
                     </div>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={handleResetDatabase}
-                    >
-                      Reset All Data
-                    </Button>
+                    <Switch checked={showLogo} onCheckedChange={setShowLogo} />
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* SECURITY */}
-          <TabsContent value="security">
-            <Card>
-              <CardHeader>
-                <CardTitle>Security Settings</CardTitle>
-                <CardDescription>
-                  Protect your account and session.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-2">
-                  <Label>Current PIN</Label>
-                  <Input
-                    type="password"
-                    value={currentPin}
-                    onChange={(e) => setCurrentPin(e.target.value)}
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label>New PIN</Label>
-                  <Input
-                    type="password"
-                    value={newPin}
-                    onChange={(e) => setNewPin(e.target.value)}
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Confirm New PIN</Label>
-                  <Input
-                    type="password"
-                    value={confirmPin}
-                    onChange={(e) => setConfirmPin(e.target.value)}
-                  />
-                </div>
-                <Separator className="my-4" />
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label className="text-base">Auto-Lock Screen</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Lock dashboard after 5 minutes of inactivity
-                    </p>
-                  </div>
-                  <Switch />
-                </div>
-              </CardContent>
-              <CardFooter className="border-t px-6 py-4">
-                <Button onClick={handleUpdateSecurity}>Update Security</Button>
-              </CardFooter>
-            </Card>
-          </TabsContent>
-          <TabsContent value="system" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>System Updates</CardTitle>
-                <CardDescription>
-                  Manage application updates and system information
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>Application Version</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Current version: {APP_VERSION}
-                    </p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    onClick={handleCheckForUpdates}
-                    disabled={isCheckingUpdate || isUpdating}
-                  >
-                    <RefreshCw
-                      className={`w-4 h-4 mr-2 ${isCheckingUpdate ? "animate-spin" : ""}`}
+                  <div className="flex items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <Label className="text-base">Show Phone & Address</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Include contact details on receipt
+                      </p>
+                    </div>
+                    <Switch
+                      checked={showContact}
+                      onCheckedChange={setShowContact}
                     />
-                    {isCheckingUpdate ? "Checking..." : "Check for Updates"}
+                  </div>
+                </CardContent>
+                <CardFooter className="border-t px-6 py-4">
+                  <Button
+                    onClick={handleSaveReceiptSettings}
+                    className="cursor-pointer"
+                  >
+                    <Save className="w-4 h-4 mr-2" />
+                    Save Receipt Settings
                   </Button>
-                </div>
+                </CardFooter>
+              </Card>
+            </TabsContent>
 
-                {updateAvailable && (
-                  <div className="p-4 border rounded-lg bg-primary/5 border-primary/20 space-y-3">
-                    <div className="flex items-start gap-3">
-                      <div className="p-2 rounded-full bg-primary/10 text-primary">
-                        <Info className="w-5 h-5" />
+            {/* NOTIFICATIONS */}
+            <TabsContent value="notifications">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Inventory Alerts</CardTitle>
+                  <CardDescription>
+                    Configure when you want to be warned about stock issues.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <Label className="text-base">Low Stock Warning</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Notify when stock hits reorder level
+                      </p>
+                    </div>
+                    <Switch
+                      checked={lowStockAlert}
+                      onCheckedChange={setLowStockAlert}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <Label className="text-base">Expiry Warning</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Notify before medicines expire
+                      </p>
+                    </div>
+                    <Switch
+                      checked={expiryAlert}
+                      onCheckedChange={setExpiryAlert}
+                    />
+                  </div>
+                  <div className="grid gap-2 pt-4">
+                    <Label>Days before expiry to warn</Label>
+                    <Input
+                      type="number"
+                      value={expiryDays}
+                      onChange={(e) => setExpiryDays(e.target.value)}
+                      className="max-w-[150px]"
+                    />
+                  </div>
+                </CardContent>
+                <CardFooter className="border-t px-6 py-4">
+                  <Button
+                    onClick={handleSaveAlertSettings}
+                    className="cursor-pointer"
+                  >
+                    <Save className="w-4 h-4 mr-2" />
+                    Save Alert Preferences
+                  </Button>
+                </CardFooter>
+              </Card>
+            </TabsContent>
+
+            {/* DATA & SYNC */}
+            <TabsContent value="data">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Data Synchronization</CardTitle>
+                  <CardDescription>
+                    Manage offline data and cloud backups.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="flex flex-col md:flex-row items-start md:items-center justify-between p-4 border rounded-lg bg-muted/30 gap-4">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`h-10 w-10 ${isCloudLinked ? "bg-green-100 text-green-600" : "bg-amber-100 text-amber-600"} rounded-full flex items-center justify-center`}
+                      >
+                        {isCloudLinked ? (
+                          <Database className="h-5 w-5" />
+                        ) : (
+                          <CloudOff className="h-5 w-5" />
+                        )}
                       </div>
-                      <div className="space-y-1">
-                        <h4 className="font-semibold text-primary">
-                          New Update Available!
-                        </h4>
+                      <div>
+                        <p className="font-medium">
+                          {isCloudLinked
+                            ? "Connected to Cloud"
+                            : "Local Mode (Not Linked)"}
+                        </p>
                         <p className="text-sm text-muted-foreground">
-                          Version {updateAvailable.version} is now available.
-                          This update includes new features and bug fixes.
+                          {isCloudLinked
+                            ? `Last synced: ${localStorage.getItem("last_sync_time") ? new Date(localStorage.getItem("last_sync_time")!).toLocaleString() : "Never"}`
+                            : "Connect your cloud account to enable sync"}
                         </p>
                       </div>
                     </div>
+                    <div className="flex gap-2">
+                      {!isCloudLinked && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setIsCloudLinkOpen(true)}
+                        >
+                          Link Account
+                        </Button>
+                      )}
+                      <Button
+                        variant={isCloudLinked ? "outline" : "default"}
+                        size="sm"
+                        onClick={handleSync}
+                      >
+                        {isCloudLinked ? "Sync Now" : "Link & Sync"}
+                      </Button>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <div className="space-y-4">
+                    <h3 className="font-medium">Backup & Restore</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start cursor-pointer"
+                        onClick={handleDownloadBackup}
+                      >
+                        <Save className="w-4 h-4 mr-2" />
+                        Download Local Backup
+                      </Button>
+                      <div className="relative">
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start cursor-pointer"
+                          asChild
+                        >
+                          <label htmlFor="restore-db">
+                            <Upload className="w-4 h-4 mr-2" />
+                            Restore from File
+                          </label>
+                        </Button>
+                        <input
+                          type="file"
+                          id="restore-db"
+                          className="hidden"
+                          accept=".drx"
+                          onChange={handleRestoreBackup}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <div className="space-y-4">
+                    <h3 className="font-medium text-destructive">
+                      Danger Zone
+                    </h3>
+                    <div className="p-4 border border-destructive/20 rounded-lg bg-destructive/5 flex flex-col md:flex-row items-center justify-between gap-4">
+                      <div className="space-y-1">
+                        <p className="text-sm font-semibold">Factory Reset</p>
+                        <p className="text-xs text-muted-foreground">
+                          Wipe all local data (medicines, sales, etc.) and start
+                          fresh.
+                        </p>
+                      </div>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={handleResetDatabase}
+                      >
+                        Reset All Data
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* SECURITY */}
+            <TabsContent value="security">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Security Settings</CardTitle>
+                  <CardDescription>
+                    Protect your account and session.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-2">
+                    <Label>Current PIN</Label>
+                    <Input
+                      type="password"
+                      value={currentPin}
+                      onChange={(e) => setCurrentPin(e.target.value)}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>New PIN</Label>
+                    <Input
+                      type="password"
+                      value={newPin}
+                      onChange={(e) => setNewPin(e.target.value)}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>Confirm New PIN</Label>
+                    <Input
+                      type="password"
+                      value={confirmPin}
+                      onChange={(e) => setConfirmPin(e.target.value)}
+                    />
+                  </div>
+                  <Separator className="my-4" />
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label className="text-base">Auto-Lock Screen</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Lock dashboard after 5 minutes of inactivity
+                      </p>
+                    </div>
+                    <Switch />
+                  </div>
+                </CardContent>
+                <CardFooter className="border-t px-6 py-4">
+                  <Button onClick={handleUpdateSecurity}>
+                    Update Security
+                  </Button>
+                </CardFooter>
+              </Card>
+            </TabsContent>
+
+            {/* STAFF MANAGEMENT */}
+            {isAdmin && (
+              <TabsContent value="staff">
+                <StaffManagement />
+              </TabsContent>
+            )}
+            <TabsContent value="system" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>System Updates</CardTitle>
+                  <CardDescription>
+                    Manage application updates and system information
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label>Application Version</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Current version: {APP_VERSION}
+                      </p>
+                    </div>
                     <Button
-                      className="w-full"
-                      onClick={handleInstallUpdate}
-                      disabled={isUpdating}
+                      variant="outline"
+                      onClick={handleCheckForUpdates}
+                      disabled={isCheckingUpdate || isUpdating}
                     >
-                      <Download className="w-4 h-4 mr-2" />
-                      {isUpdating
-                        ? "Installing..."
-                        : `Install Version ${updateAvailable.version}`}
+                      <RefreshCw
+                        className={`w-4 h-4 mr-2 ${isCheckingUpdate ? "animate-spin" : ""}`}
+                      />
+                      {isCheckingUpdate ? "Checking..." : "Check for Updates"}
                     </Button>
                   </div>
-                )}
 
-                <Separator />
-
-                <div className="space-y-2">
-                  <Label>System Information</Label>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div className="space-y-1">
-                      <p className="text-muted-foreground">Environment</p>
-                      <p className="font-medium">
-                        {isTauri() ? "Desktop (Tauri)" : "Web Browser"}
-                      </p>
+                  {updateAvailable && (
+                    <div className="p-4 border rounded-lg bg-primary/5 border-primary/20 space-y-3">
+                      <div className="flex items-start gap-3">
+                        <div className="p-2 rounded-full bg-primary/10 text-primary">
+                          <Info className="w-5 h-5" />
+                        </div>
+                        <div className="space-y-1">
+                          <h4 className="font-semibold text-primary">
+                            New Update Available!
+                          </h4>
+                          <p className="text-sm text-muted-foreground">
+                            Version {updateAvailable.version} is now available.
+                            This update includes new features and bug fixes.
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        className="w-full"
+                        onClick={handleInstallUpdate}
+                        disabled={isUpdating}
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        {isUpdating
+                          ? "Installing..."
+                          : `Install Version ${updateAvailable.version}`}
+                      </Button>
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-muted-foreground">Platform</p>
-                      <p className="font-medium">
-                        {typeof window !== "undefined"
-                          ? navigator.userAgent.includes("Mac")
-                            ? "MacOS"
-                            : navigator.userAgent.includes("Win")
-                              ? "Windows"
-                              : "Linux"
-                          : "Unknown"}
-                      </p>
+                  )}
+
+                  <Separator />
+
+                  <div className="space-y-2">
+                    <Label>System Information</Label>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div className="space-y-1">
+                        <p className="text-muted-foreground">Environment</p>
+                        <p className="font-medium">
+                          {isTauri() ? "Desktop (Tauri)" : "Web Browser"}
+                        </p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-muted-foreground">Platform</p>
+                        <p className="font-medium">
+                          {typeof window !== "undefined"
+                            ? navigator.userAgent.includes("Mac")
+                              ? "MacOS"
+                              : navigator.userAgent.includes("Win")
+                                ? "Windows"
+                                : "Linux"
+                            : "Unknown"}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>About {APP_NAME}</CardTitle>
-                <CardDescription>
-                  Software information and licensing
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="text-sm text-muted-foreground">
-                <p>
-                  DumosRx is a professional pharmacy management system designed
-                  to streamline operations, track inventory, and manage sales
-                  with ease.
-                </p>
-                <p className="mt-4">
-                  © 2019 - {new Date().getFullYear()} {APP_NAME}. All rights
-                  reserved.
-                </p>
-              </CardContent>
-            </Card>
-          </TabsContent>
+              <Card>
+                <CardHeader>
+                  <CardTitle>About {APP_NAME}</CardTitle>
+                  <CardDescription>
+                    Software information and licensing
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="text-sm text-muted-foreground">
+                  <p>
+                    DumosRx is a professional pharmacy management system
+                    designed to streamline operations, track inventory, and
+                    manage sales with ease.
+                  </p>
+                  <p className="mt-4">
+                    © 2019 - {new Date().getFullYear()} {APP_NAME}. All rights
+                    reserved.
+                  </p>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </div>
         </Tabs>
       </div>
 

@@ -42,7 +42,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const pathname = usePathname();
   const { theme } = useTheme();
   const { storeType, t, storeProfile } = useStore();
-  const { user, logout, isAdmin } = useAuth();
+  const { user, logout, isAdmin, isPharmacist } = useAuth();
 
   const navigationItems = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -57,10 +57,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       ? [{ name: "Prescriptions", href: "/prescriptions", icon: FileText }] 
       : []),
     { name: "Customers", href: "/customers", icon: Users },
-    { name: "Procurement", href: "/procurement", icon: ClipboardList },
-    { name: "Expenses", href: "/expenses", icon: Wallet },
-    { name: "Vendors", href: "/vendors", icon: Truck },
-    { name: "Reports", href: "/reports", icon: BarChart3 },
+    ...((isAdmin || isPharmacist) ? [
+      { name: "Procurement", href: "/procurement", icon: ClipboardList },
+      { name: "Expenses", href: "/expenses", icon: Wallet },
+      { name: "Vendors", href: "/vendors", icon: Truck },
+      { name: "Reports", href: "/reports", icon: BarChart3 },
+    ] : []),
     ...(isAdmin ? [{ name: "Analytics", href: "/analytics", icon: TrendingUp }] : []),
     ...(isAdmin ? [{ name: "Settings", href: "/settings", icon: Settings }] : []),
   ];

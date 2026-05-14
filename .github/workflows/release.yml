@@ -48,6 +48,12 @@ jobs:
           cd client
           npm install --force @tailwindcss/oxide-win32-x64-msvc lightningcss-win32-x64-msvc
 
+      - name: Fix Tailwind/LightningCSS Native Bindings (Linux only)
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          cd client
+          npm install --force @tailwindcss/oxide-linux-x64-gnu lightningcss-linux-x64-gnu
+
       - name: Build and Release
         uses: tauri-apps/tauri-action@v0
         env:

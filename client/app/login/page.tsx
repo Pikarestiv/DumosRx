@@ -36,12 +36,20 @@ export default function LoginPage() {
 
   const checkUsers = async () => {
     try {
+      // Check if the table exists first
+      const tables = await query<any>("SELECT name FROM sqlite_master WHERE type='table' AND name='users'");
+      if (tables.length === 0) {
+        setIsFreshInstall(true);
+        return;
+      }
+
       const result = await query<any>("SELECT COUNT(*) as count FROM users WHERE is_active = 1");
       const count = result[0]?.count || 0;
       setIsFreshInstall(count === 0);
     } catch (e) {
       console.error("Failed to check users", e);
-      setIsFreshInstall(false);
+      // If table doesn't exist, it's a fresh install
+      setIsFreshInstall(true);
     }
   };
 

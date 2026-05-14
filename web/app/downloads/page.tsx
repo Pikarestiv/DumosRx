@@ -37,11 +37,16 @@ export default function DownloadsPage() {
       try {
         const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`);
         const data = await res.json();
+        console.log("GitHub Release Data:", data);
         
         if (data.assets) {
+          console.log("Release Assets:", data.assets.map((a: any) => a.name));
           // Look for any asset ending in .msi (Windows) or .dmg (macOS)
-          const winAsset = data.assets.find((a: any) => a.name.toLowerCase().endsWith(".msi"));
+          const winAsset = data.assets.find((a: any) => a.name.toLowerCase().endsWith(".msi") || a.name.toLowerCase().endsWith("-setup.exe"));
           const macAsset = data.assets.find((a: any) => a.name.toLowerCase().endsWith(".dmg"));
+          
+          console.log("Discovered Win Asset:", winAsset?.name);
+          console.log("Discovered Mac Asset:", macAsset?.name);
           
           setLinks({
             windows: winAsset?.browser_download_url || `https://github.com/${GITHUB_REPO}/releases/latest`,

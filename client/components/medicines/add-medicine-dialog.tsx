@@ -21,6 +21,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
+import { SearchableInput } from "@/components/ui/searchable-input";
+import { cn } from "@/lib/utils";
 
 import { useStore } from "@/lib/context/store-context";
 
@@ -82,15 +85,49 @@ export function AddMedicineDialog({
 
   const isPharmacy = storeType === "pharmacy";
 
-  const categories = isPharmacy 
-    ? ["Analgesics", "Antibiotics", "Antimalarials", "Vitamins", "Antacids", "Antihypertensives"]
-    : ["Groceries", "Beverages", "Personal Care", "Household", "Snacks", "Dairy"];
+  const categories = isPharmacy
+    ? [
+        "Analgesics",
+        "Antibiotics",
+        "Antimalarials",
+        "Vitamins",
+        "Antacids",
+        "Antihypertensives",
+      ]
+    : [
+        "Groceries",
+        "Beverages",
+        "Personal Care",
+        "Household",
+        "Snacks",
+        "Dairy",
+      ];
 
-  const dosageForms = ["Tablet", "Capsule", "Syrup", "Injection", "Cream", "Drops", "Inhaler"];
-  
+  const dosageForms = [
+    "Tablet",
+    "Capsule",
+    "Syrup",
+    "Injection",
+    "Cream",
+    "Drops",
+    "Inhaler",
+  ];
+
   const manufacturers = isPharmacy
-    ? ["GSK Nigeria", "Pfizer Nigeria", "Sanofi Nigeria", "Emzor Pharmaceuticals", "May & Baker Nigeria"]
-    : ["Unilever Nigeria", "Nestle Nigeria", "PZ Cussons", "Dangote Group", "Flour Mills of Nigeria"];
+    ? [
+        "GSK Nigeria",
+        "Pfizer Nigeria",
+        "Sanofi Nigeria",
+        "Emzor Pharmaceuticals",
+        "May & Baker Nigeria",
+      ]
+    : [
+        "Unilever Nigeria",
+        "Nestle Nigeria",
+        "PZ Cussons",
+        "Dangote Group",
+        "Flour Mills of Nigeria",
+      ];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,7 +139,9 @@ export function AddMedicineDialog({
     }
 
     if (isPharmacy && (!formData.genericName || !formData.nafdacNumber)) {
-      alert(`Generic Name and ${t('registration_number')} are required for ${t('store').toLowerCase()}s`);
+      alert(
+        `Generic Name and ${t("registration_number")} are required for ${t("store").toLowerCase()}s`,
+      );
       return;
     }
 
@@ -175,23 +214,23 @@ export function AddMedicineDialog({
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-serif font-bold">
-            Add New {t('product')}
+            Add New {t("product")}
           </DialogTitle>
           <DialogDescription>
-            Enter the details for the new {t('product').toLowerCase()}. All fields marked with * are
-            required.
+            Enter the details for the new {t("product").toLowerCase()}. All
+            fields marked with * are required.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="name">{t('product')} Name *</Label>
+              <Label htmlFor="name">{t("product")} Name *</Label>
               <Input
                 id="name"
                 value={formData.name}
                 onChange={(e) => handleInputChange("name", e.target.value)}
-                placeholder={`e.g., ${isPharmacy ? 'Paracetamol' : 'Product Name'}`}
+                placeholder={`e.g., ${isPharmacy ? "Paracetamol" : "Product Name"}`}
                 required
               />
             </div>
@@ -199,12 +238,11 @@ export function AddMedicineDialog({
             {isPharmacy && (
               <div className="space-y-2">
                 <Label htmlFor="genericName">Generic Name *</Label>
-                <Input
+                <SearchableInput
                   id="genericName"
                   value={formData.genericName}
-                  onChange={(e) =>
-                    handleInputChange("genericName", e.target.value)
-                  }
+                  onValueChange={(val) => handleInputChange("genericName", val)}
+                  options={["Paracetamol", "Amoxicillin", "Ciprofloxacin", "Metformin", "Omeprazole"]}
                   placeholder="e.g., Acetaminophen"
                   required
                 />
@@ -213,35 +251,29 @@ export function AddMedicineDialog({
 
             <div className="space-y-2">
               <Label htmlFor="brand">Brand Name</Label>
-              <Input
+              <SearchableInput
                 id="brand"
                 value={formData.brand}
-                onChange={(e) => handleInputChange("brand", e.target.value)}
-                placeholder={`e.g., ${isPharmacy ? 'Panadol' : 'Brand Name'}`}
+                onValueChange={(val) => handleInputChange("brand", val)}
+                options={isPharmacy ? ["Panadol", "Emzor", "M&B"] : ["Nestle", "Unilever"]}
+                placeholder={`e.g., ${isPharmacy ? "Panadol" : "Brand Name"}`}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="category">{t('category')}</Label>
-              <Select
+              <Label htmlFor="category">{t("category")}</Label>
+              <SearchableInput
+                options={categories}
                 value={formData.category}
-                onValueChange={(value) => handleInputChange("category", value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                onValueChange={(val) => handleInputChange("category", val)}
+                placeholder="Select or type category"
+              />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="nafdacNumber">{t('registration_number')} {isPharmacy ? '*' : ''}</Label>
+              <Label htmlFor="nafdacNumber">
+                {t("registration_number")} {isPharmacy ? "*" : ""}
+              </Label>
               <Input
                 id="nafdacNumber"
                 value={formData.nafdacNumber}
@@ -266,53 +298,32 @@ export function AddMedicineDialog({
             {isPharmacy && (
               <div className="space-y-2">
                 <Label htmlFor="dosageForm">Dosage Form</Label>
-                <Select
+                <SearchableInput
+                  options={dosageForms}
                   value={formData.dosageForm}
-                  onValueChange={(value) =>
-                    handleInputChange("dosageForm", value)
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select dosage form" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {dosageForms.map((form) => (
-                      <SelectItem key={form} value={form}>
-                        {form}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  onValueChange={(val) => handleInputChange("dosageForm", val)}
+                  placeholder="Select or type dosage form"
+                />
               </div>
             )}
 
             <div className="space-y-2">
               <Label htmlFor="manufacturer">Manufacturer</Label>
-              <Select
+              <SearchableInput
+                options={manufacturers}
                 value={formData.manufacturer}
-                onValueChange={(value) =>
-                  handleInputChange("manufacturer", value)
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select manufacturer" />
-                </SelectTrigger>
-                <SelectContent>
-                  {manufacturers.map((manufacturer) => (
-                    <SelectItem key={manufacturer} value={manufacturer}>
-                      {manufacturer}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                onValueChange={(val) => handleInputChange("manufacturer", val)}
+                placeholder="Select or type manufacturer"
+              />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="supplier">Supplier</Label>
-              <Input
+              <SearchableInput
                 id="supplier"
                 value={formData.supplier}
-                onChange={(e) => handleInputChange("supplier", e.target.value)}
+                onValueChange={(val) => handleInputChange("supplier", val)}
+                options={["Wholesale Pharma Ltd", "Global Drugs Inc", "Local Supplier A"]}
                 placeholder="Supplier name"
               />
             </div>
@@ -322,13 +333,14 @@ export function AddMedicineDialog({
               <Input
                 id="costPrice"
                 type="number"
-                value={formData.costPrice}
+                value={formData.costPrice === 0 ? "" : formData.costPrice}
                 onChange={(e) =>
                   handleInputChange(
                     "costPrice",
                     Number.parseFloat(e.target.value) || 0,
                   )
                 }
+                onFocus={(e) => e.target.select()}
                 placeholder="0.00"
                 min="0"
                 step="0.01"
@@ -340,13 +352,14 @@ export function AddMedicineDialog({
               <Input
                 id="sellingPrice"
                 type="number"
-                value={formData.sellingPrice}
+                value={formData.sellingPrice === 0 ? "" : formData.sellingPrice}
                 onChange={(e) =>
                   handleInputChange(
                     "sellingPrice",
                     Number.parseFloat(e.target.value) || 0,
                   )
                 }
+                onFocus={(e) => e.target.select()}
                 placeholder="0.00"
                 min="0"
                 step="0.01"
@@ -358,13 +371,14 @@ export function AddMedicineDialog({
               <Input
                 id="stockQuantity"
                 type="number"
-                value={formData.stockQuantity}
+                value={formData.stockQuantity === 0 ? "" : formData.stockQuantity}
                 onChange={(e) =>
                   handleInputChange(
                     "stockQuantity",
                     Number.parseInt(e.target.value) || 0,
                   )
                 }
+                onFocus={(e) => e.target.select()}
                 placeholder="0"
                 min="0"
               />
@@ -375,13 +389,14 @@ export function AddMedicineDialog({
               <Input
                 id="reorderLevel"
                 type="number"
-                value={formData.reorderLevel}
+                value={formData.reorderLevel === 0 ? "" : formData.reorderLevel}
                 onChange={(e) =>
                   handleInputChange(
                     "reorderLevel",
                     Number.parseInt(e.target.value) || 0,
                   )
                 }
+                onFocus={(e) => e.target.select()}
                 placeholder="0"
                 min="0"
               />
@@ -413,14 +428,18 @@ export function AddMedicineDialog({
           </div>
 
           <div className="border-t pt-4 space-y-4">
-            <h4 className="font-medium text-sm">Inventory Units (Conversions)</h4>
+            <h4 className="font-medium text-sm">
+              Inventory Units (Conversions)
+            </h4>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="baseUnit">Base Unit *</Label>
                 <Input
                   id="baseUnit"
                   value={formData.baseUnit}
-                  onChange={(e) => handleInputChange("baseUnit", e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange("baseUnit", e.target.value)
+                  }
                   placeholder="e.g. Sachet, Tablet, Piece"
                   required
                 />
@@ -430,7 +449,9 @@ export function AddMedicineDialog({
                 <Input
                   id="bulkUnit"
                   value={formData.bulkUnit}
-                  onChange={(e) => handleInputChange("bulkUnit", e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange("bulkUnit", e.target.value)
+                  }
                   placeholder="e.g. Carton, Pack, Box"
                 />
               </div>
@@ -439,16 +460,21 @@ export function AddMedicineDialog({
                 <Input
                   id="unitsPerBulk"
                   type="number"
-                  value={formData.unitsPerBulk}
+                  value={formData.unitsPerBulk === 0 ? "" : formData.unitsPerBulk}
                   onChange={(e) =>
-                    handleInputChange("unitsPerBulk", Number.parseInt(e.target.value) || 1)
+                    handleInputChange(
+                      "unitsPerBulk",
+                      Number.parseInt(e.target.value) || 0,
+                    )
                   }
+                  onFocus={(e) => e.target.select()}
                   min="1"
                 />
               </div>
             </div>
             <p className="text-[10px] text-muted-foreground">
-              Example: 1 {formData.bulkUnit || 'Bulk Unit'} = {formData.unitsPerBulk} {formData.baseUnit || 'Base Unit'}(s)
+              Example: 1 {formData.bulkUnit || "Bulk Unit"} ={" "}
+              {formData.unitsPerBulk} {formData.baseUnit || "Base Unit"}(s)
             </p>
           </div>
 
@@ -464,7 +490,7 @@ export function AddMedicineDialog({
               type="submit"
               className="bg-accent hover:bg-accent/90 cursor-pointer"
             >
-              Add {t('product')}
+              Add {t("product")}
             </Button>
           </DialogFooter>
         </form>

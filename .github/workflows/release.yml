@@ -39,13 +39,13 @@ jobs:
       - name: Install app dependencies
         run: |
           cd client
-          npm ci
+          npm install
       
-      - name: Fix LightningCSS (Windows only)
+      - name: Fix Tailwind/LightningCSS Native Bindings (Windows only)
         if: matrix.platform == 'windows-latest'
         run: |
           cd client
-          npm install lightningcss-win32-x64-msvc
+          npm install --force @tailwindcss/oxide-win32-x64-msvc lightningcss-win32-x64-msvc
 
       - name: Build and Release
         uses: tauri-apps/tauri-action@v0

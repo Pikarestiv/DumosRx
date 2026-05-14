@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { APP_VERSION, GITHUB_REPO } from "@/lib/constants";
 import {
   Card,
   CardContent,
@@ -24,11 +25,13 @@ import {
 import { ModeToggle } from "@/components/mode-toggle";
 
 export default function DownloadsPage() {
-  const GITHUB_REPO = "Pikarestiv/DumosRx";
+  // Remove hardcoded repo constant as it's now in constants.ts
   const [links, setLinks] = useState({
     windows: `https://github.com/${GITHUB_REPO}/releases/latest`,
     macos: `https://github.com/${GITHUB_REPO}/releases/latest`,
-    version: "v0.0.5",
+    version: APP_VERSION,
+    winSize: "84.5 MB",
+    macSize: "78.2 MB",
     loading: true,
   });
 
@@ -48,10 +51,17 @@ export default function DownloadsPage() {
           console.log("Discovered Win Asset:", winAsset?.name);
           console.log("Discovered Mac Asset:", macAsset?.name);
           
+          const formatSize = (bytes: number) => {
+            if (!bytes) return "";
+            return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+          };
+
           setLinks({
             windows: winAsset?.browser_download_url || `https://github.com/${GITHUB_REPO}/releases/latest`,
             macos: macAsset?.browser_download_url || `https://github.com/${GITHUB_REPO}/releases/latest`,
-            version: data.tag_name || "v0.0.5",
+            version: data.tag_name || APP_VERSION,
+            winSize: formatSize(winAsset?.size),
+            macSize: formatSize(macAsset?.size),
             loading: false,
           });
         }
@@ -114,7 +124,7 @@ export default function DownloadsPage() {
                     Windows
                   </CardTitle>
                   <CardDescription>
-                    Requires Windows 10 or later (64-bit)
+                    Requires Windows 10 or later (64-bit) • {links.winSize}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -150,7 +160,7 @@ export default function DownloadsPage() {
                     macOS
                   </CardTitle>
                   <CardDescription>
-                    Supports Intel & Apple Silicon (M1/M2/M3)
+                    Supports Intel & Apple Silicon (M1/M2/M3) • {links.macSize}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>

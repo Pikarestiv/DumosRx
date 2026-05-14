@@ -55,6 +55,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { webApiClient } from "@/lib/api/client";
 import { ModeToggle } from "@/components/mode-toggle";
+import { APP_VERSION, GITHUB_REPO } from "@/lib/constants";
 
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -69,10 +70,13 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<any>(null);
   const [releaseLinks, setReleaseLinks] = useState({
-    windows: "https://github.com/Pikarestiv/DumosRx/releases/latest",
-    macos: "https://github.com/Pikarestiv/DumosRx/releases/latest",
-    linux: "https://github.com/Pikarestiv/DumosRx/releases/latest",
-    version: "v0.0.6",
+    windows: `https://github.com/${GITHUB_REPO}/releases/latest`,
+    macos: `https://github.com/${GITHUB_REPO}/releases/latest`,
+    linux: `https://github.com/${GITHUB_REPO}/releases/latest`,
+    version: APP_VERSION,
+    winSize: "84MB",
+    macSize: "78MB",
+    linuxSize: "92MB",
   });
 
   useEffect(() => {
@@ -96,21 +100,29 @@ export default function DashboardPage() {
 
     fetchData();
 
-    // Fetch latest release links
+    // Fetch latest release links and sizes
     const fetchReleaseLinks = async () => {
       try {
-        const res = await fetch("https://api.github.com/repos/Pikarestiv/DumosRx/releases/latest");
+        const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`);
         const releaseData = await res.json();
         if (releaseData.assets) {
           const win = releaseData.assets.find((a: any) => a.name.toLowerCase().endsWith(".msi") || a.name.toLowerCase().endsWith("-setup.exe"));
           const mac = releaseData.assets.find((a: any) => a.name.toLowerCase().endsWith(".dmg"));
           const linux = releaseData.assets.find((a: any) => a.name.toLowerCase().endsWith(".appimage"));
           
+          const formatSize = (bytes: number) => {
+            if (!bytes) return "";
+            return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+          };
+
           setReleaseLinks({
-            windows: win?.browser_download_url || releaseLinks.windows,
-            macos: mac?.browser_download_url || releaseLinks.macos,
-            linux: linux?.browser_download_url || releaseLinks.linux,
-            version: releaseData.tag_name || releaseLinks.version,
+            windows: win?.browser_download_url || `https://github.com/${GITHUB_REPO}/releases/latest`,
+            macos: mac?.browser_download_url || `https://github.com/${GITHUB_REPO}/releases/latest`,
+            linux: linux?.browser_download_url || `https://github.com/${GITHUB_REPO}/releases/latest`,
+            version: releaseData.tag_name || APP_VERSION,
+            winSize: formatSize(win?.size),
+            macSize: formatSize(mac?.size),
+            linuxSize: formatSize(linux?.size),
           });
         }
       } catch (e) {
@@ -751,21 +763,21 @@ export default function DashboardPage() {
                     os: "Windows",
                     icon: Smartphone,
                     version: releaseLinks.version,
-                    size: "84MB",
+                    size: releaseLinks.winSize,
                     link: releaseLinks.windows,
                   },
                   {
                     os: "macOS",
                     icon: Activity,
                     version: releaseLinks.version,
-                    size: "78MB",
+                    size: releaseLinks.macSize,
                     link: releaseLinks.macos,
                   },
                   {
                     os: "Linux",
                     icon: Globe,
                     version: releaseLinks.version + " (AppImage)",
-                    size: "92MB",
+                    size: releaseLinks.linuxSize,
                     link: releaseLinks.linux,
                   },
                 ].map((app, i) => (

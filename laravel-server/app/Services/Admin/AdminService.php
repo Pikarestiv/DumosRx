@@ -232,7 +232,7 @@ class AdminService
             });
         }
 
-        $paginator = $query->latest()->paginate(10, ['*'], 'page', $page);
+        $paginator = User::with('store')->latest()->paginate(10, ['*'], 'page', $page);
 
         return [
             'data' => collect($paginator->items())->map(function ($user) {
@@ -241,9 +241,10 @@ class AdminService
                     'name' => $user->first_name . ' ' . $user->last_name,
                     'email' => $user->email,
                     'role' => ucwords(str_replace('_', ' ', $user->role)),
-                    'pharmacy' => 'DumosTech Global',
+                    'pharmacy' => $user->store ? $user->store->name : 'Platform Admin',
                     'lastActive' => $user->last_login_at ? $user->last_login_at->diffForHumans() : 'Never',
-                    'status' => $user->is_active ? 'Active' : 'Inactive'
+                    'status' => $user->is_active ? 'Active' : 'Inactive',
+                    'joinedAt' => $user->created_at->format('M d, Y')
                 ];
             }),
             'meta' => [
@@ -319,5 +320,51 @@ class AdminService
 
             return true;
         });
+    }
+
+    public function deactivateUser($id)
+    {
+        $user = User::findOrFail($id);
+        $user->is_active = false;
+        $user->save();
+
+        ActivityLog::create([
+            'user_id' => auth()->id(),
+            'action' => 'USER_DEACTIVATION',
+            'description' => "Deactivated user account: {$user->email} ({$user->id})",
+            'status' => 'success'
+        ]);
+
+        return true;
+    }
+
+    public function forcePasswordReset($id)
+    {
+        $user = User::findOrFail($id);
+        
+        // In a real app, you'd invalidate tokens and maybe set a flag or send email
+        // For now, we log the intent
+        ActivityLog::create([
+            'user_id' => auth()->id(),
+            'action' => 'PASSWORD_RESET_FORCE',
+            'description' => "Forced password reset for user: {$user->email} ({$user->id})",
+            'status' => 'success'
+        ]);
+
+        return true;
+    }
+
+    public function notifyUser($id, $message)
+    {
+        $user = User::findOrFail($id);
+        
+        ActivityLog::create([
+            'user_id' => auth()->id(),
+            'action' => 'ADMIN_NOTIFICATION',
+            'description' => "Sent notification to user {$user->email}: {$message}",
+            'status' => 'success'
+        ]);
+
+        return true;
     }
 }

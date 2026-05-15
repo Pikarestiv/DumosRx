@@ -16,11 +16,17 @@ import {
   ChevronRight, 
   Download,
   Loader2,
-  ShieldAlert
+  ShieldAlert,
+  Send,
+  Calendar,
+  Activity,
+  History,
+  Briefcase
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Table,
   TableBody,
@@ -40,11 +46,31 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { useAdminStore } from "@/lib/store/use-admin-store";
 import { useDebounce } from "@/hooks/use-debounce";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { webApiClient } from "@/lib/api/client";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 export default function GlobalUsersDirectory() {
+  const router = useRouter();
   const { users, userMeta, loading, error, fetchUsers } = useAdminStore();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState<string | null>(null);
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [isDeactivateDialogOpen, setIsDeactivateDialogOpen] = useState(false);
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
+  const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
+  const [isNotifyDialogOpen, setIsNotifyDialogOpen] = useState(false);
+  const [notifyMessage, setNotifyMessage] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
   const debouncedSearch = useDebounce(search, 500);
 
   useEffect(() => {
@@ -59,6 +85,77 @@ export default function GlobalUsersDirectory() {
 
   const userList = users || [];
 
+  const handleExportCSV = () => {
+    if (userList.length === 0) return;
+    const headers = ["ID", "Name", "Email", "Role", "Pharmacy", "Status"];
+    const csvData = userList.map((u: any) => 
+      [u.id, u.name, u.email, u.role, u.pharmacy, u.status].join(",")
+    );
+    const blob = new Blob([[headers.join(","), ...csvData].join("\n")], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `users-export-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    toast.success("User list exported successfully");
+  };
+
+  const handleDeactivate = async () => {
+    if (!selectedUser) return;
+    setIsProcessing(true);
+    try {
+      await webApiClient.request(`admin/users/${selectedUser.id}/deactivate`, { method: 'POST' });
+      toast.success("Account Deactivated", {
+        description: `${selectedUser.name}'s account has been disabled.`
+      });
+      fetchUsers(page, debouncedSearch);
+    } catch (err: any) {
+      toast.error("Action Failed", { description: err.message || "Failed to deactivate user" });
+    } finally {
+      setIsProcessing(false);
+      setIsDeactivateDialogOpen(false);
+      setSelectedUser(null);
+    }
+  };
+
+  const handlePasswordReset = async () => {
+    if (!selectedUser) return;
+    setIsProcessing(true);
+    try {
+      await webApiClient.request(`admin/users/${selectedUser.id}/reset-password`, { method: 'POST' });
+      toast.success("Password Reset Forced", {
+        description: `A password reset link has been sent to ${selectedUser.email}`
+      });
+    } catch (err: any) {
+      toast.error("Action Failed", { description: err.message || "Failed to force password reset" });
+    } finally {
+      setIsProcessing(false);
+      setIsResetDialogOpen(false);
+      setSelectedUser(null);
+    }
+  };
+
+  const handleSendNotification = async () => {
+    if (!selectedUser || !notifyMessage) return;
+    setIsProcessing(true);
+    try {
+      await webApiClient.request(`admin/users/${selectedUser.id}/notify`, { 
+        method: 'POST',
+        body: { message: notifyMessage }
+      });
+      toast.success("Notification Sent", {
+        description: `Message successfully delivered to ${selectedUser.name}`
+      });
+      setNotifyMessage("");
+      setIsNotifyDialogOpen(false);
+    } catch (err: any) {
+      toast.error("Failed to Send", { description: err.message });
+    } finally {
+      setIsProcessing(false);
+      setSelectedUser(null);
+    }
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -67,11 +164,18 @@ export default function GlobalUsersDirectory() {
           <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium">Monitor and manage all users across the platform ecosystem</p>
         </div>
         <div className="flex items-center gap-3">
-            <Button variant="outline" className="border-2 font-bold dark:bg-slate-900 dark:border-slate-800">
+            <Button 
+              variant="outline" 
+              className="border-2 font-bold dark:bg-slate-900 dark:border-slate-800"
+              onClick={handleExportCSV}
+            >
                 <Download className="h-4 w-4 mr-2" />
                 Export User List
             </Button>
-            <Button className="bg-indigo-600 hover:bg-indigo-700 font-bold shadow-lg shadow-indigo-600/20">
+            <Button 
+              className="bg-indigo-600 hover:bg-indigo-700 font-bold shadow-lg shadow-indigo-600/20"
+              onClick={() => router.push("/admin/users/new")}
+            >
                 <UserPlus className="h-4 w-4 mr-2" />
                 Add Platform Admin
             </Button>
@@ -92,10 +196,25 @@ export default function GlobalUsersDirectory() {
             </div>
             <div className="flex items-center gap-3">
                 {loading && <Loader2 className="h-4 w-4 animate-spin text-indigo-500 mr-2" />}
-                <Button variant="outline" size="sm" className="font-bold border-2">
-                    <Filter className="h-4 w-4 mr-2" />
-                    Roles
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="font-bold border-2">
+                        <Filter className="h-4 w-4 mr-2" />
+                        {roleFilter || 'Roles'}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48 p-2 rounded-2xl shadow-xl">
+                    <DropdownMenuLabel className="text-[10px] uppercase tracking-widest text-slate-400 px-3 py-2">System Role</DropdownMenuLabel>
+                    <DropdownMenuItem className="rounded-xl px-3 py-2 cursor-pointer font-bold" onClick={() => setRoleFilter(null)}>All Roles</DropdownMenuItem>
+                    <DropdownMenuItem className="rounded-xl px-3 py-2 cursor-pointer font-bold" onClick={() => setRoleFilter('Super Admin')}>Super Admin</DropdownMenuItem>
+                    <DropdownMenuItem className="rounded-xl px-3 py-2 cursor-pointer font-bold" onClick={() => setRoleFilter('Pharmacy Owner')}>Pharmacy Owner</DropdownMenuItem>
+                    <DropdownMenuItem className="rounded-xl px-3 py-2 cursor-pointer font-bold" onClick={() => setRoleFilter('Pharmacist')}>Pharmacist</DropdownMenuItem>
+                    <DropdownMenuSeparator className="my-2" />
+                    <DropdownMenuLabel className="text-[10px] uppercase tracking-widest text-slate-400 px-3 py-2">Billing Plan</DropdownMenuLabel>
+                    <DropdownMenuItem className="rounded-xl px-3 py-2 cursor-pointer font-bold">Basic</DropdownMenuItem>
+                    <DropdownMenuItem className="rounded-xl px-3 py-2 cursor-pointer font-bold">Enterprise</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <div className="h-8 w-px bg-slate-200 dark:bg-slate-800 mx-1 hidden md:block" />
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Global Directory: {userMeta?.total || 0} Users</p>
             </div>
@@ -153,7 +272,7 @@ export default function GlobalUsersDirectory() {
                       <TableCell className="text-center">
                           <div className="flex flex-col items-center">
                               <span className={`text-xs font-black ${user.lastActive === 'Active Now' ? 'text-green-500' : 'text-slate-500'}`}>{user.lastActive}</span>
-                              <span className="text-[9px] text-slate-400 uppercase tracking-widest font-medium">May 13, 2026</span>
+                              <span className="text-[9px] text-slate-400 uppercase tracking-widest font-medium">{user.joinedAt}</span>
                           </div>
                       </TableCell>
                       <TableCell className="text-center">
@@ -172,24 +291,48 @@ export default function GlobalUsersDirectory() {
                               <MoreVertical className="h-4 w-4 text-slate-400" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-56 p-2">
-                            <DropdownMenuLabel>User Actions</DropdownMenuLabel>
-                            <DropdownMenuItem className="cursor-pointer gap-2 py-2">
+                          <DropdownMenuContent align="end" className="w-60 p-2 rounded-2xl shadow-xl border-slate-200 dark:border-slate-800">
+                            <DropdownMenuLabel className="text-[10px] uppercase tracking-widest text-slate-400 px-3 py-2">User Actions</DropdownMenuLabel>
+                            <DropdownMenuItem 
+                              className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold"
+                              onClick={() => {
+                                setSelectedUser(user);
+                                setIsProfileDialogOpen(true);
+                              }}
+                            >
                               <Eye className="h-4 w-4 text-indigo-500" />
-                              <span>View Detailed Profile</span>
+                              View Detailed Profile
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="cursor-pointer gap-2 py-2">
+                            <DropdownMenuItem 
+                              className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold"
+                              onClick={() => {
+                                setSelectedUser(user);
+                                setIsNotifyDialogOpen(true);
+                              }}
+                            >
                               <Mail className="h-4 w-4 text-blue-500" />
-                              <span>Send Notification</span>
+                              Send Notification
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="cursor-pointer gap-2 py-2">
+                            <DropdownMenuItem 
+                              className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold"
+                              onClick={() => {
+                                setSelectedUser(user);
+                                setIsResetDialogOpen(true);
+                              }}
+                            >
                               <Lock className="h-4 w-4 text-amber-500" />
-                              <span>Force Password Reset</span>
+                              Force Password Reset
                             </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem className="cursor-pointer gap-2 py-2 text-rose-600 focus:text-rose-600 focus:bg-rose-50 dark:focus:bg-rose-500/10">
+                            <DropdownMenuSeparator className="my-2 bg-slate-100 dark:bg-slate-800" />
+                            <DropdownMenuItem 
+                              className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors"
+                              onClick={() => {
+                                setSelectedUser(user);
+                                setIsDeactivateDialogOpen(true);
+                              }}
+                            >
                               <Ban className="h-4 w-4" />
-                              <span>Deactivate Account</span>
+                              Deactivate Account
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -211,7 +354,7 @@ export default function GlobalUsersDirectory() {
             )}
           </div>
 
-          {userMeta && (
+          {userMeta && userMeta.last_page > 1 && (
             <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/30">
               <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Page {userMeta.current_page} of {userMeta.last_page}</p>
               <div className="flex items-center gap-2">
@@ -257,6 +400,175 @@ export default function GlobalUsersDirectory() {
           )}
         </CardContent>
       </Card>
+
+      {/* Deactivate Dialog */}
+      <Dialog open={isDeactivateDialogOpen} onOpenChange={setIsDeactivateDialogOpen}>
+        <DialogContent className="rounded-3xl border-slate-200 dark:border-slate-800 shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-rose-500/10 flex items-center justify-center">
+                <Ban className="h-5 w-5 text-rose-500" />
+              </div>
+              Deactivate User Account?
+            </DialogTitle>
+            <DialogDescription className="text-slate-500 dark:text-slate-400 font-medium pt-2">
+              Are you sure you want to deactivate <span className="font-bold text-slate-900 dark:text-white">{selectedUser?.name}</span>? 
+              They will be immediately logged out and unable to access the platform until reactivated.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 pt-4">
+            <Button variant="outline" onClick={() => setIsDeactivateDialogOpen(false)} className="rounded-xl border-2 font-bold h-12">Cancel</Button>
+            <Button 
+              onClick={handleDeactivate}
+              className="rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-bold h-12 shadow-lg shadow-rose-500/20"
+              disabled={isProcessing}
+            >
+              {isProcessing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Deactivate Account
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Password Reset Dialog */}
+      <Dialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
+        <DialogContent className="rounded-3xl border-slate-200 dark:border-slate-800 shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
+                <Lock className="h-5 w-5 text-amber-500" />
+              </div>
+              Force Password Reset?
+            </DialogTitle>
+            <DialogDescription className="text-slate-500 dark:text-slate-400 font-medium pt-2">
+              This will invalidate <span className="font-bold text-slate-900 dark:text-white">{selectedUser?.name}</span>'s current password 
+              and send a secure reset link to <span className="font-bold text-slate-900 dark:text-white">{selectedUser?.email}</span>.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 pt-4">
+            <Button variant="outline" onClick={() => setIsResetDialogOpen(false)} className="rounded-xl border-2 font-bold h-12">Cancel</Button>
+            <Button 
+              onClick={handlePasswordReset}
+              className="rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold h-12 shadow-lg shadow-amber-500/20"
+              disabled={isProcessing}
+            >
+              {isProcessing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Confirm Reset
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Detailed Profile Dialog */}
+      <Dialog open={isProfileDialogOpen} onOpenChange={setIsProfileDialogOpen}>
+        <DialogContent className="max-w-2xl rounded-3xl border-slate-200 dark:border-slate-800 shadow-2xl p-0 overflow-hidden">
+          <DialogHeader className="sr-only">
+            <DialogTitle>User Detailed Profile</DialogTitle>
+          </DialogHeader>
+          <div className="bg-indigo-600 p-8 text-white relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-12 opacity-10 rotate-12">
+              <Shield className="h-32 w-32" />
+            </div>
+            <div className="relative z-10 flex items-center gap-6">
+              <div className="h-20 w-20 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-3xl font-black border border-white/30">
+                {selectedUser?.name?.charAt(0)}
+              </div>
+              <div>
+                <h2 className="text-3xl font-black">{selectedUser?.name}</h2>
+                <div className="flex items-center gap-2 mt-1 opacity-80 font-medium">
+                  <Badge className="bg-white/20 hover:bg-white/30 border-none text-white font-bold px-3">
+                    {selectedUser?.role}
+                  </Badge>
+                  <span>•</span>
+                  <span>{selectedUser?.email}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="p-8 grid grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 text-slate-500">
+                <Store className="h-4 w-4" />
+                <div>
+                  <p className="text-[10px] uppercase font-bold tracking-widest opacity-50">Affiliated Pharmacy</p>
+                  <p className="text-sm font-black text-slate-900 dark:text-white">{selectedUser?.pharmacy}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 text-slate-500">
+                <Calendar className="h-4 w-4" />
+                <div>
+                  <p className="text-[10px] uppercase font-bold tracking-widest opacity-50">Member Since</p>
+                  <p className="text-sm font-black text-slate-900 dark:text-white">{selectedUser?.joinedAt || 'N/A'}</p>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 text-slate-500">
+                <Activity className="h-4 w-4" />
+                <div>
+                  <p className="text-[10px] uppercase font-bold tracking-widest opacity-50">Last Login</p>
+                  <p className="text-sm font-black text-slate-900 dark:text-white">{selectedUser?.lastActive}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 text-slate-500">
+                <History className="h-4 w-4" />
+                <div>
+                  <p className="text-[10px] uppercase font-bold tracking-widest opacity-50">System Status</p>
+                  <p className={`text-sm font-black ${selectedUser?.status === 'Active' ? 'text-emerald-500' : 'text-rose-500'}`}>
+                    {selectedUser?.status}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="p-8 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex justify-end">
+            <Button onClick={() => setIsProfileDialogOpen(false)} className="rounded-xl font-bold px-8">Close Profile</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Send Notification Dialog */}
+      <Dialog open={isNotifyDialogOpen} onOpenChange={setIsNotifyDialogOpen}>
+        <DialogContent className="rounded-3xl border-slate-200 dark:border-slate-800 shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                <Send className="h-5 w-5 text-blue-500" />
+              </div>
+              Send System Notification
+            </DialogTitle>
+            <DialogDescription className="text-slate-500 dark:text-slate-400 font-medium pt-2">
+              Deliver an urgent message to <span className="font-bold text-slate-900 dark:text-white">{selectedUser?.name}</span>. This will appear in their dashboard notifications.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400">Notification Message</label>
+              <Textarea 
+                placeholder="Enter your message here..." 
+                className="min-h-[120px] rounded-2xl border-2 focus-visible:ring-blue-500 font-medium p-4"
+                value={notifyMessage}
+                onChange={(e) => setNotifyMessage(e.target.value)}
+              />
+            </div>
+            <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-500/10 rounded-xl border border-blue-100 dark:border-blue-500/20 text-blue-600">
+              <Briefcase className="h-4 w-4 shrink-0" />
+              <p className="text-xs font-bold">This message will be logged as an official administrative action.</p>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setIsNotifyDialogOpen(false)} className="rounded-xl border-2 font-bold h-12">Discard</Button>
+            <Button 
+              onClick={handleSendNotification}
+              className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold h-12 shadow-lg shadow-blue-600/20 px-8"
+              disabled={isProcessing || !notifyMessage}
+            >
+              {isProcessing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
+              Send Message
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -140,4 +140,53 @@ class AdminController extends Controller
             return response()->json(['error' => 'Failed to suspend pharmacy'], 500);
         }
     }
+
+    public function deactivateUser(Request $request, $id)
+    {
+        if ($request->user()->role !== 'super_admin') {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        try {
+            $this->adminService->deactivateUser($id);
+            return response()->json(['message' => 'User deactivated successfully']);
+        } catch (\Exception $e) {
+            \Log::error("Admin Deactivate User Error: " . $e->getMessage());
+            return response()->json(['error' => 'Failed to deactivate user'], 500);
+        }
+    }
+
+    public function forcePasswordReset(Request $request, $id)
+    {
+        if ($request->user()->role !== 'super_admin') {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        try {
+            $this->adminService->forcePasswordReset($id);
+            return response()->json(['message' => 'Password reset forced successfully']);
+        } catch (\Exception $e) {
+            \Log::error("Admin Force Reset Error: " . $e->getMessage());
+            return response()->json(['error' => 'Failed to force password reset'], 500);
+        }
+    }
+
+    public function notifyUser(Request $request, $id)
+    {
+        if ($request->user()->role !== 'super_admin') {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        $validated = $request->validate([
+            'message' => 'required|string|min:5',
+        ]);
+
+        try {
+            $this->adminService->notifyUser($id, $validated['message']);
+            return response()->json(['message' => 'Notification sent successfully']);
+        } catch (\Exception $e) {
+            \Log::error("Admin Notify Error: " . $e->getMessage());
+            return response()->json(['error' => 'Failed to send notification'], 500);
+        }
+    }
 }

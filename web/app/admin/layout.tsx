@@ -21,8 +21,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { useAuthStore } from "@/lib/store/use-auth-store";
-import { useRouter } from "next/navigation";
+import { useAdminAuthStore } from "@/lib/store/use-admin-auth-store";
+import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 
@@ -31,25 +31,44 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, fetchUser, loading: authLoading } = useAuthStore();
+  const { user, fetchUser, loading: authLoading, token } = useAdminAuthStore();
   const router = useRouter();
+  const pathname = usePathname();
   const [checking, setChecking] = useState(true);
+
+  const isLoginPage = pathname?.includes("/admin/login");
 
   useEffect(() => {
     const checkAuth = async () => {
+      if (isLoginPage) {
+        setChecking(false);
+        return;
+      }
+
+      if (!token) {
+        router.push("/admin/login");
+        return;
+      }
+      
       if (!user) {
         await fetchUser();
       }
       setChecking(false);
     };
     checkAuth();
-  }, [user, fetchUser]);
+  }, [user, fetchUser, token, router, isLoginPage]);
 
   useEffect(() => {
+    if (isLoginPage) return;
+
     if (!checking && (!user || user.role !== 'super_admin')) {
-      router.push("/login");
+      router.push("/admin/login");
     }
-  }, [user, checking, router]);
+  }, [user, checking, router, isLoginPage]);
+
+  if (isLoginPage) {
+    return <>{children}</>;
+  }
 
   if (checking || authLoading) {
     return (

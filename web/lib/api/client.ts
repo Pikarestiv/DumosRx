@@ -19,7 +19,9 @@ class WebApiClient {
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
 
-    const token = typeof window !== "undefined" ? localStorage.getItem("drx_token") : null;
+    const isAdminPath = typeof window !== "undefined" && window.location.pathname.startsWith('/admin');
+    const tokenKey = isAdminPath ? "drx_admin_token" : "drx_token";
+    const token = typeof window !== "undefined" ? localStorage.getItem(tokenKey) : null;
 
     const headers = {
       "Content-Type": "application/json",

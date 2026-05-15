@@ -7,6 +7,7 @@ use App\Models\Sale;
 use App\Models\Inventory;
 use App\Models\Customer;
 use App\Models\ActivityLog;
+use App\Models\Store;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
@@ -50,13 +51,9 @@ class DashboardController extends Controller
         $newCustomersThisWeek = Customer::where('created_at', '>=', $last7Days)
             ->count();
 
-        // 4. Stores/Sync Info (Inferred from unique IP addresses in logs)
-        $uniqueDevices = ActivityLog::where('user_id', $userId)
-            ->select('ip_address', 'user_agent', DB::raw('MAX(created_at) as last_seen'))
-            ->groupBy('ip_address', 'user_agent')
-            ->get();
-        
-        $storesCount = $uniqueDevices->count() ?: 1;
+        // 4. Stores/Sync Info (From Stores table)
+        $userStores = Store::where('user_id', $userId)->get();
+        $storesCount = $userStores->count();
         
         $lastSyncedRecord = DB::table('sales')
             ->where('cashier_id', $userId)
@@ -72,31 +69,20 @@ class DashboardController extends Controller
             ->limit(5)
             ->get();
 
-        // Map inferred devices to "Stores"
-        $stores = $uniqueDevices->map(function($device, $index) use ($user, $totalSales) {
-            $isWeb = str_contains($device->user_agent, 'Mozilla') && !str_contains($device->user_agent, 'Electron');
-            $name = $isWeb ? 'Cloud Dashboard' : (($user->pharmacy_name ?? 'Branch') . ' #' . ($index + 1));
-            
+        // Map Store models to response format
+        $stores = $userStores->map(function($store) use ($totalSales, $storesCount) {
             return [
-                'id' => 'DEV-' . strtoupper(substr(md5($device->ip_address . $device->user_agent), 0, 8)),
-                'name' => $name,
-                'status' => Carbon::parse($device->last_seen)->gt(now()->subMinutes(30)) ? 'online' : 'offline',
-                'lastSync' => Carbon::parse($device->last_seen)->diffForHumans(),
-                'sales' => $isWeb ? 'N/A' : '₦' . number_format($totalSales / ($index + 1)) // Mock split for visualization
+                'id' => $store->id,
+                'name' => $store->name,
+                'status' => $store->last_sync_at && Carbon::parse($store->last_sync_at)->gt(now()->subMinutes(30)) ? 'online' : 'offline',
+                'lastSync' => $store->last_sync_at ? Carbon::parse($store->last_sync_at)->diffForHumans() : 'Never',
+                'sales' => '₦' . number_format($totalSales / ($storesCount ?: 1)) // Split evenly for visualization
             ];
         });
 
-        // Fallback for visual consistency if no logs yet
+        // Fallback ONLY if absolutely no stores exist
         if ($stores->isEmpty()) {
-            $stores = [
-                [
-                    'id' => 'DEV-' . strtoupper(substr(md5($userId), 0, 8)),
-                    'name' => ($user->pharmacy_name ?? 'Main Branch') . ' (HQ)',
-                    'status' => $lastSyncTime === 'Never' ? 'offline' : 'online',
-                    'lastSync' => $lastSyncTime,
-                    'sales' => '₦' . number_format($totalSales)
-                ]
-            ];
+            $stores = [];
         }
 
         return response()->json([
@@ -130,7 +116,7 @@ class DashboardController extends Controller
     {
         $user = $request->user();
         $userId = $user->id;
-        $type = $request->input('type', 'all'); // all, sales, logs, customers, inventory
+        $type = $request->input('type', 'all'); // all, sales, logs, customers, inventory, stores
 
         $message = "Account data has been reset.";
 
@@ -145,13 +131,18 @@ class DashboardController extends Controller
         }
 
         if ($type === 'all' || $type === 'customers') {
-            Customer::query()->delete(); // Assuming customers are shared or per-org
+            Customer::query()->delete(); 
             $message = $type === 'all' ? "All data cleared." : "Customer records cleared.";
         }
 
         if ($type === 'all' || $type === 'inventory') {
             Inventory::query()->delete(); 
             $message = $type === 'all' ? "All data cleared." : "Inventory records cleared.";
+        }
+
+        if ($type === 'all' || $type === 'stores') {
+            Store::where('user_id', $userId)->delete();
+            $message = $type === 'all' ? "All data cleared." : "Connected stores cleared.";
         }
 
         return response()->json([

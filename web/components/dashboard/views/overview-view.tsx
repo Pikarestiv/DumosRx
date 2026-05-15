@@ -69,6 +69,10 @@ export function OverviewView({ stats, user, stores, onReset }: OverviewViewProps
         title: "Clear Customers",
         description: "This will delete all customer records from the cloud database.",
       },
+      stores: {
+        title: "Clear Terminals",
+        description: "Are you sure you want to delete all connected pharmacy terminals? They will need to re-register to sync data.",
+      },
       all: {
         title: "Full Account Reset",
         description: "WARNING: This will delete ALL data (Sales, Logs, Inventory, Customers). This is irreversible.",
@@ -267,6 +271,14 @@ export function OverviewView({ stats, user, stores, onReset }: OverviewViewProps
                   onClick={() => handleResetClick("customers")}
                 >
                   Clear Customers
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  className="text-xs font-bold border-destructive/20 hover:bg-destructive hover:text-white"
+                  onClick={() => handleResetClick("stores")}
+                >
+                  Clear Terminals
                 </Button>
               </div>
 

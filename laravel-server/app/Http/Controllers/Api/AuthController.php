@@ -88,11 +88,11 @@ class AuthController extends Controller
                 $token,
                 60 * 24,
                 '/',
-                '.rx.dumostech.com', // Allow access across subdomains
-                true, // secure
+                $request->getHost() === 'localhost' ? null : '.rx.dumostech.com',
+                $request->isSecure(), // secure
                 true, // httpOnly
                 false,
-                'Lax'
+                $request->isSecure() ? 'None' : 'Lax'
             ));
         }
 

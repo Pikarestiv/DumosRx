@@ -72,9 +72,16 @@ export default function LoginPage() {
                 damping: 20,
                 delay: 0.2,
               }}
-              className="h-16 w-16 bg-primary/20 rounded-2xl flex items-center justify-center mb-4 border border-primary/30"
+              className="mb-6"
             >
-              <Pill className="h-8 w-8 text-primary" />
+              <Image 
+                src="/logo.png" 
+                alt="DumosRx Logo" 
+                width={120} 
+                height={40} 
+                className="h-10 w-auto"
+                priority
+              />
             </motion.div>
             <h2 className="text-4xl font-serif font-black text-white">
               Sign In

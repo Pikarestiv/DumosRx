@@ -153,15 +153,17 @@ class DashboardService
 
         try {
             $message = "Account data has been reset.";
+            \Log::info("Starting data reset for user: {$userId}, type: {$type}");
 
             if ($type === 'all' || $type === 'sales') {
                 if (Schema::hasTable('sales')) {
                     $query = Sale::query();
                     if (Schema::hasColumn('sales', 'cashier_id')) {
                         $query->where('cashier_id', $userId);
+                        \Log::info("Clearing sales for cashier: {$userId}");
+                        $query->delete();
+                        $message = "Sales records cleared.";
                     }
-                    $query->delete();
-                    $message = "Sales records cleared.";
                 }
             }
 
@@ -170,20 +172,25 @@ class DashboardService
                     $query = ActivityLog::query();
                     if (Schema::hasColumn('activity_logs', 'user_id')) {
                         $query->where('user_id', $userId);
+                        \Log::info("Clearing activity logs for user: {$userId}");
+                        $query->delete();
+                        $message = $type === 'all' ? "All data cleared." : "Activity logs cleared.";
                     }
-                    $query->delete();
-                    $message = $type === 'all' ? "All data cleared." : "Activity logs cleared.";
                 }
             }
 
             if ($type === 'all' || $type === 'customers') {
                 if (Schema::hasTable('customers')) {
+                    \Log::info("Checking customers table for user_id column");
                     $query = Customer::query();
                     if (Schema::hasColumn('customers', 'user_id')) {
                         $query->where('user_id', $userId);
+                        \Log::info("Clearing customers for user: {$userId}");
+                        $query->delete(); 
+                        $message = $type === 'all' ? "All data cleared." : "Customer records cleared.";
+                    } else {
+                        \Log::warning("Customers table missing user_id column, skipping filtered delete");
                     }
-                    $query->delete(); 
-                    $message = $type === 'all' ? "All data cleared." : "Customer records cleared.";
                 }
             }
 
@@ -192,27 +199,34 @@ class DashboardService
                     $query = Inventory::query();
                     if (Schema::hasColumn('inventory', 'user_id')) {
                         $query->where('user_id', $userId);
+                        \Log::info("Clearing inventory for user: {$userId}");
+                        $query->delete(); 
+                        $message = $type === 'all' ? "All data cleared." : "Inventory records cleared.";
                     }
-                    $query->delete(); 
-                    $message = $type === 'all' ? "All data cleared." : "Inventory records cleared.";
                 }
             }
 
             if ($type === 'all' || $type === 'stores') {
+                \Log::info("Checking for stores table existence");
                 if (Schema::hasTable('stores')) {
                     $query = Store::query();
                     if (Schema::hasColumn('stores', 'user_id')) {
                         $query->where('user_id', $userId);
+                        \Log::info("Clearing stores for user: {$userId}");
+                        $query->delete();
+                        $message = $type === 'all' ? "All data cleared." : "Connected stores cleared.";
                     }
-                    $query->delete();
-                    $message = $type === 'all' ? "All data cleared." : "Connected stores cleared.";
+                } else {
+                    \Log::warning("Stores table does not exist, skipping");
                 }
             }
 
             DB::commit();
+            \Log::info("Data reset completed successfully for user: {$userId}");
             return ['status' => 'success', 'message' => $message];
         } catch (\Exception $e) {
             DB::rollBack();
+            \Log::error("Dashboard Reset Transaction Failed: " . $e->getMessage());
             throw $e;
         }
     }

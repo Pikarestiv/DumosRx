@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { 
   Search, 
   Filter, 
@@ -14,7 +15,9 @@ import {
   Box,
   ChevronLeft,
   ChevronRight,
-  Store
+  Store,
+  Loader2,
+  ShieldAlert
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,17 +31,27 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
-
-const globalProducts = [
-  { id: "PRD-101", name: "Paracetamol 500mg", category: "Analgesics", instances: 1240, avgPrice: "₦250", stockLevel: "High", status: "Verified" },
-  { id: "PRD-205", name: "Amoxicillin 250mg", category: "Antibiotics", instances: 842, avgPrice: "₦1,200", stockLevel: "Medium", status: "Verified" },
-  { id: "PRD-442", name: "Vitamin C (Syrup)", category: "Supplements", instances: 612, avgPrice: "₦850", stockLevel: "Critical", status: "Verified" },
-  { id: "PRD-881", name: "Insulin Glargine", category: "Diabetes", instances: 142, avgPrice: "₦15,400", stockLevel: "Low", status: "Flagged" },
-  { id: "PRD-119", name: "Metformin 500mg", category: "Diabetes", instances: 512, avgPrice: "₦1,100", stockLevel: "High", status: "Verified" },
-  { id: "PRD-332", name: "Loratadine 10mg", category: "Antihistamines", instances: 312, avgPrice: "₦450", stockLevel: "Medium", status: "Verified" },
-];
+import { useAdminStore } from "@/lib/store/use-admin-store";
+import { useDebounce } from "@/hooks/use-debounce";
 
 export default function GlobalProductsManagement() {
+  const { products, productMeta, loading, error, fetchProducts } = useAdminStore();
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 500);
+
+  useEffect(() => {
+    fetchProducts(page, debouncedSearch);
+  }, [page, debouncedSearch, fetchProducts]);
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= (productMeta?.last_page || 1)) {
+      setPage(newPage);
+    }
+  };
+
+  const productList = products || [];
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -101,110 +114,159 @@ export default function GlobalProductsManagement() {
       <Card className="border-none shadow-sm overflow-hidden bg-white dark:bg-slate-900">
         <CardContent className="p-0">
           <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="relative w-full max-w-sm group">
+            <div className="relative w-full max-sm max-w-sm group">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
               <Input
                 placeholder="Search global catalog..."
                 className="pl-10 bg-slate-50 dark:bg-slate-800 border-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
               />
             </div>
             <div className="flex items-center gap-3">
+                {loading && <Loader2 className="h-4 w-4 animate-spin text-indigo-500 mr-2" />}
                 <Button variant="outline" size="sm" className="font-bold border-2">
                     <Filter className="h-4 w-4 mr-2" />
                     Categories
                 </Button>
                 <div className="h-8 w-px bg-slate-200 dark:bg-slate-800 mx-1 hidden md:block" />
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Global Catalog: 14,290 SKUs</p>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                    Global Catalog: {productMeta?.total || 0} SKUs
+                </p>
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
-                  <TableHead className="font-bold text-[10px] uppercase text-slate-400 pl-6 h-12">Product Details</TableHead>
-                  <TableHead className="font-bold text-[10px] uppercase text-slate-400 h-12">Global Category</TableHead>
-                  <TableHead className="font-bold text-[10px] uppercase text-slate-400 text-center h-12">Pharmacy Instances</TableHead>
-                  <TableHead className="font-bold text-[10px] uppercase text-slate-400 text-center h-12">Avg. Cloud Price</TableHead>
-                  <TableHead className="font-bold text-[10px] uppercase text-slate-400 text-center h-12">Stock Health</TableHead>
-                  <TableHead className="font-bold text-[10px] uppercase text-slate-400 text-center h-12">Verification</TableHead>
-                  <TableHead className="w-[80px] h-12"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {globalProducts.map((product) => (
-                  <TableRow key={product.id} className="border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 group transition-colors">
-                    <TableCell className="pl-6 py-5">
-                      <div className="flex items-center gap-4">
-                        <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center font-black text-amber-500 border border-amber-500/20 text-xs">
-                          <Box className="h-5 w-5" />
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="font-bold text-slate-900 dark:text-slate-100 group-hover:text-indigo-600 transition-colors">{product.name}</span>
-                          <span className="text-[10px] font-mono text-slate-400 uppercase tracking-tighter">{product.id}</span>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 font-bold text-[10px]">
-                        {product.category}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                        <div className="flex items-center justify-center gap-2">
-                            <span className="font-black text-slate-900 dark:text-slate-100">{product.instances}</span>
-                            <Store className="h-3 w-3 text-slate-400" />
-                        </div>
-                    </TableCell>
-                    <TableCell className="text-center font-black text-indigo-600 dark:text-indigo-400">
-                      {product.avgPrice}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge className={
-                        product.stockLevel === 'High' ? 'bg-emerald-500' :
-                        product.stockLevel === 'Critical' ? 'bg-rose-500 animate-pulse' :
-                        'bg-amber-500'
-                      }>
-                        {product.stockLevel}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                        <div className="flex items-center justify-center gap-1.5">
-                            <FileCheck className={`h-4 w-4 ${product.status === 'Verified' ? 'text-indigo-500' : 'text-slate-300'}`} />
-                            <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{product.status}</span>
-                        </div>
-                    </TableCell>
-                    <TableCell className="pr-6">
-                        <Button variant="ghost" size="icon" className="hover:bg-indigo-50 dark:hover:bg-indigo-500/10">
-                            <MoreVertical className="h-4 w-4 text-slate-400" />
-                        </Button>
-                    </TableCell>
+          <div className="overflow-x-auto min-h-[400px]">
+            {error ? (
+              <div className="flex flex-col items-center justify-center py-20 gap-4">
+                <ShieldAlert className="h-10 w-10 text-rose-500" />
+                <p className="text-rose-500 font-bold">{error}</p>
+                <Button onClick={() => fetchProducts(page, debouncedSearch)} variant="outline">Retry</Button>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
+                    <TableHead className="font-bold text-[10px] uppercase text-slate-400 pl-6 h-12">Product Details</TableHead>
+                    <TableHead className="font-bold text-[10px] uppercase text-slate-400 h-12">Global Category</TableHead>
+                    <TableHead className="font-bold text-[10px] uppercase text-slate-400 text-center h-12">Pharmacy Instances</TableHead>
+                    <TableHead className="font-bold text-[10px] uppercase text-slate-400 text-center h-12">Avg. Cloud Price</TableHead>
+                    <TableHead className="font-bold text-[10px] uppercase text-slate-400 text-center h-12">Stock Health</TableHead>
+                    <TableHead className="font-bold text-[10px] uppercase text-slate-400 text-center h-12">Verification</TableHead>
+                    <TableHead className="w-[80px] h-12"></TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {productList.map((product: any) => (
+                    <TableRow key={product.id} className="border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 group transition-colors">
+                      <TableCell className="pl-6 py-5">
+                        <div className="flex items-center gap-4">
+                          <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center font-black text-amber-500 border border-amber-500/20 text-xs">
+                            <Box className="h-5 w-5" />
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="font-bold text-slate-900 dark:text-slate-100 group-hover:text-indigo-600 transition-colors">{product.name}</span>
+                            <span className="text-[10px] font-mono text-slate-400 uppercase tracking-tighter">{product.id}</span>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 font-bold text-[10px]">
+                          {product.category}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-center">
+                          <div className="flex items-center justify-center gap-2">
+                              <span className="font-black text-slate-900 dark:text-slate-100">{product.instances}</span>
+                              <Store className="h-3 w-3 text-slate-400" />
+                          </div>
+                      </TableCell>
+                      <TableCell className="text-center font-black text-indigo-600 dark:text-indigo-400">
+                        {product.avgPrice}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge className={
+                          product.stockLevel === 'High' ? 'bg-emerald-500' :
+                          product.stockLevel === 'Critical' ? 'bg-rose-500 animate-pulse' :
+                          'bg-amber-500'
+                        }>
+                          {product.stockLevel}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-center">
+                          <div className="flex items-center justify-center gap-1.5">
+                              <FileCheck className={`h-4 w-4 ${product.status === 'Verified' ? 'text-indigo-500' : 'text-slate-300'}`} />
+                              <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{product.status}</span>
+                          </div>
+                      </TableCell>
+                      <TableCell className="pr-6">
+                          <Button variant="ghost" size="icon" className="hover:bg-indigo-50 dark:hover:bg-indigo-500/10">
+                              <MoreVertical className="h-4 w-4 text-slate-400" />
+                          </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {productList.length === 0 && !loading && (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-20 text-slate-400 font-medium">
+                        <div className="flex flex-col items-center gap-2">
+                           <Box className="h-10 w-10 opacity-20" />
+                           <span>No products found in the global catalog</span>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            )}
           </div>
 
-          <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/30">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Showing 6 of 14,290 Products</p>
-            <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" disabled className="h-8 border-2 font-black text-xs uppercase tracking-tighter">
-                    <ChevronLeft className="h-4 w-4 mr-1" />
-                    Prev
-                </Button>
-                <div className="flex gap-1">
-                    {[1, 2, 3, '...', 1429].map((n, i) => (
-                        <Button key={i} variant={n === 1 ? "default" : "ghost"} size="sm" className={`h-8 w-8 p-0 font-bold ${n === 1 ? 'bg-indigo-600' : ''}`}>
-                            {n}
-                        </Button>
-                    ))}
-                </div>
-                <Button variant="outline" size="sm" className="h-8 border-2 font-black text-xs uppercase tracking-tighter">
-                    Next
-                    <ChevronRight className="h-4 w-4 ml-1" />
-                </Button>
+          {productMeta && (
+            <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/30">
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                Page {productMeta.current_page} of {productMeta.last_page}
+              </p>
+              <div className="flex items-center gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    disabled={productMeta.current_page === 1}
+                    onClick={() => handlePageChange(productMeta.current_page - 1)}
+                    className="h-8 border-2 font-black text-xs uppercase tracking-tighter"
+                  >
+                      <ChevronLeft className="h-4 w-4 mr-1" />
+                      Prev
+                  </Button>
+                  <div className="flex gap-1">
+                      {Array.from({ length: Math.min(5, productMeta.last_page) }, (_, i) => {
+                        const pageNum = i + 1;
+                        return (
+                          <Button 
+                            key={i} 
+                            variant={pageNum === productMeta.current_page ? "default" : "ghost"} 
+                            size="sm" 
+                            onClick={() => handlePageChange(pageNum)}
+                            className={`h-8 w-8 p-0 font-bold ${pageNum === productMeta.current_page ? 'bg-indigo-600' : ''}`}
+                          >
+                              {pageNum}
+                          </Button>
+                        );
+                      })}
+                      {productMeta.last_page > 5 && <span className="px-2 text-slate-400">...</span>}
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    disabled={productMeta.current_page === productMeta.last_page}
+                    onClick={() => handlePageChange(productMeta.current_page + 1)}
+                    className="h-8 border-2 font-black text-xs uppercase tracking-tighter"
+                  >
+                      Next
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+              </div>
             </div>
-          </div>
+          )}
         </CardContent>
       </Card>
     </div>

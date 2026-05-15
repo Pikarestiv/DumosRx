@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('stores', function (Blueprint $blueprint) {
             $blueprint->uuid('id')->primary();
-            $blueprint->foreignId('user_id')->constrained()->onDelete('cascade');
+            $blueprint->foreignUuid('user_id')->constrained()->onDelete('cascade');
             $blueprint->string('name');
             $blueprint->string('location')->nullable();
             $blueprint->string('device_id')->unique();

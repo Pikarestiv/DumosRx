@@ -103,8 +103,8 @@ export default function HomePage() {
                 <Image
                   src="/logo.png"
                   alt="DumosRx Logo"
-                  width={200}
-                  height={80}
+                  width={150}
+                  height={60}
                   className="object-contain"
                   style={{ filter: "var(--logo-filter)", height: "auto" }}
                 />

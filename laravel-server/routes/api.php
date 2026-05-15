@@ -14,6 +14,9 @@ use App\Http\Controllers\Api\Web\SubscriptionController;
 use App\Http\Controllers\Api\Web\BackupController;
 use App\Http\Controllers\Api\Web\ActivityLogController;
 
+// Admin Controllers
+use App\Http\Controllers\Api\Admin\AdminController;
+
 // App Controllers
 use App\Http\Controllers\Api\App\MedicineController;
 use App\Http\Controllers\Api\App\InventoryController;
@@ -59,6 +62,14 @@ Route::prefix('v1')->group(function () {
 
         // Activity Logs
         Route::get('/logs', [ActivityLogController::class, 'index']);
+
+        // --- ADMIN ROUTES ---
+        Route::middleware('can:manage-platform')->prefix('admin')->group(function () {
+            Route::get('/summary', [AdminController::class, 'summary']);
+            Route::get('/pharmacies', [AdminController::class, 'pharmacies']);
+            Route::get('/products', [AdminController::class, 'products']);
+            Route::get('/users', [AdminController::class, 'users']);
+        });
 
         // --- APP / TERMINAL ROUTES ---
         Route::prefix('app')->group(function () {

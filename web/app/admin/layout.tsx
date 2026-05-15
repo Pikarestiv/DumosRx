@@ -21,12 +21,48 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import { useAuthStore } from "@/lib/store/use-auth-store";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { Loader2 } from "lucide-react";
 
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const { user, fetchUser, loading: authLoading } = useAuthStore();
+  const router = useRouter();
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      if (!user) {
+        await fetchUser();
+      }
+      setChecking(false);
+    };
+    checkAuth();
+  }, [user, fetchUser]);
+
+  useEffect(() => {
+    if (!checking && (!user || user.role !== 'super_admin')) {
+      router.push("/login");
+    }
+  }, [user, checking, router]);
+
+  if (checking || authLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-slate-950">
+        <Loader2 className="h-10 w-10 text-indigo-500 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user || user.role !== 'super_admin') {
+    return null;
+  }
+
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden">
       <AdminSidebar />

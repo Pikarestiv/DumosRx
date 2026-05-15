@@ -9,6 +9,7 @@ import { Loader2, AlertCircle, Mail, Lock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { webApiClient } from "@/lib/api/client";
 import { motion } from "framer-motion";
+import { useAuthStore } from "@/lib/store/use-auth-store";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -29,6 +30,7 @@ const loginSchema = z.object({
 
 export function LoginForm() {
   const router = useRouter();
+  const { setUser, setToken } = useAuthStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,8 +48,14 @@ export function LoginForm() {
 
     try {
       const response = await webApiClient.login(values);
-      localStorage.setItem("drx_token", response.token);
-      router.push("/dashboard");
+      setToken(response.token);
+      setUser(response.user);
+      
+      if (response.user.role === 'super_admin') {
+        router.push("/admin");
+      } else {
+        router.push("/dashboard");
+      }
     } catch (err: any) {
       setError(err.message || "Invalid credentials. Please try again.");
     } finally {

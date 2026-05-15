@@ -13,7 +13,7 @@ class WebApiClient {
     this.baseUrl = baseUrl.replace(/\/$/, "");
   }
 
-  private async request<T>(
+  public async request<T>(
     endpoint: string,
     options: RequestOptions = {},
   ): Promise<T> {

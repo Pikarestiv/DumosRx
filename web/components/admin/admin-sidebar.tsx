@@ -15,6 +15,8 @@ import {
   Activity,
   Server
 } from "lucide-react";
+import { useAuthStore } from "@/lib/store/use-auth-store";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 const sidebarItems = [
@@ -27,17 +29,36 @@ const sidebarItems = [
 
 export function AdminSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, logout } = useAuthStore();
+
+  const handleLogout = () => {
+    logout();
+    router.push("/login");
+  };
+
+  const userInitials = user ? `${user.first_name[0]}${user.last_name[0]}` : "AD";
+  const fullName = user ? `${user.first_name} ${user.last_name}` : "Dumos Admin";
+  const email = user ? user.email : "admin@dumostech.com";
 
   return (
     <aside className="hidden lg:flex w-72 flex-col bg-slate-950 text-slate-200 border-r border-slate-800">
       <div className="p-8">
-        <Link href="/admin" className="flex items-center gap-3">
-          <div className="h-10 w-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
-            <ShieldCheck className="h-6 w-6 text-white" />
-          </div>
-          <div>
-            <h2 className="text-xl font-black tracking-tight text-white leading-none">DUMOS<span className="text-indigo-400">ADMIN</span></h2>
-            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Platform Control</p>
+        <Link href="/admin" className="flex items-center gap-3 group transition-transform hover:scale-105">
+          <div className="relative h-8 w-auto flex items-center justify-center">
+            <Image
+              src="/logo.png"
+              alt="DumosRx Logo"
+              width={100}
+              height={32}
+              className="h-8 w-auto object-contain brightness-0 invert"
+              style={{ height: "auto" }}
+              priority
+            />
+            <div className="ml-2 flex flex-col">
+              <span className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.3em] leading-none">Admin</span>
+              <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">Control</span>
+            </div>
           </div>
         </Link>
       </div>
@@ -82,18 +103,21 @@ export function AdminSidebar() {
 
       <div className="p-4 border-t border-slate-800">
         <div className="bg-slate-900 rounded-2xl p-4 flex items-center gap-3 border border-slate-800/50">
-          <div className="h-10 w-10 rounded-xl bg-indigo-600/10 flex items-center justify-center font-bold text-indigo-400 border border-indigo-600/20">
-            DT
+          <div className="h-10 w-10 rounded-xl bg-indigo-600/10 flex items-center justify-center font-bold text-indigo-400 border border-indigo-600/20 uppercase">
+            {userInitials}
           </div>
           <div className="flex-1 overflow-hidden">
             <p className="text-sm font-bold text-white truncate">
-              Dumostech Admin
+              {fullName}
             </p>
             <p className="text-[10px] font-medium text-slate-500 truncate">
-              admin@dumostech.com
+              {email}
             </p>
           </div>
-          <button className="p-2 hover:bg-slate-800 rounded-lg transition-colors group">
+          <button 
+            onClick={handleLogout}
+            className="p-2 hover:bg-slate-800 rounded-lg transition-colors group"
+          >
             <LogOut className="h-4 w-4 text-slate-500 group-hover:text-red-400" />
           </button>
         </div>

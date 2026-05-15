@@ -36,6 +36,7 @@ import {
   Package,
 } from "lucide-react";
 import { toast } from "sonner";
+import { SearchableInput } from "@/components/ui/searchable-input";
 import { AddMedicineDialog } from "./add-medicine-dialog";
 import { MedicineDetailsDialog } from "./medicine-details-dialog";
 import { insert } from "@/lib/db/local-database";
@@ -89,7 +90,16 @@ const transformMedicine = (apiData: any): Medicine => ({
   baseUnit: apiData.base_unit || "Unit",
   bulkUnit: apiData.bulk_unit || "",
   unitsPerBulk: Number(apiData.units_per_bulk) || 1,
-  status: (apiData.status as any) || "active",
+  status: (() => {
+    const stock = Number(apiData.stock_quantity) || 0;
+    const reorder = Number(apiData.reorder_level) || 0;
+    const expiry = apiData.expiry_date ? new Date(apiData.expiry_date) : null;
+    const now = new Date();
+
+    if (expiry && expiry < now) return "expired";
+    if (stock <= reorder) return "low_stock";
+    return (apiData.status as any) || "active";
+  })(),
 });
 
 export function MedicineDatabase() {
@@ -281,7 +291,7 @@ export function MedicineDatabase() {
               <div>
                 <p className="text-sm text-muted-foreground">Low Stock</p>
                 <p className="text-2xl font-bold text-destructive">
-                  {medicines.filter((m) => m.status === "low_stock").length}
+                  {medicines.filter((m) => m.stockQuantity <= m.reorderLevel).length}
                 </p>
               </div>
               <div className="h-8 w-8 bg-destructive/10 rounded-full flex items-center justify-center">
@@ -297,7 +307,7 @@ export function MedicineDatabase() {
               <div>
                 <p className="text-sm text-muted-foreground">Expired</p>
                 <p className="text-2xl font-bold text-destructive">
-                  {medicines.filter((m) => m.status === "expired").length}
+                  {medicines.filter((m) => m.expiryDate && new Date(m.expiryDate) < new Date()).length}
                 </p>
               </div>
               <div className="h-8 w-8 bg-destructive/10 rounded-full flex items-center justify-center">
@@ -331,32 +341,28 @@ export function MedicineDatabase() {
                 />
               </div>
             </div>
-            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="w-full md:w-48">
-                <SelectValue placeholder={t('category')} />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map((category) => (
-                  <SelectItem key={category} value={category}>
-                    {category === "all" ? `All ${t('category')}s` : category}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full md:w-48">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                {statuses.map((status) => (
-                  <SelectItem key={status} value={status}>
-                    {status === "all"
-                      ? "All Status"
-                      : status.replace("_", " ").toUpperCase()}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="w-full md:w-56">
+              <SearchableInput
+                options={categories.map(c => ({
+                  label: c === "all" ? `All ${t('category')}s` : c,
+                  value: c
+                }))}
+                value={categoryFilter}
+                onValueChange={setCategoryFilter}
+                placeholder={`All ${t('category')}s`}
+              />
+            </div>
+            <div className="w-full md:w-56">
+              <SearchableInput
+                options={statuses.map(s => ({
+                  label: s === "all" ? "All Status" : s.replace("_", " ").split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '),
+                  value: s
+                }))}
+                value={statusFilter}
+                onValueChange={setStatusFilter}
+                placeholder="All Status"
+              />
+            </div>
           </div>
         </CardContent>
       </Card>

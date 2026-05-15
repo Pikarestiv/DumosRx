@@ -1,22 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { 
-  Search, 
-  Filter, 
-  MoreVertical, 
-  ExternalLink, 
-  CreditCard, 
-  History, 
-  Ban, 
-  Mail, 
-  ChevronLeft, 
-  ChevronRight, 
-  Download, 
+import {
+  Search,
+  Filter,
+  MoreVertical,
+  ExternalLink,
+  CreditCard,
+  History,
+  Ban,
+  Mail,
+  ChevronLeft,
+  ChevronRight,
+  Download,
   Store as StoreIcon,
   Loader2,
   ShieldAlert,
-  Plus
+  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,11 +43,12 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useDebounce } from "@/hooks/use-debounce";
 
 export default function PharmaciesManagement() {
-  const { pharmacies, pharmacyMeta, loading, error, fetchPharmacies } = useAdminStore();
+  const { pharmacies, pharmacyMeta, loading, error, fetchPharmacies } =
+    useAdminStore();
   const searchParams = useSearchParams();
   const router = useRouter();
   const initialSearch = searchParams.get("search") || "";
-  
+
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState(initialSearch);
   const debouncedSearch = useDebounce(search, 500);
@@ -72,17 +73,19 @@ export default function PharmaciesManagement() {
 
   const handleExportCSV = () => {
     if (pharmacyList.length === 0) return;
-    
+
     const headers = ["ID", "Name", "Owner", "Email", "Plan", "Status", "Date"];
-    const csvData = pharmacyList.map(p => [
-      p.id, p.name, p.owner, p.email, p.plan, p.status, p.date
-    ].join(","));
-    
-    const blob = new Blob([[headers.join(","), ...csvData].join("\n")], { type: 'text/csv' });
+    const csvData = pharmacyList.map((p) =>
+      [p.id, p.name, p.owner, p.email, p.plan, p.status, p.date].join(","),
+    );
+
+    const blob = new Blob([[headers.join(","), ...csvData].join("\n")], {
+      type: "text/csv",
+    });
     const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = `pharmacies-export-${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `pharmacies-export-${new Date().toISOString().split("T")[0]}.csv`;
     a.click();
   };
 
@@ -90,25 +93,29 @@ export default function PharmaciesManagement() {
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-black tracking-tight text-slate-900 dark:text-white">Pharmacy Fleet</h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium">Manage and monitor all business accounts on the platform</p>
+          <h1 className="text-4xl font-black tracking-tight text-slate-900 dark:text-white">
+            Pharmacy Fleet
+          </h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium">
+            Manage and monitor all business accounts on the platform
+          </p>
         </div>
         <div className="flex items-center gap-3">
-            <Button 
-                variant="outline" 
-                className="border-2 font-bold dark:bg-slate-900 dark:border-slate-800"
-                onClick={handleExportCSV}
-            >
-                <Download className="h-4 w-4 mr-2" />
-                Export CSV
-            </Button>
-            <Button 
-                className="bg-indigo-600 hover:bg-indigo-700 font-bold shadow-lg shadow-indigo-600/20"
-                onClick={() => router.push("/register")}
-            >
-                <Plus className="h-4 w-4 mr-2" />
-                Register Pharmacy
-            </Button>
+          <Button
+            variant="outline"
+            className="border-2 font-bold dark:bg-slate-900 dark:border-slate-800"
+            onClick={handleExportCSV}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Export CSV
+          </Button>
+          <Button
+            className="bg-indigo-600 hover:bg-indigo-700 font-bold shadow-lg shadow-indigo-600/20"
+            onClick={() => router.push("/admin/pharmacies/new")}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Register Pharmacy
+          </Button>
         </div>
       </div>
 
@@ -125,30 +132,49 @@ export default function PharmaciesManagement() {
               />
             </div>
             <div className="flex items-center gap-3">
-                {loading && <Loader2 className="h-4 w-4 animate-spin text-indigo-500 mr-2" />}
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm" className="font-bold border-2">
-                            <Filter className="h-4 w-4 mr-2" />
-                            Filters
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48 p-2">
-                        <DropdownMenuLabel>Status</DropdownMenuLabel>
-                        <DropdownMenuItem className="cursor-pointer">Active Only</DropdownMenuItem>
-                        <DropdownMenuItem className="cursor-pointer">Pending Approval</DropdownMenuItem>
-                        <DropdownMenuItem className="cursor-pointer">Suspended</DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuLabel>Subscription</DropdownMenuLabel>
-                        <DropdownMenuItem className="cursor-pointer">Basic</DropdownMenuItem>
-                        <DropdownMenuItem className="cursor-pointer">Professional</DropdownMenuItem>
-                        <DropdownMenuItem className="cursor-pointer">Enterprise</DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-                <div className="h-8 w-px bg-slate-200 dark:bg-slate-800 mx-1 hidden md:block" />
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                    Showing {pharmacyList.length} of {pharmacyMeta?.total || 0} pharmacies
-                </p>
+              {loading && (
+                <Loader2 className="h-4 w-4 animate-spin text-indigo-500 mr-2" />
+              )}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="font-bold border-2"
+                  >
+                    <Filter className="h-4 w-4 mr-2" />
+                    Filters
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48 p-2">
+                  <DropdownMenuLabel>Status</DropdownMenuLabel>
+                  <DropdownMenuItem className="cursor-pointer">
+                    Active Only
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="cursor-pointer">
+                    Pending Approval
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="cursor-pointer">
+                    Suspended
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel>Subscription</DropdownMenuLabel>
+                  <DropdownMenuItem className="cursor-pointer">
+                    Basic
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="cursor-pointer">
+                    Professional
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="cursor-pointer">
+                    Enterprise
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <div className="h-8 w-px bg-slate-200 dark:bg-slate-800 mx-1 hidden md:block" />
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                Showing {pharmacyList.length} of {pharmacyMeta?.total || 0}{" "}
+                pharmacies
+              </p>
             </div>
           </div>
 
@@ -157,38 +183,64 @@ export default function PharmaciesManagement() {
               <div className="flex flex-col items-center justify-center py-20 gap-4">
                 <ShieldAlert className="h-10 w-10 text-rose-500" />
                 <p className="text-rose-500 font-bold">{error}</p>
-                <Button onClick={() => fetchPharmacies(page, debouncedSearch)} variant="outline">Retry</Button>
+                <Button
+                  onClick={() => fetchPharmacies(page, debouncedSearch)}
+                  variant="outline"
+                >
+                  Retry
+                </Button>
               </div>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
-                    <TableHead className="font-bold text-[10px] uppercase text-slate-400 pl-6 h-12">Pharmacy Details</TableHead>
-                    <TableHead className="font-bold text-[10px] uppercase text-slate-400 h-12">Owner & Contact</TableHead>
-                    <TableHead className="font-bold text-[10px] uppercase text-slate-400 text-center h-12">Subscription</TableHead>
-                    <TableHead className="font-bold text-[10px] uppercase text-slate-400 text-center h-12">Fleet Size</TableHead>
-                    <TableHead className="font-bold text-[10px] uppercase text-slate-400 text-right h-12">Total Revenue</TableHead>
-                    <TableHead className="font-bold text-[10px] uppercase text-slate-400 text-center h-12">Status</TableHead>
+                    <TableHead className="font-bold text-[10px] uppercase text-slate-400 pl-6 h-12">
+                      Pharmacy Details
+                    </TableHead>
+                    <TableHead className="font-bold text-[10px] uppercase text-slate-400 h-12">
+                      Owner & Contact
+                    </TableHead>
+                    <TableHead className="font-bold text-[10px] uppercase text-slate-400 text-center h-12">
+                      Subscription
+                    </TableHead>
+                    <TableHead className="font-bold text-[10px] uppercase text-slate-400 text-center h-12">
+                      Fleet Size
+                    </TableHead>
+                    <TableHead className="font-bold text-[10px] uppercase text-slate-400 text-right h-12">
+                      Total Revenue
+                    </TableHead>
+                    <TableHead className="font-bold text-[10px] uppercase text-slate-400 text-center h-12">
+                      Status
+                    </TableHead>
                     <TableHead className="w-[80px] h-12"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {pharmacyList.map((pharmacy: any) => (
-                    <TableRow key={pharmacy.id} className="border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 group transition-colors">
+                    <TableRow
+                      key={pharmacy.id}
+                      className="border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 group transition-colors"
+                    >
                       <TableCell className="pl-6 py-5">
                         <div className="flex items-center gap-4">
                           <div className="h-10 w-10 rounded-xl bg-indigo-500/10 flex items-center justify-center font-black text-indigo-500 border border-indigo-500/20 text-xs">
                             {pharmacy.name.charAt(0)}
                           </div>
                           <div className="flex flex-col">
-                            <span className="font-bold text-slate-900 dark:text-slate-100 group-hover:text-indigo-600 transition-colors">{pharmacy.name}</span>
-                            <span className="text-[10px] font-mono text-slate-400 uppercase tracking-tighter">{pharmacy.id}</span>
+                            <span className="font-bold text-slate-900 dark:text-slate-100 group-hover:text-indigo-600 transition-colors">
+                              {pharmacy.name}
+                            </span>
+                            <span className="text-[10px] font-mono text-slate-400 uppercase tracking-tighter">
+                              {pharmacy.id}
+                            </span>
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col">
-                          <span className="font-bold text-sm text-slate-700 dark:text-slate-300">{pharmacy.owner}</span>
+                          <span className="font-bold text-sm text-slate-700 dark:text-slate-300">
+                            {pharmacy.owner}
+                          </span>
                           <div className="flex items-center gap-1 text-[10px] text-slate-400">
                             <Mail className="h-3 w-3" />
                             {pharmacy.email}
@@ -197,10 +249,15 @@ export default function PharmaciesManagement() {
                       </TableCell>
                       <TableCell className="text-center">
                         <div className="flex flex-col items-center">
-                          <Badge variant="outline" className="bg-indigo-50 text-indigo-600 border-indigo-100 dark:bg-indigo-500/10 dark:border-indigo-500/20 font-bold text-[10px] py-0.5">
+                          <Badge
+                            variant="outline"
+                            className="bg-indigo-50 text-indigo-600 border-indigo-100 dark:bg-indigo-500/10 dark:border-indigo-500/20 font-bold text-[10px] py-0.5"
+                          >
                             {pharmacy.plan}
                           </Badge>
-                          <span className="text-[9px] text-slate-400 mt-1">Since {pharmacy.date}</span>
+                          <span className="text-[9px] text-slate-400 mt-1">
+                            Since {pharmacy.date}
+                          </span>
                         </div>
                       </TableCell>
                       <TableCell className="text-center">
@@ -215,18 +272,26 @@ export default function PharmaciesManagement() {
                         {pharmacy.revenue}
                       </TableCell>
                       <TableCell className="text-center">
-                        <Badge className={
-                          pharmacy.status === 'Active' ? 'bg-emerald-500 hover:bg-emerald-600' :
-                          pharmacy.status === 'Suspended' ? 'bg-rose-500 hover:bg-rose-600' :
-                          'bg-amber-500 hover:bg-amber-600'
-                        }>
+                        <Badge
+                          className={
+                            pharmacy.status === "Active"
+                              ? "bg-emerald-500 hover:bg-emerald-600"
+                              : pharmacy.status === "Suspended"
+                                ? "bg-rose-500 hover:bg-rose-600"
+                                : "bg-amber-500 hover:bg-amber-600"
+                          }
+                        >
                           {pharmacy.status}
                         </Badge>
                       </TableCell>
                       <TableCell className="pr-6">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="hover:bg-indigo-50 dark:hover:bg-indigo-500/10">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="hover:bg-indigo-50 dark:hover:bg-indigo-500/10"
+                            >
                               <MoreVertical className="h-4 w-4 text-slate-400" />
                             </Button>
                           </DropdownMenuTrigger>
@@ -255,14 +320,17 @@ export default function PharmaciesManagement() {
                     </TableRow>
                   ))}
                   {pharmacyList.length === 0 && !loading && (
-                     <TableRow>
-                       <TableCell colSpan={7} className="text-center py-20 text-slate-400 font-medium">
-                         <div className="flex flex-col items-center gap-2">
-                            <StoreIcon className="h-10 w-10 opacity-20" />
-                            <span>No pharmacies match your search criteria</span>
-                         </div>
-                       </TableCell>
-                     </TableRow>
+                    <TableRow>
+                      <TableCell
+                        colSpan={7}
+                        className="text-center py-20 text-slate-400 font-medium"
+                      >
+                        <div className="flex flex-col items-center gap-2">
+                          <StoreIcon className="h-10 w-10 opacity-20" />
+                          <span>No pharmacies match your search criteria</span>
+                        </div>
+                      </TableCell>
+                    </TableRow>
                   )}
                 </TableBody>
               </Table>
@@ -275,53 +343,72 @@ export default function PharmaciesManagement() {
                 Page {pharmacyMeta.current_page} of {pharmacyMeta.last_page}
               </p>
               <div className="flex items-center gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    disabled={pharmacyMeta.current_page === 1}
-                    onClick={() => handlePageChange(pharmacyMeta.current_page - 1)}
-                    className="h-8 border-2 font-black text-xs uppercase tracking-tighter"
-                  >
-                      <ChevronLeft className="h-4 w-4 mr-1" />
-                      Prev
-                  </Button>
-                  <div className="flex gap-1">
-                      {Array.from({ length: Math.min(5, pharmacyMeta.last_page) }, (_, i) => {
-                          const pageNum = i + 1;
-                          return (
-                            <Button 
-                                key={i} 
-                                variant={pageNum === pharmacyMeta.current_page ? "default" : "ghost"} 
-                                size="sm" 
-                                onClick={() => handlePageChange(pageNum)}
-                                className={`h-8 w-8 p-0 font-bold ${pageNum === pharmacyMeta.current_page ? 'bg-indigo-600' : ''}`}
-                            >
-                                {pageNum}
-                            </Button>
-                          );
-                      })}
-                      {pharmacyMeta.last_page > 5 && <span className="px-2 text-slate-400">...</span>}
-                      {pharmacyMeta.last_page > 5 && (
-                         <Button 
-                            variant={pharmacyMeta.last_page === pharmacyMeta.current_page ? "default" : "ghost"} 
-                            size="sm" 
-                            onClick={() => handlePageChange(pharmacyMeta.last_page)}
-                            className={`h-8 w-8 p-0 font-bold ${pharmacyMeta.last_page === pharmacyMeta.current_page ? 'bg-indigo-600' : ''}`}
-                         >
-                            {pharmacyMeta.last_page}
-                         </Button>
-                      )}
-                  </div>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    disabled={pharmacyMeta.current_page === pharmacyMeta.last_page}
-                    onClick={() => handlePageChange(pharmacyMeta.current_page + 1)}
-                    className="h-8 border-2 font-black text-xs uppercase tracking-tighter"
-                  >
-                      Next
-                      <ChevronRight className="h-4 w-4 ml-1" />
-                  </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={pharmacyMeta.current_page === 1}
+                  onClick={() =>
+                    handlePageChange(pharmacyMeta.current_page - 1)
+                  }
+                  className="h-8 border-2 font-black text-xs uppercase tracking-tighter"
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Prev
+                </Button>
+                <div className="flex gap-1">
+                  {Array.from(
+                    { length: Math.min(5, pharmacyMeta.last_page) },
+                    (_, i) => {
+                      const pageNum = i + 1;
+                      return (
+                        <Button
+                          key={i}
+                          variant={
+                            pageNum === pharmacyMeta.current_page
+                              ? "default"
+                              : "ghost"
+                          }
+                          size="sm"
+                          onClick={() => handlePageChange(pageNum)}
+                          className={`h-8 w-8 p-0 font-bold ${pageNum === pharmacyMeta.current_page ? "bg-indigo-600" : ""}`}
+                        >
+                          {pageNum}
+                        </Button>
+                      );
+                    },
+                  )}
+                  {pharmacyMeta.last_page > 5 && (
+                    <span className="px-2 text-slate-400">...</span>
+                  )}
+                  {pharmacyMeta.last_page > 5 && (
+                    <Button
+                      variant={
+                        pharmacyMeta.last_page === pharmacyMeta.current_page
+                          ? "default"
+                          : "ghost"
+                      }
+                      size="sm"
+                      onClick={() => handlePageChange(pharmacyMeta.last_page)}
+                      className={`h-8 w-8 p-0 font-bold ${pharmacyMeta.last_page === pharmacyMeta.current_page ? "bg-indigo-600" : ""}`}
+                    >
+                      {pharmacyMeta.last_page}
+                    </Button>
+                  )}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={
+                    pharmacyMeta.current_page === pharmacyMeta.last_page
+                  }
+                  onClick={() =>
+                    handlePageChange(pharmacyMeta.current_page + 1)
+                  }
+                  className="h-8 border-2 font-black text-xs uppercase tracking-tighter"
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
               </div>
             </div>
           )}

@@ -1,8 +1,7 @@
-"use client";
-
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { webApiClient } from "@/lib/api/client";
+import { useDashboardStore } from "@/lib/store/use-dashboard-store";
 import { APP_VERSION, GITHUB_REPO } from "@/lib/constants";
 
 export function useDashboard() {
@@ -10,6 +9,7 @@ export function useDashboard() {
   const params = useParams();
   const viewParam = (params?.view as string) || "overview";
 
+  const { data, loading, fetchData, resetData: resetStore } = useDashboardStore();
   const [activeTab, setActiveTabState] = useState(viewParam);
 
   // Sync state with path param
@@ -23,8 +23,7 @@ export function useDashboard() {
     setActiveTabState(tab);
     router.push(`/dashboard/${tab}`);
   };
-  const [loading, setLoading] = useState(true);
-  const [data, setData] = useState<any>(null);
+
   const [releaseLinks, setReleaseLinks] = useState({
     windows: `https://github.com/${GITHUB_REPO}/releases/latest`,
     macos: `https://github.com/${GITHUB_REPO}/releases/latest`,
@@ -35,31 +34,11 @@ export function useDashboard() {
     linuxSize: "92MB",
   });
 
+  useEffect(() => {
+    fetchData(); // Uses store's caching logic
+  }, [fetchData]);
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [summary, staffData] = await Promise.all([
-          webApiClient.getDashboardSummary(),
-          webApiClient.getStaff().catch(() => []), // Fallback to empty if endpoint not yet ready
-        ]);
-        
-        setData({
-          ...summary,
-          staff: staffData.length > 0 ? staffData : summary.staff || [],
-        });
-      } catch (error) {
-        console.error("Failed to fetch dashboard data:", error);
-        if (error instanceof Error && error.message.includes("401")) {
-          router.push("/login");
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-
     // Fetch latest release links and sizes
     const fetchReleaseLinks = async () => {
       try {
@@ -90,32 +69,23 @@ export function useDashboard() {
       }
     };
     fetchReleaseLinks();
-  }, [router]);
+  }, []);
+
 
   const logout = () => {
     localStorage.removeItem("drx_token");
+    resetStore();
     router.push("/login");
   };
 
   const resetAccountData = async (type: string = "all") => {
     try {
-      setLoading(true);
       await webApiClient.resetData(type);
-      // Refetch data to show zeroed stats
-      const [summary, staffData] = await Promise.all([
-        webApiClient.getDashboardSummary(),
-        webApiClient.getStaff().catch(() => []),
-      ]);
-      setData({
-        ...summary,
-        staff: staffData.length > 0 ? staffData : summary.staff || [],
-      });
+      await fetchData(true); // Force refresh
       return { success: true };
     } catch (error) {
       console.error("Failed to reset data:", error);
       return { success: false, error: error instanceof Error ? error.message : "Reset failed" };
-    } finally {
-      setLoading(false);
     }
   };
 

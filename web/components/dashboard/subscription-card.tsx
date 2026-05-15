@@ -17,10 +17,12 @@ import { webApiClient } from "@/lib/api/client";
 import { toast } from "sonner";
 import { PRICING } from "@/lib/constants/pricing";
 
+import { useDashboardStore } from "@/lib/store/use-dashboard-store";
+
 export function SubscriptionCard() {
-  const [loading, setLoading] = useState(true);
+  const { data, loading: dashboardLoading, fetchData } = useDashboardStore();
+  const [loading, setLoading] = useState(false);
   const [subscription, setSubscription] = useState<any>(null);
-  const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
     fetchSubscriptionStatus();
@@ -29,18 +31,16 @@ export function SubscriptionCard() {
   const fetchSubscriptionStatus = async () => {
     try {
       setLoading(true);
-      const [status, dashboard] = await Promise.all([
-        webApiClient.getSubscriptionStatus(),
-        webApiClient.getDashboardSummary()
-      ]);
+      const status = await webApiClient.getSubscriptionStatus();
       setSubscription(status);
-      setUser(dashboard.user);
     } catch (error) {
       console.error("Failed to fetch subscription", error);
     } finally {
       setLoading(false);
     }
   };
+
+  const user = data?.user;
 
   const config = {
     reference: new Date().getTime().toString(),

@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import { ConfirmationModal } from "@/components/dashboard/confirmation-modal";
 import { 
   TrendingUp, 
   Store, 
@@ -37,6 +39,59 @@ interface OverviewViewProps {
 }
 
 export function OverviewView({ stats, user, stores, onReset }: OverviewViewProps) {
+  const [resetConfig, setResetConfig] = useState<{
+    isOpen: boolean;
+    type: string;
+    title: string;
+    description: string;
+  }>({
+    isOpen: false,
+    type: "all",
+    title: "",
+    description: "",
+  });
+
+  const handleResetClick = (type: string) => {
+    const configs: Record<string, { title: string; description: string }> = {
+      sales: {
+        title: "Clear Sales Records",
+        description: "Are you sure you want to delete all sales history? This action cannot be undone.",
+      },
+      logs: {
+        title: "Clear Activity Logs",
+        description: "This will permanently delete all activity and system logs for your account.",
+      },
+      inventory: {
+        title: "Clear Inventory",
+        description: "Are you sure you want to wipe your online inventory stock? You will need to re-sync from your terminals.",
+      },
+      customers: {
+        title: "Clear Customers",
+        description: "This will delete all customer records from the cloud database.",
+      },
+      all: {
+        title: "Full Account Reset",
+        description: "WARNING: This will delete ALL data (Sales, Logs, Inventory, Customers). This is irreversible.",
+      },
+    };
+
+    setResetConfig({
+      isOpen: true,
+      type,
+      ...configs[type],
+    });
+  };
+
+  const confirmReset = async () => {
+    const res = await onReset(resetConfig.type);
+    setResetConfig((prev) => ({ ...prev, isOpen: false }));
+    if (res.success) {
+      // Maybe use a toast here later
+    } else {
+      alert("Reset failed: " + res.error);
+    }
+  };
+
   const statCards = [
     {
       name: "Total Fleet Sales",
@@ -185,9 +240,7 @@ export function OverviewView({ stats, user, stores, onReset }: OverviewViewProps
                   variant="outline" 
                   size="sm"
                   className="text-xs font-bold border-destructive/20 hover:bg-destructive hover:text-white"
-                  onClick={() => {
-                    if (confirm("Clear all sales records?")) onReset("sales");
-                  }}
+                  onClick={() => handleResetClick("sales")}
                 >
                   Clear Sales
                 </Button>
@@ -195,9 +248,7 @@ export function OverviewView({ stats, user, stores, onReset }: OverviewViewProps
                   variant="outline" 
                   size="sm"
                   className="text-xs font-bold border-destructive/20 hover:bg-destructive hover:text-white"
-                  onClick={() => {
-                    if (confirm("Clear all activity logs?")) onReset("logs");
-                  }}
+                  onClick={() => handleResetClick("logs")}
                 >
                   Clear Logs
                 </Button>
@@ -205,9 +256,7 @@ export function OverviewView({ stats, user, stores, onReset }: OverviewViewProps
                   variant="outline" 
                   size="sm"
                   className="text-xs font-bold border-destructive/20 hover:bg-destructive hover:text-white"
-                  onClick={() => {
-                    if (confirm("Clear inventory stock?")) onReset("inventory");
-                  }}
+                  onClick={() => handleResetClick("inventory")}
                 >
                   Clear Inventory
                 </Button>
@@ -215,9 +264,7 @@ export function OverviewView({ stats, user, stores, onReset }: OverviewViewProps
                   variant="outline" 
                   size="sm"
                   className="text-xs font-bold border-destructive/20 hover:bg-destructive hover:text-white"
-                  onClick={() => {
-                    if (confirm("Clear customer database?")) onReset("customers");
-                  }}
+                  onClick={() => handleResetClick("customers")}
                 >
                   Clear Customers
                 </Button>
@@ -226,16 +273,7 @@ export function OverviewView({ stats, user, stores, onReset }: OverviewViewProps
               <Button 
                 variant="destructive" 
                 className="w-full font-bold gap-2"
-                onClick={async () => {
-                  if (confirm("Are you ABSOLUTELY sure? This will delete ALL data. Local terminal data will remain but will need to be re-synced.")) {
-                    const res = await onReset("all");
-                    if (res.success) {
-                      alert("Data reset successfully!");
-                    } else {
-                      alert("Failed to reset data: " + res.error);
-                    }
-                  }
-                }}
+                onClick={() => handleResetClick("all")}
               >
                 <Trash2 className="h-4 w-4" />
                 Nuke Everything (Full Reset)
@@ -244,6 +282,16 @@ export function OverviewView({ stats, user, stores, onReset }: OverviewViewProps
           </Card>
         </div>
       </div>
+
+      <ConfirmationModal
+        isOpen={resetConfig.isOpen}
+        onClose={() => setResetConfig((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmReset}
+        title={resetConfig.title}
+        description={resetConfig.description}
+        variant="destructive"
+        confirmText={resetConfig.type === "all" ? "Nuke Everything" : "Confirm Reset"}
+      />
     </div>
   );
 }

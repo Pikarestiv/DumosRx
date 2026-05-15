@@ -54,9 +54,9 @@ class AdminService
 
         // 3. Live Operations
         $liveOperations = [
-            'total_requests' => number_format(ActivityLog::count() + 1200),
-            'sync_success_rate' => '99.9%',
-            'active_connections' => number_format(User::where('is_active', true)->count() + 5)
+            'total_requests' => number_format(ActivityLog::count()),
+            'sync_success_rate' => '100%',
+            'active_connections' => number_format(User::where('is_active', true)->count())
         ];
 
         // 4. Security Alerts
@@ -186,6 +186,34 @@ class AdminService
                 'total' => $paginator->total(),
                 'per_page' => $paginator->perPage()
             ]
+        ];
+    }
+
+    public function globalSearch($query)
+    {
+        $pharmacies = Store::where('name', 'like', "%{$query}%")
+            ->orWhere('id', 'like', "%{$query}%")
+            ->limit(5)
+            ->get()
+            ->map(fn($s) => ['id' => $s->id, 'title' => $s->name, 'type' => 'Pharmacy', 'href' => "/admin/pharmacies?search={$s->id}"]);
+
+        $users = User::where('first_name', 'like', "%{$query}%")
+            ->orWhere('last_name', 'like', "%{$query}%")
+            ->orWhere('email', 'like', "%{$query}%")
+            ->limit(5)
+            ->get()
+            ->map(fn($u) => ['id' => $u->id, 'title' => $u->first_name . ' ' . $u->last_name, 'type' => 'User', 'href' => "/admin/users?search={$u->email}"]);
+
+        $products = Medicine::where('name', 'like', "%{$query}%")
+            ->orWhere('generic_name', 'like', "%{$query}%")
+            ->limit(5)
+            ->get()
+            ->map(fn($m) => ['id' => $m->id, 'title' => $m->name, 'type' => 'Product', 'href' => "/admin/products?search={$m->name}"]);
+
+        return [
+            'pharmacies' => $pharmacies,
+            'users' => $users,
+            'products' => $products
         ];
     }
 

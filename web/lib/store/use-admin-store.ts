@@ -13,6 +13,7 @@ interface AdminState {
   loading: boolean;
   error: string | null;
   lastFetched: number | null;
+  latency: number;
 
   fetchSummary: (force?: boolean) => Promise<void>;
   fetchPharmacies: (page?: number, search?: string) => Promise<void>;
@@ -33,6 +34,7 @@ export const useAdminStore = create<AdminState>()(
       loading: false,
       error: null,
       lastFetched: null,
+      latency: 0,
 
       fetchSummary: async (force = false) => {
         const { summary, lastFetched, loading } = get();
@@ -45,13 +47,16 @@ export const useAdminStore = create<AdminState>()(
         if (loading) return;
 
         set({ loading: true, error: null });
+        const startTime = performance.now();
 
         try {
           const response = await webApiClient.request<any>("admin/summary");
+          const endTime = performance.now();
           set({
             summary: response,
             loading: false,
             lastFetched: Date.now(),
+            latency: Math.round(endTime - startTime),
             error: null,
           });
         } catch (err: any) {

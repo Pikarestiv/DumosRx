@@ -8,7 +8,11 @@ import {
   Menu,
   ShieldCheck,
   Zap,
-  Globe
+  Globe,
+  Store,
+  Users,
+  Package,
+  ChevronRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +27,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useAdminAuthStore } from "@/lib/store/use-admin-auth-store";
 import { useAdminStore } from "@/lib/store/use-admin-store";
+import { webApiClient } from "@/lib/api/client";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
@@ -33,17 +38,43 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const { user, fetchUser, loading: authLoading, token } = useAdminAuthStore();
-  const { summary, fetchSummary } = useAdminStore();
+  const { summary, fetchSummary, latency } = useAdminStore();
   const router = useRouter();
   const pathname = usePathname();
   const [checking, setChecking] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<any>(null);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showResults, setShowResults] = useState(false);
 
   const isLoginPage = pathname?.includes("/admin/login");
+  
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(async () => {
+      if (searchQuery.length >= 2) {
+        setIsSearching(true);
+        try {
+          const results = await webApiClient.request<any>(`admin/search?query=${encodeURIComponent(searchQuery)}`);
+          setSearchResults(results);
+          setShowResults(true);
+        } catch (error) {
+          console.error("Search error:", error);
+        } finally {
+          setIsSearching(false);
+        }
+      } else {
+        setSearchResults(null);
+        setShowResults(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchQuery]);
 
   const handleSearch = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && searchQuery.trim()) {
       router.push(`/admin/pharmacies?search=${encodeURIComponent(searchQuery)}`);
+      setShowResults(false);
     }
   };
 
@@ -112,13 +143,62 @@ export default function AdminLayout({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={handleSearch}
+                onFocus={() => searchQuery.length >= 2 && setShowResults(true)}
               />
+              
+              {/* Search Results Dropdown */}
+              {showResults && searchResults && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowResults(false)} />
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 p-2 z-50 max-h-[480px] overflow-y-auto animate-in fade-in slide-in-from-top-2 duration-200">
+                    {Object.entries(searchResults).map(([type, items]: [string, any]) => (
+                      items.length > 0 && (
+                        <div key={type} className="mb-4 last:mb-0">
+                          <div className="px-3 py-1.5 flex items-center justify-between">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{type}</span>
+                            <Badge variant="outline" className="text-[10px] bg-slate-50 dark:bg-slate-800 border-none">{items.length}</Badge>
+                          </div>
+                          <div className="space-y-0.5">
+                            {items.map((item: any) => (
+                              <button
+                                key={item.id}
+                                onClick={() => {
+                                  router.push(item.href);
+                                  setShowResults(false);
+                                  setSearchQuery("");
+                                }}
+                                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-colors text-left group"
+                              >
+                                <div className="h-8 w-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center group-hover:bg-indigo-500/10 transition-colors">
+                                  {item.type === 'Pharmacy' ? <Store className="h-4 w-4 text-indigo-500" /> : 
+                                   item.type === 'User' ? <Users className="h-4 w-4 text-blue-500" /> : 
+                                   <Package className="h-4 w-4 text-amber-500" />}
+                                </div>
+                                <div className="flex-1 overflow-hidden">
+                                  <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{item.title}</p>
+                                  <p className="text-[10px] text-slate-500 font-medium">{item.type} • {item.id.substring(0, 8)}</p>
+                                </div>
+                                <ChevronRight className="h-4 w-4 text-slate-300 opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all" />
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )
+                    ))}
+                    {!Object.values(searchResults).some((items: any) => items.length > 0) && (
+                      <div className="p-8 text-center">
+                        <p className="text-sm font-bold text-slate-500 italic">No results found for "{searchQuery}"</p>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
             
             <div className="hidden lg:flex items-center gap-2 ml-4">
-                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 gap-1 font-bold">
+                <Badge variant="outline" className={`${latency > 200 ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 'bg-green-500/10 text-green-500 border-green-500/20'} gap-1 font-bold`}>
                     <Zap className="h-3 w-3 fill-current" />
-                    Cloud API: 24ms
+                    Cloud API: {latency || '...'}ms
                 </Badge>
                 <Badge variant="outline" className="bg-indigo-500/10 text-indigo-500 border-indigo-500/20 gap-1 font-bold">
                     <Globe className="h-3 w-3" />
@@ -163,7 +243,13 @@ export default function AdminLayout({
                 </div>
                 <DropdownMenuSeparator />
                 <div className="p-2">
-                    <Button variant="ghost" className="w-full text-xs font-bold text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50">View System Logs</Button>
+                    <Button 
+                      variant="ghost" 
+                      className="w-full text-xs font-bold text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
+                      onClick={() => router.push("/admin/system")}
+                    >
+                      View System Logs
+                    </Button>
                 </div>
               </DropdownMenuContent>
             </DropdownMenu>

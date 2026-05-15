@@ -81,4 +81,22 @@ class AdminController extends Controller
             return response()->json(['error' => 'Failed to fetch users'], 500);
         }
     }
+
+    public function search(Request $request)
+    {
+        if ($request->user()->role !== 'super_admin') {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        try {
+            $query = $request->query('query');
+            if (!$query) return response()->json([]);
+
+            $results = $this->adminService->globalSearch($query);
+            return response()->json($results);
+        } catch (\Exception $e) {
+            \Log::error("Admin Search Error: " . $e->getMessage());
+            return response()->json(['error' => 'Search failed'], 500);
+        }
+    }
 }

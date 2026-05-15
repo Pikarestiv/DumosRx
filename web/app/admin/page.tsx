@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { 
   Users, 
   Store, 
@@ -39,9 +39,14 @@ const ICON_MAP: any = {
 export default function AdminDashboard() {
   const { summary, loading, error, fetchSummary } = useAdminStore();
   const router = useRouter();
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
     fetchSummary();
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
   }, [fetchSummary]);
 
   if (loading && !summary) {
@@ -77,7 +82,7 @@ export default function AdminDashboard() {
         <div>
           <h1 className="text-4xl font-black tracking-tight text-slate-900 dark:text-white">Global Control</h1>
           <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium italic">
-            Connected to Production Cluster • {new Date().toLocaleTimeString()}
+            Connected to Production Cluster • {currentTime.toLocaleTimeString()}
           </p>
         </div>
         <div className="flex items-center gap-3">

@@ -69,6 +69,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/pharmacies', [AdminController::class, 'pharmacies']);
             Route::get('/products', [AdminController::class, 'products']);
             Route::get('/users', [AdminController::class, 'users']);
+            Route::get('/search', [AdminController::class, 'search']);
         });
 
         // --- APP / TERMINAL ROUTES ---

@@ -125,6 +125,11 @@ export function MedicineDatabase() {
       const newUrl = window.location.pathname + (newParams.toString() ? `?${newParams.toString()}` : "");
       router.replace(newUrl);
     }
+    
+    const status = searchParams.get("status");
+    if (status) {
+      setStatusFilter(status);
+    }
   }, [searchParams, router]);
 
   const isPharmacy = storeType === "pharmacy";

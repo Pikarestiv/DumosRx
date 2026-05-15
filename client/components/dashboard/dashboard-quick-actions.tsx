@@ -63,6 +63,13 @@ export function DashboardQuickActions({
             <AlertTriangle className="h-6 w-6 mb-2" />
             <span className="text-sm font-medium">Check Expiry</span>
           </Link>
+          <Link
+            href="/medicines?status=low_stock"
+            className="p-4 bg-orange-500/10 text-orange-600 rounded-lg hover:bg-orange-500/20 transition-colors flex flex-col items-center justify-center text-center cursor-pointer border border-orange-200"
+          >
+            <TrendingUp className="h-6 w-6 mb-2" />
+            <span className="text-sm font-medium">Check Low Stock</span>
+          </Link>
           <button
             onClick={() => setIsReportOpen(true)}
             className="p-4 bg-muted text-muted-foreground rounded-lg hover:bg-muted/80 transition-colors flex flex-col items-center justify-center text-center cursor-pointer"

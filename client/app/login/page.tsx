@@ -121,13 +121,6 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden bg-background">
       <div className="absolute inset-0 z-0">
-        <Image
-          src="/medical_saas_dashboard_bg_1777553049717.png"
-          alt="Background"
-          fill
-          className="object-cover opacity-[0.03] dark:opacity-10 filter blur-[4px]"
-          priority
-        />
         <div className="absolute inset-0 bg-gradient-to-b from-transparent to-background/60" />
       </div>
 
@@ -171,7 +164,7 @@ export default function LoginPage() {
                 width={180}
                 height={70}
                 className="object-contain"
-                style={{ filter: "var(--logo-filter)" }}
+                style={{ filter: "var(--logo-filter)", height: "auto" }}
               />
             </motion.div>
 

@@ -16,15 +16,8 @@ import Link from "next/link";
 export default function HomePage() {
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-background text-foreground transition-colors duration-500">
-      {/* Premium Background Layer */}
+      {/* Premium Background Effects */}
       <div className="absolute inset-0 z-0">
-        <Image
-          src="/medical_saas_dashboard_bg_1777553049717.png"
-          alt="Background"
-          fill
-          className="object-cover opacity-[0.05] dark:opacity-20 filter blur-[2px] scale-105"
-          priority
-        />
         {/* Animated Mesh Gradient Overlay */}
         <div className="absolute inset-0 bg-gradient-to-tr from-primary/10 via-transparent to-accent/10 dark:from-primary/20 dark:to-accent/20" />
         <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-primary/20 dark:bg-primary/30 rounded-full blur-[120px] mix-blend-multiply dark:mix-blend-screen animate-blob" />
@@ -113,7 +106,7 @@ export default function HomePage() {
                   width={200}
                   height={80}
                   className="object-contain"
-                  style={{ filter: "var(--logo-filter)" }}
+                  style={{ filter: "var(--logo-filter)", height: "auto" }}
                 />
               </div>
               <CardTitle className="font-serif font-bold text-3xl text-center">

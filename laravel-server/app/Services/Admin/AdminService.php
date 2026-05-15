@@ -208,7 +208,7 @@ class AdminService
             ->first();
 
         // Stock alerts (example logic)
-        $lowStockCount = DB::table('inventory')->where('quantity', '<', 10)->count();
+        $lowStockCount = DB::table('inventory')->where('quantity_in_stock', '<', 10)->count();
 
         return [
             'mostStockedCategory' => [

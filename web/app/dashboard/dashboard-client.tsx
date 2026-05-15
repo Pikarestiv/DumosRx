@@ -1,8 +1,7 @@
 "use client";
 
-import { use } from "react";
 import { Loader2 } from "lucide-react";
-import { useDashboard } from "../use-dashboard";
+import { useDashboard } from "./use-dashboard";
 
 // Layout Components
 import { Sidebar } from "@/components/dashboard/sidebar";
@@ -16,8 +15,7 @@ import { BillingView } from "@/components/dashboard/views/billing-view";
 import { DownloadsView } from "@/components/dashboard/views/downloads-view";
 import { NotificationsView } from "@/components/dashboard/views/notifications-view";
 
-export default function DashboardViewPage({ params }: { params: Promise<{ view: string }> }) {
-  const { view } = use(params);
+export function DashboardClient({ view }: { view: string }) {
   const {
     activeTab,
     setActiveTab,
@@ -48,15 +46,15 @@ export default function DashboardViewPage({ params }: { params: Promise<{ view: 
       case "overview":
         return <OverviewView stats={stats} user={user} stores={stores} onReset={resetAccountData} />;
       case "fleet":
-        return <FleetView stores={stores} stats={stats} />;
+        return <FleetView stores={stores} />;
       case "staff":
-        return <StaffView staff={staff} />;
+        return <StaffView staff={staff} stores={stores} />;
       case "billing":
         return <BillingView />;
       case "downloads":
         return <DownloadsView releaseLinks={releaseLinks} />;
       case "notifications":
-        return <NotificationsView />;
+        return <NotificationsView onBack={() => setActiveTab("overview")} />;
       default:
         return <OverviewView stats={stats} user={user} stores={stores} onReset={resetAccountData} />;
     }
@@ -64,7 +62,7 @@ export default function DashboardViewPage({ params }: { params: Promise<{ view: 
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
-      <Sidebar activeTab={view} onTabChange={setActiveTab} onLogout={logout} />
+      <Sidebar activeTab={view} setActiveTab={setActiveTab} user={user} onLogout={logout} />
       <div className="flex-1 flex flex-col min-w-0">
         <Header onSetActiveTab={setActiveTab} />
         <main className="flex-1 overflow-y-auto p-8 scrollbar-hide">

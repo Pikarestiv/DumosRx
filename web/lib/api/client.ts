@@ -116,7 +116,12 @@ class WebApiClient {
         email: string;
         pharmacy_name: string;
       };
+      staff: any[]; // Include staff in summary or separate call
     }>("/dashboard/summary");
+  }
+
+  async getStaff() {
+    return this.request<any[]>("/staff");
   }
 }
 

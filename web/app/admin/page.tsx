@@ -27,6 +27,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useAdminStore } from "@/lib/store/use-admin-store";
+import { useRouter } from "next/navigation";
 
 const ICON_MAP: any = {
   Store: Store,
@@ -37,6 +38,7 @@ const ICON_MAP: any = {
 
 export default function AdminDashboard() {
   const { summary, loading, error, fetchSummary } = useAdminStore();
+  const router = useRouter();
 
   useEffect(() => {
     fetchSummary();
@@ -88,9 +90,12 @@ export default function AdminDashboard() {
                 {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Activity className="h-4 w-4 mr-2 text-indigo-500" />}
                 Refresh Pulse
             </Button>
-            <Button className="bg-indigo-600 hover:bg-indigo-700 font-bold shadow-lg shadow-indigo-600/20">
+            <Button 
+                className="bg-indigo-600 hover:bg-indigo-700 font-bold shadow-lg shadow-indigo-600/20"
+                onClick={() => router.push("/register")}
+            >
                 <Plus className="h-4 w-4 mr-2" />
-                Invite Partner
+                Register Pharmacy
             </Button>
         </div>
       </div>

@@ -15,7 +15,8 @@ import {
   Download, 
   Store as StoreIcon,
   Loader2,
-  ShieldAlert
+  ShieldAlert,
+  Plus
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,13 +39,24 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAdminStore } from "@/lib/store/use-admin-store";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useDebounce } from "@/hooks/use-debounce";
 
 export default function PharmaciesManagement() {
   const { pharmacies, pharmacyMeta, loading, error, fetchPharmacies } = useAdminStore();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const initialSearch = searchParams.get("search") || "";
+  
   const [page, setPage] = useState(1);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(initialSearch);
   const debouncedSearch = useDebounce(search, 500);
+
+  useEffect(() => {
+    if (initialSearch && initialSearch !== search) {
+      setSearch(initialSearch);
+    }
+  }, [initialSearch]);
 
   useEffect(() => {
     fetchPharmacies(page, debouncedSearch);
@@ -58,6 +70,22 @@ export default function PharmaciesManagement() {
 
   const pharmacyList = pharmacies || [];
 
+  const handleExportCSV = () => {
+    if (pharmacyList.length === 0) return;
+    
+    const headers = ["ID", "Name", "Owner", "Email", "Plan", "Status", "Date"];
+    const csvData = pharmacyList.map(p => [
+      p.id, p.name, p.owner, p.email, p.plan, p.status, p.date
+    ].join(","));
+    
+    const blob = new Blob([[headers.join(","), ...csvData].join("\n")], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `pharmacies-export-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -66,11 +94,19 @@ export default function PharmaciesManagement() {
           <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium">Manage and monitor all business accounts on the platform</p>
         </div>
         <div className="flex items-center gap-3">
-            <Button variant="outline" className="border-2 font-bold dark:bg-slate-900 dark:border-slate-800">
+            <Button 
+                variant="outline" 
+                className="border-2 font-bold dark:bg-slate-900 dark:border-slate-800"
+                onClick={handleExportCSV}
+            >
                 <Download className="h-4 w-4 mr-2" />
                 Export CSV
             </Button>
-            <Button className="bg-indigo-600 hover:bg-indigo-700 font-bold shadow-lg shadow-indigo-600/20">
+            <Button 
+                className="bg-indigo-600 hover:bg-indigo-700 font-bold shadow-lg shadow-indigo-600/20"
+                onClick={() => router.push("/register")}
+            >
+                <Plus className="h-4 w-4 mr-2" />
                 Register Pharmacy
             </Button>
         </div>
@@ -83,17 +119,32 @@ export default function PharmaciesManagement() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
               <Input
                 placeholder="Search by name, ID or owner..."
-                className="pl-10 bg-slate-50 dark:bg-slate-800 border-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                className="pl-10 bg-slate-100 dark:bg-slate-800 border-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
             <div className="flex items-center gap-3">
                 {loading && <Loader2 className="h-4 w-4 animate-spin text-indigo-500 mr-2" />}
-                <Button variant="outline" size="sm" className="font-bold border-2">
-                    <Filter className="h-4 w-4 mr-2" />
-                    Filters
-                </Button>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm" className="font-bold border-2">
+                            <Filter className="h-4 w-4 mr-2" />
+                            Filters
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48 p-2">
+                        <DropdownMenuLabel>Status</DropdownMenuLabel>
+                        <DropdownMenuItem className="cursor-pointer">Active Only</DropdownMenuItem>
+                        <DropdownMenuItem className="cursor-pointer">Pending Approval</DropdownMenuItem>
+                        <DropdownMenuItem className="cursor-pointer">Suspended</DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuLabel>Subscription</DropdownMenuLabel>
+                        <DropdownMenuItem className="cursor-pointer">Basic</DropdownMenuItem>
+                        <DropdownMenuItem className="cursor-pointer">Professional</DropdownMenuItem>
+                        <DropdownMenuItem className="cursor-pointer">Enterprise</DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
                 <div className="h-8 w-px bg-slate-200 dark:bg-slate-800 mx-1 hidden md:block" />
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
                     Showing {pharmacyList.length} of {pharmacyMeta?.total || 0} pharmacies

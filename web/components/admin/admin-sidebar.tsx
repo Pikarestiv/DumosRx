@@ -15,7 +15,7 @@ import {
   Activity,
   Server
 } from "lucide-react";
-import { useAuthStore } from "@/lib/store/use-auth-store";
+import { useAdminAuthStore } from "@/lib/store/use-admin-auth-store";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
@@ -30,11 +30,11 @@ const sidebarItems = [
 export function AdminSidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, logout } = useAuthStore();
+  const { user, logout } = useAdminAuthStore();
 
   const handleLogout = () => {
     logout();
-    router.push("/login");
+    router.push("/admin/login");
   };
 
   const userInitials = user ? `${user.first_name[0]}${user.last_name[0]}` : "AD";
@@ -44,21 +44,19 @@ export function AdminSidebar() {
   return (
     <aside className="hidden lg:flex w-72 flex-col bg-slate-950 text-slate-200 border-r border-slate-800">
       <div className="p-8">
-        <Link href="/admin" className="flex items-center gap-3 group transition-transform hover:scale-105">
-          <div className="relative h-8 w-auto flex items-center justify-center">
-            <Image
-              src="/logo.png"
-              alt="DumosRx Logo"
-              width={100}
-              height={32}
-              className="h-8 w-auto object-contain brightness-0 invert"
-              style={{ height: "auto" }}
-              priority
-            />
-            <div className="ml-2 flex flex-col">
-              <span className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.3em] leading-none">Admin</span>
-              <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">Control</span>
-            </div>
+        <Link href="/admin" className="flex flex-col items-center gap-2 group transition-transform hover:scale-105">
+          <Image
+            src="/logo.png"
+            alt="DumosRx Logo"
+            width={80}
+            height={24}
+            className="h-6 w-auto object-contain brightness-0 invert"
+            style={{ height: "auto" }}
+            priority
+          />
+          <div className="flex flex-col items-center text-center">
+            <span className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.3em] leading-none">Admin</span>
+            <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest mt-1">Control Center</span>
           </div>
         </Link>
       </div>
@@ -76,7 +74,12 @@ export function AdminSidebar() {
 
       <nav className="flex-1 px-4 py-4 space-y-1">
         {sidebarItems.map((item) => {
-          const isActive = pathname === item.href;
+          const normalizedPathname = pathname?.replace(/\/$/, "") || "";
+          const normalizedHref = item.href.replace(/\/$/, "");
+          
+          const isActive = item.href === "/admin" 
+            ? (normalizedPathname === "/admin" || normalizedPathname === "") 
+            : normalizedPathname.startsWith(normalizedHref);
           return (
             <Link
               key={item.id}

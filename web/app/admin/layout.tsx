@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { useAdminAuthStore } from "@/lib/store/use-admin-auth-store";
+import { useAdminStore } from "@/lib/store/use-admin-store";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
@@ -32,11 +33,27 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const { user, fetchUser, loading: authLoading, token } = useAdminAuthStore();
+  const { summary, fetchSummary } = useAdminStore();
   const router = useRouter();
   const pathname = usePathname();
   const [checking, setChecking] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const isLoginPage = pathname?.includes("/admin/login");
+
+  const handleSearch = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && searchQuery.trim()) {
+      router.push(`/admin/pharmacies?search=${encodeURIComponent(searchQuery)}`);
+    }
+  };
+
+  useEffect(() => {
+    if (!isLoginPage) {
+      fetchSummary();
+    }
+  }, [isLoginPage, fetchSummary]);
+
+  const securityAlerts = summary?.security_alerts || [];
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -61,6 +78,7 @@ export default function AdminLayout({
     }
   }, [user, checking, router, isLoginPage]);
 
+  // If on login page, just render children without further checks
   if (isLoginPage) {
     return <>{children}</>;
   }
@@ -77,6 +95,7 @@ export default function AdminLayout({
     return null;
   }
 
+
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden">
       <AdminSidebar />
@@ -88,8 +107,11 @@ export default function AdminLayout({
             <div className="relative w-full max-w-md hidden md:block group">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
               <Input
-                placeholder="Search pharmacies, users, or transactions..."
+                placeholder="Search pharmacies, users, or products..."
                 className="pl-10 bg-slate-100 dark:bg-slate-800 border-none focus-visible:ring-2 focus-visible:ring-indigo-500 transition-all"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={handleSearch}
               />
             </div>
             
@@ -112,31 +134,32 @@ export default function AdminLayout({
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative hover:bg-indigo-50 dark:hover:bg-indigo-500/10">
                   <Bell className="h-5 w-5 text-slate-500" />
-                  <span className="absolute top-2 right-2 w-2 h-2 bg-indigo-500 rounded-full border-2 border-white dark:border-slate-900" />
+                  {securityAlerts.length > 0 && (
+                    <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full border-2 border-white dark:border-slate-900" />
+                  )}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-80 p-0 border-slate-200 dark:border-slate-800">
                 <div className="p-4 bg-indigo-600 rounded-t-lg">
                     <h3 className="text-white font-bold">Platform Alerts</h3>
-                    <p className="text-indigo-100 text-xs">3 critical issues requiring attention</p>
+                    <p className="text-indigo-100 text-xs">{securityAlerts.length} issues requiring attention</p>
                 </div>
                 <div className="max-h-[300px] overflow-y-auto">
-                  <div className="p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer border-b border-slate-100 dark:border-slate-800">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Badge className="bg-red-500 text-[10px]">High Load</Badge>
-                      <span className="text-[10px] text-slate-400 ml-auto">5m ago</span>
+                  {securityAlerts.map((alert: any, index: number) => (
+                    <div key={index} className="p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer border-b border-slate-100 dark:border-slate-800">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Badge className="bg-rose-500 text-[10px]">Alert</Badge>
+                        <span className="text-[10px] text-slate-400 ml-auto">{alert.time}</span>
+                      </div>
+                      <p className="text-sm font-bold dark:text-white">{alert.title}</p>
+                      <p className="text-xs text-slate-500 mt-1">{alert.source}</p>
                     </div>
-                    <p className="text-sm font-bold dark:text-white">API Gateway Spike</p>
-                    <p className="text-xs text-slate-500 mt-1">Traffic increased by 400% in the last 10 minutes.</p>
-                  </div>
-                  <div className="p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Badge className="bg-indigo-500 text-[10px]">Security</Badge>
-                      <span className="text-[10px] text-slate-400 ml-auto">1h ago</span>
+                  ))}
+                  {securityAlerts.length === 0 && (
+                    <div className="p-8 text-center text-slate-500 italic">
+                      No active alerts
                     </div>
-                    <p className="text-sm font-bold dark:text-white">New Admin Login</p>
-                    <p className="text-xs text-slate-500 mt-1">A new administrator account was authorized from Lagos, NG.</p>
-                  </div>
+                  )}
                 </div>
                 <DropdownMenuSeparator />
                 <div className="p-2">

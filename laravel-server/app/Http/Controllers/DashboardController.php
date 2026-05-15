@@ -15,101 +15,136 @@ class DashboardController extends Controller
 {
     public function summary(Request $request)
     {
-        $user = $request->user();
-        $userId = $user->id;
+        try {
+            $user = $request->user();
+            $userId = $user->id;
 
-        // Date ranges
-        $now = Carbon::now();
-        $last7Days = $now->copy()->subDays(7);
-        $prev7Days = $now->copy()->subDays(14);
+            // Date ranges
+            $now = Carbon::now();
+            $last7Days = $now->copy()->subDays(7);
+            $prev7Days = $now->copy()->subDays(14);
 
-        // 1. Sales Stats
-        $totalSales = Sale::where('cashier_id', $userId)->sum('total_amount');
-        $salesThisWeek = Sale::where('cashier_id', $userId)
-            ->where('created_at', '>=', $last7Days)
-            ->sum('total_amount');
-        $salesPrevWeek = Sale::where('cashier_id', $userId)
-            ->where('created_at', '>=', $prev7Days)
-            ->where('created_at', '<', $last7Days)
-            ->sum('total_amount');
-        
-        $salesGrowth = 0;
-        if ($salesPrevWeek > 0) {
-            $salesGrowth = (($salesThisWeek - $salesPrevWeek) / $salesPrevWeek) * 100;
-        } elseif ($salesThisWeek > 0) {
-            $salesGrowth = 100;
+            // 1. Sales Stats - Use try-catch or check table
+            $totalSales = 0;
+            $salesGrowth = 0;
+            try {
+                $totalSales = (float)Sale::where('cashier_id', $userId)->sum('total_amount');
+                $salesThisWeek = (float)Sale::where('cashier_id', $userId)
+                    ->where('created_at', '>=', $last7Days)
+                    ->sum('total_amount');
+                $salesPrevWeek = (float)Sale::where('cashier_id', $userId)
+                    ->where('created_at', '>=', $prev7Days)
+                    ->where('created_at', '<', $last7Days)
+                    ->sum('total_amount');
+                
+                if ($salesPrevWeek > 0) {
+                    $salesGrowth = (($salesThisWeek - $salesPrevWeek) / $salesPrevWeek) * 100;
+                } elseif ($salesThisWeek > 0) {
+                    $salesGrowth = 100;
+                }
+            } catch (\Exception $e) {
+                \Log::error("Sales stats error: " . $e->getMessage());
+            }
+
+            // 2. Inventory Stats
+            $inventoryValue = 0;
+            try {
+                $inventoryStats = DB::table('inventory')
+                    ->select(DB::raw('SUM(quantity_in_stock * cost_price) as total_value'))
+                    ->first();
+                $inventoryValue = (float)($inventoryStats->total_value ?? 0);
+            } catch (\Exception $e) {
+                \Log::error("Inventory stats error: " . $e->getMessage());
+            }
+            
+            // 3. Customer Stats
+            $totalCustomers = 0;
+            $newCustomersThisWeek = 0;
+            try {
+                $totalCustomers = Customer::count();
+                $newCustomersThisWeek = Customer::where('created_at', '>=', $last7Days)->count();
+            } catch (\Exception $e) {
+                \Log::error("Customer stats error: " . $e->getMessage());
+            }
+
+            // 4. Stores/Sync Info
+            $storesCount = 0;
+            $userStores = collect([]);
+            try {
+                $userStores = Store::where('user_id', $userId)->get();
+                $storesCount = $userStores->count();
+            } catch (\Exception $e) {
+                \Log::error("Stores table error: " . $e->getMessage());
+                // If table doesn't exist, we just have 0 stores
+            }
+            
+            $lastSyncTime = 'Never';
+            try {
+                $lastSyncedRecord = DB::table('sales')
+                    ->where('cashier_id', $userId)
+                    ->whereNotNull('_synced_at')
+                    ->orderBy('_synced_at', 'desc')
+                    ->first();
+                
+                $lastSyncTime = $lastSyncedRecord ? Carbon::parse($lastSyncedRecord->_synced_at)->diffForHumans() : 'Never';
+            } catch (\Exception $e) {
+                 \Log::error("Sync info error: " . $e->getMessage());
+            }
+
+            // 5. Recent Sales
+            $recentSales = collect([]);
+            try {
+                $recentSales = Sale::where('cashier_id', $userId)
+                    ->orderBy('created_at', 'desc')
+                    ->limit(5)
+                    ->get();
+            } catch (\Exception $e) {
+                \Log::error("Recent sales error: " . $e->getMessage());
+            }
+
+            // Map Store models to response format
+            $stores = $userStores->map(function($store) use ($totalSales, $storesCount) {
+                return [
+                    'id' => $store->id,
+                    'name' => $store->name,
+                    'status' => $store->last_sync_at && Carbon::parse($store->last_sync_at)->gt(now()->subMinutes(30)) ? 'online' : 'offline',
+                    'lastSync' => $store->last_sync_at ? Carbon::parse($store->last_sync_at)->diffForHumans() : 'Never',
+                    'sales' => '₦' . number_format($totalSales / ($storesCount ?: 1), 2)
+                ];
+            });
+
+            return response()->json([
+                'stats' => [
+                    'total_sales' => [
+                        'value' => $totalSales,
+                        'growth' => round($salesGrowth, 1) . '%'
+                    ],
+                    'inventory_value' => [
+                        'value' => $inventoryValue,
+                        'label' => 'Total Stock'
+                    ],
+                    'customers' => [
+                        'value' => $totalCustomers,
+                        'growth' => '+' . $newCustomersThisWeek . ' new'
+                    ],
+                    'stores_count' => $storesCount,
+                    'last_sync' => $lastSyncTime
+                ],
+                'stores' => $stores,
+                'recent_sales' => $recentSales,
+                'user' => [
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'pharmacy_name' => $user->pharmacy_name ?? 'DumosRx Pharmacy',
+                ]
+            ]);
+        } catch (\Exception $e) {
+            \Log::error("Dashboard summary critical error: " . $e->getMessage());
+            return response()->json([
+                'error' => 'Internal Server Error',
+                'message' => $e->getMessage()
+            ], 500);
         }
-
-        // 2. Inventory Stats
-        $inventoryStats = DB::table('inventory')
-            ->select(DB::raw('SUM(quantity_in_stock * cost_price) as total_value'))
-            ->first();
-        $inventoryValue = $inventoryStats->total_value ?? 0;
-        
-        // 3. Customer Stats
-        $totalCustomers = Customer::count();
-        $newCustomersThisWeek = Customer::where('created_at', '>=', $last7Days)
-            ->count();
-
-        // 4. Stores/Sync Info (From Stores table)
-        $userStores = Store::where('user_id', $userId)->get();
-        $storesCount = $userStores->count();
-        
-        $lastSyncedRecord = DB::table('sales')
-            ->where('cashier_id', $userId)
-            ->whereNotNull('_synced_at')
-            ->orderBy('_synced_at', 'desc')
-            ->first();
-        
-        $lastSyncTime = $lastSyncedRecord ? Carbon::parse($lastSyncedRecord->_synced_at)->diffForHumans() : 'Never';
-
-        // 5. Recent Sales
-        $recentSales = Sale::where('cashier_id', $userId)
-            ->orderBy('created_at', 'desc')
-            ->limit(5)
-            ->get();
-
-        // Map Store models to response format
-        $stores = $userStores->map(function($store) use ($totalSales, $storesCount) {
-            return [
-                'id' => $store->id,
-                'name' => $store->name,
-                'status' => $store->last_sync_at && Carbon::parse($store->last_sync_at)->gt(now()->subMinutes(30)) ? 'online' : 'offline',
-                'lastSync' => $store->last_sync_at ? Carbon::parse($store->last_sync_at)->diffForHumans() : 'Never',
-                'sales' => '₦' . number_format($totalSales / ($storesCount ?: 1)) // Split evenly for visualization
-            ];
-        });
-
-        // Fallback ONLY if absolutely no stores exist
-        if ($stores->isEmpty()) {
-            $stores = [];
-        }
-
-        return response()->json([
-            'stats' => [
-                'total_sales' => [
-                    'value' => (float)$totalSales,
-                    'growth' => round($salesGrowth, 1) . '%'
-                ],
-                'inventory_value' => [
-                    'value' => (float)$inventoryValue,
-                    'label' => 'Total Stock'
-                ],
-                'customers' => [
-                    'value' => $totalCustomers,
-                    'growth' => '+' . $newCustomersThisWeek . ' new'
-                ],
-                'stores_count' => $storesCount,
-                'last_sync' => $lastSyncTime
-            ],
-            'stores' => $stores,
-            'recent_sales' => $recentSales,
-            'user' => [
-                'name' => $user->name,
-                'email' => $user->email,
-                'pharmacy_name' => $user->pharmacy_name ?? 'DumosRx Pharmacy',
-            ]
-        ]);
     }
 
     public function resetData(Request $request)

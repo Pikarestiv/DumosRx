@@ -1,6 +1,8 @@
 "use client";
 
-import { Bell, Search, Menu } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Bell, Search, Menu, CheckCircle2, AlertCircle, Info, Clock } from "lucide-react";
+import { webApiClient } from "@/lib/api/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ModeToggle } from "@/components/mode-toggle";
@@ -19,6 +21,25 @@ interface HeaderProps {
 }
 
 export function Header({ onSetActiveTab }: HeaderProps) {
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const data = await webApiClient.getNotifications();
+        setNotifications(data);
+        setUnreadCount(data.filter((n: any) => !n.isRead).length);
+      } catch (error) {
+        console.error("Failed to fetch notifications:", error);
+      }
+    };
+
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 60000); // Every minute
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <header className="h-20 bg-background border-b flex items-center justify-between px-8">
       <div className="flex items-center gap-4 flex-1">
@@ -36,47 +57,60 @@ export function Header({ onSetActiveTab }: HeaderProps) {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="relative">
               <Bell className="h-5 w-5" />
-              <span className="absolute top-2 right-2 w-2 h-2 bg-destructive rounded-full" />
+              {unreadCount > 0 && (
+                <span className="absolute top-2 right-2 w-2 h-2 bg-destructive rounded-full animate-pulse" />
+              )}
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-80">
-            <DropdownMenuLabel>Notifications</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <div className="max-h-[300px] overflow-y-auto">
-              <DropdownMenuItem 
-                className="flex flex-col items-start gap-1 p-3 cursor-pointer"
-                onClick={() => onSetActiveTab("notifications")}
-              >
-                <div className="flex items-center gap-2 w-full">
-                  <Badge variant="outline" className="bg-orange-100 text-orange-700 border-orange-200">
-                    Inventory
-                  </Badge>
-                  <span className="text-[10px] text-muted-foreground ml-auto">2h ago</span>
-                </div>
-                <p className="text-sm font-bold">Low Stock Alert: Lagos Branch</p>
-                <p className="text-xs text-muted-foreground">Paracetamol 500mg is below threshold (5 units left).</p>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem 
-                className="flex flex-col items-start gap-1 p-3 cursor-pointer"
-                onClick={() => onSetActiveTab("notifications")}
-              >
-                <div className="flex items-center gap-2 w-full">
-                  <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-200">
-                    System
-                  </Badge>
-                  <span className="text-[10px] text-muted-foreground ml-auto">5h ago</span>
-                </div>
-                <p className="text-sm font-bold">New Store Connected</p>
-                <p className="text-xs text-muted-foreground">"DumosRx Ikeja" has successfully synced its first batch.</p>
-              </DropdownMenuItem>
+          <DropdownMenuContent align="end" className="w-80 rounded-2xl p-2 shadow-2xl border-none">
+            <div className="flex items-center justify-between p-3">
+              <DropdownMenuLabel className="font-black text-lg p-0">Notifications</DropdownMenuLabel>
+              {unreadCount > 0 && (
+                <Badge className="bg-primary/10 text-primary border-none rounded-full px-2">
+                  {unreadCount} New
+                </Badge>
+              )}
             </div>
-            <DropdownMenuSeparator />
+            <DropdownMenuSeparator className="bg-muted/50" />
+            <div className="max-h-[400px] overflow-y-auto space-y-1 my-1">
+              {notifications.length === 0 ? (
+                <div className="py-8 text-center text-muted-foreground text-sm font-medium">
+                  No notifications yet.
+                </div>
+              ) : (
+                notifications.map((n) => (
+                  <DropdownMenuItem 
+                    key={n.id}
+                    className="flex flex-col items-start gap-1 p-3 cursor-pointer rounded-xl hover:bg-muted/50 transition-colors"
+                    onClick={() => onSetActiveTab("notifications")}
+                  >
+                    <div className="flex items-center gap-2 w-full">
+                      <Badge variant="outline" className={`
+                        text-[10px] font-black border-none px-2 py-0.5 rounded-full
+                        ${n.type === 'success' ? 'bg-emerald-100 text-emerald-700' : 
+                          n.type === 'warning' ? 'bg-amber-100 text-amber-700' : 
+                          n.type === 'error' ? 'bg-destructive/10 text-destructive' : 
+                          'bg-blue-100 text-blue-700'}
+                      `}>
+                        {n.type?.toUpperCase() || 'INFO'}
+                      </Badge>
+                      <span className="text-[10px] font-bold text-muted-foreground ml-auto flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {n.time}
+                      </span>
+                    </div>
+                    <p className="text-sm font-black text-foreground">{n.title}</p>
+                    <p className="text-xs text-muted-foreground font-medium line-clamp-2">{n.description}</p>
+                  </DropdownMenuItem>
+                ))
+              )}
+            </div>
+            <DropdownMenuSeparator className="bg-muted/50" />
             <DropdownMenuItem
-              className="w-full text-center text-xs text-primary font-bold justify-center py-2 cursor-pointer"
+              className="w-full text-center text-xs text-primary font-black justify-center py-3 cursor-pointer hover:bg-primary/5 rounded-xl"
               onClick={() => onSetActiveTab("notifications")}
             >
-              View All Notifications
+              View All Activity Logs
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

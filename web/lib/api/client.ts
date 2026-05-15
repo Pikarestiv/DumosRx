@@ -124,6 +124,10 @@ class WebApiClient {
     return this.request<any[]>("/staff");
   }
 
+  async getNotifications() {
+    return this.request<any[]>("/notifications");
+  }
+
   async resetData(type: string = "all") {
     return this.request<{ message: string; status: string }>("/dashboard/reset", {
       method: "POST",

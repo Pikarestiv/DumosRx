@@ -1,18 +1,28 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { webApiClient } from "@/lib/api/client";
 import { APP_VERSION, GITHUB_REPO } from "@/lib/constants";
 
 export function useDashboard() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("drx_dashboard_tab") || "overview";
+  const params = useParams();
+  const viewParam = (params?.view as string) || "overview";
+
+  const [activeTab, setActiveTabState] = useState(viewParam);
+
+  // Sync state with path param
+  useEffect(() => {
+    if (viewParam !== activeTab) {
+      setActiveTabState(viewParam);
     }
-    return "overview";
-  });
+  }, [viewParam]);
+
+  const setActiveTab = (tab: string) => {
+    setActiveTabState(tab);
+    router.push(`/dashboard/${tab}`);
+  };
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<any>(null);
   const [releaseLinks, setReleaseLinks] = useState({
@@ -25,9 +35,6 @@ export function useDashboard() {
     linuxSize: "92MB",
   });
 
-  useEffect(() => {
-    localStorage.setItem("drx_dashboard_tab", activeTab);
-  }, [activeTab]);
 
   useEffect(() => {
     const fetchData = async () => {

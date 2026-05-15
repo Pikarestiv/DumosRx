@@ -15,6 +15,7 @@ use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\CategoryController;
 
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\NotificationController;
 
 Route::prefix('v1')->group(function () {
     // Public Routes
@@ -30,6 +31,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/user', [AuthController::class, 'user']);
         Route::get('/dashboard/summary', [DashboardController::class, 'summary']);
         Route::post('/dashboard/reset', [DashboardController::class, 'resetData']);
+        Route::get('/notifications', [NotificationController::class, 'index']);
 
         // Staff Management
         Route::apiResource('staff', StaffController::class)->middleware('can:manage-staff');

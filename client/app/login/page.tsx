@@ -381,7 +381,7 @@ export default function LoginPage() {
                    <div className="flex flex-col items-center justify-center border-2 border-dashed border-border rounded-xl p-8 bg-background/30 hover:bg-background/50 transition-colors cursor-pointer group">
                       <FileUp className="h-10 w-10 text-muted-foreground group-hover:text-primary transition-colors mb-4" />
                       <p className="text-sm font-medium text-foreground">Click to select backup file</p>
-                      <p className="text-xs text-muted-foreground mt-1">.sql or .db files supported</p>
+                      <p className="text-xs text-muted-foreground mt-1">.drx backup files supported</p>
                    </div>
                 </CardContent>
                 <CardFooter className="pb-8">

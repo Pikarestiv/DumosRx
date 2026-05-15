@@ -67,11 +67,11 @@ Route::prefix('v1')->group(function () {
         Route::middleware('can:manage-platform')->prefix('admin')->group(function () {
             Route::get('/summary', [AdminController::class, 'summary']);
             Route::get('/pharmacies', [AdminController::class, 'pharmacies']);
+            Route::post('/pharmacies', [AdminController::class, 'registerPharmacy']);
             Route::get('/products', [AdminController::class, 'products']);
             Route::get('/users', [AdminController::class, 'users']);
             Route::get('/search', [AdminController::class, 'search']);
         });
-
         // --- APP / TERMINAL ROUTES ---
         Route::prefix('app')->group(function () {
             // Medicine Database

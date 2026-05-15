@@ -8,6 +8,8 @@ use App\Models\Medicine;
 use App\Models\Sale;
 use App\Models\ActivityLog;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Carbon\Carbon;
 
 class AdminService
@@ -267,5 +269,30 @@ class AdminService
             'DATA_EXPORT' => 'Large Export Initiated'
         ];
         return $map[$action] ?? 'Security Alert';
+    }
+
+    public function registerPharmacy($data)
+    {
+        return DB::transaction(function () use ($data) {
+            // Create the owner user
+            $user = User::create([
+                'first_name' => $data['first_name'],
+                'last_name' => $data['last_name'],
+                'email' => $data['email'],
+                'phone' => $data['phone'],
+                'password' => Hash::make($data['password']),
+                'role' => 'pharmacy_owner',
+            ]);
+
+            // Create the store
+            $store = Store::create([
+                'user_id' => $user->id,
+                'name' => $data['pharmacy_name'],
+                'license_key' => 'DRX-' . strtoupper(Str::random(12)),
+                'status' => 'Active',
+            ]);
+
+            return $store;
+        });
     }
 }

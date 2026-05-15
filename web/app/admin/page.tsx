@@ -14,7 +14,8 @@ import {
   ChevronRight,
   Database,
   Plus,
-  Loader2
+  Loader2,
+  Calendar
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +27,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { useAdminStore } from "@/lib/store/use-admin-store";
 import { useRouter } from "next/navigation";
 
@@ -40,6 +48,7 @@ export default function AdminDashboard() {
   const { summary, loading, error, fetchSummary } = useAdminStore();
   const router = useRouter();
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [selectedPharmacy, setSelectedPharmacy] = useState<any>(null);
 
   useEffect(() => {
     fetchSummary();
@@ -97,7 +106,7 @@ export default function AdminDashboard() {
             </Button>
             <Button 
                 className="bg-indigo-600 hover:bg-indigo-700 font-bold shadow-lg shadow-indigo-600/20"
-                onClick={() => router.push("/register")}
+                onClick={() => router.push("/admin/pharmacies/new")}
             >
                 <Plus className="h-4 w-4 mr-2" />
                 Register Pharmacy
@@ -153,7 +162,11 @@ export default function AdminDashboard() {
               </TableHeader>
               <TableBody>
                 {recentPharmacies.map((pharmacy: any) => (
-                  <TableRow key={pharmacy.id} className="border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 group">
+                  <TableRow 
+                    key={pharmacy.id} 
+                    className="border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 group cursor-pointer"
+                    onClick={() => setSelectedPharmacy(pharmacy)}
+                  >
                     <TableCell className="pl-6 py-4">
                       <div className="flex flex-col">
                         <span className="font-bold text-slate-900 dark:text-slate-100">{pharmacy.name}</span>
@@ -242,10 +255,85 @@ export default function AdminDashboard() {
                     </div>
                 )}
             </div>
-            <Button variant="ghost" className="w-full mt-6 text-xs font-bold text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl py-6">View Audit Log</Button>
+            <Button 
+                variant="outline" 
+                className="w-full mt-6 text-xs font-black text-indigo-600 bg-indigo-50/50 border-indigo-100 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 rounded-xl py-6 transition-all"
+                onClick={() => router.push("/admin/system")}
+            >
+                View Security Audit Trail
+            </Button>
           </div>
         </div>
       </div>
+
+      <Dialog open={!!selectedPharmacy} onOpenChange={() => setSelectedPharmacy(null)}>
+        <DialogContent className="max-w-2xl rounded-[2rem] p-0 overflow-hidden border-none shadow-2xl">
+          {selectedPharmacy && (
+            <div className="bg-white dark:bg-slate-900">
+              <div className="bg-indigo-600 p-8 text-white relative">
+                <div className="absolute top-0 right-0 p-8 opacity-10">
+                  <Store className="h-24 w-24" />
+                </div>
+                <Badge className="bg-white/20 text-white border-none mb-4 font-bold">{selectedPharmacy.plan} Partner</Badge>
+                <DialogTitle className="text-3xl font-black tracking-tight">{selectedPharmacy.name}</DialogTitle>
+                <p className="text-indigo-100 font-medium mt-1 uppercase text-xs tracking-widest">ID: {selectedPharmacy.id}</p>
+              </div>
+              
+              <div className="p-8 space-y-8">
+                <div className="grid grid-cols-2 gap-8">
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Store Owner</p>
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4 text-indigo-500" />
+                      <p className="font-bold text-slate-900 dark:text-white">{selectedPharmacy.owner}</p>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Registration Date</p>
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-indigo-500" />
+                      <p className="font-bold text-slate-900 dark:text-white">{selectedPharmacy.date}</p>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</p>
+                    <div className="flex items-center gap-2">
+                      <div className={`h-2 w-2 rounded-full ${selectedPharmacy.status === 'Active' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                      <p className="font-bold text-slate-900 dark:text-white">{selectedPharmacy.status}</p>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Contact Hash</p>
+                    <div className="flex items-center gap-2">
+                      <ShieldCheck className="h-4 w-4 text-indigo-500" />
+                      <p className="font-mono text-xs font-bold text-slate-500">SEC-OP-{selectedPharmacy.id.substring(0, 6)}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-6 border-t border-slate-100 dark:border-slate-800 flex gap-3">
+                  <Button 
+                    className="flex-1 bg-indigo-600 hover:bg-indigo-700 font-bold rounded-xl h-12"
+                    onClick={() => {
+                      router.push(`/admin/pharmacies?search=${selectedPharmacy.id}`);
+                      setSelectedPharmacy(null);
+                    }}
+                  >
+                    View Full Profile
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="flex-1 font-bold rounded-xl h-12 border-slate-200"
+                    onClick={() => setSelectedPharmacy(null)}
+                  >
+                    Close
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

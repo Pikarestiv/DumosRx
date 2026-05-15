@@ -38,7 +38,7 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const { user, fetchUser, loading: authLoading, token } = useAdminAuthStore();
-  const { summary, fetchSummary, latency } = useAdminStore();
+  const { summary, fetchSummary, latency, loading } = useAdminStore();
   const router = useRouter();
   const pathname = usePathname();
   const [checking, setChecking] = useState(true);
@@ -196,10 +196,16 @@ export default function AdminLayout({
             </div>
             
             <div className="hidden lg:flex items-center gap-2 ml-4">
-                <Badge variant="outline" className={`${latency > 200 ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 'bg-green-500/10 text-green-500 border-green-500/20'} gap-1 font-bold`}>
-                    <Zap className="h-3 w-3 fill-current" />
-                    Cloud API: {latency || '...'}ms
-                </Badge>
+                {(latency > 0 || loading) && (
+                  <Badge variant="outline" className={`${latency > 200 ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 'bg-green-500/10 text-green-500 border-green-500/20'} gap-1 font-bold`}>
+                      {loading ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Zap className="h-3 w-3 fill-current" />
+                      )}
+                      Cloud API: {loading ? 'Checking...' : `${latency}ms`}
+                  </Badge>
+                )}
                 <Badge variant="outline" className="bg-indigo-500/10 text-indigo-500 border-indigo-500/20 gap-1 font-bold">
                     <Globe className="h-3 w-3" />
                     Production

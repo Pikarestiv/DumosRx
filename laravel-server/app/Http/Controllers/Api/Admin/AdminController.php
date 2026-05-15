@@ -48,6 +48,33 @@ class AdminController extends Controller
         }
     }
 
+    public function registerPharmacy(Request $request)
+    {
+        if ($request->user()->role !== 'super_admin') {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        $validated = $request->validate([
+            'pharmacy_name' => 'required|string|min:2',
+            'first_name' => 'required|string|min:2',
+            'last_name' => 'required|string|min:2',
+            'email' => 'required|email|unique:users,email',
+            'phone' => 'required|string|min:10',
+            'password' => 'required|string|min:8',
+        ]);
+
+        try {
+            $pharmacy = $this->adminService->registerPharmacy($validated);
+            return response()->json([
+                'message' => 'Pharmacy registered successfully',
+                'pharmacy' => $pharmacy
+            ], 201);
+        } catch (\Exception $e) {
+            \Log::error("Admin Register Pharmacy Error: " . $e->getMessage());
+            return response()->json(['error' => 'Failed to register pharmacy'], 500);
+        }
+    }
+
     public function products(Request $request)
     {
         if ($request->user()->role !== 'super_admin') {

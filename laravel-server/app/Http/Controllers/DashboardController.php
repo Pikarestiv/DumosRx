@@ -18,13 +18,14 @@ class DashboardController extends Controller
         try {
             $user = $request->user();
             $userId = $user->id;
+            \Log::info("Dashboard summary request for user ID: " . $userId);
 
             // Date ranges
             $now = Carbon::now();
             $last7Days = $now->copy()->subDays(7);
             $prev7Days = $now->copy()->subDays(14);
 
-            // 1. Sales Stats - Use try-catch or check table
+            // 1. Sales Stats
             $totalSales = 0;
             $salesGrowth = 0;
             try {
@@ -42,8 +43,9 @@ class DashboardController extends Controller
                 } elseif ($salesThisWeek > 0) {
                     $salesGrowth = 100;
                 }
+                \Log::info("Sales stats calculated");
             } catch (\Exception $e) {
-                \Log::error("Sales stats error: " . $e->getMessage());
+                \Log::error("Dashboard Error [Sales]: " . $e->getMessage());
             }
 
             // 2. Inventory Stats
@@ -53,8 +55,9 @@ class DashboardController extends Controller
                     ->select(DB::raw('SUM(quantity_in_stock * cost_price) as total_value'))
                     ->first();
                 $inventoryValue = (float)($inventoryStats->total_value ?? 0);
+                \Log::info("Inventory stats calculated");
             } catch (\Exception $e) {
-                \Log::error("Inventory stats error: " . $e->getMessage());
+                \Log::error("Dashboard Error [Inventory]: " . $e->getMessage());
             }
             
             // 3. Customer Stats
@@ -63,8 +66,9 @@ class DashboardController extends Controller
             try {
                 $totalCustomers = Customer::count();
                 $newCustomersThisWeek = Customer::where('created_at', '>=', $last7Days)->count();
+                \Log::info("Customer stats calculated");
             } catch (\Exception $e) {
-                \Log::error("Customer stats error: " . $e->getMessage());
+                \Log::error("Dashboard Error [Customers]: " . $e->getMessage());
             }
 
             // 4. Stores/Sync Info
@@ -73,9 +77,9 @@ class DashboardController extends Controller
             try {
                 $userStores = Store::where('user_id', $userId)->get();
                 $storesCount = $userStores->count();
+                \Log::info("Stores info retrieved: " . $storesCount);
             } catch (\Exception $e) {
-                \Log::error("Stores table error: " . $e->getMessage());
-                // If table doesn't exist, we just have 0 stores
+                \Log::error("Dashboard Error [Stores]: " . $e->getMessage());
             }
             
             $lastSyncTime = 'Never';
@@ -87,8 +91,9 @@ class DashboardController extends Controller
                     ->first();
                 
                 $lastSyncTime = $lastSyncedRecord ? Carbon::parse($lastSyncedRecord->_synced_at)->diffForHumans() : 'Never';
+                \Log::info("Sync info calculated");
             } catch (\Exception $e) {
-                 \Log::error("Sync info error: " . $e->getMessage());
+                 \Log::error("Dashboard Error [Sync]: " . $e->getMessage());
             }
 
             // 5. Recent Sales
@@ -98,8 +103,9 @@ class DashboardController extends Controller
                     ->orderBy('created_at', 'desc')
                     ->limit(5)
                     ->get();
+                \Log::info("Recent sales retrieved");
             } catch (\Exception $e) {
-                \Log::error("Recent sales error: " . $e->getMessage());
+                \Log::error("Dashboard Error [RecentSales]: " . $e->getMessage());
             }
 
             // Map Store models to response format
@@ -112,6 +118,8 @@ class DashboardController extends Controller
                     'sales' => '₦' . number_format($totalSales / ($storesCount ?: 1), 2)
                 ];
             });
+
+            \Log::info("Final response prepared");
 
             return response()->json([
                 'stats' => [
@@ -139,10 +147,11 @@ class DashboardController extends Controller
                 ]
             ]);
         } catch (\Exception $e) {
-            \Log::error("Dashboard summary critical error: " . $e->getMessage());
+            \Log::critical("Dashboard summary CRITICAL FAILURE: " . $e->getMessage() . " at " . $e->getFile() . ":" . $e->getLine());
             return response()->json([
                 'error' => 'Internal Server Error',
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString() // Temporary for debugging production
             ], 500);
         }
     }

@@ -8,7 +8,8 @@ import {
   Users, 
   CreditCard, 
   Download, 
-  LogOut 
+  LogOut,
+  Bell
 } from "lucide-react";
 
 interface SidebarProps {
@@ -21,6 +22,7 @@ interface SidebarProps {
 export function Sidebar({ activeTab, setActiveTab, user, onLogout }: SidebarProps) {
   const sidebarItems = [
     { id: "overview", name: "Overview", icon: LayoutDashboard },
+    { id: "notifications", name: "Notifications", icon: Bell },
     { id: "fleet", name: "Store Fleet", icon: Store },
     { id: "staff", name: "Staff Management", icon: Users },
     { id: "billing", name: "Subscription", icon: CreditCard },

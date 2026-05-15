@@ -45,6 +45,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/reset', [DashboardController::class, 'resetData']);
         });
         Route::get('/notifications', [NotificationController::class, 'index']);
+        Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
         Route::apiResource('staff', StaffController::class)->middleware('can:manage-staff');
 
         Route::prefix('subscription')->group(function () {

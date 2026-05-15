@@ -362,14 +362,14 @@ class AdminService
         return ['temp_password' => $tempPassword];
     }
 
-    public function notifyUser($id, $message)
+    public function notifyUser($id, $message, $title = 'Administrative Message')
     {
         $user = User::findOrFail($id);
         
         // Create actual notification record
         \App\Models\Notification::create([
             'user_id' => $user->id,
-            'title' => 'Administrative Message',
+            'title' => $title,
             'message' => $message,
             'type' => 'urgent',
             'is_read' => false

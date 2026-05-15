@@ -69,6 +69,7 @@ export default function GlobalUsersDirectory() {
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const [isNotifyDialogOpen, setIsNotifyDialogOpen] = useState(false);
+  const [notifyTitle, setNotifyTitle] = useState("Administrative Message");
   const [notifyMessage, setNotifyMessage] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const debouncedSearch = useDebounce(search, 500);
@@ -136,17 +137,21 @@ export default function GlobalUsersDirectory() {
   };
 
   const handleSendNotification = async () => {
-    if (!selectedUser || !notifyMessage) return;
+    if (!selectedUser || !notifyMessage || !notifyTitle) return;
     setIsProcessing(true);
     try {
       await webApiClient.request(`admin/users/${selectedUser.id}/notify`, { 
         method: 'POST',
-        body: { message: notifyMessage }
+        body: { 
+          title: notifyTitle,
+          message: notifyMessage 
+        }
       });
       toast.success("Notification Sent", {
         description: `Message successfully delivered to ${selectedUser.name}`
       });
       setNotifyMessage("");
+      setNotifyTitle("Administrative Message");
       setIsNotifyDialogOpen(false);
     } catch (err: any) {
       toast.error("Failed to Send", { description: err.message });
@@ -542,6 +547,15 @@ export default function GlobalUsersDirectory() {
             </DialogDescription>
           </DialogHeader>
           <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400">Subject / Title</label>
+              <Input 
+                placeholder="Enter notification title..." 
+                className="rounded-xl border-2 focus-visible:ring-blue-500 font-bold"
+                value={notifyTitle}
+                onChange={(e) => setNotifyTitle(e.target.value)}
+              />
+            </div>
             <div className="space-y-2">
               <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400">Notification Message</label>
               <Textarea 

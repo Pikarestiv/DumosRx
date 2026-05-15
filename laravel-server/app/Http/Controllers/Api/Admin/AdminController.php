@@ -181,11 +181,12 @@ class AdminController extends Controller
         }
 
         $validated = $request->validate([
+            'title' => 'required|string|min:3|max:100',
             'message' => 'required|string|min:5',
         ]);
 
         try {
-            $this->adminService->notifyUser($id, $validated['message']);
+            $this->adminService->notifyUser($id, $validated['message'], $validated['title']);
             return response()->json(['message' => 'Notification sent successfully']);
         } catch (\Exception $e) {
             \Log::error("Admin Notify Error: " . $e->getMessage());

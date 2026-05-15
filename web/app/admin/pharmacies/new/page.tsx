@@ -26,12 +26,12 @@ const registerSchema = z
   .object({
     pharmacy_name: z
       .string()
-      .min(2, "Pharmacy name must be at least 2 characters"),
-    first_name: z.string().min(2, "First name must be at least 2 characters"),
-    last_name: z.string().min(2, "Last name must be at least 2 characters"),
-    email: z.string().email("Invalid email address"),
-    phone: z.string().min(10, "Phone number must be at least 10 digits"),
-    password: z.string().min(8, "Password must be at least 8 characters"),
+      .min(2, { message: "Pharmacy name must be at least 2 characters" }),
+    first_name: z.string().min(2, { message: "First name must be at least 2 characters" }),
+    last_name: z.string().min(2, { message: "Last name must be at least 2 characters" }),
+    email: z.email({ message: "Invalid email address" }),
+    phone: z.string().min(10, { message: "Phone number must be at least 10 digits" }),
+    password: z.string().min(8, { message: "Password must be at least 8 characters" }),
     password_confirmation: z.string(),
   })
   .refine((data) => data.password === data.password_confirmation, {
@@ -63,7 +63,10 @@ export default function AdminNewPharmacyPage() {
     setError(null);
 
     try {
-      await webApiClient.request("POST", "admin/pharmacies", values);
+      await webApiClient.request("admin/pharmacies", { 
+        method: "POST", 
+        body: values 
+      });
       fetchSummary(true);
       router.push("/admin/pharmacies");
     } catch (err: any) {

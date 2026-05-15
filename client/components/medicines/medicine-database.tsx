@@ -195,8 +195,16 @@ export function MedicineDatabase() {
 
     const matchesCategory =
       categoryFilter === "all" || medicine.category === categoryFilter;
-    const matchesStatus =
-      statusFilter === "all" || medicine.status === statusFilter;
+    
+    let matchesStatus = statusFilter === "all" || medicine.status === statusFilter;
+    
+    // Explicit overrides for inclusive filtering
+    if (statusFilter === "low_stock" && medicine.stockQuantity <= medicine.reorderLevel) {
+      matchesStatus = true;
+    }
+    if (statusFilter === "expired" && medicine.expiryDate && new Date(medicine.expiryDate) < new Date()) {
+      matchesStatus = true;
+    }
 
     return matchesSearch && matchesCategory && matchesStatus;
   });

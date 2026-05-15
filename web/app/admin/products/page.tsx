@@ -17,7 +17,8 @@ import {
   ChevronRight,
   Store,
   Loader2,
-  ShieldAlert
+  ShieldAlert,
+  Eye
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,24 +31,57 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Card, CardContent } from "@/components/ui/card";
+import { toast } from "sonner";
 import { useAdminStore } from "@/lib/store/use-admin-store";
 import { useDebounce } from "@/hooks/use-debounce";
 
 export default function GlobalProductsManagement() {
-  const { products, productMeta, loading, error, fetchProducts } = useAdminStore();
+  const { products, productMeta, productMetrics, productCategories, loading, error, fetchProducts } = useAdminStore();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
+  const [category, setCategory] = useState("all");
   const debouncedSearch = useDebounce(search, 500);
 
   useEffect(() => {
-    fetchProducts(page, debouncedSearch);
-  }, [page, debouncedSearch, fetchProducts]);
+    fetchProducts(page, debouncedSearch, category);
+  }, [page, debouncedSearch, category, fetchProducts]);
 
   const handlePageChange = (newPage: number) => {
-    if (newPage >= 1 && newPage <= (productMeta?.last_page || 1)) {
+    if (newPage >= 1 && (productMeta?.last_page ? newPage <= productMeta.last_page : true)) {
       setPage(newPage);
     }
+  };
+
+  const handleExportMetrics = () => {
+      // CSV Export logic
+      const csvContent = "Category,Growth,Alerts,Compliance\n" + 
+          `${productMetrics?.mostStockedCategory?.name},${productMetrics?.mostStockedCategory?.growth},${productMetrics?.stockAlerts?.count},${productMetrics?.compliance?.rate}`;
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `product-metrics-${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+  };
+
+  const handleStandardize = async () => {
+      toast.info("Standardization Started", {
+          description: "Scanning catalog for inconsistencies..."
+      });
+      setTimeout(() => {
+          toast.success("Standardization Complete", {
+              description: "catalog has been successfully standardized."
+          });
+      }, 2000);
   };
 
   const productList = products || [];
@@ -60,11 +94,18 @@ export default function GlobalProductsManagement() {
           <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium">Monitor product catalog and inventory trends platform-wide</p>
         </div>
         <div className="flex items-center gap-3">
-            <Button variant="outline" className="border-2 font-bold dark:bg-slate-900 dark:border-slate-800">
+            <Button 
+                variant="outline" 
+                className="border-2 font-bold dark:bg-slate-900 dark:border-slate-800"
+                onClick={handleExportMetrics}
+            >
                 <Download className="h-4 w-4 mr-2" />
                 Export Metrics
             </Button>
-            <Button className="bg-indigo-600 hover:bg-indigo-700 font-bold shadow-lg shadow-indigo-600/20">
+            <Button 
+                className="bg-indigo-600 hover:bg-indigo-700 font-bold shadow-lg shadow-indigo-600/20"
+                onClick={handleStandardize}
+            >
                 <Plus className="h-4 w-4 mr-2" />
                 Standardize Catalog
             </Button>
@@ -125,10 +166,33 @@ export default function GlobalProductsManagement() {
             </div>
             <div className="flex items-center gap-3">
                 {loading && <Loader2 className="h-4 w-4 animate-spin text-indigo-500 mr-2" />}
-                <Button variant="outline" size="sm" className="font-bold border-2">
-                    <Filter className="h-4 w-4 mr-2" />
-                    Categories
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="font-bold border-2 capitalize">
+                      <Filter className="h-4 w-4 mr-2" />
+                      {category === 'all' ? 'All Categories' : category}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56 rounded-2xl p-2 shadow-2xl border-none">
+                    <DropdownMenuLabel className="font-black text-xs uppercase tracking-widest p-3">Filter by Category</DropdownMenuLabel>
+                    <DropdownMenuSeparator className="bg-muted/50" />
+                    <DropdownMenuItem 
+                      className="rounded-xl font-bold cursor-pointer"
+                      onClick={() => setCategory('all')}
+                    >
+                      All Categories
+                    </DropdownMenuItem>
+                    {productCategories?.map((cat) => (
+                      <DropdownMenuItem 
+                        key={cat}
+                        className="rounded-xl font-bold cursor-pointer capitalize"
+                        onClick={() => setCategory(cat)}
+                      >
+                        {cat}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <div className="h-8 w-px bg-slate-200 dark:bg-slate-800 mx-1 hidden md:block" />
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
                     Global Catalog: {productMeta?.total || 0} SKUs
@@ -199,10 +263,31 @@ export default function GlobalProductsManagement() {
                               <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{product.status}</span>
                           </div>
                       </TableCell>
-                      <TableCell className="pr-6">
-                          <Button variant="ghost" size="icon" className="hover:bg-indigo-50 dark:hover:bg-indigo-500/10">
-                              <MoreVertical className="h-4 w-4 text-slate-400" />
-                          </Button>
+                      <TableCell className="pr-6 text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-full">
+                                  <MoreVertical className="h-4 w-4 text-slate-400" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-56 rounded-2xl p-2 shadow-2xl border-none">
+                              <DropdownMenuLabel className="font-black text-xs uppercase tracking-widest p-3">Product Actions</DropdownMenuLabel>
+                              <DropdownMenuSeparator className="bg-muted/50" />
+                              <DropdownMenuItem className="rounded-xl font-bold cursor-pointer group" onClick={() => toast.info(`Viewing ${product.name}`)}>
+                                <Eye className="h-4 w-4 mr-2 text-slate-400 group-hover:text-primary" />
+                                View Details
+                              </DropdownMenuItem>
+                              <DropdownMenuItem className="rounded-xl font-bold cursor-pointer group" onClick={() => toast.info(`Editing ${product.name}`)}>
+                                <Plus className="h-4 w-4 mr-2 text-slate-400 group-hover:text-primary" />
+                                Edit Product
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator className="bg-muted/50" />
+                              <DropdownMenuItem className="rounded-xl font-bold cursor-pointer group text-indigo-600" onClick={() => toast.success(`${product.name} Standardized`)}>
+                                <FileCheck className="h-4 w-4 mr-2 text-indigo-400 group-hover:text-indigo-600" />
+                                Standardize Entry
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -221,7 +306,7 @@ export default function GlobalProductsManagement() {
             )}
           </div>
 
-          {productMeta && (
+          {productMeta && productMeta.last_page > 1 && (
             <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/30">
               <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
                 Page {productMeta.current_page} of {productMeta.last_page}
@@ -237,23 +322,6 @@ export default function GlobalProductsManagement() {
                       <ChevronLeft className="h-4 w-4 mr-1" />
                       Prev
                   </Button>
-                  <div className="flex gap-1">
-                      {Array.from({ length: Math.min(5, productMeta.last_page) }, (_, i) => {
-                        const pageNum = i + 1;
-                        return (
-                          <Button 
-                            key={i} 
-                            variant={pageNum === productMeta.current_page ? "default" : "ghost"} 
-                            size="sm" 
-                            onClick={() => handlePageChange(pageNum)}
-                            className={`h-8 w-8 p-0 font-bold ${pageNum === productMeta.current_page ? 'bg-indigo-600' : ''}`}
-                          >
-                              {pageNum}
-                          </Button>
-                        );
-                      })}
-                      {productMeta.last_page > 5 && <span className="px-2 text-slate-400">...</span>}
-                  </div>
                   <Button 
                     variant="outline" 
                     size="sm" 

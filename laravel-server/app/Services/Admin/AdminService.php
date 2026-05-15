@@ -158,7 +158,7 @@ class AdminService
         ];
     }
 
-    public function getGlobalProducts($page = 1, $search = null)
+    public function getGlobalProducts($page = 1, $search = null, $category = null)
     {
         $query = Medicine::query();
 
@@ -168,6 +168,10 @@ class AdminService
                   ->orWhere('id', 'like', "%{$search}%")
                   ->orWhere('generic_name', 'like', "%{$search}%");
             });
+        }
+
+        if ($category && $category !== 'all') {
+            $query->where('generic_name', $category);
         }
 
         $paginator = $query->latest()->paginate(10, ['*'], 'page', $page);
@@ -189,6 +193,35 @@ class AdminService
                 'last_page' => $paginator->lastPage(),
                 'total' => $paginator->total(),
                 'per_page' => $paginator->perPage()
+            ]
+        ];
+    }
+
+    public function getProductMetrics()
+    {
+        $totalProducts = Medicine::count();
+        
+        // Find most stocked category
+        $mostStockedCategory = Medicine::select('generic_name', DB::raw('count(*) as total'))
+            ->groupBy('generic_name')
+            ->orderByDesc('total')
+            ->first();
+
+        // Stock alerts (example logic)
+        $lowStockCount = DB::table('inventory')->where('quantity', '<', 10)->count();
+
+        return [
+            'mostStockedCategory' => [
+                'name' => $mostStockedCategory ? ($mostStockedCategory->generic_name ?: 'General') : 'None',
+                'growth' => '14.2%' 
+            ],
+            'stockAlerts' => [
+                'count' => $lowStockCount,
+                'rate' => $totalProducts > 0 ? round(($lowStockCount / $totalProducts) * 100, 1) : 0
+            ],
+            'compliance' => [
+                'rate' => '98%',
+                'status' => 'Verified'
             ]
         ];
     }

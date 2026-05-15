@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Medicine;
 use App\Services\Admin\AdminService;
 use Illuminate\Http\Request;
 
@@ -81,15 +82,18 @@ class AdminController extends Controller
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
-        try {
-            $page = $request->query('page', 1);
-            $search = $request->query('search');
-            $data = $this->adminService->getGlobalProducts($page, $search);
-            return response()->json($data);
-        } catch (\Exception $e) {
-            \Log::error("Admin Products Error: " . $e->getMessage());
-            return response()->json(['error' => 'Failed to fetch products'], 500);
-        }
+        $page = $request->get('page', 1);
+        $search = $request->get('search');
+        $category = $request->get('category');
+        
+        return response()->json([
+            'products' => $this->adminService->getGlobalProducts($page, $search, $category),
+            'metrics' => $this->adminService->getProductMetrics(),
+            'categories' => Medicine::select('generic_name')
+                ->whereNotNull('generic_name')
+                ->distinct()
+                ->pluck('generic_name')
+        ]);
     }
 
     public function users(Request $request)

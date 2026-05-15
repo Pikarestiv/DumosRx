@@ -8,6 +8,8 @@ interface AdminState {
   pharmacyMeta: any | null;
   products: any[] | null;
   productMeta: any | null;
+  productMetrics: any | null;
+  productCategories: string[] | null;
   users: any[] | null;
   userMeta: any | null;
   loading: boolean;
@@ -17,7 +19,7 @@ interface AdminState {
 
   fetchSummary: (force?: boolean) => Promise<void>;
   fetchPharmacies: (page?: number, search?: string) => Promise<void>;
-  fetchProducts: (page?: number, search?: string) => Promise<void>;
+  fetchProducts: (page?: number, search?: string, category?: string) => Promise<void>;
   fetchUsers: (page?: number, search?: string) => Promise<void>;
 }
 
@@ -29,6 +31,8 @@ export const useAdminStore = create<AdminState>()(
       pharmacyMeta: null,
       products: null,
       productMeta: null,
+      productMetrics: null,
+      productCategories: null,
       users: null,
       userMeta: null,
       loading: false,
@@ -87,15 +91,17 @@ export const useAdminStore = create<AdminState>()(
         }
       },
 
-      fetchProducts: async (page = 1, search = "") => {
+      fetchProducts: async (page = 1, search = "", category = "") => {
         set({ loading: true, error: null });
 
         try {
-          const query = `admin/products?page=${page}${search ? `&search=${search}` : ""}`;
+          const query = `admin/products?page=${page}${search ? `&search=${search}` : ""}${category ? `&category=${category}` : ""}`;
           const response = await webApiClient.request<any>(query);
           set({
-            products: response.data,
-            productMeta: response.meta,
+            products: response.products.data,
+            productMeta: response.products.meta,
+            productMetrics: response.metrics,
+            productCategories: response.categories,
             loading: false,
             error: null,
           });

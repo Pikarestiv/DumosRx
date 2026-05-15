@@ -34,6 +34,7 @@ class WebApiClient {
       method: options.method || "GET",
       headers,
       body: options.body ? JSON.stringify(options.body) : undefined,
+      credentials: "include", // Allow sending and receiving cookies
     };
 
     const response = await fetch(url, config);

@@ -44,11 +44,6 @@ export default function AdminLayout({
         setChecking(false);
         return;
       }
-
-      if (!token) {
-        router.push("/admin/login");
-        return;
-      }
       
       if (!user) {
         await fetchUser();
@@ -56,7 +51,7 @@ export default function AdminLayout({
       setChecking(false);
     };
     checkAuth();
-  }, [user, fetchUser, token, router, isLoginPage]);
+  }, [user, fetchUser, isLoginPage]);
 
   useEffect(() => {
     if (isLoginPage) return;

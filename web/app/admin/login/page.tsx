@@ -17,17 +17,19 @@ export default function AdminLoginPage() {
 
   useEffect(() => {
     const checkAuth = async () => {
-      if (token && !user) {
+      if (!user) {
         await fetchUser();
       }
-      if (token && user?.role === 'super_admin') {
+      
+      // After fetch attempt, check user role
+      if (user?.role === 'super_admin') {
         router.push("/admin");
       } else {
         setChecking(false);
       }
     };
     checkAuth();
-  }, [token, user, fetchUser, router]);
+  }, [user, fetchUser, router]);
 
   if (checking) {
     return (

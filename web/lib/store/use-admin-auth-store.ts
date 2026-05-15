@@ -25,16 +25,12 @@ export const useAdminAuthStore = create<AdminAuthState>()(
   persist(
     (set) => ({
       user: null,
-      token: typeof window !== "undefined" ? localStorage.getItem("drx_admin_token") : null,
+      token: null, // Token is handled by HttpOnly cookie
       loading: false,
 
       setUser: (user) => set({ user }),
       setToken: (token) => {
-        if (token) {
-          localStorage.setItem("drx_admin_token", token);
-        } else {
-          localStorage.removeItem("drx_admin_token");
-        }
+        // We still keep the token in memory for the current session
         set({ token });
       },
 
@@ -45,18 +41,18 @@ export const useAdminAuthStore = create<AdminAuthState>()(
           set({ user, loading: false });
         } catch (error) {
           set({ user: null, token: null, loading: false });
-          localStorage.removeItem("drx_admin_token");
         }
       },
 
       logout: () => {
-        localStorage.removeItem("drx_admin_token");
         set({ user: null, token: null });
+        // The backend should clear the cookie on its logout route
+        webApiClient.request("/logout", { method: "POST" });
       },
     }),
     {
       name: "admin-auth-storage",
-      partialize: (state) => ({ user: state.user, token: state.token }),
+      partialize: (state) => ({ user: state.user }), // Don't persist token in localStorage
     }
   )
 );

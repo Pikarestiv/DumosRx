@@ -73,12 +73,30 @@ class AuthController extends Controller
 
         $token = $user->createToken($request->device_name)->plainTextToken;
 
-        return response()->json([
+        $response = response()->json([
             'message' => 'Login successful',
             'user' => $user,
             'token' => $token,
             'role' => $user->role,
         ]);
+
+        if ($user->role === 'super_admin') {
+            // Set an HttpOnly cookie for admin sessions
+            // expire in 24 hours
+            $response->withCookie(cookie(
+                'drx_admin_session',
+                $token,
+                60 * 24,
+                '/',
+                '.rx.dumostech.com', // Allow access across subdomains
+                true, // secure
+                true, // httpOnly
+                false,
+                'Lax'
+            ));
+        }
+
+        return $response;
     }
 
     public function logout(Request $request)

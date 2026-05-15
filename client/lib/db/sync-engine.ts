@@ -115,11 +115,12 @@ export async function pullChanges(): Promise<{
 
     // Apply changes transactionally
     try {
+      const rawDb = isTauri() ? null : (await import("./core")).getDatabase();
+      
       if (isTauri()) {
         await execute("BEGIN TRANSACTION");
-      } else {
-        const rawDb = (await import("./core")).getDatabase();
-        if (rawDb) rawDb.run("BEGIN");
+      } else if (rawDb) {
+        rawDb.run("BEGIN");
       }
 
       for (const [table, records] of Object.entries(changes)) {
@@ -132,7 +133,6 @@ export async function pullChanges(): Promise<{
         for (const record of records) {
           const { id, _deleted, ...rawData } = record as any;
 
-          // Filter out columns that don't exist in local schema
           const data: Record<string, any> = {};
           for (const key in rawData) {
             if (validColumns.has(key)) {
@@ -144,7 +144,6 @@ export async function pullChanges(): Promise<{
           const placeholders = columns.map(() => "?");
           const values = columns.map((c) => data[c]);
 
-          // Construct UPSERT query
           const allCols = ["id", ...columns, "_synced", "_version", "_deleted"];
           const allPlaceholders = ["?", ...placeholders, "?", "?", "?"];
           const allValues = [
@@ -155,41 +154,44 @@ export async function pullChanges(): Promise<{
             _deleted ? 1 : 0,
           ];
 
-          await execute(
-            `INSERT OR REPLACE INTO ${table} (${allCols.join(", ")}) VALUES (${allPlaceholders.join(", ")})`,
-            allValues,
-          );
+          const sql = `INSERT OR REPLACE INTO ${table} (${allCols.join(", ")}) VALUES (${allPlaceholders.join(", ")})`;
+          
+          if (isTauri()) {
+            await execute(sql, allValues);
+          } else if (rawDb) {
+            rawDb.run(sql, allValues);
+          }
 
           pulledCount++;
         }
 
-        // Update sync state for table
-        await execute(
-          "INSERT OR REPLACE INTO _sync_state (table_name, last_synced_at) VALUES (?, ?)",
-          [table, server_timestamp],
-        );
+        const syncSql = "INSERT OR REPLACE INTO _sync_state (table_name, last_synced_at) VALUES (?, ?)";
+        const syncParams = [table, server_timestamp];
+        
+        if (isTauri()) {
+          await execute(syncSql, syncParams);
+        } else if (rawDb) {
+          rawDb.run(syncSql, syncParams);
+        }
       }
 
       if (isTauri()) {
         await execute("COMMIT");
-      } else {
-        const rawDb = (await import("./core")).getDatabase();
-        if (rawDb) {
-          rawDb.run("COMMIT");
-          (await import("./core")).saveDatabase();
-        }
+      } else if (rawDb) {
+        rawDb.run("COMMIT");
+        (await import("./core")).saveDatabase();
       }
     } catch (err) {
       console.error("Failed to apply pull changes:", err);
       try {
+        const rawDb = isTauri() ? null : (await import("./core")).getDatabase();
         if (isTauri()) {
           await execute("ROLLBACK");
-        } else {
-          const rawDb = (await import("./core")).getDatabase();
-          if (rawDb) rawDb.run("ROLLBACK");
+        } else if (rawDb) {
+          rawDb.run("ROLLBACK");
         }
       } catch (rollbackErr) {
-        // Ignore rollback errors if transaction wasn't active
+        // Silently fail rollback
       }
       throw err;
     }
@@ -197,7 +199,7 @@ export async function pullChanges(): Promise<{
     return { pulled: pulledCount };
   } catch (error) {
     console.error("Pull sync failed:", error);
-    return { pulled: 0, error };
+    throw error; // Throw so sync() can catch it properly
   }
 }
 
@@ -209,7 +211,6 @@ export async function sync(): Promise<SyncResult> {
     return { success: false, pushed: 0, pulled: 0, error: "Sync already in progress" };
   }
 
-  // Check for authentication before starting
   const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
   if (!token) {
     return { 
@@ -226,10 +227,7 @@ export async function sync(): Promise<SyncResult> {
     const pullResult = await pullChanges();
 
     if (pushResult.pushed > 0 || pullResult.pulled > 0) {
-      console.log(
-        `Sync completed: Pushed ${pushResult.pushed}, Pulled ${pullResult.pulled}`,
-      );
-      // toast.success("Data synced successfully");
+      console.log(`Sync completed: Pushed ${pushResult.pushed}, Pulled ${pullResult.pulled}`);
     }
 
     localStorage.setItem("last_sync_time", new Date().toISOString());
@@ -239,14 +237,13 @@ export async function sync(): Promise<SyncResult> {
       pushed: pushResult.pushed,
       pulled: pullResult.pulled,
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error("Sync failed:", error);
-    // toast.error("Sync failed");
     return {
       success: false,
       pushed: 0,
       pulled: 0,
-      error,
+      error: error.message || error,
     };
   } finally {
     isSyncInProgress = false;

@@ -123,6 +123,13 @@ class WebApiClient {
   async getStaff() {
     return this.request<any[]>("/staff");
   }
+
+  async resetData(type: string = "all") {
+    return this.request<{ message: string; status: string }>("/dashboard/reset", {
+      method: "POST",
+      body: { type },
+    });
+  }
 }
 
 export const webApiClient = new WebApiClient(API_URL);

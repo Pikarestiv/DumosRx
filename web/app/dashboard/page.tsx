@@ -23,6 +23,7 @@ export default function DashboardPage() {
     data,
     releaseLinks,
     logout,
+    resetAccountData,
     user,
     stores,
     stats,
@@ -60,7 +61,7 @@ export default function DashboardPage() {
         <main className="flex-1 overflow-y-auto p-8 bg-muted/20">
           <div className="max-w-7xl mx-auto">
             {activeTab === "overview" && (
-              <OverviewView stats={stats} user={user} stores={stores} />
+              <OverviewView stats={stats} user={user} stores={stores} onReset={resetAccountData} />
             )}
 
             {activeTab === "fleet" && (

@@ -29,6 +29,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::get('/user', [AuthController::class, 'user']);
         Route::get('/dashboard/summary', [DashboardController::class, 'summary']);
+        Route::post('/dashboard/reset', [DashboardController::class, 'resetData']);
 
         // Staff Management
         Route::apiResource('staff', StaffController::class)->middleware('can:manage-staff');

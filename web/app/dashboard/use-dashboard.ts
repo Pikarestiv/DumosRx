@@ -90,6 +90,28 @@ export function useDashboard() {
     router.push("/login");
   };
 
+  const resetAccountData = async (type: string = "all") => {
+    try {
+      setLoading(true);
+      await webApiClient.resetData(type);
+      // Refetch data to show zeroed stats
+      const [summary, staffData] = await Promise.all([
+        webApiClient.getDashboardSummary(),
+        webApiClient.getStaff().catch(() => []),
+      ]);
+      setData({
+        ...summary,
+        staff: staffData.length > 0 ? staffData : summary.staff || [],
+      });
+      return { success: true };
+    } catch (error) {
+      console.error("Failed to reset data:", error);
+      return { success: false, error: error instanceof Error ? error.message : "Reset failed" };
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return {
     activeTab,
     setActiveTab,
@@ -97,6 +119,7 @@ export function useDashboard() {
     data,
     releaseLinks,
     logout,
+    resetAccountData,
     user: data?.user || { name: "User", email: "", pharmacy_name: "DumosRx Pharmacy" },
     stores: data?.stores || [],
     stats: data?.stats,

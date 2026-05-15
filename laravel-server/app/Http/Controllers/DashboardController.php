@@ -125,4 +125,38 @@ class DashboardController extends Controller
             ]
         ]);
     }
+
+    public function resetData(Request $request)
+    {
+        $user = $request->user();
+        $userId = $user->id;
+        $type = $request->input('type', 'all'); // all, sales, logs, customers, inventory
+
+        $message = "Account data has been reset.";
+
+        if ($type === 'all' || $type === 'sales') {
+            Sale::where('cashier_id', $userId)->delete();
+            $message = "Sales records cleared.";
+        }
+
+        if ($type === 'all' || $type === 'logs') {
+            ActivityLog::where('user_id', $userId)->delete();
+            $message = $type === 'all' ? "All data cleared." : "Activity logs cleared.";
+        }
+
+        if ($type === 'all' || $type === 'customers') {
+            Customer::query()->delete(); // Assuming customers are shared or per-org
+            $message = $type === 'all' ? "All data cleared." : "Customer records cleared.";
+        }
+
+        if ($type === 'all' || $type === 'inventory') {
+            Inventory::query()->delete(); 
+            $message = $type === 'all' ? "All data cleared." : "Inventory records cleared.";
+        }
+
+        return response()->json([
+            'message' => $message,
+            'status' => 'success'
+        ]);
+    }
 }

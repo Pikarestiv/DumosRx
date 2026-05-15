@@ -6,7 +6,9 @@ import {
   Package, 
   Users, 
   Plus, 
-  Circle 
+  Circle,
+  Trash2,
+  AlertTriangle 
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,9 +33,10 @@ interface OverviewViewProps {
   stats: any;
   user: any;
   stores: any[];
+  onReset: (type: string) => Promise<any>;
 }
 
-export function OverviewView({ stats, user, stores }: OverviewViewProps) {
+export function OverviewView({ stats, user, stores, onReset }: OverviewViewProps) {
   const statCards = [
     {
       name: "Total Fleet Sales",
@@ -165,6 +168,78 @@ export function OverviewView({ stats, user, stores }: OverviewViewProps) {
                   <div className="h-full bg-white w-[24%]" />
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-2 border-destructive/20 shadow-sm bg-destructive/5">
+            <CardHeader>
+              <CardTitle className="text-xl text-destructive flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5" />
+                Danger Zone
+              </CardTitle>
+              <CardDescription>Actions here cannot be undone.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  className="text-xs font-bold border-destructive/20 hover:bg-destructive hover:text-white"
+                  onClick={() => {
+                    if (confirm("Clear all sales records?")) onReset("sales");
+                  }}
+                >
+                  Clear Sales
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  className="text-xs font-bold border-destructive/20 hover:bg-destructive hover:text-white"
+                  onClick={() => {
+                    if (confirm("Clear all activity logs?")) onReset("logs");
+                  }}
+                >
+                  Clear Logs
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  className="text-xs font-bold border-destructive/20 hover:bg-destructive hover:text-white"
+                  onClick={() => {
+                    if (confirm("Clear inventory stock?")) onReset("inventory");
+                  }}
+                >
+                  Clear Inventory
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  className="text-xs font-bold border-destructive/20 hover:bg-destructive hover:text-white"
+                  onClick={() => {
+                    if (confirm("Clear customer database?")) onReset("customers");
+                  }}
+                >
+                  Clear Customers
+                </Button>
+              </div>
+
+              <Button 
+                variant="destructive" 
+                className="w-full font-bold gap-2"
+                onClick={async () => {
+                  if (confirm("Are you ABSOLUTELY sure? This will delete ALL data. Local terminal data will remain but will need to be re-synced.")) {
+                    const res = await onReset("all");
+                    if (res.success) {
+                      alert("Data reset successfully!");
+                    } else {
+                      alert("Failed to reset data: " + res.error);
+                    }
+                  }
+                }}
+              >
+                <Trash2 className="h-4 w-4" />
+                Nuke Everything (Full Reset)
+              </Button>
             </CardContent>
           </Card>
         </div>

@@ -54,10 +54,10 @@ export default function Home() {
               <Image
                 src="/logo.png"
                 alt="DumosRx Logo"
-                width={120}
-                height={40}
-                className="h-10 w-auto object-contain brightness-0 invert"
-                style={{ height: "auto" }}
+                width={200}
+                height={70}
+                className="h-12 w-auto object-contain brightness-0 invert"
+                // style={{ height: "auto" }}
                 priority
               />
             </div>
@@ -418,9 +418,9 @@ export default function Home() {
                 <Image
                   src="/logo.png"
                   alt="DumosRx Logo"
-                  width={120}
-                  height={42}
-                  className="h-10 w-auto object-contain brightness-0 invert"
+                  width={100}
+                  height={32}
+                  className="h-8 w-auto object-contain brightness-0 invert"
                 />
               </Link>
               <p className="text-muted-foreground max-w-xs mb-6">

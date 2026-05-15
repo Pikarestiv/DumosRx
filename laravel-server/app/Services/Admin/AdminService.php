@@ -295,4 +295,29 @@ class AdminService
             return $store;
         });
     }
+
+    public function suspendPharmacy($id)
+    {
+        return DB::transaction(function () use ($id) {
+            $store = Store::findOrFail($id);
+            $store->status = 'Suspended';
+            $store->save();
+
+            // Also suspend the owner account
+            if ($store->user) {
+                $store->user->is_active = false;
+                $store->user->save();
+            }
+
+            // Log activity
+            ActivityLog::create([
+                'user_id' => auth()->id(),
+                'action' => 'ACCOUNT_SUSPENSION',
+                'description' => "Suspended pharmacy account: {$store->name} ({$store->id})",
+                'status' => 'success'
+            ]);
+
+            return true;
+        });
+    }
 }

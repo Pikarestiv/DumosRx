@@ -68,6 +68,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/summary', [AdminController::class, 'summary']);
             Route::get('/pharmacies', [AdminController::class, 'pharmacies']);
             Route::post('/pharmacies', [AdminController::class, 'registerPharmacy']);
+            Route::post('/pharmacies/{id}/suspend', [AdminController::class, 'suspendPharmacy']);
             Route::get('/products', [AdminController::class, 'products']);
             Route::get('/users', [AdminController::class, 'users']);
             Route::get('/search', [AdminController::class, 'search']);

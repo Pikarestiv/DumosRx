@@ -126,4 +126,18 @@ class AdminController extends Controller
             return response()->json(['error' => 'Search failed'], 500);
         }
     }
+    public function suspendPharmacy(Request $request, $id)
+    {
+        if ($request->user()->role !== 'super_admin') {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        try {
+            $this->adminService->suspendPharmacy($id);
+            return response()->json(['message' => 'Pharmacy suspended successfully']);
+        } catch (\Exception $e) {
+            \Log::error("Admin Suspend Error: " . $e->getMessage());
+            return response()->json(['error' => 'Failed to suspend pharmacy'], 500);
+        }
+    }
 }

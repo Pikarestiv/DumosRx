@@ -41,6 +41,16 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useAdminStore } from "@/lib/store/use-admin-store";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useDebounce } from "@/hooks/use-debounce";
+import { webApiClient } from "@/lib/api/client";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { toast } from "sonner";
 
 export default function PharmaciesManagement() {
   const { pharmacies, pharmacyMeta, loading, error, fetchPharmacies } =
@@ -51,6 +61,9 @@ export default function PharmaciesManagement() {
 
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState(initialSearch);
+  const [selectedPharmacy, setSelectedPharmacy] = useState<any>(null);
+  const [isSuspendDialogOpen, setIsSuspendDialogOpen] = useState(false);
+  const [isSuspending, setIsSuspending] = useState(false);
   const debouncedSearch = useDebounce(search, 500);
 
   useEffect(() => {
@@ -87,6 +100,40 @@ export default function PharmaciesManagement() {
     a.href = url;
     a.download = `pharmacies-export-${new Date().toISOString().split("T")[0]}.csv`;
     a.click();
+  };
+
+  const handleSuspend = async () => {
+    if (!selectedPharmacy) return;
+    setIsSuspending(true);
+    try {
+      await webApiClient.request(`admin/pharmacies/${selectedPharmacy.id}/suspend`, { method: 'POST' });
+      toast.success("Account Suspended", {
+        description: `${selectedPharmacy.name} has been suspended successfully.`,
+      });
+      fetchPharmacies(page, debouncedSearch);
+    } catch (err: any) {
+      toast.error("Action Failed", {
+        description: err.message || "Failed to suspend pharmacy.",
+      });
+    } finally {
+      setIsSuspending(false);
+      setIsSuspendDialogOpen(false);
+      setSelectedPharmacy(null);
+    }
+  };
+
+  const handleImpersonate = (pharmacy: any) => {
+    toast.info("Impersonation Started", {
+      description: `Redirecting to ${pharmacy.name} dashboard...`,
+    });
+    // Implementation would involve setting a session cookie/token and redirecting
+    // For now, just a placeholder
+  };
+
+  const handleViewBilling = (pharmacy: any) => {
+    toast.info("Billing History", {
+      description: `Fetching billing records for ${pharmacy.name}...`,
+    });
   };
 
   return (
@@ -295,24 +342,39 @@ export default function PharmaciesManagement() {
                               <MoreVertical className="h-4 w-4 text-slate-400" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-56 p-2">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem className="cursor-pointer gap-2 py-2">
+                          <DropdownMenuContent align="end" className="w-56 p-2 rounded-2xl shadow-xl border-slate-200 dark:border-slate-800">
+                            <DropdownMenuLabel className="text-[10px] uppercase tracking-widest text-slate-400 px-3 py-2">Actions</DropdownMenuLabel>
+                            <DropdownMenuItem 
+                              className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold"
+                              onClick={() => handleImpersonate(pharmacy)}
+                            >
                               <ExternalLink className="h-4 w-4 text-indigo-500" />
-                              <span>Impersonate (Admin)</span>
+                              Impersonate (Admin)
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="cursor-pointer gap-2 py-2">
+                            <DropdownMenuItem 
+                              className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold"
+                              onClick={() => handleViewBilling(pharmacy)}
+                            >
                               <CreditCard className="h-4 w-4 text-emerald-500" />
-                              <span>View Billing History</span>
+                              View Billing History
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="cursor-pointer gap-2 py-2">
+                            <DropdownMenuItem 
+                              className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold"
+                              onClick={() => router.push(`/admin/system?search=${pharmacy.id}`)}
+                            >
                               <History className="h-4 w-4 text-blue-500" />
-                              <span>System Logs</span>
+                              System Logs
                             </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem className="cursor-pointer gap-2 py-2 text-rose-600 focus:text-rose-600 focus:bg-rose-50 dark:focus:bg-rose-500/10">
+                            <DropdownMenuSeparator className="my-2 bg-slate-100 dark:bg-slate-800" />
+                            <DropdownMenuItem 
+                              className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors"
+                              onClick={() => {
+                                setSelectedPharmacy(pharmacy);
+                                setIsSuspendDialogOpen(true);
+                              }}
+                            >
                               <Ban className="h-4 w-4" />
-                              <span>Suspend Account</span>
+                              Suspend Account
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -337,7 +399,7 @@ export default function PharmaciesManagement() {
             )}
           </div>
 
-          {pharmacyMeta && (
+          {pharmacyMeta && pharmacyMeta.last_page > 1 && (
             <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/30">
               <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
                 Page {pharmacyMeta.current_page} of {pharmacyMeta.last_page}
@@ -414,6 +476,40 @@ export default function PharmaciesManagement() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={isSuspendDialogOpen} onOpenChange={setIsSuspendDialogOpen}>
+        <DialogContent className="rounded-3xl border-slate-200 dark:border-slate-800 shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-rose-500/10 flex items-center justify-center">
+                <Ban className="h-5 w-5 text-rose-500" />
+              </div>
+              Suspend Pharmacy Account?
+            </DialogTitle>
+            <DialogDescription className="text-slate-500 dark:text-slate-400 font-medium pt-2">
+              Are you sure you want to suspend <span className="font-bold text-slate-900 dark:text-white">{selectedPharmacy?.name}</span>? 
+              The pharmacy will lose access to all platform features and their fleet management will be frozen.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 pt-4">
+            <Button 
+              variant="outline" 
+              onClick={() => setIsSuspendDialogOpen(false)}
+              className="rounded-xl border-2 font-bold h-12"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSuspend}
+              className="rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-bold h-12 shadow-lg shadow-rose-500/20"
+              disabled={isSuspending}
+            >
+              {isSuspending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Confirm Suspension
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

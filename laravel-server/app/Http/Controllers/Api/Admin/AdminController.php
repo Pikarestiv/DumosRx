@@ -193,4 +193,28 @@ class AdminController extends Controller
             return response()->json(['error' => 'Failed to send notification'], 500);
         }
     }
+
+    public function bulkNotify(Request $request)
+    {
+        if ($request->user()->role !== 'super_admin') {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        $validated = $request->validate([
+            'title' => 'required|string|min:3|max:100',
+            'message' => 'required|string|min:5',
+            'filters' => 'nullable|array'
+        ]);
+
+        try {
+            $count = $this->adminService->bulkNotify($validated['filters'] ?? [], $validated['message'], $validated['title']);
+            return response()->json([
+                'message' => "Notification sent to {$count} users successfully",
+                'count' => $count
+            ]);
+        } catch (\Exception $e) {
+            \Log::error("Admin Bulk Notify Error: " . $e->getMessage());
+            return response()->json(['error' => 'Failed to send bulk notifications'], 500);
+        }
+    }
 }

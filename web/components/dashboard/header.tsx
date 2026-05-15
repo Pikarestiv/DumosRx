@@ -110,7 +110,7 @@ export function Header({ onSetActiveTab }: HeaderProps) {
               className="w-full text-center text-xs text-primary font-black justify-center py-3 cursor-pointer hover:bg-primary/5 rounded-xl"
               onClick={() => onSetActiveTab("notifications")}
             >
-              View All Activity Logs
+              View All Notifications
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

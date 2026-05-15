@@ -4,20 +4,28 @@ import { useEffect, useState } from "react";
 import { 
   Search, 
   Filter, 
+  Download, 
+  Plus, 
   MoreVertical, 
-  Shield, 
-  UserPlus, 
-  Mail, 
-  Lock, 
   Eye, 
+  UserX, 
+  RefreshCw, 
+  Send, 
+  Shield, 
+  Mail,
+  Bell,
+  Trash2,
+  CheckCircle2,
+  AlertCircle,
+  Info,
+  UserPlus, 
+  Lock, 
   Store, 
   Ban, 
   ChevronLeft, 
   ChevronRight, 
-  Download,
   Loader2,
   ShieldAlert,
-  Send,
   Calendar,
   Activity,
   History,
@@ -69,6 +77,7 @@ export default function GlobalUsersDirectory() {
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const [isNotifyDialogOpen, setIsNotifyDialogOpen] = useState(false);
+  const [isBulkNotifyDialogOpen, setIsBulkNotifyDialogOpen] = useState(false);
   const [notifyTitle, setNotifyTitle] = useState("Administrative Message");
   const [notifyMessage, setNotifyMessage] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
@@ -169,14 +178,21 @@ export default function GlobalUsersDirectory() {
           <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium">Monitor and manage all users across the platform ecosystem</p>
         </div>
         <div className="flex items-center gap-3">
-            <Button 
-              variant="outline" 
-              className="border-2 font-bold dark:bg-slate-900 dark:border-slate-800"
-              onClick={handleExportCSV}
-            >
-                <Download className="h-4 w-4 mr-2" />
-                Export User List
-            </Button>
+          <Button 
+            className="rounded-xl font-bold bg-indigo-600 hover:bg-indigo-700 text-white"
+            onClick={() => setIsBulkNotifyDialogOpen(true)}
+          >
+            <Bell className="h-4 w-4 mr-2" />
+            Notify All Filtered
+          </Button>
+          <Button 
+            variant="outline" 
+            className="rounded-xl font-bold"
+            onClick={handleExportCSV}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Export User List
+          </Button>
             <Button 
               className="bg-indigo-600 hover:bg-indigo-700 font-bold shadow-lg shadow-indigo-600/20"
               onClick={() => router.push("/admin/users/new")}

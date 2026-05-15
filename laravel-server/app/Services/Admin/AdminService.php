@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\AdminNotification;
 
 class AdminService
 {
@@ -347,10 +349,17 @@ class AdminService
         $user->password = Hash::make($tempPassword);
         $user->save();
         
-        // In a production app, you would send this via email.
-        // For now, we log it and also create a system notification for the user
-        // so they can see it if they somehow manage to log in or if an admin tells them.
-        $this->notifyUser($id, "Your password has been reset by an administrator. Your temporary password is: {$tempPassword}. Please change it immediately.");
+        // Send via email
+        try {
+            Mail::to($user->email)->send(new AdminNotification(
+                "Your password has been reset by an administrator. Your temporary password is: <b>{$tempPassword}</b>. Please change it immediately.",
+                "DumosRx: Password Reset"
+            ));
+        } catch (\Exception $e) {
+            \Log::error("Email Sending Failed for password reset: " . $e->getMessage());
+        }
+
+        $this->notifyUser($id, "Your password has been reset by an administrator. Your temporary password is: {$tempPassword}. Please change it immediately.", "Security Alert");
 
         ActivityLog::create([
             'user_id' => auth()->id(),
@@ -375,6 +384,13 @@ class AdminService
             'is_read' => false
         ]);
 
+        // Send via email
+        try {
+            Mail::to($user->email)->send(new AdminNotification($message, $title));
+        } catch (\Exception $e) {
+            \Log::error("Email Sending Failed for notifyUser: " . $e->getMessage());
+        }
+
         ActivityLog::create([
             'user_id' => auth()->id(),
             'action' => 'ADMIN_NOTIFICATION',
@@ -383,5 +399,54 @@ class AdminService
         ]);
 
         return true;
+    }
+
+    public function bulkNotify($filters, $message, $title)
+    {
+        $query = User::query();
+
+        if (!empty($filters['role']) && $filters['role'] !== 'all') {
+            $query->where('role', $filters['role']);
+        }
+
+        if (!empty($filters['search'])) {
+            $search = $filters['search'];
+            $query->where(function ($q) use ($search) {
+                $q->where('first_name', 'like', "%{$search}%")
+                  ->orWhere('last_name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        $users = $query->get();
+        $count = 0;
+
+        foreach ($users as $user) {
+            \App\Models\Notification::create([
+                'user_id' => $user->id,
+                'title' => $title,
+                'message' => $message,
+                'type' => 'urgent',
+                'is_read' => false
+            ]);
+
+            // Send via email
+            try {
+                Mail::to($user->email)->send(new AdminNotification($message, $title));
+            } catch (\Exception $e) {
+                \Log::error("Email Sending Failed for bulkNotify user {$user->id}: " . $e->getMessage());
+            }
+
+            $count++;
+        }
+
+        ActivityLog::create([
+            'user_id' => auth()->id(),
+            'action' => 'BULK_ADMIN_NOTIFICATION',
+            'description' => "Sent bulk notification '{$title}' to {$count} users.",
+            'status' => 'success'
+        ]);
+
+        return $count;
     }
 }

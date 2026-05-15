@@ -3,6 +3,7 @@ import {
   markSynced,
   query,
   execute,
+  isTauri,
 } from "./local-database";
 import { apiClient } from "@/lib/api/client";
 
@@ -113,21 +114,24 @@ export async function pullChanges(): Promise<{
     let pulledCount = 0;
 
     // Apply changes transactionally
-    let transactionActive = false;
     try {
-      await execute("BEGIN TRANSACTION");
-      transactionActive = true;
+      if (isTauri()) {
+        await execute("BEGIN TRANSACTION");
+      } else {
+        const rawDb = (await import("./core")).getDatabase();
+        if (rawDb) rawDb.run("BEGIN");
+      }
 
       for (const [table, records] of Object.entries(changes)) {
         if (!Array.isArray(records)) continue;
 
         // Fetch local table columns to avoid "no such column" errors
         const tableInfo = await query<{ name: string }>(`PRAGMA table_info(${table})`);
-        const validColumns = new Set(tableInfo.map(c => c.name));
+        const validColumns = new Set(tableInfo.map((c) => c.name));
 
         for (const record of records) {
           const { id, _deleted, ...rawData } = record as any;
-          
+
           // Filter out columns that don't exist in local schema
           const data: Record<string, any> = {};
           for (const key in rawData) {
@@ -141,15 +145,21 @@ export async function pullChanges(): Promise<{
           const values = columns.map((c) => data[c]);
 
           // Construct UPSERT query
-          const allCols = ["id", ...columns, "_synced", "_version"];
-          const allPlaceholders = ["?", ...placeholders, "?", "?"];
-          const allValues = [id, ...values, 1, (record as any)._version || 1];
+          const allCols = ["id", ...columns, "_synced", "_version", "_deleted"];
+          const allPlaceholders = ["?", ...placeholders, "?", "?", "?"];
+          const allValues = [
+            id,
+            ...values,
+            1,
+            (record as any)._version || 1,
+            _deleted ? 1 : 0,
+          ];
 
           await execute(
             `INSERT OR REPLACE INTO ${table} (${allCols.join(", ")}) VALUES (${allPlaceholders.join(", ")})`,
             allValues,
           );
-          
+
           pulledCount++;
         }
 
@@ -160,16 +170,26 @@ export async function pullChanges(): Promise<{
         );
       }
 
-      await execute("COMMIT");
-      transactionActive = false;
+      if (isTauri()) {
+        await execute("COMMIT");
+      } else {
+        const rawDb = (await import("./core")).getDatabase();
+        if (rawDb) {
+          rawDb.run("COMMIT");
+          (await import("./core")).saveDatabase();
+        }
+      }
     } catch (err) {
       console.error("Failed to apply pull changes:", err);
-      if (transactionActive) {
-        try {
+      try {
+        if (isTauri()) {
           await execute("ROLLBACK");
-        } catch (rollbackErr) {
-          console.error("Rollback failed:", rollbackErr);
+        } else {
+          const rawDb = (await import("./core")).getDatabase();
+          if (rawDb) rawDb.run("ROLLBACK");
         }
+      } catch (rollbackErr) {
+        // Ignore rollback errors if transaction wasn't active
       }
       throw err;
     }

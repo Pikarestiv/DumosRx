@@ -29,15 +29,15 @@ class DashboardController extends Controller
             $totalSales = 0;
             $salesGrowth = 0;
             try {
-                $totalSales = (float)Sale::where('cashier_id', $userId)->sum('total_amount');
-                $salesThisWeek = (float)Sale::where('cashier_id', $userId)
+                $totalSales = (float) Sale::where('cashier_id', $userId)->sum('total_amount');
+                $salesThisWeek = (float) Sale::where('cashier_id', $userId)
                     ->where('created_at', '>=', $last7Days)
                     ->sum('total_amount');
-                $salesPrevWeek = (float)Sale::where('cashier_id', $userId)
+                $salesPrevWeek = (float) Sale::where('cashier_id', $userId)
                     ->where('created_at', '>=', $prev7Days)
                     ->where('created_at', '<', $last7Days)
                     ->sum('total_amount');
-                
+
                 if ($salesPrevWeek > 0) {
                     $salesGrowth = (($salesThisWeek - $salesPrevWeek) / $salesPrevWeek) * 100;
                 } elseif ($salesThisWeek > 0) {
@@ -54,12 +54,12 @@ class DashboardController extends Controller
                 $inventoryStats = DB::table('inventory')
                     ->select(DB::raw('SUM(quantity_in_stock * cost_price) as total_value'))
                     ->first();
-                $inventoryValue = (float)($inventoryStats->total_value ?? 0);
+                $inventoryValue = (float) ($inventoryStats->total_value ?? 0);
                 \Log::info("Inventory stats calculated");
             } catch (\Exception $e) {
                 \Log::error("Dashboard Error [Inventory]: " . $e->getMessage());
             }
-            
+
             // 3. Customer Stats
             $totalCustomers = 0;
             $newCustomersThisWeek = 0;
@@ -81,7 +81,7 @@ class DashboardController extends Controller
             } catch (\Exception $e) {
                 \Log::error("Dashboard Error [Stores]: " . $e->getMessage());
             }
-            
+
             $lastSyncTime = 'Never';
             try {
                 $lastSyncedRecord = DB::table('sales')
@@ -89,11 +89,11 @@ class DashboardController extends Controller
                     ->whereNotNull('_synced_at')
                     ->orderBy('_synced_at', 'desc')
                     ->first();
-                
+
                 $lastSyncTime = $lastSyncedRecord ? Carbon::parse($lastSyncedRecord->_synced_at)->diffForHumans() : 'Never';
                 \Log::info("Sync info calculated");
             } catch (\Exception $e) {
-                 \Log::error("Dashboard Error [Sync]: " . $e->getMessage());
+                \Log::error("Dashboard Error [Sync]: " . $e->getMessage());
             }
 
             // 5. Recent Sales
@@ -109,7 +109,7 @@ class DashboardController extends Controller
             }
 
             // Map Store models to response format
-            $stores = $userStores->map(function($store) use ($totalSales, $storesCount) {
+            $stores = $userStores->map(function ($store) use ($totalSales, $storesCount) {
                 return [
                     'id' => $store->id,
                     'name' => $store->name,
@@ -180,12 +180,12 @@ class DashboardController extends Controller
             }
 
             if ($type === 'all' || $type === 'customers') {
-                Customer::query()->delete(); 
+                Customer::query()->delete();
                 $message = $type === 'all' ? "All data cleared." : "Customer records cleared.";
             }
 
             if ($type === 'all' || $type === 'inventory') {
-                Inventory::query()->delete(); 
+                Inventory::query()->delete();
                 $message = $type === 'all' ? "All data cleared." : "Inventory records cleared.";
             }
 

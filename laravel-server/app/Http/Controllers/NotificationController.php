@@ -33,9 +33,12 @@ class NotificationController extends Controller
     private function inferType($action)
     {
         $action = strtolower($action);
-        if (str_contains($action, 'sale') || str_contains($action, 'payment')) return 'success';
-        if (str_contains($action, 'stock') || str_contains($action, 'inventory')) return 'warning';
-        if (str_contains($action, 'error') || str_contains($action, 'failed')) return 'error';
+        if (str_contains($action, 'sale') || str_contains($action, 'payment'))
+            return 'success';
+        if (str_contains($action, 'stock') || str_contains($action, 'inventory'))
+            return 'warning';
+        if (str_contains($action, 'error') || str_contains($action, 'failed'))
+            return 'error';
         return 'info';
     }
 }

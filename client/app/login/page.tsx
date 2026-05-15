@@ -139,9 +139,9 @@ export default function LoginPage() {
       </div>
 
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8 }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5 }}
         className="w-full max-w-md z-10"
       >
         <Link
@@ -249,7 +249,7 @@ export default function LoginPage() {
                     />
                   </div>
                 </div>
-                
+
                 <div className="pt-2 text-center">
                   <Link
                     href="/setup?step=backup&from=login"

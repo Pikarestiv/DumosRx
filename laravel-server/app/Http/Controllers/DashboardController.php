@@ -180,14 +180,12 @@ class DashboardController extends Controller
             }
 
             if ($type === 'all' || $type === 'customers') {
-                // Scope to user if possible, otherwise delete only those related to user sales
-                Customer::where('user_id', $userId)->delete(); 
+                Customer::query()->delete(); 
                 $message = $type === 'all' ? "All data cleared." : "Customer records cleared.";
             }
 
             if ($type === 'all' || $type === 'inventory') {
-                // Assuming inventory has user_id
-                Inventory::where('user_id', $userId)->delete(); 
+                Inventory::query()->delete(); 
                 $message = $type === 'all' ? "All data cleared." : "Inventory records cleared.";
             }
 

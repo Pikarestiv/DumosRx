@@ -27,6 +27,8 @@ const registerSchema = z
     pharmacy_name: z
       .string()
       .min(2, "Pharmacy name must be at least 2 characters"),
+    first_name: z.string().min(2, "First name must be at least 2 characters"),
+    last_name: z.string().min(2, "Last name must be at least 2 characters"),
     email: z.string().email("Invalid email address"),
     phone: z.string().min(10, "Phone number must be at least 10 digits"),
     password: z.string().min(8, "Password must be at least 8 characters"),
@@ -46,6 +48,8 @@ export function RegisterForm() {
     resolver: zodResolver(registerSchema),
     defaultValues: {
       pharmacy_name: "",
+      first_name: "",
+      last_name: "",
       email: "",
       phone: "",
       password: "",
@@ -117,6 +121,40 @@ export function RegisterForm() {
                 )}
               />
             </motion.div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <motion.div variants={item}>
+                <FormField
+                  control={form.control}
+                  name="first_name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-gray-300">First Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="John" className="bg-white/5 border-white/10 text-white focus:border-accent/50 focus:ring-accent/20 h-11" {...field} />
+                      </FormControl>
+                      <FormMessage className="text-xs text-red-400" />
+                    </FormItem>
+                  )}
+                />
+              </motion.div>
+
+              <motion.div variants={item}>
+                <FormField
+                  control={form.control}
+                  name="last_name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-gray-300">Last Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Doe" className="bg-white/5 border-white/10 text-white focus:border-accent/50 focus:ring-accent/20 h-11" {...field} />
+                      </FormControl>
+                      <FormMessage className="text-xs text-red-400" />
+                    </FormItem>
+                  )}
+                />
+              </motion.div>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <motion.div variants={item}>

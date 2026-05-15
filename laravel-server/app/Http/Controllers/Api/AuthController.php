@@ -17,6 +17,7 @@ class AuthController extends Controller
             'last_name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8',
+            'pharmacy_name' => 'nullable|string|max:255',
         ]);
 
         $user = User::create([
@@ -27,6 +28,14 @@ class AuthController extends Controller
             'role' => $request->role ?? 'pharmacist',
             'is_active' => true,
         ]);
+
+        if ($request->filled('pharmacy_name')) {
+            \App\Models\Store::create([
+                'user_id' => $user->id,
+                'name' => $request->pharmacy_name,
+                'device_id' => 'WEB-' . strtoupper(\Illuminate\Support\Str::random(8)),
+            ]);
+        }
 
         $token = $user->createToken('auth_token')->plainTextToken;
 

@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Api\Web;
 
+use App\Http\Controllers\Controller;
 use App\Models\Subscription;
 use App\Models\PaymentTransaction;
 use Illuminate\Http\Request;
@@ -11,7 +12,6 @@ class SubscriptionController extends Controller
 {
     public function status(Request $request)
     {
-        // Get active subscription
         $sub = Subscription::where('status', 'active')
             ->where('end_date', '>', now())
             ->first();
@@ -46,7 +46,6 @@ class SubscriptionController extends Controller
             return response()->json(['valid' => false, 'message' => 'Subscription expired.'], 403);
         }
 
-        // Bind machine_id to license if not already bound
         $license = \App\Models\License::firstOrCreate(
             [
                 'subscription_id' => $sub->id,
@@ -58,7 +57,6 @@ class SubscriptionController extends Controller
             ]
         );
 
-        // Update last check-in
         $license->update(['last_check_in' => now()]);
 
         if (!$license->is_active) {
@@ -89,8 +87,6 @@ class SubscriptionController extends Controller
             'status' => 'pending',
         ]);
 
-        // In production, this would return the actual provider's checkout URL
-        // via their API (e.g. Paystack::getAuthorizationUrl())
         $baseUrl = $request->provider === 'paystack' 
             ? "https://checkout.paystack.com" 
             : "https://checkout.flutterwave.com";

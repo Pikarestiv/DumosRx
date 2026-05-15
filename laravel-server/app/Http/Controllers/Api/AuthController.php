@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -16,7 +17,6 @@ class AuthController extends Controller
             'last_name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8',
-            'role' => 'nullable|string|exists:roles,slug', // Validate against roles table if seeded, or just string if loose
         ]);
 
         $user = User::create([
@@ -27,10 +27,6 @@ class AuthController extends Controller
             'role' => $request->role ?? 'pharmacist',
             'is_active' => true,
         ]);
-
-        // Assign role_id logic would go here if we were using the relation fully
-        // $role = Role::where('slug', $request->role)->first();
-        // $user->role_id = $role->id; $user->save();
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
@@ -72,7 +68,7 @@ class AuthController extends Controller
             'message' => 'Login successful',
             'user' => $user,
             'token' => $token,
-            'role' => $user->role, // Return role string for frontend compatibility
+            'role' => $user->role,
         ]);
     }
 

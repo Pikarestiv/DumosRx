@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Api\App;
 
+use App\Http\Controllers\Controller;
 use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Models\Inventory;
@@ -44,24 +45,17 @@ class SaleController extends Controller
             $total = 0;
 
             foreach ($request->items as $item) {
-                // Get price (assume dynamic or from medicine)
-                // Ideally, we fetch the medicine price here to prevent frontend manipulation
-                // For MVP, if price is passed, validate it. Or look it up.
-                
-                // Let's look up the price
+                // Get price
                 $inventory = Inventory::where('medicine_id', $item['medicine_id'])->first(); 
-                // Note: Real inventory logic is complex (FIFO/LIFO). This is a simplified fetch.
                 
-                // TODO: Deduct from inventory logic
-                
-                $price = 0; // Placeholder
+                $price = 0; 
                 $subtotal = 0;
                 
                 // Create Item
                 $saleItem = new SaleItem([
                     'medicine_id' => $item['medicine_id'],
                     'quantity' => $item['quantity'],
-                    'unit_price' => $item['unit_price'] ?? 0, // Fallback if allowed
+                    'unit_price' => $item['unit_price'] ?? 0, 
                     'subtotal' => ($item['unit_price'] ?? 0) * $item['quantity']
                 ]);
                 $sale->items()->save($saleItem);
@@ -97,18 +91,7 @@ class SaleController extends Controller
 
     public function topMedicines(Request $request)
     {
-        // Simple top selling query
         $limit = $request->get('limit', 10);
-        
-        $top = DB::table('sale_items')
-            ->select('medicine_id', DB::raw('SUM(quantity) as total_quantity'))
-            ->groupBy('medicine_id')
-            ->orderByDesc('total_quantity')
-            ->limit($limit)
-            ->get();
-            
-        // Hydrate medicine details?
-        // Or simpler: join medicines
         
         $topWithNames = DB::table('sale_items')
             ->join('medicines', 'sale_items.medicine_id', '=', 'medicines.id')

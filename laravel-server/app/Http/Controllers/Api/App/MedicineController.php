@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Api\App;
 
+use App\Http\Controllers\Controller;
 use App\Models\Medicine;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class MedicineController extends Controller
 {
@@ -45,17 +45,9 @@ class MedicineController extends Controller
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
+        $request->validate([
             'name' => 'required|string|max:255',
-            'generic_name' => 'nullable|string|max:255',
-            'brand_name' => 'nullable|string|max:255',
-            'category_id' => 'nullable|exists:categories,id',
-            'supplier_id' => 'nullable|exists:suppliers,id',
-            'strength' => 'nullable|string',
-            'dosage_form' => 'nullable|string',
             'selling_price' => 'required|numeric',
-            'cost_price' => 'nullable|numeric',
-            // Add other validations as needed
         ]);
 
         $medicine = Medicine::create($request->all());

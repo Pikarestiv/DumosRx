@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Api\Web;
 
+use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -10,7 +11,6 @@ class StaffController extends Controller
 {
     public function index()
     {
-        // Only return staff, not super admins maybe?
         return User::where('role', '!=', 'super_admin')->get();
     }
 
@@ -52,7 +52,6 @@ class StaffController extends Controller
 
     public function destroy(User $user)
     {
-        // Soft delete or deactivate? Schema has is_active but no deleted_at
         $user->update(['is_active' => false]);
         return response()->json(['message' => 'Staff deactivated']);
     }

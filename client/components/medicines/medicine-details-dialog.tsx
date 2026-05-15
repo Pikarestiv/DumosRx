@@ -1,63 +1,90 @@
-"use client"
+"use client";
 
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
-import { Calendar, Package, DollarSign, AlertTriangle, Building, Truck, Clock } from "lucide-react"
-import { useLocalData } from "@/lib/db/hooks/useLocalData"
-import { useStore } from "@/lib/context/store-context"
-import { formatCurrency } from "@/lib/utils"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import {
+  Calendar,
+  Package,
+  DollarSign,
+  AlertTriangle,
+  Building,
+  Truck,
+  Clock,
+} from "lucide-react";
+import { useLocalData } from "@/lib/db/hooks/useLocalData";
+import { useStore } from "@/lib/context/store-context";
+import { formatCurrency } from "@/lib/utils";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface Medicine {
-  id: string
-  name: string
-  genericName: string
-  brand: string
-  category: string
-  nafdacNumber: string
-  strength: string
-  dosageForm: string
-  manufacturer: string
-  supplier: string
-  costPrice: number
-  sellingPrice: number
-  stockQuantity: number
-  reorderLevel: number
-  expiryDate: string
-  batchNumber: string
-  baseUnit: string
-  bulkUnit: string
-  unitsPerBulk: number
-  status: "active" | "inactive" | "expired" | "low_stock"
+  id: string;
+  name: string;
+  genericName: string;
+  brand: string;
+  category: string;
+  nafdacNumber: string;
+  strength: string;
+  dosageForm: string;
+  manufacturer: string;
+  supplier: string;
+  costPrice: number;
+  sellingPrice: number;
+  stockQuantity: number;
+  reorderLevel: number;
+  expiryDate: string;
+  batchNumber: string;
+  baseUnit: string;
+  bulkUnit: string;
+  unitsPerBulk: number;
+  status: "active" | "inactive" | "expired" | "low_stock";
 }
 
 interface MedicineDetailsDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  medicine: Medicine | null
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  medicine: Medicine | null;
 }
 
-export function MedicineDetailsDialog({ open, onOpenChange, medicine }: MedicineDetailsDialogProps) {
-  const { storeProfile } = useStore()
+export function MedicineDetailsDialog({
+  open,
+  onOpenChange,
+  medicine,
+}: MedicineDetailsDialogProps) {
+  const { storeProfile } = useStore();
   const { data: batches, loading: loadingBatches } = useLocalData<any>(
-    medicine ? `SELECT * FROM inventory WHERE medicine_id = "${medicine.id}" AND _deleted = 0 ORDER BY expiry_date ASC` : ""
+    medicine
+      ? `SELECT * FROM inventory WHERE medicine_id = "${medicine.id}" AND _deleted = 0 ORDER BY expiry_date ASC`
+      : "",
   );
 
-  if (!medicine) return null
+  if (!medicine) return null;
 
   const formatPrice = (amount: number) => {
     return formatCurrency(amount, storeProfile?.currency);
-  }
+  };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-NG", {
       year: "numeric",
       month: "long",
       day: "numeric",
-    })
-  }
+    });
+  };
 
   const getStatusBadge = (status: Medicine["status"]) => {
     const variants = {
@@ -65,26 +92,31 @@ export function MedicineDetailsDialog({ open, onOpenChange, medicine }: Medicine
       inactive: "secondary",
       expired: "destructive",
       low_stock: "outline",
-    } as const
+    } as const;
 
     const labels = {
       active: "Active",
       inactive: "Inactive",
       expired: "Expired",
       low_stock: "Low Stock",
-    }
+    };
 
     return (
       <Badge variant={variants[status]} className="text-xs">
         {labels[status]}
       </Badge>
-    )
-  }
+    );
+  };
 
-  const profitMargin = (((medicine.sellingPrice - medicine.costPrice) / medicine.costPrice) * 100).toFixed(1)
+  const expiryWarningDays = storeProfile?.expiry_warning_days || 90;
+  const profitMargin = (
+    ((medicine.sellingPrice - medicine.costPrice) / medicine.costPrice) *
+    100
+  ).toFixed(1);
   const daysToExpiry = Math.ceil(
-    (new Date(medicine.expiryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24),
-  )
+    (new Date(medicine.expiryDate).getTime() - new Date().getTime()) /
+      (1000 * 60 * 60 * 24),
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -92,8 +124,12 @@ export function MedicineDetailsDialog({ open, onOpenChange, medicine }: Medicine
         <DialogHeader>
           <div className="flex items-center justify-between">
             <div>
-              <DialogTitle className="font-serif font-bold text-2xl">{medicine.name}</DialogTitle>
-              <DialogDescription className="text-lg">{medicine.genericName}</DialogDescription>
+              <DialogTitle className="font-serif font-bold text-2xl">
+                {medicine.name}
+              </DialogTitle>
+              <DialogDescription className="text-lg">
+                {medicine.genericName}
+              </DialogDescription>
             </div>
             {getStatusBadge(medicine.status)}
           </div>
@@ -129,8 +165,12 @@ export function MedicineDetailsDialog({ open, onOpenChange, medicine }: Medicine
               </div>
               <Separator />
               <div>
-                <p className="text-sm text-muted-foreground">NAFDAC Registration Number</p>
-                <p className="font-mono font-medium text-accent">{medicine.nafdacNumber}</p>
+                <p className="text-sm text-muted-foreground">
+                  NAFDAC Registration Number
+                </p>
+                <p className="font-mono font-medium text-accent">
+                  {medicine.nafdacNumber}
+                </p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Batch Number</p>
@@ -178,17 +218,23 @@ export function MedicineDetailsDialog({ open, onOpenChange, medicine }: Medicine
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-muted-foreground">Cost Price</p>
-                  <p className="font-bold text-lg">{formatPrice(medicine.costPrice)}</p>
+                  <p className="font-bold text-lg">
+                    {formatPrice(medicine.costPrice)}
+                  </p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Selling Price</p>
-                  <p className="font-bold text-lg text-accent">{formatPrice(medicine.sellingPrice)}</p>
+                  <p className="font-bold text-lg text-accent">
+                    {formatPrice(medicine.sellingPrice)}
+                  </p>
                 </div>
               </div>
               <Separator />
               <div>
                 <p className="text-sm text-muted-foreground">Profit Margin</p>
-                <p className="font-bold text-lg text-primary">{profitMargin}%</p>
+                <p className="font-bold text-lg text-primary">
+                  {profitMargin}%
+                </p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Profit per Unit</p>
@@ -219,17 +265,27 @@ export function MedicineDetailsDialog({ open, onOpenChange, medicine }: Medicine
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Reorder Level</p>
-                  <p className="font-medium">{medicine.reorderLevel} {medicine.baseUnit}(s)</p>
+                  <p className="font-medium">
+                    {medicine.reorderLevel} {medicine.baseUnit}(s)
+                  </p>
                 </div>
               </div>
               {medicine.bulkUnit && (
                 <>
                   <Separator />
                   <div>
-                    <p className="text-sm text-muted-foreground">Unit Conversion</p>
-                    <p className="font-medium">1 {medicine.bulkUnit} = {medicine.unitsPerBulk} {medicine.baseUnit}(s)</p>
+                    <p className="text-sm text-muted-foreground">
+                      Unit Conversion
+                    </p>
+                    <p className="font-medium">
+                      1 {medicine.bulkUnit} = {medicine.unitsPerBulk}{" "}
+                      {medicine.baseUnit}(s)
+                    </p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Total Stock in {medicine.bulkUnit}: {(medicine.stockQuantity / medicine.unitsPerBulk).toFixed(2)}
+                      Total Stock in {medicine.bulkUnit}:{" "}
+                      {(medicine.stockQuantity / medicine.unitsPerBulk).toFixed(
+                        2,
+                      )}
                     </p>
                   </div>
                 </>
@@ -241,33 +297,47 @@ export function MedicineDetailsDialog({ open, onOpenChange, medicine }: Medicine
                   Expiry Date
                 </p>
                 <p
-                  className={`font-medium ${daysToExpiry < 30 ? "text-destructive" : daysToExpiry < 90 ? "text-orange-600" : "text-primary"}`}
+                  className={`font-medium ${daysToExpiry < 30 ? "text-destructive" : daysToExpiry < expiryWarningDays ? "text-orange-600" : "text-primary"}`}
                 >
                   {formatDate(medicine.expiryDate)}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {daysToExpiry > 0 ? `${daysToExpiry} days remaining` : `Expired ${Math.abs(daysToExpiry)} days ago`}
+                  {daysToExpiry > 0
+                    ? `${daysToExpiry} days remaining`
+                    : `Expired ${Math.abs(daysToExpiry)} days ago`}
                 </p>
               </div>
 
               {medicine.stockQuantity <= medicine.reorderLevel && (
                 <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
-                  <p className="text-sm font-medium text-destructive">Low Stock Alert</p>
-                  <p className="text-xs text-destructive/80">Stock level is below reorder threshold</p>
+                  <p className="text-sm font-medium text-destructive">
+                    Low Stock Alert
+                  </p>
+                  <p className="text-xs text-destructive/80">
+                    Stock level is below reorder threshold
+                  </p>
                 </div>
               )}
 
-              {daysToExpiry < 90 && daysToExpiry > 0 && (
+              {daysToExpiry < expiryWarningDays && daysToExpiry > 0 && (
                 <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                  <p className="text-sm font-medium text-orange-800">Expiry Warning</p>
-                  <p className="text-xs text-orange-600">Medicine expires in less than 90 days</p>
+                  <p className="text-sm font-medium text-orange-800">
+                    Expiry Warning
+                  </p>
+                  <p className="text-xs text-orange-600">
+                    Medicine expires in less than {expiryWarningDays} days
+                  </p>
                 </div>
               )}
 
               {daysToExpiry <= 0 && (
                 <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
-                  <p className="text-sm font-medium text-destructive">Expired Medicine</p>
-                  <p className="text-xs text-destructive/80">This medicine has expired and should not be sold</p>
+                  <p className="text-sm font-medium text-destructive">
+                    Expired Medicine
+                  </p>
+                  <p className="text-xs text-destructive/80">
+                    This medicine has expired and should not be sold
+                  </p>
                 </div>
               )}
             </CardContent>
@@ -286,7 +356,13 @@ export function MedicineDetailsDialog({ open, onOpenChange, medicine }: Medicine
             {loadingBatches ? (
               <p className="text-center py-4">Loading batches...</p>
             ) : batches.length === 0 ? (
-              <p className="text-center py-4 text-muted-foreground italic">No batch records found for this {storeProfile?.store_type === 'pharmacy' ? 'medicine' : 'product'}.</p>
+              <p className="text-center py-4 text-muted-foreground italic">
+                No batch records found for this{" "}
+                {storeProfile?.store_type === "pharmacy"
+                  ? "medicine"
+                  : "product"}
+                .
+              </p>
             ) : (
               <Table>
                 <TableHeader>
@@ -299,23 +375,36 @@ export function MedicineDetailsDialog({ open, onOpenChange, medicine }: Medicine
                 </TableHeader>
                 <TableBody>
                   {batches.map((batch: any) => {
-                    const days = Math.ceil((new Date(batch.expiry_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                    const days = Math.ceil(
+                      (new Date(batch.expiry_date).getTime() -
+                        new Date().getTime()) /
+                        (1000 * 60 * 60 * 24),
+                    );
                     return (
                       <TableRow key={batch.id}>
-                        <TableCell className="font-mono">{batch.batch_number}</TableCell>
+                        <TableCell className="font-mono">
+                          {batch.batch_number}
+                        </TableCell>
                         <TableCell>{batch.quantity} units</TableCell>
-                        <TableCell>{new Date(batch.expiry_date).toLocaleDateString()}</TableCell>
+                        <TableCell>
+                          {new Date(batch.expiry_date).toLocaleDateString()}
+                        </TableCell>
                         <TableCell>
                           {days <= 0 ? (
                             <Badge variant="destructive">Expired</Badge>
                           ) : days <= 90 ? (
-                            <Badge variant="outline" className="border-orange-500 text-orange-600">Near Expiry</Badge>
+                            <Badge
+                              variant="outline"
+                              className="border-orange-500 text-orange-600"
+                            >
+                              Near Expiry
+                            </Badge>
                           ) : (
                             <Badge variant="default">Healthy</Badge>
                           )}
                         </TableCell>
                       </TableRow>
-                    )
+                    );
                   })}
                 </TableBody>
               </Table>
@@ -324,5 +413,5 @@ export function MedicineDetailsDialog({ open, onOpenChange, medicine }: Medicine
         </Card>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

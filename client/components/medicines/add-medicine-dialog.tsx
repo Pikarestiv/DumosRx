@@ -2,7 +2,7 @@
 
 import type React from "react";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -44,13 +44,15 @@ interface Medicine {
 interface AddMedicineDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAddMedicine: (medicine: Medicine) => void;
+  onAddMedicine: (medicine: any) => void;
+  editingMedicine?: any | null;
 }
 
 export function AddMedicineDialog({
   open,
   onOpenChange,
   onAddMedicine,
+  editingMedicine,
 }: AddMedicineDialogProps) {
   const { t, storeType } = useStore();
   const [formData, setFormData] = useState<Medicine>({
@@ -74,6 +76,55 @@ export function AddMedicineDialog({
     unitsPerBulk: 1,
     status: "active",
   });
+
+  // Load editing medicine data if provided
+  useEffect(() => {
+    if (editingMedicine && open) {
+      setFormData({
+        name: editingMedicine.name || "",
+        genericName: editingMedicine.genericName || "",
+        brand: editingMedicine.brand || "",
+        category: editingMedicine.category || "",
+        nafdacNumber: editingMedicine.nafdacNumber || "",
+        strength: editingMedicine.strength || "",
+        dosageForm: editingMedicine.dosageForm || "",
+        manufacturer: editingMedicine.manufacturer || "",
+        supplier: editingMedicine.supplier || "",
+        costPrice: editingMedicine.costPrice || 0,
+        sellingPrice: editingMedicine.sellingPrice || 0,
+        stockQuantity: editingMedicine.stockQuantity || 0,
+        reorderLevel: editingMedicine.reorderLevel || 0,
+        expiryDate: editingMedicine.expiryDate || "",
+        batchNumber: editingMedicine.batchNumber || "",
+        baseUnit: editingMedicine.baseUnit || "Unit",
+        bulkUnit: editingMedicine.bulkUnit || "",
+        unitsPerBulk: editingMedicine.unitsPerBulk || 1,
+        status: editingMedicine.status || "active",
+      });
+    } else if (!editingMedicine && open) {
+      setFormData({
+        name: "",
+        genericName: "",
+        brand: "",
+        category: "",
+        nafdacNumber: "",
+        strength: "",
+        dosageForm: "",
+        manufacturer: "",
+        supplier: "",
+        costPrice: 0,
+        sellingPrice: 0,
+        stockQuantity: 0,
+        reorderLevel: 0,
+        expiryDate: "",
+        batchNumber: "",
+        baseUnit: "Unit",
+        bulkUnit: "",
+        unitsPerBulk: 1,
+        status: "active",
+      });
+    }
+  }, [editingMedicine, open]);
 
   const isPharmacy = storeType === "pharmacy";
 
@@ -111,6 +162,7 @@ export function AddMedicineDialog({
 
     // Convert to snake_case for backend
     const payload = {
+      ...(editingMedicine?.id ? { id: editingMedicine.id } : {}),
       name: formData.name,
       generic_name: formData.genericName,
       brand_name: formData.brand,
@@ -166,12 +218,13 @@ export function AddMedicineDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="font-serif font-bold">
-            Add New {t("product")}
+          <DialogTitle className="font-serif font-bold text-2xl">
+            {editingMedicine ? `Edit ${t("product")}` : `Add New ${t("product")}`}
           </DialogTitle>
           <DialogDescription>
-            Enter the details for the new {t("product").toLowerCase()}. All
-            fields marked with * are required.
+            {editingMedicine
+              ? `Update the details for ${editingMedicine.name}. All fields marked with * are required.`
+              : `Enter the details for the new ${t("product").toLowerCase()}. All fields marked with * are required.`}
           </DialogDescription>
         </DialogHeader>
 
@@ -444,7 +497,7 @@ export function AddMedicineDialog({
             </p>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="mt-6">
             <Button
               type="button"
               variant="outline"
@@ -452,11 +505,8 @@ export function AddMedicineDialog({
             >
               Cancel
             </Button>
-            <Button
-              type="submit"
-              className="bg-accent hover:bg-accent/90 cursor-pointer"
-            >
-              Add {t("product")}
+            <Button type="submit" className="bg-accent hover:bg-accent/90">
+              {editingMedicine ? `Update ${t("product")}` : `Add ${t("product")}`}
             </Button>
           </DialogFooter>
         </form>

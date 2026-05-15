@@ -58,11 +58,14 @@ export function DashboardOverview() {
      LIMIT 1`
   );
 
+  const expiryDays = storeProfile?.expiry_warning_days || 30;
+
   const { data: expiring } = useLocalData<{ count: number }>(
     `SELECT (
-      (SELECT COUNT(*) FROM medicines WHERE date(expiry_date) <= date('now', '+30 days') AND _deleted = 0) +
-      (SELECT COUNT(*) FROM inventory WHERE date(expiry_date) <= date('now', '+30 days') AND _deleted = 0)
-    ) as count`
+      (SELECT COUNT(*) FROM medicines WHERE date(expiry_date) <= date('now', '+' || ? || ' days') AND _deleted = 0) +
+      (SELECT COUNT(*) FROM inventory WHERE date(expiry_date) <= date('now', '+' || ? || ' days') AND _deleted = 0)
+    ) as count`,
+    [expiryDays, expiryDays]
   );
 
   const { data: lowStock } = useLocalData<{ count: number }>(
@@ -135,7 +138,7 @@ export function DashboardOverview() {
     {
       title: "Expiring Soon",
       value: stats.expiringSoon.toString(),
-      description: "Items expiring in 30 days",
+      description: `Items expiring in ${expiryDays} days`,
       icon: AlertTriangle,
       trend: stats.expiringSoon > 0 ? "Requires attention" : "All clear",
     },

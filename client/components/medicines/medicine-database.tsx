@@ -137,6 +137,8 @@ export function MedicineDatabase() {
 
   const handleAddMedicine = async (payload: any) => {
     try {
+      const isEditing = !!payload.id;
+      
       // Create locally
       const localPayload = {
         ...payload,
@@ -144,15 +146,29 @@ export function MedicineDatabase() {
       };
       delete localPayload.status;
 
-      await insert("medicines", localPayload);
+      if (isEditing) {
+        const id = localPayload.id;
+        delete localPayload.id;
+        // Use generic update from base-helpers (which is re-exported by local-database)
+        await (require("@/lib/db/local-database").update)("medicines", id, localPayload);
+        toast.success(`${t('product')} updated successfully`);
+      } else {
+        await insert("medicines", localPayload);
+        toast.success(`${t('product')} added successfully`);
+      }
 
-      toast.success(`${t('product')} added successfully`);
       refetch();
       setShowAddDialog(false);
+      setSelectedMedicine(null);
     } catch (error) {
-      console.error(`Failed to create ${t('product')}:`, error);
+      console.error(`Failed to save ${t('product')}:`, error);
       toast.error(`Failed to save ${t('product')}.`);
     }
+  };
+
+  const handleEditMedicine = (medicine: Medicine) => {
+    setSelectedMedicine(medicine);
+    setShowAddDialog(true);
   };
 
   const filteredMedicines = medicines.filter((medicine) => {
@@ -436,7 +452,11 @@ export function MedicineDatabase() {
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="sm">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => handleEditMedicine(medicine)}
+                          >
                             <Edit className="h-4 w-4" />
                           </Button>
                         </div>
@@ -453,8 +473,12 @@ export function MedicineDatabase() {
       {/* Dialogs */}
       <AddMedicineDialog
         open={showAddDialog}
-        onOpenChange={setShowAddDialog}
+        onOpenChange={(open) => {
+          setShowAddDialog(open);
+          if (!open) setSelectedMedicine(null);
+        }}
         onAddMedicine={handleAddMedicine}
+        editingMedicine={selectedMedicine}
       />
 
       <MedicineDetailsDialog

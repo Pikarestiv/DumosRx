@@ -122,9 +122,9 @@ export default function GlobalUsersDirectory() {
     if (!selectedUser) return;
     setIsProcessing(true);
     try {
-      await webApiClient.request(`admin/users/${selectedUser.id}/reset-password`, { method: 'POST' });
+      const response: any = await webApiClient.request(`admin/users/${selectedUser.id}/reset-password`, { method: 'POST' });
       toast.success("Password Reset Forced", {
-        description: `A password reset link has been sent to ${selectedUser.email}`
+        description: `Temporary password: ${response.temp_password}. Please communicate this to the user.`
       });
     } catch (err: any) {
       toast.error("Action Failed", { description: err.message || "Failed to force password reset" });

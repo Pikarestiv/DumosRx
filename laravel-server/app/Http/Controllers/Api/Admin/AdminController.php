@@ -163,8 +163,11 @@ class AdminController extends Controller
         }
 
         try {
-            $this->adminService->forcePasswordReset($id);
-            return response()->json(['message' => 'Password reset forced successfully']);
+            $result = $this->adminService->forcePasswordReset($id);
+            return response()->json([
+                'message' => 'Password reset forced successfully',
+                'temp_password' => $result['temp_password']
+            ]);
         } catch (\Exception $e) {
             \Log::error("Admin Force Reset Error: " . $e->getMessage());
             return response()->json(['error' => 'Failed to force password reset'], 500);

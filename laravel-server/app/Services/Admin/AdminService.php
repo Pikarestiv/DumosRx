@@ -342,22 +342,39 @@ class AdminService
     {
         $user = User::findOrFail($id);
         
-        // In a real app, you'd invalidate tokens and maybe set a flag or send email
-        // For now, we log the intent
+        // Generate a random temporary password
+        $tempPassword = Str::random(12);
+        $user->password = Hash::make($tempPassword);
+        $user->save();
+        
+        // In a production app, you would send this via email.
+        // For now, we log it and also create a system notification for the user
+        // so they can see it if they somehow manage to log in or if an admin tells them.
+        $this->notifyUser($id, "Your password has been reset by an administrator. Your temporary password is: {$tempPassword}. Please change it immediately.");
+
         ActivityLog::create([
             'user_id' => auth()->id(),
             'action' => 'PASSWORD_RESET_FORCE',
-            'description' => "Forced password reset for user: {$user->email} ({$user->id})",
+            'description' => "Forced password reset for user: {$user->email} ({$user->id}). Temporary password: {$tempPassword}",
             'status' => 'success'
         ]);
 
-        return true;
+        return ['temp_password' => $tempPassword];
     }
 
     public function notifyUser($id, $message)
     {
         $user = User::findOrFail($id);
         
+        // Create actual notification record
+        \App\Models\Notification::create([
+            'user_id' => $user->id,
+            'title' => 'Administrative Message',
+            'message' => $message,
+            'type' => 'urgent',
+            'is_read' => false
+        ]);
+
         ActivityLog::create([
             'user_id' => auth()->id(),
             'action' => 'ADMIN_NOTIFICATION',

@@ -41,10 +41,10 @@ class DashboardController extends Controller
         }
 
         // 2. Inventory Stats
-        $inventoryValue = DB::table('inventory')
+        $inventoryStats = DB::table('inventory')
             ->select(DB::raw('SUM(quantity_in_stock * cost_price) as total_value'))
-            ->first()
-            ->total_value ?? 0;
+            ->first();
+        $inventoryValue = $inventoryStats->total_value ?? 0;
         
         // 3. Customer Stats
         $totalCustomers = Customer::count();

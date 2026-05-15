@@ -30,6 +30,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { SubscriptionWrapper } from "@/components/dashboard/subscription-wrapper";
+import { toast } from "sonner";
 
 interface OverviewViewProps {
   stats: any;
@@ -90,9 +91,9 @@ export function OverviewView({ stats, user, stores, onReset }: OverviewViewProps
     const res = await onReset(resetConfig.type);
     setResetConfig((prev) => ({ ...prev, isOpen: false }));
     if (res.success) {
-      // Maybe use a toast here later
+      toast.success(res.message || "Data reset successfully");
     } else {
-      alert("Reset failed: " + res.error);
+      toast.error(res.error || "Reset failed. Please try again.");
     }
   };
 

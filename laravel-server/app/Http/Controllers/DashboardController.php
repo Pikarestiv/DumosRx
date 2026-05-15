@@ -158,40 +158,58 @@ class DashboardController extends Controller
 
     public function resetData(Request $request)
     {
-        $user = $request->user();
-        $userId = $user->id;
-        $type = $request->input('type', 'all'); // all, sales, logs, customers, inventory, stores
+        try {
+            $user = $request->user();
+            $userId = $user->id;
+            $type = $request->input('type', 'all'); // all, sales, logs, customers, inventory, stores
 
-        $message = "Account data has been reset.";
+            \Log::info("Account reset requested for user: {$userId}, type: {$type}");
 
-        if ($type === 'all' || $type === 'sales') {
-            Sale::where('cashier_id', $userId)->delete();
-            $message = "Sales records cleared.";
+            DB::beginTransaction();
+
+            $message = "Account data has been reset.";
+
+            if ($type === 'all' || $type === 'sales') {
+                Sale::where('cashier_id', $userId)->delete();
+                $message = "Sales records cleared.";
+            }
+
+            if ($type === 'all' || $type === 'logs') {
+                ActivityLog::where('user_id', $userId)->delete();
+                $message = $type === 'all' ? "All data cleared." : "Activity logs cleared.";
+            }
+
+            if ($type === 'all' || $type === 'customers') {
+                // Scope to user if possible, otherwise delete only those related to user sales
+                Customer::where('user_id', $userId)->delete(); 
+                $message = $type === 'all' ? "All data cleared." : "Customer records cleared.";
+            }
+
+            if ($type === 'all' || $type === 'inventory') {
+                // Assuming inventory has user_id
+                Inventory::where('user_id', $userId)->delete(); 
+                $message = $type === 'all' ? "All data cleared." : "Inventory records cleared.";
+            }
+
+            if ($type === 'all' || $type === 'stores') {
+                Store::where('user_id', $userId)->delete();
+                $message = $type === 'all' ? "All data cleared." : "Connected stores cleared.";
+            }
+
+            DB::commit();
+            \Log::info("Account reset successful");
+
+            return response()->json([
+                'message' => $message,
+                'status' => 'success'
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error("Reset data error: " . $e->getMessage());
+            return response()->json([
+                'error' => 'Reset Failed',
+                'message' => $e->getMessage()
+            ], 500);
         }
-
-        if ($type === 'all' || $type === 'logs') {
-            ActivityLog::where('user_id', $userId)->delete();
-            $message = $type === 'all' ? "All data cleared." : "Activity logs cleared.";
-        }
-
-        if ($type === 'all' || $type === 'customers') {
-            Customer::query()->delete(); 
-            $message = $type === 'all' ? "All data cleared." : "Customer records cleared.";
-        }
-
-        if ($type === 'all' || $type === 'inventory') {
-            Inventory::query()->delete(); 
-            $message = $type === 'all' ? "All data cleared." : "Inventory records cleared.";
-        }
-
-        if ($type === 'all' || $type === 'stores') {
-            Store::where('user_id', $userId)->delete();
-            $message = $type === 'all' ? "All data cleared." : "Connected stores cleared.";
-        }
-
-        return response()->json([
-            'message' => $message,
-            'status' => 'success'
-        ]);
     }
 }

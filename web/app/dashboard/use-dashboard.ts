@@ -80,9 +80,9 @@ export function useDashboard() {
 
   const resetAccountData = async (type: string = "all") => {
     try {
-      await webApiClient.resetData(type);
+      const response = await webApiClient.resetData(type);
       await fetchData(true); // Force refresh
-      return { success: true };
+      return { success: true, message: response.message };
     } catch (error) {
       console.error("Failed to reset data:", error);
       return { success: false, error: error instanceof Error ? error.message : "Reset failed" };

@@ -20,7 +20,7 @@ interface AdminState {
   fetchSummary: (force?: boolean) => Promise<void>;
   fetchPharmacies: (page?: number, search?: string) => Promise<void>;
   fetchProducts: (page?: number, search?: string, category?: string) => Promise<void>;
-  fetchUsers: (page?: number, search?: string) => Promise<void>;
+  standardizeProducts: () => Promise<any>;  fetchUsers: (page?: number, search?: string) => Promise<void>;
 }
 
 export const useAdminStore = create<AdminState>()(
@@ -110,6 +110,18 @@ export const useAdminStore = create<AdminState>()(
             error: err.message || "Failed to fetch products",
             loading: false,
           });
+        }
+      },
+
+      standardizeProducts: async () => {
+        set({ loading: true, error: null });
+        try {
+          const response = await webApiClient.request<any>("admin/products/standardize", { method: "POST" });
+          set({ loading: false });
+          return response;
+        } catch (err: any) {
+          set({ error: err.message || "Failed to standardize products", loading: false });
+          throw err;
         }
       },
 

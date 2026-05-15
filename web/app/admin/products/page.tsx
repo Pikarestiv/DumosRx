@@ -45,7 +45,7 @@ import { useAdminStore } from "@/lib/store/use-admin-store";
 import { useDebounce } from "@/hooks/use-debounce";
 
 export default function GlobalProductsManagement() {
-  const { products, productMeta, productMetrics, productCategories, loading, error, fetchProducts } = useAdminStore();
+  const { products, productMeta, productMetrics, productCategories, loading, error, fetchProducts, standardizeProducts } = useAdminStore();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
@@ -77,13 +77,18 @@ export default function GlobalProductsManagement() {
       toast.info("Standardization Started", {
           description: "Scanning catalog for inconsistencies..."
       });
-      setTimeout(() => {
+      try {
+          const result = await standardizeProducts();
           toast.success("Standardization Complete", {
-              description: "catalog has been successfully standardized."
+              description: result.message
           });
-      }, 2000);
+          fetchProducts(page, debouncedSearch, category);
+      } catch (err: any) {
+          toast.error("Standardization Failed", {
+              description: err.message
+          });
+      }
   };
-
   const productList = products || [];
 
   return (

@@ -144,7 +144,7 @@ class AdminService
                     'email' => $store->user ? $store->user->email : 'N/A',
                     'plan' => 'Enterprise',
                     'status' => 'Active',
-                    'stores' => 1, 
+                    'stores' => 1,
                     'revenue' => '₦0',
                     'date' => $store->created_at->format('M d, Y')
                 ];
@@ -200,29 +200,58 @@ class AdminService
     public function getProductMetrics()
     {
         $totalProducts = Medicine::count();
-        
+
         // Find most stocked category
         $mostStockedCategory = Medicine::select('generic_name', DB::raw('count(*) as total'))
             ->groupBy('generic_name')
             ->orderByDesc('total')
             ->first();
 
-        // Stock alerts (example logic)
+        // Calculate Growth
+        $thisMonth = Medicine::whereMonth('created_at', now()->month)->count();
+        $lastMonth = Medicine::whereMonth('created_at', now()->subMonth()->month)->count();
+        $growth = $this->calculateChange($thisMonth, $lastMonth);
+
+        // Stock alerts
         $lowStockCount = DB::table('inventory')->where('quantity_in_stock', '<', 10)->count();
+
+        // PCN Compliance
+        $compliantCount = Medicine::whereNotNull('nafdac_number')->where('nafdac_number', '!=', '')->count();
+        $complianceRate = $totalProducts > 0 ? round(($compliantCount / $totalProducts) * 100, 1) : 0;
 
         return [
             'mostStockedCategory' => [
                 'name' => $mostStockedCategory ? ($mostStockedCategory->generic_name ?: 'General') : 'None',
-                'growth' => '14.2%' 
+                'growth' => round($growth, 1) . '%'
             ],
             'stockAlerts' => [
                 'count' => $lowStockCount,
                 'rate' => $totalProducts > 0 ? round(($lowStockCount / $totalProducts) * 100, 1) : 0
             ],
             'compliance' => [
-                'rate' => '98%',
-                'status' => 'Verified'
+                'rate' => $complianceRate . '%',
+                'status' => $complianceRate > 90 ? 'Verified' : 'Action Required'
             ]
+        ];
+    }
+
+    public function standardizeCatalog()
+    {
+        $updatedCount = 0;
+        
+        // Standardize generic names
+        $updatedCount += Medicine::where(function($q) {
+            $q->whereNull('generic_name')->orWhere('generic_name', '');
+        })->update(['generic_name' => 'General']);
+            
+        // Standardize manufacturers
+        $updatedCount += Medicine::where(function($q) {
+            $q->whereNull('manufacturer')->orWhere('manufacturer', '');
+        })->update(['manufacturer' => 'Unknown']);
+
+        return [
+            'count' => $updatedCount,
+            'message' => "Successfully standardized {$updatedCount} catalog entries."
         ];
     }
 
@@ -376,12 +405,12 @@ class AdminService
     public function forcePasswordReset($id)
     {
         $user = User::findOrFail($id);
-        
+
         // Generate a random temporary password
         $tempPassword = Str::random(12);
         $user->password = Hash::make($tempPassword);
         $user->save();
-        
+
         // Send via email
         try {
             Mail::to($user->email)->send(new AdminNotification(
@@ -407,7 +436,7 @@ class AdminService
     public function notifyUser($id, $message, $title = 'Administrative Message')
     {
         $user = User::findOrFail($id);
-        
+
         // Create actual notification record
         \App\Models\Notification::create([
             'user_id' => $user->id,

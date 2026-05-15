@@ -96,6 +96,21 @@ class AdminController extends Controller
         ]);
     }
 
+    public function standardize(Request $request)
+    {
+        if ($request->user()->role !== 'super_admin') {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        try {
+            $result = $this->adminService->standardizeCatalog();
+            return response()->json($result);
+        } catch (\Exception $e) {
+            \Log::error("Admin Standardize Error: " . $e->getMessage());
+            return response()->json(['error' => 'Failed to standardize catalog'], 500);
+        }
+    }
+
     public function users(Request $request)
     {
         if ($request->user()->role !== 'super_admin') {

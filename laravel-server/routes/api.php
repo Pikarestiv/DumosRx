@@ -72,7 +72,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/pharmacies/{id}/suspend', [AdminController::class, 'suspendPharmacy']);
             Route::get('/products', [AdminController::class, 'products']);
         Route::post('/products/standardize', [AdminController::class, 'standardize']);            Route::get('/users', [AdminController::class, 'users']);
-            Route::post('/users/{id}/deactivate', [AdminController::class, 'deactivateUser']);
+        Route::get('/health', [AdminController::class, 'health']);            Route::post('/users/{id}/deactivate', [AdminController::class, 'deactivateUser']);
             Route::post('/users/{id}/reset-password', [AdminController::class, 'forcePasswordReset']);
             Route::post('/users/{id}/notify', [AdminController::class, 'notifyUser']);
             Route::post('/users/bulk-notify', [AdminController::class, 'bulkNotify']);

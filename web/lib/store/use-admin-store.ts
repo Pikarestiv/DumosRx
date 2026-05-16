@@ -21,7 +21,8 @@ interface AdminState {
   fetchPharmacies: (page?: number, search?: string) => Promise<void>;
   fetchProducts: (page?: number, search?: string, category?: string) => Promise<void>;
   standardizeProducts: () => Promise<any>;  fetchUsers: (page?: number, search?: string) => Promise<void>;
-}
+  systemHealth: any;
+  fetchHealth: () => Promise<void>;}
 
 export const useAdminStore = create<AdminState>()(
   persist(
@@ -122,6 +123,16 @@ export const useAdminStore = create<AdminState>()(
         } catch (err: any) {
           set({ error: err.message || "Failed to standardize products", loading: false });
           throw err;
+        }
+      },
+
+      fetchHealth: async () => {
+        set({ loading: true, error: null });
+        try {
+          const response = await webApiClient.request<any>("admin/health");
+          set({ systemHealth: response, loading: false });
+        } catch (err: any) {
+          set({ error: err.message || "Failed to fetch system health", loading: false });
         }
       },
 

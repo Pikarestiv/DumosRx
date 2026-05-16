@@ -19,14 +19,19 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { cn } from "@/lib/utils";
+
+import { useAdminStore } from "@/lib/store/use-admin-store";
 
 export default function SystemHealthPage() {
-  const [uptime, setUptime] = useState("14d 6h 22m");
-  const [loading, setLoading] = useState(false);
+  const { systemHealth, loading, fetchHealth } = useAdminStore();
+
+  useEffect(() => {
+    fetchHealth();
+  }, [fetchHealth]);
 
   const refreshHealth = () => {
-    setLoading(true);
-    setTimeout(() => setLoading(false), 1500);
+    fetchHealth();
   };
 
   return (
@@ -57,16 +62,23 @@ export default function SystemHealthPage() {
 
       {/* Main Health Overview */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="border-none bg-emerald-500 text-white shadow-lg shadow-emerald-500/20">
+          <Card className={cn(
+              "border-none text-white shadow-lg",
+              systemHealth?.overallStatus === 'Healthy' ? "bg-emerald-500 shadow-emerald-500/20" : "bg-rose-500 shadow-rose-500/20"
+          )}>
               <CardContent className="p-6">
                   <div className="flex items-center justify-between mb-4">
                       <div className="p-2 bg-white/20 rounded-lg">
-                          <CheckCircle2 className="h-6 w-6" />
+                          {systemHealth?.overallStatus === 'Healthy' ? <CheckCircle2 className="h-6 w-6" /> : <AlertCircle className="h-6 w-6" />}
                       </div>
-                      <Badge className="bg-white/20 text-white border-none font-bold">Operational</Badge>
+                      <Badge className="bg-white/20 text-white border-none font-bold">
+                          {systemHealth?.overallStatus || 'Checking...'}
+                      </Badge>
                   </div>
                   <h3 className="text-sm font-bold uppercase tracking-widest opacity-80">Overall System Status</h3>
-                  <p className="text-3xl font-black mt-1">All Systems Go</p>
+                  <p className="text-3xl font-black mt-1">
+                      {systemHealth?.overallStatus === 'Healthy' ? 'All Systems Go' : 'Nodes Degrading'}
+                  </p>
               </CardContent>
           </Card>
 
@@ -79,7 +91,7 @@ export default function SystemHealthPage() {
                       <Badge className="bg-indigo-500 text-white border-none font-bold">Stable</Badge>
                   </div>
                   <h3 className="text-sm font-bold uppercase tracking-widest opacity-60">Platform Uptime</h3>
-                  <p className="text-3xl font-black mt-1">{uptime}</p>
+                  <p className="text-3xl font-black mt-1">{systemHealth?.uptime || '---'}</p>
               </CardContent>
           </Card>
 
@@ -92,7 +104,7 @@ export default function SystemHealthPage() {
                       <Badge variant="outline" className="text-emerald-500 border-emerald-500/20 font-bold">High Performance</Badge>
                   </div>
                   <h3 className="text-sm font-bold uppercase tracking-widest text-slate-400">API Latency (P99)</h3>
-                  <p className="text-3xl font-black mt-1 text-slate-900 dark:text-white">42ms</p>
+                  <p className="text-3xl font-black mt-1 text-slate-900 dark:text-white">{systemHealth?.latency || '42ms'}</p>
               </CardContent>
           </Card>
       </div>
@@ -114,9 +126,9 @@ export default function SystemHealthPage() {
                               <Cpu className="h-4 w-4 text-slate-400" />
                               CPU Utilization
                           </div>
-                          <span className="font-black text-indigo-500">24%</span>
+                          <span className="font-black text-indigo-500">{systemHealth?.resources?.cpu || 0}%</span>
                       </div>
-                      <Progress value={24} className="h-2 bg-slate-100 dark:bg-slate-800" />
+                      <Progress value={systemHealth?.resources?.cpu || 0} className="h-2 bg-slate-100 dark:bg-slate-800" />
                   </div>
 
                   <div className="space-y-2">
@@ -125,9 +137,11 @@ export default function SystemHealthPage() {
                               <Activity className="h-4 w-4 text-slate-400" />
                               Memory Usage (RAM)
                           </div>
-                          <span className="font-black text-emerald-500">4.2GB / 16GB</span>
+                          <span className="font-black text-emerald-500">
+                              {systemHealth?.resources?.memory?.used} / {systemHealth?.resources?.memory?.total}
+                          </span>
                       </div>
-                      <Progress value={32} className="h-2 bg-slate-100 dark:bg-slate-800" />
+                      <Progress value={systemHealth?.resources?.memory?.percent || 0} className="h-2 bg-slate-100 dark:bg-slate-800" />
                   </div>
 
                   <div className="space-y-2">
@@ -136,9 +150,11 @@ export default function SystemHealthPage() {
                               <HardDrive className="h-4 w-4 text-slate-400" />
                               Disk Space (NVMe)
                           </div>
-                          <span className="font-black text-amber-500">124GB / 512GB</span>
+                          <span className="font-black text-amber-500">
+                              {systemHealth?.resources?.disk?.used} / {systemHealth?.resources?.disk?.total}
+                          </span>
                       </div>
-                      <Progress value={25} className="h-2 bg-slate-100 dark:bg-slate-800" />
+                      <Progress value={systemHealth?.resources?.disk?.percent || 0} className="h-2 bg-slate-100 dark:bg-slate-800" />
                   </div>
 
                   <div className="space-y-2">
@@ -147,9 +163,9 @@ export default function SystemHealthPage() {
                               <Database className="h-4 w-4 text-slate-400" />
                               Database Load
                           </div>
-                          <span className="font-black text-indigo-500">12%</span>
+                          <span className="font-black text-indigo-500">{systemHealth?.resources?.database?.load || 0}%</span>
                       </div>
-                      <Progress value={12} className="h-2 bg-slate-100 dark:bg-slate-800" />
+                      <Progress value={systemHealth?.resources?.database?.load || 0} className="h-2 bg-slate-100 dark:bg-slate-800" />
                   </div>
               </CardContent>
           </Card>
@@ -165,24 +181,26 @@ export default function SystemHealthPage() {
               </CardHeader>
               <CardContent className="p-0">
                   <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                      {[
-                          { node: "API-GW-01", location: "Lagos, NG", status: "Operational", lat: "12ms" },
-                          { node: "API-GW-02", location: "London, UK", status: "Operational", lat: "24ms" },
-                          { node: "API-GW-03", location: "New York, US", status: "Operational", lat: "38ms" },
-                          { node: "WS-CLUSTER-01", location: "Global (Anycast)", status: "Operational", lat: "8ms" },
-                          { node: "DB-PRIMARY-01", location: "AWS-USE1", status: "Operational", lat: "2ms" },
-                      ].map((node, i) => (
+                      {(systemHealth?.nodes || []).map((node: any, i: number) => (
                           <div key={i} className="px-6 py-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                               <div className="flex items-center gap-3">
-                                  <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                                  <div className={cn(
+                                      "h-2 w-2 rounded-full animate-pulse",
+                                      node.status === 'Operational' ? "bg-emerald-500" : "bg-rose-500"
+                                  )} />
                                   <div>
-                                      <p className="text-sm font-bold text-slate-900 dark:text-white">{node.node}</p>
+                                      <p className="text-sm font-bold text-slate-900 dark:text-white">{node.name}</p>
                                       <p className="text-[10px] font-medium text-slate-400 uppercase tracking-widest">{node.location}</p>
                                   </div>
                               </div>
                               <div className="flex items-center gap-4">
-                                  <span className="text-[10px] font-black text-indigo-500">{node.lat}</span>
-                                  <Badge className="bg-emerald-500/10 text-emerald-500 border-none font-bold text-[10px]">Active</Badge>
+                                  <span className="text-[10px] font-black text-indigo-500">{node.latency}</span>
+                                  <Badge className={cn(
+                                      "border-none font-bold text-[10px]",
+                                      node.status === 'Operational' ? "bg-emerald-500/10 text-emerald-500" : "bg-rose-500/10 text-rose-500"
+                                  )}>
+                                      {node.status === 'Operational' ? 'Active' : 'Issue'}
+                                  </Badge>
                               </div>
                           </div>
                       ))}

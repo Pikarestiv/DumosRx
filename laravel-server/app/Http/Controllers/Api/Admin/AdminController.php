@@ -111,6 +111,21 @@ class AdminController extends Controller
         }
     }
 
+    public function health(Request $request)
+    {
+        if ($request->user()->role !== 'super_admin') {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        try {
+            $data = $this->adminService->getSystemHealth();
+            return response()->json($data);
+        } catch (\Exception $e) {
+            \Log::error("Admin Health Error: " . $e->getMessage());
+            return response()->json(['error' => 'Failed to fetch system health'], 500);
+        }
+    }
+
     public function users(Request $request)
     {
         if ($request->user()->role !== 'super_admin') {

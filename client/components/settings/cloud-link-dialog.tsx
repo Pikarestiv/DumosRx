@@ -90,6 +90,19 @@ export function CloudLinkDialog({ open, onOpenChange, onSuccess }: CloudLinkDial
               />
             </div>
           </div>
+          <div className="text-center pb-2">
+            <p className="text-xs text-muted-foreground">
+              Don't have a web dashboard account yet?{" "}
+              <a 
+                href="https://rx.dumostech.com/register" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-primary font-bold hover:underline"
+              >
+                Create one here
+              </a>
+            </p>
+          </div>
           <DialogFooter>
             <Button 
               type="button" 

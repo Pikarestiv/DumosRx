@@ -16,9 +16,25 @@ class Store extends Model
     protected $fillable = [
         'user_id',
         'name',
+        'store_type',
+        'address',
+        'phone',
+        'email',
+        'currency',
+        'vat_percentage',
+        'pcn_license',
+        'receipt_header',
+        'receipt_footer',
+        'show_logo_on_receipt',
+        'show_contact_on_receipt',
+        'low_stock_warning',
+        'expiry_warning',
+        'expiry_warning_days',
         'location',
         'device_id',
         'last_sync_at',
+        '_version',
+        '_synced_at',
     ];
 
     protected static function boot()

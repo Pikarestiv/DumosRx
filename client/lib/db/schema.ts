@@ -297,6 +297,7 @@ CREATE TABLE IF NOT EXISTS users (
   email TEXT UNIQUE,
   pin TEXT,
   role TEXT DEFAULT 'staff',
+  store_id TEXT,
   is_active INTEGER DEFAULT 1,
   created_at TEXT,
   updated_at TEXT,

@@ -15,6 +15,7 @@ export function useOnboarding() {
   const [isCheckingStatus, setIsCheckingStatus] = useState(true);
   const [syncProgress, setSyncProgress] = useState(0);
   const [syncStatus, setSyncStatus] = useState("Initializing sync...");
+  const [existingStores, setExistingStores] = useState<any[]>([]);
 
   const { login, linkCloudAccount, isCloudLinked } = useAuth();
   const router = useRouter();
@@ -67,20 +68,48 @@ export function useOnboarding() {
     router.push(`?${params.toString()}`);
   };
 
-  const handleRegister = async (name: string, username: string, pin: string) => {
+  const handleRegister = async (name: string, username: string, pin: string, storeName: string, existingStoreId?: string) => {
     setIsLoading(true);
     try {
-      const id = generateId();
+      const userId = generateId();
+      const storeId = existingStoreId || generateId();
+      const now = new Date().toISOString();
+
+      // 1. Create or update the store profile
+      if (!existingStoreId) {
+        await execute(
+          "INSERT INTO store_profile (id, name, is_initialized, created_at, updated_at, _synced) VALUES (?, ?, ?, ?, ?, ?)",
+          [storeId, storeName, 1, now, now, 0],
+        );
+      } else {
+        await execute(
+          "UPDATE store_profile SET name = ?, is_initialized = 1, updated_at = ? WHERE id = ?",
+          [storeName, now, storeId],
+        );
+      }
+
+      // 2. Create the administrator account
       await execute(
-        "INSERT INTO users (id, name, username, pin, role, is_active) VALUES (?, ?, ?, ?, ?, ?)",
-        [id, name, username, pin, "admin", 1],
+        "INSERT INTO users (id, name, username, pin, role, store_id, is_active, created_at, updated_at, _synced) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        [userId, name, username, pin, "admin", storeId, 1, now, now, 0],
       );
-      toast.success("Administrator account created!");
+
+      toast.success(`${storeName} configured and administrator created!`);
+      
+      // 3. Login locally
       const success = await login(username, pin);
-      if (success) router.push("/dashboard");
+      
+      if (success) {
+        // 4. If cloud is linked, trigger an initial sync to push the new administrator
+        if (isCloudLinked) {
+            toast.info("Pushing your account to cloud...");
+            sync().catch(console.error);
+        }
+        router.push("/dashboard");
+      }
     } catch (err) {
       console.error("Registration failed", err);
-      toast.error("Failed to create account");
+      toast.error("Failed to complete setup");
     } finally {
       setIsLoading(false);
     }
@@ -125,6 +154,10 @@ export function useOnboarding() {
         await new Promise((r) => setTimeout(r, 1000));
         
         if (userCount === 0) {
+          // Check for existing stores in store_profile
+          const stores = await query<any>("SELECT id, name FROM store_profile WHERE _deleted = 0");
+          setExistingStores(stores);
+          
           setSyncStatus("No account data found");
           toast.warning("Synchronization finished, but no staff accounts were found. Let's set up your local account.");
           
@@ -169,6 +202,7 @@ export function useOnboarding() {
     handleRegister,
     handleCloudRestore,
     goBack, isCloudLinked,
+    existingStores,
     searchParams,
   };
 }

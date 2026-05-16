@@ -16,19 +16,22 @@ import { UserPlus, Loader2 } from "lucide-react";
 import { useState } from "react";
 
 interface RegisterStepProps {
-  onRegister: (name: string, username: string, pin: string) => Promise<void>;
+  onRegister: (name: string, username: string, pin: string, storeName: string, existingStoreId?: string) => Promise<void>;
   isLoading: boolean;
   isCloudLinked?: boolean;
+  existingStores?: any[];
 }
 
-export function RegisterStep({ onRegister, isLoading, isCloudLinked }: RegisterStepProps) {
+export function RegisterStep({ onRegister, isLoading, isCloudLinked, existingStores = [] }: RegisterStepProps) {
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
   const [pin, setPin] = useState("");
+  const [storeName, setStoreName] = useState("");
+  const [selectedStoreId, setSelectedStoreId] = useState<string>("new");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onRegister(name, username, pin);
+    onRegister(name, username, pin, storeName, selectedStoreId === "new" ? undefined : selectedStoreId);
   };
 
   return (
@@ -54,8 +57,47 @@ export function RegisterStep({ onRegister, isLoading, isCloudLinked }: RegisterS
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4 pt-6">
+            {existingStores.length > 0 && (
+              <div className="space-y-2">
+                <Label htmlFor="store-select">Assign to Shop</Label>
+                <select 
+                  id="store-select"
+                  className="w-full h-11 bg-background/50 border border-input rounded-md px-3 text-sm font-bold focus:ring-2 focus:ring-primary outline-none transition-all"
+                  value={selectedStoreId}
+                  onChange={(e) => {
+                    setSelectedStoreId(e.target.value);
+                    if (e.target.value !== "new") {
+                      const store = existingStores.find(s => s.id === e.target.value);
+                      setStoreName(store?.name || "");
+                    } else {
+                      setStoreName("");
+                    }
+                  }}
+                >
+                  <option value="new">+ Create New Shop Profile</option>
+                  {existingStores.map(store => (
+                    <option key={store.id} value={store.id}>Use Existing: {store.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
+              <Label htmlFor="store-name">
+                {selectedStoreId === "new" ? "New Pharmacy / Store Name" : "Shop Name (Selected)"}
+              </Label>
+              <Input
+                id="store-name"
+                placeholder="e.g. Dumos Health Pharmacy"
+                className="bg-background/50 font-bold border-primary/20 focus:border-primary disabled:opacity-80"
+                value={storeName}
+                onChange={(e) => setStoreName(e.target.value)}
+                required
+                disabled={selectedStoreId !== "new"}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="name">Administrator Full Name</Label>
               <Input
                 id="name"
                 placeholder="e.g. John Doe"

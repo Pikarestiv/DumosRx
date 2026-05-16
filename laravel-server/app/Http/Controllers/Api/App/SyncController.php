@@ -12,6 +12,8 @@ use App\Models\SaleItem;
 use App\Models\Customer;
 use App\Models\Supplier;
 use App\Models\Inventory;
+use App\Models\Store;
+use App\Models\User;
 
 class SyncController extends Controller
 {
@@ -86,7 +88,7 @@ class SyncController extends Controller
         $changes = [];
         $serverTimestamp = now()->toIso8601String();
 
-        $tables = ['medicines', 'customers', 'suppliers', 'sales'];
+        $tables = ['medicines', 'customers', 'suppliers', 'sales', 'store_profile', 'users'];
 
         foreach ($tables as $table) {
             $lastSynced = $lastSyncedMap[$table] ?? null;
@@ -127,6 +129,8 @@ class SyncController extends Controller
             'suppliers' => Supplier::class,
             'sales' => Sale::class,
             'sale_items' => SaleItem::class,
+            'store_profile' => Store::class,
+            'users' => User::class,
         ];
         return $map[$tableName] ?? null;
     }

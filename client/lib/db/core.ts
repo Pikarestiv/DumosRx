@@ -82,7 +82,7 @@ export async function initDatabase(): Promise<any> {
       { table: 'sale_items', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
       { table: 'prescriptions', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
       { table: 'expenses', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
-      { table: 'users', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
+      { table: 'users', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0', 'store_id TEXT'] },
       { table: 'audit_logs', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
       { table: 'returns', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
       { table: 'purchase_orders', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },

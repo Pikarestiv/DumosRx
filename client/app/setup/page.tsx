@@ -25,6 +25,7 @@ export default function SetupPage() {
     handleRegister,
     handleCloudRestore,
     goBack, isCloudLinked,
+    existingStores,
     searchParams,
   } = useOnboarding();
 
@@ -92,7 +93,12 @@ export default function SetupPage() {
           )}
 
           {onboardingStep === "register" && (
-            <RegisterStep onRegister={handleRegister} isLoading={isLoading} isCloudLinked={isCloudLinked} />
+            <RegisterStep 
+              onRegister={handleRegister} 
+              isLoading={isLoading} 
+              isCloudLinked={isCloudLinked} 
+              existingStores={existingStores}
+            />
           )}
 
           {onboardingStep === "cloud" && (

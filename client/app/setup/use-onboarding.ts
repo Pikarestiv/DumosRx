@@ -16,7 +16,7 @@ export function useOnboarding() {
   const [syncProgress, setSyncProgress] = useState(0);
   const [syncStatus, setSyncStatus] = useState("Initializing sync...");
 
-  const { login, linkCloudAccount } = useAuth();
+  const { login, linkCloudAccount, isCloudLinked } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -126,9 +126,10 @@ export function useOnboarding() {
         
         if (userCount === 0) {
           setSyncStatus("No account data found");
-          toast.warning("Synchronization finished, but no staff accounts were found in your cloud backup.");
-          // Stay on sync page but show error, or go back to cloud
-          setTimeout(() => setStep("cloud"), 3000);
+          toast.warning("Synchronization finished, but no staff accounts were found. Let's set up your local account.");
+          
+          await new Promise((r) => setTimeout(r, 1500));
+          setStep("register");
           return;
         }
 
@@ -167,7 +168,7 @@ export function useOnboarding() {
     setStep,
     handleRegister,
     handleCloudRestore,
-    goBack,
+    goBack, isCloudLinked,
     searchParams,
   };
 }

@@ -18,9 +18,10 @@ import { useState } from "react";
 interface RegisterStepProps {
   onRegister: (name: string, username: string, pin: string) => Promise<void>;
   isLoading: boolean;
+  isCloudLinked?: boolean;
 }
 
-export function RegisterStep({ onRegister, isLoading }: RegisterStepProps) {
+export function RegisterStep({ onRegister, isLoading, isCloudLinked }: RegisterStepProps) {
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
   const [pin, setPin] = useState("");
@@ -42,9 +43,13 @@ export function RegisterStep({ onRegister, isLoading }: RegisterStepProps) {
           <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
             <UserPlus className="h-6 w-6 text-primary" />
           </div>
-          <CardTitle className="text-2xl font-bold">New Administrator</CardTitle>
+          <CardTitle className="text-2xl font-bold">
+            {isCloudLinked ? "Cloud Setup" : "New Administrator"}
+          </CardTitle>
           <CardDescription className="text-muted-foreground">
-            Create your master local account
+            {isCloudLinked 
+              ? "Account linked! Now create your local master login." 
+              : "Create your master local account"}
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>

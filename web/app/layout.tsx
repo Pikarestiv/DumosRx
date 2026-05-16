@@ -27,7 +27,7 @@ export const metadata: Metadata = {
   manifest: "/site.webmanifest",
 };
 
-import { Toaster } from "sonner";
+import { Providers } from "@/components/providers";
 
 export default function RootLayout({
   children,
@@ -39,15 +39,9 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
+        <Providers>
           {children}
-          <Toaster position="top-right" richColors />
-        </ThemeProvider>
+        </Providers>
       </body>
     </html>
   );

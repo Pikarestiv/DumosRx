@@ -30,19 +30,21 @@ import {
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
-import { webApiClient } from "@/lib/api/client";
-import { useDashboardStore } from "@/lib/store/use-dashboard-store";
+import { useStores, useDeleteStoreMutation } from "@/lib/api/hooks";
 import { StoreModal } from "../store-modal";
 
 interface FleetViewProps {
   stores: any[];
 }
 
-export function FleetView({ stores }: FleetViewProps) {
+export function FleetView({ stores: initialStores }: FleetViewProps) {
   const router = useRouter();
-  const { fetchData } = useDashboardStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingStore, setEditingStore] = useState<any>(null);
+  const deleteMutation = useDeleteStoreMutation();
+
+  const { data: storesData } = useStores();
+  const storesToDisplay = storesData || initialStores;
 
   const handleManageStaff = (storeId: string) => {
     router.push(`/dashboard/staff?store_id=${storeId}`);
@@ -60,13 +62,10 @@ export function FleetView({ stores }: FleetViewProps) {
 
   const handleDeleteStore = async (storeId: string) => {
     if (confirm("Are you sure you want to remove this store? This will also deactivate associated staff.")) {
-        try {
-            await webApiClient.deleteStore(storeId);
-            toast.success("Store removed successfully");
-            fetchData(true);
-        } catch (err: any) {
-            toast.error(err.message || "Failed to remove store");
-        }
+        deleteMutation.mutate(storeId, {
+          onSuccess: () => toast.success("Store removed successfully"),
+          onError: (err: any) => toast.error(err.message || "Failed to remove store")
+        });
     }
   };
 
@@ -75,7 +74,7 @@ export function FleetView({ stores }: FleetViewProps) {
       <StoreModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
-        onSuccess={() => fetchData(true)}
+        onSuccess={() => {}} 
         store={editingStore} 
       />
       <div className="flex items-center justify-between">
@@ -107,7 +106,7 @@ export function FleetView({ stores }: FleetViewProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {stores.map((store: any) => (
+              {storesToDisplay.map((store: any) => (
                 <TableRow key={store.id} className="border-muted hover:bg-muted/30">
                   <TableCell className="font-bold py-4">
                     <div className="flex flex-col">

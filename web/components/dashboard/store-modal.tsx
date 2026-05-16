@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Store, MapPin, Phone, Home } from "lucide-react";
 import { toast } from "sonner";
-import { webApiClient } from "@/lib/api/client";
+import { useCreateStoreMutation, useUpdateStoreMutation } from "@/lib/api/hooks";
 
 interface StoreModalProps {
   isOpen: boolean;
@@ -45,25 +45,29 @@ export function StoreModal({ isOpen, onClose, onSuccess, store }: StoreModalProp
     }
   }, [store, isOpen]);
 
+  const createMutation = useCreateStoreMutation();
+  const updateMutation = useUpdateStoreMutation();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    try {
-      if (isEditing) {
-        await webApiClient.updateStore(store.id, formData);
-        toast.success("Store details updated successfully");
-      } else {
-        await webApiClient.createStore(formData);
-        toast.success("New store registered successfully");
+    const mutation = isEditing ? updateMutation : createMutation;
+    const mutationPayload = isEditing ? { id: store.id, payload: formData } : formData;
+
+    mutation.mutate(mutationPayload as any, {
+      onSuccess: () => {
+        toast.success(isEditing ? "Store details updated successfully" : "New store registered successfully");
+        onSuccess();
+        onClose();
+      },
+      onError: (err: any) => {
+        toast.error(err.message || "Failed to save store");
+      },
+      onSettled: () => {
+        setLoading(false);
       }
-      onSuccess();
-      onClose();
-    } catch (error: any) {
-      toast.error(error.message || "Failed to save store");
-    } finally {
-      setLoading(false);
-    }
+    });
   };
 
   return (

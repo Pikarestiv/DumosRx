@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, ShieldCheck, User, Mail, Lock, Store } from "lucide-react";
 import { toast } from "sonner";
-import { webApiClient } from "@/lib/api/client";
+import { useCreateStaffMutation, useUpdateStaffMutation } from "@/lib/api/hooks";
 
 interface StaffModalProps {
   isOpen: boolean;
@@ -54,25 +54,29 @@ export function StaffModal({ isOpen, onClose, onSuccess, stores, staffMember }: 
     }
   }, [staffMember, isOpen, stores]);
 
+  const createMutation = useCreateStaffMutation();
+  const updateMutation = useUpdateStaffMutation();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    try {
-      if (isEditing) {
-        await webApiClient.updateStaff(staffMember.id, formData);
-        toast.success("Staff account updated successfully");
-      } else {
-        await webApiClient.createStaff(formData);
-        toast.success("Staff account created successfully");
+    const mutation = isEditing ? updateMutation : createMutation;
+    const mutationPayload = isEditing ? { id: staffMember.id, payload: formData } : formData;
+
+    mutation.mutate(mutationPayload as any, {
+      onSuccess: () => {
+        toast.success(isEditing ? "Staff account updated successfully" : "Staff account created successfully");
+        onSuccess();
+        onClose();
+      },
+      onError: (err: any) => {
+        toast.error(err.message || "Failed to save staff account");
+      },
+      onSettled: () => {
+        setLoading(false);
       }
-      onSuccess();
-      onClose();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to save staff account");
-    } finally {
-      setLoading(false);
-    }
+    });
   };
 
   return (

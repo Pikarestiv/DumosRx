@@ -29,9 +29,8 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { StaffModal } from "../staff-modal";
-import { useDashboardStore } from "@/lib/store/use-dashboard-store";
 import { toast } from "sonner";
-import { webApiClient } from "@/lib/api/client";
+import { useStaff, useDeleteStaffMutation } from "@/lib/api/hooks";
 
 interface StaffViewProps {
   staff: any[];
@@ -53,7 +52,10 @@ export function StaffView({ staff, stores }: StaffViewProps) {
     }
   }, [storeIdParam]);
 
-  const { fetchData } = useDashboardStore();
+  const { data: staffData, isLoading } = useStaff(selectedStore);
+  const deleteMutation = useDeleteStaffMutation();
+  
+  const staffToDisplay = staffData || staff;
 
   const handleCreate = () => {
       setEditingStaff(null);
@@ -67,20 +69,17 @@ export function StaffView({ staff, stores }: StaffViewProps) {
 
   const handleDelete = async (id: string) => {
       if (confirm("Are you sure you want to deactivate this staff account?")) {
-          try {
-              await webApiClient.deleteStaff(id);
-              toast.success("Staff account deactivated");
-              fetchData(true);
-          } catch (err: any) {
-              toast.error(err.message || "Failed to deactivate staff");
-          }
+          deleteMutation.mutate(id, {
+            onSuccess: () => toast.success("Staff account deactivated"),
+            onError: (err: any) => toast.error(err.message || "Failed to deactivate staff")
+          });
       }
   };
 
   // Filter staff based on selected store
   const filteredStaff = selectedStore === "all" 
-    ? staff 
-    : staff.filter(s => s.store_id === selectedStore || s.store_name === selectedStore || s.store === selectedStore);
+    ? staffToDisplay 
+    : staffToDisplay.filter((s: any) => s.store_id === selectedStore || s.store_name === selectedStore || s.store === selectedStore);
 
   const hasStaff = filteredStaff && filteredStaff.length > 0;
 
@@ -236,7 +235,7 @@ export function StaffView({ staff, stores }: StaffViewProps) {
       <StaffModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)}
-        onSuccess={() => fetchData(true)}
+        onSuccess={() => {}}
         stores={stores}
         staffMember={editingStaff}
       />

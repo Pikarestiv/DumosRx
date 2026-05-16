@@ -1,199 +1,146 @@
+import axios from "axios";
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
-type RequestOptions = {
-  method?: string;
-  headers?: Record<string, string>;
-  body?: any;
-};
+const apiClient = axios.create({
+  baseURL: API_URL,
+  headers: {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+  },
+  withCredentials: true,
+});
 
-class WebApiClient {
-  private baseUrl: string;
-
-  constructor(baseUrl: string) {
-    this.baseUrl = baseUrl.replace(/\/$/, "");
-  }
-
-  public async request<T>(
-    endpoint: string,
-    options: RequestOptions = {},
-  ): Promise<T> {
-    const url = `${this.baseUrl}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
-
-    const isAdminPath = typeof window !== "undefined" && window.location.pathname.startsWith('/admin');
+// Request interceptor for token fallback
+apiClient.interceptors.request.use((config) => {
+  if (typeof window !== "undefined") {
+    const isAdminPath = window.location.pathname.startsWith('/admin');
     const tokenKey = isAdminPath ? "drx_admin_token" : "drx_token";
-    const token = typeof window !== "undefined" ? localStorage.getItem(tokenKey) : null;
+    const token = localStorage.getItem(tokenKey);
+    
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+  }
+  return config;
+});
 
-    const headers = {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options.headers,
-    };
-
-    const config: RequestInit = {
-      method: options.method || "GET",
-      headers,
-      body: options.body ? JSON.stringify(options.body) : undefined,
-      credentials: "include", // Allow sending and receiving cookies
-    };
-
-    const response = await fetch(url, config);
-    if (response.status === 401 && !endpoint.includes("/login") && !endpoint.includes("/refresh")) {
+// Response interceptor for 401 refresh
+apiClient.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+    
+    if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url.includes('/login') && !originalRequest.url.includes('/refresh')) {
+      originalRequest._retry = true;
+      
       try {
-         const refreshData = await this.request<any>("/refresh", { method: "POST" });
-         if (refreshData.token) {
-            localStorage.setItem(tokenKey, refreshData.token);
-            return this.request<T>(endpoint, options);
-         }
-      } catch (err) {
-         if (typeof window !== "undefined") {
-            localStorage.removeItem(tokenKey);
-            window.location.href = isAdminPath ? "/admin/login" : "/login";
-         }
+        const { data } = await axios.post(`${API_URL}/refresh`, {}, { withCredentials: true });
+        
+        if (data.token && typeof window !== "undefined") {
+          const isAdminPath = window.location.pathname.startsWith('/admin');
+          const tokenKey = isAdminPath ? "drx_admin_token" : "drx_token";
+          localStorage.setItem(tokenKey, data.token);
+          
+          originalRequest.headers.Authorization = `Bearer ${data.token}`;
+          return apiClient(originalRequest);
+        }
+      } catch (refreshError) {
+        if (typeof window !== "undefined") {
+          const isAdminPath = window.location.pathname.startsWith('/admin');
+          const tokenKey = isAdminPath ? "drx_admin_token" : "drx_token";
+          localStorage.removeItem(tokenKey);
+          window.location.href = isAdminPath ? "/admin/login" : "/login";
+        }
       }
     }
-    const data = await response.json();
+    
+    return Promise.reject(error);
+  }
+);
 
-    if (!response.ok) {
-      throw new Error(
-        data.message || `Request failed with status ${response.status}`,
-      );
-    }
-
+class WebApiClient {
+  async register(payload: any) {
+    const { data } = await apiClient.post("/register", { ...payload, device_name: "web" });
     return data;
   }
 
-  async register(payload: {
-    pharmacy_name: string;
-    first_name: string;
-    last_name: string;
-    email: string;
-    phone: string;
-    password: string;
-    password_confirmation: string;
-  }) {
-    return this.request<{
-      user: any;
-      token: string;
-      message: string;
-    }>("/register", {
-      method: "POST",
-      body: {
-        ...payload,
-        device_name: "web",
-      },
-    });
-  }
-
-  async login(payload: { email: string; password: string }) {
-    return this.request<{
-      user: any;
-      token: string;
-      message: string;
-    }>("/login", {
-      method: "POST",
-      body: {
-        ...payload,
-        device_name: "web",
-      },
-    });
+  async login(payload: any) {
+    const { data } = await apiClient.post("/login", { ...payload, device_name: "web" });
+    return data;
   }
 
   async getSubscriptionStatus() {
-    return this.request<{
-      status: string;
-      plan?: string;
-      days_remaining?: number;
-    }>("/subscription/status");
+    const { data } = await apiClient.get("/subscription/status");
+    return data;
   }
 
-  async initiatePayment(payload: {
-    amount: number;
-    provider: "paystack" | "flutterwave";
-  }) {
-    return this.request<{
-      message: string;
-      transaction_reference: string;
-      payment_url?: string;
-    }>("/subscription/pay", {
-      method: "POST",
-      body: payload,
-    });
+  async initiatePayment(payload: any) {
+    const { data } = await apiClient.post("/subscription/pay", payload);
+    return data;
   }
 
   async getDashboardSummary() {
-    return this.request<{
-      stats: {
-        total_sales: number;
-        inventory_value: number;
-        total_customers: number;
-        active_stores: number;
-      };
-      recent_sales: any[];
-      user: {
-        name: string;
-        email: string;
-        pharmacy_name: string;
-      };
-      staff: any[]; // Include staff in summary or separate call
-    }>("/dashboard/summary");
+    const { data } = await apiClient.get("/dashboard/summary");
+    return data;
   }
 
   async getStaff(storeId?: string) {
     const endpoint = storeId && storeId !== 'all' ? `/staff?store_id=${storeId}` : "/staff";
-    return this.request<any[]>(endpoint);
+    const { data } = await apiClient.get(endpoint);
+    return data;
   }
 
   async createStaff(payload: any) {
-    return this.request<any>("/staff", {
-      method: "POST",
-      body: payload,
-    });
+    const { data } = await apiClient.post("/staff", payload);
+    return data;
   }
 
   async updateStaff(id: string, payload: any) {
-    return this.request<any>(`/staff/${id}`, {
-      method: "PUT",
-      body: payload,
-    });
+    const { data } = await apiClient.put(`/staff/${id}`, payload);
+    return data;
   }
 
   async deleteStaff(id: string) {
-    return this.request<any>(`/staff/${id}`, {
-      method: "DELETE",
-    });
+    const { data } = await apiClient.delete(`/staff/${id}`);
+    return data;
   }
 
   async getNotifications() {
-    return this.request<any[]>("/notifications");
+    const { data } = await apiClient.get("/notifications");
+    return data;
   }
 
   async resetData(type: string = "all") {
-    return this.request<{ message: string; status: string }>("/dashboard/reset", {
-      method: "POST",
-      body: { type },
-    });
+    const { data } = await apiClient.post("/dashboard/reset", { type });
+    return data;
   }
 
   async createStore(payload: any) {
-    return this.request<any>("/stores", {
-      method: "POST",
-      body: payload,
-    });
+    const { data } = await apiClient.post("/stores", payload);
+    return data;
   }
 
   async updateStore(id: string, payload: any) {
-    return this.request<any>(`/stores/${id}`, {
-      method: "PUT",
-      body: payload,
-    });
+    const { data } = await apiClient.put(`/stores/${id}`, payload);
+    return data;
   }
 
   async deleteStore(id: string) {
-    return this.request<any>(`/stores/${id}`, {
-      method: "DELETE",
+    const { data } = await apiClient.delete(`/stores/${id}`);
+    return data;
+  }
+
+  async request<T>(url: string, options: any = {}): Promise<T> {
+    const response = await apiClient({
+      url,
+      method: options.method || "GET",
+      data: options.body,
+      ...options,
     });
+    return response.data;
   }
 }
 
-export const webApiClient = new WebApiClient(API_URL);
+export const webApiClient = new WebApiClient();
+export default apiClient;

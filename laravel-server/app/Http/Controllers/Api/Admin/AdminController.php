@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\ActivityLog;
 use App\Models\Medicine;
 use App\Services\Admin\AdminService;
 use Illuminate\Http\Request;
@@ -250,5 +251,67 @@ class AdminController extends Controller
             \Log::error("Admin Bulk Notify Error: " . $e->getMessage());
             return response()->json(['error' => 'Failed to send bulk notifications'], 500);
         }
+    }
+
+    public function impersonatePharmacy(Request $request, $id)
+    {
+        if ($request->user()->role !== 'super_admin') {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        try {
+            $data = $this->adminService->impersonatePharmacy($id);
+            
+            $response = response()->json($data);
+            
+            // Set the session cookie to the impersonated user's token
+            $response->withCookie(cookie(
+                'drx_admin_session',
+                $data['token'],
+                60 * 24,
+                '/',
+                $request->getHost() === 'localhost' ? null : '.rx.dumostech.com',
+                $request->isSecure(),
+                true,
+                false,
+                $request->isSecure() ? 'None' : 'Lax'
+            ));
+
+            return $response;
+        } catch (\Exception $e) {
+            \Log::error("Admin Impersonate Error: " . $e->getMessage());
+            return response()->json(['error' => 'Impersonation failed: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function restoreSession(Request $request)
+    {
+        $validated = $request->validate([
+            'token' => 'required|string'
+        ]);
+
+        // Log the end of impersonation
+        ActivityLog::create([
+            'user_id' => auth()->id(),
+            'action' => 'ADMIN_IMPERSONATION_END',
+            'description' => "Admin ended impersonation session",
+            'status' => 'success'
+        ]);
+
+        $response = response()->json(['message' => 'Session restored']);
+        
+        $response->withCookie(cookie(
+            'drx_admin_session',
+            $validated['token'],
+            60 * 24,
+            '/',
+            $request->getHost() === 'localhost' ? null : '.rx.dumostech.com',
+            $request->isSecure(),
+            true,
+            false,
+            $request->isSecure() ? 'None' : 'Lax'
+        ));
+
+        return $response;
     }
 }

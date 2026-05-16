@@ -38,7 +38,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Card, CardContent } from "@/components/ui/card";
-import { useAdminPharmacies, useSuspendPharmacyMutation } from "@/lib/api/admin-hooks";
+import { useAdminPharmacies, useSuspendPharmacyMutation, useImpersonatePharmacyMutation } from "@/lib/api/admin-hooks";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useDebounce } from "@/hooks/use-debounce";
 import {
@@ -66,6 +66,7 @@ export default function PharmaciesManagement() {
 
   const { data: response, isLoading, error, refetch } = useAdminPharmacies(page, debouncedSearch);
   const suspendMutation = useSuspendPharmacyMutation();
+  const impersonateMutation = useImpersonatePharmacyMutation();
 
   useEffect(() => {
     if (initialSearch && initialSearch !== search) {
@@ -120,8 +121,30 @@ export default function PharmaciesManagement() {
   };
 
   const handleImpersonate = (pharmacy: any) => {
-    toast.info("Impersonation Started", {
-      description: `Redirecting to ${pharmacy.name} dashboard...`,
+    impersonateMutation.mutate(pharmacy.id, {
+      onSuccess: (data: any) => {
+        toast.success("Impersonation Successful", {
+          description: `Logged in as ${data.user.name}. Redirecting...`,
+        });
+        
+        // Store current admin token as 'impersonator_token' for easy return
+        const adminToken = localStorage.getItem("drx_admin_token");
+        if (adminToken) {
+           localStorage.setItem("drx_impersonator_token", adminToken);
+        }
+
+        // Set the new token for the dashboard
+        localStorage.setItem("drx_token", data.token);
+        localStorage.setItem("drx_user", JSON.stringify(data.user));
+        
+        // Redirect to dashboard
+        router.push("/dashboard");
+      },
+      onError: (err: any) => {
+        toast.error("Impersonation Failed", {
+          description: err.message || "Failed to start impersonation session.",
+        });
+      }
     });
   };
 

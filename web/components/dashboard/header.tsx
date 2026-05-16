@@ -1,12 +1,23 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Bell, Search, Menu, CheckCircle2, AlertCircle, Info, Clock } from "lucide-react";
+import {
+  Bell,
+  Search,
+  Menu,
+  CheckCircle2,
+  AlertCircle,
+  Info,
+  Clock,
+  ShieldAlert,
+  LogOut,
+} from "lucide-react";
 import { webApiClient } from "@/lib/api/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,6 +34,35 @@ interface HeaderProps {
 export function Header({ onSetActiveTab }: HeaderProps) {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [isImpersonating, setIsImpersonating] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setIsImpersonating(!!localStorage.getItem("drx_impersonator_token"));
+    }
+  }, []);
+
+  const handleEndImpersonation = async () => {
+    const adminToken = localStorage.getItem("drx_impersonator_token");
+    if (!adminToken) return;
+
+    try {
+      await webApiClient.restoreSession(adminToken);
+
+      // Clean up
+      localStorage.removeItem("drx_impersonator_token");
+      localStorage.removeItem("drx_token");
+      localStorage.removeItem("drx_user");
+
+      toast.success("Session Restored", {
+        description: "Back to Admin Dashboard",
+      });
+
+      window.location.href = "/admin/pharmacies";
+    } catch (error) {
+      toast.error("Failed to restore admin session");
+    }
+  };
 
   useEffect(() => {
     const fetchNotifications = async () => {
@@ -42,14 +82,36 @@ export function Header({ onSetActiveTab }: HeaderProps) {
 
   return (
     <header className="h-20 bg-background border-b flex items-center justify-between px-8">
+      {isImpersonating && (
+        <div className="fixed top-0 left-0 right-0 h-1 bg-primary z-60" />
+      )}
       <div className="flex items-center gap-4 flex-1">
-        <div className="relative w-full max-w-md hidden md:block">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search records, stores or medicines..."
-            className="pl-10 bg-muted/50 border-none focus-visible:ring-primary"
-          />
-        </div>
+        {isImpersonating ? (
+          <div className="flex items-center gap-3 bg-primary/10 px-4 py-2 rounded-2xl border border-primary/20 animate-in fade-in slide-in-from-top-4">
+            <ShieldAlert className="h-4 w-4 text-primary" />
+            <span className="text-xs font-black text-primary uppercase tracking-tighter">
+              Impersonation Mode
+            </span>
+            <div className="w-px h-4 bg-primary/20 mx-1" />
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-3 text-[10px] font-black uppercase tracking-widest bg-primary text-white hover:bg-primary/90 rounded-lg flex items-center gap-2"
+              onClick={handleEndImpersonation}
+            >
+              <LogOut className="h-3 w-3" />
+              End Session
+            </Button>
+          </div>
+        ) : (
+          <div className="relative w-full max-w-md hidden md:block">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search records, stores or medicines..."
+              className="pl-10 bg-muted/50 border-none focus-visible:ring-primary"
+            />
+          </div>
+        )}
       </div>
       <div className="flex items-center gap-4">
         <ModeToggle />
@@ -62,9 +124,14 @@ export function Header({ onSetActiveTab }: HeaderProps) {
               )}
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-80 rounded-2xl p-2 shadow-2xl border-none">
+          <DropdownMenuContent
+            align="end"
+            className="w-80 rounded-2xl p-2 shadow-2xl border-none"
+          >
             <div className="flex items-center justify-between p-3">
-              <DropdownMenuLabel className="font-black text-lg p-0">Notifications</DropdownMenuLabel>
+              <DropdownMenuLabel className="font-black text-lg p-0">
+                Notifications
+              </DropdownMenuLabel>
               {unreadCount > 0 && (
                 <Badge className="bg-primary/10 text-primary border-none rounded-full px-2">
                   {unreadCount} New
@@ -79,28 +146,40 @@ export function Header({ onSetActiveTab }: HeaderProps) {
                 </div>
               ) : (
                 notifications.map((n) => (
-                  <DropdownMenuItem 
+                  <DropdownMenuItem
                     key={n.id}
                     className="flex flex-col items-start gap-1 p-3 cursor-pointer rounded-xl hover:bg-muted/50 transition-colors"
                     onClick={() => onSetActiveTab("notifications")}
                   >
                     <div className="flex items-center gap-2 w-full">
-                      <Badge variant="outline" className={`
+                      <Badge
+                        variant="outline"
+                        className={`
                         text-[10px] font-black border-none px-2 py-0.5 rounded-full
-                        ${n.type === 'success' ? 'bg-emerald-100 text-emerald-700' : 
-                          n.type === 'warning' ? 'bg-amber-100 text-amber-700' : 
-                          n.type === 'error' ? 'bg-destructive/10 text-destructive' : 
-                          'bg-blue-100 text-blue-700'}
-                      `}>
-                        {n.type?.toUpperCase() || 'INFO'}
+                        ${
+                          n.type === "success"
+                            ? "bg-emerald-100 text-emerald-700"
+                            : n.type === "warning"
+                              ? "bg-amber-100 text-amber-700"
+                              : n.type === "error"
+                                ? "bg-destructive/10 text-destructive"
+                                : "bg-blue-100 text-blue-700"
+                        }
+                      `}
+                      >
+                        {n.type?.toUpperCase() || "INFO"}
                       </Badge>
                       <span className="text-[10px] font-bold text-muted-foreground ml-auto flex items-center gap-1">
                         <Clock className="h-3 w-3" />
                         {n.time}
                       </span>
                     </div>
-                    <p className="text-sm font-black text-foreground">{n.title}</p>
-                    <p className="text-xs text-muted-foreground font-medium line-clamp-2">{n.description}</p>
+                    <p className="text-sm font-black text-foreground">
+                      {n.title}
+                    </p>
+                    <p className="text-xs text-muted-foreground font-medium line-clamp-2">
+                      {n.description}
+                    </p>
                   </DropdownMenuItem>
                 ))
               )}

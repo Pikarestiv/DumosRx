@@ -201,6 +201,16 @@ class WebApiClient {
     const { data } = await apiClient.delete(`/admin/broadcasts/${id}`);
     return data;
   }
+
+  async impersonatePharmacy(id: string) {
+    const { data } = await apiClient.post(`/admin/pharmacies/${id}/impersonate`);
+    return data;
+  }
+
+  async restoreSession(token: string) {
+    const { data } = await apiClient.post("/admin/restore-session", { token });
+    return data;
+  }
 }
 
 export const webApiClient = new WebApiClient();

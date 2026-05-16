@@ -79,10 +79,18 @@ export const useResetUserPasswordMutation = () => {
 
 export const useNotifyUserMutation = () => {
   return useMutation({
-    mutationFn: ({ id, title, message }: { id: string, title: string, message: string }) => 
-      webApiClient.request<any>(`admin/users/${id}/notify`, { 
-        method: "POST",
-        body: { title, message }
-      }),
+    mutationFn: ({ id, payload }: { id: string; payload: any }) => webApiClient.post(`/admin/users/${id}/notify`, payload),
+  });
+};
+
+export const useImpersonatePharmacyMutation = () => {
+  return useMutation({
+    mutationFn: (id: string) => webApiClient.impersonatePharmacy(id),
+  });
+};
+
+export const useRestoreSessionMutation = () => {
+  return useMutation({
+    mutationFn: (token: string) => webApiClient.restoreSession(token),
   });
 };

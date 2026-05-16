@@ -89,6 +89,8 @@ Route::prefix('v1')->group(function () {
             Route::post('/users/{id}/notify', [AdminController::class, 'notifyUser']);
             Route::post('/users/bulk-notify', [AdminController::class, 'bulkNotify']);
             Route::get('/search', [AdminController::class, 'search']);
+            Route::post('/pharmacies/{id}/impersonate', [AdminController::class, 'impersonatePharmacy']);
+            Route::post('/restore-session', [AdminController::class, 'restoreSession']);
 
             // Broadcasts
             Route::get('/broadcasts', [BroadcastController::class, 'adminIndex']);

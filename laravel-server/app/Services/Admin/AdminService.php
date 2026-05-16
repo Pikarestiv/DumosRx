@@ -617,4 +617,35 @@ class AdminService
 
         return $count;
     }
+
+    public function impersonatePharmacy($id)
+    {
+        $store = Store::findOrFail($id);
+        $user = $store->user;
+
+        if (!$user) {
+            throw new \Exception("Pharmacy owner not found.");
+        }
+
+        // Generate impersonation token
+        $token = $user->createToken('Impersonation Token')->plainTextToken;
+
+        ActivityLog::create([
+            'user_id' => auth()->id(),
+            'action' => 'ADMIN_IMPERSONATION',
+            'description' => "Admin impersonating pharmacy owner: {$user->email} ({$store->name})",
+            'status' => 'success'
+        ]);
+
+        return [
+            'token' => $token,
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->first_name . ' ' . $user->last_name,
+                'email' => $user->email,
+                'role' => $user->role,
+                'pharmacy' => $store->name
+            ]
+        ];
+    }
 }

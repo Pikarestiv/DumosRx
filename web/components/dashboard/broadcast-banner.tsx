@@ -13,8 +13,13 @@ export function BroadcastBanner() {
   useEffect(() => {
     const fetchBroadcasts = async () => {
       try {
-        const data = await webApiClient.getBroadcasts();
-        setBroadcasts(data);
+        const response = await webApiClient.getBroadcasts();
+        // The API returns { success: true, data: [...] }
+        if (response && response.success && Array.isArray(response.data)) {
+          setBroadcasts(response.data);
+        } else if (Array.isArray(response)) {
+          setBroadcasts(response);
+        }
       } catch (error) {
         console.error("Failed to fetch broadcasts:", error);
       }

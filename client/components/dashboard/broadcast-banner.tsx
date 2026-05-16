@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Megaphone, X, Info, AlertTriangle, ShieldAlert, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { webApiClient } from "@/lib/api/client";
+import { apiClient } from "@/lib/api/client";
 
 export function BroadcastBanner() {
   const [broadcasts, setBroadcasts] = useState<any[]>([]);
@@ -14,9 +14,13 @@ export function BroadcastBanner() {
   useEffect(() => {
     const fetchBroadcasts = async () => {
       try {
-        // We use webApiClient but it should point to the same API
-        const data = await webApiClient.getBroadcasts();
-        setBroadcasts(data);
+        const response = await apiClient.getBroadcasts();
+        // The API returns { success: true, data: [...] }
+        if (response && response.success && Array.isArray(response.data)) {
+          setBroadcasts(response.data);
+        } else if (Array.isArray(response)) {
+          setBroadcasts(response);
+        }
       } catch (error) {
         console.error("Failed to fetch broadcasts:", error);
       }

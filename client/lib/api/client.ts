@@ -250,6 +250,11 @@ class ApiClient {
       body: JSON.stringify(payload),
     });
   }
+
+  // Broadcasts
+  async getBroadcasts() {
+    return this.request<any>("/broadcasts");
+  }
 }
 
 export const apiClient = new ApiClient();

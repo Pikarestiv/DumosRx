@@ -16,6 +16,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'drx_admin_session',
         ]);
         $middleware->prependToGroup('api', \App\Http\Middleware\AuthenticateFromCookie::class);
+        $middleware->alias([
+            'subscription' => \App\Http\Middleware\CheckSubscription::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

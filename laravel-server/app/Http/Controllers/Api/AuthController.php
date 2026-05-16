@@ -41,8 +41,11 @@ class AuthController extends Controller
             \App\Models\Store::create([
                 'user_id' => $user->id,
                 'name' => $request->pharmacy_name,
-                'device_id' => 'WEB-' . strtoupper(\Illuminate\Support\Str::random(8)),
+                'device_id' => 'WEB-' . strtoupper(Str::random(8)),
             ]);
+
+            // Create trial subscription
+            app(\App\Services\SubscriptionService::class)->createTrial($user);
         }
 
         $token = $user->createToken('auth_token')->plainTextToken;
@@ -64,13 +67,13 @@ class AuthController extends Controller
 
         $user = User::where('email', $request->email)->first();
 
-        if (! $user || ! Hash::check($request->password, $user->password)) {
+        if (!$user || !Hash::check($request->password, $user->password)) {
             throw ValidationException::withMessages([
                 'email' => ['Invalid credentials.'],
             ]);
         }
 
-        if (! $user->is_active) {
+        if (!$user->is_active) {
             throw ValidationException::withMessages([
                 'email' => ['Account is deactivated.'],
             ]);
@@ -125,16 +128,16 @@ class AuthController extends Controller
             "token" => $token,
             "user" => $user,
         ])->withCookie(cookie(
-            "drx_admin_session",
-            $token,
-            60 * 24,
-            "/",
-            $request->getHost() === "localhost" ? null : ".rx.dumostech.com",
-            $request->isSecure(),
-            true,
-            false,
-            $request->isSecure() ? "None" : "Lax"
-        ));
+                    "drx_admin_session",
+                    $token,
+                    60 * 24,
+                    "/",
+                    $request->getHost() === "localhost" ? null : ".rx.dumostech.com",
+                    $request->isSecure(),
+                    true,
+                    false,
+                    $request->isSecure() ? "None" : "Lax"
+                ));
     }
 
     public function user(Request $request)

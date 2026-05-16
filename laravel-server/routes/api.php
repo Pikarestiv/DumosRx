@@ -54,14 +54,14 @@ Route::prefix('v1')->group(function () {
         });
 
         // --- WEB DASHBOARD ROUTES ---
-        Route::prefix('dashboard')->group(function () {
+        Route::prefix('dashboard')->middleware('subscription:remote_dashboard')->group(function () {
             Route::get('/summary', [DashboardController::class, 'summary']);
             Route::post('/reset', [DashboardController::class, 'resetData']);
         });
         Route::get('/notifications', [NotificationController::class, 'index']);
         Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
-        Route::get('/broadcasts', [BroadcastController::class, 'index']);
-        Route::apiResource('staff', StaffController::class)->middleware('can:manage-staff');
+        Route::get('/broadcasts', [BroadcastController::class, 'index'])->middleware('subscription:broadcast_receive');
+        Route::apiResource('staff', StaffController::class)->middleware(['can:manage-staff', 'subscription']);
         Route::apiResource('stores', StoreController::class);
 
         Route::prefix('subscription')->group(function () {
@@ -72,19 +72,19 @@ Route::prefix('v1')->group(function () {
         });
 
         // Backups
-        Route::prefix('backups')->group(function () {
+        Route::prefix('backups')->middleware('subscription')->group(function () {
             Route::post('/upload', [BackupController::class, 'upload']);
             Route::get('/', [BackupController::class, 'list']);
             Route::get('/{backup}/download', [BackupController::class, 'download']);
         });
 
         // Activity Logs
-        Route::get('/logs', [ActivityLogController::class, 'index']);
+        Route::get('/logs', [ActivityLogController::class, 'index'])->middleware('subscription');
 
         // Publicly accessible within authenticated session (for impersonation return)
         Route::post('/admin/restore-session', [AdminController::class, 'restoreSession']);
 
-        Route::middleware('can:manage-platform')->prefix('admin')->group(function () {
+        Route::middleware(['can:manage-platform', 'subscription'])->prefix('admin')->group(function () {
             Route::get('/summary', [AdminController::class, 'summary']);
             Route::get('/pharmacies', [AdminController::class, 'pharmacies']);
             Route::post('/pharmacies', [AdminController::class, 'registerPharmacy']);
@@ -101,14 +101,16 @@ Route::prefix('v1')->group(function () {
             Route::post('/pharmacies/{id}/impersonate', [AdminController::class, 'impersonatePharmacy']);
 
             // Broadcasts
-            Route::get('/broadcasts', [BroadcastController::class, 'adminIndex']);
-            Route::post('/broadcasts', [BroadcastController::class, 'store']);
-            Route::put('/broadcasts/{id}', [BroadcastController::class, 'update']);
-            Route::patch('/broadcasts/{id}/toggle', [BroadcastController::class, 'toggle']);
-            Route::delete('/broadcasts/{id}', [BroadcastController::class, 'destroy']);
+            Route::prefix('broadcasts')->middleware('subscription:broadcast_create')->group(function () {
+                Route::get('/', [BroadcastController::class, 'adminIndex']);
+                Route::post('/', [BroadcastController::class, 'store']);
+                Route::put('/{id}', [BroadcastController::class, 'update']);
+                Route::patch('/{id}/toggle', [BroadcastController::class, 'toggle']);
+                Route::delete('/{id}', [BroadcastController::class, 'destroy']);
+            });
         });
         // --- APP / TERMINAL ROUTES ---
-        Route::prefix('app')->group(function () {
+        Route::prefix('app')->middleware('subscription')->group(function () {
             // Medicine Database
             Route::get('/medicines/search', [MedicineController::class, 'search']);
             Route::apiResource('medicines', MedicineController::class);

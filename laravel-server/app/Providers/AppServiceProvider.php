@@ -25,7 +25,7 @@ class AppServiceProvider extends ServiceProvider
         \Illuminate\Support\Facades\Schema::defaultStringLength(191);
 
         Gate::define('manage-staff', function (User $user) {
-            return $user->role === 'super_admin' || $user->role === 'manager' || $user->role === 'admin';
+            return in_array($user->role, ['super_admin', 'manager', 'admin']);
         });
 
         Gate::define('manage-platform', function (User $user) {

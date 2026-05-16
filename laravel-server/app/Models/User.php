@@ -60,9 +60,9 @@ class User extends Authenticatable
         'password' => 'hashed',
     ];
 
-    public function role()
+    public function userRole()
     {
-        return $this->belongsTo(Role::class);
+        return $this->belongsTo(Role::class, 'role_id');
     }
 
     public function getNameAttribute()

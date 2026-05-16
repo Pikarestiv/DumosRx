@@ -23,7 +23,10 @@ class User extends Authenticatable
         'email',
         'phone',
         'password',
-        'role_id', // Foreign key to roles table
+        'store_id',
+        'username',
+        'pin',
+        'role',
         'is_active',
         'last_login_at',
     ];

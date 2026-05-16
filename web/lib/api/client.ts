@@ -125,8 +125,29 @@ class WebApiClient {
     }>("/dashboard/summary");
   }
 
-  async getStaff() {
-    return this.request<any[]>("/staff");
+  async getStaff(storeId?: string) {
+    const endpoint = storeId && storeId !== 'all' ? `/staff?store_id=${storeId}` : "/staff";
+    return this.request<any[]>(endpoint);
+  }
+
+  async createStaff(payload: any) {
+    return this.request<any>("/staff", {
+      method: "POST",
+      body: payload,
+    });
+  }
+
+  async updateStaff(id: string, payload: any) {
+    return this.request<any>(`/staff/${id}`, {
+      method: "PUT",
+      body: payload,
+    });
+  }
+
+  async deleteStaff(id: string) {
+    return this.request<any>(`/staff/${id}`, {
+      method: "DELETE",
+    });
   }
 
   async getNotifications() {

@@ -83,7 +83,7 @@ class SubscriptionController extends Controller
         $user = auth()->user();
         
         try {
-            $payment = $paymentService.initializeTransaction(
+            $payment = $paymentService->initializeTransaction(
                 $request->amount,
                 $user->email,
                 ['plan_name' => $request->plan_name, 'user_id' => $user->id]

@@ -60,7 +60,7 @@ Route::prefix('v1')->group(function () {
         });
         Route::get('/notifications', [NotificationController::class, 'index']);
         Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
-        Route::get('/broadcasts', [BroadcastController::class, 'index'])->middleware('subscription:broadcast_receive');
+        Route::get('/broadcasts', [BroadcastController::class, 'index']);
         Route::apiResource('staff', StaffController::class)->middleware(['can:manage-staff', 'subscription']);
         Route::apiResource('stores', StoreController::class);
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useDashboardSummary } from "@/lib/api/hooks";
+import { useLatestRelease } from "@/lib/api/github-hooks";
 import { APP_VERSION, GITHUB_REPO } from "@/lib/constants";
 
 export function useDashboard() {
@@ -9,6 +10,8 @@ export function useDashboard() {
   const viewParam = (params?.view as string) || "overview";
 
   const { data, isLoading, refetch } = useDashboardSummary();
+  const { data: releaseData } = useLatestRelease();
+  
   const [activeTab, setActiveTabState] = useState(viewParam);
 
   // Sync state with path param
@@ -23,52 +26,19 @@ export function useDashboard() {
     router.push(`/dashboard/${tab}`);
   };
 
-  const [releaseLinks, setReleaseLinks] = useState({
+  const logout = () => {
+    localStorage.removeItem("drx_token");
+    router.push("/login");
+  };
+
+  const defaultReleaseLinks = {
     windows: `https://github.com/${GITHUB_REPO}/releases/latest`,
     macos: `https://github.com/${GITHUB_REPO}/releases/latest`,
     linux: `https://github.com/${GITHUB_REPO}/releases/latest`,
     version: APP_VERSION,
-    winSize: "84MB",
-    macSize: "78MB",
-    linuxSize: "92MB",
-  });
-
-  useEffect(() => {
-    // Fetch latest release links and sizes
-    const fetchReleaseLinks = async () => {
-      try {
-        const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`);
-        const releaseData = await res.json();
-        if (releaseData.assets) {
-          const win = releaseData.assets.find((a: any) => a.name.toLowerCase().endsWith(".msi") || a.name.toLowerCase().endsWith("-setup.exe"));
-          const mac = releaseData.assets.find((a: any) => a.name.toLowerCase().endsWith(".dmg"));
-          const linux = releaseData.assets.find((a: any) => a.name.toLowerCase().endsWith(".appimage"));
-          
-          const formatSize = (bytes: number) => {
-            if (!bytes) return "";
-            return (bytes / (1024 * 1024)).toFixed(1) + " MB";
-          };
-
-          setReleaseLinks({
-            windows: win?.browser_download_url || `https://github.com/${GITHUB_REPO}/releases/latest`,
-            macos: mac?.browser_download_url || `https://github.com/${GITHUB_REPO}/releases/latest`,
-            linux: linux?.browser_download_url || null,
-            version: releaseData.tag_name || APP_VERSION,
-            winSize: formatSize(win?.size),
-            macSize: formatSize(mac?.size),
-            linuxSize: formatSize(linux?.size),
-          });
-        }
-      } catch (e) {
-        console.error("Failed to fetch release links:", e);
-      }
-    };
-    fetchReleaseLinks();
-  }, []);
-
-  const logout = () => {
-    localStorage.removeItem("drx_token");
-    router.push("/login");
+    winSize: "---",
+    macSize: "---",
+    linuxSize: "---",
   };
 
   return {
@@ -76,7 +46,7 @@ export function useDashboard() {
     setActiveTab,
     loading: isLoading,
     data,
-    releaseLinks,
+    releaseLinks: releaseData || defaultReleaseLinks,
     logout,
     refetch,
     user: data?.user || { name: "User", email: "", pharmacy_name: "DumosRx Pharmacy" },

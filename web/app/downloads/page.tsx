@@ -1,7 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { APP_VERSION, GITHUB_REPO } from "@/lib/constants";
@@ -17,93 +15,27 @@ import {
   Download,
   Monitor,
   ShieldCheck,
-  Zap,
   Globe,
-  ArrowRight,
   ChevronLeft,
-  Loader2,
 } from "lucide-react";
 import { ModeToggle } from "@/components/mode-toggle";
+import { useLatestRelease } from "@/lib/api/github-hooks";
 
 export default function DownloadsPage() {
-  // Remove hardcoded repo constant as it's now in constants.ts
-  const [links, setLinks] = useState({
+  const { data: links, isLoading } = useLatestRelease();
+
+  const defaultLinks = {
     windows: `https://github.com/${GITHUB_REPO}/releases/latest`,
     macos: `https://github.com/${GITHUB_REPO}/releases/latest`,
     linux: `https://github.com/${GITHUB_REPO}/releases/latest`,
     version: APP_VERSION,
-    winSize: "7.0 MB",
-    macSize: "11.0 MB",
-    linuxSize: "80.0 MB",
-    loading: true,
-  });
+    winSize: "---",
+    macSize: "---",
+    linuxSize: "---",
+  };
 
-  useEffect(() => {
-    async function fetchLatestRelease() {
-      try {
-        const res = await fetch(
-          `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`,
-        );
-        const data = await res.json();
-        console.log("GitHub Release Data:", data);
-
-        if (data.assets) {
-          console.log(
-            "Release Assets:",
-            data.assets.map((a: any) => a.name),
-          );
-          // Look for assets: .msi/.exe (Windows), .dmg (macOS), .AppImage (Linux)
-          const winAsset = data.assets.find(
-            (a: any) =>
-              a.name.toLowerCase().endsWith(".msi") ||
-              a.name.toLowerCase().endsWith("-setup.exe"),
-          );
-          const macAsset = data.assets.find((a: any) =>
-            a.name.toLowerCase().endsWith(".dmg"),
-          );
-          const linuxAsset = data.assets.find((a: any) =>
-            a.name.toLowerCase().endsWith(".appimage"),
-          );
-
-          console.log("Discovered Win Asset:", winAsset?.name);
-          console.log("Discovered Mac Asset:", macAsset?.name);
-          console.log("Discovered Linux Asset:", linuxAsset?.name);
-
-          const formatSize = (bytes: number) => {
-            if (!bytes) return "";
-            return (bytes / (1024 * 1024)).toFixed(1) + " MB";
-          };
-
-          setLinks({
-            windows:
-              winAsset?.browser_download_url ||
-              `https://github.com/${GITHUB_REPO}/releases/latest`,
-            macos:
-              macAsset?.browser_download_url ||
-              `https://github.com/${GITHUB_REPO}/releases/latest`,
-            linux:
-              linuxAsset?.browser_download_url ||
-              `https://github.com/${GITHUB_REPO}/releases/latest`,
-            version: data.tag_name || APP_VERSION,
-            winSize: formatSize(winAsset?.size),
-            macSize: formatSize(macAsset?.size),
-            linuxSize: formatSize(linuxAsset?.size),
-            loading: false,
-          });
-        }
-      } catch (err) {
-        console.error("Failed to fetch latest release:", err);
-        setLinks((prev) => ({ ...prev, loading: false }));
-      }
-    }
-    fetchLatestRelease();
-  }, []);
-
-  const WINDOWS_URL = links.windows;
-  const MACOS_URL = links.macos;
-  const LINUX_URL = links.linux;
-
-  const linuxAssetExists = LINUX_URL && LINUX_URL.includes("/download/");
+  const currentLinks = links || defaultLinks;
+  const linuxAssetExists = currentLinks.linux && currentLinks.linux.includes("/download/");
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -130,7 +62,7 @@ export default function DownloadsPage() {
         <section className="py-20 bg-muted/30">
           <div className="container px-6 mx-auto text-center">
             <div className="inline-flex items-center rounded-full px-3 py-1 text-sm font-medium leading-5 text-primary ring-1 ring-inset ring-primary/20 bg-primary/5 mb-6">
-              Current Version: {links.loading ? "Checking..." : links.version}
+              Current Version: {isLoading ? "Checking..." : currentLinks.version}
             </div>
             <h1 className="text-4xl md:text-6xl font-black mb-6 tracking-tight">
               Take your Pharmacy <br />
@@ -158,7 +90,7 @@ export default function DownloadsPage() {
                     Windows
                   </CardTitle>
                   <CardDescription>
-                    Requires Windows 10+ (64-bit) • {links.winSize}
+                    Requires Windows 10+ (64-bit) • {currentLinks.winSize}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -173,7 +105,7 @@ export default function DownloadsPage() {
                       className="w-full h-12 font-bold shadow-lg shadow-primary/20"
                       asChild
                     >
-                      <a href={WINDOWS_URL}>
+                      <a href={currentLinks.windows}>
                         <Download className="w-4 h-4 mr-2" />
                         Download
                       </a>
@@ -193,7 +125,7 @@ export default function DownloadsPage() {
                     macOS
                   </CardTitle>
                   <CardDescription>
-                    Intel & Apple Silicon • {links.macSize}
+                    Intel & Apple Silicon • {currentLinks.macSize}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -208,7 +140,7 @@ export default function DownloadsPage() {
                       className="w-full h-12 font-bold shadow-lg shadow-primary/20"
                       asChild
                     >
-                      <a href={MACOS_URL}>
+                      <a href={currentLinks.macos}>
                         <Download className="w-4 h-4 mr-2" />
                         Download
                       </a>
@@ -236,7 +168,7 @@ export default function DownloadsPage() {
                   </CardTitle>
                   <CardDescription>
                     {linuxAssetExists
-                      ? `Portable AppImage • ${links.linuxSize}`
+                      ? `Portable AppImage • ${currentLinks.linuxSize}`
                       : "AppImage / Deb • Coming Soon"}
                   </CardDescription>
                 </CardHeader>
@@ -262,7 +194,7 @@ export default function DownloadsPage() {
                         className="w-full h-12 font-bold shadow-lg shadow-primary/20"
                         asChild
                       >
-                        <a href={LINUX_URL}>
+                        <a href={currentLinks.linux}>
                           <Download className="w-4 h-4 mr-2" />
                           Download
                         </a>

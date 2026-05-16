@@ -11,9 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('subscriptions', function (Blueprint $table) {
-            $table->foreignUuid('user_id')->after('id')->constrained()->cascadeOnDelete();
-        });
+        if (!Schema::hasColumn('subscriptions', 'user_id')) {
+            Schema::table('subscriptions', function (Blueprint $table) {
+                $table->foreignUuid('user_id')->after('id')->constrained()->cascadeOnDelete();
+            });
+        }
     }
 
     /**
@@ -21,9 +23,11 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('subscriptions', function (Blueprint $table) {
-            $table->dropForeign(['user_id']);
-            $table->dropColumn('user_id');
-        });
+        if (Schema::hasColumn('subscriptions', 'user_id')) {
+            Schema::table('subscriptions', function (Blueprint $table) {
+                $table->dropForeign(['user_id']);
+                $table->dropColumn('user_id');
+            });
+        }
     }
 };

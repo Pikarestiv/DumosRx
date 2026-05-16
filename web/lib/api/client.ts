@@ -80,6 +80,11 @@ class WebApiClient {
     return data;
   }
 
+  async verifyPayment(reference: string) {
+    const { data } = await apiClient.post("/subscription/verify", { reference });
+    return data;
+  }
+
   async getDashboardSummary() {
     const { data } = await apiClient.get("/dashboard/summary");
     return data;

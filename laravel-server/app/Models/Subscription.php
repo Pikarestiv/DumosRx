@@ -11,7 +11,7 @@ class Subscription extends Model
     use HasFactory, HasUuids;
 
     protected $fillable = [
-        'plan_name', 'start_date', 'end_date', 'status', 'license_key'
+        'user_id', 'plan_name', 'start_date', 'end_date', 'status', 'license_key'
     ];
 
     protected $casts = [
@@ -19,5 +19,8 @@ class Subscription extends Model
         'end_date' => 'datetime',
     ];
     
-    // Status: active, expired, grace_period
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 }

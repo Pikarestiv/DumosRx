@@ -1,7 +1,5 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { usePaystackPayment } from "react-paystack";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -13,67 +11,47 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, CreditCard, CheckCircle, AlertCircle } from "lucide-react";
-import { webApiClient } from "@/lib/api/client";
 import { toast } from "sonner";
 import { PRICING } from "@/lib/constants/pricing";
-
-import { useDashboardStore } from "@/lib/store/use-dashboard-store";
+import { useSubscriptionStatus, useInitiatePaymentMutation } from "@/lib/api/hooks";
 
 export function SubscriptionCard() {
-  const { data, loading: dashboardLoading, fetchData } = useDashboardStore();
-  const [loading, setLoading] = useState(false);
-  const [subscription, setSubscription] = useState<any>(null);
+  const { data: subscription, isLoading, error } = useSubscriptionStatus();
+  const initiatePayment = useInitiatePaymentMutation();
 
-  useEffect(() => {
-    fetchSubscriptionStatus();
-  }, []);
-
-  const fetchSubscriptionStatus = async () => {
+  const handleUpgrade = async () => {
     try {
-      setLoading(true);
-      const status = await webApiClient.getSubscriptionStatus();
-      setSubscription(status);
-    } catch (error) {
-      console.error("Failed to fetch subscription", error);
-    } finally {
-      setLoading(false);
+      const response = await initiatePayment.mutateAsync({
+        amount: PRICING.PRO.PRICE_MONTHLY,
+        plan_name: PRICING.PRO.NAME
+      });
+
+      if (response.success && response.payment_url) {
+        window.location.href = response.payment_url;
+      } else {
+        toast.error(response.message || "Failed to initiate payment");
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Payment service unavailable");
     }
   };
 
-  const user = data?.user;
-
-  const config = {
-    reference: new Date().getTime().toString(),
-    email: user?.email || "pharmacy@example.com",
-    amount: PRICING.PRO.PAYSTACK_AMOUNT_KOBO,
-    publicKey: process.env.NEXT_PUBLIC_PAYSTACK_KEY || "pk_test_placeholder",
-  };
-
-  const initializePayment = usePaystackPayment(config);
-
-  const onSuccess = async (reference: any) => {
-    try {
-       setLoading(true);
-       // In a real app, we'd send the reference to the backend to verify
-       // await webApiClient.verifyPayment(reference.reference);
-       toast.success("Payment successful! Upgrading your plan...");
-       await fetchSubscriptionStatus();
-    } catch (err) {
-       toast.error("Payment verification failed. Please contact support.");
-    } finally {
-       setLoading(false);
-    }
-  };
-
-  const onClose = () => {
-    toast.info("Payment cancelled");
-  };
-
-  if (loading && !subscription) {
+  if (isLoading && !subscription) {
     return (
       <Card className="w-full max-w-sm">
         <CardContent className="p-8 flex justify-center">
           <Loader2 className="h-8 w-8 text-primary animate-spin" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card className="w-full max-w-sm border-destructive/20">
+        <CardContent className="p-6 text-center">
+           <AlertCircle className="h-8 w-8 text-destructive mx-auto mb-2" />
+           <p className="text-sm text-destructive">Failed to load subscription info</p>
         </CardContent>
       </Card>
     );
@@ -130,9 +108,14 @@ export function SubscriptionCard() {
         {!isPro ? (
           <Button 
             className="w-full h-12 font-bold shadow-lg shadow-primary/20" 
-            onClick={() => initializePayment({ onSuccess, onClose })}
+            onClick={handleUpgrade}
+            disabled={initiatePayment.isPending}
           >
-            <CreditCard className="h-4 w-4 mr-2" />
+            {initiatePayment.isPending ? (
+               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+               <CreditCard className="h-4 w-4 mr-2" />
+            )}
             Upgrade to Pro (₦{PRICING.PRO.PRICE_MONTHLY.toLocaleString()})
           </Button>
         ) : (

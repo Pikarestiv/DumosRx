@@ -10,10 +10,13 @@ use Carbon\Carbon;
 
 class SubscriptionController extends Controller
 {
-    public function status(Request $request)
+    public function status()
     {
-        $sub = Subscription::where('status', 'active')
+        $user = auth()->user();
+        $sub = Subscription::where('user_id', $user->id)
+            ->where('status', 'active')
             ->where('end_date', '>', now())
+            ->latest()
             ->first();
 
         if (!$sub) {
@@ -70,31 +73,92 @@ class SubscriptionController extends Controller
         ]);
     }
 
-    public function initiatePayment(Request $request)
+    public function initiatePayment(Request $request, \App\Services\Payment\PaymentService $paymentService)
     {
         $request->validate([
             'amount' => 'required|numeric',
-            'provider' => 'required|in:paystack,flutterwave',
+            'plan_name' => 'required|string',
         ]);
 
-        $ref = 'DRX-' . strtoupper($request->provider) . '-' . uniqid();
+        $user = auth()->user();
+        
+        try {
+            $payment = $paymentService.initializeTransaction(
+                $request->amount,
+                $user->email,
+                ['plan_name' => $request->plan_name, 'user_id' => $user->id]
+            );
 
-        $txn = PaymentTransaction::create([
-            'provider' => $request->provider,
-            'provider_reference' => $ref,
-            'amount' => $request->amount,
-            'currency' => 'NGN',
-            'status' => 'pending',
+            $txn = PaymentTransaction::create([
+                'subscription_id' => null, // Will be linked after success
+                'provider' => $payment['provider'],
+                'provider_reference' => $payment['reference'],
+                'amount' => $request->amount,
+                'currency' => 'NGN',
+                'status' => 'pending',
+                'metadata' => ['plan_name' => $request->plan_name]
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Payment session created',
+                'transaction_reference' => $txn->provider_reference,
+                'payment_url' => $payment['checkout_url'],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function verifyPayment(Request $request, \App\Services\Payment\PaymentService $paymentService)
+    {
+        $request->validate([
+            'reference' => 'required|string',
         ]);
 
-        $baseUrl = $request->provider === 'paystack' 
-            ? "https://checkout.paystack.com" 
-            : "https://checkout.flutterwave.com";
+        $txn = PaymentTransaction::where('provider_reference', $request->reference)->first();
 
-        return response()->json([
-            'message' => 'Payment session created',
-            'transaction_reference' => $txn->provider_reference,
-            'payment_url' => "{$baseUrl}/v1/pay/{$ref}", 
-        ]);
+        if (!$txn) {
+            return response()->json(['success' => false, 'message' => 'Transaction not found.'], 404);
+        }
+
+        if ($txn->status === 'success') {
+            return response()->json(['success' => true, 'message' => 'Payment already verified.']);
+        }
+
+        try {
+            $verification = $paymentService->verifyTransaction($txn->provider_reference, $txn->provider);
+
+            if ($verification['success']) {
+                $txn->update(['status' => 'success', 'metadata' => array_merge($txn->metadata ?? [], ['verification_data' => $verification['data']])]);
+
+                // Create or Update Subscription
+                $sub = Subscription::create([
+                    'user_id' => $txn->metadata['user_id'],
+                    'plan_name' => $txn->metadata['plan_name'],
+                    'start_date' => now(),
+                    'end_date' => now()->addMonth(), // Assuming monthly for now
+                    'status' => 'active',
+                    'license_key' => 'DRX-' . strtoupper(bin2hex(random_bytes(8))),
+                ]);
+
+                $txn->update(['subscription_id' => $sub->id]);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Payment verified and subscription activated.',
+                    'subscription' => $sub
+                ]);
+            }
+
+            $txn->update(['status' => 'failed']);
+            return response()->json(['success' => false, 'message' => 'Payment verification failed.'], 400);
+
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
     }
 }

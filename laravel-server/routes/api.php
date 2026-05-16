@@ -38,6 +38,10 @@ Route::prefix('v1')->group(function () {
         return response()->json(['status' => 'ok', 'timestamp' => now()]);
     });
 
+    // Webhooks (Public)
+    Route::post('/webhooks/paystack', [\App\Http\Controllers\Api\Web\PaymentController::class, 'handlePaystack']);
+    Route::post('/webhooks/flutterwave', [\App\Http\Controllers\Api\Web\PaymentController::class, 'handleFlutterwave']);
+
     // Protected Routes
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
@@ -62,8 +66,9 @@ Route::prefix('v1')->group(function () {
 
         Route::prefix('subscription')->group(function () {
             Route::get('/status', [SubscriptionController::class, 'status']);
-            Route::post('/verify', [SubscriptionController::class, 'verifyLicense']);
+            Route::post('/verify-license', [SubscriptionController::class, 'verifyLicense']);
             Route::post('/pay', [SubscriptionController::class, 'initiatePayment']);
+            Route::post('/verify', [SubscriptionController::class, 'verifyPayment']);
         });
 
         // Backups

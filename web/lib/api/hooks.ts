@@ -93,3 +93,26 @@ export const useDeleteStoreMutation = () => {
     },
   });
 };
+
+export const useSubscriptionStatus = () => {
+  return useQuery({
+    queryKey: ["subscription-status"],
+    queryFn: () => webApiClient.getSubscriptionStatus(),
+  });
+};
+
+export const useInitiatePaymentMutation = () => {
+  return useMutation({
+    mutationFn: (payload: { amount: number; plan_name: string }) => webApiClient.initiatePayment(payload),
+  });
+};
+
+export const useVerifyPaymentMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (reference: string) => webApiClient.verifyPayment(reference),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["subscription-status"] });
+    },
+  });
+};

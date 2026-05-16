@@ -38,10 +38,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Card, CardContent } from "@/components/ui/card";
-import { useAdminStore } from "@/lib/store/use-admin-store";
+import { useAdminPharmacies, useSuspendPharmacyMutation } from "@/lib/api/admin-hooks";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useDebounce } from "@/hooks/use-debounce";
-import { webApiClient } from "@/lib/api/client";
 import {
   Dialog,
   DialogContent,
@@ -51,10 +50,9 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { AdminSkeleton } from "@/components/admin/admin-skeleton";
 
 export default function PharmaciesManagement() {
-  const { pharmacies, pharmacyMeta, loading, error, fetchPharmacies } =
-    useAdminStore();
   const searchParams = useSearchParams();
   const router = useRouter();
   const initialSearch = searchParams.get("search") || "";
@@ -63,8 +61,11 @@ export default function PharmaciesManagement() {
   const [search, setSearch] = useState(initialSearch);
   const [selectedPharmacy, setSelectedPharmacy] = useState<any>(null);
   const [isSuspendDialogOpen, setIsSuspendDialogOpen] = useState(false);
-  const [isSuspending, setIsSuspending] = useState(false);
+  
   const debouncedSearch = useDebounce(search, 500);
+
+  const { data: response, isLoading, error, refetch } = useAdminPharmacies(page, debouncedSearch);
+  const suspendMutation = useSuspendPharmacyMutation();
 
   useEffect(() => {
     if (initialSearch && initialSearch !== search) {
@@ -72,23 +73,20 @@ export default function PharmaciesManagement() {
     }
   }, [initialSearch]);
 
-  useEffect(() => {
-    fetchPharmacies(page, debouncedSearch);
-  }, [page, debouncedSearch, fetchPharmacies]);
-
   const handlePageChange = (newPage: number) => {
-    if (newPage >= 1 && newPage <= (pharmacyMeta?.last_page || 1)) {
+    if (newPage >= 1 && newPage <= (response?.meta?.last_page || 1)) {
       setPage(newPage);
     }
   };
 
-  const pharmacyList = pharmacies || [];
+  const pharmacyList = response?.data || [];
+  const pharmacyMeta = response?.meta;
 
   const handleExportCSV = () => {
     if (pharmacyList.length === 0) return;
 
     const headers = ["ID", "Name", "Owner", "Email", "Plan", "Status", "Date"];
-    const csvData = pharmacyList.map((p) =>
+    const csvData = pharmacyList.map((p: any) =>
       [p.id, p.name, p.owner, p.email, p.plan, p.status, p.date].join(","),
     );
 
@@ -104,30 +102,27 @@ export default function PharmaciesManagement() {
 
   const handleSuspend = async () => {
     if (!selectedPharmacy) return;
-    setIsSuspending(true);
-    try {
-      await webApiClient.request(`admin/pharmacies/${selectedPharmacy.id}/suspend`, { method: 'POST' });
-      toast.success("Account Suspended", {
-        description: `${selectedPharmacy.name} has been suspended successfully.`,
-      });
-      fetchPharmacies(page, debouncedSearch);
-    } catch (err: any) {
-      toast.error("Action Failed", {
-        description: err.message || "Failed to suspend pharmacy.",
-      });
-    } finally {
-      setIsSuspending(false);
-      setIsSuspendDialogOpen(false);
-      setSelectedPharmacy(null);
-    }
+    
+    suspendMutation.mutate(selectedPharmacy.id, {
+      onSuccess: () => {
+        toast.success("Account Suspended", {
+          description: `${selectedPharmacy.name} has been suspended successfully.`,
+        });
+        setIsSuspendDialogOpen(false);
+        setSelectedPharmacy(null);
+      },
+      onError: (err: any) => {
+        toast.error("Action Failed", {
+          description: err.message || "Failed to suspend pharmacy.",
+        });
+      }
+    });
   };
 
   const handleImpersonate = (pharmacy: any) => {
     toast.info("Impersonation Started", {
       description: `Redirecting to ${pharmacy.name} dashboard...`,
     });
-    // Implementation would involve setting a session cookie/token and redirecting
-    // For now, just a placeholder
   };
 
   const handleViewBilling = (pharmacy: any) => {
@@ -135,6 +130,10 @@ export default function PharmaciesManagement() {
       description: `Fetching billing records for ${pharmacy.name}...`,
     });
   };
+
+  if (isLoading && !response) {
+    return <AdminSkeleton />;
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -179,7 +178,7 @@ export default function PharmaciesManagement() {
               />
             </div>
             <div className="flex items-center gap-3">
-              {loading && (
+              {isLoading && (
                 <Loader2 className="h-4 w-4 animate-spin text-indigo-500 mr-2" />
               )}
               <DropdownMenu>
@@ -229,9 +228,9 @@ export default function PharmaciesManagement() {
             {error ? (
               <div className="flex flex-col items-center justify-center py-20 gap-4">
                 <ShieldAlert className="h-10 w-10 text-rose-500" />
-                <p className="text-rose-500 font-bold">{error}</p>
+                <p className="text-rose-500 font-bold">{error instanceof Error ? error.message : "Sync error"}</p>
                 <Button
-                  onClick={() => fetchPharmacies(page, debouncedSearch)}
+                  onClick={() => refetch()}
                   variant="outline"
                 >
                   Retry
@@ -381,7 +380,7 @@ export default function PharmaciesManagement() {
                       </TableCell>
                     </TableRow>
                   ))}
-                  {pharmacyList.length === 0 && !loading && (
+                  {pharmacyList.length === 0 && !isLoading && (
                     <TableRow>
                       <TableCell
                         colSpan={7}
@@ -502,9 +501,9 @@ export default function PharmaciesManagement() {
             <Button 
               onClick={handleSuspend}
               className="rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-bold h-12 shadow-lg shadow-rose-500/20"
-              disabled={isSuspending}
+              disabled={suspendMutation.isPending}
             >
-              {isSuspending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              {suspendMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               Confirm Suspension
             </Button>
           </DialogFooter>

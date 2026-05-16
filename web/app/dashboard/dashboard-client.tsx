@@ -3,6 +3,7 @@
 import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import { useDashboard } from "./use-dashboard";
+import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
 
 // Layout Components
 import { Sidebar } from "@/components/dashboard/sidebar";
@@ -15,6 +16,7 @@ import { StaffView } from "@/components/dashboard/views/staff-view";
 import { BillingView } from "@/components/dashboard/views/billing-view";
 import { DownloadsView } from "@/components/dashboard/views/downloads-view";
 import { NotificationsView } from "@/components/dashboard/views/notifications-view";
+import { webApiClient } from "@/lib/api/client";
 
 export function DashboardClient({ view }: { view: string }) {
   const {
@@ -24,25 +26,27 @@ export function DashboardClient({ view }: { view: string }) {
     data,
     releaseLinks,
     logout,
-    resetAccountData,
     user,
     stores,
     stats,
     staff,
+    refetch,
   } = useDashboard();
 
-  if (loading) {
-    return (
-      <div className="h-screen w-screen flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-12 w-12 text-primary animate-spin" />
-          <p className="text-muted-foreground font-black animate-pulse">Initializing Dashboard...</p>
-        </div>
-      </div>
-    );
-  }
+  const resetAccountData = async (type: string = "all") => {
+    try {
+      const response = await webApiClient.resetData(type);
+      await refetch();
+      return { success: true, message: response.message };
+    } catch (error) {
+      console.error("Failed to reset data:", error);
+      return { success: false, error: error instanceof Error ? error.message : "Reset failed" };
+    }
+  };
 
   const renderView = () => {
+    if (loading && !data) return <DashboardSkeleton />;
+
     switch (view) {
       case "overview":
         return <OverviewView stats={stats} user={user} stores={stores} onReset={resetAccountData} />;
@@ -50,7 +54,7 @@ export function DashboardClient({ view }: { view: string }) {
         return <FleetView stores={stores} />;
       case "staff":
         return (
-          <Suspense fallback={<div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>
+          <Suspense fallback={<DashboardSkeleton />}>
             <StaffView staff={staff} stores={stores} />
           </Suspense>
         );

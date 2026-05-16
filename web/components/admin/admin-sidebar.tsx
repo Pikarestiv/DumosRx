@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useAdminAuthStore } from "@/lib/store/use-admin-auth-store";
 import { useAdminStore } from "@/lib/store/use-admin-store";
+import { useAdminSummary } from "@/lib/api/admin-hooks";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
@@ -32,7 +33,7 @@ export function AdminSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAdminAuthStore();
-  const { loading, error } = useAdminStore();
+  const { isLoading, error } = useAdminSummary();
 
   const handleLogout = () => {
     logout();
@@ -65,11 +66,11 @@ export function AdminSidebar() {
 
       <div className="px-4 mb-4">
         <div className="bg-slate-900/50 rounded-2xl p-4 border border-slate-800/50 flex items-center gap-3">
-          <div className={`h-3 w-3 rounded-full ${error ? 'bg-rose-500' : loading ? 'bg-amber-500 animate-pulse' : 'bg-green-500 animate-pulse'}`} />
+          <div className={`h-3 w-3 rounded-full ${error ? 'bg-rose-500' : isLoading ? 'bg-amber-500 animate-pulse' : 'bg-green-500 animate-pulse'}`} />
           <div className="flex-1">
             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">System Status</p>
             <p className="text-sm font-bold text-slate-100">
-              {error ? 'Nodes Degrading' : loading ? 'Synchronizing...' : 'All Nodes Healthy'}
+              {error ? 'Nodes Degrading' : isLoading ? 'Synchronizing...' : 'All Nodes Healthy'}
             </p>
           </div>
           <Activity className="h-4 w-4 text-indigo-400" />

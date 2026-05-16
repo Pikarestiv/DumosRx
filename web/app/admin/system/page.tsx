@@ -20,18 +20,19 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { useAdminStore } from "@/lib/store/use-admin-store";
+import { useAdminHealth } from "@/lib/api/admin-hooks";
+import { AdminSkeleton } from "@/components/admin/admin-skeleton";
 
 export default function SystemHealthPage() {
-  const { systemHealth, loading, fetchHealth } = useAdminStore();
-
-  useEffect(() => {
-    fetchHealth();
-  }, [fetchHealth]);
+  const { data: systemHealth, isLoading, refetch } = useAdminHealth();
 
   const refreshHealth = () => {
-    fetchHealth();
+    refetch();
   };
+
+  if (isLoading && !systemHealth) {
+    return <AdminSkeleton />;
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -48,9 +49,9 @@ export default function SystemHealthPage() {
                 variant="outline" 
                 className="border-2 font-bold dark:bg-slate-900 dark:border-slate-800"
                 onClick={refreshHealth}
-                disabled={loading}
+                disabled={isLoading}
             >
-                <RefreshCcw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                <RefreshCcw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
                 Run Diagnostics
             </Button>
             <Button 
@@ -233,18 +234,18 @@ export default function SystemHealthPage() {
                               <div className={cn(
                                   "mt-1 h-2 w-2 rounded-full",
                                   item.status === 'Success' ? "bg-emerald-500" : "bg-amber-500"
-                              )} />
-                              <div>
-                                  <p className="text-sm font-bold text-slate-900 dark:text-white">{item.event}</p>
-                                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{item.detail}</p>
+                                  )} />
+                                  <div>
+                                      <p className="text-sm font-bold text-slate-900 dark:text-white">{item.event}</p>
+                                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{item.detail}</p>
+                                  </div>
                               </div>
+                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{item.time}</span>
                           </div>
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{item.time}</span>
-                      </div>
-                  ))}
-              </div>
-          </CardContent>
-      </Card>
-    </div>
-  );
-}
+                      ))}
+                  </div>
+              </CardContent>
+          </Card>
+        </div>
+      );
+    }

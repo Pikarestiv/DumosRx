@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { webApiClient } from "@/lib/api/client";
-import { useDashboardStore } from "@/lib/store/use-dashboard-store";
+import { useDashboardSummary } from "@/lib/api/hooks";
 import { APP_VERSION, GITHUB_REPO } from "@/lib/constants";
 
 export function useDashboard() {
@@ -9,7 +8,7 @@ export function useDashboard() {
   const params = useParams();
   const viewParam = (params?.view as string) || "overview";
 
-  const { data, loading, fetchData, resetData: resetStore } = useDashboardStore();
+  const { data, isLoading, refetch } = useDashboardSummary();
   const [activeTab, setActiveTabState] = useState(viewParam);
 
   // Sync state with path param
@@ -17,7 +16,7 @@ export function useDashboard() {
     if (viewParam !== activeTab) {
       setActiveTabState(viewParam);
     }
-  }, [viewParam]);
+  }, [viewParam, activeTab]);
 
   const setActiveTab = (tab: string) => {
     setActiveTabState(tab);
@@ -33,10 +32,6 @@ export function useDashboard() {
     macSize: "78MB",
     linuxSize: "92MB",
   });
-
-  useEffect(() => {
-    fetchData(); // Uses store's caching logic
-  }, [fetchData]);
 
   useEffect(() => {
     // Fetch latest release links and sizes
@@ -71,32 +66,19 @@ export function useDashboard() {
     fetchReleaseLinks();
   }, []);
 
-
   const logout = () => {
     localStorage.removeItem("drx_token");
-    resetStore();
     router.push("/login");
-  };
-
-  const resetAccountData = async (type: string = "all") => {
-    try {
-      const response = await webApiClient.resetData(type);
-      await fetchData(true); // Force refresh
-      return { success: true, message: response.message };
-    } catch (error) {
-      console.error("Failed to reset data:", error);
-      return { success: false, error: error instanceof Error ? error.message : "Reset failed" };
-    }
   };
 
   return {
     activeTab,
     setActiveTab,
-    loading,
+    loading: isLoading,
     data,
     releaseLinks,
     logout,
-    resetAccountData,
+    refetch,
     user: data?.user || { name: "User", email: "", pharmacy_name: "DumosRx Pharmacy" },
     stores: data?.stores || [],
     stats: data?.stats,

@@ -48,3 +48,41 @@ export const useStandardizeProductsMutation = () => {
     },
   });
 };
+
+export const useSuspendPharmacyMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => webApiClient.request<any>(`admin/pharmacies/${id}/suspend`, { method: "POST" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-pharmacies"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
+    },
+  });
+};
+
+export const useDeactivateUserMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => webApiClient.request<any>(`admin/users/${id}/deactivate`, { method: "POST" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
+    },
+  });
+};
+
+export const useResetUserPasswordMutation = () => {
+  return useMutation({
+    mutationFn: (id: string) => webApiClient.request<any>(`admin/users/${id}/reset-password`, { method: "POST" }),
+  });
+};
+
+export const useNotifyUserMutation = () => {
+  return useMutation({
+    mutationFn: ({ id, title, message }: { id: string, title: string, message: string }) => 
+      webApiClient.request<any>(`admin/users/${id}/notify`, { 
+        method: "POST",
+        body: { title, message }
+      }),
+  });
+};

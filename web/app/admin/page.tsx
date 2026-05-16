@@ -35,8 +35,9 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { useAdminStore } from "@/lib/store/use-admin-store";
+import { useAdminSummary } from "@/lib/api/admin-hooks";
 import { useRouter } from "next/navigation";
+import { AdminSkeleton } from "@/components/admin/admin-skeleton";
 
 const ICON_MAP: any = {
   Store: Store,
@@ -46,26 +47,20 @@ const ICON_MAP: any = {
 };
 
 export default function AdminDashboard() {
-  const { summary, loading, error, fetchSummary } = useAdminStore();
+  const { data: summary, isLoading, error, refetch } = useAdminSummary();
   const router = useRouter();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [selectedPharmacy, setSelectedPharmacy] = useState<any>(null);
 
   useEffect(() => {
-    fetchSummary();
     const timer = setInterval(() => {
       setCurrentTime(new Date());
     }, 1000);
     return () => clearInterval(timer);
-  }, [fetchSummary]);
+  }, []);
 
-  if (loading && !summary) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-        <Loader2 className="h-10 w-10 text-indigo-500 animate-spin" />
-        <p className="text-slate-500 font-bold animate-pulse">Synchronizing Platform Data...</p>
-      </div>
-    );
+  if (isLoading && !summary) {
+    return <AdminSkeleton />;
   }
 
   if (error && !summary) {
@@ -74,8 +69,8 @@ export default function AdminDashboard() {
         <div className="p-4 bg-rose-500/10 text-rose-500 rounded-full">
             <ShieldAlert className="h-10 w-10" />
         </div>
-        <p className="text-rose-500 font-bold">{error}</p>
-        <Button onClick={() => fetchSummary(true)} variant="outline">Retry Sync</Button>
+        <p className="text-rose-500 font-bold">{error instanceof Error ? error.message : "Failed to sync platform data"}</p>
+        <Button onClick={() => refetch()} variant="outline">Retry Sync</Button>
       </div>
     );
   }
@@ -99,10 +94,10 @@ export default function AdminDashboard() {
             <Button 
                 variant="outline" 
                 className="border-2 font-bold dark:bg-slate-900 dark:border-slate-800"
-                onClick={() => fetchSummary(true)}
-                disabled={loading}
+                onClick={() => refetch()}
+                disabled={isLoading}
             >
-                {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Activity className="h-4 w-4 mr-2 text-indigo-500" />}
+                {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Activity className="h-4 w-4 mr-2 text-indigo-500" />}
                 Refresh Pulse
             </Button>
             <Button 

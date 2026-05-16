@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { ChevronRight, Bell, Activity, Loader2, CheckCircle2 } from "lucide-react";
+import { ChevronRight, Bell, Activity, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useNotifications } from "@/lib/api/hooks";
 import { webApiClient } from "@/lib/api/client";
 import {
   Card,
@@ -10,49 +10,30 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { DashboardSkeleton } from "../dashboard-skeleton";
 
 interface NotificationsViewProps {
   onBack: () => void;
 }
 
 export function NotificationsView({ onBack }: NotificationsViewProps) {
-  const [notifications, setNotifications] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const fetchNotifications = async () => {
-    setLoading(true);
-    try {
-      const data = await webApiClient.getNotifications();
-      setNotifications(data);
-    } catch (error) {
-      console.error("Failed to fetch notifications:", error);
-      toast.error("Failed to load notifications");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchNotifications();
-  }, []);
+  const { data: notifications, isLoading, refetch } = useNotifications();
 
   const markAsRead = async (id: string, category: string) => {
     if (category !== 'system') return;
     try {
       await webApiClient.request(`notifications/${id}/read`, { method: 'POST' });
-      setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+      refetch();
     } catch (error) {
       console.error("Failed to mark as read:", error);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="h-[400px] flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+  if (isLoading && !notifications) {
+    return <DashboardSkeleton />;
   }
+
+  const notifs = notifications || [];
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
@@ -62,12 +43,12 @@ export function NotificationsView({ onBack }: NotificationsViewProps) {
           <p className="text-muted-foreground font-medium">Stay updated with your pharmacy fleet's activity and administrative messages</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="rounded-xl font-bold" onClick={fetchNotifications}>Refresh</Button>
+          <Button variant="outline" size="sm" className="rounded-xl font-bold" onClick={() => refetch()}>Refresh</Button>
           <Button variant="outline" size="sm" className="rounded-xl font-bold" onClick={onBack}>Back to Overview</Button>
         </div>
       </div>
 
-      {notifications.length === 0 ? (
+      {notifs.length === 0 ? (
         <Card className="border-2 border-dashed flex flex-col items-center justify-center py-20 bg-muted/20 rounded-3xl">
           <Bell className="h-12 w-12 text-muted-foreground opacity-20 mb-4" />
           <p className="text-muted-foreground font-black">No notifications yet</p>
@@ -76,7 +57,7 @@ export function NotificationsView({ onBack }: NotificationsViewProps) {
         <Card className="border-none shadow-xl rounded-3xl overflow-hidden">
           <CardContent className="p-0">
             <div className="divide-y divide-border">
-              {notifications.map((notif) => (
+              {notifs.map((notif: any) => (
                 <div 
                   key={notif.id} 
                   className={`flex items-start gap-4 p-6 hover:bg-muted/30 transition-colors cursor-pointer group ${!notif.isRead ? 'bg-primary/5' : ''}`}

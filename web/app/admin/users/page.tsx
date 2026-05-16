@@ -52,11 +52,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Card, CardContent } from "@/components/ui/card";
-import { useAdminStore } from "@/lib/store/use-admin-store";
+import { 
+  useAdminUsers, 
+  useDeactivateUserMutation, 
+  useResetUserPasswordMutation, 
+  useNotifyUserMutation 
+} from "@/lib/api/admin-hooks";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { webApiClient } from "@/lib/api/client";
 import {
   Dialog,
   DialogContent,
@@ -65,35 +69,39 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { AdminSkeleton } from "@/components/admin/admin-skeleton";
 
 export default function GlobalUsersDirectory() {
   const router = useRouter();
-  const { users, userMeta, loading, error, fetchUsers } = useAdminStore();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<any>(null);
+  
   const [isDeactivateDialogOpen, setIsDeactivateDialogOpen] = useState(false);
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const [isNotifyDialogOpen, setIsNotifyDialogOpen] = useState(false);
   const [isBulkNotifyDialogOpen, setIsBulkNotifyDialogOpen] = useState(false);
+  
   const [notifyTitle, setNotifyTitle] = useState("Administrative Message");
   const [notifyMessage, setNotifyMessage] = useState("");
-  const [isProcessing, setIsProcessing] = useState(false);
+  
   const debouncedSearch = useDebounce(search, 500);
 
-  useEffect(() => {
-    fetchUsers(page, debouncedSearch);
-  }, [page, debouncedSearch, fetchUsers]);
+  const { data: response, isLoading, error, refetch } = useAdminUsers(page, debouncedSearch);
+  const deactivateMutation = useDeactivateUserMutation();
+  const resetPasswordMutation = useResetUserPasswordMutation();
+  const notifyMutation = useNotifyUserMutation();
 
   const handlePageChange = (newPage: number) => {
-    if (newPage >= 1 && newPage <= (userMeta?.last_page || 1)) {
+    if (newPage >= 1 && newPage <= (response?.meta?.last_page || 1)) {
       setPage(newPage);
     }
   };
 
-  const userList = users || [];
+  const userList = response?.data || [];
+  const userMeta = response?.meta;
 
   const handleExportCSV = () => {
     if (userList.length === 0) return;
@@ -112,63 +120,61 @@ export default function GlobalUsersDirectory() {
 
   const handleDeactivate = async () => {
     if (!selectedUser) return;
-    setIsProcessing(true);
-    try {
-      await webApiClient.request(`admin/users/${selectedUser.id}/deactivate`, { method: 'POST' });
-      toast.success("Account Deactivated", {
-        description: `${selectedUser.name}'s account has been disabled.`
-      });
-      fetchUsers(page, debouncedSearch);
-    } catch (err: any) {
-      toast.error("Action Failed", { description: err.message || "Failed to deactivate user" });
-    } finally {
-      setIsProcessing(false);
-      setIsDeactivateDialogOpen(false);
-      setSelectedUser(null);
-    }
+    deactivateMutation.mutate(selectedUser.id, {
+      onSuccess: () => {
+        toast.success("Account Deactivated", {
+          description: `${selectedUser.name}'s account has been disabled.`
+        });
+        setIsDeactivateDialogOpen(false);
+        setSelectedUser(null);
+      },
+      onError: (err: any) => {
+        toast.error("Action Failed", { description: err.message || "Failed to deactivate user" });
+      }
+    });
   };
 
   const handlePasswordReset = async () => {
     if (!selectedUser) return;
-    setIsProcessing(true);
-    try {
-      const response: any = await webApiClient.request(`admin/users/${selectedUser.id}/reset-password`, { method: 'POST' });
-      toast.success("Password Reset Forced", {
-        description: `Temporary password: ${response.temp_password}. Please communicate this to the user.`
-      });
-    } catch (err: any) {
-      toast.error("Action Failed", { description: err.message || "Failed to force password reset" });
-    } finally {
-      setIsProcessing(false);
-      setIsResetDialogOpen(false);
-      setSelectedUser(null);
-    }
+    resetPasswordMutation.mutate(selectedUser.id, {
+      onSuccess: (res: any) => {
+        toast.success("Password Reset Forced", {
+          description: `Temporary password: ${res.temp_password}. Please communicate this to the user.`
+        });
+        setIsResetDialogOpen(false);
+        setSelectedUser(null);
+      },
+      onError: (err: any) => {
+        toast.error("Action Failed", { description: err.message || "Failed to force password reset" });
+      }
+    });
   };
 
   const handleSendNotification = async () => {
     if (!selectedUser || !notifyMessage || !notifyTitle) return;
-    setIsProcessing(true);
-    try {
-      await webApiClient.request(`admin/users/${selectedUser.id}/notify`, { 
-        method: 'POST',
-        body: { 
-          title: notifyTitle,
-          message: notifyMessage 
-        }
-      });
-      toast.success("Notification Sent", {
-        description: `Message successfully delivered to ${selectedUser.name}`
-      });
-      setNotifyMessage("");
-      setNotifyTitle("Administrative Message");
-      setIsNotifyDialogOpen(false);
-    } catch (err: any) {
-      toast.error("Failed to Send", { description: err.message });
-    } finally {
-      setIsProcessing(false);
-      setSelectedUser(null);
-    }
+    notifyMutation.mutate({ 
+      id: selectedUser.id, 
+      title: notifyTitle, 
+      message: notifyMessage 
+    }, {
+      onSuccess: () => {
+        toast.success("Notification Sent", {
+          description: `Message successfully delivered to ${selectedUser.name}`
+        });
+        setNotifyMessage("");
+        setNotifyTitle("Administrative Message");
+        setIsNotifyDialogOpen(false);
+        setSelectedUser(null);
+      },
+      onError: (err: any) => {
+        toast.error("Failed to Send", { description: err.message });
+      }
+    });
   };
+
+  if (isLoading && !response) {
+    return <AdminSkeleton />;
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -216,7 +222,7 @@ export default function GlobalUsersDirectory() {
               />
             </div>
             <div className="flex items-center gap-3">
-                {loading && <Loader2 className="h-4 w-4 animate-spin text-indigo-500 mr-2" />}
+                {isLoading && <Loader2 className="h-4 w-4 animate-spin text-indigo-500 mr-2" />}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="sm" className="font-bold border-2">
@@ -245,8 +251,8 @@ export default function GlobalUsersDirectory() {
             {error ? (
               <div className="flex flex-col items-center justify-center py-20 gap-4">
                 <ShieldAlert className="h-10 w-10 text-rose-500" />
-                <p className="text-rose-500 font-bold">{error}</p>
-                <Button onClick={() => fetchUsers(page, debouncedSearch)} variant="outline">Retry</Button>
+                <p className="text-rose-500 font-bold">{error instanceof Error ? error.message : "Sync error"}</p>
+                <Button onClick={() => refetch()} variant="outline">Retry</Button>
               </div>
             ) : (
               <Table>
@@ -360,7 +366,7 @@ export default function GlobalUsersDirectory() {
                       </TableCell>
                     </TableRow>
                   ))}
-                  {userList.length === 0 && !loading && (
+                  {userList.length === 0 && !isLoading && (
                     <TableRow>
                       <TableCell colSpan={6} className="text-center py-20 text-slate-400 font-medium">
                         <div className="flex flex-col items-center gap-2">
@@ -442,9 +448,9 @@ export default function GlobalUsersDirectory() {
             <Button 
               onClick={handleDeactivate}
               className="rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-bold h-12 shadow-lg shadow-rose-500/20"
-              disabled={isProcessing}
+              disabled={deactivateMutation.isPending}
             >
-              {isProcessing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              {deactivateMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               Deactivate Account
             </Button>
           </DialogFooter>
@@ -471,9 +477,9 @@ export default function GlobalUsersDirectory() {
             <Button 
               onClick={handlePasswordReset}
               className="rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold h-12 shadow-lg shadow-amber-500/20"
-              disabled={isProcessing}
+              disabled={resetPasswordMutation.isPending}
             >
-              {isProcessing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              {resetPasswordMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               Confirm Reset
             </Button>
           </DialogFooter>
@@ -591,9 +597,9 @@ export default function GlobalUsersDirectory() {
             <Button 
               onClick={handleSendNotification}
               className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold h-12 shadow-lg shadow-blue-600/20 px-8"
-              disabled={isProcessing || !notifyMessage}
+              disabled={notifyMutation.isPending || !notifyMessage}
             >
-              {isProcessing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
+              {notifyMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
               Send Message
             </Button>
           </DialogFooter>

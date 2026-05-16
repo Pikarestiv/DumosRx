@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Circle, MoreVertical } from "lucide-react";
+import { Plus, Circle, MoreVertical, Settings, Users, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -18,20 +18,72 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { toast } from "sonner";
+import { webApiClient } from "@/lib/api/client";
+import { useDashboardStore } from "@/lib/store/use-dashboard-store";
+import { StoreModal } from "../store-modal";
 
 interface FleetViewProps {
   stores: any[];
 }
 
 export function FleetView({ stores }: FleetViewProps) {
+  const router = useRouter();
+  const { fetchData } = useDashboardStore();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingStore, setEditingStore] = useState<any>(null);
+
+  const handleManageStaff = (storeId: string) => {
+    router.push(`/dashboard/staff?store_id=${storeId}`);
+  };
+
+  const handleCreate = () => {
+    setEditingStore(null);
+    setIsModalOpen(true);
+  };
+
+  const handleEdit = (store: any) => {
+    setEditingStore(store);
+    setIsModalOpen(true);
+  };
+
+  const handleDeleteStore = async (storeId: string) => {
+    if (confirm("Are you sure you want to remove this store? This will also deactivate associated staff.")) {
+        try {
+            await webApiClient.deleteStore(storeId);
+            toast.success("Store removed successfully");
+            fetchData(true);
+        } catch (err: any) {
+            toast.error(err.message || "Failed to remove store");
+        }
+    }
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <StoreModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        onSuccess={() => fetchData(true)}
+        store={editingStore} 
+      />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-black tracking-tight">Store Fleet</h1>
           <p className="text-muted-foreground">Manage and monitor all your connected pharmacy locations</p>
         </div>
-        <Button className="font-bold">
+        <Button className="font-bold" onClick={handleCreate}>
           <Plus className="h-4 w-4 mr-2" />
           Register New Store
         </Button>
@@ -76,9 +128,30 @@ export function FleetView({ stores }: FleetViewProps) {
                   <TableCell className="text-center text-sm text-muted-foreground">{store.lastSync}</TableCell>
                   <TableCell className="text-right font-black">{store.sales}</TableCell>
                   <TableCell>
-                    <Button variant="ghost" size="icon">
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Store Actions</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem className="cursor-pointer" onClick={() => handleEdit(store)}>
+                          <Settings className="h-4 w-4 mr-2" />
+                          Edit Store
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="cursor-pointer" onClick={() => handleManageStaff(store.id)}>
+                          <Users className="h-4 w-4 mr-2" />
+                          Manage Staff
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem className="text-destructive cursor-pointer" onClick={() => handleDeleteStore(store.id)}>
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete Store
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))}

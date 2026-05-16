@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import { useDashboard } from "./use-dashboard";
 
@@ -48,7 +49,11 @@ export function DashboardClient({ view }: { view: string }) {
       case "fleet":
         return <FleetView stores={stores} />;
       case "staff":
-        return <StaffView staff={staff} stores={stores} />;
+        return (
+          <Suspense fallback={<div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>
+            <StaffView staff={staff} stores={stores} />
+          </Suspense>
+        );
       case "billing":
         return <BillingView />;
       case "downloads":

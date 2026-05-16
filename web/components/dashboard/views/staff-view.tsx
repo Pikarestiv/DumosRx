@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { Plus, Circle, MoreVertical, Users, UserPlus, Shield, Key } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,10 +39,20 @@ interface StaffViewProps {
 }
 
 export function StaffView({ staff, stores }: StaffViewProps) {
-  const [selectedStore, setSelectedStore] = useState("all");
+  const searchParams = useSearchParams();
+  const storeIdParam = searchParams.get("store_id");
+  
+  const [selectedStore, setSelectedStore] = useState(storeIdParam || "all");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<any>(null);
   
+  // Sync with URL params if they change
+  useEffect(() => {
+    if (storeIdParam) {
+      setSelectedStore(storeIdParam);
+    }
+  }, [storeIdParam]);
+
   const { fetchData } = useDashboardStore();
 
   const handleCreate = () => {

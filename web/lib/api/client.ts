@@ -174,6 +174,26 @@ class WebApiClient {
       body: { type },
     });
   }
+
+  async createStore(payload: any) {
+    return this.request<any>("/stores", {
+      method: "POST",
+      body: payload,
+    });
+  }
+
+  async updateStore(id: string, payload: any) {
+    return this.request<any>(`/stores/${id}`, {
+      method: "PUT",
+      body: payload,
+    });
+  }
+
+  async deleteStore(id: string) {
+    return this.request<any>(`/stores/${id}`, {
+      method: "DELETE",
+    });
+  }
 }
 
 export const webApiClient = new WebApiClient(API_URL);

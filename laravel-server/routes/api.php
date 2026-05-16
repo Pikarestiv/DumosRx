@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\Web\StaffController;
 use App\Http\Controllers\Api\Web\SubscriptionController;
 use App\Http\Controllers\Api\Web\BackupController;
 use App\Http\Controllers\Api\Web\ActivityLogController;
+use App\Http\Controllers\Api\Web\StoreController;
 
 // Admin Controllers
 use App\Http\Controllers\Api\Admin\AdminController;
@@ -48,6 +49,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/notifications', [NotificationController::class, 'index']);
         Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
         Route::apiResource('staff', StaffController::class)->middleware('can:manage-staff');
+        Route::apiResource('stores', StoreController::class);
 
         Route::prefix('subscription')->group(function () {
             Route::get('/status', [SubscriptionController::class, 'status']);

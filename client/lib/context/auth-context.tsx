@@ -8,7 +8,7 @@ interface User {
   id: string;
   name: string;
   username: string;
-  role: "admin" | "pharmacist" | "cashier";
+  role: "super_admin" | "admin" | "manager" | "pharmacist" | "sales_staff" | "auditor";
 }
 
 interface AuthContextType {
@@ -152,8 +152,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         login,
         logout,
         isAuthenticated: !!user,
-        isAdmin: user?.role === "admin",
-        isPharmacist: user?.role === "pharmacist",
+        isAdmin: user?.role === "super_admin" || user?.role === "admin" || user?.role === "manager",
+        isPharmacist: user?.role === "pharmacist" || user?.role === "admin" || user?.role === "super_admin",
         changePin,
         linkCloudAccount,
         isCloudLinked,

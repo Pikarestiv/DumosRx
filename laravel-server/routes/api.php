@@ -40,6 +40,11 @@ Route::prefix('v1')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::get('/user', [AuthController::class, 'user']);
         Route::post('/refresh', [AuthController::class, 'refresh']);
+        Route::prefix('profile')->group(function () {
+            Route::post('/update', [AuthController::class, 'updateProfile']);
+            Route::post('/set-pin', [AuthController::class, 'updatePin']);
+            Route::post('/change-password', [AuthController::class, 'changePassword']);
+        });
 
         // --- WEB DASHBOARD ROUTES ---
         Route::prefix('dashboard')->group(function () {

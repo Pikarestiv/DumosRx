@@ -131,6 +131,21 @@ class WebApiClient {
     return data;
   }
 
+  async updateProfile(payload: any) {
+    const { data } = await apiClient.post("/profile/update", payload);
+    return data;
+  }
+
+  async setPin(pin: string) {
+    const { data } = await apiClient.post("/profile/set-pin", { pin });
+    return data;
+  }
+
+  async changePassword(payload: any) {
+    const { data } = await apiClient.post("/profile/change-password", payload);
+    return data;
+  }
+
   async request<T>(url: string, options: any = {}): Promise<T> {
     const response = await apiClient({
       url,

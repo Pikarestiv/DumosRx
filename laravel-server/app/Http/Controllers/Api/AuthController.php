@@ -133,4 +133,58 @@ class AuthController extends Controller
     {
         return $request->user();
     }
+
+    public function updateProfile(Request $request)
+    {
+        $user = $request->user();
+        $request->validate([
+            'first_name' => 'required|string|max:255',
+            'last_name' => 'required|string|max:255',
+            'phone' => 'nullable|string|max:20',
+        ]);
+
+        $user->update($request->only('first_name', 'last_name', 'phone'));
+
+        return response()->json([
+            'message' => 'Profile updated successfully',
+            'user' => $user,
+        ]);
+    }
+
+    public function updatePin(Request $request)
+    {
+        $user = $request->user();
+        $request->validate([
+            'pin' => 'required|string|size:4',
+        ]);
+
+        $user->pin = $request->pin;
+        $user->save();
+
+        return response()->json([
+            'message' => 'PIN updated successfully',
+        ]);
+    }
+
+    public function changePassword(Request $request)
+    {
+        $user = $request->user();
+        $request->validate([
+            'current_password' => 'required',
+            'new_password' => 'required|string|min:8|confirmed',
+        ]);
+
+        if (!Hash::check($request->current_password, $user->password)) {
+            throw ValidationException::withMessages([
+                'current_password' => ['The provided password does not match your current password.'],
+            ]);
+        }
+
+        $user->password = Hash::make($request->new_password);
+        $user->save();
+
+        return response()->json([
+            'message' => 'Password updated successfully',
+        ]);
+    }
 }

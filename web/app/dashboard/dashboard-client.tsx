@@ -16,6 +16,7 @@ import { StaffView } from "@/components/dashboard/views/staff-view";
 import { BillingView } from "@/components/dashboard/views/billing-view";
 import { DownloadsView } from "@/components/dashboard/views/downloads-view";
 import { NotificationsView } from "@/components/dashboard/views/notifications-view";
+import { ProfileView } from "@/components/dashboard/views/profile-view";
 import { webApiClient } from "@/lib/api/client";
 
 export function DashboardClient({ view }: { view: string }) {
@@ -64,6 +65,8 @@ export function DashboardClient({ view }: { view: string }) {
         return <DownloadsView releaseLinks={releaseLinks} />;
       case "notifications":
         return <NotificationsView onBack={() => setActiveTab("overview")} />;
+      case "profile":
+        return <ProfileView />;
       default:
         return <OverviewView stats={stats} user={user} stores={stores} onReset={resetAccountData} />;
     }

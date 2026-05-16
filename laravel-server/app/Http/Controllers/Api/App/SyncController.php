@@ -96,7 +96,9 @@ class SyncController extends Controller
             
             if (!$modelClass) continue;
 
-            $query = $modelClass::withTrashed(); 
+            $query = \method_exists($modelClass, 'withTrashed') 
+                ? $modelClass::withTrashed() 
+                : $modelClass::query();
 
             if ($lastSynced) {
                 $query->where(function($q) use ($lastSynced) {
@@ -109,7 +111,7 @@ class SyncController extends Controller
             
             $changes[$table] = $records->map(function($item) {
                 $array = $item->toArray();
-                $array['_deleted'] = $item->trashed() ? 1 : 0;
+                $array['_deleted'] = (\method_exists($item, 'trashed') && $item->trashed()) ? 1 : 0;
                 return $array;
             });
         }

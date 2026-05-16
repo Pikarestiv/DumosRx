@@ -173,6 +173,7 @@ export const FORM_SUGGESTIONS = {
     ],
     dosageForms: [
       "Tablet",
+      "Caplet",
       "Capsule",
       "Syrup",
       "Suspension",
@@ -326,10 +327,12 @@ export const FORM_SUGGESTIONS = {
     units: [
       "Sachet",
       "Tablet",
+      "Caplet",
       "Capsule",
       "Piece",
       "Bottle",
       "Pack",
+      "Card",
       "Carton",
       "Box",
       "Roll",

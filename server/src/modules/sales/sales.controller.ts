@@ -17,7 +17,7 @@ export class SalesController {
   @ApiOperation({ summary: "Create a new sale transaction" })
   @ApiResponse({ status: 201, description: "Sale created successfully" })
   @UseGuards(RolesGuard)
-  @Roles("super_admin", "manager", "pharmacist", "sales_staff")
+  @Roles("super_admin", "admin", "manager", "pharmacist", "sales_staff")
   @Post()
   create(createSaleDto: CreateSaleDto, req: any) {
     return this.salesService.createSale(createSaleDto, req.user.id)
@@ -35,7 +35,7 @@ export class SalesController {
   @ApiOperation({ summary: "Generate sales report" })
   @ApiResponse({ status: 200, description: "Sales report generated successfully" })
   @UseGuards(RolesGuard)
-  @Roles("super_admin", "manager", "auditor")
+  @Roles("super_admin", "admin", "manager", "auditor")
   @Post("report")
   generateReport(reportDto: SalesReportDto) {
     return this.salesService.getSalesReport(reportDto)
@@ -68,7 +68,7 @@ export class SalesController {
   @ApiOperation({ summary: "Refund a sale" })
   @ApiResponse({ status: 200, description: "Sale refunded successfully" })
   @UseGuards(RolesGuard)
-  @Roles("super_admin", "manager")
+  @Roles("super_admin", "admin", "manager")
   @Patch(":id/refund")
   refund(id: string, refundDto: { reason: string }, req: any) {
     return this.salesService.refundSale(id, refundDto.reason, req.user.id)

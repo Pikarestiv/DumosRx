@@ -18,7 +18,7 @@ export class MedicinesController {
   @ApiOperation({ summary: "Create a new medicine" })
   @ApiResponse({ status: 201, description: "Medicine created successfully" })
   @UseGuards(RolesGuard)
-  @Roles("super_admin", "manager", "pharmacist")
+  @Roles("super_admin", "admin", "manager", "pharmacist")
   @Post()
   create(createMedicineDto: CreateMedicineDto) {
     return this.medicinesService.create(createMedicineDto)
@@ -65,7 +65,7 @@ export class MedicinesController {
   @ApiOperation({ summary: "Update medicine" })
   @ApiResponse({ status: 200, description: "Medicine updated successfully" })
   @UseGuards(RolesGuard)
-  @Roles("super_admin", "manager", "pharmacist")
+  @Roles("super_admin", "admin", "manager", "pharmacist")
   @Patch(":id")
   update(id: string, updateMedicineDto: UpdateMedicineDto) {
     return this.medicinesService.update(id, updateMedicineDto)
@@ -74,7 +74,7 @@ export class MedicinesController {
   @ApiOperation({ summary: "Update medicine pricing" })
   @ApiResponse({ status: 200, description: "Pricing updated successfully" })
   @UseGuards(RolesGuard)
-  @Roles("super_admin", "manager")
+  @Roles("super_admin", "admin", "manager")
   @Patch(":id/pricing")
   updatePricing(id: string, pricingDto: { cost_price: number; selling_price: number }) {
     return this.medicinesService.updatePricing(id, pricingDto.cost_price, pricingDto.selling_price)
@@ -83,7 +83,7 @@ export class MedicinesController {
   @ApiOperation({ summary: "Delete medicine (soft delete)" })
   @ApiResponse({ status: 200, description: "Medicine deleted successfully" })
   @UseGuards(RolesGuard)
-  @Roles("super_admin", "manager")
+  @Roles("super_admin", "admin", "manager")
   @Delete(":id")
   remove(id: string) {
     return this.medicinesService.remove(id)

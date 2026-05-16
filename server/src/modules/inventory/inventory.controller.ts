@@ -18,7 +18,7 @@ export class InventoryController {
   @ApiOperation({ summary: "Add new inventory item" })
   @ApiResponse({ status: 201, description: "Inventory item created successfully" })
   @UseGuards(RolesGuard)
-  @Roles("super_admin", "manager", "pharmacist")
+  @Roles("super_admin", "admin", "manager", "pharmacist")
   @Post()
   create(createInventoryDto: CreateInventoryDto) {
     return this.inventoryService.create(createInventoryDto)
@@ -79,7 +79,7 @@ export class InventoryController {
   @ApiOperation({ summary: "Update inventory item" })
   @ApiResponse({ status: 200, description: "Inventory item updated successfully" })
   @UseGuards(RolesGuard)
-  @Roles("super_admin", "manager", "pharmacist")
+  @Roles("super_admin", "admin", "manager", "pharmacist")
   @Patch(":id")
   update(id: string, updateInventoryDto: UpdateInventoryDto) {
     return this.inventoryService.update(id, updateInventoryDto)
@@ -88,7 +88,7 @@ export class InventoryController {
   @ApiOperation({ summary: "Adjust stock quantity" })
   @ApiResponse({ status: 200, description: "Stock adjusted successfully" })
   @UseGuards(RolesGuard)
-  @Roles("super_admin", "manager", "pharmacist")
+  @Roles("super_admin", "admin", "manager", "pharmacist")
   @Patch(":id/adjust")
   adjustStock(id: string, adjustmentDto: StockAdjustmentDto, req: any) {
     return this.inventoryService.adjustStock(id, adjustmentDto, req.user.id)
@@ -97,7 +97,7 @@ export class InventoryController {
   @ApiOperation({ summary: "Update inventory status" })
   @ApiResponse({ status: 200, description: "Status updated successfully" })
   @UseGuards(RolesGuard)
-  @Roles("super_admin", "manager", "pharmacist")
+  @Roles("super_admin", "admin", "manager", "pharmacist")
   @Patch(":id/status")
   updateStatus(id: string, statusDto: { status: string; reason?: string }) {
     return this.inventoryService.updateStatus(id, statusDto.status, statusDto.reason)

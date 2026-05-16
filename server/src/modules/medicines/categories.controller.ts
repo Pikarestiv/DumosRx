@@ -17,7 +17,7 @@ export class CategoriesController {
   @ApiOperation({ summary: "Create a new category" })
   @ApiResponse({ status: 201, description: "Category created successfully" })
   @UseGuards(RolesGuard)
-  @Roles("super_admin", "manager", "pharmacist")
+  @Roles("super_admin", "admin", "manager", "pharmacist")
   @Post()
   create(createCategoryDto: CreateCategoryDto) {
     return this.categoriesService.create(createCategoryDto)
@@ -47,7 +47,7 @@ export class CategoriesController {
   @ApiOperation({ summary: "Update category" })
   @ApiResponse({ status: 200, description: "Category updated successfully" })
   @UseGuards(RolesGuard)
-  @Roles("super_admin", "manager", "pharmacist")
+  @Roles("super_admin", "admin", "manager", "pharmacist")
   @Patch(":id")
   update(@Param("id") id: string, updateCategoryDto: UpdateCategoryDto) {
     return this.categoriesService.update(id, updateCategoryDto)
@@ -56,7 +56,7 @@ export class CategoriesController {
   @ApiOperation({ summary: "Delete category" })
   @ApiResponse({ status: 200, description: "Category deleted successfully" })
   @UseGuards(RolesGuard)
-  @Roles("super_admin", "manager")
+  @Roles("super_admin", "admin", "manager")
   @Delete(":id")
   remove(@Param("id") id: string) {
     return this.categoriesService.remove(id)

@@ -3,6 +3,7 @@ import { IsEmail, IsNotEmpty, MinLength, IsEnum, IsOptional, IsPhoneNumber } fro
 
 export enum UserRole {
   SUPER_ADMIN = "super_admin",
+  ADMIN = "admin",
   MANAGER = "manager",
   PHARMACIST = "pharmacist",
   SALES_STAFF = "sales_staff",

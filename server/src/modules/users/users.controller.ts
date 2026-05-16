@@ -14,7 +14,7 @@ export class UsersController {
 
   @ApiOperation({ summary: "Get all users" })
   @ApiResponse({ status: 200, description: "Users retrieved successfully" })
-  @Roles("super_admin", "manager")
+  @Roles("super_admin", "admin", "manager")
   @Get()
   async findAll() {
     return this.usersService.findAll()
@@ -22,7 +22,7 @@ export class UsersController {
 
   @ApiOperation({ summary: "Get user by ID" })
   @ApiResponse({ status: 200, description: "User retrieved successfully" })
-  @Roles("super_admin", "manager")
+  @Roles("super_admin", "admin", "manager")
   @Get(":id")
   async findOne(@Param("id") id: string) {
     return this.usersService.findById(id)
@@ -30,7 +30,7 @@ export class UsersController {
 
   @ApiOperation({ summary: "Deactivate user" })
   @ApiResponse({ status: 200, description: "User deactivated successfully" })
-  @Roles("super_admin", "manager")
+  @Roles("super_admin", "admin", "manager")
   @Patch(":id/deactivate")
   async deactivate(@Param("id") id: string) {
     await this.usersService.deactivateUser(id)
@@ -39,7 +39,7 @@ export class UsersController {
 
   @ApiOperation({ summary: "Activate user" })
   @ApiResponse({ status: 200, description: "User activated successfully" })
-  @Roles("super_admin", "manager")
+  @Roles("super_admin", "admin", "manager")
   @Patch(":id/activate")
   async activate(@Param("id") id: string) {
     await this.usersService.activateUser(id)

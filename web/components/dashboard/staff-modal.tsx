@@ -180,8 +180,10 @@ export function StaffModal({ isOpen, onClose, onSuccess, stores, staffMember }: 
                   onChange={(e) => setFormData({...formData, role: e.target.value})}
                 >
                   <option value="admin">Admin (Local Master)</option>
+                  <option value="manager">Manager (Admin)</option>
                   <option value="pharmacist">Pharmacist (Sub-account)</option>
-                  <option value="cashier">Cashier (Sub-account)</option>
+                  <option value="sales_staff">Sales Staff / Cashier</option>
+                  <option value="auditor">Auditor (Read-only)</option>
                 </select>
               </div>
               <div className="space-y-2">

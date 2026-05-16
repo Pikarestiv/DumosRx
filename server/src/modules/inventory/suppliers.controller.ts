@@ -17,7 +17,7 @@ export class SuppliersController {
   @ApiOperation({ summary: "Create a new supplier" })
   @ApiResponse({ status: 201, description: "Supplier created successfully" })
   @UseGuards(RolesGuard)
-  @Roles("super_admin", "manager")
+  @Roles("super_admin", "admin", "manager")
   @Post()
   create(createSupplierDto: CreateSupplierDto) {
     return this.suppliersService.create(createSupplierDto)
@@ -49,7 +49,7 @@ export class SuppliersController {
   @ApiOperation({ summary: "Update supplier" })
   @ApiResponse({ status: 200, description: "Supplier updated successfully" })
   @UseGuards(RolesGuard)
-  @Roles("super_admin", "manager")
+  @Roles("super_admin", "admin", "manager")
   @Patch(":id")
   update(id: string, updateSupplierDto: UpdateSupplierDto) {
     return this.suppliersService.update(id, updateSupplierDto)
@@ -58,7 +58,7 @@ export class SuppliersController {
   @ApiOperation({ summary: "Update supplier rating" })
   @ApiResponse({ status: 200, description: "Rating updated successfully" })
   @UseGuards(RolesGuard)
-  @Roles("super_admin", "manager", "pharmacist")
+  @Roles("super_admin", "admin", "manager", "pharmacist")
   @Patch(":id/rating")
   updateRating(id: string, ratingDto: { rating: number }) {
     return this.suppliersService.updateRating(id, ratingDto.rating)
@@ -67,7 +67,7 @@ export class SuppliersController {
   @ApiOperation({ summary: "Delete supplier" })
   @ApiResponse({ status: 200, description: "Supplier deleted successfully" })
   @UseGuards(RolesGuard)
-  @Roles("super_admin", "manager")
+  @Roles("super_admin", "admin", "manager")
   @Delete(":id")
   remove(id: string) {
     return this.suppliersService.remove(id)

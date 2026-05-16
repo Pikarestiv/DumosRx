@@ -27,7 +27,7 @@ class StaffController extends Controller
             'last_name' => 'required|string',
             'email' => 'nullable|email|unique:users',
             'username' => 'required|string|unique:users',
-            'role' => 'required|string|in:admin,pharmacist,cashier',
+            'role' => 'required|string|in:admin,manager,pharmacist,sales_staff,auditor',
             'password' => 'nullable|min:8',
             'pin' => 'nullable|string|size:4',
             'store_id' => 'required|exists:stores,id',
@@ -55,7 +55,7 @@ class StaffController extends Controller
             'last_name' => 'string',
             'email' => 'email|unique:users,email,' . $user->id,
             'username' => 'string|unique:users,username,' . $user->id,
-            'role' => 'string|in:admin,pharmacist,cashier',
+            'role' => 'string|in:admin,manager,pharmacist,sales_staff,auditor',
             'pin' => 'string|size:4',
             'store_id' => 'exists:stores,id',
         ]);

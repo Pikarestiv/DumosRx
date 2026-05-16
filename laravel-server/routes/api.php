@@ -76,21 +76,24 @@ Route::prefix('v1')->group(function () {
         // Activity Logs
         Route::get('/logs', [ActivityLogController::class, 'index']);
 
-        // --- ADMIN ROUTES ---
+        // Publicly accessible within authenticated session (for impersonation return)
+        Route::post('/admin/restore-session', [AdminController::class, 'restoreSession']);
+
         Route::middleware('can:manage-platform')->prefix('admin')->group(function () {
             Route::get('/summary', [AdminController::class, 'summary']);
             Route::get('/pharmacies', [AdminController::class, 'pharmacies']);
             Route::post('/pharmacies', [AdminController::class, 'registerPharmacy']);
             Route::post('/pharmacies/{id}/suspend', [AdminController::class, 'suspendPharmacy']);
             Route::get('/products', [AdminController::class, 'products']);
-        Route::post('/products/standardize', [AdminController::class, 'standardize']);            Route::get('/users', [AdminController::class, 'users']);
-        Route::get('/health', [AdminController::class, 'health']);            Route::post('/users/{id}/deactivate', [AdminController::class, 'deactivateUser']);
+            Route::post('/products/standardize', [AdminController::class, 'standardize']);
+            Route::get('/users', [AdminController::class, 'users']);
+            Route::get('/health', [AdminController::class, 'health']);
+            Route::post('/users/{id}/deactivate', [AdminController::class, 'deactivateUser']);
             Route::post('/users/{id}/reset-password', [AdminController::class, 'forcePasswordReset']);
             Route::post('/users/{id}/notify', [AdminController::class, 'notifyUser']);
             Route::post('/users/bulk-notify', [AdminController::class, 'bulkNotify']);
             Route::get('/search', [AdminController::class, 'search']);
             Route::post('/pharmacies/{id}/impersonate', [AdminController::class, 'impersonatePharmacy']);
-            Route::post('/restore-session', [AdminController::class, 'restoreSession']);
 
             // Broadcasts
             Route::get('/broadcasts', [BroadcastController::class, 'adminIndex']);

@@ -85,6 +85,11 @@ class WebApiClient {
     return data;
   }
 
+  async getBillingHistory() {
+    const { data } = await apiClient.get("/subscription/billing-history");
+    return data;
+  }
+
   async getDashboardSummary() {
     const { data } = await apiClient.get("/dashboard/summary");
     return data;

@@ -69,6 +69,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/verify-license', [SubscriptionController::class, 'verifyLicense']);
             Route::post('/pay', [SubscriptionController::class, 'initiatePayment']);
             Route::post('/verify', [SubscriptionController::class, 'verifyPayment']);
+            Route::get('/billing-history', [SubscriptionController::class, 'billingHistory']);
         });
 
         // Backups

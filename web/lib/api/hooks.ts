@@ -113,6 +113,14 @@ export const useVerifyPaymentMutation = () => {
     mutationFn: (reference: string) => webApiClient.verifyPayment(reference),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["subscription-status"] });
+      queryClient.invalidateQueries({ queryKey: ["billing-history"] });
     },
+  });
+};
+
+export const useBillingHistory = () => {
+  return useQuery({
+    queryKey: ["billing-history"],
+    queryFn: () => webApiClient.getBillingHistory(),
   });
 };

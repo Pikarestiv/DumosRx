@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Subscription;
 use App\Models\PaymentTransaction;
 use Illuminate\Http\Request;
-use Carbon\Carbon;
 
 class SubscriptionController extends Controller
 {
@@ -65,12 +64,37 @@ class SubscriptionController extends Controller
         if (!$license->is_active) {
             return response()->json(['valid' => false, 'message' => 'This device has been deactivated.'], 403);
         }
-        
+
         return response()->json([
-            'valid' => true, 
+            'valid' => true,
             'expires_at' => $sub->end_date,
             'plan' => $sub->plan_name,
         ]);
+    }
+
+    public function billingHistory(Request $request)
+    {
+        $userId = auth()->id();
+
+        // Get transactions linked directly to the user's subscriptions
+        $subscriptionIds = Subscription::where('user_id', $userId)->pluck('id');
+
+        $transactions = PaymentTransaction::whereIn('subscription_id', $subscriptionIds)
+            ->orWhere('metadata->user_id', $userId)
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($txn) {
+                return [
+                    'id' => $txn->id,
+                    'date' => $txn->created_at->format('M j, Y'),
+                    'desc' => ($txn->metadata['plan_name'] ?? 'Subscription') . ' Plan',
+                    'amount' => '₦' . number_format($txn->amount, 0),
+                    'status' => ucfirst($txn->status),
+                    'reference' => $txn->provider_reference,
+                ];
+            });
+
+        return response()->json(['transactions' => $transactions]);
     }
 
     public function initiatePayment(Request $request, \App\Services\Payment\PaymentService $paymentService)
@@ -81,7 +105,7 @@ class SubscriptionController extends Controller
         ]);
 
         $user = auth()->user();
-        
+
         try {
             $payment = $paymentService->initializeTransaction(
                 $request->amount,
@@ -96,7 +120,7 @@ class SubscriptionController extends Controller
                 'amount' => $request->amount,
                 'currency' => 'NGN',
                 'status' => 'pending',
-                'metadata' => ['plan_name' => $request->plan_name]
+                'metadata' => ['plan_name' => $request->plan_name, 'user_id' => $user->id]
             ]);
 
             return response()->json([
@@ -137,7 +161,7 @@ class SubscriptionController extends Controller
 
                 // Create or Update Subscription
                 $sub = Subscription::create([
-                    'user_id' => $txn->metadata['user_id'],
+                    'user_id' => $txn->metadata['user_id'] ?? auth()->id(),
                     'plan_name' => $txn->metadata['plan_name'],
                     'start_date' => now(),
                     'end_date' => now()->addMonth(), // Assuming monthly for now

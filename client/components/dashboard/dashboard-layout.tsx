@@ -70,7 +70,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       { name: "Vendors", href: "/vendors", icon: Truck },
       { name: "Reports & Analytics", href: "/reports", icon: BarChart3 },
     ] : []),
-    ...(isAdmin ? [{ name: "Settings", href: "/settings", icon: Settings }] : []),
+    ...((isAdmin || isPharmacist) ? [{ name: "Settings", href: "/settings", icon: Settings }] : []),
   ];
 
   return (

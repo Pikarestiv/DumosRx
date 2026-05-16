@@ -85,6 +85,19 @@ export default function SettingsPage() {
     setTheme: setAppTheme,
   } = useStore();
 
+  const [isDesktop, setIsDesktop] = useState(true);
+  
+  useEffect(() => {
+    const handleResize = () => setIsDesktop(window.innerWidth >= 768);
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const tauriTop = isTauri() ? 40 : 0;
+  const headerHeight = 64; // h-16
+  const stickyTop = tauriTop + headerHeight;
+
   // Local state for profile form
   const [localName, setLocalName] = useState(storeProfile?.name || "");
   const [localAddress, setLocalAddress] = useState(storeProfile?.address || "");
@@ -361,10 +374,16 @@ export default function SettingsPage() {
           value={activeTab}
           onValueChange={setActiveTab}
           orientation="vertical"
-          className="flex flex-col md:flex-row gap-6 md:gap-8 md:items-start"
+          className="flex flex-col md:flex-row gap-6 md:gap-8 md:items-start relative"
         >
-          <aside className="w-full md:w-48 flex-shrink-0">
-            <TabsList className="flex flex-row md:flex-col h-auto bg-transparent border-none p-0 gap-1 overflow-x-auto md:overflow-x-visible justify-start md:w-full">
+          <aside 
+            className="w-full md:w-48 flex-shrink-0 md:sticky z-30"
+            style={{ top: isDesktop ? `${stickyTop + 16}px` : undefined }}
+          >
+            <TabsList 
+              className="flex flex-row md:flex-col h-auto bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b md:border-none p-2 md:p-0 gap-1 overflow-x-auto md:overflow-x-visible justify-start md:w-full sticky md:relative z-30 -mx-6 md:mx-0 px-6 md:px-0"
+              style={{ top: !isDesktop ? `${stickyTop}px` : undefined }}
+            >
               <TabsTrigger
                 value="appearance"
                 className="flex-1 md:w-full justify-center md:justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20"

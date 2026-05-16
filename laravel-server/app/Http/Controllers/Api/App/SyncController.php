@@ -109,9 +109,15 @@ class SyncController extends Controller
 
             $records = $query->limit(500)->get(); 
             
-            $changes[$table] = $records->map(function($item) {
+            $changes[$table] = $records->map(function($item) use ($table) {
                 $array = $item->toArray();
                 $array['_deleted'] = (\method_exists($item, 'trashed') && $item->trashed()) ? 1 : 0;
+                
+                // SQLite on desktop has a NOT NULL constraint on username
+                if ($table === 'users' && empty($array['username'])) {
+                    $array['username'] = $array['email'] ?: 'user_' . substr($array['id'], 0, 8);
+                }
+                
                 return $array;
             });
         }

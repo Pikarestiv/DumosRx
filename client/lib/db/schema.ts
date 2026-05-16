@@ -293,7 +293,7 @@ CREATE TABLE IF NOT EXISTS expenses (
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
-  username TEXT UNIQUE NOT NULL,
+  username TEXT UNIQUE,
   email TEXT UNIQUE,
   pin TEXT,
   role TEXT DEFAULT 'staff',

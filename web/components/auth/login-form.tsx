@@ -121,9 +121,9 @@ export function LoginForm() {
                   <FormItem>
                     <div className="flex items-center justify-between">
                       <FormLabel className="text-gray-300">Password</FormLabel>
-                      <a href="#" className="text-xs text-primary/70 hover:text-primary transition-colors">
+                      <Link href="/forgot-password" className="text-xs text-primary/70 hover:text-primary transition-colors">
                         Forgot?
-                      </a>
+                      </Link>
                     </div>
                     <FormControl>
                       <div className="relative group">

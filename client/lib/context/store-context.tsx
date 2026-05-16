@@ -25,6 +25,7 @@ interface StoreProfile {
   low_stock_warning?: number;
   expiry_warning?: number;
   expiry_warning_days?: number;
+  logo_url?: string;
   updated_at?: string;
 }
 

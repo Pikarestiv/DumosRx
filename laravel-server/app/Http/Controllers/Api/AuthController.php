@@ -7,6 +7,10 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
@@ -190,5 +194,75 @@ class AuthController extends Controller
         return response()->json([
             'message' => 'Password updated successfully',
         ]);
+    }
+
+    public function forgotPassword(Request $request)
+    {
+        $request->validate(['email' => 'required|email']);
+
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user) {
+            // We return success even if user not found to prevent email enumeration
+            return response()->json(['message' => 'If your email is in our system, you will receive a reset link shortly.']);
+        }
+
+        $token = Str::random(64);
+
+        DB::table('password_reset_tokens')->updateOrInsert(
+            ['email' => $request->email],
+            [
+                'token' => Hash::make($token),
+                'created_at' => now(),
+            ]
+        );
+
+        $resetUrl = "https://rx.dumostech.com/reset-password?token=$token&email=" . urlencode($request->email);
+
+        try {
+            Mail::raw("Hello,\n\nYou requested a password reset for your DumosRx account. Click the link below to reset it:\n\n$resetUrl\n\nIf you did not request this, please ignore this email.\n\nBest regards,\nDumosRx Team", function ($message) use ($user) {
+                $message->to($user->email)->subject('DumosRx Password Reset');
+            });
+        } catch (\Exception $e) {
+            \Log::error("Failed to send password reset email: " . $e->getMessage());
+            // In a production environment, you might want to return an error, 
+            // but for now we'll just log it.
+        }
+
+        return response()->json(['message' => 'If your email is in our system, you will receive a reset link shortly.']);
+    }
+
+    public function resetPassword(Request $request)
+    {
+        $request->validate([
+            'token' => 'required',
+            'email' => 'required|email',
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        $reset = DB::table('password_reset_tokens')
+            ->where('email', $request->email)
+            ->first();
+
+        if (!$reset || !Hash::check($request->token, $reset->token)) {
+            return response()->json(['message' => 'Invalid or expired token.'], 400);
+        }
+
+        // Check if token is older than 60 minutes
+        if (now()->parse($reset->created_at)->addMinutes(60)->isPast()) {
+            return response()->json(['message' => 'Reset token has expired.'], 400);
+        }
+
+        $user = User::where('email', $request->email)->first();
+        if (!$user) {
+            return response()->json(['message' => 'User not found.'], 404);
+        }
+
+        $user->password = Hash::make($request->password);
+        $user->save();
+
+        DB::table('password_reset_tokens')->where('email', $request->email)->delete();
+
+        return response()->json(['message' => 'Password has been reset successfully.']);
     }
 }

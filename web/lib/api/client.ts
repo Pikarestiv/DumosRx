@@ -146,6 +146,21 @@ class WebApiClient {
     return data;
   }
 
+  async forgotPassword(email: string) {
+    const { data } = await apiClient.post("/forgot-password", { email });
+    return data;
+  }
+
+  async resetPassword(payload: any) {
+    const { data } = await apiClient.post("/reset-password", payload);
+    return data;
+  }
+
+  async post(url: string, payload: any) {
+    const { data } = await apiClient.post(url, payload);
+    return data;
+  }
+
   async request<T>(url: string, options: any = {}): Promise<T> {
     const response = await apiClient({
       url,

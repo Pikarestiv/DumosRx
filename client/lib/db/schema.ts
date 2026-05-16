@@ -426,4 +426,15 @@ CREATE TABLE IF NOT EXISTS loyalty_transactions (
   _synced_at TEXT,
   _deleted INTEGER DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS feedback (
+  id TEXT PRIMARY KEY,
+  user_id TEXT,
+  type TEXT NOT NULL, -- 'bug', 'feature_request', 'other'
+  content TEXT NOT NULL,
+  contact_email TEXT,
+  status TEXT DEFAULT 'pending',
+  created_at TEXT,
+  _synced INTEGER DEFAULT 0,
+  _synced_at TEXT
+);
 `;

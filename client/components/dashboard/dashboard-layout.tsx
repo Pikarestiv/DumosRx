@@ -31,7 +31,9 @@ import {
   Truck,
   ClipboardList,
   TrendingUp,
+  MessageSquare,
 } from "lucide-react";
+import { FeedbackForm } from "@/components/feedback/feedback-form";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -44,6 +46,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { theme } = useTheme();
   const { storeType, t, storeProfile } = useStore();
   const { user, logout, isAdmin, isPharmacist } = useAuth();
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -132,7 +135,16 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
         <SyncIndicator />
 
-        <div className="p-4 border-t border-sidebar-border">
+        <div className="p-4 border-t border-sidebar-border space-y-1">
+          <Button
+            variant="ghost"
+            className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer"
+            onClick={() => setFeedbackOpen(true)}
+          >
+            <MessageSquare className="h-4 w-4 mr-3" />
+            Help & Feedback
+          </Button>
+
           <Button
             variant="ghost"
             className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer"
@@ -143,6 +155,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </Button>
         </div>
       </div>
+
+      <FeedbackForm open={feedbackOpen} onOpenChange={setFeedbackOpen} />
 
       {/* Main content */}
       <div className="lg:pl-64">

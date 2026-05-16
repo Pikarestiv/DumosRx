@@ -11,6 +11,7 @@ export function generateStaticParams() {
     { view: "billing" },
     { view: "downloads" },
     { view: "notifications" },
+    { view: "profile" },
   ];
 }
 

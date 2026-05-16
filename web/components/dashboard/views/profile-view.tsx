@@ -12,7 +12,16 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { User, Lock, Key, Shield, Save, Loader2, Phone, Mail } from "lucide-react";
+import {
+  User,
+  Lock,
+  Key,
+  Shield,
+  Save,
+  Loader2,
+  Phone,
+  Mail,
+} from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { useDashboard } from "@/app/dashboard/use-dashboard";
@@ -53,7 +62,7 @@ export function ProfileView() {
     mutationFn: (data: typeof profileData) => webApiClient.updateProfile(data),
     onSuccess: () => {
       toast.success("Profile updated successfully");
-      queryClient.invalidateQueries({ queryKey: ["user"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || "Failed to update profile");
@@ -72,7 +81,8 @@ export function ProfileView() {
   });
 
   const passwordMutation = useMutation({
-    mutationFn: (data: typeof passwordData) => webApiClient.changePassword(data),
+    mutationFn: (data: typeof passwordData) =>
+      webApiClient.changePassword(data),
     onSuccess: () => {
       toast.success("Password changed successfully");
       setPasswordData({
@@ -143,7 +153,12 @@ export function ProfileView() {
                     <Input
                       id="first_name"
                       value={profileData.first_name}
-                      onChange={(e) => setProfileData({ ...profileData, first_name: e.target.value })}
+                      onChange={(e) =>
+                        setProfileData({
+                          ...profileData,
+                          first_name: e.target.value,
+                        })
+                      }
                       placeholder="John"
                       required
                     />
@@ -153,7 +168,12 @@ export function ProfileView() {
                     <Input
                       id="last_name"
                       value={profileData.last_name}
-                      onChange={(e) => setProfileData({ ...profileData, last_name: e.target.value })}
+                      onChange={(e) =>
+                        setProfileData({
+                          ...profileData,
+                          last_name: e.target.value,
+                        })
+                      }
                       placeholder="Doe"
                       required
                     />
@@ -178,7 +198,12 @@ export function ProfileView() {
                     <Input
                       id="phone"
                       value={profileData.phone}
-                      onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
+                      onChange={(e) =>
+                        setProfileData({
+                          ...profileData,
+                          phone: e.target.value,
+                        })
+                      }
                       placeholder="+234..."
                       className="pl-10"
                     />
@@ -186,7 +211,11 @@ export function ProfileView() {
                 </div>
               </CardContent>
               <CardFooter>
-                <Button type="submit" className="w-full" disabled={profileMutation.isPending}>
+                <Button
+                  type="submit"
+                  className="w-full mt-4"
+                  disabled={profileMutation.isPending}
+                >
                   {profileMutation.isPending ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : (
@@ -226,19 +255,27 @@ export function ProfileView() {
                       type="password"
                       maxLength={4}
                       value={pinData.pin}
-                      onChange={(e) => setPinData({ pin: e.target.value.replace(/\D/g, "") })}
+                      onChange={(e) =>
+                        setPinData({ pin: e.target.value.replace(/\D/g, "") })
+                      }
                       placeholder="1234"
                       className="pl-10 tracking-[1em] font-mono text-lg"
                       required
                     />
                   </div>
                   <p className="text-[10px] text-muted-foreground italic mt-1">
-                    This PIN allows you to log in to offline terminals without your full password.
+                    This PIN allows you to log in to offline terminals without
+                    your full password.
                   </p>
                 </div>
               </CardContent>
               <CardFooter className="pt-6">
-                <Button type="submit" variant="secondary" className="w-full" disabled={pinMutation.isPending}>
+                <Button
+                  type="submit"
+                  variant="secondary"
+                  className="w-full"
+                  disabled={pinMutation.isPending}
+                >
                   {pinMutation.isPending ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : (
@@ -276,7 +313,12 @@ export function ProfileView() {
                     id="current_password"
                     type="password"
                     value={passwordData.current_password}
-                    onChange={(e) => setPasswordData({ ...passwordData, current_password: e.target.value })}
+                    onChange={(e) =>
+                      setPasswordData({
+                        ...passwordData,
+                        current_password: e.target.value,
+                      })
+                    }
                     required
                   />
                 </div>
@@ -286,7 +328,12 @@ export function ProfileView() {
                     id="new_password"
                     type="password"
                     value={passwordData.new_password}
-                    onChange={(e) => setPasswordData({ ...passwordData, new_password: e.target.value })}
+                    onChange={(e) =>
+                      setPasswordData({
+                        ...passwordData,
+                        new_password: e.target.value,
+                      })
+                    }
                     required
                   />
                 </div>
@@ -296,13 +343,22 @@ export function ProfileView() {
                     id="confirm_password"
                     type="password"
                     value={passwordData.new_password_confirmation}
-                    onChange={(e) => setPasswordData({ ...passwordData, new_password_confirmation: e.target.value })}
+                    onChange={(e) =>
+                      setPasswordData({
+                        ...passwordData,
+                        new_password_confirmation: e.target.value,
+                      })
+                    }
                     required
                   />
                 </div>
               </CardContent>
               <CardFooter className="flex justify-end border-t border-border/50 pt-6">
-                <Button type="submit" variant="destructive" disabled={passwordMutation.isPending}>
+                <Button
+                  type="submit"
+                  variant="destructive"
+                  disabled={passwordMutation.isPending}
+                >
                   {passwordMutation.isPending ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : (

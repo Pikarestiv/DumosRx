@@ -80,7 +80,7 @@ class AuthController extends Controller
             'role' => $user->role,
         ]);
 
-        if ($user->role === 'super_admin') {
+        if ($request->device_name === 'web' || $user->role === 'super_admin') {
             // Set an HttpOnly cookie for admin sessions
             // expire in 24 hours
             $response->withCookie(cookie(
@@ -106,6 +106,27 @@ class AuthController extends Controller
         return response()->json([
             'message' => 'Logged out successfully',
         ]);
+    }
+    public function refresh(Request $request)
+    {
+        $user = $request->user();
+        $user->currentAccessToken()->delete();
+        $token = $user->createToken("web")->plainTextToken;
+
+        return response()->json([
+            "token" => $token,
+            "user" => $user,
+        ])->withCookie(cookie(
+            "drx_admin_session",
+            $token,
+            60 * 24,
+            "/",
+            $request->getHost() === "localhost" ? null : ".rx.dumostech.com",
+            $request->isSecure(),
+            true,
+            false,
+            $request->isSecure() ? "None" : "Lax"
+        ));
     }
 
     public function user(Request $request)

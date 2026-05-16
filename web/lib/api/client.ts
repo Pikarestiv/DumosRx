@@ -38,6 +38,20 @@ class WebApiClient {
     };
 
     const response = await fetch(url, config);
+    if (response.status === 401 && !endpoint.includes("/login") && !endpoint.includes("/refresh")) {
+      try {
+         const refreshData = await this.request<any>("/refresh", { method: "POST" });
+         if (refreshData.token) {
+            localStorage.setItem(tokenKey, refreshData.token);
+            return this.request<T>(endpoint, options);
+         }
+      } catch (err) {
+         if (typeof window !== "undefined") {
+            localStorage.removeItem(tokenKey);
+            window.location.href = isAdminPath ? "/admin/login" : "/login";
+         }
+      }
+    }
     const data = await response.json();
 
     if (!response.ok) {
@@ -66,7 +80,7 @@ class WebApiClient {
       method: "POST",
       body: {
         ...payload,
-        device_name: "Web Client",
+        device_name: "web",
       },
     });
   }
@@ -80,7 +94,7 @@ class WebApiClient {
       method: "POST",
       body: {
         ...payload,
-        device_name: "Web Client",
+        device_name: "web",
       },
     });
   }

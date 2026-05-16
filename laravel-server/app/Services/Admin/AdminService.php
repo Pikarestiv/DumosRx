@@ -297,22 +297,29 @@ class AdminService
         $diskFree = disk_free_space("/");
         $diskUsed = $diskTotal - $diskFree;
         
-        // Database
+        // Database & Latency
         $dbStatus = 'Operational';
+        $start = microtime(true);
         try {
             DB::connection()->getPdo();
+            $latency = round((microtime(true) - $start) * 1000, 1) . 'ms';
         } catch (\Exception $e) {
             $dbStatus = 'Degraded';
+            $latency = '0ms';
         }
 
-        // Uptime (rough estimate from first user or system)
+        // Database Load (based on active transactions/logs in last minute)
+        $recentActivity = ActivityLog::where('created_at', '>', now()->subMinute())->count();
+        $dbLoad = min(100, max(5, $recentActivity * 2));
+
+        // Uptime
         $firstLog = ActivityLog::oldest()->first();
         $uptime = $firstLog ? $firstLog->created_at->diffForHumans(null, true) : '14d 6h';
 
         return [
             'overallStatus' => $dbStatus === 'Operational' ? 'Healthy' : 'Degraded',
             'uptime' => $uptime,
-            'latency' => rand(38, 52) . 'ms',
+            'latency' => $latency,
             'resources' => [
                 'cpu' => $cpuUtil,
                 'memory' => $memory,
@@ -322,7 +329,7 @@ class AdminService
                     'percent' => round(($diskUsed / $diskTotal) * 100, 1)
                 ],
                 'database' => [
-                    'load' => rand(5, 15),
+                    'load' => $dbLoad,
                     'status' => $dbStatus
                 ]
             ],

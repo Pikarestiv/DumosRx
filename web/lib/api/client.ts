@@ -170,6 +170,37 @@ class WebApiClient {
     });
     return response.data;
   }
+
+  // Broadcasts
+  async getBroadcasts() {
+    const { data } = await apiClient.get("/broadcasts");
+    return data;
+  }
+
+  async adminGetBroadcasts() {
+    const { data } = await apiClient.get("/admin/broadcasts");
+    return data;
+  }
+
+  async createBroadcast(payload: any) {
+    const { data } = await apiClient.post("/admin/broadcasts", payload);
+    return data;
+  }
+
+  async updateBroadcast(id: string, payload: any) {
+    const { data } = await apiClient.put(`/admin/broadcasts/${id}`, payload);
+    return data;
+  }
+
+  async toggleBroadcast(id: string) {
+    const { data } = await apiClient.patch(`/admin/broadcasts/${id}/toggle`);
+    return data;
+  }
+
+  async deleteBroadcast(id: string) {
+    const { data } = await apiClient.delete(`/admin/broadcasts/${id}`);
+    return data;
+  }
 }
 
 export const webApiClient = new WebApiClient();

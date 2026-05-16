@@ -26,6 +26,7 @@ use App\Http\Controllers\Api\App\CustomerController;
 use App\Http\Controllers\Api\App\SupplierController;
 use App\Http\Controllers\Api\App\CategoryController;
 use App\Http\Controllers\Api\App\SyncController;
+use App\Http\Controllers\Api\BroadcastController;
 
 Route::prefix('v1')->group(function () {
     // Public Routes
@@ -55,6 +56,7 @@ Route::prefix('v1')->group(function () {
         });
         Route::get('/notifications', [NotificationController::class, 'index']);
         Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+        Route::get('/broadcasts', [BroadcastController::class, 'index']);
         Route::apiResource('staff', StaffController::class)->middleware('can:manage-staff');
         Route::apiResource('stores', StoreController::class);
 
@@ -87,6 +89,13 @@ Route::prefix('v1')->group(function () {
             Route::post('/users/{id}/notify', [AdminController::class, 'notifyUser']);
             Route::post('/users/bulk-notify', [AdminController::class, 'bulkNotify']);
             Route::get('/search', [AdminController::class, 'search']);
+
+            // Broadcasts
+            Route::get('/broadcasts', [BroadcastController::class, 'adminIndex']);
+            Route::post('/broadcasts', [BroadcastController::class, 'store']);
+            Route::put('/broadcasts/{id}', [BroadcastController::class, 'update']);
+            Route::patch('/broadcasts/{id}/toggle', [BroadcastController::class, 'toggle']);
+            Route::delete('/broadcasts/{id}', [BroadcastController::class, 'destroy']);
         });
         // --- APP / TERMINAL ROUTES ---
         Route::prefix('app')->group(function () {

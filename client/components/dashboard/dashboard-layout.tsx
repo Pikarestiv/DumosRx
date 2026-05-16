@@ -34,6 +34,7 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { FeedbackForm } from "@/components/feedback/feedback-form";
+import { BroadcastBanner } from "./broadcast-banner";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -159,7 +160,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       <FeedbackForm open={feedbackOpen} onOpenChange={setFeedbackOpen} />
 
       {/* Main content */}
-      <div className="lg:pl-64">
+      <div className="lg:pl-64 flex flex-col min-h-screen">
+        <BroadcastBanner />
+        
         {/* Top header */}
         <header 
           className="h-16 bg-background border-b border-border flex items-center justify-between px-6 sticky z-40"

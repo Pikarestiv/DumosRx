@@ -8,6 +8,7 @@ import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
 // Layout Components
 import { Sidebar } from "@/components/dashboard/sidebar";
 import { Header } from "@/components/dashboard/header";
+import { BroadcastBanner } from "@/components/dashboard/broadcast-banner";
 
 // View Components
 import { OverviewView } from "@/components/dashboard/views/overview-view";
@@ -76,6 +77,7 @@ export function DashboardClient({ view }: { view: string }) {
     <div className="flex h-screen bg-background overflow-hidden">
       <Sidebar activeTab={view} setActiveTab={setActiveTab} user={user} onLogout={logout} />
       <div className="flex-1 flex flex-col min-w-0">
+        <BroadcastBanner />
         <Header onSetActiveTab={setActiveTab} />
         <main className="flex-1 overflow-y-auto p-8 scrollbar-hide">
           <div className="max-w-7xl mx-auto">

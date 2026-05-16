@@ -13,7 +13,8 @@ import {
   ChevronRight,
   ShieldCheck,
   Activity,
-  Server
+  Server,
+  Megaphone
 } from "lucide-react";
 import { useAdminAuthStore } from "@/lib/store/use-admin-auth-store";
 import { useAdminStore } from "@/lib/store/use-admin-store";
@@ -26,6 +27,7 @@ const sidebarItems = [
   { id: "pharmacies", name: "Pharmacies", icon: Store, href: "/admin/pharmacies" },
   { id: "users", name: "Platform Users", icon: Users, href: "/admin/users" },
   { id: "products", name: "Global Products", icon: Package, href: "/admin/products" },
+  { id: "broadcasts", name: "Global Broadcasts", icon: Megaphone, href: "/admin/broadcasts" },
   { id: "system", name: "System Health", icon: Server, href: "/admin/system" },
 ];
 

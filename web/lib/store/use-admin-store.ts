@@ -12,6 +12,7 @@ interface AdminState {
   productCategories: string[] | null;
   users: any[] | null;
   userMeta: any | null;
+  systemHealth: any | null;
   loading: boolean;
   error: string | null;
   lastFetched: number | null;
@@ -20,9 +21,10 @@ interface AdminState {
   fetchSummary: (force?: boolean) => Promise<void>;
   fetchPharmacies: (page?: number, search?: string) => Promise<void>;
   fetchProducts: (page?: number, search?: string, category?: string) => Promise<void>;
-  standardizeProducts: () => Promise<any>;  fetchUsers: (page?: number, search?: string) => Promise<void>;
-  systemHealth: any;
-  fetchHealth: () => Promise<void>;}
+  standardizeProducts: () => Promise<any>;
+  fetchUsers: (page?: number, search?: string) => Promise<void>;
+  fetchHealth: () => Promise<void>;
+}
 
 export const useAdminStore = create<AdminState>()(
   persist(
@@ -36,6 +38,7 @@ export const useAdminStore = create<AdminState>()(
       productCategories: null,
       users: null,
       userMeta: null,
+      systemHealth: null,
       loading: false,
       error: null,
       lastFetched: null,

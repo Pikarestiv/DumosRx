@@ -25,7 +25,7 @@ class AuthController extends Controller
             'last_name' => $request->last_name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
-            'role' => $request->role ?? 'pharmacist',
+            'role' => $request->filled('pharmacy_name') ? 'admin' : ($request->role ?? 'pharmacist'),
             'is_active' => true,
         ]);
 

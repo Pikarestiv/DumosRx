@@ -25,10 +25,10 @@ class StaffController extends Controller
         $request->validate([
             'first_name' => 'required|string',
             'last_name' => 'required|string',
-            'email' => 'required|email|unique:users',
-            'username' => 'nullable|string|unique:users',
+            'email' => 'nullable|email|unique:users',
+            'username' => 'required|string|unique:users',
             'role' => 'required|string|in:admin,pharmacist,cashier',
-            'password' => 'required|min:8',
+            'password' => 'nullable|min:8',
             'pin' => 'nullable|string|size:4',
             'store_id' => 'required|exists:stores,id',
         ]);
@@ -40,7 +40,7 @@ class StaffController extends Controller
             'email' => $request->email,
             'username' => $request->username ?: explode('@', $request->email)[0],
             'role' => $request->role,
-            'password' => Hash::make($request->password),
+            'password' => $request->password ? Hash::make($request->password) : null,
             'pin' => $request->pin ?: '1234',
             'is_active' => true,
         ]);

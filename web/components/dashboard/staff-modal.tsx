@@ -102,7 +102,10 @@ export function StaffModal({ isOpen, onClose, onSuccess, stores, staffMember }: 
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="email" className="text-xs font-bold uppercase tracking-wider opacity-60">Email Address (Cloud Login)</Label>
+            <Label htmlFor="email" className="text-xs font-bold uppercase tracking-wider opacity-60">
+                Email Address (Cloud Dashboard Login)
+                <span className="ml-2 text-[10px] font-normal lowercase opacity-70 italic">(Optional for local-only staff)</span>
+            </Label>
             <div className="relative">
               <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input 
@@ -111,7 +114,6 @@ export function StaffModal({ isOpen, onClose, onSuccess, stores, staffMember }: 
                 className="pl-10 font-medium" 
                 value={formData.email}
                 onChange={(e) => setFormData({...formData, email: e.target.value})}
-                required 
               />
             </div>
           </div>
@@ -125,6 +127,7 @@ export function StaffModal({ isOpen, onClose, onSuccess, stores, staffMember }: 
                 placeholder="e.g. john_p"
                 value={formData.username}
                 onChange={(e) => setFormData({...formData, username: e.target.value})}
+                required
               />
             </div>
             <div className="space-y-2">
@@ -151,7 +154,7 @@ export function StaffModal({ isOpen, onClose, onSuccess, stores, staffMember }: 
               >
                 <option value="pharmacist">Pharmacist</option>
                 <option value="cashier">Cashier</option>
-                <option value="admin">Administrator (Local Master)</option>
+                <option value="admin">Admin (Local Master)</option>
               </select>
             </div>
             <div className="space-y-2">
@@ -176,7 +179,10 @@ export function StaffModal({ isOpen, onClose, onSuccess, stores, staffMember }: 
 
           {!isEditing && (
             <div className="space-y-2">
-              <Label htmlFor="pass" className="text-xs font-bold uppercase tracking-wider opacity-60">Cloud Password</Label>
+              <Label htmlFor="pass" className="text-xs font-bold uppercase tracking-wider opacity-60">
+                Cloud Password 
+                <span className="ml-2 text-[10px] font-normal lowercase opacity-70 italic">(Required only if email is provided)</span>
+              </Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input 
@@ -185,7 +191,7 @@ export function StaffModal({ isOpen, onClose, onSuccess, stores, staffMember }: 
                   className="pl-10 font-medium" 
                   value={formData.password}
                   onChange={(e) => setFormData({...formData, password: e.target.value})}
-                  required={!isEditing}
+                  required={!!formData.email && !isEditing}
                 />
               </div>
             </div>

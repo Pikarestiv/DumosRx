@@ -46,20 +46,32 @@ class AdminService
             ->limit(10)
             ->get()
             ->map(function ($store) {
+                // Determine status based on last sync
+                $status = 'Inactive';
+                if ($store->last_sync_at) {
+                    $minutesSinceSync = now()->diffInMinutes($store->last_sync_at);
+                    if ($minutesSinceSync < 60) $status = 'Active';
+                    elseif ($minutesSinceSync < 1440) $status = 'Away';
+                }
+
                 return [
                     'id' => $store->id,
                     'name' => $store->name,
                     'owner' => $store->user ? $store->user->first_name . ' ' . $store->user->last_name : 'N/A',
-                    'plan' => 'Enterprise', // Hardcoded for now until subscription link is ready
-                    'status' => 'Active',
+                    'plan' => 'Enterprise', // Link to subscriptions table when schema is ready
+                    'status' => $status,
                     'date' => $store->created_at->diffForHumans()
                 ];
             });
 
         // 3. Live Operations
+        $syncTotal = ActivityLog::where('action', 'like', 'SYNC_%')->count();
+        $syncSuccess = ActivityLog::where('action', 'SYNC_SUCCESS')->count();
+        $syncRate = $syncTotal > 0 ? round(($syncSuccess / $syncTotal) * 100, 1) : 100;
+
         $liveOperations = [
             'total_requests' => number_format(ActivityLog::count()),
-            'sync_success_rate' => '100%',
+            'sync_success_rate' => $syncRate . '%',
             'active_connections' => number_format(User::where('is_active', true)->count())
         ];
 
@@ -178,14 +190,30 @@ class AdminService
 
         return [
             'data' => collect($paginator->items())->map(function ($medicine) {
+                $inventory = DB::table('inventory')->where('medicine_id', $medicine->id);
+                $totalStock = $inventory->sum('quantity_in_stock');
+                $avgReorder = $inventory->avg('reorder_level') ?: 10;
+                
+                $stockLevel = 'Empty';
+                if ($totalStock > $avgReorder * 2) $stockLevel = 'High';
+                elseif ($totalStock > $avgReorder) $stockLevel = 'Medium';
+                elseif ($totalStock > 0) $stockLevel = 'Low';
+
+                $status = $medicine->is_active ? 'Active' : 'Inactive';
+                $hasExpired = DB::table('inventory')
+                    ->where('medicine_id', $medicine->id)
+                    ->where('expiry_date', '<', now())
+                    ->exists();
+                if ($hasExpired) $status = 'Expired';
+
                 return [
                     'id' => $medicine->id,
                     'name' => $medicine->name,
                     'category' => $medicine->generic_name ?: 'General',
-                    'instances' => DB::table('inventory')->where('medicine_id', $medicine->id)->count(),
-                    'avgPrice' => '₦' . number_format(DB::table('inventory')->where('medicine_id', $medicine->id)->avg('selling_price') ?: 0, 2),
-                    'stockLevel' => 'High',
-                    'status' => 'Verified'
+                    'instances' => $inventory->count(),
+                    'avgPrice' => '₦' . number_format($inventory->avg('selling_price') ?: 0, 2),
+                    'stockLevel' => $stockLevel,
+                    'status' => $status
                 ];
             }),
             'meta' => [

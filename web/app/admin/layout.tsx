@@ -38,6 +38,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAdminAuthStore } from "@/lib/store/use-admin-auth-store";
 import { useAdminStore } from "@/lib/store/use-admin-store";
 import { webApiClient } from "@/lib/api/client";
+import { useAdminSummary } from "@/lib/api/admin-hooks";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
@@ -48,7 +49,8 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const { user, fetchUser, loading: authLoading, token } = useAdminAuthStore();
-  const { summary, fetchSummary, latency, loading } = useAdminStore();
+  const { latency } = useAdminStore();
+  const { data: summary, isLoading: summaryLoading } = useAdminSummary();
   const router = useRouter();
   const pathname = usePathname();
   const [checking, setChecking] = useState(true);
@@ -97,11 +99,7 @@ export default function AdminLayout({
     }
   };
 
-  useEffect(() => {
-    if (!isLoginPage) {
-      fetchSummary();
-    }
-  }, [isLoginPage, fetchSummary]);
+  // Summary is handled by useAdminSummary hook automatically
 
   const securityAlerts = summary?.security_alerts || [];
 
@@ -133,7 +131,7 @@ export default function AdminLayout({
     return <>{children}</>;
   }
 
-  if (checking || authLoading) {
+  if (checking || authLoading || (summaryLoading && !isLoginPage)) {
     return (
       <div className="flex h-screen items-center justify-center bg-slate-950">
         <Loader2 className="h-10 w-10 text-indigo-500 animate-spin" />
@@ -245,14 +243,14 @@ export default function AdminLayout({
             </div>
             
             <div className="hidden lg:flex items-center gap-2 ml-4">
-                {(latency > 0 || loading) && (
+                {(latency > 0 || summaryLoading) && (
                   <Badge variant="outline" className={`${latency > 200 ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 'bg-green-500/10 text-green-500 border-green-500/20'} gap-1 font-bold`}>
-                      {loading ? (
+                      {summaryLoading ? (
                         <Loader2 className="h-3 w-3 animate-spin" />
                       ) : (
                         <Zap className="h-3 w-3 fill-current" />
                       )}
-                      Cloud API: {loading ? 'Checking...' : `${latency}ms`}
+                      Cloud API: {summaryLoading ? 'Checking...' : `${latency}ms`}
                   </Badge>
                 )}
                 <Badge variant="outline" className="bg-indigo-500/10 text-indigo-500 border-indigo-500/20 gap-1 font-bold">

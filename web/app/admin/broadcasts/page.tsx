@@ -79,8 +79,16 @@ export default function AdminBroadcasts() {
   const fetchBroadcasts = async () => {
     setIsLoading(true);
     try {
-      const data = await webApiClient.adminGetBroadcasts();
-      setBroadcasts(data);
+      const response = await webApiClient.adminGetBroadcasts();
+      console.log("Admin broadcasts response:", response);
+      // The API returns { success: true, data: [...] }
+      if (response && response.success && Array.isArray(response.data)) {
+        setBroadcasts(response.data);
+      } else if (Array.isArray(response)) {
+        setBroadcasts(response);
+      } else {
+        console.warn("Unexpected response format:", response);
+      }
     } catch (error) {
       console.error("Failed to fetch broadcasts:", error);
       toast.error("Failed to load broadcasts");
@@ -145,7 +153,7 @@ export default function AdminBroadcasts() {
     }
   };
 
-  const filteredBroadcasts = broadcasts.filter(b => 
+  const filteredBroadcasts = (Array.isArray(broadcasts) ? broadcasts : []).filter(b => 
     b.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     b.message.toLowerCase().includes(searchQuery.toLowerCase())
   );

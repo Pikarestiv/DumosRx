@@ -119,7 +119,11 @@ export function SubscriptionCard() {
             Upgrade to Pro (₦{PRICING.PRO.PRICE_MONTHLY.toLocaleString()})
           </Button>
         ) : (
-          <Button variant="outline" className="w-full h-12 font-bold border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/5">
+          <Button 
+            variant="outline" 
+            className="w-full h-12 font-bold border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/5"
+            onClick={() => toast.info("Subscription management (cancellation/upgrades) coming soon!")}
+          >
             <CheckCircle className="h-4 w-4 mr-2" />
             Manage Subscription
           </Button>

@@ -20,6 +20,7 @@ import {
 import { SubscriptionWrapper } from "@/components/dashboard/subscription-wrapper";
 import { useBillingHistory } from "@/lib/api/hooks";
 import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 export function BillingView() {
   const { data: historyData, isLoading } = useBillingHistory();
@@ -71,7 +72,20 @@ export function BillingView() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="sm" disabled={bill.status !== "Success"}>Download</Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        disabled={bill.status !== "Success"}
+                        onClick={() => {
+                          if (bill.receipt_url) {
+                            window.open(bill.receipt_url, '_blank');
+                          } else {
+                            toast("Invoice not available for this transaction.");
+                          }
+                        }}
+                      >
+                        Download
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}

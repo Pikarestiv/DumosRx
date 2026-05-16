@@ -91,6 +91,7 @@ class SubscriptionController extends Controller
                     'amount' => '₦' . number_format($txn->amount, 0),
                     'status' => ucfirst($txn->status),
                     'reference' => $txn->provider_reference,
+                    'receipt_url' => $txn->metadata['verification_data']['receipt_url'] ?? null,
                 ];
             });
 

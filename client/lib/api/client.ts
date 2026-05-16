@@ -1,10 +1,11 @@
+import { API_BASE_URL } from "../constants";
+
 class ApiClient {
   private baseURL: string;
   private token: string | null = null;
 
   constructor() {
-    this.baseURL =
-      process.env.NEXT_PUBLIC_API_URL || "https://api.rx.dumostech.com/api/v1";
+    this.baseURL = process.env.NEXT_PUBLIC_API_URL || API_BASE_URL;
 
     // Load token from localStorage on client side
     if (typeof window !== "undefined") {

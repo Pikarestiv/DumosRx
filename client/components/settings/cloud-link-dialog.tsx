@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from "@/lib/context/auth-context";
 import { toast } from "sonner";
 import { Cloud, Loader2 } from "lucide-react";
+import { WEB_APP_URL } from "@/lib/constants";
 
 interface CloudLinkDialogProps {
   open: boolean;
@@ -94,7 +95,7 @@ export function CloudLinkDialog({ open, onOpenChange, onSuccess }: CloudLinkDial
             <p className="text-xs text-muted-foreground">
               Don't have a web dashboard account yet?{" "}
               <a 
-                href="https://rx.dumostech.com/register" 
+                href={`${WEB_APP_URL}/register`} 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="text-primary font-bold hover:underline"

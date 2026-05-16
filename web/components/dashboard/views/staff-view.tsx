@@ -127,10 +127,12 @@ export function StaffView({ staff, stores }: StaffViewProps) {
         <Card className="border-none shadow-sm">
           <CardContent className="p-6">
             <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">System Roles</p>
-            <div className="flex gap-2 mt-2">
+            <div className="flex flex-wrap gap-2 mt-2">
                 <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200 font-bold">Admin</Badge>
-                <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 font-bold">Pharm</Badge>
-                <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 font-bold">Cashier</Badge>
+                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 font-bold">Manager</Badge>
+                <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 font-bold">Pharmacist</Badge>
+                <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 font-bold">Sales</Badge>
+                <Badge variant="outline" className="bg-slate-50 text-slate-700 border-slate-200 font-bold">Auditor</Badge>
             </div>
           </CardContent>
         </Card>

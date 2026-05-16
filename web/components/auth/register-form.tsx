@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Loader2, AlertCircle, Building, Mail, Phone, Lock } from "lucide-react";
+import { Loader2, AlertCircle, Building, Mail, Phone, Lock, User, ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { webApiClient } from "@/lib/api/client";
 import { motion } from "framer-motion";
@@ -29,8 +29,10 @@ const registerSchema = z
       .min(2, { message: "Pharmacy name must be at least 2 characters" }),
     first_name: z.string().min(2, { message: "First name must be at least 2 characters" }),
     last_name: z.string().min(2, { message: "Last name must be at least 2 characters" }),
-    email: z.email({ message: "Invalid email address" }),
+    email: z.string().email({ message: "Invalid email address" }),
+    username: z.string().min(3, { message: "Username must be at least 3 characters" }).optional(),
     phone: z.string().min(10, { message: "Phone number must be at least 10 digits" }),
+    pin: z.string().length(4, { message: "PIN must be exactly 4 digits" }),
     password: z.string().min(8, { message: "Password must be at least 8 characters" }),
     password_confirmation: z.string(),
   })
@@ -51,7 +53,9 @@ export function RegisterForm() {
       first_name: "",
       last_name: "",
       email: "",
+      username: "",
       phone: "",
+      pin: "",
       password: "",
       password_confirmation: "",
     },
@@ -184,6 +188,31 @@ export function RegisterForm() {
               <motion.div variants={item}>
                 <FormField
                   control={form.control}
+                  name="username"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-gray-300">Username (Terminal Login)</FormLabel>
+                      <FormControl>
+                        <div className="relative group">
+                          <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 group-focus-within:text-accent transition-colors" />
+                          <Input
+                            placeholder="jdoe_rx"
+                            className="pl-10 bg-white/5 border-white/10 text-white focus:border-accent/50 focus:ring-accent/20 h-11"
+                            {...field}
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage className="text-xs text-red-400" />
+                    </FormItem>
+                  )}
+                />
+              </motion.div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <motion.div variants={item}>
+                <FormField
+                  control={form.control}
                   name="phone"
                   render={({ field }) => (
                     <FormItem>
@@ -192,6 +221,31 @@ export function RegisterForm() {
                         <div className="relative group">
                           <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 group-focus-within:text-accent transition-colors" />
                           <Input placeholder="08012345678" type="tel" className="pl-10 bg-white/5 border-white/10 text-white focus:border-accent/50 focus:ring-accent/20 h-11" {...field} />
+                        </div>
+                      </FormControl>
+                      <FormMessage className="text-xs text-red-400" />
+                    </FormItem>
+                  )}
+                />
+              </motion.div>
+
+              <motion.div variants={item}>
+                <FormField
+                  control={form.control}
+                  name="pin"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-gray-300">Terminal PIN (4 Digits)</FormLabel>
+                      <FormControl>
+                        <div className="relative group">
+                          <ShieldCheck className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 group-focus-within:text-accent transition-colors" />
+                          <Input 
+                            placeholder="1234" 
+                            maxLength={4}
+                            className="pl-10 bg-white/5 border-white/10 text-white focus:border-accent/50 focus:ring-accent/20 h-11 font-mono tracking-widest" 
+                            {...field} 
+                            onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ""))}
+                          />
                         </div>
                       </FormControl>
                       <FormMessage className="text-xs text-red-400" />

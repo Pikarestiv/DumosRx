@@ -16,6 +16,8 @@ class AuthController extends Controller
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
+            'username' => 'nullable|string|max:255|unique:users',
+            'pin' => 'nullable|string|size:4',
             'password' => 'required|string|min:8',
             'pharmacy_name' => 'nullable|string|max:255',
         ]);
@@ -24,6 +26,8 @@ class AuthController extends Controller
             'first_name' => $request->first_name,
             'last_name' => $request->last_name,
             'email' => $request->email,
+            'username' => $request->username,
+            'pin' => $request->pin,
             'password' => Hash::make($request->password),
             'role' => $request->filled('pharmacy_name') ? 'admin' : ($request->role ?? 'pharmacist'),
             'is_active' => true,

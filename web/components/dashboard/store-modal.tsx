@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -28,11 +28,22 @@ export function StoreModal({ isOpen, onClose, onSuccess, store }: StoreModalProp
   const isEditing = !!store;
 
   const [formData, setFormData] = useState({
-    name: store?.name || "",
-    location: store?.location || "",
-    address: store?.address || "",
-    phone: store?.phone || "",
+    name: "",
+    location: "",
+    address: "",
+    phone: "",
   });
+
+  useEffect(() => {
+    if (isOpen) {
+      setFormData({
+        name: store?.name || "",
+        location: store?.location || "",
+        address: store?.address || "",
+        phone: store?.phone || "",
+      });
+    }
+  }, [store, isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -143,4 +154,3 @@ export function StoreModal({ isOpen, onClose, onSuccess, store }: StoreModalProp
     </Dialog>
   );
 }
-

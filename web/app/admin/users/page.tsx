@@ -154,8 +154,10 @@ export default function GlobalUsersDirectory() {
     if (!selectedUser || !notifyMessage || !notifyTitle) return;
     notifyMutation.mutate({ 
       id: selectedUser.id, 
-      title: notifyTitle, 
-      message: notifyMessage 
+      payload: {
+        title: notifyTitle, 
+        message: notifyMessage 
+      }
     }, {
       onSuccess: () => {
         toast.success("Notification Sent", {

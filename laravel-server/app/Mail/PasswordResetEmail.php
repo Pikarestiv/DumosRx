@@ -9,17 +9,20 @@ use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
-class AdminNotification extends Mailable implements ShouldQueue
+class PasswordResetEmail extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 
-    public $messageText;
-    public $subjectLine;
+    public $user;
+    public $resetUrl;
 
-    public function __construct($messageText, $subjectLine = 'DumosRx Platform Notification')
+    /**
+     * Create a new message instance.
+     */
+    public function __construct($user, $resetUrl)
     {
-        $this->messageText = $messageText;
-        $this->subjectLine = $subjectLine;
+        $this->user = $user;
+        $this->resetUrl = $resetUrl;
     }
 
     /**
@@ -28,7 +31,7 @@ class AdminNotification extends Mailable implements ShouldQueue
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: $this->subjectLine,
+            subject: 'DumosRx Password Reset',
         );
     }
 
@@ -38,7 +41,17 @@ class AdminNotification extends Mailable implements ShouldQueue
     public function content(): Content
     {
         return new Content(
-            view: 'emails.notification',
+            view: 'emails.password-reset',
         );
+    }
+
+    /**
+     * Get the attachments for the message.
+     *
+     * @return array<int, \Illuminate\Mail\Mailables\Attachment>
+     */
+    public function attachments(): array
+    {
+        return [];
     }
 }

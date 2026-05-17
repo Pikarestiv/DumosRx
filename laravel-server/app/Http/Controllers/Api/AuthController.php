@@ -46,6 +46,13 @@ class AuthController extends Controller
 
             // Create trial subscription
             app(\App\Services\SubscriptionService::class)->createTrial($user);
+
+            // Send Welcome Email
+            try {
+                Mail::to($user->email)->send(new \App\Mail\WelcomeEmail($user, $request->pharmacy_name));
+            } catch (\Exception $e) {
+                \Log::error("Failed to send welcome email: " . $e->getMessage());
+            }
         }
 
         $token = $user->createToken('auth_token')->plainTextToken;
@@ -223,9 +230,7 @@ class AuthController extends Controller
         $resetUrl = "https://rx.dumostech.com/reset-password?token=$token&email=" . urlencode($request->email);
 
         try {
-            Mail::raw("Hello,\n\nYou requested a password reset for your DumosRx account. Click the link below to reset it:\n\n$resetUrl\n\nIf you did not request this, please ignore this email.\n\nBest regards,\nDumosRx Team", function ($message) use ($user) {
-                $message->to($user->email)->subject('DumosRx Password Reset');
-            });
+            Mail::to($user->email)->send(new \App\Mail\PasswordResetEmail($user, $resetUrl));
         } catch (\Exception $e) {
             \Log::error("Failed to send password reset email: " . $e->getMessage());
             // In a production environment, you might want to return an error, 

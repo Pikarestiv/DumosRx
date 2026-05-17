@@ -26,32 +26,24 @@ class PasswordResetEmail extends Mailable implements ShouldQueue
     }
 
     /**
-     * Get the message envelope.
+     * Build the message.
      */
-    public function envelope(): Envelope
+    public function build()
     {
-        return new Envelope(
-            subject: 'DumosRx Password Reset',
-        );
-    }
+        $template = \App\Models\EmailTemplate::where('key', 'password_reset')->first();
+        
+        $subject = $template ? $template->subject : 'DumosRx Password Reset';
+        $htmlContent = $template ? $template->content : null;
 
-    /**
-     * Get the message content definition.
-     */
-    public function content(): Content
-    {
-        return new Content(
-            view: 'emails.password-reset',
-        );
-    }
+        if ($htmlContent) {
+            $html = \Illuminate\Support\Facades\Blade::render($htmlContent, [
+                'user' => $this->user,
+                'resetUrl' => $this->resetUrl
+            ]);
+            return $this->subject($subject)->html($html);
+        }
 
-    /**
-     * Get the attachments for the message.
-     *
-     * @return array<int, \Illuminate\Mail\Mailables\Attachment>
-     */
-    public function attachments(): array
-    {
-        return [];
+        return $this->subject($subject)
+                    ->view('emails.password-reset');
     }
 }

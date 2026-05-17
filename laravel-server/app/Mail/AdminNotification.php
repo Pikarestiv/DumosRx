@@ -23,22 +23,25 @@ class AdminNotification extends Mailable implements ShouldQueue
     }
 
     /**
-     * Get the message envelope.
+     * Build the message.
      */
-    public function envelope(): Envelope
+    public function build()
     {
-        return new Envelope(
-            subject: $this->subjectLine,
-        );
-    }
+        $template = \App\Models\EmailTemplate::where('key', 'notification')->first();
+        
+        $subject = $template ? $template->subject : $this->subjectLine;
+        
+        // If template edited by admin, we use that template and override the subject line (if dynamic is active)
+        $htmlContent = $template ? $template->content : null;
 
-    /**
-     * Get the message content definition.
-     */
-    public function content(): Content
-    {
-        return new Content(
-            view: 'emails.notification',
-        );
+        if ($htmlContent) {
+            $html = \Illuminate\Support\Facades\Blade::render($htmlContent, [
+                'messageText' => $this->messageText
+            ]);
+            return $this->subject($subject)->html($html);
+        }
+
+        return $this->subject($subject)
+                    ->view('emails.notification');
     }
 }

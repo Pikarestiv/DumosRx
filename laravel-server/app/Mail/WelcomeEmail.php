@@ -24,38 +24,29 @@ class WelcomeEmail extends Mailable implements ShouldQueue
     {
         $this->user = $user;
         $this->storeName = $storeName;
-        // The URL for the user to login. They are hitting the front-end React app.
-        // Assuming client runs on domain root, or we can use config.
         $this->loginUrl = config('app.frontend_url', env('NEXT_PUBLIC_API_URL', 'https://rx.dumostech.com')) . '/login';
     }
 
     /**
-     * Get the message envelope.
+     * Build the message.
      */
-    public function envelope(): Envelope
+    public function build()
     {
-        return new Envelope(
-            subject: 'Welcome to DumosRx - ' . $this->storeName,
-        );
-    }
+        $template = \App\Models\EmailTemplate::where('key', 'welcome')->first();
+        
+        $subject = $template ? $template->subject : ('Welcome to DumosRx - ' . $this->storeName);
+        $htmlContent = $template ? $template->content : null;
 
-    /**
-     * Get the message content definition.
-     */
-    public function content(): Content
-    {
-        return new Content(
-            view: 'emails.welcome',
-        );
-    }
+        if ($htmlContent) {
+            $html = \Illuminate\Support\Facades\Blade::render($htmlContent, [
+                'user' => $this->user,
+                'storeName' => $this->storeName,
+                'loginUrl' => $this->loginUrl
+            ]);
+            return $this->subject($subject)->html($html);
+        }
 
-    /**
-     * Get the attachments for the message.
-     *
-     * @return array<int, \Illuminate\Mail\Mailables\Attachment>
-     */
-    public function attachments(): array
-    {
-        return [];
+        return $this->subject($subject)
+                    ->view('emails.welcome');
     }
 }

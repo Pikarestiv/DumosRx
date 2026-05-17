@@ -101,6 +101,9 @@ Route::prefix('v1')->group(function () {
             Route::get('/search', [AdminController::class, 'search']);
             Route::post('/pharmacies/{id}/impersonate', [AdminController::class, 'impersonatePharmacy']);
 
+            // Email Templates
+            Route::apiResource('email-templates', \App\Http\Controllers\Api\Admin\EmailTemplateController::class)->only(['index', 'show', 'update']);
+
             // Broadcasts
             Route::prefix('broadcasts')->middleware('subscription:broadcast_create')->group(function () {
                 Route::get('/', [BroadcastController::class, 'adminIndex']);

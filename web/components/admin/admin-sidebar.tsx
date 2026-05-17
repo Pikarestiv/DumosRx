@@ -14,7 +14,8 @@ import {
   ShieldCheck,
   Activity,
   Server,
-  Megaphone
+  Megaphone,
+  Mail
 } from "lucide-react";
 import { useAdminAuthStore } from "@/lib/store/use-admin-auth-store";
 import { useAdminStore } from "@/lib/store/use-admin-store";
@@ -28,6 +29,7 @@ const sidebarItems = [
   { id: "users", name: "Platform Users", icon: Users, href: "/admin/users" },
   { id: "products", name: "Global Products", icon: Package, href: "/admin/products" },
   { id: "broadcasts", name: "Global Broadcasts", icon: Megaphone, href: "/admin/broadcasts" },
+  { id: "email-templates", name: "Email Templates", icon: Mail, href: "/admin/email-templates" },
   { id: "system", name: "System Health", icon: Server, href: "/admin/system" },
 ];
 

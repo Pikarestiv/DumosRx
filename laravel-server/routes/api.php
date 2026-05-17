@@ -61,7 +61,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/notifications', [NotificationController::class, 'index']);
         Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
         Route::get('/broadcasts', [BroadcastController::class, 'index']);
-        Route::apiResource('staff', StaffController::class)->middleware(['can:manage-staff', 'subscription']);
+        Route::apiResource('staff', StaffController::class)->middleware(['permission:manage_staff', 'subscription']);
         Route::apiResource('stores', StoreController::class);
 
         Route::prefix('subscription')->group(function () {
@@ -80,12 +80,12 @@ Route::prefix('v1')->group(function () {
         });
 
         // Activity Logs
-        Route::get('/logs', [ActivityLogController::class, 'index'])->middleware('subscription');
+        Route::get('/logs', [ActivityLogController::class, 'index'])->middleware(['permission:view_reports', 'subscription']);
 
         // Publicly accessible within authenticated session (for impersonation return)
         Route::post('/admin/restore-session', [AdminController::class, 'restoreSession']);
 
-        Route::middleware(['can:manage-platform', 'subscription'])->prefix('admin')->group(function () {
+        Route::middleware(['permission:manage_platform', 'subscription'])->prefix('admin')->group(function () {
             Route::get('/summary', [AdminController::class, 'summary']);
             Route::get('/pharmacies', [AdminController::class, 'pharmacies']);
             Route::post('/pharmacies', [AdminController::class, 'registerPharmacy']);

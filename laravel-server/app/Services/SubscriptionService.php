@@ -26,16 +26,38 @@ class SubscriptionService
     }
 
     /**
+     * Get the owner of the subscription for a user (staff inherit from store owner)
+     */
+    public function getSubscriptionOwner(User $user)
+    {
+        // If the user owns a store, they are an owner
+        if ($user->store()->exists()) {
+            return $user;
+        }
+        
+        // If the user is staff, they have a store_id
+        if ($user->store_id) {
+            $store = \App\Models\Store::find($user->store_id);
+            if ($store && $store->user_id) {
+                return \App\Models\User::find($store->user_id) ?? $user;
+            }
+        }
+        
+        return $user;
+    }
+
+    /**
      * Check if a user has access to a specific feature
      */
     public function hasFeature(User $user, $feature)
     {
-        $sub = $user->subscriptions()->where('status', 'active')->where('end_date', '>', now())->latest()->first();
+        $owner = $this->getSubscriptionOwner($user);
+        $sub = $owner->subscriptions()->where('status', 'active')->where('end_date', '>', now())->latest()->first();
         
         if (!$sub) {
             // Check if within grace period
             $graceDays = config('plans.grace_period_days', 3);
-            $sub = $user->subscriptions()->where('status', 'active')->where('end_date', '>', now()->subDays($graceDays))->latest()->first();
+            $sub = $owner->subscriptions()->where('status', 'active')->where('end_date', '>', now()->subDays($graceDays))->latest()->first();
             
             if (!$sub) return false;
         }
@@ -51,7 +73,8 @@ class SubscriptionService
      */
     public function checkLimit(User $user, $type)
     {
-        $sub = $user->subscriptions()->where('status', 'active')->where('end_date', '>', now())->latest()->first();
+        $owner = $this->getSubscriptionOwner($user);
+        $sub = $owner->subscriptions()->where('status', 'active')->where('end_date', '>', now())->latest()->first();
         
         if (!$sub) return false;
 
@@ -63,10 +86,10 @@ class SubscriptionService
         $current = 0;
         switch ($type) {
             case 'stores':
-                $current = $user->store()->count();
+                $current = $owner->store()->count();
                 break;
             case 'staff':
-                $storeIds = \App\Models\Store::where('user_id', $user->id)->pluck('id');
+                $storeIds = \App\Models\Store::where('user_id', $owner->id)->pluck('id');
                 $current = User::whereIn('store_id', $storeIds)->count();
                 break;
         }

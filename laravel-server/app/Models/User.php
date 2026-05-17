@@ -79,4 +79,60 @@ class User extends Authenticatable
     {
         return $this->hasMany(Subscription::class);
     }
+    public function permissions()
+    {
+        return $this->belongsToMany(Permission::class);
+    }
+
+    public function hasRole($role)
+    {
+        if (is_string($role)) {
+            return ($this->userRole !== null && $this->userRole->slug === $role) || $this->role === $role;
+        }
+
+        if (is_array($role)) {
+            return ($this->userRole !== null && in_array($this->userRole->slug, $role)) || in_array($this->role, $role);
+        }
+
+        return false;
+    }
+
+    public function hasPermission($permissionSlug)
+    {
+        // Check direct permission first
+        if ($this->permissions()->where('slug', $permissionSlug)->exists()) {
+            return true;
+        }
+
+        // Check through role relation
+        if ($this->userRole) {
+            return $this->userRole->permissions()->where('slug', $permissionSlug)->exists();
+        }
+
+        // Fallback to role string column
+        if ($this->role) {
+            $role = Role::where('slug', $this->role)->first();
+            if ($role) {
+                return $role->permissions()->where('slug', $permissionSlug)->exists();
+            }
+        }
+
+        return false;
+    }
+
+    public function givePermissionTo($permissionSlug)
+    {
+        $permission = Permission::where('slug', $permissionSlug)->first();
+        if ($permission) {
+            $this->permissions()->syncWithoutDetaching([$permission->id]);
+        }
+    }
+
+    public function revokePermissionTo($permissionSlug)
+    {
+        $permission = Permission::where('slug', $permissionSlug)->first();
+        if ($permission) {
+            $this->permissions()->detach($permission->id);
+        }
+    }
 }

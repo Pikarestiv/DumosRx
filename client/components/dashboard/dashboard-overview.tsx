@@ -19,6 +19,7 @@ import { DashboardStats } from "./dashboard-stats";
 import { DashboardRecentActivity } from "./dashboard-recent-activity";
 import { DashboardQuickActions } from "./dashboard-quick-actions";
 import { EODSummaryDialog } from "./eod-summary-dialog";
+import { DashboardActionCenter } from "./dashboard-action-center";
 import { useState } from "react";
 
 interface ActivityItem {
@@ -189,6 +190,11 @@ export function DashboardOverview() {
           Monitor your {t('store').toLowerCase()} operations and key metrics
         </p>
       </div>
+
+      <DashboardActionCenter 
+        expiringCount={stats.expiringSoon}
+        lowStockCount={stats.lowStockCount}
+      />
 
       <DashboardStats statsCards={statsCards} />
 

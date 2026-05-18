@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useLocalData } from "@/lib/db/hooks/useLocalData";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -23,8 +24,12 @@ import { toast } from "sonner";
 import { APP_NAME } from "@/lib/constants";
 
 export function QuickSetupWizard() {
-  const { isInitialized, updateStoreProfile } = useStore();
+  const { isInitialized, updateStoreProfile, loading: storeLoading } = useStore();
   const { isAuthenticated } = useAuthStore();
+  const { data: recordCounts, loading: dataLoading } = useLocalData<{ total: number }>(
+    "SELECT (SELECT COUNT(*) FROM medicines) + (SELECT COUNT(*) FROM sales) as total"
+  );
+
   const [step, setStep] = useState(1);
   const [storeType, setStoreType] = useState<StoreType>("pharmacy");
   const [storeName, setStoreName] = useState("");
@@ -48,7 +53,11 @@ export function QuickSetupWizard() {
     toast.success(`Welcome to ${APP_NAME}! Setup complete.`);
   };
 
-  if (isInitialized || !isAuthenticated) return null;
+  if (storeLoading || dataLoading) return null;
+
+  const totalRecords = recordCounts[0]?.total || 0;
+  
+  if (isInitialized || !isAuthenticated || totalRecords > 0) return null;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

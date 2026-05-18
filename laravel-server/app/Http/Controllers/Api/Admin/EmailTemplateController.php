@@ -36,8 +36,8 @@ class EmailTemplateController extends Controller
         ]);
 
         $template->update([
-            'subject' => $request->subject,
-            'content' => $request->content
+            'subject' => $request->input('subject'),
+            'content' => $request->input('content')
         ]);
 
         return response()->json([

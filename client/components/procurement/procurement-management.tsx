@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { CreatePODialog } from "@/components/procurement/create-po-dialog";
 import { ProcurementStats } from "./procurement-stats";
 import { PurchaseOrderTable } from "./purchase-order-table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SupplierManagement } from "@/components/inventory/supplier-management";
 
 export function ProcurementManagement() {
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
@@ -52,23 +54,36 @@ export function ProcurementManagement() {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="font-serif font-bold text-3xl text-foreground">Procurement</h1>
+          <h1 className="font-serif font-bold text-3xl text-foreground">Procurement & Vendors</h1>
           <p className="text-muted-foreground">Manage vendor purchase orders and inventory replenishment</p>
         </div>
         <CreatePODialog onPOCreated={fetchPurchaseOrders} />
       </div>
 
-      <ProcurementStats purchaseOrders={purchaseOrders} />
+      <Tabs defaultValue="orders" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2 max-w-md">
+          <TabsTrigger value="orders">Purchase Orders</TabsTrigger>
+          <TabsTrigger value="vendors">Vendors Directory</TabsTrigger>
+        </TabsList>
 
-      <PurchaseOrderTable 
-        orders={filteredOrders}
-        loading={loading}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        onReceivePO={handleReceivePO}
-      />
+        <TabsContent value="orders" className="space-y-6">
+          <ProcurementStats purchaseOrders={purchaseOrders} />
+          
+          <PurchaseOrderTable 
+            orders={filteredOrders}
+            loading={loading}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            onReceivePO={handleReceivePO}
+          />
+        </TabsContent>
+
+        <TabsContent value="vendors">
+          <SupplierManagement />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

@@ -58,20 +58,18 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const navigationItems = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { 
-      name: `${t('products')} Database`, 
-      href: "/medicines", 
+      name: `Inventory & ${t('products')}`, 
+      href: "/inventory", 
       icon: storeType === 'pharmacy' ? Pill : ShoppingBasket 
     },
-    { name: "Inventory", href: "/inventory", icon: Package },
     { name: "Point of Sale", href: "/pos", icon: ShoppingCart },
     ...(storeType === 'pharmacy' 
       ? [{ name: "Prescriptions", href: "/prescriptions", icon: FileText }] 
       : []),
     { name: "Customers", href: "/customers", icon: Users },
     ...((isAdmin || isPharmacist) ? [
-      { name: "Procurement", href: "/procurement", icon: ClipboardList },
+      { name: "Procurement & Vendors", href: "/procurement", icon: ClipboardList },
       { name: "Expenses", href: "/expenses", icon: Wallet },
-      { name: "Vendors", href: "/vendors", icon: Truck },
       { name: "Reports & Analytics", href: "/reports", icon: BarChart3 },
     ] : []),
     ...((isAdmin || isPharmacist) ? [{ name: "Settings", href: "/settings", icon: Settings }] : []),

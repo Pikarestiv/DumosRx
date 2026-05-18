@@ -57,22 +57,27 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const navigationItems = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-    { 
-      name: `Inventory & ${t('products')}`, 
-      href: "/inventory", 
-      icon: storeType === 'pharmacy' ? Pill : ShoppingBasket 
+    {
+      name: `Inventory & ${t("products")}`,
+      href: "/inventory",
+      icon: storeType === "pharmacy" ? Pill : ShoppingBasket,
     },
     { name: "Point of Sale", href: "/pos", icon: ShoppingCart },
-    ...(storeType === 'pharmacy' 
-      ? [{ name: "Prescriptions", href: "/prescriptions", icon: FileText }] 
+    ...(storeType === "pharmacy"
+      ? [{ name: "Prescriptions", href: "/prescriptions", icon: FileText }]
       : []),
     { name: "Customers", href: "/customers", icon: Users },
-    ...((isAdmin || isPharmacist) ? [
-      { name: "Procurement & Vendors", href: "/procurement", icon: ClipboardList },
-      { name: "Expenses", href: "/expenses", icon: Wallet },
-      { name: "Reports & Analytics", href: "/reports", icon: BarChart3 },
-    ] : []),
-    ...((isAdmin || isPharmacist) ? [{ name: "Settings", href: "/settings", icon: Settings }] : []),
+    ...(isAdmin || isPharmacist
+      ? [
+          {
+            name: "Procurement & Vendors",
+            href: "/procurement",
+            icon: ClipboardList,
+          },
+          { name: "Expenses", href: "/expenses", icon: Wallet },
+          { name: "Reports & Analytics", href: "/reports", icon: BarChart3 },
+        ]
+      : []),
   ];
 
   return (
@@ -91,14 +96,18 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           "fixed inset-y-0 left-0 z-50 w-64 bg-sidebar border-r border-sidebar-border transform transition-transform duration-200 ease-in-out lg:translate-x-0",
           sidebarOpen ? "translate-x-0" : "-translate-x-full",
         )}
-        style={{ top: "var(--tauri-top, 0px)", height: "calc(100vh - var(--tauri-top, 0px))" }}
+        style={{
+          top: "var(--tauri-top, 0px)",
+          height: "calc(100vh - var(--tauri-top, 0px))",
+        }}
       >
         <div className="flex items-center gap-3 h-16 px-6 border-b border-sidebar-border">
-          <img 
-            src="/logo.png" 
-            alt="DumosRx Logo" 
-            className="h-8 w-auto object-contain transition-all duration-500" 
-            style={{ filter: 'var(--logo-filter)' }}          />
+          <img
+            src="/logo.png"
+            alt="DumosRx Logo"
+            className="h-8 w-auto object-contain transition-all duration-500"
+            style={{ filter: "var(--logo-filter)" }}
+          />
           <div className="flex-1" />
           <Button
             variant="ghost"
@@ -130,28 +139,42 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               </Link>
             );
           })}
+
+          {(isAdmin || isPharmacist) && (
+            <Link
+              href="/settings"
+              onClick={() => setSidebarOpen(false)}
+              className={cn(
+                "flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors",
+                pathname.startsWith("/settings")
+                  ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20 cursor-default"
+                  : "text-sidebar-foreground hover:bg-primary/50 hover:text-primary-foreground",
+              )}
+            >
+              <Settings className="h-4 w-4" />
+              Settings
+            </Link>
+          )}
+
+          <button
+            onClick={() => setFeedbackOpen(true)}
+            className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors text-sidebar-foreground hover:bg-primary/50 hover:text-primary-foreground cursor-pointer"
+          >
+            <MessageSquare className="h-4 w-4" />
+            Help & Feedback
+          </button>
+
+          <button
+            onClick={logout}
+            className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors text-sidebar-foreground hover:bg-primary/50 hover:text-primary-foreground cursor-pointer"
+          >
+            <LogOut className="h-4 w-4" />
+            Sign Out
+          </button>
         </nav>
 
-        <SyncIndicator />
-
-        <div className="p-4 border-t border-sidebar-border space-y-1">
-          <Button
-            variant="ghost"
-            className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer"
-            onClick={() => setFeedbackOpen(true)}
-          >
-            <MessageSquare className="h-4 w-4 mr-3" />
-            Help & Feedback
-          </Button>
-
-          <Button
-            variant="ghost"
-            className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer"
-            onClick={logout}
-          >
-            <LogOut className="h-4 w-4 mr-3" />
-            Sign Out
-          </Button>
+        <div className="border-t border-sidebar-border bg-sidebar">
+          <SyncIndicator />
         </div>
       </div>
 
@@ -160,9 +183,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* Main content */}
       <div className="lg:pl-64 flex flex-col min-h-screen">
         <BroadcastBanner />
-        
+
         {/* Top header */}
-        <header 
+        <header
           className="h-16 bg-background border-b border-border flex items-center justify-between px-6 sticky z-40"
           style={{ top: "var(--tauri-top, 0px)" }}
         >
@@ -175,7 +198,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             >
               <Menu className="h-4 w-4" />
             </Button>
-            
+
             <h1 className="font-serif font-black text-xl text-foreground truncate">
               {storeProfile?.name || APP_NAME}
             </h1>

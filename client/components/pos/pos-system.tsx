@@ -357,9 +357,9 @@ export function POSSystem() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-4">
             <Tabs defaultValue="products" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-4">
-                <TabsTrigger value="products">Products</TabsTrigger>
-                <TabsTrigger value="history">Recent Transactions</TabsTrigger>
+              <TabsList className="bg-muted/50 p-1 h-auto flex-wrap justify-start mb-4">
+                <TabsTrigger value="products" className="px-4 py-2">Products</TabsTrigger>
+                <TabsTrigger value="history" className="px-4 py-2">Recent Transactions</TabsTrigger>
               </TabsList>
               
               <TabsContent value="products" className="space-y-4">

@@ -42,12 +42,12 @@ export function InventoryManagement() {
       />
 
       <Tabs defaultValue="products" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="products" className="capitalize">{t('products')} Database</TabsTrigger>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="batches">Batches & Expiry</TabsTrigger>
-          <TabsTrigger value="movements">Stock Movements</TabsTrigger>
-          <TabsTrigger value="adjustments">Adjustments</TabsTrigger>
+        <TabsList className="bg-muted/50 p-1 h-auto flex-wrap justify-start">
+          <TabsTrigger value="products" className="px-4 py-2 capitalize">{t('products')} Database</TabsTrigger>
+          <TabsTrigger value="overview" className="px-4 py-2">Overview</TabsTrigger>
+          <TabsTrigger value="batches" className="px-4 py-2">Batches & Expiry</TabsTrigger>
+          <TabsTrigger value="movements" className="px-4 py-2">Stock Movements</TabsTrigger>
+          <TabsTrigger value="adjustments" className="px-4 py-2">Adjustments</TabsTrigger>
         </TabsList>
 
         <TabsContent value="products">

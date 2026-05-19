@@ -82,14 +82,14 @@ export function POSSystem() {
     loading: loadingMedicines,
     refetch: refetchMedicines,
   } = useLocalData<Medicine>(
-    'SELECT * FROM medicines WHERE status = "active" AND _deleted = 0 ORDER BY name ASC',
+    'SELECT * FROM medicines WHERE _deleted = 0 ORDER BY name ASC',
     [],
     {
       transform: (m: any) => ({
         id: m.id,
         name: m.name,
         generic_name: m.generic_name || "",
-        brand: m.brand || "",
+        brand: m.brand_name || m.brand || "",
         strength: m.strength || "",
         unit_price: m.selling_price || 0,
         stock: m.stock_quantity || 0,

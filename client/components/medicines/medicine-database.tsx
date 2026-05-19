@@ -157,7 +157,7 @@ export function MedicineDatabase() {
       // Create locally
       const localPayload = {
         ...payload,
-        is_active: payload.status === "active" ? 1 : 0,
+        is_active: payload.status === "inactive" ? 0 : 1,
       };
       delete localPayload.status;
 
@@ -288,7 +288,7 @@ export function MedicineDatabase() {
                   Active {t('products')}
                 </p>
                 <p className="text-2xl font-bold">
-                  {medicines.filter((m) => m.status === "active").length}
+                  {medicines.filter((m) => m.status !== "expired").length}
                 </p>
               </div>
               <div className="h-8 w-8 bg-primary/10 rounded-full flex items-center justify-center">

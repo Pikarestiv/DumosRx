@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
 import { useLocalData } from "@/lib/db/hooks/useLocalData";
+import { useInventoryStats } from "@/lib/hooks/use-inventory-stats";
 
 import { useStore } from "@/lib/context/store-context";
 
@@ -29,21 +30,27 @@ export function BatchTracking() {
   const { storeProfile } = useStore();
   const expiryThreshold = storeProfile?.expiry_warning_days || 90;
 
+  // Shared stats hook — single source of truth for expiry/expired counts
+  const stats = useInventoryStats();
+
+  // Medicines with expiry_date — the real batch-like view
   const { data: batches, loading } = useLocalData<any>(
-    `SELECT i.*, m.name as medicine_name, m.brand as medicine_brand 
-     FROM inventory i 
-     JOIN medicines m ON i.medicine_id = m.id 
-     WHERE i._deleted = 0 
-     ORDER BY i.expiry_date ASC`
+    `SELECT 
+      id, name as medicine_name, brand_name as medicine_brand,
+      batch_number, expiry_date, stock_quantity as quantity
+     FROM medicines
+     WHERE _deleted = 0
+     ORDER BY expiry_date ASC`
   );
 
   const filteredBatches = batches.filter(
     (b) =>
-      b.medicine_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      b.batch_number.toLowerCase().includes(searchTerm.toLowerCase())
+      b.medicine_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (b.batch_number || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const getExpiryStatus = (date: string) => {
+    if (!date) return { label: "No Date", variant: "secondary" as const };
     const days = Math.ceil(
       (new Date(date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
     );
@@ -53,29 +60,15 @@ export function BatchTracking() {
     return { label: "Healthy", variant: "default" as const };
   };
 
-  const expiringSoonCount = batches.filter((b) => {
-    const days = Math.ceil(
-      (new Date(b.expiry_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
-    );
-    return days > 0 && days <= expiryThreshold;
-  }).length;
-
-  const expiredCount = batches.filter((b) => {
-    const days = Math.ceil(
-      (new Date(b.expiry_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
-    );
-    return days <= 0;
-  }).length;
-
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="bg-destructive/5 border-destructive/20">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-destructive">Expired Batches</CardTitle>
+            <CardTitle className="text-sm font-medium text-destructive">Expired Medicines</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-destructive">{expiredCount}</div>
+            <div className="text-2xl font-bold text-destructive">{stats.expiredCount}</div>
             <p className="text-xs text-muted-foreground mt-1">Requires immediate disposal</p>
           </CardContent>
         </Card>
@@ -85,17 +78,17 @@ export function BatchTracking() {
             <CardTitle className="text-sm font-medium text-orange-600">Expiring Soon ({expiryThreshold}d)</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{expiringSoonCount}</div>
+            <div className="text-2xl font-bold text-orange-600">{stats.expiringSoonCount}</div>
             <p className="text-xs text-muted-foreground mt-1">Monitor these items closely</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-primary">Total Active Batches</CardTitle>
+            <CardTitle className="text-sm font-medium text-primary">Total Products Tracked</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{batches.length}</div>
+            <div className="text-2xl font-bold">{stats.totalMedicines}</div>
             <p className="text-xs text-muted-foreground mt-1">Across all medicines</p>
           </CardContent>
         </Card>

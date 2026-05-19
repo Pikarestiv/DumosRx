@@ -1,14 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLocalData } from "@/lib/db/hooks/useLocalData";
+import { useInventoryStats } from "@/lib/hooks/use-inventory-stats";
 import { useStore } from "@/lib/context/store-context";
 import { InventoryMetrics } from "./inventory-metrics";
 import { StockStatusList } from "./stock-status-list";
@@ -30,36 +27,25 @@ interface StockItem {
 
 export function StockOverview() {
   const { storeProfile } = useStore();
-  const expiryThreshold = storeProfile?.expiry_warning_days || 90;
 
-  // 1. Fetch main inventory list
-  const { data: inventoryData, loading: inventoryLoading } = useLocalData<any>(
-    `SELECT i.*, m.name as medicine_name, m.reorder_level as m_reorder_level
-     FROM inventory i 
-     JOIN medicines m ON i.medicine_id = m.id 
-     WHERE i._deleted = 0 
-     ORDER BY i.created_at DESC LIMIT 20`
-  );
+  // Shared stats hook — single source of truth for all stat cards
+  const stats = useInventoryStats();
 
-  // 2. Fetch aggregate metrics
-  const { data: metricsData } = useLocalData<any>(
+  // Stock list — read from medicines directly (medicines is the stock ledger)
+  const { data: stockData, loading: stockLoading } = useLocalData<any>(
     `SELECT 
-      SUM(quantity * cost_price) as total_value,
-      COUNT(CASE WHEN quantity <= (SELECT reorder_level FROM medicines WHERE id = inventory.medicine_id) * 0.5 THEN 1 END) as critical_count,
-      COUNT(CASE WHEN quantity <= (SELECT reorder_level FROM medicines WHERE id = inventory.medicine_id) THEN 1 END) as low_stock_count,
-      COUNT(CASE WHEN date(expiry_date) <= date('now', '+' || ? || ' days') AND date(expiry_date) >= date('now') THEN 1 END) as expiring_count
-     FROM inventory WHERE _deleted = 0`,
-    [expiryThreshold]
+      id, name as medicine_name, brand_name, batch_number, expiry_date,
+      stock_quantity as quantity, reorder_level, cost_price, selling_price
+     FROM medicines
+     WHERE _deleted = 0
+     ORDER BY stock_quantity ASC
+     LIMIT 50`,
   );
 
-  const metrics = metricsData?.[0] || {
-    total_value: 0,
-    critical_count: 0,
-    low_stock_count: 0,
-    expiring_count: 0
-  };
-
-  const getStatus = (quantity: number, reorderLevel: number): StockItem["status"] => {
+  const getStatus = (
+    quantity: number,
+    reorderLevel: number,
+  ): StockItem["status"] => {
     if (quantity === 0) return "critical";
     if (quantity <= reorderLevel * 0.5) return "critical";
     if (quantity <= reorderLevel) return "low";
@@ -67,15 +53,15 @@ export function StockOverview() {
     return "healthy";
   };
 
-  const stockItems: StockItem[] = inventoryData.map(item => ({
+  const stockItems: StockItem[] = stockData.map((item) => ({
     ...item,
-    reorder_level: item.m_reorder_level || 10,
+    medicine_id: item.id,
     unit_price: item.selling_price || 0,
     unit_cost: item.cost_price || 0,
-    status: getStatus(item.quantity, item.m_reorder_level || 10)
+    status: getStatus(item.quantity, item.reorder_level || 10),
   }));
 
-  const loading = inventoryLoading;
+  const loading = stockLoading || stats.loading;
   const [selectedMedicine, setSelectedMedicine] = useState<any>(null);
 
   const formatCurrency = (amount: number) => {
@@ -161,33 +147,35 @@ export function StockOverview() {
 
   return (
     <div className="space-y-6">
-      <InventoryMetrics 
-        inventoryValue={metrics.total_value}
-        criticalItems={metrics.critical_count}
-        lowStockCount={metrics.low_stock_count}
-        expiringCount={metrics.expiring_count}
+      <InventoryMetrics
+        inventoryValue={stats.totalInventoryValue}
+        criticalItems={stats.criticalStockCount}
+        lowStockCount={stats.lowStockCount}
+        expiringCount={stats.expiringSoonCount}
         formatCurrency={formatCurrency}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <StockStatusList 
+        <StockStatusList
           stockData={stockItems}
           formatCurrency={formatCurrency}
           getStatusBadge={getStatusBadge}
-          onPrintBarcode={(item) => setSelectedMedicine({
-            id: item.id,
-            name: item.medicine_name,
-            unit_price: item.unit_price
-          })}
+          onPrintBarcode={(item) =>
+            setSelectedMedicine({
+              id: item.id,
+              name: item.medicine_name,
+              unit_price: item.unit_price,
+            })
+          }
         />
 
-        <InventoryQuickActions 
-          criticalItems={metrics.critical_count}
-          lowStockCount={metrics.low_stock_count}
+        <InventoryQuickActions
+          criticalItems={stats.criticalStockCount}
+          lowStockCount={stats.lowStockCount}
         />
       </div>
 
-      <BarcodePrintDialog 
+      <BarcodePrintDialog
         isOpen={!!selectedMedicine}
         onClose={() => setSelectedMedicine(null)}
         medicine={selectedMedicine}

@@ -13,6 +13,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { useLocalData } from "@/lib/db/hooks/useLocalData";
+import { useInventoryStats } from "@/lib/hooks/use-inventory-stats";
 import { useStore } from "@/lib/context/store-context";
 import { useAuth } from "@/lib/context/auth-context";
 import { DashboardStats } from "./dashboard-stats";
@@ -34,9 +35,8 @@ export function DashboardOverview() {
   const { user } = useAuth();
   const [showEOD, setShowEOD] = useState(false);
   
-  const { data: medicines } = useLocalData<{ count: number }>(
-    'SELECT COUNT(*) as count FROM medicines WHERE is_active = 1 AND _deleted = 0',
-  );
+  // Single source of truth for all inventory-related stat cards
+  const inventoryStats = useInventoryStats();
 
   const { data: salesToday } = useLocalData<{ total: number; count: number; cash: number; card: number; debt: number }>(
     `SELECT 
@@ -59,29 +59,17 @@ export function DashboardOverview() {
      LIMIT 1`
   );
 
-  const expiryDays = storeProfile?.expiry_warning_days || 30;
-
-  const { data: expiring } = useLocalData<{ count: number }>(
-    `SELECT (
-      (SELECT COUNT(*) FROM medicines WHERE date(expiry_date) <= date('now', '+' || ? || ' days') AND _deleted = 0) +
-      (SELECT COUNT(*) FROM inventory WHERE date(expiry_date) <= date('now', '+' || ? || ' days') AND _deleted = 0)
-    ) as count`,
-    [expiryDays, expiryDays]
-  );
-
-  const { data: lowStock } = useLocalData<{ count: number }>(
-    "SELECT COUNT(*) as count FROM medicines WHERE stock_quantity <= reorder_level AND _deleted = 0",
-  );
-
   const { data: recentSales } = useLocalData<any>(
     "SELECT * FROM sales WHERE _deleted = 0 ORDER BY created_at DESC LIMIT 5"
   );
 
+  const expiryDays = storeProfile?.expiry_warning_days || 30;
+
   const stats = {
-    totalMedicines: medicines[0]?.count || 0,
+    totalMedicines: inventoryStats.activeMedicines,
     dailySalesRevenue: salesToday[0]?.total || 0,
-    expiringSoon: expiring[0]?.count || 0,
-    lowStockCount: lowStock[0]?.count || 0,
+    expiringSoon: inventoryStats.expiringSoonCount,
+    lowStockCount: inventoryStats.lowStockCount,
   };
 
   const eodSummary = {
@@ -152,7 +140,7 @@ export function DashboardOverview() {
     },
   ];
 
-  if (!medicines.length && !salesToday.length) {
+  if (inventoryStats.loading && !salesToday.length) {
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

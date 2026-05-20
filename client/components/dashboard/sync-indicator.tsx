@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Cloud, CloudOff, RefreshCw, AlertCircle, ArrowRight, ShieldAlert } from "lucide-react";
+import { Cloud, CloudOff, RefreshCw, AlertCircle, ArrowRight } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -15,7 +15,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -82,10 +81,10 @@ export function SyncIndicator() {
     } catch (err: any) {
       console.error("Manual sync failed:", err);
       setStatus("error");
-      setErrorMessage(err.message?.includes("Unauthenticated") 
-        ? "Cloud Account Unauthenticated. Please re-link in settings." 
+      setErrorMessage(err.message?.includes("Unauthenticated")
+        ? "Cloud Account Unauthenticated. Please re-link in settings."
         : "Sync failed. Check your connection.");
-      
+
       if (err.message?.includes("Unauthenticated") || err.message?.includes("401")) {
         setShowAuthModal(true);
       }
@@ -123,15 +122,16 @@ export function SyncIndicator() {
                             : "Not Linked"}
                   </span>
                 </div>
+
                 <button
                   onClick={handleManualSync}
                   disabled={isSyncInProgress || status === "offline"}
-                  className="p-1.5 hover:bg-sidebar-accent rounded-lg transition-colors disabled:opacity-30 cursor-pointer border border-transparent hover:border-sidebar-border"
+                  className="p-1.5 bg-sidebar-accent rounded-lg transition-colors disabled:opacity-30 cursor-pointer border border-transparent hover:border-sidebar-border"
                   title="Sync Now"
                 >
                   <RefreshCw
                     className={cn(
-                      "h-3 w-3 text-sidebar-foreground/60",
+                      "h-3 w-3 text-sidebar-foreground/60 !flex",
                       isSyncInProgress && "animate-spin",
                     )}
                   />
@@ -154,15 +154,15 @@ export function SyncIndicator() {
             <div className="space-y-1">
               <p className="text-xs font-bold">Cloud Sync Engine</p>
               <p className="text-[10px] text-muted-foreground leading-relaxed">
-                  {isSyncInProgress
-                    ? "Syncing your changes to the cloud..."
-                    : status === "offline"
-                      ? "Offline mode. Changes are saved locally."
-                      : status === "error"
-                        ? errorMessage || "Sync failed. Please try again."
-                        : isLinked
-                          ? "Your data is securely backed up to the DumosRx cloud."
-                          : "Connect your cloud account to enable automatic backups and sync."}
+                {isSyncInProgress
+                  ? "Syncing your changes to the cloud..."
+                  : status === "offline"
+                    ? "Offline mode. Changes are saved locally."
+                    : status === "error"
+                      ? errorMessage || "Sync failed. Please try again."
+                      : isLinked
+                        ? "Your data is securely backed up to the DumosRx cloud."
+                        : "Connect your cloud account to enable automatic backups and sync."}
               </p>
             </div>
           </TooltipContent>
@@ -181,7 +181,7 @@ export function SyncIndicator() {
                   Connection Expired
                 </DialogTitle>
                 <DialogDescription className="mt-2 text-sm leading-relaxed">
-                  Your cloud session has timed out. 
+                  Your cloud session has timed out.
                   Synchronization is <span className="text-destructive font-medium">paused</span> until you re-link.
                 </DialogDescription>
               </div>
@@ -190,13 +190,13 @@ export function SyncIndicator() {
             <div className="mt-6 space-y-6">
               <div className="bg-muted/30 rounded-lg p-4 border border-white/5">
                 <p className="text-xs text-muted-foreground leading-relaxed text-center">
-                  For your security, cloud sessions expire periodically. 
+                  For your security, cloud sessions expire periodically.
                   Relinking restores your automatic backups and cross-device sync.
                 </p>
               </div>
 
               <div className="flex flex-col gap-2">
-                <Button 
+                <Button
                   className="h-11 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-lg shadow-primary/20"
                   onClick={() => {
                     setShowAuthModal(false);
@@ -206,8 +206,8 @@ export function SyncIndicator() {
                   Re-link Cloud Account
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
-                <Button 
-                  variant="ghost" 
+                <Button
+                  variant="ghost"
                   className="h-11 rounded-lg text-muted-foreground hover:text-foreground"
                   onClick={() => setShowAuthModal(false)}
                 >

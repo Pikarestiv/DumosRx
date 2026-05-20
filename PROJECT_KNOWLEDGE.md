@@ -119,7 +119,7 @@ Enhanced security and visibility for user access.
 - **Active Session Tracking**: View and manage active sessions per user.
 - **Device Management**: Identity verification for new devices and "Logout all" functionality.
 - **Security Alerts**: Notifications for suspicious login attempts or account changes.
-- **Offline Auth Challenge**: Implement robust Device Tokens + Local App Lock for seamless offline-first experience.
+- **Offline Auth Challenge**: *(DONE)* Implemented robust Sliding Window Token Refresh (30-day absolute expiry, 7-day silent refresh threshold).
 
 ### 4. Global Broadcast System *(DONE)*
 Real-time communication with all platform users.

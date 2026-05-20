@@ -3,6 +3,8 @@ import { API_BASE_URL } from "../constants";
 class ApiClient {
   private baseURL: string;
   private token: string | null = null;
+  private refreshPromise: Promise<void> | null = null;
+  private readonly REFRESH_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
   constructor() {
     this.baseURL = process.env.NEXT_PUBLIC_API_URL || API_BASE_URL;
@@ -17,6 +19,7 @@ class ApiClient {
     this.token = token;
     if (typeof window !== "undefined") {
       localStorage.setItem("auth_token", token);
+      localStorage.setItem("auth_token_issued_at", Date.now().toString());
     }
   }
 
@@ -24,13 +27,64 @@ class ApiClient {
     this.token = null;
     if (typeof window !== "undefined") {
       localStorage.removeItem("auth_token");
+      localStorage.removeItem("auth_token_issued_at");
     }
+  }
+
+  private async refreshTokenSilently(): Promise<void> {
+    if (this.refreshPromise) {
+      return this.refreshPromise;
+    }
+
+    this.refreshPromise = (async () => {
+      try {
+        const url = `${this.baseURL}/refresh`;
+        const currentToken = typeof window !== "undefined" ? localStorage.getItem("auth_token") || this.token : this.token;
+        
+        if (!currentToken) return;
+
+        const response = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            Authorization: `Bearer ${currentToken}`,
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.token) {
+            this.setToken(data.token);
+          }
+        } else {
+          this.clearToken();
+        }
+      } catch (error) {
+        console.error("Silent token refresh failed:", error);
+      } finally {
+        this.refreshPromise = null;
+      }
+    })();
+
+    return this.refreshPromise;
   }
 
   private async request<T>(
     endpoint: string,
     options: RequestInit = {},
   ): Promise<T> {
+    // Intercept to silently refresh token if it's older than 7 days
+    if (typeof window !== "undefined" && !endpoint.includes("/login") && !endpoint.includes("/refresh")) {
+      const issuedAtStr = localStorage.getItem("auth_token_issued_at");
+      if (issuedAtStr && navigator.onLine) {
+        const issuedAt = parseInt(issuedAtStr, 10);
+        if (Date.now() - issuedAt > this.REFRESH_THRESHOLD_MS) {
+          await this.refreshTokenSilently();
+        }
+      }
+    }
+
     const url = `${this.baseURL}${endpoint}`;
 
     // Dynamic token retrieval for client-side

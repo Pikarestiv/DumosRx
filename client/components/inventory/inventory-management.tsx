@@ -8,6 +8,7 @@ import { MedicineDatabase } from "@/components/medicines/medicine-database"
 import { Button } from "@/components/ui/button"
 import { ClipboardCheck } from "lucide-react"
 import { useState } from "react"
+import { useSearchParams } from "next/navigation"
 import { StockAuditDialog } from "./stock-audit-dialog"
 import { ExpiringBatchesAlert } from "./expiring-batches-alert"
 import { useStore } from "@/lib/context/store-context"
@@ -15,6 +16,11 @@ import { useStore } from "@/lib/context/store-context"
 export function InventoryManagement() {
   const [isAuditOpen, setIsAuditOpen] = useState(false)
   const { t } = useStore()
+  const searchParams = useSearchParams()
+
+  // If navigated here with ?action=add or ?status=low_stock, land on the products tab
+  const hasProductsParam = searchParams.get("action") === "add" || !!searchParams.get("status")
+  const defaultTab = hasProductsParam ? "products" : "products"
 
   return (
     <div className="space-y-6">
@@ -41,7 +47,7 @@ export function InventoryManagement() {
         onClose={() => setIsAuditOpen(false)} 
       />
 
-      <Tabs defaultValue="products" className="space-y-6">
+      <Tabs defaultValue={defaultTab} className="space-y-6">
         <TabsList className="bg-muted/50 p-1 h-auto flex-wrap justify-start">
           <TabsTrigger value="products" className="px-4 py-2 capitalize">{t('products')} Database</TabsTrigger>
           <TabsTrigger value="overview" className="px-4 py-2">Overview</TabsTrigger>

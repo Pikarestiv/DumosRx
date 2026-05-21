@@ -43,7 +43,7 @@ export function DashboardQuickActions({
       <CardContent>
         <div className="grid grid-cols-2 gap-3">
           <Link
-            href="/medicines?action=add"
+            href="/inventory?action=add"
             className="p-4 bg-accent text-accent-foreground rounded-lg hover:bg-accent/90 transition-colors flex flex-col items-center justify-center text-center cursor-pointer"
           >
             <Package className="h-6 w-6 mb-2" />
@@ -64,7 +64,7 @@ export function DashboardQuickActions({
             <span className="text-sm font-medium">Check Expiry</span>
           </Link>
           <Link
-            href="/medicines?status=low_stock"
+            href="/inventory?status=low_stock"
             className="p-4 bg-orange-500/10 text-orange-600 rounded-lg hover:bg-orange-500/20 transition-colors flex flex-col items-center justify-center text-center cursor-pointer border border-orange-200"
           >
             <TrendingUp className="h-6 w-6 mb-2" />

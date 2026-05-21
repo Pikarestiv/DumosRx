@@ -4,31 +4,17 @@ import { useEffect, useState } from "react";
 import {
   Search,
   Filter,
-  MoreVertical,
-  ExternalLink,
-  CreditCard,
-  History,
-  Ban,
-  Mail,
   ChevronLeft,
   ChevronRight,
   Download,
-  Store as StoreIcon,
   Loader2,
   ShieldAlert,
   Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,14 +27,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useAdminPharmacies, useSuspendPharmacyMutation, useImpersonatePharmacyMutation } from "@/lib/api/admin-hooks";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useDebounce } from "@/hooks/use-debounce";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { PharmacyTable } from "@/components/admin/pharmacies/pharmacy-table";
+import { SuspendPharmacyDialog } from "@/components/admin/pharmacies/pharmacy-dialogs";
 import { toast } from "sonner";
 import { AdminSkeleton } from "@/components/admin/admin-skeleton";
 
@@ -260,164 +240,15 @@ export default function PharmaciesManagement() {
                 </Button>
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow className="hover:bg-transparent border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
-                    <TableHead className="font-bold text-[10px] uppercase text-slate-400 pl-6 h-12">
-                      Pharmacy Details
-                    </TableHead>
-                    <TableHead className="font-bold text-[10px] uppercase text-slate-400 h-12">
-                      Owner & Contact
-                    </TableHead>
-                    <TableHead className="font-bold text-[10px] uppercase text-slate-400 text-center h-12">
-                      Subscription
-                    </TableHead>
-                    <TableHead className="font-bold text-[10px] uppercase text-slate-400 text-center h-12">
-                      Fleet Size
-                    </TableHead>
-                    <TableHead className="font-bold text-[10px] uppercase text-slate-400 text-right h-12">
-                      Total Revenue
-                    </TableHead>
-                    <TableHead className="font-bold text-[10px] uppercase text-slate-400 text-center h-12">
-                      Status
-                    </TableHead>
-                    <TableHead className="w-[80px] h-12"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {pharmacyList.map((pharmacy: any) => (
-                    <TableRow
-                      key={pharmacy.id}
-                      className="border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 group transition-colors"
-                    >
-                      <TableCell className="pl-6 py-5">
-                        <div className="flex items-center gap-4">
-                          <div className="h-10 w-10 rounded-xl bg-indigo-500/10 flex items-center justify-center font-black text-indigo-500 border border-indigo-500/20 text-xs">
-                            {pharmacy.name.charAt(0)}
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="font-bold text-slate-900 dark:text-slate-100 group-hover:text-indigo-600 transition-colors">
-                              {pharmacy.name}
-                            </span>
-                            <span className="text-[10px] font-mono text-slate-400 uppercase tracking-tighter">
-                              {pharmacy.id}
-                            </span>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col">
-                          <span className="font-bold text-sm text-slate-700 dark:text-slate-300">
-                            {pharmacy.owner}
-                          </span>
-                          <div className="flex items-center gap-1 text-[10px] text-slate-400">
-                            <Mail className="h-3 w-3" />
-                            {pharmacy.email}
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <div className="flex flex-col items-center">
-                          <Badge
-                            variant="outline"
-                            className="bg-indigo-50 text-indigo-600 border-indigo-100 dark:bg-indigo-500/10 dark:border-indigo-500/20 font-bold text-[10px] py-0.5"
-                          >
-                            {pharmacy.plan}
-                          </Badge>
-                          <span className="text-[9px] text-slate-400 mt-1">
-                            Since {pharmacy.date}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <div className="flex items-center justify-center gap-2">
-                          <div className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 font-black text-xs text-slate-700 dark:text-slate-200">
-                            {pharmacy.stores}
-                          </div>
-                          <StoreIcon className="h-3 w-3 text-slate-400" />
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right pr-4 font-black text-slate-900 dark:text-white">
-                        {pharmacy.revenue}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Badge
-                          className={
-                            pharmacy.status === "Active"
-                              ? "bg-emerald-500 hover:bg-emerald-600"
-                              : pharmacy.status === "Suspended"
-                                ? "bg-rose-500 hover:bg-rose-600"
-                                : "bg-amber-500 hover:bg-amber-600"
-                          }
-                        >
-                          {pharmacy.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="pr-6">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="hover:bg-indigo-50 dark:hover:bg-indigo-500/10"
-                            >
-                              <MoreVertical className="h-4 w-4 text-slate-400" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-56 p-2 rounded-2xl shadow-xl border-slate-200 dark:border-slate-800">
-                            <DropdownMenuLabel className="text-[10px] uppercase tracking-widest text-slate-400 px-3 py-2">Actions</DropdownMenuLabel>
-                            <DropdownMenuItem 
-                              className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold"
-                              onClick={() => handleImpersonate(pharmacy)}
-                            >
-                              <ExternalLink className="h-4 w-4 text-indigo-500" />
-                              Impersonate (Admin)
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold"
-                              onClick={() => handleViewBilling(pharmacy)}
-                            >
-                              <CreditCard className="h-4 w-4 text-emerald-500" />
-                              View Billing History
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold"
-                              onClick={() => router.push(`/admin/system?search=${pharmacy.id}`)}
-                            >
-                              <History className="h-4 w-4 text-blue-500" />
-                              System Logs
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator className="my-2 bg-slate-100 dark:bg-slate-800" />
-                            <DropdownMenuItem 
-                              className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors"
-                              onClick={() => {
-                                setSelectedPharmacy(pharmacy);
-                                setIsSuspendDialogOpen(true);
-                              }}
-                            >
-                              <Ban className="h-4 w-4" />
-                              Suspend Account
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {pharmacyList.length === 0 && !isLoading && (
-                    <TableRow>
-                      <TableCell
-                        colSpan={7}
-                        className="text-center py-20 text-slate-400 font-medium"
-                      >
-                        <div className="flex flex-col items-center gap-2">
-                          <StoreIcon className="h-10 w-10 opacity-20" />
-                          <span>No pharmacies match your search criteria</span>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+            <PharmacyTable 
+              pharmacyList={pharmacyList}
+              isLoading={isLoading}
+              handleImpersonate={handleImpersonate}
+              handleViewBilling={handleViewBilling}
+              setSelectedPharmacy={setSelectedPharmacy}
+              setIsSuspendDialogOpen={setIsSuspendDialogOpen}
+              router={router}
+            />
             )}
           </div>
 
@@ -499,39 +330,13 @@ export default function PharmaciesManagement() {
         </CardContent>
       </Card>
 
-      <Dialog open={isSuspendDialogOpen} onOpenChange={setIsSuspendDialogOpen}>
-        <DialogContent className="rounded-3xl border-slate-200 dark:border-slate-800 shadow-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-black flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-rose-500/10 flex items-center justify-center">
-                <Ban className="h-5 w-5 text-rose-500" />
-              </div>
-              Suspend Pharmacy Account?
-            </DialogTitle>
-            <DialogDescription className="text-slate-500 dark:text-slate-400 font-medium pt-2">
-              Are you sure you want to suspend <span className="font-bold text-slate-900 dark:text-white">{selectedPharmacy?.name}</span>? 
-              The pharmacy will lose access to all platform features and their fleet management will be frozen.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2 pt-4">
-            <Button 
-              variant="outline" 
-              onClick={() => setIsSuspendDialogOpen(false)}
-              className="rounded-xl border-2 font-bold h-12"
-            >
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleSuspend}
-              className="rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-bold h-12 shadow-lg shadow-rose-500/20"
-              disabled={suspendMutation.isPending}
-            >
-              {suspendMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              Confirm Suspension
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <SuspendPharmacyDialog
+        isOpen={isSuspendDialogOpen}
+        onOpenChange={setIsSuspendDialogOpen}
+        selectedPharmacy={selectedPharmacy}
+        handleSuspend={handleSuspend}
+        isPending={suspendMutation.isPending}
+      />
     </div>
   );
 }

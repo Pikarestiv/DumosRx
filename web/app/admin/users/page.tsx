@@ -4,38 +4,17 @@ import { useState } from "react";
 import { 
   Search, 
   Filter, 
-  Download, 
-  MoreVertical, 
-  Eye, 
-  Send, 
-  Shield, 
-  Mail,
+  Download,
   Bell,
   UserPlus, 
-  Lock, 
-  Store, 
-  Ban, 
   ChevronLeft, 
   ChevronRight, 
-  Loader2,
-  ShieldAlert,
-  Calendar,
-  Activity,
-  History,
-  Briefcase
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -54,15 +33,16 @@ import {
 import { useDebounce } from "@/hooks/use-debounce";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
+
+
 import { AdminSkeleton } from "@/components/admin/admin-skeleton";
+import {
+  DeactivateUserDialog,
+  ResetPasswordDialog,
+  UserProfileDialog,
+  SendNotificationDialog,
+} from "@/components/admin/users/user-dialogs";
+import { UserTable } from "@/components/admin/users/user-table";
 
 export default function GlobalUsersDirectory() {
   const router = useRouter();
@@ -76,9 +56,6 @@ export default function GlobalUsersDirectory() {
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const [isNotifyDialogOpen, setIsNotifyDialogOpen] = useState(false);
   const [_isBulkNotifyDialogOpen, setIsBulkNotifyDialogOpen] = useState(false);
-  
-  const [notifyTitle, setNotifyTitle] = useState("Administrative Message");
-  const [notifyMessage, setNotifyMessage] = useState("");
   
   const debouncedSearch = useDebounce(search, 500);
 
@@ -111,61 +88,7 @@ export default function GlobalUsersDirectory() {
     toast.success("User list exported successfully");
   };
 
-  const handleDeactivate = async () => {
-    if (!selectedUser) return;
-    deactivateMutation.mutate(selectedUser.id, {
-      onSuccess: () => {
-        toast.success("Account Deactivated", {
-          description: `${selectedUser.name}'s account has been disabled.`
-        });
-        setIsDeactivateDialogOpen(false);
-        setSelectedUser(null);
-      },
-      onError: (err: any) => {
-        toast.error("Action Failed", { description: err.message || "Failed to deactivate user" });
-      }
-    });
-  };
 
-  const handlePasswordReset = async () => {
-    if (!selectedUser) return;
-    resetPasswordMutation.mutate(selectedUser.id, {
-      onSuccess: (res: any) => {
-        toast.success("Password Reset Forced", {
-          description: `Temporary password: ${res.temp_password}. Please communicate this to the user.`
-        });
-        setIsResetDialogOpen(false);
-        setSelectedUser(null);
-      },
-      onError: (err: any) => {
-        toast.error("Action Failed", { description: err.message || "Failed to force password reset" });
-      }
-    });
-  };
-
-  const handleSendNotification = async () => {
-    if (!selectedUser || !notifyMessage || !notifyTitle) return;
-    notifyMutation.mutate({ 
-      id: selectedUser.id, 
-      payload: {
-        title: notifyTitle, 
-        message: notifyMessage 
-      }
-    }, {
-      onSuccess: () => {
-        toast.success("Notification Sent", {
-          description: `Message successfully delivered to ${selectedUser.name}`
-        });
-        setNotifyMessage("");
-        setNotifyTitle("Administrative Message");
-        setIsNotifyDialogOpen(false);
-        setSelectedUser(null);
-      },
-      onError: (err: any) => {
-        toast.error("Failed to Send", { description: err.message });
-      }
-    });
-  };
 
   if (isLoading && !response) {
     return <AdminSkeleton />;
@@ -243,137 +166,17 @@ export default function GlobalUsersDirectory() {
           </div>
 
           <div className="overflow-x-auto min-h-[400px]">
-            {error ? (
-              <div className="flex flex-col items-center justify-center py-20 gap-4">
-                <ShieldAlert className="h-10 w-10 text-rose-500" />
-                <p className="text-rose-500 font-bold">{error instanceof Error ? error.message : "Sync error"}</p>
-                <Button onClick={() => refetch()} variant="outline">Retry</Button>
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow className="hover:bg-transparent border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
-                    <TableHead className="font-bold text-[10px] uppercase text-slate-400 pl-6 h-12">User Profile</TableHead>
-                    <TableHead className="font-bold text-[10px] uppercase text-slate-400 h-12">System Role</TableHead>
-                    <TableHead className="font-bold text-[10px] uppercase text-slate-400 h-12">Parent Pharmacy</TableHead>
-                    <TableHead className="font-bold text-[10px] uppercase text-slate-400 text-center h-12">Last Active</TableHead>
-                    <TableHead className="font-bold text-[10px] uppercase text-slate-400 text-center h-12">Status</TableHead>
-                    <TableHead className="w-[80px] h-12"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {userList.map((user: any) => (
-                    <TableRow key={user.id} className="border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 group transition-colors">
-                      <TableCell className="pl-6 py-5">
-                        <div className="flex items-center gap-4">
-                          <div className={`h-10 w-10 rounded-xl ${user.role === 'Super Admin' ? 'bg-indigo-600 shadow-indigo-600/20' : 'bg-slate-100 dark:bg-slate-800'} border border-slate-200 dark:border-slate-700 flex items-center justify-center font-black ${user.role === 'Super Admin' ? 'text-white' : 'text-slate-400'} text-xs shadow-sm`}>
-                            {user.name.charAt(0)}
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="font-bold text-slate-900 dark:text-slate-100 group-hover:text-indigo-600 transition-colors">{user.name}</span>
-                            <span className="text-[10px] font-mono text-slate-400 uppercase tracking-tighter">{user.id} • {user.email}</span>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={
-                          user.role === 'Super Admin' ? 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20 font-black' :
-                          user.role === 'Pharmacy Admin' ? 'bg-blue-500/10 text-blue-500 border-blue-500/20 font-black' :
-                          'bg-slate-500/10 text-slate-500 border-slate-500/20 font-bold'
-                        }>
-                          <Shield className="h-3 w-3 mr-1.5" />
-                          {user.role}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Store className="h-3 w-3 text-slate-400" />
-                          <span className="font-bold text-sm text-slate-600 dark:text-slate-300">{user.pharmacy}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center">
-                          <div className="flex flex-col items-center">
-                              <span className={`text-xs font-black ${user.lastActive === 'Active Now' ? 'text-green-500' : 'text-slate-500'}`}>{user.lastActive}</span>
-                              <span className="text-[9px] text-slate-400 uppercase tracking-widest font-medium">{user.joinedAt}</span>
-                          </div>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Badge className={
-                          user.status === 'Active' ? 'bg-emerald-500 hover:bg-emerald-600' :
-                          user.status === 'Suspended' ? 'bg-rose-500 hover:bg-rose-600' :
-                          'bg-slate-400 hover:bg-slate-500'
-                        }>
-                          {user.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="pr-6">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="hover:bg-indigo-50 dark:hover:bg-indigo-500/10">
-                              <MoreVertical className="h-4 w-4 text-slate-400" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-60 p-2 rounded-2xl shadow-xl border-slate-200 dark:border-slate-800">
-                            <DropdownMenuLabel className="text-[10px] uppercase tracking-widest text-slate-400 px-3 py-2">User Actions</DropdownMenuLabel>
-                            <DropdownMenuItem 
-                              className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold"
-                              onClick={() => {
-                                setSelectedUser(user);
-                                setIsProfileDialogOpen(true);
-                              }}
-                            >
-                              <Eye className="h-4 w-4 text-indigo-500" />
-                              View Detailed Profile
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold"
-                              onClick={() => {
-                                setSelectedUser(user);
-                                setIsNotifyDialogOpen(true);
-                              }}
-                            >
-                              <Mail className="h-4 w-4 text-blue-500" />
-                              Send Notification
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold"
-                              onClick={() => {
-                                setSelectedUser(user);
-                                setIsResetDialogOpen(true);
-                              }}
-                            >
-                              <Lock className="h-4 w-4 text-amber-500" />
-                              Force Password Reset
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator className="my-2 bg-slate-100 dark:bg-slate-800" />
-                            <DropdownMenuItem 
-                              className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors"
-                              onClick={() => {
-                                setSelectedUser(user);
-                                setIsDeactivateDialogOpen(true);
-                              }}
-                            >
-                              <Ban className="h-4 w-4" />
-                              Deactivate Account
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {userList.length === 0 && !isLoading && (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center py-20 text-slate-400 font-medium">
-                        <div className="flex flex-col items-center gap-2">
-                           <ShieldAlert className="h-10 w-10 opacity-20" />
-                           <span>No users found matching your search</span>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            )}
+            <UserTable 
+              userList={userList}
+              isLoading={isLoading}
+              error={error}
+              refetch={refetch}
+              setSelectedUser={setSelectedUser}
+              setIsProfileDialogOpen={setIsProfileDialogOpen}
+              setIsNotifyDialogOpen={setIsNotifyDialogOpen}
+              setIsResetDialogOpen={setIsResetDialogOpen}
+              setIsDeactivateDialogOpen={setIsDeactivateDialogOpen}
+            />
           </div>
 
           {userMeta && userMeta.last_page > 1 && (
@@ -423,183 +226,35 @@ export default function GlobalUsersDirectory() {
         </CardContent>
       </Card>
 
-      {/* Deactivate Dialog */}
-      <Dialog open={isDeactivateDialogOpen} onOpenChange={setIsDeactivateDialogOpen}>
-        <DialogContent className="rounded-3xl border-slate-200 dark:border-slate-800 shadow-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-black flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-rose-500/10 flex items-center justify-center">
-                <Ban className="h-5 w-5 text-rose-500" />
-              </div>
-              Deactivate User Account?
-            </DialogTitle>
-            <DialogDescription className="text-slate-500 dark:text-slate-400 font-medium pt-2">
-              Are you sure you want to deactivate <span className="font-bold text-slate-900 dark:text-white">{selectedUser?.name}</span>? 
-              They will be immediately logged out and unable to access the platform until reactivated.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2 pt-4">
-            <Button variant="outline" onClick={() => setIsDeactivateDialogOpen(false)} className="rounded-xl border-2 font-bold h-12">Cancel</Button>
-            <Button 
-              onClick={handleDeactivate}
-              className="rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-bold h-12 shadow-lg shadow-rose-500/20"
-              disabled={deactivateMutation.isPending}
-            >
-              {deactivateMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              Deactivate Account
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <DeactivateUserDialog
+        isOpen={isDeactivateDialogOpen}
+        onOpenChange={setIsDeactivateDialogOpen}
+        selectedUser={selectedUser}
+        setSelectedUser={setSelectedUser}
+        deactivateMutation={deactivateMutation}
+      />
 
-      {/* Password Reset Dialog */}
-      <Dialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
-        <DialogContent className="rounded-3xl border-slate-200 dark:border-slate-800 shadow-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-black flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
-                <Lock className="h-5 w-5 text-amber-500" />
-              </div>
-              Force Password Reset?
-            </DialogTitle>
-            <DialogDescription className="text-slate-500 dark:text-slate-400 font-medium pt-2">
-              This will invalidate <span className="font-bold text-slate-900 dark:text-white">{selectedUser?.name}</span>'s current password 
-              and send a secure reset link to <span className="font-bold text-slate-900 dark:text-white">{selectedUser?.email}</span>.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2 pt-4">
-            <Button variant="outline" onClick={() => setIsResetDialogOpen(false)} className="rounded-xl border-2 font-bold h-12">Cancel</Button>
-            <Button 
-              onClick={handlePasswordReset}
-              className="rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold h-12 shadow-lg shadow-amber-500/20"
-              disabled={resetPasswordMutation.isPending}
-            >
-              {resetPasswordMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              Confirm Reset
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ResetPasswordDialog
+        isOpen={isResetDialogOpen}
+        onOpenChange={setIsResetDialogOpen}
+        selectedUser={selectedUser}
+        setSelectedUser={setSelectedUser}
+        resetPasswordMutation={resetPasswordMutation}
+      />
 
-      {/* Detailed Profile Dialog */}
-      <Dialog open={isProfileDialogOpen} onOpenChange={setIsProfileDialogOpen}>
-        <DialogContent className="max-w-2xl rounded-3xl border-slate-200 dark:border-slate-800 shadow-2xl p-0 overflow-hidden">
-          <DialogHeader className="sr-only">
-            <DialogTitle>User Detailed Profile</DialogTitle>
-          </DialogHeader>
-          <div className="bg-indigo-600 p-8 text-white relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-12 opacity-10 rotate-12">
-              <Shield className="h-32 w-32" />
-            </div>
-            <div className="relative z-10 flex items-center gap-6">
-              <div className="h-20 w-20 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-3xl font-black border border-white/30">
-                {selectedUser?.name?.charAt(0)}
-              </div>
-              <div>
-                <h2 className="text-3xl font-black">{selectedUser?.name}</h2>
-                <div className="flex items-center gap-2 mt-1 opacity-80 font-medium">
-                  <Badge className="bg-white/20 hover:bg-white/30 border-none text-white font-bold px-3">
-                    {selectedUser?.role}
-                  </Badge>
-                  <span>•</span>
-                  <span>{selectedUser?.email}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="p-8 grid grid-cols-2 gap-6">
-            <div className="space-y-4">
-              <div className="flex items-center gap-3 text-slate-500">
-                <Store className="h-4 w-4" />
-                <div>
-                  <p className="text-[10px] uppercase font-bold tracking-widest opacity-50">Affiliated Pharmacy</p>
-                  <p className="text-sm font-black text-slate-900 dark:text-white">{selectedUser?.pharmacy}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 text-slate-500">
-                <Calendar className="h-4 w-4" />
-                <div>
-                  <p className="text-[10px] uppercase font-bold tracking-widest opacity-50">Member Since</p>
-                  <p className="text-sm font-black text-slate-900 dark:text-white">{selectedUser?.joinedAt || 'N/A'}</p>
-                </div>
-              </div>
-            </div>
-            <div className="space-y-4">
-              <div className="flex items-center gap-3 text-slate-500">
-                <Activity className="h-4 w-4" />
-                <div>
-                  <p className="text-[10px] uppercase font-bold tracking-widest opacity-50">Last Login</p>
-                  <p className="text-sm font-black text-slate-900 dark:text-white">{selectedUser?.lastActive}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 text-slate-500">
-                <History className="h-4 w-4" />
-                <div>
-                  <p className="text-[10px] uppercase font-bold tracking-widest opacity-50">System Status</p>
-                  <p className={`text-sm font-black ${selectedUser?.status === 'Active' ? 'text-emerald-500' : 'text-rose-500'}`}>
-                    {selectedUser?.status}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="p-8 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex justify-end">
-            <Button onClick={() => setIsProfileDialogOpen(false)} className="rounded-xl font-bold px-8">Close Profile</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <UserProfileDialog
+        isOpen={isProfileDialogOpen}
+        onOpenChange={setIsProfileDialogOpen}
+        selectedUser={selectedUser}
+      />
 
-      {/* Send Notification Dialog */}
-      <Dialog open={isNotifyDialogOpen} onOpenChange={setIsNotifyDialogOpen}>
-        <DialogContent className="rounded-3xl border-slate-200 dark:border-slate-800 shadow-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-black flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
-                <Send className="h-5 w-5 text-blue-500" />
-              </div>
-              Send System Notification
-            </DialogTitle>
-            <DialogDescription className="text-slate-500 dark:text-slate-400 font-medium pt-2">
-              Deliver an urgent message to <span className="font-bold text-slate-900 dark:text-white">{selectedUser?.name}</span>. This will appear in their dashboard notifications.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4 space-y-4">
-            <div className="space-y-2">
-              <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400">Subject / Title</label>
-              <Input 
-                placeholder="Enter notification title..." 
-                className="rounded-xl border-2 focus-visible:ring-blue-500 font-bold"
-                value={notifyTitle}
-                onChange={(e) => setNotifyTitle(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400">Notification Message</label>
-              <Textarea 
-                placeholder="Enter your message here..." 
-                className="min-h-[120px] rounded-2xl border-2 focus-visible:ring-blue-500 font-medium p-4"
-                value={notifyMessage}
-                onChange={(e) => setNotifyMessage(e.target.value)}
-              />
-            </div>
-            <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-500/10 rounded-xl border border-blue-100 dark:border-blue-500/20 text-blue-600">
-              <Briefcase className="h-4 w-4 shrink-0" />
-              <p className="text-xs font-bold">This message will be logged as an official administrative action.</p>
-            </div>
-          </div>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setIsNotifyDialogOpen(false)} className="rounded-xl border-2 font-bold h-12">Discard</Button>
-            <Button 
-              onClick={handleSendNotification}
-              className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold h-12 shadow-lg shadow-blue-600/20 px-8"
-              disabled={notifyMutation.isPending || !notifyMessage}
-            >
-              {notifyMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
-              Send Message
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <SendNotificationDialog
+        isOpen={isNotifyDialogOpen}
+        onOpenChange={setIsNotifyDialogOpen}
+        selectedUser={selectedUser}
+        setSelectedUser={setSelectedUser}
+        notifyMutation={notifyMutation}
+      />
     </div>
   );
 }

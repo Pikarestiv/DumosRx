@@ -15,7 +15,6 @@ import {
 import {
   User,
   Lock,
-  Key,
   Shield,
   Save,
   Loader2,
@@ -27,6 +26,7 @@ import { motion } from "framer-motion";
 import { useDashboard } from "@/app/dashboard/use-dashboard";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { webApiClient } from "@/lib/api/client";
+import { TerminalPinForm } from "@/components/dashboard/views/terminal-pin-form";
 
 export function ProfileView() {
   const { user } = useDashboard();
@@ -38,9 +38,6 @@ export function ProfileView() {
     phone: "",
   });
 
-  const [pinData, setPinData] = useState({
-    pin: "",
-  });
 
   const [passwordData, setPasswordData] = useState({
     current_password: "",
@@ -70,17 +67,6 @@ export function ProfileView() {
     },
   });
 
-  const pinMutation = useMutation({
-    mutationFn: (pin: string) => webApiClient.setPin(pin),
-    onSuccess: () => {
-      toast.success("Security PIN updated successfully");
-      setPinData({ pin: "" });
-    },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || "Failed to update PIN");
-    },
-  });
-
   const passwordMutation = useMutation({
     mutationFn: (data: typeof passwordData) =>
       webApiClient.changePassword(data),
@@ -100,15 +86,6 @@ export function ProfileView() {
   const handleUpdateProfile = (e: React.FormEvent) => {
     e.preventDefault();
     profileMutation.mutate(profileData);
-  };
-
-  const handleUpdatePin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (pinData.pin.length !== 4) {
-      toast.error("PIN must be 4 digits");
-      return;
-    }
-    pinMutation.mutate(pinData.pin);
   };
 
   const handleChangePassword = (e: React.FormEvent) => {
@@ -230,64 +207,7 @@ export function ProfileView() {
         </motion.div>
 
         {/* Terminal PIN */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.1 }}
-        >
-          <Card className="h-full bg-card/50 backdrop-blur-sm border-border/50">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="h-5 w-5 text-primary" />
-                Terminal Security
-              </CardTitle>
-              <CardDescription>
-                Set a 4-digit PIN for quick access to the Desktop/Mobile app.
-              </CardDescription>
-            </CardHeader>
-            <form onSubmit={handleUpdatePin}>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="pin">Security PIN (4 Digits)</Label>
-                  <div className="relative">
-                    <Key className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="pin"
-                      type="password"
-                      maxLength={4}
-                      value={pinData.pin}
-                      onChange={(e) =>
-                        setPinData({ pin: e.target.value.replace(/\D/g, "") })
-                      }
-                      placeholder="1234"
-                      className="pl-10 tracking-[1em] font-mono text-lg"
-                      required
-                    />
-                  </div>
-                  <p className="text-[10px] text-muted-foreground italic mt-1">
-                    This PIN allows you to log in to offline terminals without
-                    your full password.
-                  </p>
-                </div>
-              </CardContent>
-              <CardFooter className="pt-6">
-                <Button
-                  type="submit"
-                  variant="secondary"
-                  className="w-full"
-                  disabled={pinMutation.isPending}
-                >
-                  {pinMutation.isPending ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Lock className="mr-2 h-4 w-4" />
-                  )}
-                  Update Security PIN
-                </Button>
-              </CardFooter>
-            </form>
-          </Card>
-        </motion.div>
+        <TerminalPinForm />
 
         {/* Password Change */}
         <motion.div

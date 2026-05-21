@@ -69,7 +69,7 @@ export function Header({ onSetActiveTab }: HeaderProps) {
         setNotifications(data);
         setUnreadCount(data.filter((n: any) => !n.isRead).length);
       } catch (_error) {
-        console.error("Failed to fetch notifications:", error);
+        console.error("Failed to fetch notifications:", _error);
       }
     };
 

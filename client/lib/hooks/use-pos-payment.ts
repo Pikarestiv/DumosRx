@@ -70,7 +70,7 @@ export function usePOSPayment({
         customer_id: selectedCustomer?.id || null,
         user_id: cashierId,
         subtotal,
-        discount_amount: discount,
+        discount_total: discount,
         discount_percentage: 0,
         tax_amount: tax,
         tax_percentage: 7.5,

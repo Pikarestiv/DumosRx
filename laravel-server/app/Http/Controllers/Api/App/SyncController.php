@@ -47,16 +47,18 @@ class SyncController extends Controller
                 $now = now();
 
                 if ($change['operation'] === 'INSERT') {
-                    $exists = $modelClass::where('id', $payload['id'])->exists();
+                    $recordId = $change['record_id'] ?? ($payload['id'] ?? null);
+                    $exists = $modelClass::where('id', $recordId)->exists();
                     if (!$exists) {
                         $model = new $modelClass();
                         $model->fill($payload);
-                        $model->id = $payload['id'];
+                        $model->id = $recordId;
                         $model->_synced_at = $now;
                         $model->save();
                     }
                 } elseif ($change['operation'] === 'UPDATE') {
-                    $model = $modelClass::find($payload['id']);
+                    $recordId = $change['record_id'] ?? ($payload['id'] ?? null);
+                    $model = $modelClass::find($recordId);
                     if ($model) {
                         $model->fill($payload);
                         $model->_synced_at = $now;

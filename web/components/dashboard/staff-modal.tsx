@@ -41,6 +41,7 @@ export function StaffModal({ isOpen, onClose, onSuccess, stores, staffMember }: 
 
   useEffect(() => {
     if (isOpen) {
+       
       setFormData({
         first_name: staffMember?.first_name || "",
         last_name: staffMember?.last_name || "",

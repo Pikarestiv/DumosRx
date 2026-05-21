@@ -29,8 +29,6 @@ import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -48,7 +46,7 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, fetchUser, loading: authLoading, token } = useAdminAuthStore();
+  const { user, fetchUser, loading: authLoading, token: _token } = useAdminAuthStore();
   const { latency } = useAdminStore();
   const { data: summary, isLoading: summaryLoading } = useAdminSummary();
   const router = useRouter();
@@ -56,7 +54,7 @@ export default function AdminLayout({
   const [checking, setChecking] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any>(null);
-  const [isSearching, setIsSearching] = useState(false);
+  const [_isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
 
   const isLoginPage = pathname?.includes("/admin/login");

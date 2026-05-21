@@ -39,7 +39,7 @@ import { toast } from "sonner";
 import { SearchableInput } from "@/components/ui/searchable-input";
 import { AddMedicineDialog } from "./add-medicine-dialog";
 import { MedicineDetailsDialog } from "./medicine-details-dialog";
-import { insert } from "@/lib/db/local-database";
+import { insert, update } from "@/lib/db/local-database";
 import { useLocalData } from "@/lib/db/hooks/useLocalData";
 
 import { useStore } from "@/lib/context/store-context";
@@ -165,7 +165,7 @@ export function MedicineDatabase() {
         const id = localPayload.id;
         delete localPayload.id;
         // Use generic update from base-helpers (which is re-exported by local-database)
-        await (require("@/lib/db/local-database").update)("medicines", id, localPayload);
+        await update("medicines", id, localPayload);
         toast.success(`${t('product')} updated successfully`);
       } else {
         await insert("medicines", localPayload);

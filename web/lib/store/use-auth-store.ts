@@ -43,7 +43,7 @@ export const useAuthStore = create<AuthState>()(
         try {
           const user = await webApiClient.request<any>("user");
           set({ user, loading: false });
-        } catch (error) {
+        } catch (_error) {
           set({ user: null, loading: false });
           localStorage.removeItem("drx_token");
         }

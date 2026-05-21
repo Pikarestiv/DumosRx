@@ -8,17 +8,14 @@ import {
   Users,
   Store,
   Package,
-  Settings,
   LogOut,
   ChevronRight,
-  ShieldCheck,
   Activity,
   Server,
   Megaphone,
   Mail
 } from "lucide-react";
 import { useAdminAuthStore } from "@/lib/store/use-admin-auth-store";
-import { useAdminStore } from "@/lib/store/use-admin-store";
 import { useAdminSummary } from "@/lib/api/admin-hooks";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";

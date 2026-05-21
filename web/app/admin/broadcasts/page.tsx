@@ -15,9 +15,7 @@ import {
   AlertTriangle,
   Info,
   ShieldAlert,
-  CheckCircle2,
-  Calendar,
-  Clock
+  CheckCircle2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,7 +31,6 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
   DialogTitle,
   DialogDescription,
   DialogFooter,
@@ -63,7 +60,7 @@ export default function AdminBroadcasts() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [_isDeleting, _setIsDeleting] = useState(false);
   const [selectedBroadcast, setSelectedBroadcast] = useState<any>(null);
   
   // Form state
@@ -89,7 +86,7 @@ export default function AdminBroadcasts() {
       } else {
         console.warn("Unexpected response format:", response);
       }
-    } catch (error) {
+    } catch (_error) {
       console.error("Failed to fetch broadcasts:", error);
       toast.error("Failed to load broadcasts");
     } finally {
@@ -116,7 +113,7 @@ export default function AdminBroadcasts() {
         is_active: true
       });
       fetchBroadcasts();
-    } catch (error) {
+    } catch (_error) {
       toast.error("Failed to create broadcast");
     }
   };
@@ -128,7 +125,7 @@ export default function AdminBroadcasts() {
       toast.success("Broadcast updated successfully");
       setIsEditOpen(false);
       fetchBroadcasts();
-    } catch (error) {
+    } catch (_error) {
       toast.error("Failed to update broadcast");
     }
   };
@@ -139,7 +136,7 @@ export default function AdminBroadcasts() {
       await webApiClient.deleteBroadcast(id);
       toast.success("Broadcast deleted");
       fetchBroadcasts();
-    } catch (error) {
+    } catch (_error) {
       toast.error("Failed to delete broadcast");
     }
   };
@@ -148,7 +145,7 @@ export default function AdminBroadcasts() {
     try {
       await webApiClient.toggleBroadcast(id);
       fetchBroadcasts();
-    } catch (error) {
+    } catch (_error) {
       toast.error("Failed to toggle status");
     }
   };

@@ -36,6 +36,7 @@ export function StoreModal({ isOpen, onClose, onSuccess, store }: StoreModalProp
 
   useEffect(() => {
     if (isOpen) {
+       
       setFormData({
         name: store?.name || "",
         location: store?.location || "",

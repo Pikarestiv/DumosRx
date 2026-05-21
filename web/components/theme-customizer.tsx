@@ -25,12 +25,6 @@ const colorThemes = [
 export function ThemeCustomizer() {
   const [activeThemeId, setActiveThemeId] = React.useState("default")
 
-  React.useEffect(() => {
-    const savedTheme = localStorage.getItem("drx_brand_theme") || "default"
-    setActiveThemeId(savedTheme)
-    applyThemeClass(savedTheme)
-  }, [])
-
   const applyThemeClass = (themeId: string) => {
     if (typeof document !== "undefined") {
       const root = document.documentElement
@@ -42,6 +36,12 @@ export function ThemeCustomizer() {
       }
     }
   }
+
+  React.useEffect(() => {
+    const savedTheme = localStorage.getItem("drx_brand_theme") || "default"
+    setActiveThemeId(savedTheme)
+    applyThemeClass(savedTheme)
+  }, [])
 
   const setTheme = (themeId: string) => {
     setActiveThemeId(themeId)

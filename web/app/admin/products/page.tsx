@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { 
   Search, 
   Filter, 
@@ -45,7 +45,7 @@ import { useAdminProducts, useStandardizeProductsMutation } from "@/lib/api/admi
 import { useDebounce } from "@/hooks/use-debounce";
 import { AdminSkeleton } from "@/components/admin/admin-skeleton";
 
-const ICON_MAP: any = {
+const _ICON_MAP: any = {
   Package: Package,
   TrendingUp: TrendingUp,
   AlertTriangle: AlertTriangle

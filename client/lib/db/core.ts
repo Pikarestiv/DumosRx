@@ -33,7 +33,7 @@ export async function initDatabase(): Promise<any> {
     try {
       const sqlPlugin = await import("@tauri-apps/plugin-sql");
       const Database = sqlPlugin.default || (sqlPlugin as any).Database;
-      // @ts-ignore - Database.load is a static method in Tauri 2
+
       db = await Database.load("sqlite:dumosrx.db");
       
       const statements = SCHEMA_SQL.split(';').filter(s => s.trim());

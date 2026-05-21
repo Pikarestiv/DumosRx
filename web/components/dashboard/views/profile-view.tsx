@@ -50,6 +50,7 @@ export function ProfileView() {
 
   useEffect(() => {
     if (user) {
+       
       setProfileData({
         first_name: user.first_name || "",
         last_name: user.last_name || "",

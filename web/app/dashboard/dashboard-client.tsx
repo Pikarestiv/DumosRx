@@ -1,7 +1,6 @@
 "use client";
 
 import { Suspense } from "react";
-import { Loader2 } from "lucide-react";
 import { useDashboard } from "./use-dashboard";
 import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
 
@@ -22,7 +21,7 @@ import { webApiClient } from "@/lib/api/client";
 
 export function DashboardClient({ view }: { view: string }) {
   const {
-    activeTab,
+    activeTab: _activeTab,
     setActiveTab,
     loading,
     data,

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { Plus, Circle, MoreVertical, Users, UserPlus, Shield, Key } from "lucide-react";
+import { Circle, MoreVertical, Users, UserPlus, Shield, Key } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -48,11 +48,12 @@ export function StaffView({ staff, stores }: StaffViewProps) {
   // Sync with URL params if they change
   useEffect(() => {
     if (storeIdParam) {
+       
       setSelectedStore(storeIdParam);
     }
   }, [storeIdParam]);
 
-  const { data: staffData, isLoading } = useStaff(selectedStore);
+  const { data: staffData, isLoading: _isLoading } = useStaff(selectedStore);
   const deleteMutation = useDeleteStaffMutation();
   
   const staffToDisplay = staffData || staff;

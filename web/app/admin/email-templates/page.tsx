@@ -13,7 +13,6 @@ import {
   Sparkles,
   ArrowRight,
   Monitor,
-  CheckCircle,
   AlertTriangle,
 } from "lucide-react";
 import {
@@ -47,7 +46,7 @@ export default function EmailTemplatesPage() {
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState("edit");
+  const [_activeTab, setActiveTab] = useState("edit");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {

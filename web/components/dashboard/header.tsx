@@ -5,9 +5,6 @@ import {
   Bell,
   Search,
   Menu,
-  CheckCircle2,
-  AlertCircle,
-  Info,
   Clock,
   ShieldAlert,
   LogOut,
@@ -38,6 +35,7 @@ export function Header({ onSetActiveTab }: HeaderProps) {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
+       
       setIsImpersonating(!!localStorage.getItem("drx_impersonator_token"));
     }
   }, []);
@@ -59,7 +57,7 @@ export function Header({ onSetActiveTab }: HeaderProps) {
       });
 
       window.location.href = "/admin/pharmacies";
-    } catch (error) {
+    } catch (_error) {
       toast.error("Failed to restore admin session");
     }
   };
@@ -70,7 +68,7 @@ export function Header({ onSetActiveTab }: HeaderProps) {
         const data = await webApiClient.getNotifications();
         setNotifications(data);
         setUnreadCount(data.filter((n: any) => !n.isRead).length);
-      } catch (error) {
+      } catch (_error) {
         console.error("Failed to fetch notifications:", error);
       }
     };

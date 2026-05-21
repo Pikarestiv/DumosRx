@@ -39,7 +39,7 @@ export const useAdminAuthStore = create<AdminAuthState>()(
         try {
           const user = await webApiClient.request<any>("user");
           set({ user, loading: false });
-        } catch (error) {
+        } catch (_error) {
           set({ user: null, token: null, loading: false });
         }
       },

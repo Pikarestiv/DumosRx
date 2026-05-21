@@ -12,7 +12,7 @@ import { useAdminAuthStore } from "@/lib/store/use-admin-auth-store";
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const { user, fetchUser, token } = useAdminAuthStore();
+  const { token: _token, user, fetchUser } = useAdminAuthStore();
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {

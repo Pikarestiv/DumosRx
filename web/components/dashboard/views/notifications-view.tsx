@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, Bell, Activity, CheckCircle2 } from "lucide-react";
+import { ChevronRight, Bell, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNotifications } from "@/lib/api/hooks";
 import { webApiClient } from "@/lib/api/client";
@@ -9,7 +9,6 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
 import { DashboardSkeleton } from "../dashboard-skeleton";
 
 interface NotificationsViewProps {

@@ -1,23 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { 
   Search, 
   Filter, 
   Download, 
-  Plus, 
   MoreVertical, 
   Eye, 
-  UserX, 
-  RefreshCw, 
   Send, 
   Shield, 
   Mail,
   Bell,
-  Trash2,
-  CheckCircle2,
-  AlertCircle,
-  Info,
   UserPlus, 
   Lock, 
   Store, 
@@ -82,7 +75,7 @@ export default function GlobalUsersDirectory() {
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const [isNotifyDialogOpen, setIsNotifyDialogOpen] = useState(false);
-  const [isBulkNotifyDialogOpen, setIsBulkNotifyDialogOpen] = useState(false);
+  const [_isBulkNotifyDialogOpen, setIsBulkNotifyDialogOpen] = useState(false);
   
   const [notifyTitle, setNotifyTitle] = useState("Administrative Message");
   const [notifyMessage, setNotifyMessage] = useState("");

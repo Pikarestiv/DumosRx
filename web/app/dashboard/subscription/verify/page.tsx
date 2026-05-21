@@ -17,15 +17,6 @@ function VerifyContent() {
 
   const reference = searchParams.get("reference") || searchParams.get("tx_ref") || searchParams.get("trs_ref");
 
-  useEffect(() => {
-    if (reference) {
-      handleVerify();
-    } else {
-      setStatus("error");
-      setMessage("No transaction reference found. If you believe this is an error, please contact support.");
-    }
-  }, [reference]);
-
   const handleVerify = async () => {
     try {
       const response = await verifyPayment.mutateAsync(reference!);
@@ -42,6 +33,15 @@ function VerifyContent() {
       setMessage(error.message || "An unexpected error occurred during verification.");
     }
   };
+
+  useEffect(() => {
+    if (reference) {
+      handleVerify();
+    } else {
+      setStatus("error");
+      setMessage("No transaction reference found. If you believe this is an error, please contact support.");
+    }
+  }, [reference]);
 
   return (
     <div className="min-h-[60vh] flex items-center justify-center p-4">

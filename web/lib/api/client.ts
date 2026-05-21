@@ -45,7 +45,7 @@ apiClient.interceptors.response.use(
           originalRequest.headers.Authorization = `Bearer ${data.token}`;
           return apiClient(originalRequest);
         }
-      } catch (refreshError) {
+      } catch (_refreshError) {
         if (typeof window !== "undefined") {
           const isAdminPath = window.location.pathname.startsWith('/admin');
           const tokenKey = isAdminPath ? "drx_admin_token" : "drx_token";

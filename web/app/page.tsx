@@ -6,18 +6,12 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import {
   Card,
-  CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import {
-  Users,
-  Pill,
-  Activity,
-  ShieldCheck,
   ArrowRight,
-  CheckCircle2,
   Menu,
   Zap,
   Shield,
@@ -26,7 +20,6 @@ import {
   Database,
   BarChart3,
   Check,
-  Plus,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ModeToggle } from "@/components/mode-toggle";

@@ -270,7 +270,9 @@ CREATE TABLE IF NOT EXISTS store_profile (
   _version INTEGER DEFAULT 1,
   _synced INTEGER DEFAULT 0,
   _synced_at TEXT,
-  _deleted INTEGER DEFAULT 0
+  _deleted INTEGER DEFAULT 0,
+  auto_sync_enabled INTEGER DEFAULT 0,
+  auto_sync_interval INTEGER DEFAULT 15
 );
 
 CREATE TABLE IF NOT EXISTS expenses (

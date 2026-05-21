@@ -26,6 +26,8 @@ interface StoreProfile {
   expiry_warning?: number;
   expiry_warning_days?: number;
   logo_url?: string;
+  auto_sync_enabled?: number;
+  auto_sync_interval?: number;
   updated_at?: string;
 }
 

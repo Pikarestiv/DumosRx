@@ -57,6 +57,8 @@ export function useSettings() {
   const [expiryAlert, setExpiryAlert] = useState(storeProfile?.expiry_warning === 1);
   const [expiryDays, setExpiryDays] = useState(storeProfile?.expiry_warning_days?.toString() || "90");
   const [localLogo, setLocalLogo] = useState(storeProfile?.logo_url || "");
+  const [autoSyncEnabled, setAutoSyncEnabled] = useState(storeProfile?.auto_sync_enabled === 1);
+  const [autoSyncInterval, setAutoSyncInterval] = useState(storeProfile?.auto_sync_interval?.toString() || "15");
 
   // Responsive Effect
   useEffect(() => {
@@ -84,6 +86,8 @@ export function useSettings() {
       setExpiryAlert(storeProfile.expiry_warning === 1);
       setExpiryDays(storeProfile.expiry_warning_days?.toString() || "90");
       setLocalLogo(storeProfile.logo_url || "");
+      setAutoSyncEnabled(storeProfile.auto_sync_enabled === 1);
+      setAutoSyncInterval(storeProfile.auto_sync_interval?.toString() || "15");
     }
   }, [storeProfile]);
 
@@ -138,6 +142,14 @@ export function useSettings() {
       expiry_warning_days: parseInt(expiryDays) || 90,
     });
     toast.success("Alert preferences updated");
+  };
+
+  const handleSaveAutoSyncSettings = () => {
+    updateStoreProfile({
+      auto_sync_enabled: autoSyncEnabled ? 1 : 0,
+      auto_sync_interval: parseInt(autoSyncInterval) || 15,
+    });
+    toast.success("Auto-sync preferences updated");
   };
 
   const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -338,10 +350,15 @@ export function useSettings() {
     expiryDays,
     setExpiryDays,
     localLogo,
+    autoSyncEnabled,
+    setAutoSyncEnabled,
+    autoSyncInterval,
+    setAutoSyncInterval,
     handleSaveProfile,
     handleSaveRegional,
     handleSaveReceiptSettings,
     handleSaveAlertSettings,
+    handleSaveAutoSyncSettings,
     handleLogoUpload,
     handleRemoveLogo,
     handleSwitchVertical,

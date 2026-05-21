@@ -74,10 +74,15 @@ export default function SettingsPage() {
     expiryDays,
     setExpiryDays,
     localLogo,
+    autoSyncEnabled,
+    setAutoSyncEnabled,
+    autoSyncInterval,
+    setAutoSyncInterval,
     handleSaveProfile,
     handleSaveRegional,
     handleSaveReceiptSettings,
     handleSaveAlertSettings,
+    handleSaveAutoSyncSettings,
     handleLogoUpload,
     handleRemoveLogo,
     handleSwitchVertical,
@@ -236,6 +241,11 @@ export default function SettingsPage() {
                 handleDownloadBackup={handleDownloadBackup}
                 handleRestoreBackup={handleRestoreBackup}
                 handleResetDatabase={handleResetDatabase}
+                autoSyncEnabled={autoSyncEnabled}
+                setAutoSyncEnabled={setAutoSyncEnabled}
+                autoSyncInterval={autoSyncInterval}
+                setAutoSyncInterval={setAutoSyncInterval}
+                handleSaveAutoSyncSettings={handleSaveAutoSyncSettings}
               />
             </TabsContent>
 

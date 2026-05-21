@@ -32,6 +32,8 @@ class Store extends Model
         'expiry_warning_days',
         'location',
         'device_id',
+        'auto_sync_enabled',
+        'auto_sync_interval',
         'last_sync_at',
         '_version',
         '_synced_at',

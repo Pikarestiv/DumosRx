@@ -10,6 +10,7 @@ import {
 } from "../ui/tooltip";
 
 import { sync, isSyncing as checkIsSyncing } from "@/lib/db/sync-engine";
+import { useStore } from "@/lib/context/store-context";
 import { useRouter } from "next/navigation";
 import {
   Dialog,
@@ -31,6 +32,7 @@ export function SyncIndicator() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [isLinked, setIsLinked] = useState(false);
+  const { storeProfile } = useStore();
   const router = useRouter();
 
   useEffect(() => {
@@ -53,6 +55,27 @@ export function SyncIndicator() {
       clearInterval(interval);
     };
   }, []);
+
+  // Background Auto-Sync Daemon
+  useEffect(() => {
+    let autoSyncIntervalTimer: NodeJS.Timeout | null = null;
+
+    if (storeProfile?.auto_sync_enabled === 1 && isLinked) {
+      const intervalMinutes = storeProfile?.auto_sync_interval || 15;
+      const intervalMs = intervalMinutes * 60 * 1000;
+
+      autoSyncIntervalTimer = setInterval(() => {
+        if (navigator.onLine && !checkIsSyncing()) {
+          console.log(`Auto-sync triggered (${intervalMinutes} min interval)`);
+          handleManualSync();
+        }
+      }, intervalMs);
+    }
+
+    return () => {
+      if (autoSyncIntervalTimer) clearInterval(autoSyncIntervalTimer);
+    };
+  }, [storeProfile?.auto_sync_enabled, storeProfile?.auto_sync_interval, isLinked]);
 
   const updateOnlineStatus = () => {
     setStatus(navigator.onLine ? "online" : "offline");

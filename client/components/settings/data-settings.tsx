@@ -1,7 +1,16 @@
 "use client";
 
-import { Database, CloudOff, Save, Upload } from "lucide-react";
+import { Database, CloudOff, Save, Upload, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Card,
   CardContent,
@@ -18,6 +27,11 @@ interface DataSettingsProps {
   handleDownloadBackup: () => void;
   handleRestoreBackup: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleResetDatabase: () => void;
+  autoSyncEnabled: boolean;
+  setAutoSyncEnabled: (val: boolean) => void;
+  autoSyncInterval: string;
+  setAutoSyncInterval: (val: string) => void;
+  handleSaveAutoSyncSettings: () => void;
 }
 
 export function DataSettings({
@@ -27,6 +41,11 @@ export function DataSettings({
   handleDownloadBackup,
   handleRestoreBackup,
   handleResetDatabase,
+  autoSyncEnabled,
+  setAutoSyncEnabled,
+  autoSyncInterval,
+  setAutoSyncInterval,
+  handleSaveAutoSyncSettings,
 }: DataSettingsProps) {
   return (
     <Card>
@@ -78,6 +97,57 @@ export function DataSettings({
             >
               {isCloudLinked ? "Sync Now" : "Link & Sync"}
             </Button>
+          </div>
+        </div>
+
+        <Separator />
+
+        <div className="space-y-4">
+          <h3 className="font-medium">Background Automation</h3>
+          <div className="space-y-4 border rounded-lg p-4 bg-card">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label className="text-base">Auto-Sync Changes</Label>
+                <p className="text-sm text-muted-foreground">
+                  Automatically push and pull data when online.
+                </p>
+              </div>
+              <Switch
+                checked={autoSyncEnabled}
+                onCheckedChange={setAutoSyncEnabled}
+                disabled={!isCloudLinked}
+              />
+            </div>
+            {autoSyncEnabled && (
+              <div className="flex items-center justify-between pt-2">
+                <Label>Sync Interval</Label>
+                <Select
+                  value={autoSyncInterval}
+                  onValueChange={setAutoSyncInterval}
+                >
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Select interval" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="5">Every 5 Minutes</SelectItem>
+                    <SelectItem value="15">Every 15 Minutes</SelectItem>
+                    <SelectItem value="30">Every 30 Minutes</SelectItem>
+                    <SelectItem value="60">Every 1 Hour</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div className="pt-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleSaveAutoSyncSettings}
+                disabled={!isCloudLinked}
+              >
+                <Save className="w-4 h-4 mr-2" />
+                Save Auto-Sync Settings
+              </Button>
+            </div>
           </div>
         </div>
 

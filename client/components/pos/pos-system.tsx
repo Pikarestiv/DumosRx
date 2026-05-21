@@ -247,7 +247,7 @@ export function POSSystem() {
       // We need a way to bulk add to cart or loop addToCart
       // For now, let's assume usePOSCart can be extended or we loop
       items.forEach((item: any) => {
-        const medicine = medicines.find(m => m.id === item.medicine_id);
+        const medicine = medicines.find(m => m.id === (item.medicine_id || item.id));
         if (medicine) {
           // Add to cart with specific quantity
           for(let i=0; i<item.quantity; i++) {

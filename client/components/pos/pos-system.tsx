@@ -125,6 +125,7 @@ export function POSSystem() {
     updateQuantity,
     removeFromCart,
     clearCart,
+    restoreCart,
     subtotal,
     tax,
     total,
@@ -244,17 +245,19 @@ export function POSSystem() {
 
       // 2. Parse items and add to cart
       const items = JSON.parse(held.items_json);
-      // We need a way to bulk add to cart or loop addToCart
-      // For now, let's assume usePOSCart can be extended or we loop
-      items.forEach((item: any) => {
+      const restoredItems = items.map((item: any) => {
         const medicine = medicines.find(m => m.id === (item.medicine_id || item.id));
         if (medicine) {
-          // Add to cart with specific quantity
-          for(let i=0; i<item.quantity; i++) {
-             addToCart(medicine);
-          }
+          return {
+            ...medicine,
+            quantity: item.quantity,
+            subtotal: medicine.unit_price * item.quantity
+          };
         }
-      });
+        return null;
+      }).filter(Boolean);
+      
+      restoreCart(restoredItems);
 
       if (held.customer_id) {
         const customer = customers.find(c => c.id === held.customer_id);

@@ -91,12 +91,17 @@ export function usePOSCart(medicines: Medicine[]) {
     setDiscount(0);
   };
 
+  const restoreCart = (items: CartItem[]) => {
+    setCart(items);
+  };
+
   return {
     cart,
     addToCart,
     updateQuantity,
     removeFromCart,
     clearCart,
+    restoreCart,
     subtotal,
     tax,
     total,

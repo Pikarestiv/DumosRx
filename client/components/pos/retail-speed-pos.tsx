@@ -11,10 +11,11 @@ import {
   ShoppingCart, 
   Trash2, 
   User, 
-  CreditCard, 
-  Banknote, 
+  CreditCard,
+  Banknote,
   Zap,
-  Package
+  Package,
+  AlertCircle
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
@@ -35,6 +36,7 @@ interface RetailSpeedPOSProps {
   selectedCustomer: any;
   setPaymentMethod: (method: any) => void;
   setShowPaymentDialog: (show: boolean) => void;
+  isFuzzyFallback?: boolean;
 }
 
 export function RetailSpeedPOS({
@@ -54,6 +56,7 @@ export function RetailSpeedPOS({
   selectedCustomer,
   setPaymentMethod,
   setShowPaymentDialog,
+  isFuzzyFallback,
 }: RetailSpeedPOSProps) {
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -159,7 +162,14 @@ export function RetailSpeedPOS({
         <Card className="flex-1 overflow-hidden">
           <CardContent className="p-4 h-full overflow-y-auto">
             {searchTerm ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <div className="flex flex-col h-full">
+                {isFuzzyFallback && filteredMedicines.length > 0 && (
+                  <div className="mb-3 px-3 py-2 bg-amber-500/10 text-amber-600 rounded-md text-xs font-bold flex items-center gap-2 shrink-0 border border-amber-500/20">
+                    <AlertCircle className="h-4 w-4" />
+                    Did you mean? (No exact matches)
+                  </div>
+                )}
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 {filteredMedicines.map((m) => (
                   <Button
                     key={m.id}
@@ -179,6 +189,7 @@ export function RetailSpeedPOS({
                     </div>
                   </Button>
                 ))}
+              </div>
               </div>
             ) : (
               <div className="h-full flex flex-col items-center justify-center text-muted-foreground text-center">

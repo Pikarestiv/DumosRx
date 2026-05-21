@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PackageX, Plus } from "lucide-react";
+import { PackageX, Plus, AlertCircle } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
 interface POSProductListProps {
@@ -14,6 +14,7 @@ interface POSProductListProps {
   addToCart: (medicine: any) => void;
   productTerm: string;
   currencyCode?: string;
+  isFuzzyFallback?: boolean;
 }
 
 export function POSProductList({
@@ -22,7 +23,8 @@ export function POSProductList({
   medicinesLength,
   addToCart,
   productTerm,
-  currencyCode
+  currencyCode,
+  isFuzzyFallback
 }: POSProductListProps) {
   return (
     <Card>
@@ -37,6 +39,16 @@ export function POSProductList({
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {isFuzzyFallback && filteredMedicines.length > 0 && (
+          <div className="mb-4 bg-amber-500/10 border border-amber-500/20 text-amber-600 px-4 py-3 rounded-lg flex items-center gap-3">
+            <AlertCircle className="h-5 w-5 shrink-0" />
+            <div>
+              <p className="font-bold text-sm">Did you mean?</p>
+              <p className="text-xs opacity-80">No exact matches found. Showing closest names.</p>
+            </div>
+          </div>
+        )}
+
         {loadingMedicines ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {[...Array(4)].map((_, i) => (

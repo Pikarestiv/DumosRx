@@ -63,6 +63,7 @@ import { POSCustomerSelector } from "./pos-customer-selector";
 import { POSCart } from "./pos-cart";
 import { HeldTransactionsDialog } from "./held-transactions-dialog";
 import { insert, remove } from "@/lib/db/local-database";
+import { searchMedicines } from "@/lib/utils/search";
 
 export function POSSystem() {
   const { t, storeProfile, vatPercentage } = useStore();
@@ -191,13 +192,9 @@ export function POSSystem() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [cart, selectedCustomer, showPaymentDialog, showReceiptDialog, searchTerm, clearCart, setShowPaymentDialog, setPaymentMethod]);
 
-  const filteredMedicines = medicines.filter(
-    (medicine) =>
-      medicine.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      medicine.generic_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      medicine.brand?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      medicine.barcode?.includes(searchTerm),
-  );
+  const { results: filteredMedicines, isFuzzyFallback } = React.useMemo(() => {
+    return searchMedicines(searchTerm, medicines);
+  }, [searchTerm, medicines]);
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && searchTerm.trim()) {
@@ -345,6 +342,7 @@ export function POSSystem() {
           searchTerm={searchTerm}
           setSearchTerm={setSearchTerm}
           filteredMedicines={filteredMedicines}
+          isFuzzyFallback={isFuzzyFallback}
           addToCart={addToCart}
           updateQuantity={updateQuantity}
           removeFromCart={removeFromCart}
@@ -376,6 +374,7 @@ export function POSSystem() {
                 <POSProductList
                   loadingMedicines={loadingMedicines}
                   filteredMedicines={filteredMedicines}
+                  isFuzzyFallback={isFuzzyFallback}
                   medicinesLength={medicines.length}
                   addToCart={addToCart}
                   productTerm={t('product')}

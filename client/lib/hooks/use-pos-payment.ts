@@ -36,7 +36,7 @@ export function usePOSPayment({
   clearCart,
   refetchMedicines,
 }: UsePOSPaymentProps) {
-  const [paymentMethod, setPaymentMethod] = useState<"cash" | "card" | "mobile" | "credit">("cash");
+  const [paymentMethod, setPaymentMethod] = useState<"cash" | "card" | "transfer" | "credit">("cash");
   const [amountPaid, setAmountPaid] = useState("");
   const [processingPayment, setProcessingPayment] = useState(false);
   const [completedTransaction, setCompletedTransaction] = useState<any>(null);

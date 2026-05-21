@@ -17,8 +17,8 @@ interface POSPaymentDialogProps {
   showPaymentDialog: boolean;
   setShowPaymentDialog: (show: boolean) => void;
   total: number;
-  paymentMethod: "cash" | "card" | "mobile" | "credit";
-  setPaymentMethod: (method: "cash" | "card" | "mobile" | "credit") => void;
+  paymentMethod: "cash" | "card" | "transfer" | "credit";
+  setPaymentMethod: (method: "cash" | "card" | "transfer" | "credit") => void;
   amountPaid: string;
   setAmountPaid: (amount: string) => void;
   processingPayment: boolean;
@@ -71,12 +71,12 @@ export function POSPaymentDialog({
                 <span className="text-xs">Card</span>
               </Button>
               <Button
-                variant={paymentMethod === "mobile" ? "default" : "outline"}
-                onClick={() => setPaymentMethod("mobile")}
+                variant={paymentMethod === "transfer" ? "default" : "outline"}
+                onClick={() => setPaymentMethod("transfer")}
                 className="flex flex-col gap-1 h-16"
               >
                 <Smartphone className="h-5 w-5" />
-                <span className="text-xs">Mobile</span>
+                <span className="text-xs">Transfer</span>
               </Button>
               <Button
                 variant={paymentMethod === "credit" ? "default" : "outline"}

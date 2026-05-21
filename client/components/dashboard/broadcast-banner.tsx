@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Megaphone, X, Info, AlertTriangle, ShieldAlert, CheckCircle2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Megaphone, X, AlertTriangle, ShieldAlert, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiClient } from "@/lib/api/client";
 

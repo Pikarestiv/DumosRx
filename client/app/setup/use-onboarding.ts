@@ -107,7 +107,7 @@ export function useOnboarding() {
         }
         router.push("/dashboard");
       }
-    } catch (err) {
+    } catch (_err) {
       console.error("Registration failed", err);
       toast.error("Failed to complete setup");
     } finally {
@@ -125,7 +125,7 @@ export function useOnboarding() {
       } else {
         toast.error(result.message);
       }
-    } catch (err) {
+    } catch (_err) {
       toast.error("Cloud connection failed");
     } finally {
       setIsLoading(false);
@@ -175,7 +175,7 @@ export function useOnboarding() {
         toast.error(`Sync failed: ${result.error || "Unknown error"}`);
         setStep("cloud");
       }
-    } catch (err) {
+    } catch (_err) {
       console.error("Sync error:", err);
       setSyncStatus("Error during sync");
       toast.error("An unexpected error occurred during sync");

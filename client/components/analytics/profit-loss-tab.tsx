@@ -19,7 +19,6 @@ import {
   XAxis, 
   YAxis, 
   CartesianGrid, 
-  ResponsiveContainer, 
   Area, 
   AreaChart 
 } from "recharts";

@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 "use client"
 
 import type React from "react"
@@ -40,7 +41,7 @@ import { toast } from "sonner"
 
 export function NewPrescription() {
   // Fetch available medicines from local inventory
-  const { data: inventoryData, loading: inventoryLoading } = useLocalData<any>(
+  const { data: inventoryData, loading: _inventoryLoading } = useLocalData<any>(
     `SELECT i.*, m.name as medicine_name, m.strength as m_strength
      FROM inventory i 
      JOIN medicines m ON i.medicine_id = m.id 

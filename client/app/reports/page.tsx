@@ -7,10 +7,10 @@ import { ReportCenter } from "@/components/reports/report-center";
 import { BusinessIntelligenceDashboard } from "@/components/analytics/business-intelligence-dashboard";
 import { useStore } from "@/lib/context/store-context";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart3, FileText, TrendingUp } from "lucide-react";
+import { FileText, TrendingUp } from "lucide-react";
 
 export default function ReportsPage() {
-  const { t, storeType } = useStore();
+  const { t, storeType: _storeType } = useStore();
   const searchParams = useSearchParams();
   const router = useRouter();
   

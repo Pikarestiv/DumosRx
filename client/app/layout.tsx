@@ -13,7 +13,6 @@ import { QuickSetupWizard } from "@/components/setup/quick-setup-wizard";
 import { LicenseGuard } from "@/components/auth/license-guard";
 import { DevSeedButton } from "@/components/dev/seed-button";
 import { isTauri } from "@/lib/db/core";
-import { cn } from "@/lib/utils";
 import { APP_NAME } from "@/lib/constants";
 import { TauriTitleBar } from "@/components/tauri/tauri-title-bar";
 

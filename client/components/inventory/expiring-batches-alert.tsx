@@ -2,14 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { 
-  AlertTriangle, 
-  Calendar,
+  AlertTriangle,
   ChevronRight,
   Pill,
   X
 } from "lucide-react";
 import { query } from "@/lib/db/core";
-import { getExpiryStatus, getDaysToExpiry } from "@/lib/utils/date-utils";
+import { getDaysToExpiry } from "@/lib/utils/date-utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 

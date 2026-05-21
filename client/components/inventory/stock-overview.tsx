@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -26,7 +26,7 @@ interface StockItem {
 }
 
 export function StockOverview() {
-  const { storeProfile } = useStore();
+  const { storeProfile: _storeProfile } = useStore();
 
   // Shared stats hook — single source of truth for all stat cards
   const stats = useInventoryStats();

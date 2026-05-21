@@ -284,7 +284,7 @@ export function StoreSettings({
               <div className="bg-white text-black p-4 shadow-md rounded-sm border-t-8 border-primary font-mono text-[10px] space-y-2 select-none pointer-events-none">
                 <div className="text-center space-y-1">
                   {showLogo && localLogo && (
-                    <img src={localLogo} className="h-10 w-10 mx-auto object-contain mb-1" />
+                    <img src={localLogo} alt="Store logo" className="h-10 w-10 mx-auto object-contain mb-1" />
                   )}
                   <div className="font-bold text-xs uppercase">{localName || "DUMOSRX PHARMACY"}</div>
                   {showContact && (

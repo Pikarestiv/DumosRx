@@ -1,6 +1,6 @@
 "use client";
 
-import { Database, CloudOff, Save, Upload, RefreshCw } from "lucide-react";
+import { Database, CloudOff, Save, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";

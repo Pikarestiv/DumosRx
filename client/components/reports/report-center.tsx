@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   FileText, 
   Download, 
@@ -18,7 +17,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 
 export function ReportCenter() {
-  const [dateRange, setDateRange] = useState("Last 30 Days");
+  const [dateRange, _setDateRange] = useState("Last 30 Days");
 
   const reports = [
     {

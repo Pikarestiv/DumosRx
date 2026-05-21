@@ -48,7 +48,7 @@ export function CloudLinkDialog({ open, onOpenChange, onSuccess }: CloudLinkDial
       } else {
         toast.error(result.message);
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error("An unexpected error occurred");
     } finally {
       setIsLoading(false);

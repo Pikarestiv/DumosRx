@@ -7,7 +7,7 @@ import { DashboardOverview } from "@/components/dashboard/dashboard-overview";
 import { useAuth } from "@/lib/context/auth-context";
 
 export default function DashboardPage() {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user: _user } = useAuth();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
 

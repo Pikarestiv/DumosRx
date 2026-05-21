@@ -79,7 +79,7 @@ export async function checkLicenseStatus(): Promise<LicenseInfo> {
       expiryDate: tokenData.expiry, 
       isClockTampered: false 
     };
-  } catch (e) {
+  } catch (_e) {
     return { isValid: false, tier: "free", expiryDate: null, isClockTampered: false, message: "Invalid license token." };
   }
 }
@@ -96,7 +96,7 @@ export async function activateLicense(token: string) {
       [token, decoded.tier || "pro", new Date().toISOString()]
     );
     return true;
-  } catch (e) {
+  } catch (_e) {
     console.error("[Licensing] Failed to activate license:", e);
     return false;
   }

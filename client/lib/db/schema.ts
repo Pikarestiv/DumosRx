@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 /**
  * Database Schema SQL
  */

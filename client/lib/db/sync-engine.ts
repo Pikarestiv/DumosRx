@@ -190,7 +190,7 @@ export async function pullChanges(): Promise<{
         } else if (rawDb) {
           rawDb.run("ROLLBACK");
         }
-      } catch (rollbackErr) {
+      } catch (_rollbackErr) {
         // Silently fail rollback
       }
       throw err;

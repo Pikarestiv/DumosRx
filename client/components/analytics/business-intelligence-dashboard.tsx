@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar } from "lucide-react";
 import { useBIData } from "@/lib/hooks/use-bi-data";
 import { BIKeyMetrics } from "./bi-key-metrics";
-import { inventoryAlerts, customerMetrics } from "./sample-data";
+import { inventoryAlerts } from "./sample-data";
 import { SalesAnalyticsTab } from "./sales-analytics-tab";
 import { ProfitLossTab } from "./profit-loss-tab";
 import { InventoryInsightsTab } from "./inventory-insights-tab";

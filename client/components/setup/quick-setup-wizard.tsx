@@ -1,7 +1,7 @@
 "use client";
 
 import { useLocalData } from "@/lib/db/hooks/useLocalData";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,

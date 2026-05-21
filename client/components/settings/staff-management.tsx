@@ -7,9 +7,6 @@ import { Label } from "@/components/ui/label";
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import {
   Table,
@@ -36,7 +33,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { UserPlus, Trash2, Shield, User as UserIcon, Loader2 } from "lucide-react";
+import { UserPlus, Trash2, Shield, Loader2 } from "lucide-react";
 import { getUsers, createUser, deleteUser } from "@/lib/db/local-database";
 import { toast } from "sonner";
 

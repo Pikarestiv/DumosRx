@@ -1,7 +1,7 @@
 /**
  * Helper for Expiry Date Calculations
  */
-import { addMonths, isBefore, isAfter, differenceInDays } from "date-fns";
+import { addMonths, isBefore, differenceInDays } from "date-fns";
 
 export const getExpiryStatus = (expiryDate: string, warningMonths: number = 3) => {
   const date = new Date(expiryDate);

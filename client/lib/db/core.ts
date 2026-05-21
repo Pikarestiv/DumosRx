@@ -61,7 +61,7 @@ export async function initDatabase(): Promise<any> {
         db = new SQL.Database(data);
         // Ensure new tables from schema updates are created
         db.run(SCHEMA_SQL);
-      } catch (e) {
+      } catch (_e) {
         console.error("[DB] Failed to load saved data, starting fresh", e);
         db = new SQL.Database();
         db.run(SCHEMA_SQL);
@@ -99,7 +99,7 @@ export async function initDatabase(): Promise<any> {
         try {
           // Attempt to add column; will throw if it already exists
           db.run(`ALTER TABLE ${table} ADD COLUMN ${colDef}`);
-        } catch (e) {
+        } catch (_e) {
           // Column likely already exists; ignore
         }
       }
@@ -199,7 +199,7 @@ export async function resetDatabase(): Promise<void> {
   for (const table of tablesToClear) {
     try {
       db.run(`DELETE FROM ${table}`);
-    } catch (e) {
+    } catch (_e) {
       console.warn(`Failed to clear table ${table}`, e);
     }
   }

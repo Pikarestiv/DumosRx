@@ -17,6 +17,7 @@ interface ConfirmDialogProps {
   description: string;
   confirmLabel?: string;
   cancelLabel?: string;
+  hideCancel?: boolean;
   variant?: "destructive" | "default";
   onConfirm: () => void;
 }
@@ -28,6 +29,7 @@ export function ConfirmDialog({
   description,
   confirmLabel = "Continue",
   cancelLabel = "Cancel",
+  hideCancel = false,
   variant = "destructive",
   onConfirm,
 }: ConfirmDialogProps) {
@@ -39,9 +41,11 @@ export function ConfirmDialog({
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            {cancelLabel}
-          </Button>
+          {!hideCancel && (
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              {cancelLabel}
+            </Button>
+          )}
           <Button
             variant={variant === "destructive" ? "destructive" : "default"}
             onClick={() => {

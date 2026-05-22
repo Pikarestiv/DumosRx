@@ -16,8 +16,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SearchableInput } from "@/components/ui/searchable-input";
-
 import { useStore } from "@/lib/context/store-context";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { FORM_SUGGESTIONS } from "@/lib/constants/suggestions";
 
 interface Medicine {
@@ -77,6 +77,7 @@ export function AddMedicineDialog({
     unitsPerBulk: 1,
     status: "active",
   });
+  const [alertMessage, setAlertMessage] = useState<string | null>(null);
 
   // Load editing medicine data if provided
   useEffect(() => {
@@ -141,12 +142,12 @@ export function AddMedicineDialog({
 
     // Validation
     if (!formData.name) {
-      alert("Please enter a name");
+      setAlertMessage("Please enter a name");
       return;
     }
 
     if (isPharmacy && (!formData.genericName || !formData.nafdacNumber)) {
-      alert(
+      setAlertMessage(
         `Generic Name and ${t("registration_number")} are required for ${t("store").toLowerCase()}s`,
       );
       return;
@@ -512,6 +513,15 @@ export function AddMedicineDialog({
           </DialogFooter>
         </form>
       </DialogContent>
+      <ConfirmDialog
+        open={!!alertMessage}
+        onOpenChange={(open) => { if (!open) setAlertMessage(null); }}
+        title="Validation Error"
+        description={alertMessage || ""}
+        confirmLabel="OK"
+        hideCancel
+        onConfirm={() => setAlertMessage(null)}
+      />
     </Dialog>
   );
 }

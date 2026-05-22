@@ -18,6 +18,7 @@ import { Switch } from "@/components/ui/switch";
 import { useStore } from "@/lib/context/store-context";
 import { SearchableInput } from "@/components/ui/searchable-input";
 import { FORM_SUGGESTIONS } from "@/lib/constants/suggestions";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 interface Supplier {
   name: string;
@@ -59,12 +60,13 @@ export function AddSupplierDialog({
     paymentTerms: "",
     isActive: true,
   });
+  const [alertMessage, setAlertMessage] = useState<string | null>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!formData.name) {
-      alert("Please fill in the supplier name");
+      setAlertMessage("Please fill in the supplier name");
       return;
     }
 
@@ -226,6 +228,15 @@ export function AddSupplierDialog({
           </DialogFooter>
         </form>
       </DialogContent>
+      <ConfirmDialog
+        open={!!alertMessage}
+        onOpenChange={(open) => { if (!open) setAlertMessage(null); }}
+        title="Validation Error"
+        description={alertMessage || ""}
+        confirmLabel="OK"
+        hideCancel
+        onConfirm={() => setAlertMessage(null)}
+      />
     </Dialog>
   );
 }

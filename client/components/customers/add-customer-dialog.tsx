@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2 } from "lucide-react";
 import { SearchableInput } from "@/components/ui/searchable-input";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 interface Customer {
   firstName: string;
@@ -54,12 +55,13 @@ export function AddCustomerDialog({
     creditLimit: "0",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [alertMessage, setAlertMessage] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!formData.firstName || !formData.lastName) {
-      alert("Please enter first and last name");
+      setAlertMessage("Please enter first and last name");
       return;
     }
 
@@ -248,6 +250,15 @@ export function AddCustomerDialog({
           </DialogFooter>
         </form>
       </DialogContent>
+      <ConfirmDialog
+        open={!!alertMessage}
+        onOpenChange={(open) => { if (!open) setAlertMessage(null); }}
+        title="Validation Error"
+        description={alertMessage || ""}
+        confirmLabel="OK"
+        hideCancel
+        onConfirm={() => setAlertMessage(null)}
+      />
     </Dialog>
   );
 }

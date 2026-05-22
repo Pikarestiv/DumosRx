@@ -14,6 +14,7 @@ use App\Models\Supplier;
 use App\Models\Inventory;
 use App\Models\Store;
 use App\Models\User;
+use App\Models\ActivityLog;
 
 class SyncController extends Controller
 {
@@ -125,6 +126,11 @@ class SyncController extends Controller
                 $processed++;
             }
 
+            // Update the last sync time for the user's store
+            if ($request->user()) {
+                Store::where('user_id', $request->user()->id)->update(['last_sync_at' => now()]);
+            }
+
             DB::commit();
             return response()->json(['success' => true, 'processed' => $processed]);
 
@@ -234,6 +240,8 @@ class SyncController extends Controller
             'sale_items' => SaleItem::class,
             'store_profile' => Store::class,
             'users' => User::class,
+            'inventory' => Inventory::class,
+            'activity_logs' => ActivityLog::class,
         ];
         return $map[$tableName] ?? null;
     }

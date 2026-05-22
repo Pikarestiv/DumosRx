@@ -14,6 +14,7 @@ import { useStore } from "@/lib/context/store-context";
 import { AuthModal } from "./auth-modal";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
+import { toast } from "sonner";
 
 export function SyncIndicator() {
   const [status, setStatus] = useState<
@@ -84,6 +85,7 @@ export function SyncIndicator() {
         setStatus("online");
         setLastSync(new Date().toISOString());
         setErrorMessage(null);
+        toast.success("Sync completed successfully");
       } else {
         setStatus("error");
         const errorMsg = typeof result.error === 'string' ? result.error : "Sync failed";

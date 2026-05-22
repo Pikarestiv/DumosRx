@@ -64,6 +64,18 @@ class SyncController extends Controller
                 if ($change['operation'] === 'INSERT') {
                     $recordId = $change['record_id'] ?? ($payload['id'] ?? null);
                     $exists = $modelClass::where('id', $recordId)->exists();
+                    
+                    // Prevent duplicate email/username crashes for users
+                    if (!$exists && $change['table_name'] === 'users') {
+                        $conflict = $modelClass::where('email', $payload['email'])
+                                             ->orWhere('username', $payload['username'])
+                                             ->first();
+                        if ($conflict) {
+                            Log::warning("Sync push skipped user insert due to duplicate email/username: {$payload['email']}");
+                            $exists = true; // Pretend it exists to skip insertion
+                        }
+                    }
+
                     if (!$exists) {
                         $model = new $modelClass();
                         $model->fill($payload);

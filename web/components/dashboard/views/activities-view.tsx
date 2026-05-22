@@ -10,11 +10,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { webApiClient } from "@/lib/api/client";
 
-export function ActivitiesView() {
+export function ActivitiesView({ stores = [] }: { stores?: any[] }) {
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterAction, setFilterAction] = useState("all");
+  const [filterStore, setFilterStore] = useState("all");
 
   useEffect(() => {
     const fetchLogs = async () => {
@@ -51,8 +52,9 @@ export function ActivitiesView() {
   const filteredLogs = logs.filter((log) => {
     const matchesSearch = log.details?.toLowerCase().includes(search.toLowerCase()) || 
                           log.table_name?.toLowerCase().includes(search.toLowerCase());
-    const matchesFilter = filterAction === "all" || log.action?.toLowerCase() === filterAction.toLowerCase();
-    return matchesSearch && matchesFilter;
+    const matchesAction = filterAction === "all" || log.action?.toLowerCase() === filterAction.toLowerCase();
+    const matchesStore = filterStore === "all" || log.user?.store_id === filterStore;
+    return matchesSearch && matchesAction && matchesStore;
   });
 
   return (
@@ -93,6 +95,22 @@ export function ActivitiesView() {
                 <SelectItem value="delete">Delete</SelectItem>
               </SelectContent>
             </Select>
+
+            {stores && stores.length > 0 && (
+              <Select value={filterStore} onValueChange={setFilterStore}>
+                <SelectTrigger className="w-full sm:w-48 h-11 bg-muted/50 border-none font-bold rounded-xl">
+                  <SelectValue placeholder="Filter Store" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Stores</SelectItem>
+                  {stores.map(store => (
+                    <SelectItem key={store.id} value={store.id}>
+                      {store.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -132,7 +150,12 @@ export function ActivitiesView() {
                       {format(new Date(log.created_at || new Date()), "MMM dd, yyyy HH:mm")}
                     </TableCell>
                     <TableCell className="font-bold">
-                      {log.user?.name || log.user?.first_name || log.user_id || "System"}
+                      <div className="flex flex-col">
+                        <span>{log.user?.name || log.user?.first_name || log.user_id || "System"}</span>
+                        {log.user?.store && (
+                          <span className="text-xs font-normal text-muted-foreground">{log.user.store.name}</span>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline" className={`font-black uppercase tracking-wider text-[10px] ${getActionColor(log.action)}`}>

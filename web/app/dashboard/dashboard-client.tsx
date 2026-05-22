@@ -61,7 +61,7 @@ export function DashboardClient({ view }: { view: string }) {
           </Suspense>
         );
       case "activities":
-        return <ActivitiesView />;
+        return <ActivitiesView stores={stores} />;
       case "billing":
         return <BillingView />;
       case "downloads":

@@ -51,6 +51,7 @@ function getDateRange(preset: string): { from?: string; to?: string } {
 }
 
 export function ReportCenter() {
+  const router = useRouter();
   const [datePreset, setDatePreset] = useState("30d");
   const [loadingReport, setLoadingReport] = useState<string | null>(null);
   const [recentDownloads, setRecentDownloads] = useState<RecentDownload[]>([]);
@@ -111,7 +112,7 @@ export function ReportCenter() {
     if (from) params.set("from", from);
     if (to) params.set("to", to);
     const printUrl = `/reports/print?${params.toString()}`;
-    window.open(printUrl, "_blank");
+    router.push(printUrl);
   };
 
   const reports = [

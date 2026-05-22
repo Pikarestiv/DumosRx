@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
+import { ArrowLeft, Printer } from "lucide-react";
 import {
   fetchSalesReportData,
   fetchInventoryReportData,
@@ -21,6 +22,7 @@ export default function PrintReportPage() {
 }
 
 function PrintReportContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const reportType = searchParams.get("report");
   const dateFrom = searchParams.get("from") || undefined;
@@ -122,6 +124,23 @@ function PrintReportContent() {
 
   return (
     <div className="p-8 max-w-[1200px] mx-auto font-sans bg-white text-black min-h-screen">
+      <div className="mb-6 print:hidden flex justify-between items-center bg-gray-50 p-4 rounded-lg border">
+        <button 
+          onClick={() => router.back()} 
+          className="flex items-center gap-2 text-gray-700 hover:text-black font-medium px-4 py-2 bg-white rounded-md border shadow-sm"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Reports
+        </button>
+        <button 
+          onClick={() => window.print()} 
+          className="flex items-center gap-2 text-white bg-blue-600 hover:bg-blue-700 font-medium px-4 py-2 rounded-md shadow-sm"
+        >
+          <Printer className="w-4 h-4" />
+          Print Now
+        </button>
+      </div>
+
       <div className="mb-8 border-b pb-4 flex justify-between items-end">
         <div>
           <h1 className="text-3xl font-bold font-serif mb-1">{title}</h1>

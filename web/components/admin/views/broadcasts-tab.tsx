@@ -40,7 +40,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
-export default function AdminBroadcasts() {
+export function BroadcastsTab() {
   const [broadcasts, setBroadcasts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -55,7 +55,8 @@ export default function AdminBroadcasts() {
     title: "",
     message: "",
     type: "info",
-    target_type: "all",
+    target_type: "all" as "all" | "specific",
+    user_ids: [] as any[],
     expires_at: "",
     is_active: true
   });
@@ -96,6 +97,7 @@ export default function AdminBroadcasts() {
         message: "",
         type: "info",
         target_type: "all",
+        user_ids: [],
         expires_at: "",
         is_active: true
       });
@@ -180,6 +182,7 @@ export default function AdminBroadcasts() {
               message: "",
               type: "info",
               target_type: "all",
+              user_ids: [],
               expires_at: "",
               is_active: true
             });
@@ -288,7 +291,8 @@ export default function AdminBroadcasts() {
                                 title: broadcast.title,
                                 message: broadcast.message,
                                 type: broadcast.type,
-                                target_type: broadcast.target_type,
+                                target_type: broadcast.target_type || "all",
+                                user_ids: broadcast.user_ids || [],
                                 expires_at: broadcast.expires_at ? broadcast.expires_at.split('T')[0] : "",
                                 is_active: broadcast.is_active
                               });

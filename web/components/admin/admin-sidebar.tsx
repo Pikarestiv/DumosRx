@@ -14,7 +14,8 @@ import {
   Server,
   Megaphone,
   Mail,
-  MessageSquare
+  MessageSquare,
+  Settings,
 } from "lucide-react";
 import { useAdminAuthStore } from "@/lib/store/use-admin-auth-store";
 import { useAdminSummary } from "@/lib/api/admin-hooks";
@@ -26,10 +27,8 @@ const sidebarItems = [
   { id: "pharmacies", name: "Pharmacies", icon: Store, href: "/admin/pharmacies" },
   { id: "users", name: "Platform Users", icon: Users, href: "/admin/users" },
   { id: "products", name: "Global Products", icon: Package, href: "/admin/products" },
-  { id: "broadcasts", name: "Global Broadcasts", icon: Megaphone, href: "/admin/broadcasts" },
-  { id: "email-templates", name: "Email Templates", icon: Mail, href: "/admin/email-templates" },
-  { id: "feedback", name: "User Feedback", icon: MessageSquare, href: "/admin/feedback" },
-  { id: "system", name: "System Health", icon: Server, href: "/admin/system" },
+  { id: "communications", name: "Communications", icon: MessageSquare, href: "/admin/communications" },
+  { id: "settings", name: "Platform Settings", icon: Settings, href: "/admin/settings" },
 ];
 
 export function AdminSidebar() {

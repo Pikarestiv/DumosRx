@@ -19,7 +19,7 @@ import { MessageSquare, Bug, Lightbulb, User, Clock, CheckCircle2, XCircle } fro
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 
-export default function AdminFeedbackPage() {
+export function FeedbackTab() {
   const [filter, setFilter] = useState("all");
   const { data, isLoading } = useAdminFeedback(filter);
   const updateStatus = useUpdateFeedbackStatusMutation();

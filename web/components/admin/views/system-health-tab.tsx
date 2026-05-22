@@ -22,7 +22,7 @@ import { toast } from "sonner";
 import { useAdminHealth } from "@/lib/api/admin-hooks";
 import { AdminSkeleton } from "@/components/admin/admin-skeleton";
 
-export default function SystemHealthPage() {
+export function SystemHealthTab() {
   const { data: systemHealth, isLoading, refetch } = useAdminHealth();
 
   const refreshHealth = () => {

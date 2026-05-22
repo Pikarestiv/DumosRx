@@ -16,7 +16,7 @@ interface EmailTemplate {
   variables: Array<{ name: string; description: string }>;
 }
 
-export default function EmailTemplatesPage() {
+export function EmailTemplatesTab() {
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [selectedTemplate, setSelectedTemplate] =
     useState<EmailTemplate | null>(null);

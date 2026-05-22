@@ -1,4 +1,5 @@
 import { Megaphone, Edit } from "lucide-react";
+import { UserSelector } from "@/components/admin/user-selector";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -78,6 +79,15 @@ function BroadcastFormFields({ formData, setFormData }: { formData: any, setForm
             onChange={(e) => setFormData({...formData, expires_at: e.target.value})}
           />
         </div>
+      </div>
+
+      <div className="pt-2">
+        <UserSelector 
+          selectedUsers={formData.user_ids || []}
+          onUsersChange={(users) => setFormData({...formData, user_ids: users})}
+          targetType={formData.target_type || "all"}
+          onTargetTypeChange={(type) => setFormData({...formData, target_type: type})}
+        />
       </div>
     </>
   );

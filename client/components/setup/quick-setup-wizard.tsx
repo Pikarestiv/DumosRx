@@ -18,14 +18,14 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { useStore, StoreType } from "@/lib/context/store-context";
-import { useAuthStore } from "@/lib/auth/store";
+import { useAuth } from "@/lib/context/auth-context";
 import { ShoppingBasket, Pill, Store, Check, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { APP_NAME } from "@/lib/constants";
 
 export function QuickSetupWizard() {
   const { isInitialized, updateStoreProfile, loading: storeLoading } = useStore();
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, isAdmin, isCloudLinked } = useAuth();
   const { data: recordCounts, loading: dataLoading } = useLocalData<{ total: number }>(
     "SELECT (SELECT COUNT(*) FROM medicines) + (SELECT COUNT(*) FROM sales) as total"
   );
@@ -57,7 +57,7 @@ export function QuickSetupWizard() {
 
   const totalRecords = recordCounts[0]?.total || 0;
   
-  if (isInitialized || !isAuthenticated || totalRecords > 0) return null;
+  if (isInitialized || !isAuthenticated || !isAdmin || isCloudLinked || totalRecords > 0) return null;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

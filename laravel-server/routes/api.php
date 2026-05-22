@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\Web\DashboardController;
 use App\Http\Controllers\Api\Web\NotificationController;
 use App\Http\Controllers\Api\Web\StaffController;
 use App\Http\Controllers\Api\Web\SubscriptionController;
+use App\Http\Controllers\Api\Web\SessionController;
 use App\Http\Controllers\Api\Web\BackupController;
 use App\Http\Controllers\Api\Web\ActivityLogController;
 use App\Http\Controllers\Api\Web\StoreController;
@@ -58,6 +59,12 @@ Route::prefix('v1')->group(function () {
             Route::post('/set-pin', [AuthController::class, 'updatePin']);
             Route::post('/change-password', [AuthController::class, 'changePassword']);
             Route::post('/request-deletion', [AuthController::class, 'requestDeletion']);
+        });
+
+        Route::prefix('sessions')->group(function () {
+            Route::get('/', [SessionController::class, 'index']);
+            Route::post('/revoke-all', [SessionController::class, 'revokeAll']);
+            Route::delete('/{id}', [SessionController::class, 'destroy']);
         });
 
         // --- WEB DASHBOARD ROUTES ---

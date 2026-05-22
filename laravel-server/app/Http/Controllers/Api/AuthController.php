@@ -89,7 +89,13 @@ class AuthController extends Controller
         $user->last_login_at = now();
         $user->save();
 
-        $token = $user->createToken($request->device_name)->plainTextToken;
+        $tokenResult = $user->createToken($request->device_name);
+        $token = $tokenResult->plainTextToken;
+        
+        $tokenModel = $tokenResult->accessToken;
+        $tokenModel->ip_address = $request->ip();
+        $tokenModel->user_agent = $request->userAgent();
+        $tokenModel->save();
 
         $response = response()->json([
             'message' => 'Login successful',

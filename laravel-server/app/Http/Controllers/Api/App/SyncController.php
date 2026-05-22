@@ -44,6 +44,11 @@ class SyncController extends Controller
                 $table->timestamp('_synced_at')->nullable()->index();
             });
         }
+        if (!\Illuminate\Support\Facades\Schema::hasColumn('categories', '_synced_at')) {
+            \Illuminate\Support\Facades\Schema::table('categories', function (\Illuminate\Database\Schema\Blueprint $table) {
+                $table->timestamp('_synced_at')->nullable()->index();
+            });
+        }
 
         DB::beginTransaction();
 

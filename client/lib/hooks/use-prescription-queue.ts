@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { query } from "@/lib/db/local-database";
+import { genericFuzzySearch } from "@/lib/utils/search";
 
 export interface PrescriptionMedication {
   id: string;
@@ -101,19 +102,23 @@ export function usePrescriptionQueue() {
     fetchPrescriptions();
   }, []);
 
-  const filteredPrescriptions = useMemo(() => {
+  const preFilteredPrescriptions = useMemo(() => {
     return prescriptions.filter((prescription) => {
-      const matchesSearch =
-        prescription.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        prescription.prescriptionNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        prescription.doctorName.toLowerCase().includes(searchTerm.toLowerCase());
-
       const matchesStatus = statusFilter === "all" || prescription.status === statusFilter;
       const matchesPriority = priorityFilter === "all" || prescription.priority === priorityFilter;
 
-      return matchesSearch && matchesStatus && matchesPriority;
+      return matchesStatus && matchesPriority;
     });
-  }, [prescriptions, searchTerm, statusFilter, priorityFilter]);
+  }, [prescriptions, statusFilter, priorityFilter]);
+
+  const { filteredPrescriptions, isFuzzyFallback } = useMemo(() => {
+    const { results, isFuzzyFallback } = genericFuzzySearch(
+      searchTerm,
+      preFilteredPrescriptions,
+      ["patientName", "prescriptionNumber", "doctorName"]
+    );
+    return { filteredPrescriptions: results, isFuzzyFallback };
+  }, [searchTerm, preFilteredPrescriptions]);
 
   const updatePrescriptionStatus = async (id: string, newStatus: Prescription["status"]) => {
     try {
@@ -154,6 +159,7 @@ export function usePrescriptionQueue() {
     priorityFilter,
     setPriorityFilter,
     filteredPrescriptions,
+    isFuzzyFallback,
     selectedPrescription,
     showDetailsDialog,
     setShowDetailsDialog,

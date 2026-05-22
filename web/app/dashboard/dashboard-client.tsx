@@ -13,6 +13,7 @@ import { BroadcastBanner } from "@/components/dashboard/broadcast-banner";
 import { OverviewView } from "@/components/dashboard/views/overview-view";
 import { FleetView } from "@/components/dashboard/views/fleet-view";
 import { StaffView } from "@/components/dashboard/views/staff-view";
+import { ActivitiesView } from "@/components/dashboard/views/activities-view";
 import { BillingView } from "@/components/dashboard/views/billing-view";
 import { DownloadsView } from "@/components/dashboard/views/downloads-view";
 import { NotificationsView } from "@/components/dashboard/views/notifications-view";
@@ -59,6 +60,8 @@ export function DashboardClient({ view }: { view: string }) {
             <StaffView staff={staff} stores={stores} />
           </Suspense>
         );
+      case "activities":
+        return <ActivitiesView />;
       case "billing":
         return <BillingView />;
       case "downloads":

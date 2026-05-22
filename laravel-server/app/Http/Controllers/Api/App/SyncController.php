@@ -15,6 +15,8 @@ use App\Models\Inventory;
 use App\Models\Store;
 use App\Models\User;
 use App\Models\ActivityLog;
+use App\Models\Vendor;
+use App\Models\Expense;
 
 class SyncController extends Controller
 {
@@ -266,6 +268,8 @@ class SyncController extends Controller
             'inventory' => Inventory::class,
             'activity_logs' => ActivityLog::class,
             'categories' => \App\Models\Category::class,
+            'vendors' => Vendor::class,
+            'expenses' => Expense::class,
         ];
         return $map[$tableName] ?? null;
     }

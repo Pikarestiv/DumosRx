@@ -20,7 +20,7 @@ export function InventoryManagement() {
 
   // If navigated here with ?action=add or ?status=low_stock, land on the products tab
   const hasProductsParam = searchParams.get("action") === "add" || !!searchParams.get("status")
-  const defaultTab = hasProductsParam ? "products" : "products"
+  const defaultTab = hasProductsParam ? "products" : "overview"
 
   return (
     <div className="space-y-6">
@@ -49,8 +49,8 @@ export function InventoryManagement() {
 
       <Tabs defaultValue={defaultTab} className="space-y-6">
         <TabsList className="bg-muted/50 p-1 h-auto flex-wrap justify-start">
-          <TabsTrigger value="products" className="px-4 py-2 capitalize">{t('products')} Database</TabsTrigger>
           <TabsTrigger value="overview" className="px-4 py-2">Overview</TabsTrigger>
+          <TabsTrigger value="products" className="px-4 py-2 capitalize">{t('products')} Database</TabsTrigger>
           <TabsTrigger value="batches" className="px-4 py-2">Batches & Expiry</TabsTrigger>
           <TabsTrigger value="movements" className="px-4 py-2">Stock Movements</TabsTrigger>
           <TabsTrigger value="adjustments" className="px-4 py-2">Adjustments</TabsTrigger>

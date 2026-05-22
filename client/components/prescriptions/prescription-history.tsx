@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Search, Download, Eye, FileText } from "lucide-react"
+import { genericFuzzySearch } from "@/lib/utils/search"
 
 interface PrescriptionHistory {
   id: string
@@ -103,18 +104,19 @@ export function PrescriptionHistory() {
   const [statusFilter, setStatusFilter] = useState("all")
   const [dateFilter, setDateFilter] = useState("all")
 
-  const filteredHistory = history.filter((record) => {
-    const matchesSearch =
-      record.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      record.prescriptionNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      record.doctorName.toLowerCase().includes(searchTerm.toLowerCase())
-
+  const preFilteredHistory = history.filter((record) => {
     const matchesStatus = statusFilter === "all" || record.status === statusFilter
 
     const matchesDate = dateFilter === "all" || checkDateFilter(record.dateIssued, dateFilter)
 
-    return matchesSearch && matchesStatus && matchesDate
+    return matchesStatus && matchesDate
   })
+
+  const { results: filteredHistory, isFuzzyFallback } = genericFuzzySearch(
+    searchTerm,
+    preFilteredHistory,
+    ["patientName", "prescriptionNumber", "doctorName"]
+  )
 
   function checkDateFilter(date: string, filter: string): boolean {
     const recordDate = new Date(date)
@@ -290,6 +292,11 @@ export function PrescriptionHistory() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {isFuzzyFallback && filteredHistory.length > 0 && (
+            <div className="bg-amber-500/10 text-amber-600 px-4 py-2 text-sm border border-amber-500/20 text-center font-medium rounded-md mb-4">
+              Did you mean? (No exact matches found. Showing closest names.)
+            </div>
+          )}
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>

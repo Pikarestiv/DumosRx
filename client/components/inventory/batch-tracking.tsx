@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
 import { useLocalData } from "@/lib/db/hooks/useLocalData";
 import { useInventoryStats } from "@/lib/hooks/use-inventory-stats";
+import { genericFuzzySearch } from "@/lib/utils/search";
 
 import { useStore } from "@/lib/context/store-context";
 
@@ -43,10 +44,10 @@ export function BatchTracking() {
      ORDER BY expiry_date ASC`
   );
 
-  const filteredBatches = batches.filter(
-    (b) =>
-      b.medicine_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (b.batch_number || "").toLowerCase().includes(searchTerm.toLowerCase())
+  const { results: filteredBatches, isFuzzyFallback } = genericFuzzySearch(
+    searchTerm,
+    batches,
+    ["medicine_name", "medicine_brand", "batch_number"]
   );
 
   const getExpiryStatus = (date: string) => {
@@ -113,6 +114,11 @@ export function BatchTracking() {
           </div>
         </CardHeader>
         <CardContent>
+          {isFuzzyFallback && filteredBatches.length > 0 && (
+            <div className="bg-amber-500/10 text-amber-600 px-4 py-2 text-sm border border-amber-500/20 text-center font-medium rounded-md mb-4">
+              Did you mean? (No exact matches found. Showing closest names.)
+            </div>
+          )}
           <Table>
             <TableHeader>
               <TableRow>

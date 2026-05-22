@@ -30,6 +30,7 @@ export function PrescriptionQueue() {
     viewPrescriptionDetails,
     stats,
     prescriptions,
+    isFuzzyFallback,
   } = usePrescriptionQueue();
 
   const getStatusBadge = (status: Prescription["status"]) => {
@@ -122,6 +123,12 @@ export function PrescriptionQueue() {
         priorityFilter={priorityFilter}
         setPriorityFilter={setPriorityFilter}
       />
+
+      {isFuzzyFallback && filteredPrescriptions.length > 0 && (
+        <div className="bg-amber-500/10 text-amber-600 px-4 py-2 text-sm border border-amber-500/20 text-center font-medium rounded-md">
+          Did you mean? (No exact matches found. Showing closest names.)
+        </div>
+      )}
 
       <PrescriptionTable 
         prescriptions={filteredPrescriptions}

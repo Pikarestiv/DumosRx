@@ -39,6 +39,7 @@ interface PurchaseOrderTableProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
   onReceivePO: (id: string) => void;
+  isFuzzyFallback?: boolean;
 }
 
 export function PurchaseOrderTable({
@@ -48,7 +49,8 @@ export function PurchaseOrderTable({
   onSearchChange,
   activeTab,
   onTabChange,
-  onReceivePO
+  onReceivePO,
+  isFuzzyFallback
 }: PurchaseOrderTableProps) {
   
   const getStatusBadge = (status: string) => {
@@ -88,6 +90,13 @@ export function PurchaseOrderTable({
         </div>
       </CardHeader>
       <CardContent className="p-0">
+        <div className="px-6 pt-4 pb-2">
+          {isFuzzyFallback && orders.length > 0 && (
+            <div className="bg-amber-500/10 text-amber-600 px-4 py-2 text-sm border border-amber-500/20 text-center font-medium rounded-md mb-2">
+              Did you mean? (No exact matches found. Showing closest names.)
+            </div>
+          )}
+        </div>
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent border-accent/10">

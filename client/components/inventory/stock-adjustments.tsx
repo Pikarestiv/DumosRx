@@ -25,6 +25,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { Plus, Search, RotateCcw, AlertTriangle, PackageX } from "lucide-react";
 import { apiClient } from "@/lib/api/client";
+import { genericFuzzySearch } from "@/lib/utils/search";
 import { AddStockAdjustmentForm } from "./add-stock-adjustment-form";
 
 export interface StockAdjustment {
@@ -89,10 +90,10 @@ export function StockAdjustments() {
     fetchAdjustments();
   }, []);
 
-  const filteredAdjustments = adjustments.filter(
-    (adjustment) =>
-      adjustment.medicine.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      adjustment.reason.toLowerCase().includes(searchTerm.toLowerCase()),
+  const { results: filteredAdjustments, isFuzzyFallback } = genericFuzzySearch(
+    searchTerm,
+    adjustments,
+    ["medicine", "reason"]
   );
 
   const handleSubmitAdjustment = (e: React.FormEvent) => {
@@ -316,6 +317,11 @@ export function StockAdjustments() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {isFuzzyFallback && filteredAdjustments.length > 0 && (
+            <div className="bg-amber-500/10 text-amber-600 px-4 py-2 text-sm border border-amber-500/20 text-center font-medium rounded-md mb-4">
+              Did you mean? (No exact matches found. Showing closest names.)
+            </div>
+          )}
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>

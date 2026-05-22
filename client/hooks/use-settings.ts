@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams, useRouter, useParams, usePathname } from "next/navigation";
 import { useTheme } from "@/components/theme-provider";
 import { useStore, StoreType } from "@/lib/context/store-context";
 import { useAuth } from "@/lib/context/auth-context";
@@ -28,7 +28,10 @@ export function useSettings() {
 
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState("appearance");
+  const params = useParams();
+  const pathname = usePathname();
+  const tabParam = params?.tab as string;
+  const [activeTab, setActiveTab] = useState(tabParam || "appearance");
   const [isCloudLinkOpen, setIsCloudLinkOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(true);
 
@@ -94,7 +97,7 @@ export function useSettings() {
 
   // Tab activation from URL
   useEffect(() => {
-    const tab = searchParams.get("tab");
+    const tab = tabParam;
     if (tab) {
       let internalTab = tab;
       if (tab === "general") {
@@ -125,7 +128,7 @@ export function useSettings() {
         }
       }
     }
-  }, [searchParams, isCloudLinked, isAdmin, activeTab]);
+  }, [tabParam, isCloudLinked, isAdmin, activeTab]);
 
   // Tab change handler that updates URL
   const handleTabChange = (value: string) => {
@@ -140,10 +143,7 @@ export function useSettings() {
       setActiveTab(value);
     }
 
-    const newParams = new URLSearchParams(searchParams.toString());
-    newParams.set("tab", publicTab);
-    const newUrl = window.location.pathname + `?${newParams.toString()}`;
-    router.replace(newUrl, { scroll: false });
+    router.replace(`/settings/${publicTab}`, { scroll: false });
   };
 
   // Handlers

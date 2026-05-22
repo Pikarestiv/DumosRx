@@ -131,3 +131,91 @@ export function searchMedicines<T extends { name: string; generic_name?: string 
 
   return { results: [], isFuzzyFallback: false };
 }
+
+export function genericFuzzySearch<T>(
+  searchTerm: string,
+  items: T[],
+  searchKeys: (keyof T)[]
+): { results: T[]; isFuzzyFallback: boolean } {
+  const term = searchTerm.trim().toLowerCase();
+  
+  if (!term) {
+    return { results: items, isFuzzyFallback: false };
+  }
+
+  const tokens = term.split(/\s+/).filter(Boolean);
+
+  const scoredResults = items.map((item) => {
+    let score = 0;
+    
+    // Extract search string from all keys
+    const values = searchKeys.map(key => {
+      const val = item[key];
+      return (val ? String(val).toLowerCase() : "");
+    });
+
+    // Tier 1: Exact Match
+    if (values.some(v => v === term)) {
+      score += 100;
+    }
+    
+    // Tier 2: Starts With
+    if (values.some(v => v.startsWith(term))) {
+      score += 50;
+    }
+
+    // Tier 3: Multi-word Token Match
+    if (tokens.length > 0) {
+      const allTokensMatch = tokens.every(token => 
+        values.some(v => v.includes(token))
+      );
+      if (allTokensMatch) {
+        score += 20;
+      }
+    }
+
+    return { item, score };
+  }).filter(res => res.score > 0);
+
+  if (scoredResults.length > 0) {
+    // Sort by score descending
+    scoredResults.sort((a, b) => b.score - a.score);
+    return {
+      results: scoredResults.map(r => r.item),
+      isFuzzyFallback: false
+    };
+  }
+
+  // Tier 4: Fuzzy Fallback
+  if (term.length < 3) {
+    return { results: [], isFuzzyFallback: false };
+  }
+
+  const fuzzyResults = items.map((item) => {
+    let minDistance = 999;
+    
+    for (const key of searchKeys) {
+      const val = item[key];
+      if (val) {
+        const strVal = String(val).toLowerCase();
+        // Compare with substring of similar length to term
+        const dist = calculateLevenshteinDistance(term, strVal.substring(0, term.length + 2));
+        if (dist < minDistance) {
+          minDistance = dist;
+        }
+      }
+    }
+    
+    return { item, distance: minDistance };
+  }).filter(res => res.distance <= 3); // Allow max 3 typos
+
+  if (fuzzyResults.length > 0) {
+    fuzzyResults.sort((a, b) => a.distance - b.distance);
+    return {
+      results: fuzzyResults.slice(0, 5).map(r => r.item),
+      isFuzzyFallback: true
+    };
+  }
+
+  return { results: [], isFuzzyFallback: false };
+}

@@ -52,7 +52,7 @@ class DashboardService
         try {
             if (Schema::hasTable('inventory')) {
                 $inventoryStats = DB::table('inventory')
-                    ->select(DB::raw('SUM(quantity_in_stock * cost_price) as total_value'))
+                    ->select(DB::raw('SUM(quantity * cost_price) as total_value'))
                     ->first();
                 $inventoryValue = (float)($inventoryStats->total_value ?? 0);
             }

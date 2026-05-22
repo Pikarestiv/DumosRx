@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, CreditCard, Filter } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import { genericFuzzySearch } from "@/lib/utils/search";
 import { useStore } from "@/lib/context/store-context";
 import { useLocalData } from "@/lib/db/hooks/useLocalData";
 import { RepaymentDialog } from "./repayment-dialog";
@@ -34,11 +35,10 @@ export function DebtDashboard() {
     "SELECT * FROM customers WHERE outstanding_balance > 0 AND _deleted = 0 ORDER BY outstanding_balance DESC"
   );
 
-  const filteredDebtors = debtors.filter(
-    (d) =>
-      d.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      d.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      d.phone.includes(searchTerm)
+  const { results: filteredDebtors, isFuzzyFallback } = genericFuzzySearch(
+    searchTerm,
+    debtors,
+    ["first_name", "last_name", "phone"]
   );
 
   const totalDebt = debtors.reduce((sum, d) => sum + (d.outstanding_balance || 0), 0);
@@ -121,6 +121,11 @@ export function DebtDashboard() {
           </div>
         </CardHeader>
         <CardContent>
+          {isFuzzyFallback && filteredDebtors.length > 0 && (
+            <div className="bg-amber-500/10 text-amber-600 px-4 py-2 text-sm border border-amber-500/20 text-center font-medium rounded-md mb-4">
+              Did you mean? (No exact matches found. Showing closest names.)
+            </div>
+          )}
           <Table>
             <TableHeader>
               <TableRow>

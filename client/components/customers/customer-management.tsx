@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useStore } from "@/lib/context/store-context";
 import { useCustomerData, Customer } from "@/lib/hooks/use-customer-data";
+import { genericFuzzySearch } from "@/lib/utils/search";
 import { LoyaltyTiersView } from "./loyalty-tiers-view";
 import { CustomerTransactions } from "./customer-transactions";
 import { CustomerDetailsDialog } from "./customer-details-dialog";
@@ -70,11 +71,10 @@ export function CustomerManagement() {
     setIsAddCustomerOpen(false);
   };
 
-  const filteredCustomers = customers.filter(
-    (customer) =>
-      customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      customer.phone.includes(searchTerm),
+  const { results: filteredCustomers, isFuzzyFallback } = genericFuzzySearch(
+    searchTerm,
+    customers,
+    ["name", "email", "phone"]
   );
 
   const getTierColor = (tier: string) => {
@@ -100,6 +100,7 @@ export function CustomerManagement() {
             customers={filteredCustomers}
             searchTerm={searchTerm}
             onSearchChange={setSearchTerm}
+            isFuzzyFallback={isFuzzyFallback}
             onAddCustomer={handleAddCustomer}
             isAddCustomerOpen={isAddCustomerOpen}
             setIsAddCustomerOpen={setIsAddCustomerOpen}

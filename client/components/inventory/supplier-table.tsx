@@ -41,8 +41,8 @@ interface SupplierTableProps {
   totalCount: number;
   formatCurrency: (amount: number) => string;
   formatDate: (dateString: string) => string;
-  getStatusBadge: (status: Supplier["status"]) => React.ReactNode;
   getRatingStars: (rating: number) => string;
+  isFuzzyFallback?: boolean;
 }
 
 export function SupplierTable({
@@ -51,7 +51,8 @@ export function SupplierTable({
   formatCurrency,
   formatDate,
   getStatusBadge,
-  getRatingStars
+  getRatingStars,
+  isFuzzyFallback
 }: SupplierTableProps) {
   return (
     <Card>
@@ -64,6 +65,11 @@ export function SupplierTable({
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {isFuzzyFallback && suppliers.length > 0 && (
+          <div className="bg-amber-500/10 text-amber-600 px-4 py-2 text-sm border border-amber-500/20 text-center font-medium rounded-md mb-4">
+            Did you mean? (No exact matches found. Showing closest names.)
+          </div>
+        )}
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>

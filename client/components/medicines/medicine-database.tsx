@@ -39,6 +39,7 @@ import { insert, update } from "@/lib/db/local-database";
 import { useLocalData } from "@/lib/db/hooks/useLocalData";
 
 import { useStore } from "@/lib/context/store-context";
+import { genericFuzzySearch } from "@/lib/utils/search";
 
 interface Medicine {
   id: string;
@@ -182,13 +183,7 @@ export function MedicineDatabase() {
     setShowAddDialog(true);
   };
 
-  const filteredMedicines = medicines.filter((medicine) => {
-    const matchesSearch =
-      medicine.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      medicine.genericName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      medicine.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      medicine.nafdacNumber.toLowerCase().includes(searchTerm.toLowerCase());
-
+  const preFilteredMedicines = medicines.filter((medicine) => {
     const matchesCategory =
       categoryFilter === "all" || medicine.category === categoryFilter;
     
@@ -202,8 +197,14 @@ export function MedicineDatabase() {
       matchesStatus = true;
     }
 
-    return matchesSearch && matchesCategory && matchesStatus;
+    return matchesCategory && matchesStatus;
   });
+
+  const { results: filteredMedicines, isFuzzyFallback } = genericFuzzySearch(
+    searchTerm,
+    preFilteredMedicines,
+    ["name", "genericName", "brand", "nafdacNumber"]
+  );
 
   const getStatusBadge = (status: Medicine["status"]) => {
     const variants = {
@@ -387,6 +388,11 @@ export function MedicineDatabase() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {isFuzzyFallback && filteredMedicines.length > 0 && (
+            <div className="bg-amber-500/10 text-amber-600 px-4 py-2 text-sm border border-amber-500/20 text-center font-medium rounded-md mb-4">
+              Did you mean? (No exact matches found. Showing closest names.)
+            </div>
+          )}
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>

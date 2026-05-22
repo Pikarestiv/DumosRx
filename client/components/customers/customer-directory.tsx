@@ -33,6 +33,7 @@ interface CustomerDirectoryProps {
   onViewDetails: (customer: Customer) => void;
   getTierColor: (tier: string) => string;
   currencyCode?: string;
+  isFuzzyFallback?: boolean;
 }
 
 export function CustomerDirectory({
@@ -44,7 +45,8 @@ export function CustomerDirectory({
   setIsAddCustomerOpen,
   onViewDetails,
   getTierColor,
-  currencyCode
+  currencyCode,
+  isFuzzyFallback
 }: CustomerDirectoryProps) {
   return (
     <div className="space-y-6">
@@ -80,6 +82,11 @@ export function CustomerDirectory({
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {isFuzzyFallback && customers.length > 0 && (
+            <div className="bg-amber-500/10 text-amber-600 px-4 py-2 text-sm border border-amber-500/20 text-center font-medium rounded-md mb-4">
+              Did you mean? (No exact matches found. Showing closest names.)
+            </div>
+          )}
           <Table>
             <TableHeader>
               <TableRow>

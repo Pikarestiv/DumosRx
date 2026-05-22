@@ -10,7 +10,8 @@ import {
   Download, 
   LogOut,
   Bell,
-  Shield
+  Shield,
+  Activity
 } from "lucide-react";
 
 interface SidebarProps {
@@ -26,6 +27,7 @@ export function Sidebar({ activeTab, setActiveTab, user, onLogout }: SidebarProp
     { id: "notifications", name: "Notifications", icon: Bell },
     { id: "fleet", name: "Store Fleet", icon: Store },
     { id: "staff", name: "Staff Management", icon: Users },
+    { id: "activities", name: "Staff Activities", icon: Activity },
     { id: "billing", name: "Subscription", icon: CreditCard },
     { id: "downloads", name: "App Downloads", icon: Download },
     { id: "profile", name: "Account Security", icon: Shield },

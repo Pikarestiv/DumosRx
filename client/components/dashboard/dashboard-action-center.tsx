@@ -62,7 +62,7 @@ export function DashboardActionCenter({ expiringCount, lowStockCount }: ActionCe
           icon: CloudOff,
           priority: "critical",
           actionLabel: "Link Account",
-          actionRoute: "/settings?tab=cloud"
+          actionRoute: "/settings/cloud"
         });
       }
 
@@ -74,7 +74,7 @@ export function DashboardActionCenter({ expiringCount, lowStockCount }: ActionCe
           icon: UserPlus,
           priority: "critical",
           actionLabel: "Create Staff",
-          actionRoute: "/settings?tab=staff"
+          actionRoute: "/settings/staff"
         });
       }
 
@@ -91,7 +91,7 @@ export function DashboardActionCenter({ expiringCount, lowStockCount }: ActionCe
             icon: Settings,
             priority: "info",
             actionLabel: "Complete Now",
-            actionRoute: "/settings?tab=store"
+            actionRoute: "/settings/store"
           });
         }
       } else {
@@ -102,33 +102,33 @@ export function DashboardActionCenter({ expiringCount, lowStockCount }: ActionCe
               icon: Settings,
               priority: "critical",
               actionLabel: "Setup Now",
-              actionRoute: "/setup"
+              actionRoute: "/settings/store"
             });
       }
-    }
 
-    if (expiringCount > 0) {
-      items.push({
-        id: "expiring-soon",
-        title: `${expiringCount} Items Expiring Soon`,
-        description: "Review your inventory to discount or remove items.",
-        icon: Clock,
-        priority: "warning",
-        actionLabel: "Check Now",
-        actionRoute: "/inventory?filter=expiring"
-      });
-    }
+      if (expiringCount > 0) {
+        items.push({
+          id: "expiring-soon",
+          title: `${expiringCount} Items Expiring Soon`,
+          description: "Review your inventory to discount or remove items.",
+          icon: Clock,
+          priority: "warning",
+          actionLabel: "Check Now",
+          actionRoute: "/inventory?filter=expiring"
+        });
+      }
 
-    if (lowStockCount > 0) {
-      items.push({
-        id: "low-stock",
-        title: `${lowStockCount} Items Low on Stock`,
-        description: "You have products below their designated reorder level.",
-        icon: PackageX,
-        priority: "warning",
-        actionLabel: "View Needs",
-        actionRoute: "/inventory?filter=low-stock"
-      });
+      if (lowStockCount > 0) {
+        items.push({
+          id: "low-stock",
+          title: `${lowStockCount} Items Low on Stock`,
+          description: "You have products below their designated reorder level.",
+          icon: PackageX,
+          priority: "warning",
+          actionLabel: "View Needs",
+          actionRoute: "/inventory?filter=low-stock"
+        });
+      }
     }
 
     const priorityWeights = { critical: 3, warning: 2, info: 1, success: 0 };

@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Search, Calendar, RefreshCw, Clock, CheckCircle, AlertTriangle } from "lucide-react"
+import { genericFuzzySearch } from "@/lib/utils/search"
 
 interface RefillRequest {
   id: string
@@ -94,16 +95,17 @@ export function RefillManagement() {
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
 
-  const filteredRefills = refills.filter((refill) => {
-    const matchesSearch =
-      refill.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      refill.originalPrescription.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      refill.medicineName.toLowerCase().includes(searchTerm.toLowerCase())
-
+  const preFilteredRefills = refills.filter((refill) => {
     const matchesStatus = statusFilter === "all" || refill.status === statusFilter
 
-    return matchesSearch && matchesStatus
+    return matchesStatus
   })
+
+  const { results: filteredRefills, isFuzzyFallback } = genericFuzzySearch(
+    searchTerm,
+    preFilteredRefills,
+    ["patientName", "originalPrescription", "medicineName"]
+  )
 
   const getStatusBadge = (status: RefillRequest["status"]) => {
     const variants = {
@@ -286,6 +288,11 @@ export function RefillManagement() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {isFuzzyFallback && filteredRefills.length > 0 && (
+            <div className="bg-amber-500/10 text-amber-600 px-4 py-2 text-sm border border-amber-500/20 text-center font-medium rounded-md mb-4">
+              Did you mean? (No exact matches found. Showing closest names.)
+            </div>
+          )}
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>

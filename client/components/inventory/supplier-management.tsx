@@ -20,6 +20,7 @@ import { AddSupplierDialog } from "@/components/suppliers/add-supplier-dialog";
 import { useStore } from "@/lib/context/store-context";
 import { SupplierStats } from "./supplier-stats";
 import { SupplierTable } from "./supplier-table";
+import { genericFuzzySearch } from "@/lib/utils/search";
 
 interface Supplier {
   id: string;
@@ -91,11 +92,10 @@ export function SupplierManagement() {
     }
   };
 
-  const filteredSuppliers = suppliers.filter(
-    (supplier) =>
-      supplier.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      supplier.contactPerson.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      supplier.city.toLowerCase().includes(searchTerm.toLowerCase()),
+  const { results: filteredSuppliers, isFuzzyFallback } = genericFuzzySearch(
+    searchTerm,
+    suppliers,
+    ["name", "contactPerson", "city"]
   );
 
   const formatCurrency = (amount: number) => {
@@ -194,6 +194,7 @@ export function SupplierManagement() {
         formatDate={formatDate}
         getStatusBadge={getStatusBadge}
         getRatingStars={getRatingStars}
+        isFuzzyFallback={isFuzzyFallback}
       />
 
       <AddSupplierDialog

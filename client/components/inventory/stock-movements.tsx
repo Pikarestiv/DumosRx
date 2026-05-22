@@ -36,6 +36,7 @@ import {
   PackageX,
 } from "lucide-react";
 import { apiClient } from "@/lib/api/client";
+import { genericFuzzySearch } from "@/lib/utils/search";
 
 interface StockMovement {
   id: string;
@@ -84,19 +85,20 @@ export function StockMovements() {
     fetchMovements();
   }, []);
 
-  const filteredMovements = movements.filter((movement) => {
-    const matchesSearch =
-      movement.medicine.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      movement.reference.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      movement.reason.toLowerCase().includes(searchTerm.toLowerCase());
-
+  const preFilteredMovements = movements.filter((movement) => {
     const matchesType = typeFilter === "all" || movement.type === typeFilter;
 
     const matchesDate =
       dateFilter === "all" || checkDateFilter(movement.date, dateFilter);
 
-    return matchesSearch && matchesType && matchesDate;
+    return matchesType && matchesDate;
   });
+
+  const { results: filteredMovements, isFuzzyFallback } = genericFuzzySearch(
+    searchTerm,
+    preFilteredMovements,
+    ["medicine", "reference", "reason"]
+  );
 
   function checkDateFilter(date: string, filter: string): boolean {
     const movementDate = new Date(date);
@@ -268,6 +270,11 @@ export function StockMovements() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {isFuzzyFallback && filteredMovements.length > 0 && (
+            <div className="bg-amber-500/10 text-amber-600 px-4 py-2 text-sm border border-amber-500/20 text-center font-medium rounded-md mb-4">
+              Did you mean? (No exact matches found. Showing closest names.)
+            </div>
+          )}
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>

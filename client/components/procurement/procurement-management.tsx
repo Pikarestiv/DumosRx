@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { getPurchaseOrders, receivePurchaseOrder, type PurchaseOrder } from "@/lib/db/local-database";
+import { genericFuzzySearch } from "@/lib/utils/search";
 import { toast } from "sonner";
 import { CreatePODialog } from "@/components/procurement/create-po-dialog";
 import { ProcurementStats } from "./procurement-stats";
@@ -43,12 +44,16 @@ export function ProcurementManagement() {
     }
   };
 
-  const filteredOrders = purchaseOrders.filter(po => {
-    const matchesSearch = po.vendor_name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          po.id.toLowerCase().includes(searchQuery.toLowerCase());
+  const preFilteredOrders = purchaseOrders.filter(po => {
     const matchesTab = activeTab === "all" || po.status === activeTab;
-    return matchesSearch && matchesTab;
+    return matchesTab;
   });
+
+  const { results: filteredOrders, isFuzzyFallback } = genericFuzzySearch(
+    searchQuery,
+    preFilteredOrders,
+    ["vendor_name", "id"]
+  );
 
   return (
     <div className="space-y-6">
@@ -77,6 +82,7 @@ export function ProcurementManagement() {
             activeTab={activeTab}
             onTabChange={setActiveTab}
             onReceivePO={handleReceivePO}
+            isFuzzyFallback={isFuzzyFallback}
           />
         </TabsContent>
 

@@ -104,6 +104,10 @@ export function useSettings() {
       }
 
       if (internalTab === "cloud" || internalTab === "data") {
+        if (!isAdmin) {
+          setActiveTab("appearance");
+          return;
+        }
         if (activeTab !== "data") {
           setActiveTab("data");
         }
@@ -111,7 +115,9 @@ export function useSettings() {
           setIsCloudLinkOpen(true);
         }
       } else if (["appearance", "store", "notifications", "security", "staff", "system"].includes(internalTab)) {
-        if (internalTab === "staff" && !isAdmin) {
+        if (!isAdmin && ["store", "data", "staff", "system", "cloud"].includes(internalTab)) {
+          // If non-admin tries to access restricted tab, force them to appearance
+          setActiveTab("appearance");
           return;
         }
         if (activeTab !== internalTab) {

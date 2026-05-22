@@ -39,7 +39,7 @@ interface AlertItem {
 
 export function DashboardActionCenter({ expiringCount, lowStockCount }: ActionCenterProps) {
   const router = useRouter();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isAdmin } = useAuth();
   const { storeProfile } = useStore();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
@@ -53,56 +53,58 @@ export function DashboardActionCenter({ expiringCount, lowStockCount }: ActionCe
   const alerts = useMemo(() => {
     const items: AlertItem[] = [];
 
-    if (!isAuthenticated) {
-      items.push({
-        id: "cloud-sync",
-        title: "No Cloud Account Linked",
-        description: "Link to DumosRx Cloud to enable backups and remote sync.",
-        icon: CloudOff,
-        priority: "critical",
-        actionLabel: "Link Account",
-        actionRoute: "/settings?tab=cloud"
-      });
-    }
-
-    if (staffCount === 0) {
-      items.push({
-        id: "no-staff",
-        title: "No Staff Accounts Found",
-        description: "Create staff PINs so your cashiers can log in to the POS.",
-        icon: UserPlus,
-        priority: "critical",
-        actionLabel: "Create Staff",
-        actionRoute: "/settings?tab=staff"
-      });
-    }
-
-    if (storeProfile) {
-      const fieldsToCheck = ['address', 'phone', 'email', 'pcn_license', 'logo_url'];
-      const filledFields = fieldsToCheck.filter(field => !!(storeProfile as any)[field]);
-      const percentage = Math.round((filledFields.length / fieldsToCheck.length) * 100);
-
-      if (percentage < 100) {
+    if (isAdmin) {
+      if (!isAuthenticated) {
         items.push({
-          id: "profile-incomplete",
-          title: `Store Profile is ${percentage}% Complete`,
-          description: "Complete your profile to ensure your receipts look professional.",
-          icon: Settings,
-          priority: "info",
-          actionLabel: "Complete Now",
-          actionRoute: "/settings?tab=store"
+          id: "cloud-sync",
+          title: "No Cloud Account Linked",
+          description: "Link to DumosRx Cloud to enable backups and remote sync.",
+          icon: CloudOff,
+          priority: "critical",
+          actionLabel: "Link Account",
+          actionRoute: "/settings?tab=cloud"
         });
       }
-    } else {
+
+      if (staffCount === 0) {
         items.push({
-            id: "profile-missing",
-            title: `Store Setup Required`,
-            description: "Please configure your business details and terminology.",
+          id: "no-staff",
+          title: "No Staff Accounts Found",
+          description: "Create staff PINs so your cashiers can log in to the POS.",
+          icon: UserPlus,
+          priority: "critical",
+          actionLabel: "Create Staff",
+          actionRoute: "/settings?tab=staff"
+        });
+      }
+
+      if (storeProfile) {
+        const fieldsToCheck = ['address', 'phone', 'email', 'pcn_license', 'logo_url'];
+        const filledFields = fieldsToCheck.filter(field => !!(storeProfile as any)[field]);
+        const percentage = Math.round((filledFields.length / fieldsToCheck.length) * 100);
+
+        if (percentage < 100) {
+          items.push({
+            id: "profile-incomplete",
+            title: `Store Profile is ${percentage}% Complete`,
+            description: "Complete your profile to ensure your receipts look professional.",
             icon: Settings,
-            priority: "critical",
-            actionLabel: "Setup Now",
-            actionRoute: "/setup"
+            priority: "info",
+            actionLabel: "Complete Now",
+            actionRoute: "/settings?tab=store"
           });
+        }
+      } else {
+          items.push({
+              id: "profile-missing",
+              title: `Store Setup Required`,
+              description: "Please configure your business details and terminology.",
+              icon: Settings,
+              priority: "critical",
+              actionLabel: "Setup Now",
+              actionRoute: "/setup"
+            });
+      }
     }
 
     if (expiringCount > 0) {
@@ -132,7 +134,7 @@ export function DashboardActionCenter({ expiringCount, lowStockCount }: ActionCe
     const priorityWeights = { critical: 3, warning: 2, info: 1, success: 0 };
     return items.sort((a, b) => priorityWeights[b.priority] - priorityWeights[a.priority]);
 
-  }, [isAuthenticated, staffCount, storeProfile, expiringCount, lowStockCount]);
+  }, [isAuthenticated, isAdmin, staffCount, storeProfile, expiringCount, lowStockCount]);
 
   // Auto-rotate logic
   useEffect(() => {

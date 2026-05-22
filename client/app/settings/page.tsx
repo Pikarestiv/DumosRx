@@ -143,13 +143,15 @@ export default function SettingsPage() {
                 <Palette className="w-4 h-4 mr-2 md:mr-3" />
                 <span className="text-sm">General</span>
               </TabsTrigger>
-              <TabsTrigger
-                value="store"
-                className="flex-auto md:w-full justify-center md:justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20"
-              >
-                <Store className="w-4 h-4 mr-2 md:mr-3" />
-                <span className="text-sm">Store Profile</span>
-              </TabsTrigger>
+              {isAdmin && (
+                <TabsTrigger
+                  value="store"
+                  className="flex-auto md:w-full justify-center md:justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20"
+                >
+                  <Store className="w-4 h-4 mr-2 md:mr-3" />
+                  <span className="text-sm">Store Profile</span>
+                </TabsTrigger>
+              )}
               <TabsTrigger
                 value="notifications"
                 className="flex-auto md:w-full justify-center md:justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20"
@@ -157,13 +159,15 @@ export default function SettingsPage() {
                 <Bell className="w-4 h-4 mr-2 md:mr-3" />
                 <span className="text-sm">Alerts</span>
               </TabsTrigger>
-              <TabsTrigger
-                value="data"
-                className="flex-auto md:w-full justify-center md:justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20"
-              >
-                <Database className="w-4 h-4 mr-2 md:mr-3" />
-                <span className="text-sm">Data & Sync</span>
-              </TabsTrigger>
+              {isAdmin && (
+                <TabsTrigger
+                  value="data"
+                  className="flex-auto md:w-full justify-center md:justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20"
+                >
+                  <Database className="w-4 h-4 mr-2 md:mr-3" />
+                  <span className="text-sm">Data & Sync</span>
+                </TabsTrigger>
+              )}
               <TabsTrigger
                 value="security"
                 className="flex-auto md:w-full justify-center md:justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20"
@@ -180,13 +184,15 @@ export default function SettingsPage() {
                   <span className="text-sm">Staff</span>
                 </TabsTrigger>
               )}
-              <TabsTrigger
-                value="system"
-                className="flex-auto md:w-full justify-center md:justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20"
-              >
-                <Globe className="w-4 h-4 mr-2 md:mr-3" />
-                <span className="text-sm">System</span>
-              </TabsTrigger>
+              {isAdmin && (
+                <TabsTrigger
+                  value="system"
+                  className="flex-auto md:w-full justify-center md:justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20"
+                >
+                  <Globe className="w-4 h-4 mr-2 md:mr-3" />
+                  <span className="text-sm">System</span>
+                </TabsTrigger>
+              )}
             </TabsList>
           </aside>
 
@@ -202,38 +208,41 @@ export default function SettingsPage() {
                 localVat={localVat}
                 setLocalVat={setLocalVat}
                 handleSaveRegional={handleSaveRegional}
+                isAdmin={isAdmin}
               />
             </TabsContent>
 
-            <TabsContent value="store">
-              <StoreSettings
-                storeType={storeType}
-                handleSwitchVertical={handleSwitchVertical}
-                localName={localName}
-                setLocalName={setLocalName}
-                localAddress={localAddress}
-                setLocalAddress={setLocalAddress}
-                localPhone={localPhone}
-                setLocalPhone={setLocalPhone}
-                localEmail={localEmail}
-                setLocalEmail={setLocalEmail}
-                localPcn={localPcn}
-                setLocalPcn={setLocalPcn}
-                handleSaveProfile={handleSaveProfile}
-                localLogo={localLogo}
-                handleLogoUpload={handleLogoUpload}
-                handleRemoveLogo={handleRemoveLogo}
-                localReceiptHeader={localReceiptHeader}
-                setLocalReceiptHeader={setLocalReceiptHeader}
-                localReceiptFooter={localReceiptFooter}
-                setLocalReceiptFooter={setLocalReceiptFooter}
-                showLogo={showLogo}
-                setShowLogo={setShowLogo}
-                showContact={showContact}
-                setShowContact={setShowContact}
-                handleSaveReceiptSettings={handleSaveReceiptSettings}
-              />
-            </TabsContent>
+            {isAdmin && (
+              <TabsContent value="store">
+                <StoreSettings
+                  storeType={storeType}
+                  handleSwitchVertical={handleSwitchVertical}
+                  localName={localName}
+                  setLocalName={setLocalName}
+                  localAddress={localAddress}
+                  setLocalAddress={setLocalAddress}
+                  localPhone={localPhone}
+                  setLocalPhone={setLocalPhone}
+                  localEmail={localEmail}
+                  setLocalEmail={setLocalEmail}
+                  localPcn={localPcn}
+                  setLocalPcn={setLocalPcn}
+                  handleSaveProfile={handleSaveProfile}
+                  localLogo={localLogo}
+                  handleLogoUpload={handleLogoUpload}
+                  handleRemoveLogo={handleRemoveLogo}
+                  localReceiptHeader={localReceiptHeader}
+                  setLocalReceiptHeader={setLocalReceiptHeader}
+                  localReceiptFooter={localReceiptFooter}
+                  setLocalReceiptFooter={setLocalReceiptFooter}
+                  showLogo={showLogo}
+                  setShowLogo={setShowLogo}
+                  showContact={showContact}
+                  setShowContact={setShowContact}
+                  handleSaveReceiptSettings={handleSaveReceiptSettings}
+                />
+              </TabsContent>
+            )}
 
             <TabsContent value="notifications">
               <AlertSettings
@@ -247,21 +256,23 @@ export default function SettingsPage() {
               />
             </TabsContent>
 
-            <TabsContent value="data">
-              <DataSettings
-                isCloudLinked={isCloudLinked}
-                handleSync={handleSync}
-                setIsCloudLinkOpen={setIsCloudLinkOpen}
-                handleDownloadBackup={handleDownloadBackup}
-                handleRestoreBackup={handleRestoreBackup}
-                handleResetDatabase={handleResetDatabase}
-                autoSyncEnabled={autoSyncEnabled}
-                setAutoSyncEnabled={setAutoSyncEnabled}
-                autoSyncInterval={autoSyncInterval}
-                setAutoSyncInterval={setAutoSyncInterval}
-                handleSaveAutoSyncSettings={handleSaveAutoSyncSettings}
-              />
-            </TabsContent>
+            {isAdmin && (
+              <TabsContent value="data">
+                <DataSettings
+                  isCloudLinked={isCloudLinked}
+                  autoSyncEnabled={autoSyncEnabled}
+                  setAutoSyncEnabled={setAutoSyncEnabled}
+                  autoSyncInterval={autoSyncInterval}
+                  setAutoSyncInterval={setAutoSyncInterval}
+                  handleSaveAutoSyncSettings={handleSaveAutoSyncSettings}
+                  handleSync={handleSync}
+                  handleDownloadBackup={handleDownloadBackup}
+                  handleRestoreBackup={handleRestoreBackup}
+                  handleResetDatabase={handleResetDatabase}
+                  setIsCloudLinkOpen={setIsCloudLinkOpen}
+                />
+              </TabsContent>
+            )}
 
             <TabsContent value="security">
               <SecuritySettings
@@ -281,15 +292,17 @@ export default function SettingsPage() {
               </TabsContent>
             )}
 
-            <TabsContent value="system">
-              <SystemSettings
-                handleCheckForUpdates={handleCheckForUpdates}
-                isCheckingUpdate={isCheckingUpdate}
-                isUpdating={isUpdating}
-                updateAvailable={updateAvailable}
-                handleInstallUpdate={handleInstallUpdate}
-              />
-            </TabsContent>
+            {isAdmin && (
+              <TabsContent value="system">
+                <SystemSettings
+                  updateAvailable={updateAvailable}
+                  isCheckingUpdate={isCheckingUpdate}
+                  isUpdating={isUpdating}
+                  handleCheckForUpdates={handleCheckForUpdates}
+                  handleInstallUpdate={handleInstallUpdate}
+                />
+              </TabsContent>
+            )}
           </div>
         </Tabs>
       </div>

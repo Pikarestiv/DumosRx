@@ -25,6 +25,7 @@ interface AppearanceSettingsProps {
   localVat: string;
   setLocalVat: (val: string) => void;
   handleSaveRegional: () => void;
+  isAdmin: boolean;
 }
 
 const colorThemes = [
@@ -46,6 +47,7 @@ export function AppearanceSettings({
   localVat,
   setLocalVat,
   handleSaveRegional,
+  isAdmin,
 }: AppearanceSettingsProps) {
   return (
     <div className="space-y-6">
@@ -120,44 +122,46 @@ export function AppearanceSettings({
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Regional Settings</CardTitle>
-          <CardDescription>
-            Configure currency and locale defaults.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-6">
-          <div className="grid gap-2">
-            <Label htmlFor="currency">Currency Code (ISO)</Label>
-            <Input
-              id="currency"
-              value={localCurrency}
-              onChange={(e) =>
-                setLocalCurrency(e.target.value.toUpperCase())
-              }
-              placeholder="e.g. NGN, USD, GHS"
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="vat">VAT Percentage (%)</Label>
-            <Input
-              id="vat"
-              type="number"
-              step="0.1"
-              value={localVat}
-              onChange={(e) => setLocalVat(e.target.value)}
-              placeholder="e.g. 7.5"
-            />
-          </div>
-        </CardContent>
-        <CardFooter className="border-t px-6 py-4">
-          <Button onClick={handleSaveRegional}>
-            <Save className="w-4 h-4 mr-2" />
-            Save Regional Settings
-          </Button>
-        </CardFooter>
-      </Card>
+      {isAdmin && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Regional Settings</CardTitle>
+            <CardDescription>
+              Configure currency and locale defaults.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-6">
+            <div className="grid gap-2">
+              <Label htmlFor="currency">Currency Code (ISO)</Label>
+              <Input
+                id="currency"
+                value={localCurrency}
+                onChange={(e) =>
+                  setLocalCurrency(e.target.value.toUpperCase())
+                }
+                placeholder="e.g. NGN, USD, GHS"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="vat">VAT Percentage (%)</Label>
+              <Input
+                id="vat"
+                type="number"
+                step="0.1"
+                value={localVat}
+                onChange={(e) => setLocalVat(e.target.value)}
+                placeholder="e.g. 7.5"
+              />
+            </div>
+          </CardContent>
+          <CardFooter className="border-t px-6 py-4">
+            <Button onClick={handleSaveRegional}>
+              <Save className="w-4 h-4 mr-2" />
+              Save Regional Settings
+            </Button>
+          </CardFooter>
+        </Card>
+      )}
     </div>
   );
 }

@@ -1,14 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { 
-  useAdminFeedback, 
-  useUpdateFeedbackStatusMutation 
+import {
+  useAdminFeedback,
+  useUpdateFeedbackStatusMutation
 } from "@/lib/api/admin-hooks";
-import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
+import {
+  Card,
+  CardContent,
+  CardHeader,
   CardTitle,
   CardDescription
 } from "@/components/ui/card";
@@ -97,8 +97,8 @@ export default function AdminFeedbackPage() {
               </CardContent>
             </Card>
           ))
-        ) : data?.data?.length === 0 ? (
-          <div className="text-center py-20 bg-white rounded-3xl border border-slate-100 shadow-sm">
+        ) : !data?.data?.length ? (
+          <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-3xl shadow-sm">
             <MessageSquare className="h-12 w-12 text-slate-300 mx-auto mb-4" />
             <h3 className="text-lg font-bold text-slate-700">No feedback found</h3>
             <p className="text-sm text-slate-500">There is no feedback matching your filter.</p>
@@ -131,9 +131,9 @@ export default function AdminFeedbackPage() {
                   </div>
                   {item.status === 'pending' && (
                     <div className="flex items-center gap-2">
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
+                      <Button
+                        size="sm"
+                        variant="outline"
                         className="text-emerald-600 border-emerald-200 hover:bg-emerald-50"
                         onClick={() => handleUpdateStatus(item.id, 'resolved')}
                         disabled={updateStatus.isPending}
@@ -141,9 +141,9 @@ export default function AdminFeedbackPage() {
                         <CheckCircle2 className="h-4 w-4 mr-1.5" />
                         Resolve
                       </Button>
-                      <Button 
-                        size="sm" 
-                        variant="ghost" 
+                      <Button
+                        size="sm"
+                        variant="ghost"
                         className="text-slate-400 hover:text-slate-600"
                         onClick={() => handleUpdateStatus(item.id, 'dismissed')}
                         disabled={updateStatus.isPending}

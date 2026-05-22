@@ -108,9 +108,9 @@ export function useBIData(externalTimeRange?: string) {
   const { data: topSellingMedicines } = useLocalData<{ name: string, sales: number, units: number, category: string }>(
     `SELECT 
       m.name,
-      SUM(si.subtotal) as sales,
+      SUM(si.total_price) as sales,
       SUM(si.quantity) as units,
-      m.category
+      m.category_id as category
      FROM sale_items si
      JOIN medicines m ON si.medicine_id = m.id
      JOIN sales s ON si.sale_id = s.id
@@ -124,13 +124,13 @@ export function useBIData(externalTimeRange?: string) {
   // 7. Sales by Category
   const { data: categoryDistribution } = useLocalData<{ name: string, value: number }>(
     `SELECT 
-      m.category as name,
+      m.category_id as name,
       COUNT(*) as value
      FROM sale_items si
      JOIN medicines m ON si.medicine_id = m.id
      JOIN sales s ON si.sale_id = s.id
      WHERE s.transaction_date >= ? AND s._deleted = 0
-     GROUP BY m.category`,
+     GROUP BY m.category_id`,
     [dateFilter]
   );
 

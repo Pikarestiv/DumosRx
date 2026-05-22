@@ -8,7 +8,7 @@ import {
   CardTitle 
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import { 
   BarChart, 
   Bar, 
@@ -30,8 +30,18 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
+interface InventoryAlert {
+  medicine: string;
+  issue: string;
+  severity: string;
+  quantity?: number;
+  threshold?: number;
+  expiryDate?: string;
+  daysLeft?: number;
+}
+
 interface InventoryInsightsTabProps {
-  inventoryAlerts: any[];
+  inventoryAlerts: InventoryAlert[];
   salesByCategory: any[];
 }
 
@@ -39,6 +49,12 @@ export function InventoryInsightsTab({
   inventoryAlerts,
   salesByCategory
 }: InventoryInsightsTabProps) {
+  const getSeverityVariant = (severity: string) => {
+    if (severity === "critical") return "destructive";
+    if (severity === "high") return "secondary";
+    return "outline";
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Inventory Alerts */}
@@ -53,53 +69,66 @@ export function InventoryInsightsTab({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {inventoryAlerts.map((alert) => (
-              <div
-                key={alert.medicine}
-                className="flex items-center justify-between p-3 rounded-lg bg-red-50 border border-red-100"
-              >
-                <div>
-                  <p className="font-medium text-red-900">
-                    {alert.medicine}
-                  </p>
-                  <p className="text-sm text-red-700">{alert.issue}</p>
-                </div>
-                <Badge
-                  variant={
-                    alert.severity === "critical"
-                      ? "destructive"
-                      : "secondary"
-                  }
+          {inventoryAlerts.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
+              <CheckCircle2 className="h-10 w-10 text-emerald-500 mb-3 opacity-70" />
+              <p className="font-semibold text-foreground">All clear!</p>
+              <p className="text-sm mt-1">No low stock or expiring items found.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {inventoryAlerts.map((alert, idx) => (
+                <div
+                  key={`${alert.medicine}-${idx}`}
+                  className="flex items-start justify-between p-3 rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/30"
                 >
-                  {alert.severity.toUpperCase()}
-                </Badge>
-              </div>
-            ))}
-          </div>
+                  <div>
+                    <p className="font-semibold text-red-900 dark:text-red-200 text-sm">
+                      {alert.medicine}
+                    </p>
+                    <p className="text-xs text-red-700 dark:text-red-400 mt-0.5">
+                      {alert.issue}
+                      {alert.quantity !== undefined && ` — ${alert.quantity} in stock (min: ${alert.threshold})`}
+                      {alert.daysLeft !== undefined && ` — ${alert.daysLeft} day${alert.daysLeft !== 1 ? "s" : ""} left`}
+                    </p>
+                  </div>
+                  <Badge variant={getSeverityVariant(alert.severity)} className="ml-3 shrink-0 text-[10px] uppercase font-black">
+                    {alert.severity}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
       {/* Stock Levels by Category */}
       <Card>
         <CardHeader>
-          <CardTitle>Stock Levels by Category</CardTitle>
+          <CardTitle>Sales by Category</CardTitle>
           <CardDescription>
-            Current inventory distribution
+            Distribution of sales across product categories
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="h-80">
-            <ChartContainer config={chartConfig} className="h-full w-full">
-              <BarChart data={salesByCategory}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar dataKey="value" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ChartContainer>
-          </div>
+          {salesByCategory.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-80 text-muted-foreground">
+              <p className="font-semibold">No data yet</p>
+              <p className="text-sm mt-1">Record some sales to see category breakdown.</p>
+            </div>
+          ) : (
+            <div className="h-80">
+              <ChartContainer config={chartConfig} className="h-full w-full">
+                <BarChart data={salesByCategory}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                  <YAxis />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Bar dataKey="value" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ChartContainer>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

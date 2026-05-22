@@ -17,16 +17,33 @@ import {
 } from "@/components/ui/table";
 import { 
   TrendingUp, 
-  TrendingDown 
+  TrendingDown,
+  Clock
 } from "lucide-react";
+import { useStore } from "@/lib/context/store-context";
 
 interface CustomerBehaviorTabProps {
-  customerMetrics: any[];
+  customerMetrics: {
+    metric: string;
+    value: string;
+    change: string;
+    trend: string;
+  }[];
+  purchasePatterns?: {
+    slot: string;
+    transactions: number;
+    avgValue: number;
+    topCategory: string;
+  }[];
 }
 
 export function CustomerBehaviorTab({
-  customerMetrics
+  customerMetrics,
+  purchasePatterns = [],
 }: CustomerBehaviorTabProps) {
+  const { currency } = useStore();
+  const symbol = currency === "NGN" ? "₦" : currency === "USD" ? "$" : currency === "GBP" ? "£" : "₦";
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -53,7 +70,7 @@ export function CustomerBehaviorTab({
                   {metric.change}
                 </span>
                 <span className="text-xs text-muted-foreground ml-1">
-                  vs last month
+                  vs last period
                 </span>
               </div>
             </CardContent>
@@ -63,42 +80,45 @@ export function CustomerBehaviorTab({
 
       <Card>
         <CardHeader>
-          <CardTitle>Customer Purchase Patterns</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Clock className="h-5 w-5 text-primary" />
+            Customer Purchase Patterns
+          </CardTitle>
           <CardDescription>
-            Peak hours and transaction frequency
+            Peak hours and transaction frequency based on real sales data
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Time Period</TableHead>
-                <TableHead>Transactions</TableHead>
-                <TableHead>Avg. Value</TableHead>
-                <TableHead>Popular Category</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow>
-                <TableCell className="font-medium">Morning (8am-12pm)</TableCell>
-                <TableCell>425</TableCell>
-                <TableCell>₦8,420</TableCell>
-                <TableCell>Prescriptions</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="font-medium">Afternoon (12pm-5pm)</TableCell>
-                <TableCell>856</TableCell>
-                <TableCell>₦12,150</TableCell>
-                <TableCell>OTC Medicines</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="font-medium">Evening (5pm-9pm)</TableCell>
-                <TableCell>632</TableCell>
-                <TableCell>₦18,900</TableCell>
-                <TableCell>Supplements</TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
+          {purchasePatterns.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+              <Clock className="h-10 w-10 opacity-20 mb-3" />
+              <p className="font-semibold">No transaction data available</p>
+              <p className="text-sm mt-1">Sales will appear here once transactions are recorded.</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Time Period</TableHead>
+                  <TableHead>Transactions</TableHead>
+                  <TableHead>Avg. Value</TableHead>
+                  <TableHead>Top Category</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {purchasePatterns.map((row) => (
+                  <TableRow key={row.slot}>
+                    <TableCell className="font-medium">{row.slot}</TableCell>
+                    <TableCell>{row.transactions.toLocaleString()}</TableCell>
+                    <TableCell>
+                      {symbol}{Math.round(row.avgValue).toLocaleString()}
+                    </TableCell>
+                    <TableCell>{row.topCategory}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>

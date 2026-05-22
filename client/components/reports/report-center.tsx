@@ -1,23 +1,118 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { format, subDays, subMonths } from "date-fns";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { 
-  FileText, 
-  Download, 
-  Printer, 
-  Calendar as CalendarIcon,
-  Filter,
+import {
+  FileText,
+  Download,
+  Printer,
   BarChart,
   ClipboardList,
   Wallet,
-  Users
+  Users,
+  Calendar as CalendarIcon,
+  Loader2,
+  CheckCircle2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  useReportExport,
+  RecentDownload,
+} from "@/lib/hooks/use-report-export";
+import { toast } from "sonner";
+
+const DATE_PRESETS = [
+  { label: "Today", value: "today" },
+  { label: "Last 7 Days", value: "7d" },
+  { label: "Last 30 Days", value: "30d" },
+  { label: "Last 3 Months", value: "90d" },
+  { label: "Last Year", value: "1y" },
+  { label: "All Time", value: "all" },
+];
+
+function getDateRange(preset: string): { from?: string; to?: string } {
+  const now = new Date();
+  const to = now.toISOString();
+  if (preset === "today") return { from: new Date(now.setHours(0, 0, 0, 0)).toISOString(), to };
+  if (preset === "7d") return { from: subDays(now, 7).toISOString(), to };
+  if (preset === "30d") return { from: subDays(now, 30).toISOString(), to };
+  if (preset === "90d") return { from: subMonths(now, 3).toISOString(), to };
+  if (preset === "1y") return { from: subMonths(now, 12).toISOString(), to };
+  return {};
+}
 
 export function ReportCenter() {
-  const [dateRange, _setDateRange] = useState("Last 30 Days");
+  const [datePreset, setDatePreset] = useState("30d");
+  const [loadingReport, setLoadingReport] = useState<string | null>(null);
+  const [recentDownloads, setRecentDownloads] = useState<RecentDownload[]>([]);
+
+  const {
+    exportSalesReport,
+    exportInventoryReport,
+    exportProfitLossReport,
+    exportCustomerReport,
+    exportExpensesReport,
+    getRecentDownloads,
+  } = useReportExport();
+
+  const refreshRecent = useCallback(() => {
+    setRecentDownloads(getRecentDownloads());
+  }, [getRecentDownloads]);
+
+  useEffect(() => {
+    refreshRecent();
+  }, [refreshRecent]);
+
+  const runExport = async (reportId: string) => {
+    const { from, to } = getDateRange(datePreset);
+    setLoadingReport(reportId);
+    try {
+      switch (reportId) {
+        case "sales":
+          await exportSalesReport(from, to);
+          break;
+        case "inventory":
+          await exportInventoryReport();
+          break;
+        case "profit-loss":
+          await exportProfitLossReport(from, to);
+          break;
+        case "customers":
+          await exportCustomerReport();
+          break;
+        case "expenses":
+          await exportExpensesReport(from, to);
+          break;
+      }
+      refreshRecent();
+      toast.success("Export successful", { description: "Your report has been downloaded." });
+    } catch (err) {
+      console.error(err);
+      toast.error("Export failed", {
+        description: "Something went wrong generating the report.",
+      });
+    } finally {
+      setLoadingReport(null);
+    }
+  };
+
+  const runPrint = (reportId: string) => {
+    const { from, to } = getDateRange(datePreset);
+    const params = new URLSearchParams({ report: reportId });
+    if (from) params.set("from", from);
+    if (to) params.set("to", to);
+    const printUrl = `/reports/print?${params.toString()}`;
+    window.open(printUrl, "_blank");
+  };
 
   const reports = [
     {
@@ -25,145 +120,160 @@ export function ReportCenter() {
       title: "Detailed Sales Report",
       description: "Itemized list of all transactions with tax and discount breakdown.",
       icon: FileText,
-      category: "Financial"
+      category: "Financial",
     },
     {
       id: "inventory",
       title: "Inventory Valuation",
       description: "Current stock levels, cost value, and potential selling value.",
       icon: ClipboardList,
-      category: "Operations"
+      category: "Operations",
     },
     {
       id: "profit-loss",
       title: "Profit & Loss Summary",
       description: "Comparative view of revenue vs expenses for the selected period.",
       icon: BarChart,
-      category: "Financial"
+      category: "Financial",
     },
     {
       id: "customers",
       title: "Customer Loyalty Report",
-      description: "Analysis of top customers and points redemption history.",
+      description: "Analysis of top customers, points balance, and outstanding balances.",
       icon: Users,
-      category: "CRM"
+      category: "CRM",
     },
     {
       id: "expenses",
       title: "Expense Categories",
       description: "Breakdown of operating costs by category.",
       icon: Wallet,
-      category: "Financial"
-    }
+      category: "Financial",
+    },
   ];
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="hover-scale">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Ready to Export</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">12 Reports</div>
-            <p className="text-xs text-muted-foreground mt-1">Generated this month</p>
-          </CardContent>
-        </Card>
-        <Card className="hover-scale">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Last Generated</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-lg font-semibold">Inventory Value</div>
-            <p className="text-xs text-muted-foreground mt-1">2 hours ago</p>
-          </CardContent>
-        </Card>
-        <Card className="hover-scale border-primary/20 bg-primary/5">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-primary">Scheduled Backups</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-lg font-semibold text-primary flex items-center gap-2">
-              <Badge variant="default">Active</Badge>
-              Daily at 11:59 PM
-            </div>
-          </CardContent>
-        </Card>
+      {/* Date filter */}
+      <div className="flex items-center gap-3">
+        <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+        <Select value={datePreset} onValueChange={setDatePreset}>
+          <SelectTrigger className="w-44 h-9">
+            <SelectValue placeholder="Select period" />
+          </SelectTrigger>
+          <SelectContent>
+            {DATE_PRESETS.map((p) => (
+              <SelectItem key={p.value} value={p.value}>
+                {p.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <span className="text-sm text-muted-foreground">
+          Reports will be generated for this time range
+        </span>
       </div>
 
+      {/* Report grid */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle className="font-serif font-bold">Standard Reports</CardTitle>
-            <CardDescription>Select a report to generate or export</CardDescription>
-          </div>
-          <div className="flex items-center gap-2">
-             <Button variant="outline" size="sm" className="gap-2">
-               <CalendarIcon className="h-4 w-4" />
-               {dateRange}
-             </Button>
-             <Button variant="outline" size="sm">
-               <Filter className="h-4 w-4" />
-             </Button>
-          </div>
+        <CardHeader>
+          <CardTitle className="font-serif font-bold">Standard Reports</CardTitle>
+          <CardDescription>Select a report to generate or export as CSV</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {reports.map((report) => (
-              <div 
-                key={report.id}
-                className="flex items-start gap-4 p-4 rounded-xl border border-border hover:bg-muted/50 transition-all group cursor-pointer"
-              >
-                <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
-                  <report.icon className="h-6 w-6" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-bold">{report.title}</h3>
-                    <Badge variant="secondary" className="text-[10px]">{report.category}</Badge>
+            {reports.map((report) => {
+              const isLoading = loadingReport === report.id;
+              return (
+                <div
+                  key={report.id}
+                  className="flex items-start gap-4 p-4 rounded-xl border border-border hover:bg-muted/50 transition-all group"
+                >
+                  <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform shrink-0">
+                    <report.icon className="h-6 w-6" />
                   </div>
-                  <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                    {report.description}
-                  </p>
-                  <div className="flex items-center gap-3 mt-4">
-                    <Button size="sm" variant="outline" className="h-8 gap-2 hover-rotate-icon">
-                      <Printer className="h-3.5 w-3.5" />
-                      Print
-                    </Button>
-                    <Button size="sm" variant="outline" className="h-8 gap-2 hover-rotate-icon">
-                      <Download className="h-3.5 w-3.5" />
-                      Export CSV
-                    </Button>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="font-bold text-sm">{report.title}</h3>
+                      <Badge variant="secondary" className="text-[10px] shrink-0">
+                        {report.category}
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                      {report.description}
+                    </p>
+                    <div className="flex items-center gap-3 mt-4">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 gap-2"
+                        onClick={() => runPrint(report.id)}
+                        disabled={isLoading}
+                      >
+                        <Printer className="h-3.5 w-3.5" />
+                        Print
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 gap-2"
+                        onClick={() => runExport(report.id)}
+                        disabled={isLoading}
+                      >
+                        {isLoading ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Download className="h-3.5 w-3.5" />
+                        )}
+                        Export CSV
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </CardContent>
       </Card>
 
+      {/* Recent Downloads */}
       <Card>
         <CardHeader>
           <CardTitle className="font-serif font-bold">Recent Downloads</CardTitle>
-          <CardDescription>Recently generated reports for your records</CardDescription>
+          <CardDescription>Reports generated in this browser session</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
-                <div className="flex items-center gap-3">
-                  <FileText className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium">Sales_Report_May_2026.pdf</p>
-                    <p className="text-xs text-muted-foreground">Generated by Admin • 2.4 MB</p>
+          {recentDownloads.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
+              <CheckCircle2 className="h-8 w-8 opacity-20 mb-3" />
+              <p className="font-semibold">No reports generated yet</p>
+              <p className="text-sm mt-1">Export a report above to see it here.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {recentDownloads.map((dl) => (
+                <div
+                  key={dl.id}
+                  className="flex items-center justify-between p-3 rounded-lg bg-muted/30"
+                >
+                  <div className="flex items-center gap-3">
+                    <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
+                    <div>
+                      <p className="text-sm font-semibold">{dl.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {dl.type} •{" "}
+                        {format(new Date(dl.generatedAt), "MMM d, yyyy 'at' h:mm a")} •{" "}
+                        {dl.sizeLabel}
+                      </p>
+                    </div>
                   </div>
+                  <Badge variant="outline" className="text-[10px] text-emerald-600 border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20">
+                    Downloaded
+                  </Badge>
                 </div>
-                <Button variant="ghost" size="sm">
-                  <Download className="h-4 w-4" />
-                </Button>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

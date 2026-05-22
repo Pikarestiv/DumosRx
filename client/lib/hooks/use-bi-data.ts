@@ -7,21 +7,31 @@ export function useBIData(externalTimeRange?: string) {
   const [internalTimeRange, setInternalTimeRange] = useState("6months");
   const timeRange = externalTimeRange || internalTimeRange;
 
-  const dateFilter = useMemo(() => {
+  const { dateFilter, prevDateFilter } = useMemo(() => {
     const now = new Date();
     const filterDate = new Date();
-    
-    if (timeRange === "7d") filterDate.setDate(now.getDate() - 7);
-    else if (timeRange === "30d") filterDate.setDate(now.getDate() - 30);
-    else if (timeRange === "90d") filterDate.setMonth(now.getMonth() - 3);
-    else if (timeRange === "1y") filterDate.setFullYear(now.getFullYear() - 1);
-    else if (timeRange === "1month") filterDate.setMonth(now.getMonth() - 1);
-    else if (timeRange === "3months") filterDate.setMonth(now.getMonth() - 3);
-    else if (timeRange === "6months") filterDate.setMonth(now.getMonth() - 6);
-    else if (timeRange === "1year") filterDate.setFullYear(now.getFullYear() - 1);
-    
-    return filterDate.toISOString();
+    const prevDate = new Date();
+
+    let days = 30;
+    if (timeRange === "7d") days = 7;
+    else if (timeRange === "30d") days = 30;
+    else if (timeRange === "90d") days = 90;
+    else if (timeRange === "1y") days = 365;
+    else if (timeRange === "1month") days = 30;
+    else if (timeRange === "3months") days = 90;
+    else if (timeRange === "6months") days = 180;
+    else if (timeRange === "1year") days = 365;
+
+    filterDate.setDate(now.getDate() - days);
+    prevDate.setDate(now.getDate() - days * 2);
+
+    return {
+      dateFilter: filterDate.toISOString(),
+      prevDateFilter: prevDate.toISOString(),
+    };
   }, [timeRange]);
+
+  // ─── Current Period ────────────────────────────────────────────────────────
 
   // 1. Total Revenue
   const { data: revenueData } = useLocalData<{ total: number }>(
@@ -30,16 +40,16 @@ export function useBIData(externalTimeRange?: string) {
   );
   const totalRevenue = revenueData[0]?.total || 0;
 
-  // 1b. Total COGS (Cost of Goods Sold)
+  // 2. Total COGS
   const { data: cogsData } = useLocalData<{ total: number }>(
-    `SELECT SUM(cost_price * quantity) as total FROM sale_items si 
-     JOIN sales s ON si.sale_id = s.id 
+    `SELECT SUM(si.cost_price * si.quantity) as total FROM sale_items si
+     JOIN sales s ON si.sale_id = s.id
      WHERE s.transaction_date >= ? AND s._deleted = 0`,
     [dateFilter]
   );
   const totalCogs = cogsData[0]?.total || 0;
 
-  // 1c. Total Expenses
+  // 3. Total Expenses
   const { data: expensesData } = useLocalData<{ total: number }>(
     `SELECT SUM(amount) as total FROM expenses WHERE date >= ? AND _deleted = 0`,
     [dateFilter]
@@ -49,28 +59,104 @@ export function useBIData(externalTimeRange?: string) {
   const grossProfit = totalRevenue - totalCogs;
   const netProfit = grossProfit - totalExpenses;
 
-  // 2. Total Transactions
+  // 4. Total Transactions
   const { data: transactionData } = useLocalData<{ count: number }>(
     `SELECT COUNT(*) as count FROM sales WHERE transaction_date >= ? AND _deleted = 0`,
     [dateFilter]
   );
   const totalTransactions = transactionData[0]?.count || 0;
 
-  // 3. Inventory Value
+  // 5. Inventory Value (local uses quantity column)
   const { data: inventoryValueData } = useLocalData<{ value: number }>(
-    `SELECT SUM(cost_price * stock_quantity) as value FROM medicines WHERE _deleted = 0`
+    `SELECT SUM(inv.cost_price * inv.quantity) as value
+     FROM inventory inv WHERE inv._deleted = 0`
   );
   const inventoryValue = inventoryValueData[0]?.value || 0;
 
-  // 4. Active Customers
+  // 6. Active Customers
   const { data: customerData } = useLocalData<{ count: number }>(
     `SELECT COUNT(*) as count FROM customers WHERE _deleted = 0`
   );
   const activeCustomers = customerData[0]?.count || 0;
 
-  // 5. Monthly Sales Data (with real profit)
-  const { data: rawMonthlyData } = useLocalData<{ month: string, revenue: number, cogs: number, transactions: number }>(
-    `SELECT 
+  // 7. Loyalty Members
+  const { data: loyaltyData } = useLocalData<{ count: number }>(
+    `SELECT COUNT(*) as count FROM customers WHERE loyalty_points > 0 AND _deleted = 0`
+  );
+  const loyaltyMembers = loyaltyData[0]?.count || 0;
+
+  // 8. Customer Retention (customers who purchased more than once in the period)
+  const { data: retentionData } = useLocalData<{ returning: number; total: number }>(
+    `SELECT
+      COUNT(DISTINCT CASE WHEN cnt > 1 THEN customer_id END) as returning,
+      COUNT(DISTINCT customer_id) as total
+     FROM (
+       SELECT customer_id, COUNT(*) as cnt
+       FROM sales
+       WHERE transaction_date >= ? AND _deleted = 0 AND customer_id IS NOT NULL
+       GROUP BY customer_id
+     )`,
+    [dateFilter]
+  );
+  const retentionRate = useMemo(() => {
+    const r = retentionData[0];
+    if (!r || r.total === 0) return 0;
+    return Math.round((r.returning / r.total) * 100);
+  }, [retentionData]);
+
+  // ─── Previous Period (for % change) ────────────────────────────────────────
+
+  const { data: prevRevenueData } = useLocalData<{ total: number }>(
+    `SELECT SUM(total_amount) as total FROM sales
+     WHERE transaction_date >= ? AND transaction_date < ? AND _deleted = 0`,
+    [prevDateFilter, dateFilter]
+  );
+  const prevRevenue = prevRevenueData[0]?.total || 0;
+
+  const { data: prevTransactionData } = useLocalData<{ count: number }>(
+    `SELECT COUNT(*) as count FROM sales
+     WHERE transaction_date >= ? AND transaction_date < ? AND _deleted = 0`,
+    [prevDateFilter, dateFilter]
+  );
+  const prevTransactions = prevTransactionData[0]?.count || 0;
+
+  const { data: prevCustomerData } = useLocalData<{ count: number }>(
+    `SELECT COUNT(*) as count FROM customers
+     WHERE created_at >= ? AND created_at < ? AND _deleted = 0`,
+    [prevDateFilter, dateFilter]
+  );
+  const prevCustomers = prevCustomerData[0]?.count || 0;
+
+  const avgTransactionValue = useMemo(() => {
+    return totalTransactions > 0 ? totalRevenue / totalTransactions : 0;
+  }, [totalRevenue, totalTransactions]);
+
+  const prevAvgTransaction = useMemo(() => {
+    return prevTransactions > 0 ? prevRevenue / prevTransactions : 0;
+  }, [prevRevenue, prevTransactions]);
+
+  const pctChange = (current: number, prev: number) => {
+    if (prev === 0) return current > 0 ? 100 : 0;
+    return Math.round(((current - prev) / prev) * 100 * 10) / 10;
+  };
+
+  const revenueChange = pctChange(totalRevenue, prevRevenue);
+  const customersThisPeriod = useMemo(() => {
+    // customers created in current period
+    return activeCustomers;
+  }, [activeCustomers]);
+  const customerChange = pctChange(customersThisPeriod, prevCustomers);
+  const avgTransactionChange = pctChange(avgTransactionValue, prevAvgTransaction);
+
+  // ─── Monthly Sales Chart Data ──────────────────────────────────────────────
+
+  const { data: rawMonthlyData } = useLocalData<{
+    month: string;
+    revenue: number;
+    cogs: number;
+    transactions: number;
+  }>(
+    `SELECT
       strftime('%b', s.transaction_date) as month,
       SUM(s.total_amount) as revenue,
       SUM(si.cost_price * si.quantity) as cogs,
@@ -83,8 +169,8 @@ export function useBIData(externalTimeRange?: string) {
     [dateFilter]
   );
 
-  const { data: rawExpenseData } = useLocalData<{ month: string, expenses: number }>(
-    `SELECT 
+  const { data: rawExpenseData } = useLocalData<{ month: string; expenses: number }>(
+    `SELECT
       strftime('%b', date) as month,
       SUM(amount) as expenses
      FROM expenses
@@ -94,19 +180,25 @@ export function useBIData(externalTimeRange?: string) {
   );
 
   const monthlySalesData = useMemo(() => {
-    return rawMonthlyData.map(item => {
-      const exp = rawExpenseData.find(e => e.month === item.month)?.expenses || 0;
+    return rawMonthlyData.map((item) => {
+      const exp = rawExpenseData.find((e) => e.month === item.month)?.expenses || 0;
       return {
         ...item,
         profit: item.revenue - item.cogs - exp,
-        expenses: exp
+        expenses: exp,
       };
     });
   }, [rawMonthlyData, rawExpenseData]);
 
-  // 6. Top Selling Medicines
-  const { data: topSellingMedicines } = useLocalData<{ name: string, sales: number, units: number, category: string }>(
-    `SELECT 
+  // ─── Top Selling Medicines ─────────────────────────────────────────────────
+
+  const { data: topSellingMedicines } = useLocalData<{
+    name: string;
+    sales: number;
+    units: number;
+    category: string;
+  }>(
+    `SELECT
       m.name,
       SUM(si.total_price) as sales,
       SUM(si.quantity) as units,
@@ -121,13 +213,15 @@ export function useBIData(externalTimeRange?: string) {
     [dateFilter]
   );
 
-  // 7. Sales by Category
-  const { data: categoryDistribution } = useLocalData<{ name: string, value: number }>(
-    `SELECT 
-      m.category_id as name,
+  // ─── Sales by Category ─────────────────────────────────────────────────────
+
+  const { data: categoryDistribution } = useLocalData<{ name: string; value: number }>(
+    `SELECT
+      COALESCE(c.name, 'Uncategorized') as name,
       COUNT(*) as value
      FROM sale_items si
      JOIN medicines m ON si.medicine_id = m.id
+     LEFT JOIN categories c ON m.category_id = c.id
      JOIN sales s ON si.sale_id = s.id
      WHERE s.transaction_date >= ? AND s._deleted = 0
      GROUP BY m.category_id`,
@@ -138,29 +232,190 @@ export function useBIData(externalTimeRange?: string) {
   const formattedCategoryData = useMemo(() => {
     return categoryDistribution.map((item, index) => ({
       ...item,
-      color: colors[index % colors.length]
+      color: colors[index % colors.length],
     }));
   }, [categoryDistribution]);
 
-  const avgTransactionValue = useMemo(() => {
-    return totalTransactions > 0 ? totalRevenue / totalTransactions : 0;
-  }, [totalRevenue, totalTransactions]);
+  // ─── Inventory Alerts ─────────────────────────────────────────────────────
+
+  const { data: lowStockAlerts } = useLocalData<{
+    medicine: string;
+    quantity: number;
+    threshold: number;
+  }>(
+    `SELECT
+      m.name as medicine,
+      SUM(inv.quantity) as quantity,
+      m.reorder_level as threshold
+     FROM inventory inv
+     JOIN medicines m ON inv.medicine_id = m.id
+     WHERE inv._deleted = 0 AND m._deleted = 0
+     GROUP BY m.id
+     HAVING quantity <= m.reorder_level AND m.reorder_level > 0
+     ORDER BY quantity ASC
+     LIMIT 5`
+  );
+
+  const { data: expiryAlerts } = useLocalData<{
+    medicine: string;
+    expiryDate: string;
+    daysLeft: number;
+  }>(
+    `SELECT
+      m.name as medicine,
+      inv.expiry_date as expiryDate,
+      CAST((julianday(inv.expiry_date) - julianday('now')) AS INTEGER) as daysLeft
+     FROM inventory inv
+     JOIN medicines m ON inv.medicine_id = m.id
+     WHERE inv._deleted = 0 AND m._deleted = 0
+       AND inv.expiry_date IS NOT NULL
+       AND inv.expiry_date != ''
+       AND julianday(inv.expiry_date) <= julianday('now', '+30 days')
+       AND julianday(inv.expiry_date) >= julianday('now')
+     ORDER BY inv.expiry_date ASC
+     LIMIT 5`
+  );
+
+  const inventoryAlerts = useMemo(() => {
+    const low = (lowStockAlerts || []).map((a) => ({
+      medicine: a.medicine,
+      issue: "Low Stock",
+      quantity: a.quantity,
+      threshold: a.threshold,
+      severity: a.quantity === 0 ? "critical" : a.quantity <= a.threshold / 2 ? "high" : "medium",
+    }));
+    const expiring = (expiryAlerts || []).map((a) => ({
+      medicine: a.medicine,
+      issue: "Expiring Soon",
+      expiryDate: a.expiryDate,
+      daysLeft: a.daysLeft,
+      severity: a.daysLeft <= 7 ? "critical" : a.daysLeft <= 14 ? "high" : "medium",
+    }));
+    return [...expiring, ...low];
+  }, [lowStockAlerts, expiryAlerts]);
+
+  // ─── Customer Purchase Patterns by Time Slot ──────────────────────────────
+
+  const { data: timeSlotData } = useLocalData<{
+    slot: string;
+    transactions: number;
+    avg_value: number;
+  }>(
+    `SELECT
+      CASE
+        WHEN CAST(strftime('%H', transaction_date) AS INTEGER) BETWEEN 6 AND 11 THEN 'Morning (6am-12pm)'
+        WHEN CAST(strftime('%H', transaction_date) AS INTEGER) BETWEEN 12 AND 16 THEN 'Afternoon (12pm-5pm)'
+        WHEN CAST(strftime('%H', transaction_date) AS INTEGER) BETWEEN 17 AND 21 THEN 'Evening (5pm-10pm)'
+        ELSE 'Night (10pm-6am)'
+      END as slot,
+      COUNT(*) as transactions,
+      AVG(total_amount) as avg_value
+     FROM sales
+     WHERE transaction_date >= ? AND _deleted = 0
+     GROUP BY slot
+     ORDER BY MIN(strftime('%H', transaction_date)) ASC`,
+    [dateFilter]
+  );
+
+  // ─── Top category per time slot ───────────────────────────────────────────
+
+  const { data: slotCategoryData } = useLocalData<{
+    slot: string;
+    category: string;
+  }>(
+    `SELECT slot, category FROM (
+       SELECT
+         CASE
+           WHEN CAST(strftime('%H', s.transaction_date) AS INTEGER) BETWEEN 6 AND 11 THEN 'Morning (6am-12pm)'
+           WHEN CAST(strftime('%H', s.transaction_date) AS INTEGER) BETWEEN 12 AND 16 THEN 'Afternoon (12pm-5pm)'
+           WHEN CAST(strftime('%H', s.transaction_date) AS INTEGER) BETWEEN 17 AND 21 THEN 'Evening (5pm-10pm)'
+           ELSE 'Night (10pm-6am)'
+         END as slot,
+         COALESCE(c.name, 'General') as category,
+         COUNT(*) as cnt,
+         ROW_NUMBER() OVER (
+           PARTITION BY CASE
+             WHEN CAST(strftime('%H', s.transaction_date) AS INTEGER) BETWEEN 6 AND 11 THEN 'Morning (6am-12pm)'
+             WHEN CAST(strftime('%H', s.transaction_date) AS INTEGER) BETWEEN 12 AND 16 THEN 'Afternoon (12pm-5pm)'
+             WHEN CAST(strftime('%H', s.transaction_date) AS INTEGER) BETWEEN 17 AND 21 THEN 'Evening (5pm-10pm)'
+             ELSE 'Night (10pm-6am)'
+           END
+           ORDER BY COUNT(*) DESC
+         ) as rn
+       FROM sale_items si
+       JOIN medicines m ON si.medicine_id = m.id
+       LEFT JOIN categories c ON m.category_id = c.id
+       JOIN sales s ON si.sale_id = s.id
+       WHERE s.transaction_date >= ? AND s._deleted = 0
+       GROUP BY slot, c.name
+     ) WHERE rn = 1`,
+    [dateFilter]
+  );
+
+  const purchasePatterns = useMemo(() => {
+    return (timeSlotData || []).map((slot) => {
+      const topCat = slotCategoryData.find((s) => s.slot === slot.slot);
+      return {
+        slot: slot.slot,
+        transactions: slot.transactions,
+        avgValue: slot.avg_value || 0,
+        topCategory: topCat?.category || "General",
+      };
+    });
+  }, [timeSlotData, slotCategoryData]);
+
+  // ─── Customer Metrics with Real Changes ──────────────────────────────────
+
+  const liveCustomerMetrics = useMemo(() => [
+    {
+      metric: "Total Customers",
+      value: activeCustomers.toLocaleString(),
+      change: `${customerChange >= 0 ? "+" : ""}${customerChange}%`,
+      trend: customerChange >= 0 ? "up" : "down",
+    },
+    {
+      metric: "Loyalty Members",
+      value: loyaltyMembers.toLocaleString(),
+      change: loyaltyMembers > 0 ? `${Math.round((loyaltyMembers / Math.max(activeCustomers, 1)) * 100)}% of total` : "0%",
+      trend: "up",
+    },
+    {
+      metric: "Avg. Transaction",
+      value: `₦${Math.floor(avgTransactionValue).toLocaleString()}`,
+      change: `${avgTransactionChange >= 0 ? "+" : ""}${avgTransactionChange}%`,
+      trend: avgTransactionChange >= 0 ? "up" : "down",
+    },
+    {
+      metric: "Customer Retention",
+      value: `${retentionRate}%`,
+      change: retentionRate >= 50 ? "Healthy" : "Needs attention",
+      trend: retentionRate >= 50 ? "up" : "down",
+    },
+  ], [activeCustomers, loyaltyMembers, avgTransactionValue, avgTransactionChange, customerChange, retentionRate]);
 
   return {
     timeRange,
     totalRevenue,
+    revenueChange,
     totalCogs,
     totalExpenses,
     grossProfit,
     netProfit,
     totalTransactions,
     avgTransactionValue,
+    avgTransactionChange,
     inventoryValue,
     activeCustomers,
+    customerChange,
+    loyaltyMembers,
+    retentionRate,
     monthlySalesData,
     topSellingMedicines,
     formattedCategoryData,
     salesByCategory: categoryDistribution,
+    inventoryAlerts,
+    purchasePatterns,
+    liveCustomerMetrics,
     setInternalTimeRange,
   };
 }

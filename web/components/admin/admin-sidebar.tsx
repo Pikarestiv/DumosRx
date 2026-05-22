@@ -11,9 +11,6 @@ import {
   LogOut,
   ChevronRight,
   Activity,
-  Server,
-  Megaphone,
-  Mail,
   MessageSquare,
   Settings,
 } from "lucide-react";

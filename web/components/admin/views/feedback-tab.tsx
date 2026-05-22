@@ -15,7 +15,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MessageSquare, Bug, Lightbulb, User, Clock, CheckCircle2, XCircle } from "lucide-react";
+import { MessageSquare, Bug, Lightbulb, User, Clock, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 

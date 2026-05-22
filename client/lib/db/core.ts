@@ -35,12 +35,12 @@ export async function initDatabase(): Promise<any> {
       const Database = sqlPlugin.default || (sqlPlugin as any).Database;
 
       db = await Database.load("sqlite:dumosrx.db");
-      
+
       const statements = SCHEMA_SQL.split(';').filter(s => s.trim());
       for (const statement of statements) {
         await db.execute(statement);
       }
-      
+
       return db;
     } catch (err) {
       console.error("Failed to init Tauri DB", err);
@@ -62,7 +62,7 @@ export async function initDatabase(): Promise<any> {
         // Ensure new tables from schema updates are created
         db.run(SCHEMA_SQL);
       } catch (_e) {
-        console.error("[DB] Failed to load saved data, starting fresh", e);
+        console.error("[DB] Failed to load saved data, starting fresh", _e);
         db = new SQL.Database();
         db.run(SCHEMA_SQL);
       }
@@ -93,7 +93,7 @@ export async function initDatabase(): Promise<any> {
       { table: 'loyalty_transactions', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
       { table: 'store_profile', columns: ['created_at TEXT', 'pcn_license TEXT', 'receipt_header TEXT', 'receipt_footer TEXT', 'show_logo_on_receipt INTEGER DEFAULT 1', 'show_contact_on_receipt INTEGER DEFAULT 1', 'low_stock_warning INTEGER DEFAULT 1', 'expiry_warning INTEGER DEFAULT 1', 'expiry_warning_days INTEGER DEFAULT 90', '_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0', 'auto_sync_enabled INTEGER DEFAULT 0', 'auto_sync_interval INTEGER DEFAULT 15'] },
     ];
-    
+
     for (const { table, columns } of syncColumns) {
       for (const colDef of columns) {
         try {
@@ -174,7 +174,7 @@ export async function restoreDatabase(binaryData: Uint8Array): Promise<void> {
       locateFile: (file: string) => `/${file}`,
     });
   }
-  
+
   db = new SQL.Database(binaryData);
   saveDatabase();
   // Reload page to ensure all contexts pick up new data
@@ -188,22 +188,22 @@ export async function restoreDatabase(binaryData: Uint8Array): Promise<void> {
  */
 export async function resetDatabase(): Promise<void> {
   if (!db) await initDatabase();
-  
+
   const tablesToClear = [
-    'medicines', 'inventory', 'sales', 'sale_items', 'customers', 
+    'medicines', 'inventory', 'sales', 'sale_items', 'customers',
     'expenses', 'vendors', 'categories', 'prescriptions', 'audit_logs',
     'returns', 'purchase_orders', 'purchase_order_items', 'suppliers',
-    'stock_audits', 'held_transactions', 'loyalty_transactions', '_sync_state'
+    'stock_audits', 'held_transactions', 'loyalty_transactions', '_sync_state', '_sync_queue'
   ];
 
   for (const table of tablesToClear) {
     try {
       db.run(`DELETE FROM ${table}`);
     } catch (_e) {
-      console.warn(`Failed to clear table ${table}`, e);
+      console.warn(`Failed to clear table ${table}`, _e);
     }
   }
-  
+
   saveDatabase();
   if (typeof window !== "undefined") {
     localStorage.removeItem("last_sync_time");
@@ -215,7 +215,7 @@ export async function logAction(action: string, table: string, recordId: string,
   if (!db) return;
   const id = generateId();
   const now = new Date().toISOString();
-  
+
   await execute(
     `INSERT INTO audit_logs (id, user_id, action, table_name, record_id, details, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,

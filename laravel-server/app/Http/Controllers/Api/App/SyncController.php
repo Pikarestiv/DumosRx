@@ -52,6 +52,11 @@ class SyncController extends Controller
                     unset($payload['user_id']);
                 }
 
+                // Add default password for users coming from client
+                if ($change['table_name'] === 'users' && !isset($payload['password'])) {
+                    $payload['password'] = \Illuminate\Support\Facades\Hash::make($payload['pin'] ?? '1234');
+                }
+
                 if ($change['operation'] === 'INSERT') {
                     $recordId = $change['record_id'] ?? ($payload['id'] ?? null);
                     $exists = $modelClass::where('id', $recordId)->exists();

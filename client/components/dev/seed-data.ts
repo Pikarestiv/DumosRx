@@ -863,3 +863,79 @@ export async function seedUsers() {
     is_active: 1,
   });
 }
+
+export async function resetMedicines() {
+  const { execute } = await db();
+  await execute("DELETE FROM medicines");
+  await execute("DELETE FROM inventory");
+  await execute("DELETE FROM categories");
+}
+
+export async function resetSuppliers() {
+  const { execute } = await db();
+  await execute("DELETE FROM suppliers");
+  await execute("DELETE FROM vendors");
+}
+
+export async function resetExpenses() {
+  const { execute } = await db();
+  await execute("DELETE FROM expenses");
+}
+
+export async function resetSales() {
+  const { execute } = await db();
+  await execute("DELETE FROM sales");
+  await execute("DELETE FROM sale_items");
+  await execute("DELETE FROM returns");
+  await execute("DELETE FROM held_transactions");
+  await execute("DELETE FROM loyalty_transactions");
+}
+
+export async function resetCustomers() {
+  const { execute } = await db();
+  await execute("DELETE FROM customers");
+  await execute("DELETE FROM customer_payments");
+}
+
+export async function resetUsers() {
+  const { execute } = await db();
+  await execute("DELETE FROM users");
+  await seedUsers();
+}
+
+export async function resetAll() {
+  const { execute } = await db();
+  const tables = [
+    "medicines",
+    "inventory",
+    "categories",
+    "suppliers",
+    "vendors",
+    "expenses",
+    "sales",
+    "sale_items",
+    "returns",
+    "held_transactions",
+    "loyalty_transactions",
+    "customers",
+    "customer_payments",
+    "prescriptions",
+    "prescription_items",
+    "purchase_orders",
+    "purchase_order_items",
+    "stock_audits",
+    "audit_logs",
+    "feedback",
+    "_sync_queue",
+    "_sync_state",
+    "store_profile",
+  ];
+  for (const table of tables) {
+    try {
+      await execute(`DELETE FROM ${table}`);
+    } catch (e) {
+      console.warn(`Could not delete from ${table}:`, e);
+    }
+  }
+  await seedUsers();
+}

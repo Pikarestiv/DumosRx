@@ -1,13 +1,13 @@
 /**
- * Dev utility – seed local SQLite with sample data.
- * Opens a dialog for selective seeding per category.
+ * Dev utility – seed and reset local SQLite with sample data.
+ * Opens dialogs for selective seeding or resetting per category.
  */
 "use client";
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { sync } from "@/lib/db/sync-engine";
-import { RefreshCw, Database, Loader2, Check } from "lucide-react";
+import { RefreshCw, Database, Loader2, Check, Trash2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { useAuthStore } from "@/lib/auth/store";
 import {
@@ -24,6 +24,13 @@ import {
   seedSales,
   seedCustomers,
   seedUsers,
+  resetMedicines,
+  resetSuppliers,
+  resetExpenses,
+  resetSales,
+  resetCustomers,
+  resetUsers,
+  resetAll,
   SEED_CATEGORIES,
   type SeedKey,
 } from "./seed-data";
@@ -31,8 +38,14 @@ import {
 export function DevSeedButton() {
   const [syncing, setSyncing] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  const [isResetOpen, setIsResetOpen] = useState(false);
+  
   const [seeding, setSeeding] = useState<Partial<Record<SeedKey, boolean>>>({});
   const [done, setDone] = useState<Partial<Record<SeedKey, boolean>>>({});
+  
+  const [resetting, setResetting] = useState<Partial<Record<SeedKey, boolean>>>({});
+  const [resetDone, setResetDone] = useState<Partial<Record<SeedKey, boolean>>>({});
+  const [resettingAll, setResettingAll] = useState(false);
 
   const getCashierId = () => {
     const user = useAuthStore.getState().user;
@@ -69,6 +82,45 @@ export function DevSeedButton() {
     toast.success("All categories seeded");
   };
 
+  const runReset = async (key: SeedKey) => {
+    setResetting((s) => ({ ...s, [key]: true }));
+    setResetDone((d) => ({ ...d, [key]: false }));
+    try {
+      switch (key) {
+        case "medicines": await resetMedicines(); break;
+        case "suppliers": await resetSuppliers(); break;
+        case "expenses": await resetExpenses(); break;
+        case "sales": await resetSales(); break;
+        case "customers": await resetCustomers(); break;
+        case "users": await resetUsers(); break;
+      }
+      setResetDone((d) => ({ ...d, [key]: true }));
+      toast.success(`${SEED_CATEGORIES.find((c) => c.key === key)?.label} reset successfully`);
+    } catch (err) {
+      console.error(err);
+      toast.error(`Failed to reset ${key}`);
+    } finally {
+      setResetting((s) => ({ ...s, [key]: false }));
+    }
+  };
+
+  const runResetAll = async () => {
+    setResettingAll(true);
+    try {
+      await resetAll();
+      localStorage.clear();
+      toast.success("Database fully reset");
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to fully reset database");
+    } finally {
+      setResettingAll(false);
+    }
+  };
+
   const handleSync = async () => {
     try {
       setSyncing(true);
@@ -84,6 +136,7 @@ export function DevSeedButton() {
   };
 
   const anySeeding = Object.values(seeding).some(Boolean);
+  const anyResetting = Object.values(resetting).some(Boolean) || resettingAll;
 
   return (
     <>
@@ -102,10 +155,7 @@ export function DevSeedButton() {
         <Button
           variant="destructive"
           size="sm"
-          onClick={() => {
-            localStorage.clear();
-            window.location.reload();
-          }}
+          onClick={() => setIsResetOpen(true)}
           className="shadow-lg border-2 border-destructive bg-background hover:bg-destructive/10 text-destructive cursor-pointer"
         >
           Reset DB
@@ -122,6 +172,7 @@ export function DevSeedButton() {
         </Button>
       </div>
 
+      {/* Seed Dialog */}
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -182,6 +233,79 @@ export function DevSeedButton() {
                 <>
                   <Database className="h-4 w-4 mr-2" />
                   Seed Everything
+                </>
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reset Dialog */}
+      <Dialog open={isResetOpen} onOpenChange={setIsResetOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="h-5 w-5 text-destructive" />
+              Reset Local Database
+            </DialogTitle>
+            <DialogDescription>
+              Selectively wipe categories of local data. Resetting everything will clean all tables and clear storage.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2 py-2">
+            {SEED_CATEGORIES.map((cat) => {
+              const isResetting = resetting[cat.key];
+              const isDone = resetDone[cat.key];
+              return (
+                <div
+                  key={cat.key}
+                  className="flex items-center justify-between p-3 rounded-lg border border-destructive/20 bg-destructive/5 hover:bg-destructive/10 transition-colors"
+                >
+                  <div className="flex-1 min-w-0 mr-3">
+                    <p className="font-medium text-sm text-destructive-foreground">{cat.label}</p>
+                    <p className="text-xs text-muted-foreground truncate">{cat.description}</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant={isDone ? "secondary" : "destructive"}
+                    disabled={isResetting || anyResetting}
+                    onClick={() => runReset(cat.key)}
+                    className="shrink-0 cursor-pointer"
+                  >
+                    {isResetting ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : isDone ? (
+                      <Check className="h-3.5 w-3.5 text-green-600" />
+                    ) : (
+                      "Reset"
+                    )}
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="pt-2 border-t flex flex-col gap-2">
+            <div className="flex items-start gap-2 p-2.5 rounded-lg border border-yellow-500/30 bg-yellow-500/5 text-yellow-600 text-xs">
+              <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+              <p>Resetting all will clear your local storage and refresh the page to establish a clean database state.</p>
+            </div>
+            <Button
+              variant="destructive"
+              className="w-full cursor-pointer mt-1"
+              onClick={runResetAll}
+              disabled={anyResetting}
+            >
+              {resettingAll ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Resetting All...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Reset Everything
                 </>
               )}
             </Button>

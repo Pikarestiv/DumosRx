@@ -46,6 +46,12 @@ class SyncController extends Controller
                 $payload = is_array($change['payload']) ? $change['payload'] : json_decode($change['payload'], true);
                 $now = now();
 
+                // Map user_id to cashier_id for sales table coming from client
+                if ($change['table_name'] === 'sales' && isset($payload['user_id'])) {
+                    $payload['cashier_id'] = $payload['user_id'];
+                    unset($payload['user_id']);
+                }
+
                 if ($change['operation'] === 'INSERT') {
                     $recordId = $change['record_id'] ?? ($payload['id'] ?? null);
                     $exists = $modelClass::where('id', $recordId)->exists();
@@ -152,6 +158,11 @@ class SyncController extends Controller
                 // SQLite on desktop has a NOT NULL constraint on username
                 if ($table === 'users' && empty($array['username'])) {
                     $array['username'] = $array['email'] ?: 'user_' . substr($array['id'], 0, 8);
+                }
+
+                // Map cashier_id back to user_id for client SQLite sales table
+                if ($table === 'sales' && isset($array['cashier_id'])) {
+                    $array['user_id'] = $array['cashier_id'];
                 }
 
                 return $array;

@@ -52,9 +52,13 @@ class SyncController extends Controller
                     unset($payload['user_id']);
                 }
 
-                // Add default password for users coming from client
-                if ($change['table_name'] === 'users' && !isset($payload['password'])) {
-                    $payload['password'] = \Illuminate\Support\Facades\Hash::make($payload['pin'] ?? '1234');
+                // Handle user specific mappings
+                if ($change['table_name'] === 'users') {
+                    if (isset($payload['name']) && !isset($payload['first_name'])) {
+                        $parts = explode(' ', $payload['name'], 2);
+                        $payload['first_name'] = $parts[0] ?? 'User';
+                        $payload['last_name'] = $parts[1] ?? '';
+                    }
                 }
 
                 if ($change['operation'] === 'INSERT') {
@@ -63,6 +67,20 @@ class SyncController extends Controller
                     if (!$exists) {
                         $model = new $modelClass();
                         $model->fill($payload);
+                        
+                        // Force missing required fields for users
+                        if ($change['table_name'] === 'users') {
+                            if (empty($model->password)) {
+                                $model->password = \Illuminate\Support\Facades\Hash::make($payload['pin'] ?? '1234');
+                            }
+                            if (empty($model->first_name)) {
+                                $model->first_name = $payload['first_name'] ?? 'User';
+                            }
+                            if (empty($model->last_name) && !isset($payload['last_name'])) {
+                                $model->last_name = '';
+                            }
+                        }
+                        
                         $model->id = $recordId;
                         $model->_synced_at = $now;
                         $model->save();
@@ -72,6 +90,19 @@ class SyncController extends Controller
                     $model = $modelClass::find($recordId);
                     if ($model) {
                         $model->fill($payload);
+                        
+                        if ($change['table_name'] === 'users') {
+                            if (isset($payload['password'])) {
+                                $model->password = $payload['password'];
+                            }
+                            if (isset($payload['first_name'])) {
+                                $model->first_name = $payload['first_name'];
+                            }
+                            if (isset($payload['last_name'])) {
+                                $model->last_name = $payload['last_name'];
+                            }
+                        }
+
                         $model->_synced_at = $now;
                         $model->save();
                     }

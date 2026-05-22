@@ -75,6 +75,11 @@ class User extends Authenticatable
         return $this->hasOne(Store::class);
     }
 
+    public function stores()
+    {
+        return $this->hasMany(Store::class, 'user_id');
+    }
+
     public function subscriptions()
     {
         return $this->hasMany(Subscription::class);

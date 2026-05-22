@@ -46,7 +46,8 @@ class BroadcastController extends Controller
             'title' => 'required|string|max:255',
             'message' => 'required|string',
             'type' => 'required|string|in:info,warning,danger,success',
-            'target_type' => 'required|string|in:all,pharmacies,stores',
+            'target_type' => 'required|string|in:all,pharmacies,stores,specific',
+            'user_ids' => 'nullable|array',
             'expires_at' => 'nullable|date',
             'is_active' => 'boolean'
         ]);
@@ -79,7 +80,8 @@ class BroadcastController extends Controller
             'title' => 'string|max:255',
             'message' => 'string',
             'type' => 'string|in:info,warning,danger,success',
-            'target_type' => 'string|in:all,pharmacies,stores',
+            'target_type' => 'string|in:all,pharmacies,stores,specific',
+            'user_ids' => 'nullable|array',
             'expires_at' => 'nullable|date',
             'is_active' => 'boolean'
         ]);

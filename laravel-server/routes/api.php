@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\Web\StoreController;
 
 // Admin Controllers
 use App\Http\Controllers\Api\Admin\AdminController;
+use App\Http\Controllers\Api\Admin\MailController;
 
 // App Controllers
 use App\Http\Controllers\Api\App\MedicineController;
@@ -133,6 +134,9 @@ Route::prefix('v1')->group(function () {
                 Route::patch('/{id}/toggle', [BroadcastController::class, 'toggle']);
                 Route::delete('/{id}', [BroadcastController::class, 'destroy']);
             });
+
+            // Emails
+            Route::post('/mail/send', [MailController::class, 'send']);
         });
         // --- APP / TERMINAL ROUTES ---
         Route::prefix('app')->middleware('subscription')->group(function () {

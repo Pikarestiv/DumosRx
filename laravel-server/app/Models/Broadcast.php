@@ -17,14 +17,17 @@ class Broadcast extends Model
         'title',
         'message',
         'type',
-        'is_active',
         'target_type',
+        'user_ids',
         'expires_at',
+        'is_active',
+        'created_by'
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
         'expires_at' => 'datetime',
+        'user_ids' => 'array'
     ];
 
     protected static function boot()

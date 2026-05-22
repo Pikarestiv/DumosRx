@@ -37,6 +37,7 @@ import { UserPlus, Trash2, Shield, Loader2 } from "lucide-react";
 import { getUsers, createUser, deleteUser } from "@/lib/db/local-database";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { checkIsAdmin, checkIsPharmacist } from "@/lib/context/auth-context";
 
 export function StaffManagement() {
   const [users, setUsers] = useState<any[]>([]);
@@ -298,18 +299,18 @@ export function StaffManagement() {
                     <TableCell>
                       <Badge
                         variant={
-                          user.role === "admin"
+                          checkIsAdmin(user.role)
                             ? "default"
-                            : user.role === "pharmacist"
+                            : checkIsPharmacist(user.role)
                               ? "secondary"
                               : "outline"
                         }
                         className="capitalize"
                       >
-                        {user.role === "admin" && (
+                        {checkIsAdmin(user.role) && (
                           <Shield className="w-3 h-3 mr-1" />
                         )}
-                        {user.role}
+                        {user.role.replace(/_/g, " ")}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">

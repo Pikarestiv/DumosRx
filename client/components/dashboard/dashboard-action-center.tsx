@@ -90,7 +90,7 @@ export function DashboardActionCenter({ expiringCount, lowStockCount }: ActionCe
           icon: Settings,
           priority: "info",
           actionLabel: "Complete Now",
-          actionRoute: "/settings?tab=general"
+          actionRoute: "/settings?tab=store"
         });
       }
     } else {
@@ -101,7 +101,7 @@ export function DashboardActionCenter({ expiringCount, lowStockCount }: ActionCe
             icon: Settings,
             priority: "critical",
             actionLabel: "Setup Now",
-            actionRoute: "/settings?tab=general"
+            actionRoute: "/setup"
           });
     }
 

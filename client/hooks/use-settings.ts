@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useTheme } from "@/components/theme-provider";
 import { useStore, StoreType } from "@/lib/context/store-context";
 import { useAuth } from "@/lib/context/auth-context";
@@ -17,7 +17,7 @@ import { sync } from "@/lib/db/sync-engine";
 
 export function useSettings() {
   const { theme, setTheme } = useTheme();
-  const { isAdmin, changePin, isCloudLinked } = useAuth();
+  const { user, isAdmin, changePin, isCloudLinked } = useAuth();
   const {
     storeProfile,
     storeType,
@@ -27,6 +27,7 @@ export function useSettings() {
   } = useStore();
 
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState("appearance");
   const [isCloudLinkOpen, setIsCloudLinkOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(true);
@@ -95,14 +96,49 @@ export function useSettings() {
   useEffect(() => {
     const tab = searchParams.get("tab");
     if (tab) {
-      if (tab === "cloud" || tab === "data") {
-        setActiveTab("data");
-        if (tab === "cloud" && !isCloudLinked) setIsCloudLinkOpen(true);
-      } else if (["appearance", "store", "notifications", "security", "staff", "system"].includes(tab)) {
-        setActiveTab(tab);
+      let internalTab = tab;
+      if (tab === "general") {
+        internalTab = "appearance";
+      } else if (tab === "alerts") {
+        internalTab = "notifications";
+      }
+
+      if (internalTab === "cloud" || internalTab === "data") {
+        if (activeTab !== "data") {
+          setActiveTab("data");
+        }
+        if (internalTab === "cloud" && !isCloudLinked) {
+          setIsCloudLinkOpen(true);
+        }
+      } else if (["appearance", "store", "notifications", "security", "staff", "system"].includes(internalTab)) {
+        if (internalTab === "staff" && !isAdmin) {
+          return;
+        }
+        if (activeTab !== internalTab) {
+          setActiveTab(internalTab);
+        }
       }
     }
-  }, [searchParams, isCloudLinked]);
+  }, [searchParams, isCloudLinked, isAdmin, activeTab]);
+
+  // Tab change handler that updates URL
+  const handleTabChange = (value: string) => {
+    let publicTab = value;
+    if (value === "appearance") {
+      publicTab = "general";
+    } else if (value === "notifications") {
+      publicTab = "alerts";
+    }
+
+    if (activeTab !== value) {
+      setActiveTab(value);
+    }
+
+    const newParams = new URLSearchParams(searchParams.toString());
+    newParams.set("tab", publicTab);
+    const newUrl = window.location.pathname + `?${newParams.toString()}`;
+    router.replace(newUrl, { scroll: false });
+  };
 
   // Handlers
   const handleSaveProfile = () => {
@@ -298,6 +334,7 @@ export function useSettings() {
   const stickyTop = tauriTop + headerHeight;
 
   return {
+    user,
     theme,
     setTheme,
     isAdmin,
@@ -307,6 +344,7 @@ export function useSettings() {
     setAppTheme,
     activeTab,
     setActiveTab,
+    handleTabChange,
     isCloudLinkOpen,
     setIsCloudLinkOpen,
     isDesktop,

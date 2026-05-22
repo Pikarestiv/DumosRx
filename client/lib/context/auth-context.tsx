@@ -23,6 +23,18 @@ interface AuthContextType {
   isCloudLinked: boolean;
 }
 
+export const checkIsAdmin = (role?: string) => {
+  if (!role) return false;
+  const normalizedRole = role.toLowerCase().replace(/[^a-z]/g, "");
+  return normalizedRole.includes("admin") || normalizedRole.includes("manager");
+};
+
+export const checkIsPharmacist = (role?: string) => {
+  if (!role) return false;
+  const normalizedRole = role.toLowerCase().replace(/[^a-z]/g, "");
+  return normalizedRole.includes("pharmacist") || normalizedRole.includes("admin") || normalizedRole.includes("manager");
+};
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -145,6 +157,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const isAdmin = user ? checkIsAdmin(user.role) : false;
+  const isPharmacist = user ? checkIsPharmacist(user.role) : false;
+
   return (
     <AuthContext.Provider
       value={{
@@ -152,8 +167,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         login,
         logout,
         isAuthenticated: !!user,
-        isAdmin: user?.role === "super_admin" || user?.role === "admin" || user?.role === "manager",
-        isPharmacist: user?.role === "pharmacist" || user?.role === "admin" || user?.role === "super_admin",
+        isAdmin,
+        isPharmacist,
         changePin,
         linkCloudAccount,
         isCloudLinked,

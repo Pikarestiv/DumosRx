@@ -91,7 +91,7 @@ export default function AdminFeedbackPage() {
       <div className="grid grid-cols-1 gap-6">
         {isLoading ? (
           Array.from({ length: 3 }).map((_, i) => (
-            <Card key={i} className="rounded-3xl border-none shadow-sm">
+            <Card key={i} className="rounded-3xl border-none shadow-sm bg-white dark:bg-slate-900">
               <CardContent className="p-6">
                 <Skeleton className="h-24 w-full rounded-2xl" />
               </CardContent>
@@ -105,8 +105,8 @@ export default function AdminFeedbackPage() {
           </div>
         ) : (
           data?.data?.map((item: any) => (
-            <Card key={item.id} className="rounded-3xl border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
-              <CardHeader className="bg-slate-50/50 border-b border-slate-100 pb-4">
+            <Card key={item.id} className="rounded-3xl border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+              <CardHeader className="bg-slate-50/50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800 pb-4">
                 <div className="flex justify-between items-start">
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600">

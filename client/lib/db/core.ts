@@ -41,6 +41,15 @@ export async function initDatabase(): Promise<any> {
         await db.execute(statement);
       }
 
+      // Migrations for existing schemas
+      try {
+        await db.execute("ALTER TABLE feedback ADD COLUMN updated_at TEXT");
+        await db.execute("ALTER TABLE feedback ADD COLUMN _version INTEGER DEFAULT 1");
+        await db.execute("ALTER TABLE feedback ADD COLUMN _deleted INTEGER DEFAULT 0");
+      } catch (_e) {
+        // Ignore if columns already exist
+      }
+
       return db;
     } catch (err) {
       console.error("Failed to init Tauri DB", err);

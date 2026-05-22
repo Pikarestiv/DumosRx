@@ -226,6 +226,18 @@ class WebApiClient {
     const { data } = await apiClient.post("/admin/restore-session", { token });
     return data;
   }
+
+  // Feedback (Admin)
+  async getFeedback(status?: string) {
+    const url = status && status !== 'all' ? `/admin/feedback?status=${status}` : `/admin/feedback`;
+    const { data } = await apiClient.get(url);
+    return data;
+  }
+
+  async updateFeedbackStatus(id: string, status: string) {
+    const { data } = await apiClient.post(`/admin/feedback/${id}/status`, { status });
+    return data;
+  }
 }
 
 export const webApiClient = new WebApiClient();

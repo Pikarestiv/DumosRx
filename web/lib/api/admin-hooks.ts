@@ -105,3 +105,21 @@ export const useRestoreSessionMutation = () => {
     mutationFn: (token: string) => webApiClient.restoreSession(token),
   });
 };
+
+export const useAdminFeedback = (status: string = "all") => {
+  return useQuery({
+    queryKey: ["admin-feedback", status],
+    queryFn: () => webApiClient.getFeedback(status),
+  });
+};
+
+export const useUpdateFeedbackStatusMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) => 
+      webApiClient.updateFeedbackStatus(id, status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-feedback"] });
+    },
+  });
+};

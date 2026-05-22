@@ -112,6 +112,10 @@ Route::prefix('v1')->group(function () {
             // Email Templates
             Route::apiResource('email-templates', \App\Http\Controllers\Api\Admin\EmailTemplateController::class)->only(['index', 'show', 'update']);
 
+            // Feedback
+            Route::get('/feedback', [\App\Http\Controllers\Api\Web\FeedbackController::class, 'index']);
+            Route::post('/feedback/{id}/status', [\App\Http\Controllers\Api\Web\FeedbackController::class, 'updateStatus']);
+
             // Broadcasts
             Route::prefix('broadcasts')->middleware('subscription:broadcast_create')->group(function () {
                 Route::get('/', [BroadcastController::class, 'adminIndex']);

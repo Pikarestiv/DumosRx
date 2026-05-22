@@ -21,7 +21,7 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { execute } from "@/lib/db";
+import { insert } from "@/lib/db/local-database";
 import { useAuth } from "@/lib/context/auth-context";
 import { MessageSquare, Bug, Lightbulb, MessageCircle } from "lucide-react";
 
@@ -45,20 +45,16 @@ export function FeedbackForm({ open, onOpenChange }: FeedbackFormProps) {
 
     setIsSubmitting(true);
     try {
-      await execute(
-        `INSERT INTO feedback (id, user_id, type, content, contact_email, status, created_at, _synced)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          crypto.randomUUID(),
-          user?.id || "anonymous",
-          type,
-          content,
-          email,
-          "pending",
-          new Date().toISOString(),
-          0
-        ]
-      );
+      await insert("feedback", {
+        id: crypto.randomUUID(),
+        user_id: user?.id || "anonymous",
+        type,
+        content,
+        contact_email: email,
+        status: "pending",
+        created_at: new Date().toISOString(),
+        _synced: 0
+      });
 
       toast.success("Thank you for your feedback! It has been saved locally and will sync when online.");
       setContent("");

@@ -270,6 +270,7 @@ class SyncController extends Controller
             'categories' => \App\Models\Category::class,
             'vendors' => Vendor::class,
             'expenses' => Expense::class,
+            'feedback' => \App\Models\Feedback::class,
         ];
         return $map[$tableName] ?? null;
     }

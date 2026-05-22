@@ -13,7 +13,8 @@ import {
   Activity,
   Server,
   Megaphone,
-  Mail
+  Mail,
+  MessageSquare
 } from "lucide-react";
 import { useAdminAuthStore } from "@/lib/store/use-admin-auth-store";
 import { useAdminSummary } from "@/lib/api/admin-hooks";
@@ -27,6 +28,7 @@ const sidebarItems = [
   { id: "products", name: "Global Products", icon: Package, href: "/admin/products" },
   { id: "broadcasts", name: "Global Broadcasts", icon: Megaphone, href: "/admin/broadcasts" },
   { id: "email-templates", name: "Email Templates", icon: Mail, href: "/admin/email-templates" },
+  { id: "feedback", name: "User Feedback", icon: MessageSquare, href: "/admin/feedback" },
   { id: "system", name: "System Health", icon: Server, href: "/admin/system" },
 ];
 

@@ -437,6 +437,9 @@ CREATE TABLE IF NOT EXISTS feedback (
   contact_email TEXT,
   status TEXT DEFAULT 'pending',
   created_at TEXT,
+  updated_at TEXT,
+  _version INTEGER DEFAULT 1,
+  _deleted INTEGER DEFAULT 0,
   _synced INTEGER DEFAULT 0,
   _synced_at TEXT
 );

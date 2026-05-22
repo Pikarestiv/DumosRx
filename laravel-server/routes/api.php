@@ -31,10 +31,12 @@ use App\Http\Controllers\Api\BroadcastController;
 
 Route::prefix('v1')->group(function () {
     // Public Routes
-    Route::post('/login', [AuthController::class, 'login']);
-    Route::post('/register', [AuthController::class, 'register']);
-    Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
-    Route::post('/reset-password', [AuthController::class, 'resetPassword']);
+    Route::middleware('throttle:auth')->group(function () {
+        Route::post('/login', [AuthController::class, 'login']);
+        Route::post('/register', [AuthController::class, 'register']);
+        Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
+        Route::post('/reset-password', [AuthController::class, 'resetPassword']);
+    });
     Route::get('/health', function () {
         return response()->json(['status' => 'ok', 'timestamp' => now()]);
     });

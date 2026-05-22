@@ -42,6 +42,12 @@ Route::prefix('v1')->group(function () {
     Route::post('/webhooks/paystack', [\App\Http\Controllers\Api\Web\PaymentController::class, 'handlePaystack']);
     Route::post('/webhooks/flutterwave', [\App\Http\Controllers\Api\Web\PaymentController::class, 'handleFlutterwave']);
 
+    Route::get('/dev/clear-inventory', function() {
+        \Illuminate\Support\Facades\DB::table('inventory')->delete();
+        \Illuminate\Support\Facades\DB::table('categories')->delete();
+        return 'Cleared';
+    });
+
     // Protected Routes
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);

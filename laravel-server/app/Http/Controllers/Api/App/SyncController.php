@@ -65,6 +65,12 @@ class SyncController extends Controller
                     unset($payload['user_id']);
                 }
 
+                // Map quantity to quantity_in_stock for inventory
+                if ($change['table_name'] === 'inventory' && isset($payload['quantity'])) {
+                    $payload['quantity_in_stock'] = $payload['quantity'];
+                    unset($payload['quantity']);
+                }
+
                 // Handle user specific mappings
                 if ($change['table_name'] === 'users') {
                     if (isset($payload['name']) && !isset($payload['first_name'])) {
@@ -254,6 +260,7 @@ class SyncController extends Controller
             'users' => User::class,
             'inventory' => Inventory::class,
             'activity_logs' => ActivityLog::class,
+            'categories' => \App\Models\Category::class,
         ];
         return $map[$tableName] ?? null;
     }

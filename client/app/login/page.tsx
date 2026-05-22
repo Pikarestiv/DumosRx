@@ -22,6 +22,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { query } from "@/lib/db/local-database";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 export default function LoginPage() {
   const [username, setUsername] = useState("");
@@ -30,6 +31,7 @@ export default function LoginPage() {
   const [isCheckingStatus, setIsCheckingStatus] = useState(true);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   const [userCount, setUserCount] = useState(0);
+  const [pendingUpdate, setPendingUpdate] = useState<any>(null);
 
   const { login } = useAuth();
   const router = useRouter();
@@ -88,17 +90,11 @@ export default function LoginPage() {
 
       setIsCheckingUpdate(true);
       const { check } = await import("@tauri-apps/plugin-updater");
-      const { relaunch } = await import("@tauri-apps/plugin-process");
       const update = await check();
 
       if (update) {
         toast.success(`Update available: ${update.version}`);
-        if (
-          window.confirm(`Version ${update.version} is available. Install now?`)
-        ) {
-          await update.downloadAndInstall();
-          await relaunch();
-        }
+        setPendingUpdate(update);
       } else {
         toast.info("You are on the latest version");
       }
@@ -292,6 +288,21 @@ export default function LoginPage() {
           )}
         </Card>
       </motion.div>
+
+      <ConfirmDialog
+        open={!!pendingUpdate}
+        onOpenChange={(open) => { if (!open) setPendingUpdate(null); }}
+        title="Update Available"
+        description={`Version ${pendingUpdate?.version} is ready to install. The app will restart after installation.`}
+        confirmLabel="Install & Restart"
+        variant="default"
+        onConfirm={async () => {
+          if (!pendingUpdate) return;
+          const { relaunch } = await import("@tauri-apps/plugin-process");
+          await pendingUpdate.downloadAndInstall();
+          await relaunch();
+        }}
+      />
     </div>
   );
 }

@@ -17,6 +17,7 @@ import { query, softDelete } from "@/lib/db/local-database";
 import { Button } from "@/components/ui/button";
 import { Trash2, Building2, Phone, Mail } from "lucide-react";
 import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 interface Vendor {
   id: string;
@@ -31,6 +32,7 @@ interface Vendor {
 export function VendorList() {
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const fetchVendors = async () => {
     try {
@@ -51,15 +53,20 @@ export function VendorList() {
   }, []);
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this vendor?")) return;
+    setDeleteTargetId(id);
+  };
 
+  const confirmDelete = async () => {
+    if (!deleteTargetId) return;
     try {
-      await softDelete("suppliers", id);
+      await softDelete("suppliers", deleteTargetId);
       toast.success("Vendor deleted");
       fetchVendors();
     } catch (error) {
       console.error("Failed to delete vendor:", error);
       toast.error("Failed to delete vendor");
+    } finally {
+      setDeleteTargetId(null);
     }
   };
 
@@ -130,6 +137,15 @@ export function VendorList() {
           </Table>
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={!!deleteTargetId}
+        onOpenChange={(open) => { if (!open) setDeleteTargetId(null); }}
+        title="Delete Vendor"
+        description="Are you sure you want to delete this vendor? This action cannot be undone."
+        confirmLabel="Delete"
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 }

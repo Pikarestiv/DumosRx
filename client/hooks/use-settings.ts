@@ -289,10 +289,8 @@ export function useSettings() {
   };
 
   const handleResetDatabase = async () => {
-    if (window.confirm("Are you sure you want to reset the database? This will delete all products, sales, and local data. Your login account will remain.")) {
-      await resetDatabase();
-      toast.success("Database reset successfully.");
-    }
+    await resetDatabase();
+    toast.success("Database reset successfully.");
   };
 
   const tauriTop = isTauri() ? 40 : 0;

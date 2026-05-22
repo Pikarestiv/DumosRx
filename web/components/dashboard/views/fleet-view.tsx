@@ -32,6 +32,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { useStores, useDeleteStoreMutation } from "@/lib/api/hooks";
 import { StoreModal } from "../store-modal";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 interface FleetViewProps {
   stores: any[];
@@ -42,6 +43,7 @@ export function FleetView({ stores: initialStores }: FleetViewProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingStore, setEditingStore] = useState<any>(null);
   const deleteMutation = useDeleteStoreMutation();
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const { data: storesData } = useStores();
   const storesToDisplay = storesData || initialStores;
@@ -61,12 +63,15 @@ export function FleetView({ stores: initialStores }: FleetViewProps) {
   };
 
   const handleDeleteStore = async (storeId: string) => {
-    if (confirm("Are you sure you want to remove this store? This will also deactivate associated staff.")) {
-        deleteMutation.mutate(storeId, {
-          onSuccess: () => toast.success("Store removed successfully"),
-          onError: (err: any) => toast.error(err.message || "Failed to remove store")
-        });
-    }
+    setDeleteTargetId(storeId);
+  };
+
+  const confirmDeleteStore = (storeId: string) => {
+    deleteMutation.mutate(storeId, {
+      onSuccess: () => toast.success("Store removed successfully"),
+      onError: (err: any) => toast.error(err.message || "Failed to remove store"),
+    });
+    setDeleteTargetId(null);
   };
 
   return (
@@ -158,6 +163,15 @@ export function FleetView({ stores: initialStores }: FleetViewProps) {
           </Table>
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={!!deleteTargetId}
+        onOpenChange={(open) => { if (!open) setDeleteTargetId(null); }}
+        title="Remove Store"
+        description="Are you sure you want to remove this store? This will also deactivate all associated staff accounts."
+        confirmLabel="Remove Store"
+        onConfirm={() => deleteTargetId && confirmDeleteStore(deleteTargetId)}
+      />
     </div>
   );
 }

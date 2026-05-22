@@ -1,164 +1,81 @@
 /**
- * Dev utility to seed local SQLite with initial data
+ * Dev utility – seed local SQLite with sample data.
+ * Opens a dialog for selective seeding per category.
  */
 "use client";
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { sync } from "@/lib/db/sync-engine";
-import { RefreshCw, Database } from "lucide-react";
+import { RefreshCw, Database, Loader2, Check } from "lucide-react";
 import { toast } from "sonner";
-import { insert, execute } from "@/lib/db/local-database";
 import { useAuthStore } from "@/lib/auth/store";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
+  seedMedicines,
+  seedSuppliers,
+  seedExpenses,
+  seedSales,
+  seedCustomers,
+  seedUsers,
+} from "./seed-data";
+
+type SeedKey = "medicines" | "suppliers" | "expenses" | "sales" | "customers" | "users";
+
+const SEED_CATEGORIES: { key: SeedKey; label: string; description: string }[] = [
+  { key: "medicines", label: "Medicines", description: "3 sample medicines (Paracetamol, Amoxicillin, Vitamin C)" },
+  { key: "suppliers", label: "Suppliers", description: "2 sample suppliers (Emzor, GSK Nigeria)" },
+  { key: "expenses", label: "Expenses", description: "1 sample rent expense" },
+  { key: "sales", label: "Sales", description: "2 sample completed sales transactions" },
+  { key: "customers", label: "Customers", description: "1 sample customer (John Doe)" },
+  { key: "users", label: "Staff Users", description: "1 default admin user (admin / 1234)" },
+];
 
 export function DevSeedButton() {
-  const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const [seeding, setSeeding] = useState<Partial<Record<SeedKey, boolean>>>({});
+  const [done, setDone] = useState<Partial<Record<SeedKey, boolean>>>({});
 
-  const seedData = async () => {
+  const getCashierId = () => {
+    const user = useAuthStore.getState().user;
+    return user?.id || "u1";
+  };
+
+  const runSeed = async (key: SeedKey) => {
+    setSeeding((s) => ({ ...s, [key]: true }));
+    setDone((d) => ({ ...d, [key]: false }));
     try {
-      setLoading(true);
-
-      // Clean up previous mock data to avoid UNIQUE constraint errors
-      await execute("DELETE FROM medicines WHERE id IN ('m1', 'm2', 'm3')");
-      await execute("DELETE FROM suppliers WHERE id IN ('v1', 'v2')");
-      await execute("DELETE FROM expenses WHERE id IN ('e1')");
-      await execute("DELETE FROM sales WHERE id IN ('s1', 's2')");
-      await execute("DELETE FROM customers WHERE id IN ('c1')");
-      await execute("DELETE FROM users WHERE id IN ('u1')");
-
-      // Seed Medicines with UoM
-      await insert("medicines", {
-        id: "m1",
-        name: "Paracetamol",
-        brand_name: "Emzor",
-        category_id: "Analgesics",
-        stock_quantity: 500,
-        base_unit: "Tablet",
-        bulk_unit: "Pack",
-        units_per_bulk: 50,
-        is_active: 1,
-      });
-      await insert("medicines", {
-        id: "m2",
-        name: "Amoxicillin",
-        brand_name: "Beecham",
-        category_id: "Antibiotics",
-        stock_quantity: 120,
-        base_unit: "Capsule",
-        bulk_unit: "Carton",
-        units_per_bulk: 100,
-        is_active: 1,
-      });
-      await insert("medicines", {
-        id: "m3",
-        name: "Vitamin C",
-        brand_name: "Emzor",
-        category_id: "Vitamins",
-        stock_quantity: 50,
-        base_unit: "Sachet",
-        is_active: 1,
-        reorder_level: 100,
-      });
-
-      // Seed Vendors
-      await insert("suppliers", {
-        id: "v1",
-        name: "Emzor Pharmaceuticals",
-        contact_person: "Mr. Emeka",
-        phone: "08033344455",
-        payment_terms: "Net 30",
-      });
-      await insert("suppliers", {
-        id: "v2",
-        name: "GSK Nigeria",
-        contact_person: "Sarah Okon",
-        phone: "08099887766",
-        payment_terms: "Pay on Delivery",
-      });
-
-      // Seed Expenses
-      await insert("expenses", {
-        id: "e1",
-        category: "Rent",
-        amount: 150000,
-        description: "Monthly shop rent",
-        date: new Date().toISOString().split('T')[0],
-        payment_method: "Bank Transfer",
-      });
-
-      // Seed Sales (today)
-      const today = new Date().toISOString();
-      const user = useAuthStore.getState().user;
-      const cashierId = user?.id || "u1";
-
-      await insert("sales", {
-        id: "s1",
-        transaction_number: "TRX-SEED-001",
-        user_id: cashierId,
-        total_amount: 1500,
-        amount_paid: 1500,
-        change_given: 0,
-        subtotal: 1500,
-        tax_amount: 0,
-        tax_percentage: 7.5,
-        discount_total: 0,
-        discount_percentage: 0,
-        points_earned: 0,
-        points_redeemed: 0,
-        payment_method: "cash",
-        created_at: today,
-        transaction_date: today,
-        payment_status: "completed",
-        receipt_printed: 0,
-      });
-      await insert("sales", {
-        id: "s2",
-        transaction_number: "TRX-SEED-002",
-        user_id: cashierId,
-        total_amount: 2500,
-        amount_paid: 2500,
-        change_given: 0,
-        subtotal: 2500,
-        tax_amount: 0,
-        tax_percentage: 7.5,
-        discount_total: 0,
-        discount_percentage: 0,
-        points_earned: 0,
-        points_redeemed: 0,
-        payment_method: "card",
-        created_at: today,
-        transaction_date: today,
-        payment_status: "completed",
-        receipt_printed: 0,
-      });
-
-      // Seed Customers
-      await insert("customers", {
-        id: "c1",
-        first_name: "John",
-        last_name: "Doe",
-        phone: "08012345678",
-      });
-
-      // Seed Default Admin User
-      await insert("users", {
-        id: "u1",
-        name: "Default Admin",
-        username: "admin",
-        email: "admin@dumosrx.com",
-        pin: "1234",
-        role: "admin",
-        is_active: 1,
-      });
-
-      toast.success("Database seeded with sample data");
+      const cashierId = getCashierId();
+      switch (key) {
+        case "medicines": await seedMedicines(); break;
+        case "suppliers": await seedSuppliers(); break;
+        case "expenses": await seedExpenses(); break;
+        case "sales": await seedSales(cashierId); break;
+        case "customers": await seedCustomers(); break;
+        case "users": await seedUsers(); break;
+      }
+      setDone((d) => ({ ...d, [key]: true }));
+      toast.success(`${SEED_CATEGORIES.find((c) => c.key === key)?.label} seeded successfully`);
     } catch (err) {
       console.error(err);
-      toast.error("Failed to seed database");
+      toast.error(`Failed to seed ${key}`);
     } finally {
-      setLoading(false);
+      setSeeding((s) => ({ ...s, [key]: false }));
     }
+  };
+
+  const runSeedAll = async () => {
+    for (const category of SEED_CATEGORIES) {
+      await runSeed(category.key);
+    }
+    toast.success("All categories seeded");
   };
 
   const handleSync = async () => {
@@ -166,9 +83,7 @@ export function DevSeedButton() {
       setSyncing(true);
       const result = await sync();
       if (result.success) {
-        toast.success(
-          `Sync Complete: Pushed ${result.pushed}, Pulled ${result.pulled}`,
-        );
+        toast.success(`Sync Complete: Pushed ${result.pushed}, Pulled ${result.pulled}`);
       } else {
         toast.error("Sync failed");
       }
@@ -177,43 +92,111 @@ export function DevSeedButton() {
     }
   };
 
+  const anySeeding = Object.values(seeding).some(Boolean);
+
   return (
-    <div className="fixed bottom-4 right-4 z-50 flex gap-2">
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={handleSync}
-        disabled={syncing}
-        className="shadow-lg border-2 border-primary bg-background cursor-pointer"
-      >
-        <RefreshCw
-          className={`h-4 w-4 mr-2 ${syncing ? "animate-spin" : ""}`}
-        />
-        {syncing ? "Syncing..." : "Sync Now"}
-      </Button>
+    <>
+      <div className="fixed bottom-4 right-4 z-50 flex gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleSync}
+          disabled={syncing}
+          className="shadow-lg border-2 border-primary bg-background cursor-pointer"
+        >
+          <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? "animate-spin" : ""}`} />
+          {syncing ? "Syncing..." : "Sync Now"}
+        </Button>
 
-      <Button
-        variant="destructive"
-        size="sm"
-        onClick={() => {
-          localStorage.clear();
-          window.location.reload();
-        }}
-        className="shadow-lg border-2 border-destructive bg-background hover:bg-destructive/10 text-destructive cursor-pointer"
-      >
-        Reset DB
-      </Button>
+        <Button
+          variant="destructive"
+          size="sm"
+          onClick={() => {
+            localStorage.clear();
+            window.location.reload();
+          }}
+          className="shadow-lg border-2 border-destructive bg-background hover:bg-destructive/10 text-destructive cursor-pointer"
+        >
+          Reset DB
+        </Button>
 
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={seedData}
-        disabled={loading}
-        className="shadow-lg border-2 border-primary bg-background cursor-pointer"
-      >
-        <Database className="h-4 w-4 mr-2" />
-        {loading ? "Seeding..." : "Seed Local DB"}
-      </Button>
-    </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setIsOpen(true)}
+          className="shadow-lg border-2 border-primary bg-background cursor-pointer"
+        >
+          <Database className="h-4 w-4 mr-2" />
+          Seed DB
+        </Button>
+      </div>
+
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Database className="h-5 w-5 text-primary" />
+              Seed Local Database
+            </DialogTitle>
+            <DialogDescription>
+              Choose which categories to populate with sample data. Existing seed records will be replaced.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2 py-2">
+            {SEED_CATEGORIES.map((cat) => {
+              const isSeeding = seeding[cat.key];
+              const isDone = done[cat.key];
+              return (
+                <div
+                  key={cat.key}
+                  className="flex items-center justify-between p-3 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors"
+                >
+                  <div className="flex-1 min-w-0 mr-3">
+                    <p className="font-medium text-sm">{cat.label}</p>
+                    <p className="text-xs text-muted-foreground truncate">{cat.description}</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant={isDone ? "secondary" : "outline"}
+                    disabled={isSeeding || anySeeding}
+                    onClick={() => runSeed(cat.key)}
+                    className="shrink-0 cursor-pointer"
+                  >
+                    {isSeeding ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : isDone ? (
+                      <Check className="h-3.5 w-3.5 text-green-600" />
+                    ) : (
+                      "Seed"
+                    )}
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="pt-2 border-t">
+            <Button
+              className="w-full cursor-pointer"
+              onClick={runSeedAll}
+              disabled={anySeeding}
+            >
+              {anySeeding ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Seeding...
+                </>
+              ) : (
+                <>
+                  <Database className="h-4 w-4 mr-2" />
+                  Seed Everything
+                </>
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

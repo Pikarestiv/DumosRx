@@ -29,6 +29,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { StaffModal } from "../staff-modal";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { toast } from "sonner";
 import { useStaff, useDeleteStaffMutation } from "@/lib/api/hooks";
 
@@ -44,6 +45,7 @@ export function StaffView({ staff, stores }: StaffViewProps) {
   const [selectedStore, setSelectedStore] = useState(storeIdParam || "all");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<any>(null);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   
   // Sync with URL params if they change
   useEffect(() => {
@@ -69,12 +71,15 @@ export function StaffView({ staff, stores }: StaffViewProps) {
   };
 
   const handleDelete = async (id: string) => {
-      if (confirm("Are you sure you want to deactivate this staff account?")) {
-          deleteMutation.mutate(id, {
-            onSuccess: () => toast.success("Staff account deactivated"),
-            onError: (err: any) => toast.error(err.message || "Failed to deactivate staff")
-          });
-      }
+    setDeleteTargetId(id);
+  };
+
+  const confirmDelete = (id: string) => {
+    deleteMutation.mutate(id, {
+      onSuccess: () => toast.success("Staff account deactivated"),
+      onError: (err: any) => toast.error(err.message || "Failed to deactivate staff"),
+    });
+    setDeleteTargetId(null);
   };
 
   // Filter staff based on selected store
@@ -241,6 +246,15 @@ export function StaffView({ staff, stores }: StaffViewProps) {
         onSuccess={() => {}}
         stores={stores}
         staffMember={editingStaff}
+      />
+
+      <ConfirmDialog
+        open={!!deleteTargetId}
+        onOpenChange={(open) => { if (!open) setDeleteTargetId(null); }}
+        title="Deactivate Staff Account"
+        description="Are you sure you want to deactivate this staff account? They will no longer be able to log in."
+        confirmLabel="Deactivate"
+        onConfirm={() => deleteTargetId && confirmDelete(deleteTargetId)}
       />
     </div>
   );

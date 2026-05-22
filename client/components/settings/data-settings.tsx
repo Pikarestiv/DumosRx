@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Database, CloudOff, Save, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -19,6 +20,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 interface DataSettingsProps {
   isCloudLinked: boolean;
@@ -47,15 +49,17 @@ export function DataSettings({
   setAutoSyncInterval,
   handleSaveAutoSyncSettings,
 }: DataSettingsProps) {
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Data Synchronization</CardTitle>
-        <CardDescription>
-          Manage offline data and cloud backups.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle>Data Synchronization</CardTitle>
+          <CardDescription>
+            Manage offline data and cloud backups.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between p-4 border rounded-lg bg-muted/30 gap-4">
           <div className="flex items-center gap-3">
             <div
@@ -203,13 +207,23 @@ export function DataSettings({
             <Button
               variant="destructive"
               size="sm"
-              onClick={handleResetDatabase}
+              onClick={() => setShowResetConfirm(true)}
             >
               Reset All Data
             </Button>
           </div>
         </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+
+      <ConfirmDialog
+        open={showResetConfirm}
+        onOpenChange={setShowResetConfirm}
+        title="Factory Reset"
+        description="This will permanently delete all local data — medicines, sales, customers, and expenses. Your login account will remain. This cannot be undone."
+        confirmLabel="Reset All Data"
+        onConfirm={() => { handleResetDatabase(); setShowResetConfirm(false); }}
+      />
+    </>
   );
 }

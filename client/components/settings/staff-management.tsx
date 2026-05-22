@@ -36,12 +36,14 @@ import { Badge } from "@/components/ui/badge";
 import { UserPlus, Trash2, Shield, Loader2 } from "lucide-react";
 import { getUsers, createUser, deleteUser } from "@/lib/db/local-database";
 import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 export function StaffManagement() {
   const [users, setUsers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -110,18 +112,20 @@ export function StaffManagement() {
       toast.error("Default admin cannot be deleted");
       return;
     }
+    setDeleteTarget({ id, name });
+  };
 
-    if (!confirm(`Are you sure you want to delete staff account for ${name}?`)) {
-      return;
-    }
-
+  const confirmDeleteUser = async () => {
+    if (!deleteTarget) return;
     try {
-      await deleteUser(id);
+      await deleteUser(deleteTarget.id);
       toast.success("Staff account deleted");
       loadUsers();
     } catch (error) {
       console.error("Failed to delete user:", error);
       toast.error("Failed to delete staff account");
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -329,6 +333,15 @@ export function StaffManagement() {
           </Table>
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        title="Delete Staff Account"
+        description={`Are you sure you want to delete the account for ${deleteTarget?.name}? This action cannot be undone.`}
+        confirmLabel="Delete Account"
+        onConfirm={confirmDeleteUser}
+      />
     </div>
   );
 }

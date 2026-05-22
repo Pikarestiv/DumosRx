@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Trash2, ReceiptText } from "lucide-react";
 import { toast } from "sonner";
 import { useStore } from "@/lib/context/store-context";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 interface Expense {
   id: string;
@@ -34,6 +35,7 @@ export function ExpenseList() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { storeProfile } = useStore();
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const fetchExpenses = async () => {
     try {
@@ -54,15 +56,20 @@ export function ExpenseList() {
   }, []);
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this expense?")) return;
+    setDeleteTargetId(id);
+  };
 
+  const confirmDelete = async () => {
+    if (!deleteTargetId) return;
     try {
-      await softDelete("expenses", id);
+      await softDelete("expenses", deleteTargetId);
       toast.success("Expense deleted");
       fetchExpenses();
     } catch (error) {
       console.error("Failed to delete expense:", error);
       toast.error("Failed to delete expense");
+    } finally {
+      setDeleteTargetId(null);
     }
   };
 
@@ -139,6 +146,15 @@ export function ExpenseList() {
           </Table>
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={!!deleteTargetId}
+        onOpenChange={(open) => { if (!open) setDeleteTargetId(null); }}
+        title="Delete Expense"
+        description="Are you sure you want to delete this expense? This action cannot be undone."
+        confirmLabel="Delete"
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 }

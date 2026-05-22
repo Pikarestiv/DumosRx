@@ -65,6 +65,7 @@ import { POSCart } from "./pos-cart";
 import { HeldTransactionsDialog } from "./held-transactions-dialog";
 import { insert, remove } from "@/lib/db/local-database";
 import { searchMedicines } from "@/lib/utils/search";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 export function POSSystem() {
   const { t, storeProfile, vatPercentage } = useStore();
@@ -77,6 +78,7 @@ export function POSSystem() {
   const [showReturnDialog, setShowReturnDialog] = useState(false);
   const [saleToReturn, setSaleToReturn] = useState<any>(null);
   const [showHeldDialog, setShowHeldDialog] = useState(false);
+  const [showClearCartDialog, setShowClearCartDialog] = useState(false);
 
   // Fetch medicines from local DB
   const {
@@ -186,7 +188,7 @@ export function POSSystem() {
         else if (showReceiptDialog) setShowReceiptDialog(false);
         else if (searchTerm) setSearchTerm("");
         else if (cart.length > 0) {
-          if (confirm("Clear cart?")) clearCart();
+          setShowClearCartDialog(true);
         }
       }
     };
@@ -479,6 +481,15 @@ export function POSSystem() {
         isOpen={showHeldDialog}
         onClose={() => setShowHeldDialog(false)}
         onRecall={handleRecallTransaction}
+      />
+
+      <ConfirmDialog
+        open={showClearCartDialog}
+        onOpenChange={setShowClearCartDialog}
+        title="Clear Cart?"
+        description="All items in the current cart will be removed. This cannot be undone."
+        confirmLabel="Clear Cart"
+        onConfirm={() => { clearCart(); setShowClearCartDialog(false); }}
       />
     </div>
   );

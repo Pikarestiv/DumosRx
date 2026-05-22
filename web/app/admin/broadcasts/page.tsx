@@ -38,6 +38,7 @@ import { CreateBroadcastDialog, EditBroadcastDialog } from "@/components/admin/b
 import { webApiClient } from "@/lib/api/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 export default function AdminBroadcasts() {
   const [broadcasts, setBroadcasts] = useState<any[]>([]);
@@ -47,6 +48,7 @@ export default function AdminBroadcasts() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [_isDeleting, _setIsDeleting] = useState(false);
   const [selectedBroadcast, setSelectedBroadcast] = useState<any>(null);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -116,13 +118,18 @@ export default function AdminBroadcasts() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm("Are you sure you want to delete this broadcast?")) return;
+    setDeleteTargetId(id);
+  };
+
+  const confirmDelete = async (id: string) => {
     try {
       await webApiClient.deleteBroadcast(id);
       toast.success("Broadcast deleted");
       fetchBroadcasts();
     } catch (_error) {
       toast.error("Failed to delete broadcast");
+    } finally {
+      setDeleteTargetId(null);
     }
   };
 
@@ -333,6 +340,15 @@ export default function AdminBroadcasts() {
         formData={formData}
         setFormData={setFormData}
         onSubmit={handleUpdate}
+      />
+
+      <ConfirmDialog
+        open={!!deleteTargetId}
+        onOpenChange={(open) => { if (!open) setDeleteTargetId(null); }}
+        title="Delete Broadcast"
+        description="Are you sure you want to delete this broadcast? This action cannot be undone."
+        confirmLabel="Delete"
+        onConfirm={() => deleteTargetId && confirmDelete(deleteTargetId)}
       />
     </div>
   );

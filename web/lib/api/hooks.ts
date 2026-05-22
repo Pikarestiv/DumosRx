@@ -124,3 +124,34 @@ export const useBillingHistory = () => {
     queryFn: () => webApiClient.getBillingHistory(),
   });
 };
+
+// ==========================================
+// SESSIONS & SECURITY
+// ==========================================
+
+export const useSessions = () => {
+  return useQuery({
+    queryKey: ["sessions"],
+    queryFn: () => webApiClient.getSessions(),
+  });
+};
+
+export const useRevokeSessionMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => webApiClient.revokeSession(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sessions"] });
+    },
+  });
+};
+
+export const useRevokeAllSessionsMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => webApiClient.revokeAllSessions(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sessions"] });
+    },
+  });
+};

@@ -27,6 +27,7 @@ import { useDashboard } from "@/app/dashboard/use-dashboard";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { webApiClient } from "@/lib/api/client";
 import { TerminalPinForm } from "@/components/dashboard/views/terminal-pin-form";
+import { SessionsView } from "@/components/dashboard/views/sessions-view";
 import {
   Dialog,
   DialogContent,
@@ -318,6 +319,9 @@ export function ProfileView() {
             </form>
           </Card>
         </motion.div>
+
+        {/* Sessions & Devices */}
+        <SessionsView />
 
         {/* Danger Zone */}
         <motion.div

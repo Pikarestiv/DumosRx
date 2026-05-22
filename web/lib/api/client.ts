@@ -238,6 +238,24 @@ class WebApiClient {
     const { data } = await apiClient.post(`/admin/feedback/${id}/status`, { status });
     return data;
   }
+  // ==========================================
+  // SESSIONS & SECURITY
+  // ==========================================
+
+  async getSessions() {
+    const { data } = await apiClient.get("/sessions");
+    return data;
+  }
+
+  async revokeSession(id: string) {
+    const { data } = await apiClient.delete(`/sessions/${id}`);
+    return data;
+  }
+
+  async revokeAllSessions() {
+    const { data } = await apiClient.post("/sessions/revoke-all");
+    return data;
+  }
 }
 
 export const webApiClient = new WebApiClient();

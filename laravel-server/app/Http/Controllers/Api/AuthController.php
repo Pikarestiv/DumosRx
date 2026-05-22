@@ -93,9 +93,33 @@ class AuthController extends Controller
         $token = $tokenResult->plainTextToken;
         
         $tokenModel = $tokenResult->accessToken;
-        $tokenModel->ip_address = $request->ip();
-        $tokenModel->user_agent = $request->userAgent();
+        $ipAddress = $request->ip();
+        $userAgent = $request->userAgent();
+
+        // Fingerprint check: Is this a completely new combination we haven't seen for this user?
+        // Note: we don't alert on the very first token ever created (count == 0 before save)
+        $priorTokensCount = $user->tokens()->count();
+        $isNewDevice = false;
+
+        if ($priorTokensCount > 1) {
+            $isNewDevice = !$user->tokens()
+                ->where('id', '!=', $tokenModel->id)
+                ->where(function($query) use ($ipAddress, $userAgent) {
+                    $query->where('ip_address', $ipAddress)
+                          ->orWhere('user_agent', $userAgent); // Partial match avoids over-alerting
+                })->exists();
+        }
+
+        $tokenModel->ip_address = $ipAddress;
+        $tokenModel->user_agent = $userAgent;
         $tokenModel->save();
+
+        // Dispatch security email if device is unrecognized
+        if ($isNewDevice) {
+            \Illuminate\Support\Facades\Mail::to($user->email)->send(
+                new \App\Mail\NewDeviceLoginEmail($user, $userAgent, $ipAddress, now()->toDateTimeString())
+            );
+        }
 
         $response = response()->json([
             'message' => 'Login successful',

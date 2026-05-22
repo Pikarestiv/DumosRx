@@ -615,7 +615,7 @@ export async function seedSuppliers() {
     phone: "08033344455",
     email: "emeka@emzorpharma.com",
     address: "Plot 3C, Block A, Isolo Industrial Estate, Lagos",
-    payment_terms: "Net 30",
+    payment_terms: "30",
     is_active: 1,
   });
   await insert("suppliers", {
@@ -625,7 +625,7 @@ export async function seedSuppliers() {
     phone: "08099887766",
     email: "sarah.okon@gsk.com",
     address: "1 Industrial Avenue, Ilupeju, Lagos",
-    payment_terms: "Pay on Delivery",
+    payment_terms: "0",
     is_active: 1,
   });
 
@@ -636,7 +636,7 @@ export async function seedSuppliers() {
     phone: "08033344455",
     email: "emeka@emzorpharma.com",
     address: "Plot 3C, Block A, Isolo Industrial Estate, Lagos",
-    payment_terms: "Net 30",
+    payment_terms: "30",
     rating: 4.8,
     is_active: 1,
   });
@@ -647,7 +647,7 @@ export async function seedSuppliers() {
     phone: "08099887766",
     email: "sarah.okon@gsk.com",
     address: "1 Industrial Avenue, Ilupeju, Lagos",
-    payment_terms: "Pay on Delivery",
+    payment_terms: "0",
     rating: 4.5,
     is_active: 1,
   });

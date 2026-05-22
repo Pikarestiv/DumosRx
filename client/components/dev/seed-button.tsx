@@ -24,18 +24,9 @@ import {
   seedSales,
   seedCustomers,
   seedUsers,
+  SEED_CATEGORIES,
+  type SeedKey,
 } from "./seed-data";
-
-type SeedKey = "medicines" | "suppliers" | "expenses" | "sales" | "customers" | "users";
-
-const SEED_CATEGORIES: { key: SeedKey; label: string; description: string }[] = [
-  { key: "medicines", label: "Medicines", description: "3 sample medicines (Paracetamol, Amoxicillin, Vitamin C)" },
-  { key: "suppliers", label: "Suppliers", description: "2 sample suppliers (Emzor, GSK Nigeria)" },
-  { key: "expenses", label: "Expenses", description: "1 sample rent expense" },
-  { key: "sales", label: "Sales", description: "2 sample completed sales transactions" },
-  { key: "customers", label: "Customers", description: "1 sample customer (John Doe)" },
-  { key: "users", label: "Staff Users", description: "1 default admin user (admin / 1234)" },
-];
 
 export function DevSeedButton() {
   const [syncing, setSyncing] = useState(false);

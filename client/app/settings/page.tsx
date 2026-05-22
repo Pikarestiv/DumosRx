@@ -24,6 +24,7 @@ import { useSettings } from "@/hooks/use-settings";
 
 export default function SettingsPage() {
   const {
+    user,
     theme,
     setTheme,
     isAdmin,
@@ -32,7 +33,7 @@ export default function SettingsPage() {
     activeTheme,
     setAppTheme,
     activeTab,
-    setActiveTab,
+    handleTabChange,
     isCloudLinkOpen,
     setIsCloudLinkOpen,
     isDesktop,
@@ -96,21 +97,34 @@ export default function SettingsPage() {
     stickyTop,
   } = useSettings();
 
+  console.log("[DEBUG SETTINGS]", { user, isAdmin });
+
   return (
     <DashboardLayout>
       <div className="max-w-5xl">
-        <div className="mb-6">
-          <h1 className="font-serif font-bold text-3xl text-foreground">
-            Settings
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            Manage your {storeType} configuration and preferences
-          </p>
+        <div className="mb-6 flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+          <div>
+            <h1 className="font-serif font-bold text-3xl text-foreground">
+              Settings
+            </h1>
+            <p className="text-muted-foreground mt-2">
+              Manage your {storeType} configuration and preferences
+            </p>
+          </div>
+          {user && (
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-sm">
+              <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+              <span className="font-medium text-foreground">{user.name || user.username}</span>
+              <span className="text-muted-foreground bg-background/50 px-2 py-0.5 rounded-md text-xs border">
+                {user.role.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())}
+              </span>
+            </div>
+          )}
         </div>
 
         <Tabs
           value={activeTab}
-          onValueChange={setActiveTab}
+          onValueChange={handleTabChange}
           orientation="vertical"
           className="flex flex-col md:flex-row gap-6 md:gap-8 md:items-start relative"
         >
@@ -119,59 +133,59 @@ export default function SettingsPage() {
             style={{ top: isDesktop ? `${stickyTop + 16}px` : undefined }}
           >
             <TabsList
-              className="flex flex-row md:flex-col h-auto bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b md:border-none p-2 md:p-0 gap-1 overflow-x-auto md:overflow-x-visible justify-start md:w-full sticky md:relative z-30 -mx-6 md:mx-0 px-6 md:px-0"
+              className="flex flex-row flex-wrap md:flex-col h-auto bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b md:border-none p-2 md:p-0 gap-1 justify-start md:w-full sticky md:relative z-30"
               style={{ top: !isDesktop ? `${stickyTop}px` : undefined }}
             >
               <TabsTrigger
                 value="appearance"
-                className="flex-1 md:w-full justify-center md:justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20"
+                className="flex-auto md:w-full justify-center md:justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20"
               >
-                <Palette className="w-4 h-4 md:mr-3" />
-                <span className="hidden md:inline text-sm">General</span>
+                <Palette className="w-4 h-4 mr-2 md:mr-3" />
+                <span className="text-sm">General</span>
               </TabsTrigger>
               <TabsTrigger
                 value="store"
-                className="flex-1 md:w-full justify-center md:justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20"
+                className="flex-auto md:w-full justify-center md:justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20"
               >
-                <Store className="w-4 h-4 md:mr-3" />
-                <span className="hidden md:inline text-sm">Store Profile</span>
+                <Store className="w-4 h-4 mr-2 md:mr-3" />
+                <span className="text-sm">Store Profile</span>
               </TabsTrigger>
               <TabsTrigger
                 value="notifications"
-                className="flex-1 md:w-full justify-center md:justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20"
+                className="flex-auto md:w-full justify-center md:justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20"
               >
-                <Bell className="w-4 h-4 md:mr-3" />
-                <span className="hidden md:inline text-sm">Alerts</span>
+                <Bell className="w-4 h-4 mr-2 md:mr-3" />
+                <span className="text-sm">Alerts</span>
               </TabsTrigger>
               <TabsTrigger
                 value="data"
-                className="flex-1 md:w-full justify-center md:justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20"
+                className="flex-auto md:w-full justify-center md:justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20"
               >
-                <Database className="w-4 h-4 md:mr-3" />
-                <span className="hidden md:inline text-sm">Data & Sync</span>
+                <Database className="w-4 h-4 mr-2 md:mr-3" />
+                <span className="text-sm">Data & Sync</span>
               </TabsTrigger>
               <TabsTrigger
                 value="security"
-                className="flex-1 md:w-full justify-center md:justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20"
+                className="flex-auto md:w-full justify-center md:justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20"
               >
-                <Shield className="w-4 h-4 md:mr-3" />
-                <span className="hidden md:inline text-sm">Security</span>
+                <Shield className="w-4 h-4 mr-2 md:mr-3" />
+                <span className="text-sm">Security</span>
               </TabsTrigger>
               {isAdmin && (
                 <TabsTrigger
                   value="staff"
-                  className="flex-1 md:w-full justify-center md:justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20"
+                  className="flex-auto md:w-full justify-center md:justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20"
                 >
-                  <Users className="w-4 h-4 md:mr-3" />
-                  <span className="hidden md:inline text-sm">Staff</span>
+                  <Users className="w-4 h-4 mr-2 md:mr-3" />
+                  <span className="text-sm">Staff</span>
                 </TabsTrigger>
               )}
               <TabsTrigger
                 value="system"
-                className="flex-1 md:w-full justify-center md:justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20"
+                className="flex-auto md:w-full justify-center md:justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20"
               >
-                <Globe className="w-4 h-4 md:mr-3" />
-                <span className="hidden md:inline text-sm">System</span>
+                <Globe className="w-4 h-4 mr-2 md:mr-3" />
+                <span className="text-sm">System</span>
               </TabsTrigger>
             </TabsList>
           </aside>

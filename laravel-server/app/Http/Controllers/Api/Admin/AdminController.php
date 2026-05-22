@@ -191,6 +191,21 @@ class AdminController extends Controller
         }
     }
 
+    public function deleteUser(Request $request, $id)
+    {
+        if ($request->user()->role !== 'super_admin') {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        try {
+            $this->adminService->deleteUser($id);
+            return response()->json(['message' => 'User and associated data permanently deleted']);
+        } catch (\Exception $e) {
+            \Log::error("Admin Delete User Error: " . $e->getMessage());
+            return response()->json(['error' => 'Failed to delete user'], 500);
+        }
+    }
+
     public function forcePasswordReset(Request $request, $id)
     {
         if ($request->user()->role !== 'super_admin') {

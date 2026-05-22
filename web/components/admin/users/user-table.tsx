@@ -6,7 +6,9 @@ import {
   Eye, 
   Mail, 
   Lock, 
-  Ban 
+  Ban,
+  Trash2,
+  AlertTriangle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +39,7 @@ interface UserTableProps {
   setIsNotifyDialogOpen: (val: boolean) => void;
   setIsResetDialogOpen: (val: boolean) => void;
   setIsDeactivateDialogOpen: (val: boolean) => void;
+  setIsDeleteDialogOpen: (val: boolean) => void;
 }
 
 export function UserTable({
@@ -48,7 +51,8 @@ export function UserTable({
   setIsProfileDialogOpen,
   setIsNotifyDialogOpen,
   setIsResetDialogOpen,
-  setIsDeactivateDialogOpen
+  setIsDeactivateDialogOpen,
+  setIsDeleteDialogOpen
 }: UserTableProps) {
   if (error) {
     return (
@@ -82,7 +86,15 @@ export function UserTable({
                 </div>
                 <div className="flex flex-col">
                   <span className="font-bold text-slate-900 dark:text-slate-100 group-hover:text-indigo-600 transition-colors">{user.name}</span>
-                  <span className="text-[10px] font-mono text-slate-400 uppercase tracking-tighter">{user.id} • {user.email}</span>
+                  <span className="text-[10px] font-mono text-slate-400 uppercase tracking-tighter">
+                    {user.id} • {user.email}
+                    {user.deletionRequested && (
+                      <Badge variant="destructive" className="ml-2 h-4 text-[8px] py-0 px-1 items-center gap-1">
+                        <AlertTriangle className="h-2 w-2" />
+                        Deletion Requested
+                      </Badge>
+                    )}
+                  </span>
                 </div>
               </div>
             </TableCell>
@@ -166,6 +178,16 @@ export function UserTable({
                   >
                     <Ban className="h-4 w-4" />
                     Deactivate Account
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors mt-1"
+                    onClick={() => {
+                      setSelectedUser(user);
+                      setIsDeleteDialogOpen(true);
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Delete Account
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

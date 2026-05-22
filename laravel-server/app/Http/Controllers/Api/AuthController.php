@@ -273,4 +273,20 @@ class AuthController extends Controller
 
         return response()->json(['message' => 'Password has been reset successfully.']);
     }
+
+    public function requestDeletion(Request $request)
+    {
+        $request->validate([
+            'reason' => 'required|string|max:1000',
+        ]);
+
+        $user = $request->user();
+        $user->deletion_requested_at = now();
+        $user->deletion_reason = $request->reason;
+        $user->save();
+
+        return response()->json([
+            'message' => 'Account deletion requested successfully.',
+        ]);
+    }
 }

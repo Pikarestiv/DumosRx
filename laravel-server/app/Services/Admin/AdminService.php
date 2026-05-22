@@ -414,7 +414,9 @@ class AdminService
                     'pharmacy' => $user->store ? $user->store->name : 'Platform Admin',
                     'lastActive' => $user->last_login_at ? $user->last_login_at->diffForHumans() : 'Never',
                     'status' => $user->is_active ? 'Active' : 'Inactive',
-                    'joinedAt' => $user->created_at->format('M d, Y')
+                    'joinedAt' => $user->created_at->format('M d, Y'),
+                    'deletionRequested' => $user->deletion_requested_at ? true : false,
+                    'deletionReason' => $user->deletion_reason
                 ];
             }),
             'meta' => [
@@ -506,6 +508,31 @@ class AdminService
         ]);
 
         return true;
+    }
+
+    public function deleteUser($id)
+    {
+        return DB::transaction(function () use ($id) {
+            $user = User::findOrFail($id);
+            
+            // Delete associated store (cascades should ideally handle this, but explicit deletion is safer)
+            if ($user->store) {
+                // If there are specific related models that need explicit deletion, handle them here.
+                $user->store->delete();
+            }
+
+            $userEmail = $user->email;
+            $user->delete();
+
+            ActivityLog::create([
+                'user_id' => auth()->id(),
+                'action' => 'USER_DELETION',
+                'description' => "Permanently deleted user account: {$userEmail} ({$id}) and all associated data.",
+                'status' => 'success'
+            ]);
+
+            return true;
+        });
     }
 
     public function forcePasswordReset($id)

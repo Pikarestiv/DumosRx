@@ -28,7 +28,8 @@ import {
   useAdminUsers, 
   useDeactivateUserMutation, 
   useResetUserPasswordMutation, 
-  useNotifyUserMutation 
+  useNotifyUserMutation,
+  useDeleteUserMutation
 } from "@/lib/api/admin-hooks";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useRouter } from "next/navigation";
@@ -41,6 +42,7 @@ import {
   ResetPasswordDialog,
   UserProfileDialog,
   SendNotificationDialog,
+  DeleteUserDialog,
 } from "@/components/admin/users/user-dialogs";
 import { UserTable } from "@/components/admin/users/user-table";
 
@@ -56,6 +58,7 @@ export default function GlobalUsersDirectory() {
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const [isNotifyDialogOpen, setIsNotifyDialogOpen] = useState(false);
   const [_isBulkNotifyDialogOpen, setIsBulkNotifyDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   
   const debouncedSearch = useDebounce(search, 500);
 
@@ -63,6 +66,7 @@ export default function GlobalUsersDirectory() {
   const deactivateMutation = useDeactivateUserMutation();
   const resetPasswordMutation = useResetUserPasswordMutation();
   const notifyMutation = useNotifyUserMutation();
+  const deleteMutation = useDeleteUserMutation();
 
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= (response?.meta?.last_page || 1)) {
@@ -176,6 +180,7 @@ export default function GlobalUsersDirectory() {
               setIsNotifyDialogOpen={setIsNotifyDialogOpen}
               setIsResetDialogOpen={setIsResetDialogOpen}
               setIsDeactivateDialogOpen={setIsDeactivateDialogOpen}
+              setIsDeleteDialogOpen={setIsDeleteDialogOpen}
             />
           </div>
 
@@ -254,6 +259,14 @@ export default function GlobalUsersDirectory() {
         selectedUser={selectedUser}
         setSelectedUser={setSelectedUser}
         notifyMutation={notifyMutation}
+      />
+
+      <DeleteUserDialog
+        isOpen={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        selectedUser={selectedUser}
+        setSelectedUser={setSelectedUser}
+        deleteMutation={deleteMutation}
       />
     </div>
   );

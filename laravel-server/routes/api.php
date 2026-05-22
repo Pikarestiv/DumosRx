@@ -51,6 +51,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/update', [AuthController::class, 'updateProfile']);
             Route::post('/set-pin', [AuthController::class, 'updatePin']);
             Route::post('/change-password', [AuthController::class, 'changePassword']);
+            Route::post('/request-deletion', [AuthController::class, 'requestDeletion']);
         });
 
         // --- WEB DASHBOARD ROUTES ---
@@ -94,6 +95,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/products/standardize', [AdminController::class, 'standardize']);
             Route::get('/users', [AdminController::class, 'users']);
             Route::get('/health', [AdminController::class, 'health']);
+            Route::delete('/users/{id}', [AdminController::class, 'deleteUser']);
             Route::post('/users/{id}/deactivate', [AdminController::class, 'deactivateUser']);
             Route::post('/users/{id}/reset-password', [AdminController::class, 'forcePasswordReset']);
             Route::post('/users/{id}/notify', [AdminController::class, 'notifyUser']);

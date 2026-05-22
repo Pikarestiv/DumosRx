@@ -33,6 +33,18 @@ class SyncController extends Controller
         $changes = $request->input('changes');
         $processed = 0;
 
+        // Ensure missing columns exist
+        if (!\Illuminate\Support\Facades\Schema::hasColumn('inventory', '_synced_at')) {
+            \Illuminate\Support\Facades\Schema::table('inventory', function (\Illuminate\Database\Schema\Blueprint $table) {
+                $table->timestamp('_synced_at')->nullable()->index();
+            });
+        }
+        if (!\Illuminate\Support\Facades\Schema::hasColumn('activity_logs', '_synced_at')) {
+            \Illuminate\Support\Facades\Schema::table('activity_logs', function (\Illuminate\Database\Schema\Blueprint $table) {
+                $table->timestamp('_synced_at')->nullable()->index();
+            });
+        }
+
         DB::beginTransaction();
 
         try {

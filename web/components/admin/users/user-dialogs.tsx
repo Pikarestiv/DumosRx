@@ -1,13 +1,12 @@
 import { useState } from "react";
-import { 
-  Send, 
-  Shield, 
-  Lock, 
-  Store, 
-  Ban, 
+import {
+  Send,
+  Shield,
+  Lock,
+  Store,
+  Ban,
   Loader2,
   Calendar,
-  Activity,
   Activity,
   History,
   Briefcase,
@@ -68,13 +67,13 @@ export function DeactivateUserDialog({
             Deactivate User Account?
           </DialogTitle>
           <DialogDescription className="text-slate-500 dark:text-slate-400 font-medium pt-2">
-            Are you sure you want to deactivate <span className="font-bold text-slate-900 dark:text-white">{selectedUser?.name}</span>? 
+            Are you sure you want to deactivate <span className="font-bold text-slate-900 dark:text-white">{selectedUser?.name}</span>?
             They will be immediately logged out and unable to access the platform until reactivated.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="gap-2 pt-4">
           <Button variant="outline" onClick={() => onOpenChange(false)} className="rounded-xl border-2 font-bold h-12">Cancel</Button>
-          <Button 
+          <Button
             onClick={handleDeactivate}
             className="rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-bold h-12 shadow-lg shadow-rose-500/20"
             disabled={deactivateMutation.isPending}
@@ -122,13 +121,13 @@ export function DeleteUserDialog({
             Permanently Delete User?
           </DialogTitle>
           <DialogDescription className="text-slate-500 dark:text-slate-400 font-medium pt-2">
-            Are you sure you want to permanently delete <span className="font-bold text-slate-900 dark:text-white">{selectedUser?.name}</span>? 
+            Are you sure you want to permanently delete <span className="font-bold text-slate-900 dark:text-white">{selectedUser?.name}</span>?
             This action is irreversible and will erase all their associated data, including stores, sales, and products.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="gap-2 pt-4">
           <Button variant="outline" onClick={() => onOpenChange(false)} className="rounded-xl border-2 font-bold h-12">Cancel</Button>
-          <Button 
+          <Button
             onClick={handleDelete}
             className="rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold h-12 shadow-lg shadow-red-600/20"
             disabled={deleteMutation.isPending}
@@ -176,13 +175,13 @@ export function ResetPasswordDialog({
             Force Password Reset?
           </DialogTitle>
           <DialogDescription className="text-slate-500 dark:text-slate-400 font-medium pt-2">
-            This will invalidate <span className="font-bold text-slate-900 dark:text-white">{selectedUser?.name}</span>'s current password 
+            This will invalidate <span className="font-bold text-slate-900 dark:text-white">{selectedUser?.name}</span>'s current password
             and send a secure reset link to <span className="font-bold text-slate-900 dark:text-white">{selectedUser?.email}</span>.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="gap-2 pt-4">
           <Button variant="outline" onClick={() => onOpenChange(false)} className="rounded-xl border-2 font-bold h-12">Cancel</Button>
-          <Button 
+          <Button
             onClick={handlePasswordReset}
             className="rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold h-12 shadow-lg shadow-amber-500/20"
             disabled={resetPasswordMutation.isPending}
@@ -284,11 +283,11 @@ export function SendNotificationDialog({
 
   const handleSendNotification = async () => {
     if (!selectedUser || !notifyMessage || !notifyTitle) return;
-    notifyMutation.mutate({ 
-      id: selectedUser.id, 
+    notifyMutation.mutate({
+      id: selectedUser.id,
       payload: {
-        title: notifyTitle, 
-        message: notifyMessage 
+        title: notifyTitle,
+        message: notifyMessage
       }
     }, {
       onSuccess: () => {
@@ -323,8 +322,8 @@ export function SendNotificationDialog({
         <div className="py-4 space-y-4">
           <div className="space-y-2">
             <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400">Subject / Title</label>
-            <Input 
-              placeholder="Enter notification title..." 
+            <Input
+              placeholder="Enter notification title..."
               className="rounded-xl border-2 focus-visible:ring-blue-500 font-bold"
               value={notifyTitle}
               onChange={(e) => setNotifyTitle(e.target.value)}
@@ -332,8 +331,8 @@ export function SendNotificationDialog({
           </div>
           <div className="space-y-2">
             <label className="text-[10px] uppercase font-bold tracking-widest text-slate-400">Notification Message</label>
-            <Textarea 
-              placeholder="Enter your message here..." 
+            <Textarea
+              placeholder="Enter your message here..."
               className="min-h-[120px] rounded-2xl border-2 focus-visible:ring-blue-500 font-medium p-4"
               value={notifyMessage}
               onChange={(e) => setNotifyMessage(e.target.value)}
@@ -346,7 +345,7 @@ export function SendNotificationDialog({
         </div>
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)} className="rounded-xl border-2 font-bold h-12">Discard</Button>
-          <Button 
+          <Button
             onClick={handleSendNotification}
             className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold h-12 shadow-lg shadow-blue-600/20 px-8"
             disabled={notifyMutation.isPending || !notifyMessage}

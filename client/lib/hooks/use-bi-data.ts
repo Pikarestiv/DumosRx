@@ -2,6 +2,8 @@
 
 import { useState, useMemo } from "react";
 import { useLocalData } from "@/lib/db/hooks/useLocalData";
+import { useInventoryAlerts } from "./use-inventory-alerts";
+import { usePurchasePatterns } from "./use-purchase-patterns";
 
 export function useBIData(externalTimeRange?: string) {
   const [internalTimeRange, setInternalTimeRange] = useState("6months");
@@ -238,131 +240,11 @@ export function useBIData(externalTimeRange?: string) {
 
   // ─── Inventory Alerts ─────────────────────────────────────────────────────
 
-  const { data: lowStockAlerts } = useLocalData<{
-    medicine: string;
-    quantity: number;
-    threshold: number;
-  }>(
-    `SELECT
-      m.name as medicine,
-      SUM(inv.quantity) as quantity,
-      m.reorder_level as threshold
-     FROM inventory inv
-     JOIN medicines m ON inv.medicine_id = m.id
-     WHERE inv._deleted = 0 AND m._deleted = 0
-     GROUP BY m.id
-     HAVING quantity <= m.reorder_level AND m.reorder_level > 0
-     ORDER BY quantity ASC
-     LIMIT 5`
-  );
-
-  const { data: expiryAlerts } = useLocalData<{
-    medicine: string;
-    expiryDate: string;
-    daysLeft: number;
-  }>(
-    `SELECT
-      m.name as medicine,
-      inv.expiry_date as expiryDate,
-      CAST((julianday(inv.expiry_date) - julianday('now')) AS INTEGER) as daysLeft
-     FROM inventory inv
-     JOIN medicines m ON inv.medicine_id = m.id
-     WHERE inv._deleted = 0 AND m._deleted = 0
-       AND inv.expiry_date IS NOT NULL
-       AND inv.expiry_date != ''
-       AND julianday(inv.expiry_date) <= julianday('now', '+30 days')
-       AND julianday(inv.expiry_date) >= julianday('now')
-     ORDER BY inv.expiry_date ASC
-     LIMIT 5`
-  );
-
-  const inventoryAlerts = useMemo(() => {
-    const low = (lowStockAlerts || []).map((a) => ({
-      medicine: a.medicine,
-      issue: "Low Stock",
-      quantity: a.quantity,
-      threshold: a.threshold,
-      severity: a.quantity === 0 ? "critical" : a.quantity <= a.threshold / 2 ? "high" : "medium",
-    }));
-    const expiring = (expiryAlerts || []).map((a) => ({
-      medicine: a.medicine,
-      issue: "Expiring Soon",
-      expiryDate: a.expiryDate,
-      daysLeft: a.daysLeft,
-      severity: a.daysLeft <= 7 ? "critical" : a.daysLeft <= 14 ? "high" : "medium",
-    }));
-    return [...expiring, ...low];
-  }, [lowStockAlerts, expiryAlerts]);
+  const inventoryAlerts = useInventoryAlerts();
 
   // ─── Customer Purchase Patterns by Time Slot ──────────────────────────────
 
-  const { data: timeSlotData } = useLocalData<{
-    slot: string;
-    transactions: number;
-    avg_value: number;
-  }>(
-    `SELECT
-      CASE
-        WHEN CAST(strftime('%H', transaction_date) AS INTEGER) BETWEEN 6 AND 11 THEN 'Morning (6am-12pm)'
-        WHEN CAST(strftime('%H', transaction_date) AS INTEGER) BETWEEN 12 AND 16 THEN 'Afternoon (12pm-5pm)'
-        WHEN CAST(strftime('%H', transaction_date) AS INTEGER) BETWEEN 17 AND 21 THEN 'Evening (5pm-10pm)'
-        ELSE 'Night (10pm-6am)'
-      END as slot,
-      COUNT(*) as transactions,
-      AVG(total_amount) as avg_value
-     FROM sales
-     WHERE transaction_date >= ? AND _deleted = 0
-     GROUP BY slot
-     ORDER BY MIN(strftime('%H', transaction_date)) ASC`,
-    [dateFilter]
-  );
-
-  // ─── Top category per time slot ───────────────────────────────────────────
-
-  const { data: slotCategoryData } = useLocalData<{
-    slot: string;
-    category: string;
-  }>(
-    `SELECT slot, category FROM (
-       SELECT
-         CASE
-           WHEN CAST(strftime('%H', s.transaction_date) AS INTEGER) BETWEEN 6 AND 11 THEN 'Morning (6am-12pm)'
-           WHEN CAST(strftime('%H', s.transaction_date) AS INTEGER) BETWEEN 12 AND 16 THEN 'Afternoon (12pm-5pm)'
-           WHEN CAST(strftime('%H', s.transaction_date) AS INTEGER) BETWEEN 17 AND 21 THEN 'Evening (5pm-10pm)'
-           ELSE 'Night (10pm-6am)'
-         END as slot,
-         COALESCE(c.name, 'General') as category,
-         COUNT(*) as cnt,
-         ROW_NUMBER() OVER (
-           PARTITION BY CASE
-             WHEN CAST(strftime('%H', s.transaction_date) AS INTEGER) BETWEEN 6 AND 11 THEN 'Morning (6am-12pm)'
-             WHEN CAST(strftime('%H', s.transaction_date) AS INTEGER) BETWEEN 12 AND 16 THEN 'Afternoon (12pm-5pm)'
-             WHEN CAST(strftime('%H', s.transaction_date) AS INTEGER) BETWEEN 17 AND 21 THEN 'Evening (5pm-10pm)'
-             ELSE 'Night (10pm-6am)'
-           END
-           ORDER BY COUNT(*) DESC
-         ) as rn
-       FROM sale_items si
-       JOIN medicines m ON si.medicine_id = m.id
-       LEFT JOIN categories c ON m.category_id = c.id
-       JOIN sales s ON si.sale_id = s.id
-       WHERE s.transaction_date >= ? AND s._deleted = 0
-       GROUP BY slot, c.name
-     ) WHERE rn = 1`,
-    [dateFilter]
-  );
-
-  const purchasePatterns = useMemo(() => {
-    return (timeSlotData || []).map((slot) => {
-      const topCat = slotCategoryData.find((s) => s.slot === slot.slot);
-      return {
-        slot: slot.slot,
-        transactions: slot.transactions,
-        avgValue: slot.avg_value || 0,
-        topCategory: topCat?.category || "General",
-      };
-    });
-  }, [timeSlotData, slotCategoryData]);
+  const purchasePatterns = usePurchasePatterns(dateFilter);
 
   // ─── Customer Metrics with Real Changes ──────────────────────────────────
 

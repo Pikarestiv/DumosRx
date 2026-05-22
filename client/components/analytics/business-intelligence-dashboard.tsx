@@ -34,7 +34,6 @@ export function BusinessIntelligenceDashboard() {
     totalExpenses,
     grossProfit,
     netProfit,
-    avgTransactionValue,
     inventoryAlerts,
     purchasePatterns,
     liveCustomerMetrics,

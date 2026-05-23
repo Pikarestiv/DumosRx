@@ -4,12 +4,13 @@ import { Search, Scan, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { toast } from "sonner";
-import React from "react";
+import React, { useState } from "react";
+import { CameraScannerDialog } from "./camera-scanner-dialog";
 
 interface POSSearchCardProps {
   searchTerm: string;
   onSearchChange: (value: string) => void;
+  onScanSuccess: (barcode: string) => void;
   onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   searchInputRef: React.RefObject<HTMLInputElement | null>;
   completedTransaction: any;
@@ -20,12 +21,15 @@ interface POSSearchCardProps {
 export function POSSearchCard({
   searchTerm,
   onSearchChange,
+  onScanSuccess,
   onKeyDown,
   searchInputRef,
   completedTransaction,
   setShowReceiptDialog,
   productTerm
 }: POSSearchCardProps) {
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+
   return (
     <Card>
       <CardHeader>
@@ -53,7 +57,7 @@ export function POSSearchCard({
           <Button
             variant="outline"
             className="flex items-center gap-2 bg-transparent cursor-pointer"
-            onClick={() => toast.info("Camera scanner coming soon! Keyboard scanners work in the search box.")}
+            onClick={() => setIsScannerOpen(true)}
           >
             <Scan className="h-4 w-4" />
             Scan
@@ -71,6 +75,12 @@ export function POSSearchCard({
           )}
         </div>
       </CardContent>
+      
+      <CameraScannerDialog 
+        isOpen={isScannerOpen} 
+        onClose={() => setIsScannerOpen(false)} 
+        onScanSuccess={onScanSuccess} 
+      />
     </Card>
   );
 }

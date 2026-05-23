@@ -202,15 +202,21 @@ export function POSSystem() {
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && searchTerm.trim()) {
-      const barcodeMatch = medicines.find(
-        (m) => m.barcode?.toLowerCase() === searchTerm.toLowerCase().trim()
-      );
+      handleScanSuccess(searchTerm.trim());
+    }
+  };
 
-      if (barcodeMatch) {
-        addToCart(barcodeMatch);
-        setSearchTerm("");
-        toast.success(`Scanned: ${barcodeMatch.name}`);
-      }
+  const handleScanSuccess = (scannedBarcode: string) => {
+    const barcodeMatch = medicines.find(
+      (m) => m.barcode?.toLowerCase() === scannedBarcode.toLowerCase().trim()
+    );
+
+    if (barcodeMatch) {
+      addToCart(barcodeMatch);
+      setSearchTerm("");
+      toast.success(`Scanned: ${barcodeMatch.name}`);
+    } else {
+      toast.error(`No product found for barcode: ${scannedBarcode}`);
     }
   };
 
@@ -367,9 +373,10 @@ export function POSSystem() {
               </TabsList>
               
               <TabsContent value="products" className="space-y-4">
-                <POSSearchCard 
+                <POSSearchCard
                   searchTerm={searchTerm}
                   onSearchChange={setSearchTerm}
+                  onScanSuccess={handleScanSuccess}
                   onKeyDown={handleKeyPress}
                   searchInputRef={searchInputRef}
                   completedTransaction={completedTransaction}

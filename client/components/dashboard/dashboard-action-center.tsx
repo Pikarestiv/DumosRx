@@ -45,7 +45,7 @@ export function DashboardActionCenter({ expiringCount, lowStockCount }: ActionCe
   const [isPaused, setIsPaused] = useState(false);
   
   const { data: staffData } = useLocalData<{ count: number }>(
-    "SELECT COUNT(*) as count FROM staff WHERE _deleted = 0"
+    "SELECT COUNT(*) as count FROM users WHERE _deleted = 0 AND id != 'default-admin'"
   );
 
   const staffCount = staffData[0]?.count || 0;

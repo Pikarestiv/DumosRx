@@ -69,8 +69,7 @@ export function SearchableInput({ options, value, onValueChange, className, ...p
         onChange={(e) => {
           const val = e.target.value
           setInputValue(val)
-          // If the user clears the input, we might want to clear the value
-          if (val === "") onValueChange("")
+          onValueChange(val)
           setOpen(true)
         }}
         onFocus={() => setOpen(true)}

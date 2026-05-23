@@ -36,6 +36,7 @@ interface Medicine {
   reorderLevel: number;
   expiryDate: string;
   batchNumber: string;
+  barcode: string;
   baseUnit: string;
   bulkUnit: string;
   unitsPerBulk: number;
@@ -72,6 +73,7 @@ export function AddMedicineDialog({
     reorderLevel: 0,
     expiryDate: "",
     batchNumber: "",
+    barcode: "",
     baseUnit: "Unit",
     bulkUnit: "",
     unitsPerBulk: 1,
@@ -98,6 +100,7 @@ export function AddMedicineDialog({
         reorderLevel: editingMedicine.reorderLevel || 0,
         expiryDate: editingMedicine.expiryDate || "",
         batchNumber: editingMedicine.batchNumber || "",
+        barcode: editingMedicine.barcode || "",
         baseUnit: editingMedicine.baseUnit || "Unit",
         bulkUnit: editingMedicine.bulkUnit || "",
         unitsPerBulk: editingMedicine.unitsPerBulk || 1,
@@ -120,6 +123,7 @@ export function AddMedicineDialog({
         reorderLevel: 0,
         expiryDate: "",
         batchNumber: "",
+        barcode: "",
         baseUnit: "Unit",
         bulkUnit: "",
         unitsPerBulk: 1,
@@ -180,6 +184,7 @@ export function AddMedicineDialog({
       reorder_level: formData.reorderLevel,
       expiry_date: formData.expiryDate,
       batch_number: formData.batchNumber,
+      barcode: formData.barcode,
       base_unit: formData.baseUnit,
       bulk_unit: formData.bulkUnit,
       units_per_bulk: formData.unitsPerBulk,
@@ -205,6 +210,7 @@ export function AddMedicineDialog({
       reorderLevel: 0,
       expiryDate: "",
       batchNumber: "",
+      barcode: "",
       baseUnit: "Unit",
       bulkUnit: "",
       unitsPerBulk: 1,
@@ -436,7 +442,7 @@ export function AddMedicineDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="batchNumber">Batch / Serial Number</Label>
+              <Label htmlFor="batchNumber">Batch Number</Label>
               <Input
                 id="batchNumber"
                 value={formData.batchNumber}
@@ -444,6 +450,18 @@ export function AddMedicineDialog({
                   handleInputChange("batchNumber", e.target.value)
                 }
                 placeholder="e.g., ABC12345"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="barcode">Barcode (Optional)</Label>
+              <Input
+                id="barcode"
+                value={formData.barcode}
+                onChange={(e) =>
+                  handleInputChange("barcode", e.target.value)
+                }
+                placeholder="Scan or type barcode"
               />
             </div>
           </div>

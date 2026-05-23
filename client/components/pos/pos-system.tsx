@@ -207,8 +207,9 @@ export function POSSystem() {
   };
 
   const handleScanSuccess = (scannedBarcode: string) => {
+    const query = scannedBarcode.toLowerCase().trim();
     const barcodeMatch = medicines.find(
-      (m) => m.barcode?.toLowerCase() === scannedBarcode.toLowerCase().trim()
+      (m) => m.barcode?.toLowerCase() === query || m.batch_number?.toLowerCase() === query
     );
 
     if (barcodeMatch) {

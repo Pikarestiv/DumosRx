@@ -155,3 +155,24 @@ export const useRevokeAllSessionsMutation = () => {
     },
   });
 };
+
+// ==========================================
+// SYSTEM CONFIGS
+// ==========================================
+
+export const useSystemConfig = (key: string) => {
+  return useQuery({
+    queryKey: ["system-config", key],
+    queryFn: () => webApiClient.getSystemConfig(key),
+  });
+};
+
+export const useUpdateSystemConfigMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ key, value }: { key: string; value: any }) => webApiClient.updateSystemConfig(key, value),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["system-config", variables.key] });
+    },
+  });
+};

@@ -1,0 +1,81 @@
+<?php
+
+namespace Database\Seeders;
+
+use Illuminate\Database\Seeder;
+use App\Models\SystemConfig;
+
+class SystemConfigSeeder extends Seeder
+{
+    /**
+     * Run the database seeds.
+     */
+    public function run(): void
+    {
+        $subscriptionPlans = [
+            'trial_days' => 14,
+            'grace_period_days' => 3,
+            'enable_paystack' => true,
+            'tiers' => [
+                'local' => [
+                    'name' => 'Dumos Local',
+                    'price' => 50000,
+                    'period' => 'One-Time',
+                    'active' => true,
+                    'limits' => [
+                        'stores' => 1,
+                        'staff' => 3,
+                        'inventory' => -1,
+                    ],
+                    'features' => [
+                        'basic_inventory' => true,
+                        'cloud_sync' => false,
+                        'alerts' => false,
+                        'remote_dashboard' => false,
+                    ]
+                ],
+                'pro' => [
+                    'name' => 'Dumos Pro',
+                    'price' => 30000,
+                    'period' => '/ year',
+                    'active' => true,
+                    'limits' => [
+                        'stores' => 3,
+                        'staff' => 10,
+                        'inventory' => -1,
+                    ],
+                    'features' => [
+                        'basic_inventory' => true,
+                        'cloud_sync' => true,
+                        'alerts' => true,
+                        'remote_dashboard' => true,
+                        'broadcast_receive' => true,
+                    ]
+                ],
+                'enterprise' => [
+                    'name' => 'Enterprise',
+                    'price' => 80000,
+                    'period' => '/ year',
+                    'active' => true,
+                    'limits' => [
+                        'stores' => -1,
+                        'staff' => -1,
+                        'inventory' => -1,
+                    ],
+                    'features' => [
+                        'basic_inventory' => true,
+                        'cloud_sync' => true,
+                        'alerts' => true,
+                        'remote_dashboard' => true,
+                        'broadcast_receive' => true,
+                        'broadcast_create' => true,
+                        'custom_branding' => true,
+                        'data_export' => true,
+                    ]
+                ]
+            ]
+        ];
+
+        SystemConfig::setVal('subscription_plans', $subscriptionPlans, 'Configuration for the 3-tier DumosRx pricing model including features and limits');
+    }
+}

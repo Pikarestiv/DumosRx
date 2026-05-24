@@ -29,9 +29,11 @@ use App\Http\Controllers\Api\App\SupplierController;
 use App\Http\Controllers\Api\App\CategoryController;
 use App\Http\Controllers\Api\App\SyncController;
 use App\Http\Controllers\Api\BroadcastController;
+use App\Http\Controllers\Api\SystemConfigController;
 
 Route::prefix('v1')->group(function () {
     // Public Routes
+    Route::get('/system-configs/{key}', [SystemConfigController::class, 'show']);
     Route::middleware('throttle:auth')->group(function () {
         Route::post('/login', [AuthController::class, 'login']);
         Route::post('/register', [AuthController::class, 'register']);
@@ -137,6 +139,9 @@ Route::prefix('v1')->group(function () {
 
             // Emails
             Route::post('/mail/send', [MailController::class, 'send']);
+
+            // System Configs
+            Route::put('/system-configs/{key}', [SystemConfigController::class, 'update']);
         });
         // --- APP / TERMINAL ROUTES ---
         Route::prefix('app')->middleware('subscription')->group(function () {

@@ -6,6 +6,7 @@ use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 use App\Services\SubscriptionService;
+use App\Models\SystemConfig;
 
 class CheckSubscription
 {
@@ -44,7 +45,8 @@ class CheckSubscription
             $sub = $user->subscriptions()->where('status', 'active')->where('end_date', '>', now())->latest()->first();
             if (!$sub) {
                 // Check grace period
-                $graceDays = config('plans.grace_period_days', 3);
+                $systemConfig = SystemConfig::getVal('subscription_plans', []);
+                $graceDays = $systemConfig['grace_period_days'] ?? 3;
                 $expiredSub = $user->subscriptions()->where('status', 'active')->where('end_date', '>', now()->subDays($graceDays))->latest()->first();
                 
                 if (!$expiredSub) {

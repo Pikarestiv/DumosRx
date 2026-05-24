@@ -256,6 +256,20 @@ class WebApiClient {
     const { data } = await apiClient.post("/sessions/revoke-all");
     return data;
   }
+
+  // ==========================================
+  // SYSTEM CONFIGS
+  // ==========================================
+
+  async getSystemConfig(key: string) {
+    const { data } = await apiClient.get(`/system-configs/${key}`);
+    return data.data; // returning the inner 'data' which contains the JSON
+  }
+
+  async updateSystemConfig(key: string, value: any) {
+    const { data } = await apiClient.put(`/admin/system-configs/${key}`, { value });
+    return data;
+  }
 }
 
 export const webApiClient = new WebApiClient();

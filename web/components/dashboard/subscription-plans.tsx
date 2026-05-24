@@ -3,14 +3,15 @@
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Check, ShieldAlert, CreditCard } from "lucide-react";
+import { Check, ShieldAlert, CreditCard, Loader2 } from "lucide-react";
 
-import { useInitiatePaymentMutation } from "@/lib/api/hooks";
+import { useInitiatePaymentMutation, useSystemConfig } from "@/lib/api/hooks";
 import { toast } from "sonner";
 
 export function SubscriptionPlans() {
   const [loading, setLoading] = useState<string | null>(null);
   const initiatePayment = useInitiatePaymentMutation();
+  const { data: config, isLoading: isConfigLoading } = useSystemConfig("subscription_pricing");
 
   const handleSubscribe = async (tier: string, amount: number, planName: string) => {
     setLoading(tier);
@@ -32,11 +33,15 @@ export function SubscriptionPlans() {
     }
   };
 
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', minimumFractionDigits: 0 }).format(price);
+  };
+
   const plans = [
     {
       id: "local",
       name: "Dumos Local",
-      price: "₦50,000",
+      price: config?.local?.price ? formatPrice(config.local.price) : "₦50,000",
       period: "One-Time",
       description: "Perfect for single offline pharmacies.",
       features: [
@@ -49,12 +54,13 @@ export function SubscriptionPlans() {
         "No Cloud Backups",
         "No Mobile App Access",
       ],
-      numericPrice: 50000,
+      numericPrice: config?.local?.price || 50000,
+      active: config?.local?.active !== false,
     },
     {
       id: "pro",
       name: "Dumos Pro",
-      price: "₦30,000",
+      price: config?.pro?.price ? formatPrice(config.pro.price) : "₦30,000",
       period: "/ year",
       description: "Cloud-enabled modern pharmacy management.",
       features: [
@@ -64,12 +70,13 @@ export function SubscriptionPlans() {
         "Mobile App & Remote Access",
       ],
       popular: true,
-      numericPrice: 30000,
+      numericPrice: config?.pro?.price || 30000,
+      active: config?.pro?.active !== false,
     },
     {
       id: "enterprise",
       name: "Enterprise",
-      price: "₦80,000",
+      price: config?.enterprise?.price ? formatPrice(config.enterprise.price) : "₦80,000",
       period: "/ year",
       description: "For chains and multi-location operations.",
       features: [
@@ -78,9 +85,18 @@ export function SubscriptionPlans() {
         "E-Commerce API Integrations",
         "Dedicated Account Manager",
       ],
-      numericPrice: 80000,
+      numericPrice: config?.enterprise?.price || 80000,
+      active: config?.enterprise?.active !== false,
     }
-  ];
+  ].filter(p => p.active);
+
+  if (isConfigLoading) {
+    return (
+      <div className="flex items-center justify-center p-20">
+        <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -88,7 +104,7 @@ export function SubscriptionPlans() {
       <div className="bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-lg flex items-start gap-3">
         <ShieldAlert className="h-5 w-5 mt-0.5 shrink-0" />
         <div className="space-y-1">
-          <p className="font-medium">You are on the Free Trial (14 Days Remaining)</p>
+          <p className="font-medium">You are on the Free Trial ({config?.freeTrialDays || 14} Days Remaining)</p>
           <p className="text-sm">Upgrade to a paid plan below to ensure your cloud data remains protected.</p>
         </div>
       </div>
@@ -130,21 +146,23 @@ export function SubscriptionPlans() {
                 ))}
               </ul>
             </CardContent>
-            <CardFooter>
-              <Button 
-                className="w-full" 
-                variant={plan.popular ? "default" : "outline"}
-                onClick={() => handleSubscribe(plan.id, plan.numericPrice, plan.name)}
-                disabled={loading !== null}
-              >
-                {loading === plan.id ? "Processing..." : (
-                  <>
-                    <CreditCard className="w-4 h-4 mr-2" />
-                    {plan.period === "One-Time" ? "Buy Now" : "Subscribe"}
-                  </>
-                )}
-              </Button>
-            </CardFooter>
+            {config?.enablePaystack !== false && (
+              <CardFooter>
+                <Button 
+                  className="w-full" 
+                  variant={plan.popular ? "default" : "outline"}
+                  onClick={() => handleSubscribe(plan.id, plan.numericPrice, plan.name)}
+                  disabled={loading !== null}
+                >
+                  {loading === plan.id ? "Processing..." : (
+                    <>
+                      <CreditCard className="w-4 h-4 mr-2" />
+                      {plan.period === "One-Time" ? "Buy Now" : "Subscribe"}
+                    </>
+                  )}
+                </Button>
+              </CardFooter>
+            )}
           </Card>
         ))}
       </div>

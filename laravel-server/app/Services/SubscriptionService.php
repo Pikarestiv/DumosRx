@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Subscription;
 use App\Models\User;
+use App\Models\SystemConfig;
 use Illuminate\Support\Str;
 
 class SubscriptionService
@@ -13,7 +14,8 @@ class SubscriptionService
      */
     public function createTrial(User $user)
     {
-        $trialDays = config('plans.trial_days', 14);
+        $config = SystemConfig::getVal('subscription_plans', []);
+        $trialDays = $config['trial_days'] ?? 14;
         
         return Subscription::create([
             'user_id' => $user->id,
@@ -56,16 +58,20 @@ class SubscriptionService
         
         if (!$sub) {
             // Check if within grace period
-            $graceDays = config('plans.grace_period_days', 3);
+            $systemConfig = SystemConfig::getVal('subscription_plans', []);
+            $graceDays = $systemConfig['grace_period_days'] ?? 3;
             $sub = $owner->subscriptions()->where('status', 'active')->where('end_date', '>', now()->subDays($graceDays))->latest()->first();
             
             if (!$sub) return false;
         }
 
         $plan = strtolower($sub->plan_name);
-        $config = config("plans.tiers.{$plan}.features", []);
         
-        return $config[$feature] ?? false;
+        // Map old plan names if needed, or assume they are local/pro/enterprise
+        $systemConfig = SystemConfig::getVal('subscription_plans', []);
+        $features = $systemConfig['tiers'][$plan]['features'] ?? [];
+        
+        return $features[$feature] ?? false;
     }
 
     /**
@@ -79,7 +85,8 @@ class SubscriptionService
         if (!$sub) return false;
 
         $plan = strtolower($sub->plan_name);
-        $limit = config("plans.tiers.{$plan}.limits.{$type}", 0);
+        $systemConfig = SystemConfig::getVal('subscription_plans', []);
+        $limit = $systemConfig['tiers'][$plan]['limits'][$type] ?? 0;
 
         if ($limit === -1) return true; // unlimited
 

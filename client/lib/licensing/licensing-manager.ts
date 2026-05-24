@@ -97,7 +97,7 @@ export async function activateLicense(token: string) {
     );
     return true;
   } catch (_e) {
-    console.error("[Licensing] Failed to activate license:", e);
+    console.error("[Licensing] Failed to activate license:", _e);
     return false;
   }
 }

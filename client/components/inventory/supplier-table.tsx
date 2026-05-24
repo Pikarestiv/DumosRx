@@ -41,6 +41,7 @@ interface SupplierTableProps {
   totalCount: number;
   formatCurrency: (amount: number) => string;
   formatDate: (dateString: string) => string;
+  getStatusBadge: (status: "active" | "inactive") => React.ReactNode;
   getRatingStars: (rating: number) => string;
   isFuzzyFallback?: boolean;
 }

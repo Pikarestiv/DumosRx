@@ -41,7 +41,8 @@ export function CustomerBehaviorTab({
   customerMetrics,
   purchasePatterns = [],
 }: CustomerBehaviorTabProps) {
-  const { currency } = useStore();
+  const { storeProfile } = useStore();
+  const currency = storeProfile?.currency || "NGN";
   const symbol = currency === "NGN" ? "₦" : currency === "USD" ? "$" : currency === "GBP" ? "£" : "₦";
 
   return (

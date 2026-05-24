@@ -36,6 +36,7 @@ interface Medicine {
   unit_price: number;
   stock: number;
   barcode?: string;
+  batch_number?: string;
 }
 
 interface Customer {
@@ -98,6 +99,7 @@ export function POSSystem() {
         unit_price: m.selling_price || 0,
         stock: m.stock_quantity || 0,
         barcode: m.barcode || "",
+        batch_number: m.batch_number || "",
       }),
     },
   );

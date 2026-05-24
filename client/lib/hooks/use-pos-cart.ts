@@ -13,6 +13,7 @@ export interface Medicine {
   unit_price: number;
   stock: number;
   barcode?: string;
+  batch_number?: string;
 }
 
 export interface CartItem extends Medicine {

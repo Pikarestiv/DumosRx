@@ -12,16 +12,36 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { PRICING } from "@/lib/constants/pricing";
+import { useSystemConfig } from "@/lib/api/hooks";
 
 export function PricingSection() {
-  const [billingPeriod, setBillingPeriod] = useState<"monthly" | "yearly">(
-    "monthly",
-  );
+  const [billingPeriod, setBillingPeriod] = useState<"monthly" | "yearly">("monthly");
+  const { data: config, isLoading } = useSystemConfig("subscription_plans");
 
   const isYearly = billingPeriod === "yearly";
+
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', minimumFractionDigits: 0 }).format(price);
+  };
+
+  const calculateSavings = (monthly: number, yearly: number) => {
+    return (monthly * 12) - yearly;
+  };
+
+  if (isLoading) {
+    return (
+      <section id="pricing" className="py-20 flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
+      </section>
+    );
+  }
+
+  // Fallbacks if backend isn't seeded yet
+  const localTier = config?.tiers?.local || { price_one_time: 50000, active: true };
+  const proTier = config?.tiers?.pro || { price_monthly: 3000, price_yearly: 30000, active: true };
+  const enterpriseTier = config?.tiers?.enterprise || { price_monthly: 8000, price_yearly: 80000, active: true };
 
   return (
     <section id="pricing" className="py-20">
@@ -31,13 +51,13 @@ export function PricingSection() {
             Simple, transparent pricing
           </h2>
           <p className="text-muted-foreground text-lg">
-            Start for free, scale as you grow. No hidden fees.
+            Start your free trial today. Scale as you grow. No hidden fees.
           </p>
 
           <div className="flex justify-center mt-6">
             <Tabs
               defaultValue="monthly"
-              className="w-[400px]"
+              className="w-[300px] md:w-[400px]"
               onValueChange={(val) =>
                 setBillingPeriod(val as "monthly" | "yearly")
               }
@@ -59,118 +79,135 @@ export function PricingSection() {
         </div>
 
         <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-          {/* Starter Plan */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-xl">Starter</CardTitle>
-              <CardDescription>For new pharmacies</CardDescription>
-              <div className="mt-4">
-                <span className="text-4xl font-bold">Free</span>
-                <span className="text-muted-foreground">/forever</span>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                <span>Up to 100 Products</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                <span>Basic POS</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                <span>1 User Account</span>
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Button className="w-full" variant="outline" asChild>
-                <Link href="/register">Get Started</Link>
-              </Button>
-            </CardFooter>
-          </Card>
+          {/* Local Plan */}
+          {localTier.active && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-xl">Dumos Local</CardTitle>
+                <CardDescription>For single offline pharmacies</CardDescription>
+                <div className="mt-4">
+                  <span className="text-4xl font-bold">{formatPrice(localTier.price_one_time)}</span>
+                  <span className="text-muted-foreground">/one-time</span>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  <span>Full POS & Inventory</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  <span>Up to 3 Staff Accounts</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  <span>No internet required</span>
+                </div>
+              </CardContent>
+              <CardFooter>
+                <Button className="w-full" variant="outline" asChild>
+                  <Link href="/register?plan=local">Get Started</Link>
+                </Button>
+              </CardFooter>
+            </Card>
+          )}
 
           {/* Pro Plan */}
-          <Card className="border-primary shadow-lg relative">
-            <div className="absolute -top-4 left-0 right-0 mx-auto w-fit bg-primary text-primary-foreground px-3 py-1 rounded-full text-sm font-medium">
-              Most Popular
-            </div>
-            <CardHeader>
-              <CardTitle className="text-xl">Professional</CardTitle>
-              <CardDescription>For growing businesses</CardDescription>
-              <div className="mt-4">
-                <span className="text-4xl font-bold">
-                  {isYearly 
-                    ? `₦${PRICING.PRO.PRICE_YEARLY.toLocaleString()}` 
-                    : `₦${PRICING.PRO.PRICE_MONTHLY.toLocaleString()}`
-                  }
-                </span>
-                <span className="text-muted-foreground">/month</span>
+          {proTier.active && (
+            <Card className="border-primary shadow-lg relative">
+              <div className="absolute -top-4 left-0 right-0 mx-auto w-fit bg-primary text-primary-foreground px-3 py-1 rounded-full text-sm font-medium">
+                Most Popular
               </div>
-              <p className="text-sm text-green-600 font-medium h-5">
-                {isYearly
-                  ? `Billed ₦${PRICING.PRO.BILLING_YEARLY_TOTAL.toLocaleString()} yearly (Save ₦${PRICING.PRO.SAVINGS_YEARLY.toLocaleString()})`
-                  : "Billed monthly"}
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                <span>Unlimited Products</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                <span>Advanced Analytics</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                <span>5 User Accounts</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                <span>Offline Sync</span>
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Button className="w-full" asChild>
-                <Link href="/register?plan=pro">Start Free Trial</Link>
-              </Button>
-            </CardFooter>
-          </Card>
+              <CardHeader>
+                <CardTitle className="text-xl">Dumos Pro</CardTitle>
+                <CardDescription>Cloud-enabled modern pharmacy management</CardDescription>
+                <div className="mt-4">
+                  <span className="text-4xl font-bold">
+                    {isYearly 
+                      ? formatPrice(proTier.price_yearly) 
+                      : formatPrice(proTier.price_monthly)
+                    }
+                  </span>
+                  <span className="text-muted-foreground">{isYearly ? "/year" : "/month"}</span>
+                </div>
+                <p className="text-sm text-green-600 font-medium h-5">
+                  {isYearly
+                    ? `Billed yearly (Save ${formatPrice(calculateSavings(proTier.price_monthly, proTier.price_yearly))})`
+                    : "Billed monthly"}
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  <span>Everything in Local</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  <span>Up to 10 Staff Accounts</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  <span>Automatic Cloud Backups</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  <span>Mobile App & Remote Access</span>
+                </div>
+              </CardContent>
+              <CardFooter>
+                <Button className="w-full" asChild>
+                  <Link href="/register?plan=pro">Start Free Trial</Link>
+                </Button>
+              </CardFooter>
+            </Card>
+          )}
 
           {/* Enterprise Plan */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-xl">Enterprise</CardTitle>
-              <CardDescription>For chains & hospitals</CardDescription>
-              <div className="mt-4">
-                <span className="text-4xl font-bold">Custom</span>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                <span>Multiple Locations</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                <span>Dedicated Support</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                <span>Custom Integration</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                <span>SLA Guarantee</span>
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Button className="w-full" variant="outline">
-                Contact Sales
-              </Button>
-            </CardFooter>
-          </Card>
+          {enterpriseTier.active && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-xl">Enterprise</CardTitle>
+                <CardDescription>For chains & multi-location operations</CardDescription>
+                <div className="mt-4">
+                  <span className="text-4xl font-bold">
+                    {isYearly 
+                      ? formatPrice(enterpriseTier.price_yearly) 
+                      : formatPrice(enterpriseTier.price_monthly)
+                    }
+                  </span>
+                  <span className="text-muted-foreground">{isYearly ? "/year" : "/month"}</span>
+                </div>
+                <p className="text-sm text-green-600 font-medium h-5">
+                  {isYearly
+                    ? `Billed yearly (Save ${formatPrice(calculateSavings(enterpriseTier.price_monthly, enterpriseTier.price_yearly))})`
+                    : "Billed monthly"}
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  <span>Unlimited Staff Accounts</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  <span>Multi-Store Management</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  <span>E-Commerce API Integrations</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  <span>Dedicated Account Manager</span>
+                </div>
+              </CardContent>
+              <CardFooter>
+                <Button className="w-full" variant="outline" asChild>
+                  <Link href="/register?plan=enterprise">Contact Sales</Link>
+                </Button>
+              </CardFooter>
+            </Card>
+          )}
         </div>
       </div>
     </section>

@@ -4,14 +4,19 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Check, ShieldAlert, CreditCard, Loader2 } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 
 import { useInitiatePaymentMutation, useSystemConfig } from "@/lib/api/hooks";
 import { toast } from "sonner";
 
 export function SubscriptionPlans() {
   const [loading, setLoading] = useState<string | null>(null);
+  const [billingPeriod, setBillingPeriod] = useState<"monthly" | "yearly">("monthly");
   const initiatePayment = useInitiatePaymentMutation();
-  const { data: config, isLoading: isConfigLoading } = useSystemConfig("subscription_pricing");
+  const { data: config, isLoading: isConfigLoading } = useSystemConfig("subscription_plans");
+
+  const isYearly = billingPeriod === "yearly";
 
   const handleSubscribe = async (tier: string, amount: number, planName: string) => {
     setLoading(tier);
@@ -41,7 +46,7 @@ export function SubscriptionPlans() {
     {
       id: "local",
       name: "Dumos Local",
-      price: config?.local?.price ? formatPrice(config.local.price) : "₦50,000",
+      price: config?.tiers?.local?.price_one_time ? formatPrice(config.tiers.local.price_one_time) : "₦50,000",
       period: "One-Time",
       description: "Perfect for single offline pharmacies.",
       features: [
@@ -54,14 +59,16 @@ export function SubscriptionPlans() {
         "No Cloud Backups",
         "No Mobile App Access",
       ],
-      numericPrice: config?.local?.price || 50000,
-      active: config?.local?.active !== false,
+      numericPrice: config?.tiers?.local?.price_one_time || 50000,
+      active: config?.tiers?.local?.active !== false,
     },
     {
       id: "pro",
       name: "Dumos Pro",
-      price: config?.pro?.price ? formatPrice(config.pro.price) : "₦30,000",
-      period: "/ year",
+      price: isYearly 
+        ? (config?.tiers?.pro?.price_yearly ? formatPrice(config.tiers.pro.price_yearly) : "₦300,000")
+        : (config?.tiers?.pro?.price_monthly ? formatPrice(config.tiers.pro.price_monthly) : "₦30,000"),
+      period: isYearly ? "/ year" : "/ month",
       description: "Cloud-enabled modern pharmacy management.",
       features: [
         "Everything in Local",
@@ -70,14 +77,18 @@ export function SubscriptionPlans() {
         "Mobile App & Remote Access",
       ],
       popular: true,
-      numericPrice: config?.pro?.price || 30000,
-      active: config?.pro?.active !== false,
+      numericPrice: isYearly 
+        ? (config?.tiers?.pro?.price_yearly || 300000)
+        : (config?.tiers?.pro?.price_monthly || 30000),
+      active: config?.tiers?.pro?.active !== false,
     },
     {
       id: "enterprise",
       name: "Enterprise",
-      price: config?.enterprise?.price ? formatPrice(config.enterprise.price) : "₦80,000",
-      period: "/ year",
+      price: isYearly 
+        ? (config?.tiers?.enterprise?.price_yearly ? formatPrice(config.tiers.enterprise.price_yearly) : "₦800,000")
+        : (config?.tiers?.enterprise?.price_monthly ? formatPrice(config.tiers.enterprise.price_monthly) : "₦80,000"),
+      period: isYearly ? "/ year" : "/ month",
       description: "For chains and multi-location operations.",
       features: [
         "Unlimited Staff Accounts",
@@ -85,8 +96,10 @@ export function SubscriptionPlans() {
         "E-Commerce API Integrations",
         "Dedicated Account Manager",
       ],
-      numericPrice: config?.enterprise?.price || 80000,
-      active: config?.enterprise?.active !== false,
+      numericPrice: isYearly 
+        ? (config?.tiers?.enterprise?.price_yearly || 800000)
+        : (config?.tiers?.enterprise?.price_monthly || 80000),
+      active: config?.tiers?.enterprise?.active !== false,
     }
   ].filter(p => p.active);
 
@@ -104,9 +117,30 @@ export function SubscriptionPlans() {
       <div className="bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-lg flex items-start gap-3">
         <ShieldAlert className="h-5 w-5 mt-0.5 shrink-0" />
         <div className="space-y-1">
-          <p className="font-medium">You are on the Free Trial ({config?.freeTrialDays || 14} Days Remaining)</p>
+          <p className="font-medium">You are on the Free Trial ({config?.trial_days || 14} Days Remaining)</p>
           <p className="text-sm">Upgrade to a paid plan below to ensure your cloud data remains protected.</p>
         </div>
+      </div>
+
+      <div className="flex justify-center my-8">
+        <Tabs
+          defaultValue="monthly"
+          className="w-[300px] md:w-[400px]"
+          onValueChange={(val) => setBillingPeriod(val as "monthly" | "yearly")}
+        >
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="monthly">Monthly</TabsTrigger>
+            <TabsTrigger value="yearly" className="relative">
+              Yearly
+              <Badge
+                variant="secondary"
+                className="absolute -top-3 -right-3 px-1.5 py-0.5 text-[10px] bg-green-500 text-white hover:bg-green-600"
+              >
+                -20%
+              </Badge>
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -146,7 +180,7 @@ export function SubscriptionPlans() {
                 ))}
               </ul>
             </CardContent>
-            {config?.enablePaystack !== false && (
+            {config?.enable_paystack !== false && (
               <CardFooter>
                 <Button 
                   className="w-full" 

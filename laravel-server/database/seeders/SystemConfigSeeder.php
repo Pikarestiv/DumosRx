@@ -19,7 +19,7 @@ class SystemConfigSeeder extends Seeder
             'tiers' => [
                 'local' => [
                     'name' => 'Dumos Local',
-                    'price' => 50000,
+                    'price_one_time' => 50000,
                     'period' => 'One-Time',
                     'active' => true,
                     'limits' => [
@@ -36,8 +36,8 @@ class SystemConfigSeeder extends Seeder
                 ],
                 'pro' => [
                     'name' => 'Dumos Pro',
-                    'price' => 30000,
-                    'period' => '/ year',
+                    'price_monthly' => 3000,
+                    'price_yearly' => 30000,
                     'active' => true,
                     'limits' => [
                         'stores' => 3,
@@ -54,8 +54,8 @@ class SystemConfigSeeder extends Seeder
                 ],
                 'enterprise' => [
                     'name' => 'Enterprise',
-                    'price' => 80000,
-                    'period' => '/ year',
+                    'price_monthly' => 8000,
+                    'price_yearly' => 80000,
                     'active' => true,
                     'limits' => [
                         'stores' => -1,

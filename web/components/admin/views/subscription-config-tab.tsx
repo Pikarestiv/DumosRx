@@ -21,9 +21,9 @@ export function SubscriptionConfigTab() {
     grace_period_days: 3,
     enable_paystack: true,
     tiers: {
-      local: { price: 50000, active: true },
-      pro: { price: 30000, active: true },
-      enterprise: { price: 80000, active: true },
+      local: { price_one_time: 50000, active: true },
+      pro: { price_monthly: 3000, price_yearly: 30000, active: true },
+      enterprise: { price_monthly: 8000, price_yearly: 80000, active: true },
     }
   });
 
@@ -93,8 +93,8 @@ export function SubscriptionConfigTab() {
                 <Label className="text-xs text-muted-foreground">Price (₦) - One Time</Label>
                 <Input 
                   type="number" 
-                  value={config.tiers.local.price} 
-                  onChange={(e) => setConfig({ ...config, tiers: { ...config.tiers, local: { ...config.tiers.local, price: Number(e.target.value) } } })}
+                  value={config.tiers.local.price_one_time} 
+                  onChange={(e) => setConfig({ ...config, tiers: { ...config.tiers, local: { ...config.tiers.local, price_one_time: Number(e.target.value) } } })}
                   disabled={!config.tiers.local.active}
                 />
               </div>
@@ -109,15 +109,27 @@ export function SubscriptionConfigTab() {
                   onCheckedChange={(c) => setConfig({ ...config, tiers: { ...config.tiers, pro: { ...config.tiers.pro, active: c } } })}
                 />
               </div>
-              <div className="space-y-2">
-                <Label className="text-xs text-indigo-600/70 dark:text-indigo-400/70">Price (₦) / Year</Label>
-                <Input 
-                  type="number" 
-                  className="border-indigo-200 dark:border-indigo-800 focus-visible:ring-indigo-500"
-                  value={config.tiers.pro.price} 
-                  onChange={(e) => setConfig({ ...config, tiers: { ...config.tiers, pro: { ...config.tiers.pro, price: Number(e.target.value) } } })}
-                  disabled={!config.tiers.pro.active}
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-xs text-indigo-600/70 dark:text-indigo-400/70">Price (₦) / Month</Label>
+                  <Input 
+                    type="number" 
+                    className="border-indigo-200 dark:border-indigo-800 focus-visible:ring-indigo-500"
+                    value={config.tiers.pro.price_monthly} 
+                    onChange={(e) => setConfig({ ...config, tiers: { ...config.tiers, pro: { ...config.tiers.pro, price_monthly: Number(e.target.value) } } })}
+                    disabled={!config.tiers.pro.active}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs text-indigo-600/70 dark:text-indigo-400/70">Price (₦) / Year</Label>
+                  <Input 
+                    type="number" 
+                    className="border-indigo-200 dark:border-indigo-800 focus-visible:ring-indigo-500"
+                    value={config.tiers.pro.price_yearly} 
+                    onChange={(e) => setConfig({ ...config, tiers: { ...config.tiers, pro: { ...config.tiers.pro, price_yearly: Number(e.target.value) } } })}
+                    disabled={!config.tiers.pro.active}
+                  />
+                </div>
               </div>
             </div>
 
@@ -130,14 +142,25 @@ export function SubscriptionConfigTab() {
                   onCheckedChange={(c) => setConfig({ ...config, tiers: { ...config.tiers, enterprise: { ...config.tiers.enterprise, active: c } } })}
                 />
               </div>
-              <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">Price (₦) / Year</Label>
-                <Input 
-                  type="number" 
-                  value={config.tiers.enterprise.price} 
-                  onChange={(e) => setConfig({ ...config, tiers: { ...config.tiers, enterprise: { ...config.tiers.enterprise, price: Number(e.target.value) } } })}
-                  disabled={!config.tiers.enterprise.active}
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Price (₦) / Month</Label>
+                  <Input 
+                    type="number" 
+                    value={config.tiers.enterprise.price_monthly} 
+                    onChange={(e) => setConfig({ ...config, tiers: { ...config.tiers, enterprise: { ...config.tiers.enterprise, price_monthly: Number(e.target.value) } } })}
+                    disabled={!config.tiers.enterprise.active}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Price (₦) / Year</Label>
+                  <Input 
+                    type="number" 
+                    value={config.tiers.enterprise.price_yearly} 
+                    onChange={(e) => setConfig({ ...config, tiers: { ...config.tiers, enterprise: { ...config.tiers.enterprise, price_yearly: Number(e.target.value) } } })}
+                    disabled={!config.tiers.enterprise.active}
+                  />
+                </div>
               </div>
             </div>
 

@@ -39,5 +39,17 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('manage-platform', function (User $user) {
             return $user->getAttribute('role') === 'super_admin';
         });
+
+        // Override config('plans') with live dynamic DB config if available
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('system_configs')) {
+                $liveConfig = \App\Models\SystemConfig::getVal('subscription_plans');
+                if ($liveConfig) {
+                    config(['plans' => $liveConfig]);
+                }
+            }
+        } catch (\Exception $e) {
+            // Silently fallback to config/plans.php if database is unavailable or migrating
+        }
     }
 }

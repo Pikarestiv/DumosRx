@@ -99,6 +99,21 @@ To maintain the "Premium" feel:
 
 ---
 
+## 📈 Commercial & Pricing Strategy (Nigeria)
+DumosRx targets the Nigerian market against competitors like VirtualRx and cracked QuickBooks 2013 installations. We utilize a **4-Tier Pricing Strategy**:
+1. **Free Trial (14 Days)**: Full access to Pro features.
+2. **Dumos Local (~₦50k one-time)**: Offline only. Max 3 staff. NO cloud backups, NO mobile access. Requires exactly ONE initial internet sync to validate payment.
+3. **Dumos Pro (~₦30k/year)**: Cloud sync, unlimited devices, mobile app access. Max 10 staff accounts. Single store.
+4. **Enterprise (~₦80k/year)**: Multi-store management, unlimited staff, E-Commerce API integrations.
+
+### Licensing & Anti-Tampering
+- The web dashboard (Laravel) handles Subscriptions via Paystack and generates a secure **JWT License Token**.
+- The local app silently downloads this token during an internet sync.
+- **Offline Integrity**: The local app (`licensing-manager.ts`) mathematically verifies the JWT signature and expiration.
+- **Anti-Backdating**: `LicenseGuard` blocks the UI if it detects monotonic clock tampering (e.g., rolling back computer time). We do **not** support manual offline keys to prevent cracking.
+
+---
+
 ## 🚀 DumosRx Platform Roadmap
 This section tracks the high-level strategic objectives for the DumosRx platform.
 

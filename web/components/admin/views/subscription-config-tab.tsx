@@ -9,13 +9,14 @@ import { Button } from "@/components/ui/button";
 import { Save, RefreshCw, CreditCard, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useSystemConfig, useUpdateSystemConfigMutation } from "@/lib/api/hooks";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
 export function SubscriptionConfigTab() {
 
   const { data: serverConfig, isLoading, isError } = useSystemConfig("subscription_plans");
   const updateMutation = useUpdateSystemConfigMutation();
 
+  const [config, setConfig] = useState({
     trial_days: 14,
     grace_period_days: 3,
     enable_paystack: true,

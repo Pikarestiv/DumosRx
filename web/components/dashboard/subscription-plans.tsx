@@ -5,17 +5,31 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Check, ShieldAlert, CreditCard } from "lucide-react";
 
+import { useInitiatePaymentMutation } from "@/lib/api/hooks";
+import { toast } from "sonner";
+
 export function SubscriptionPlans() {
   const [loading, setLoading] = useState<string | null>(null);
+  const initiatePayment = useInitiatePaymentMutation();
 
-  const handleSubscribe = async (tier: string) => {
+  const handleSubscribe = async (tier: string, amount: number, planName: string) => {
     setLoading(tier);
-    // TODO: Integrate with Paystack / Flutterwave here
-    // Example: window.location.href = `/api/payment/paystack?plan=${tier}`
-    setTimeout(() => {
-      alert(`Paystack integration pending for: ${tier}`);
+    try {
+      const response = await initiatePayment.mutateAsync({
+        amount,
+        plan_name: planName
+      });
+
+      if (response.success && response.payment_url) {
+        window.location.href = response.payment_url;
+      } else {
+        toast.error(response.message || "Failed to initiate payment");
+        setLoading(null);
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Payment service unavailable");
       setLoading(null);
-    }, 1000);
+    }
   };
 
   const plans = [
@@ -34,7 +48,8 @@ export function SubscriptionPlans() {
       missing: [
         "No Cloud Backups",
         "No Mobile App Access",
-      ]
+      ],
+      numericPrice: 50000,
     },
     {
       id: "pro",
@@ -49,6 +64,7 @@ export function SubscriptionPlans() {
         "Mobile App & Remote Access",
       ],
       popular: true,
+      numericPrice: 30000,
     },
     {
       id: "enterprise",
@@ -62,6 +78,7 @@ export function SubscriptionPlans() {
         "E-Commerce API Integrations",
         "Dedicated Account Manager",
       ],
+      numericPrice: 80000,
     }
   ];
 
@@ -117,7 +134,7 @@ export function SubscriptionPlans() {
               <Button 
                 className="w-full" 
                 variant={plan.popular ? "default" : "outline"}
-                onClick={() => handleSubscribe(plan.id)}
+                onClick={() => handleSubscribe(plan.id, plan.numericPrice, plan.name)}
                 disabled={loading !== null}
               >
                 {loading === plan.id ? "Processing..." : (

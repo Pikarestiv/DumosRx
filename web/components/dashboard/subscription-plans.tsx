@@ -27,7 +27,7 @@ export function SubscriptionPlans() {
       });
 
       if (response.success && response.payment_url) {
-        window.location.href = response.payment_url;
+        window.location.assign(response.payment_url);
       } else {
         toast.error(response.message || "Failed to initiate payment");
         setLoading(null);

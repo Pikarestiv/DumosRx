@@ -8,7 +8,6 @@ export function useFeatureGate() {
   const { storeProfile } = useStore();
   const currentTier: SubscriptionTier = storeProfile?.subscription_tier || "free";
 
-  const isLocal = currentTier === "local";
   const isPro = currentTier === "pro";
   const isEnterprise = currentTier === "enterprise";
 

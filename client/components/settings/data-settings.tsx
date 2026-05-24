@@ -22,6 +22,8 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { QuickBooksImportDialog } from "./quickbooks-import-dialog";
+import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
+import { Badge } from "@/components/ui/badge";
 
 interface DataSettingsProps {
   isCloudLinked: boolean;
@@ -50,6 +52,7 @@ export function DataSettings({
   setAutoSyncInterval,
   handleSaveAutoSyncSettings,
 }: DataSettingsProps) {
+  const { canCloudSync } = useFeatureGate();
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showQBImport, setShowQBImport] = useState(false);
   const [iifContent, setIifContent] = useState<string | null>(null);
@@ -77,7 +80,18 @@ export function DataSettings({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between p-4 border rounded-lg bg-muted/30 gap-4">
+        
+        {!canCloudSync && (
+          <div className="bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-lg flex items-start gap-3">
+            <CloudOff className="h-5 w-5 mt-0.5 shrink-0" />
+            <div className="space-y-1">
+              <p className="font-medium text-sm">Cloud Sync is Disabled</p>
+              <p className="text-sm">Your current "Dumos Local" plan does not support cloud backups or multi-device sync. Upgrade to Dumos Pro to protect your data in the cloud.</p>
+            </div>
+          </div>
+        )}
+
+        <div className={`flex flex-col md:flex-row items-start md:items-center justify-between p-4 border rounded-lg bg-muted/30 gap-4 ${!canCloudSync ? 'opacity-50 pointer-events-none' : ''}`}>
           <div className="flex items-center gap-3">
             <div
               className={`h-10 w-10 ${isCloudLinked ? "bg-green-100 text-green-600" : "bg-amber-100 text-amber-600"} rounded-full flex items-center justify-center`}
@@ -123,8 +137,11 @@ export function DataSettings({
 
         <Separator />
 
-        <div className="space-y-4">
-          <h3 className="font-medium">Background Automation</h3>
+        <div className={`space-y-4 ${!canCloudSync ? 'opacity-50 pointer-events-none' : ''}`}>
+          <div className="flex items-center gap-2">
+            <h3 className="font-medium">Background Automation</h3>
+            {!canCloudSync && <Badge variant="outline">Pro Feature</Badge>}
+          </div>
           <div className="space-y-4 border rounded-lg p-4 bg-card">
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">

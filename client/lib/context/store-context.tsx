@@ -28,6 +28,7 @@ interface StoreProfile {
   logo_url?: string;
   auto_sync_enabled?: number;
   auto_sync_interval?: number;
+  subscription_tier?: "free" | "local" | "pro" | "enterprise";
   updated_at?: string;
 }
 

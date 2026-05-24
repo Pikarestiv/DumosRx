@@ -7,7 +7,7 @@ import { query, execute } from "@/lib/db/core";
 
 export interface LicenseInfo {
   isValid: boolean;
-  tier: "free" | "pro" | "enterprise";
+  tier: "free" | "local" | "pro" | "enterprise";
   expiryDate: string | null;
   isClockTampered: boolean;
   message?: string;

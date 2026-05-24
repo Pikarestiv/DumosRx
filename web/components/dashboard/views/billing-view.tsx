@@ -17,7 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { SubscriptionWrapper } from "@/components/dashboard/subscription-wrapper";
+import { SubscriptionPlans } from "@/components/dashboard/subscription-plans";
 import { useBillingHistory } from "@/lib/api/hooks";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -33,7 +33,7 @@ export function BillingView() {
         <p className="text-muted-foreground">Manage your plan, payment methods, and billing history</p>
       </div>
 
-      <SubscriptionWrapper />
+      <SubscriptionPlans />
 
       <Card className="border-none shadow-sm">
         <CardHeader>

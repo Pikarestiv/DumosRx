@@ -19,7 +19,7 @@ jobs:
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       - name: Install Node.js
-        uses: actions/setup-node@6012912aaf22240061e86622810ce5b80a13ad0d # v4.0.2
+        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8 # v4.0.2
         with:
           node-version: 22
 
@@ -55,7 +55,7 @@ jobs:
           npm install --force @tailwindcss/oxide-linux-x64-gnu lightningcss-linux-x64-gnu
 
       - name: Build and Release
-        uses: tauri-apps/tauri-action@e8e19e78297b817b1ee880cfb7a5a82200ecf8c9 # v0
+        uses: tauri-apps/tauri-action@84b9d3565e236531393681534015694a55986877 # v0.6.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}

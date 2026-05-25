@@ -17,7 +17,7 @@ jobs:
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       - name: 🟢 Setup Node.js
-        uses: actions/setup-node@6012912aaf22240061e86622810ce5b80a13ad0d # v4.0.2
+        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8 # v4.0.2
         with:
           node-version: 20
           cache: "npm"
@@ -37,7 +37,7 @@ jobs:
           NEXT_PUBLIC_API_URL: https://api.rx.dumostech.com/api/v1
 
       - name: 📂 Sync files
-        uses: SamKirkland/FTP-Deploy-Action@548b1b65c2b0051e54c86a87754b2efc8f5647bd # v4.3.5
+        uses: SamKirkland/FTP-Deploy-Action@8e83cea33a46985b9b870e9f1a23e5954a13298a # v4.3.5
         with:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}

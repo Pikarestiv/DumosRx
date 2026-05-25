@@ -17,7 +17,7 @@ jobs:
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       - name: Setup PHP
-        uses: shivammathur/setup-php@c547da0030d9fb845359a35e0031804d943da0c0 # v2.30.0
+        uses: shivammathur/setup-php@a4e22b60bbb9c1021113f2860347b0759f66fe5d # v2.30.0
         with:
           php-version: "8.2"
           extensions: mbstring, intl, pdo, pdo_mysql
@@ -37,7 +37,7 @@ jobs:
           composer install --no-dev --optimize-autoloader
 
       - name: 📂 Sync files
-        uses: SamKirkland/FTP-Deploy-Action@548b1b65c2b0051e54c86a87754b2efc8f5647bd # v4.3.5
+        uses: SamKirkland/FTP-Deploy-Action@8e83cea33a46985b9b870e9f1a23e5954a13298a # v4.3.5
         with:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}

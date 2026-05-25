@@ -64,12 +64,12 @@ export function HeroSection({ isLoggedIn }: { isLoggedIn: boolean }) {
                 <div className="w-3 h-3 rounded-full bg-green-500/20" />
               </div>
               <div className="mx-auto w-full max-w-sm h-6 bg-background rounded-md border text-[10px] flex items-center px-3 text-muted-foreground">
-                cloud.dumosrx.com/dashboard
+                rx.dumosrx.com/dashboard
               </div>
             </div>
             <div className="aspect-video bg-muted/20 relative">
               <Image
-                src="https://images.unsplash.com/photo-1586023492125-27b2c045efd7?q=80&w=2000&auto=format&fit=crop"
+                src="/images/dashboard-preview.png"
                 alt="DumosRx Dashboard"
                 fill
                 className="object-cover"

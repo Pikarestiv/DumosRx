@@ -27,6 +27,8 @@ return [
 
     'cipher' => 'AES-256-CBC',
 
+    'deploy_token' => env('DEPLOY_TOKEN'),
+
     'maintenance' => [
         'driver' => 'file',
         // 'store'  => 'redis',

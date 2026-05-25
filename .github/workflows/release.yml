@@ -24,7 +24,9 @@ jobs:
           node-version: 22
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@1482ba694f4b510a574f88b746f3361b47c9c56e # stable
+        uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
+        with:
+          toolchain: stable
 
       - name: Install dependencies (macOS only)
         if: matrix.platform == 'macos-latest'
@@ -55,7 +57,7 @@ jobs:
           npm install --force @tailwindcss/oxide-linux-x64-gnu lightningcss-linux-x64-gnu
 
       - name: Build and Release
-        uses: tauri-apps/tauri-action@84b9d3565e236531393681534015694a55986877 # v0.6.2
+        uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0.6.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}

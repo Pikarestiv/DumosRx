@@ -44,40 +44,7 @@ Route::prefix('v1')->group(function () {
         return response()->json(['status' => 'ok', 'timestamp' => now()]);
     });
 
-    // Deployment Webhook for Migrations
-    Route::post('/deploy/migrate', function (Request $request) {
-        $token = $request->header('X-Deploy-Token') ?: $request->get('token');
-        $expectedToken = config('app.deploy_token') ?: env('DEPLOY_TOKEN');
 
-        // Fallback to direct .env file parsing if configuration is cached in production
-        if (empty($expectedToken) && file_exists(base_path('.env'))) {
-            $envContent = @file_get_contents(base_path('.env'));
-            if ($envContent && preg_match('/^DEPLOY_TOKEN=(.*)$/m', $envContent, $matches)) {
-                $expectedToken = trim($matches[1], " \t\n\r\0\x0B\"'");
-            }
-        }
-
-        if (empty($expectedToken) || $token !== $expectedToken) {
-            abort(403, 'Unauthorized deploy token.');
-        }
-
-        try {
-            \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
-            $output = \Illuminate\Support\Facades\Artisan::output();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Migrations executed successfully.',
-                'output' => $output
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Migration failed.',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    });
 
     // Webhooks (Public)
     Route::post('/webhooks/paystack', [\App\Http\Controllers\Api\Web\PaymentController::class, 'handlePaystack']);

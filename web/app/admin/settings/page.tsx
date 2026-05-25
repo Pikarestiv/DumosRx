@@ -22,7 +22,7 @@ export default function PlatformSettingsPage() {
       </div>
 
       <Tabs defaultValue="health" className="w-full">
-        <TabsList className="mb-4">
+        <TabsList className="mb-4 bg-slate-100 dark:bg-slate-900">
           <TabsTrigger value="health" className="flex items-center gap-2">
             <Activity className="h-4 w-4" />
             System Health

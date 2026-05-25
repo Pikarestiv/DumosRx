@@ -67,7 +67,7 @@ export function SubscriptionConfigTab() {
 
   return (
     <div className="space-y-6">
-      <Card>
+      <Card className="bg-white dark:bg-slate-900">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <CreditCard className="h-5 w-5 text-indigo-500" />
@@ -177,7 +177,7 @@ export function SubscriptionConfigTab() {
               <p className="text-xs text-muted-foreground">Default trial period for new registrations.</p>
             </div>
             
-            <div className="space-y-3 p-4 border rounded-lg bg-card">
+            <div className="space-y-3 p-4 border rounded-lg bg-white dark:bg-slate-900">
                <div className="flex items-center justify-between">
                  <Label className="font-bold">Enable Paystack Gateway</Label>
                  <Switch 
@@ -189,7 +189,7 @@ export function SubscriptionConfigTab() {
             </div>
           </div>
         </CardContent>
-        <CardFooter className="bg-muted/30 p-4 border-t flex justify-end">
+        <CardFooter className="bg-slate-50 dark:bg-slate-800/50 p-4 border-t flex justify-end">
           <Button onClick={handleSave} disabled={updateMutation.isPending} className="bg-indigo-600 hover:bg-indigo-700">
             {updateMutation.isPending ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
             Save Configuration

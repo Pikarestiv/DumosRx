@@ -35,22 +35,7 @@ class SyncController extends Controller
         $changes = $request->input('changes');
         $processed = 0;
 
-        // Ensure missing columns exist
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('inventory', '_synced_at')) {
-            \Illuminate\Support\Facades\Schema::table('inventory', function (\Illuminate\Database\Schema\Blueprint $table) {
-                $table->timestamp('_synced_at')->nullable()->index();
-            });
-        }
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('activity_logs', '_synced_at')) {
-            \Illuminate\Support\Facades\Schema::table('activity_logs', function (\Illuminate\Database\Schema\Blueprint $table) {
-                $table->timestamp('_synced_at')->nullable()->index();
-            });
-        }
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('categories', '_synced_at')) {
-            \Illuminate\Support\Facades\Schema::table('categories', function (\Illuminate\Database\Schema\Blueprint $table) {
-                $table->timestamp('_synced_at')->nullable()->index();
-            });
-        }
+
 
         DB::beginTransaction();
 
@@ -200,24 +185,14 @@ class SyncController extends Controller
                     });
                 } elseif ($table === 'store_profile') {
                     $query->where('user_id', $user->id);
+                } elseif ($table === 'sales') {
+                    // For sales, we pull all sales from the stores owned by the user
+                    $storeIds = Store::where('user_id', $user->id)->pluck('id')->toArray();
+                    $userIds = User::whereIn('store_id', $storeIds)->pluck('id')->push($user->id)->toArray();
+                    $query->whereIn('cashier_id', $userIds);
                 } else {
-                    // For other tables, we need a way to filter. 
-                    // If the model has a store_id or user_id, use it.
-                    // This is a simplified approach.
-                    $columns = \Schema::getColumnListing($table);
-                    if (\in_array('store_id', $columns)) {
-                        $storeIds = Store::where('user_id', $user->id)->pluck('id')->toArray();
-                        $query->whereIn('store_id', $storeIds);
-                    } elseif (\in_array('user_id', $columns)) {
-                        $query->where('user_id', $user->id);
-                    } elseif (\in_array('pharmacy_id', $columns)) {
-                        $query->where('pharmacy_id', $user->id);
-                    } elseif (\in_array('cashier_id', $columns)) {
-                        // For sales, we pull all sales from the stores owned by the user
-                        $storeIds = Store::where('user_id', $user->id)->pluck('id')->toArray();
-                        $userIds = User::whereIn('store_id', $storeIds)->pluck('id')->push($user->id)->toArray();
-                        $query->whereIn('cashier_id', $userIds);
-                    }
+                    // Default to filtering by user_id for medicines, customers, suppliers
+                    $query->where('user_id', $user->id);
                 }
             }
 

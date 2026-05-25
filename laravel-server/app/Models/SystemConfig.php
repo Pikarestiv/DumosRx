@@ -33,12 +33,16 @@ class SystemConfig extends Model
      */
     public static function setVal(string $key, $value, ?string $description = null)
     {
-        return self::updateOrCreate(
+        $config = self::updateOrCreate(
             ['key' => $key],
             [
                 'value' => $value,
                 'description' => $description
             ]
         );
+
+        \Illuminate\Support\Facades\Cache::forget("system_config_{$key}");
+
+        return $config;
     }
 }

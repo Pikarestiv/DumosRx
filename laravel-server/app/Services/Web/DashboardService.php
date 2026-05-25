@@ -7,6 +7,7 @@ use App\Models\Inventory;
 use App\Models\Customer;
 use App\Models\ActivityLog;
 use App\Models\Store;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
@@ -25,15 +26,19 @@ class DashboardService
         $last7Days = $now->copy()->subDays(7);
         $prev7Days = $now->copy()->subDays(14);
 
+        // Get store and cashier network for scoping
+        $storeIds = Store::where('user_id', $userId)->pluck('id')->toArray();
+        $userIds = User::whereIn('store_id', $storeIds)->pluck('id')->push($userId)->toArray();
+
         // 1. Sales Stats
         $totalSales = 0;
         $salesGrowth = 0;
         try {
-            $totalSales = (float)Sale::where('cashier_id', $userId)->sum('total_amount');
-            $salesThisWeek = (float)Sale::where('cashier_id', $userId)
+            $totalSales = (float)Sale::whereIn('cashier_id', $userIds)->sum('total_amount');
+            $salesThisWeek = (float)Sale::whereIn('cashier_id', $userIds)
                 ->where('created_at', '>=', $last7Days)
                 ->sum('total_amount');
-            $salesPrevWeek = (float)Sale::where('cashier_id', $userId)
+            $salesPrevWeek = (float)Sale::whereIn('cashier_id', $userIds)
                 ->where('created_at', '>=', $prev7Days)
                 ->where('created_at', '<', $last7Days)
                 ->sum('total_amount');
@@ -52,6 +57,7 @@ class DashboardService
         try {
             if (Schema::hasTable('inventory')) {
                 $inventoryStats = DB::table('inventory')
+                    ->where('user_id', $userId)
                     ->select(DB::raw('SUM(quantity_in_stock * cost_price) as total_value'))
                     ->first();
                 $inventoryValue = (float)($inventoryStats->total_value ?? 0);
@@ -64,8 +70,8 @@ class DashboardService
         $totalCustomers = 0;
         $newCustomersThisWeek = 0;
         try {
-            $totalCustomers = Customer::count();
-            $newCustomersThisWeek = Customer::where('created_at', '>=', $last7Days)->count();
+            $totalCustomers = Customer::where('user_id', $userId)->count();
+            $newCustomersThisWeek = Customer::where('user_id', $userId)->where('created_at', '>=', $last7Days)->count();
         } catch (\Exception $e) {
             \Log::error("DashboardService [Customers]: " . $e->getMessage());
         }
@@ -83,7 +89,7 @@ class DashboardService
         $lastSyncTime = 'Never';
         try {
             $lastSyncedRecord = DB::table('sales')
-                ->where('cashier_id', $userId)
+                ->whereIn('cashier_id', $userIds)
                 ->whereNotNull('_synced_at')
                 ->orderBy('_synced_at', 'desc')
                 ->first();
@@ -96,7 +102,7 @@ class DashboardService
         // 5. Recent Sales
         $recentSales = collect([]);
         try {
-            $recentSales = Sale::where('cashier_id', $userId)
+            $recentSales = Sale::whereIn('cashier_id', $userIds)
                 ->orderBy('created_at', 'desc')
                 ->limit(5)
                 ->get();

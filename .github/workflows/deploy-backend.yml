@@ -52,3 +52,8 @@ jobs:
             **/storage/*.key
             .env.example
             .env
+
+      - name: 🚀 Trigger Database Migrations (Webhook)
+        run: |
+          curl -f -X POST "https://api.rx.dumostech.com/api/v1/deploy/migrate" \
+            -H "X-Deploy-Token: ${{ secrets.DEPLOY_TOKEN }}"

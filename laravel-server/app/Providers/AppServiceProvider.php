@@ -42,11 +42,11 @@ class AppServiceProvider extends ServiceProvider
 
         // Override config('plans') with live dynamic DB config if available
         try {
-            if (\Illuminate\Support\Facades\Schema::hasTable('system_configs')) {
-                $liveConfig = \App\Models\SystemConfig::getVal('subscription_plans');
-                if ($liveConfig) {
-                    config(['plans' => $liveConfig]);
-                }
+            $liveConfig = \Illuminate\Support\Facades\Cache::remember('system_config_subscription_plans', 86400, function () {
+                return \App\Models\SystemConfig::getVal('subscription_plans');
+            });
+            if ($liveConfig) {
+                config(['plans' => $liveConfig]);
             }
         } catch (\Exception $e) {
             // Silently fallback to config/plans.php if database is unavailable or migrating

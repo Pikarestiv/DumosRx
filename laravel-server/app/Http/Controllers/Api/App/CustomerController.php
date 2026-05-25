@@ -11,13 +11,17 @@ class CustomerController extends Controller
     public function index(Request $request)
     {
         $limit = $request->get('limit', 50);
-        $customers = Customer::latest()->paginate($limit);
+        $customers = Customer::where('user_id', $request->user()->id)
+            ->latest()
+            ->paginate($limit);
         return response()->json($customers);
     }
 
-    public function show($id)
+    public function show(Request $request, $id)
     {
-        $customer = Customer::with('sales')->findOrFail($id);
+        $customer = Customer::where('user_id', $request->user()->id)
+            ->with('sales')
+            ->findOrFail($id);
         return response()->json($customer);
     }
 
@@ -35,7 +39,10 @@ class CustomerController extends Controller
             'medical_conditions' => 'nullable|string|max:1000',
         ]);
 
-        $customer = Customer::create($validated);
+        $customer = new Customer($validated);
+        $customer->user_id = $request->user()->id;
+        $customer->save();
+
         return response()->json($customer, 201);
     }
 }

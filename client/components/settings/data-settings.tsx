@@ -52,7 +52,7 @@ export function DataSettings({
   setAutoSyncInterval,
   handleSaveAutoSyncSettings,
 }: DataSettingsProps) {
-  const { canCloudSync } = useFeatureGate();
+  const { canCloudSync, minimumSyncIntervalMinutes } = useFeatureGate();
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showQBImport, setShowQBImport] = useState(false);
   const [iifContent, setIifContent] = useState<string | null>(null);
@@ -167,9 +167,15 @@ export function DataSettings({
                     <SelectValue placeholder="Select interval" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="5">Every 5 Minutes</SelectItem>
-                    <SelectItem value="15">Every 15 Minutes</SelectItem>
-                    <SelectItem value="30">Every 30 Minutes</SelectItem>
+                    {minimumSyncIntervalMinutes <= 5 && (
+                      <SelectItem value="5">Every 5 Minutes</SelectItem>
+                    )}
+                    {minimumSyncIntervalMinutes <= 15 && (
+                      <SelectItem value="15">Every 15 Minutes</SelectItem>
+                    )}
+                    {minimumSyncIntervalMinutes <= 30 && (
+                      <SelectItem value="30">Every 30 Minutes</SelectItem>
+                    )}
                     <SelectItem value="60">Every 1 Hour</SelectItem>
                   </SelectContent>
                 </Select>

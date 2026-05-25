@@ -11,16 +11,18 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('feedback', function (Blueprint $table) {
-            $table->uuid('id')->primary();
-            $table->uuid('user_id')->nullable();
-            $table->string('type'); // 'bug', 'feature_request', 'other'
-            $table->text('content');
-            $table->string('contact_email')->nullable();
-            $table->string('status')->default('pending');
-            $table->boolean('_deleted')->default(false);
-            $table->timestamps();
-        });
+        if (!Schema::hasTable('feedback')) {
+            Schema::create('feedback', function (Blueprint $table) {
+                $table->uuid('id')->primary();
+                $table->uuid('user_id')->nullable();
+                $table->string('type'); // 'bug', 'feature_request', 'other'
+                $table->text('content');
+                $table->string('contact_email')->nullable();
+                $table->string('status')->default('pending');
+                $table->boolean('_deleted')->default(false);
+                $table->timestamps();
+            });
+        }
     }
 
     /**

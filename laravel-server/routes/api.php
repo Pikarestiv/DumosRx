@@ -44,6 +44,33 @@ Route::prefix('v1')->group(function () {
         return response()->json(['status' => 'ok', 'timestamp' => now()]);
     });
 
+    // Deployment Webhook for Migrations
+    Route::post('/deploy/migrate', function (Request $request) {
+        $token = $request->header('X-Deploy-Token') ?: $request->get('token');
+        $expectedToken = env('DEPLOY_TOKEN');
+
+        if (empty($expectedToken) || $token !== $expectedToken) {
+            abort(403, 'Unauthorized deploy token.');
+        }
+
+        try {
+            \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+            $output = \Illuminate\Support\Facades\Artisan::output();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Migrations executed successfully.',
+                'output' => $output
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Migration failed.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    });
+
     // Webhooks (Public)
     Route::post('/webhooks/paystack', [\App\Http\Controllers\Api\Web\PaymentController::class, 'handlePaystack']);
     Route::post('/webhooks/flutterwave', [\App\Http\Controllers\Api\Web\PaymentController::class, 'handleFlutterwave']);

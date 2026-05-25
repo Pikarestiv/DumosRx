@@ -30,5 +30,8 @@ export function useFeatureGate() {
 
     // Auto Backups
     canAutoBackup: isPro || isEnterprise,
+
+    // Minimum sync interval in minutes
+    minimumSyncIntervalMinutes: isEnterprise ? 15 : 30,
   };
 }

@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Models\Inventory;
+use App\Models\User;
+use App\Models\Store;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -14,7 +16,17 @@ class SaleController extends Controller
     public function index(Request $request)
     {
         $limit = $request->get('limit', 50);
-        $sales = Sale::with('items', 'customer', 'user')
+        $user = $request->user();
+
+        if ($user->store_id) {
+            $userIds = User::where('store_id', $user->store_id)->pluck('id')->toArray();
+        } else {
+            $storeIds = Store::where('user_id', $user->id)->pluck('id')->toArray();
+            $userIds = User::whereIn('store_id', $storeIds)->pluck('id')->push($user->id)->toArray();
+        }
+
+        $sales = Sale::whereIn('cashier_id', $userIds)
+            ->with('items', 'customer', 'user')
             ->latest()
             ->paginate($limit);
 
@@ -31,10 +43,13 @@ class SaleController extends Controller
             'customer_id' => 'nullable|exists:customers,id',
         ]);
 
-        return DB::transaction(function () use ($request) {
+        $user = $request->user();
+        $tenantId = $user->store_id ? (Store::find($user->store_id)?->user_id ?? $user->id) : $user->id;
+
+        return DB::transaction(function () use ($request, $user, $tenantId) {
             // Create Sale Header
             $sale = Sale::create([
-                'user_id' => $request->user()->id,
+                'user_id' => $user->id,
                 'customer_id' => $request->customer_id,
                 'payment_method' => $request->payment_method,
                 'total_amount' => 0, // Will update
@@ -45,8 +60,10 @@ class SaleController extends Controller
             $total = 0;
 
             foreach ($request->items as $item) {
-                // Get price
-                $inventory = Inventory::where('medicine_id', $item['medicine_id'])->first(); 
+                // Get price scoped to tenant inventory
+                $inventory = Inventory::where('user_id', $tenantId)
+                    ->where('medicine_id', $item['medicine_id'])
+                    ->first(); 
                 
                 $price = 0; 
                 $subtotal = 0;
@@ -73,8 +90,17 @@ class SaleController extends Controller
     public function dailySales(Request $request)
     {
         $date = $request->get('date', now()->toDateString());
+        $user = $request->user();
 
-        $sales = Sale::whereDate('created_at', $date)
+        if ($user->store_id) {
+            $userIds = User::where('store_id', $user->store_id)->pluck('id')->toArray();
+        } else {
+            $storeIds = Store::where('user_id', $user->id)->pluck('id')->toArray();
+            $userIds = User::whereIn('store_id', $storeIds)->pluck('id')->push($user->id)->toArray();
+        }
+
+        $sales = Sale::whereIn('cashier_id', $userIds)
+            ->whereDate('created_at', $date)
             ->with('items')
             ->get();
 
@@ -92,9 +118,19 @@ class SaleController extends Controller
     public function topMedicines(Request $request)
     {
         $limit = $request->get('limit', 10);
-        
+        $user = $request->user();
+
+        if ($user->store_id) {
+            $userIds = User::where('store_id', $user->store_id)->pluck('id')->toArray();
+        } else {
+            $storeIds = Store::where('user_id', $user->id)->pluck('id')->toArray();
+            $userIds = User::whereIn('store_id', $storeIds)->pluck('id')->push($user->id)->toArray();
+        }
+
         $topWithNames = DB::table('sale_items')
+            ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
             ->join('medicines', 'sale_items.medicine_id', '=', 'medicines.id')
+            ->whereIn('sales.cashier_id', $userIds)
             ->select('medicines.name', DB::raw('SUM(sale_items.quantity) as total_quantity'))
             ->groupBy('medicines.id', 'medicines.name')
             ->orderByDesc('total_quantity')

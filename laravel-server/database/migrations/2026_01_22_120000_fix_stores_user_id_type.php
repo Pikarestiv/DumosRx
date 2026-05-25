@@ -12,14 +12,18 @@ return new class extends Migration
             // Drop foreign key if exists (robust check)
             $conn = Schema::getConnection();
             $dbName = $conn->getDatabaseName();
-            $exists = collect(DB::select("
-                SELECT CONSTRAINT_NAME 
-                FROM information_schema.TABLE_CONSTRAINTS 
-                WHERE CONSTRAINT_SCHEMA = ? 
-                AND TABLE_NAME = 'stores' 
-                AND CONSTRAINT_NAME = 'stores_user_id_foreign' 
-                AND CONSTRAINT_TYPE = 'FOREIGN KEY'
-            ", [$dbName]))->isNotEmpty();
+            $exists = false;
+            
+            if ($conn->getDriverName() !== 'sqlite') {
+                $exists = collect(DB::select("
+                    SELECT CONSTRAINT_NAME 
+                    FROM information_schema.TABLE_CONSTRAINTS 
+                    WHERE CONSTRAINT_SCHEMA = ? 
+                    AND TABLE_NAME = 'stores' 
+                    AND CONSTRAINT_NAME = 'stores_user_id_foreign' 
+                    AND CONSTRAINT_TYPE = 'FOREIGN KEY'
+                ", [$dbName]))->isNotEmpty();
+            }
 
             if ($exists) {
                 $table->dropForeign(['user_id']);
@@ -38,14 +42,18 @@ return new class extends Migration
         Schema::table('stores', function (Blueprint $table) {
             $conn = Schema::getConnection();
             $dbName = $conn->getDatabaseName();
-            $exists = collect(DB::select("
-                SELECT CONSTRAINT_NAME 
-                FROM information_schema.TABLE_CONSTRAINTS 
-                WHERE CONSTRAINT_SCHEMA = ? 
-                AND TABLE_NAME = 'stores' 
-                AND CONSTRAINT_NAME = 'stores_user_id_foreign' 
-                AND CONSTRAINT_TYPE = 'FOREIGN KEY'
-            ", [$dbName]))->isNotEmpty();
+            $exists = false;
+
+            if ($conn->getDriverName() !== 'sqlite') {
+                $exists = collect(DB::select("
+                    SELECT CONSTRAINT_NAME 
+                    FROM information_schema.TABLE_CONSTRAINTS 
+                    WHERE CONSTRAINT_SCHEMA = ? 
+                    AND TABLE_NAME = 'stores' 
+                    AND CONSTRAINT_NAME = 'stores_user_id_foreign' 
+                    AND CONSTRAINT_TYPE = 'FOREIGN KEY'
+                ", [$dbName]))->isNotEmpty();
+            }
 
             if ($exists) {
                 $table->dropForeign(['user_id']);

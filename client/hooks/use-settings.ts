@@ -14,6 +14,7 @@ import {
   isTauri,
 } from "@/lib/db/core";
 import { sync } from "@/lib/db/sync-engine";
+import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 
 export function useSettings() {
   const { theme, setTheme } = useTheme();
@@ -25,6 +26,8 @@ export function useSettings() {
     theme: activeTheme,
     setTheme: setAppTheme,
   } = useStore();
+
+  const { minimumSyncIntervalMinutes } = useFeatureGate();
 
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -91,9 +94,14 @@ export function useSettings() {
       setExpiryDays(storeProfile.expiry_warning_days?.toString() || "90");
       setLocalLogo(storeProfile.logo_url || "");
       setAutoSyncEnabled(storeProfile.auto_sync_enabled === 1);
-      setAutoSyncInterval(storeProfile.auto_sync_interval?.toString() || "15");
+      
+      let interval = storeProfile.auto_sync_interval || 15;
+      if (interval < minimumSyncIntervalMinutes) {
+        interval = minimumSyncIntervalMinutes;
+      }
+      setAutoSyncInterval(interval.toString());
     }
-  }, [storeProfile]);
+  }, [storeProfile, minimumSyncIntervalMinutes]);
 
   // Tab activation from URL
   useEffect(() => {
@@ -187,9 +195,15 @@ export function useSettings() {
   };
 
   const handleSaveAutoSyncSettings = () => {
+    let interval = parseInt(autoSyncInterval) || 15;
+    if (autoSyncEnabled && interval < minimumSyncIntervalMinutes) {
+      interval = minimumSyncIntervalMinutes;
+      setAutoSyncInterval(minimumSyncIntervalMinutes.toString());
+    }
+
     updateStoreProfile({
       auto_sync_enabled: autoSyncEnabled ? 1 : 0,
-      auto_sync_interval: parseInt(autoSyncInterval) || 15,
+      auto_sync_interval: interval,
     });
     toast.success("Auto-sync preferences updated");
   };

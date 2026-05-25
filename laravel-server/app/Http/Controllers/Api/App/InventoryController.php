@@ -12,7 +12,8 @@ class InventoryController extends Controller
     public function index(Request $request)
     {
         $limit = $request->get('limit', 50);
-        $inventory = Inventory::with('medicine')
+        $inventory = Inventory::where('user_id', $request->user()->id)
+            ->with('medicine')
             ->latest()
             ->paginate($limit);
 
@@ -21,7 +22,8 @@ class InventoryController extends Controller
 
     public function lowStock(Request $request)
     {
-        $inventory = Inventory::with('medicine')
+        $inventory = Inventory::where('user_id', $request->user()->id)
+            ->with('medicine')
             ->whereColumn('quantity_in_stock', '<=', 'reorder_level')
             ->get();
 
@@ -33,7 +35,8 @@ class InventoryController extends Controller
         $days = $request->get('days', 90);
         $date = now()->addDays($days);
 
-        $inventory = Inventory::with('medicine')
+        $inventory = Inventory::where('user_id', $request->user()->id)
+            ->with('medicine')
             ->whereDate('expiry_date', '<=', $date)
             ->whereDate('expiry_date', '>=', now())
             ->orderBy('expiry_date')
@@ -45,6 +48,7 @@ class InventoryController extends Controller
     public function value(Request $request)
     {
         $totalValue = DB::table('inventory')
+            ->where('user_id', $request->user()->id)
             ->select(DB::raw('SUM(quantity_in_stock * cost_price) as total_value'))
             ->value('total_value');
 

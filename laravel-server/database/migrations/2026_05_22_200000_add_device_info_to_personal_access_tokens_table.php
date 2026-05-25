@@ -12,8 +12,12 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('personal_access_tokens', function (Blueprint $table) {
-            $table->string('ip_address', 45)->nullable()->after('abilities');
-            $table->text('user_agent')->nullable()->after('ip_address');
+            if (!Schema::hasColumn('personal_access_tokens', 'ip_address')) {
+                $table->string('ip_address', 45)->nullable()->after('abilities');
+            }
+            if (!Schema::hasColumn('personal_access_tokens', 'user_agent')) {
+                $table->text('user_agent')->nullable()->after('ip_address');
+            }
         });
     }
 

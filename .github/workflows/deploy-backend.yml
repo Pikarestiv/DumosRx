@@ -14,15 +14,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: 🚚 Get latest code
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       - name: Setup PHP
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@c547da0030d9fb845359a35e0031804d943da0c0 # v2.30.0
         with:
           php-version: "8.2"
           extensions: mbstring, intl, pdo, pdo_mysql
 
-      - name: � Setup Directory Structure
+      - name: 📁 Setup Directory Structure
         run: |
           cd laravel-server
           mkdir -p bootstrap/cache
@@ -31,13 +31,13 @@ jobs:
           mkdir -p storage/framework/cache
           chmod -R 777 storage bootstrap/cache
 
-      - name: �📦 Install Dependencies
+      - name: 📦 Install Dependencies
         run: |
           cd laravel-server
           composer install --no-dev --optimize-autoloader
 
       - name: 📂 Sync files
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        uses: SamKirkland/FTP-Deploy-Action@548b1b65c2b0051e54c86a87754b2efc8f5647bd # v4.3.5
         with:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}

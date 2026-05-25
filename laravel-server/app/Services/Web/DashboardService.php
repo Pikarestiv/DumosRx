@@ -10,6 +10,7 @@ use App\Models\Store;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
 class DashboardService
@@ -49,7 +50,7 @@ class DashboardService
                 $salesGrowth = 100;
             }
         } catch (\Exception $e) {
-            \Log::error("DashboardService [Sales]: " . $e->getMessage());
+            Log::error("DashboardService [Sales]: " . $e->getMessage());
         }
 
         // 2. Inventory Stats
@@ -63,7 +64,7 @@ class DashboardService
                 $inventoryValue = (float)($inventoryStats->total_value ?? 0);
             }
         } catch (\Exception $e) {
-            \Log::error("DashboardService [Inventory]: " . $e->getMessage());
+            Log::error("DashboardService [Inventory]: " . $e->getMessage());
         }
         
         // 3. Customer Stats
@@ -73,7 +74,7 @@ class DashboardService
             $totalCustomers = Customer::where('user_id', $userId)->count();
             $newCustomersThisWeek = Customer::where('user_id', $userId)->where('created_at', '>=', $last7Days)->count();
         } catch (\Exception $e) {
-            \Log::error("DashboardService [Customers]: " . $e->getMessage());
+            Log::error("DashboardService [Customers]: " . $e->getMessage());
         }
 
         // 4. Stores/Sync Info
@@ -83,7 +84,7 @@ class DashboardService
                 $userStores = Store::where('user_id', $userId)->get();
             }
         } catch (\Exception $e) {
-            \Log::error("DashboardService [Stores]: " . $e->getMessage());
+            Log::error("DashboardService [Stores]: " . $e->getMessage());
         }
         
         $lastSyncTime = 'Never';
@@ -96,7 +97,7 @@ class DashboardService
             
             $lastSyncTime = $lastSyncedRecord ? Carbon::parse($lastSyncedRecord->_synced_at)->diffForHumans() : 'Never';
         } catch (\Exception $e) {
-             \Log::error("DashboardService [Sync]: " . $e->getMessage());
+             Log::error("DashboardService [Sync]: " . $e->getMessage());
         }
 
         // 5. Recent Sales
@@ -107,7 +108,7 @@ class DashboardService
                 ->limit(5)
                 ->get();
         } catch (\Exception $e) {
-            \Log::error("DashboardService [RecentSales]: " . $e->getMessage());
+            Log::error("DashboardService [RecentSales]: " . $e->getMessage());
         }
 
         // Map Stores
@@ -162,14 +163,14 @@ class DashboardService
 
         try {
             $message = "Account data has been reset.";
-            \Log::info("Starting data reset for user: {$userId}, type: {$type}");
+            Log::info("Starting data reset for user: {$userId}, type: {$type}");
 
             if ($type === 'all' || $type === 'sales') {
                 if (Schema::hasTable('sales')) {
                     $query = Sale::query();
                     if (Schema::hasColumn('sales', 'cashier_id')) {
                         $query->where('cashier_id', $userId);
-                        \Log::info("Clearing sales for cashier: {$userId}");
+                        Log::info("Clearing sales for cashier: {$userId}");
                         $query->delete();
                         $message = "Sales records cleared.";
                     }
@@ -181,7 +182,7 @@ class DashboardService
                     $query = ActivityLog::query();
                     if (Schema::hasColumn('activity_logs', 'user_id')) {
                         $query->where('user_id', $userId);
-                        \Log::info("Clearing activity logs for user: {$userId}");
+                        Log::info("Clearing activity logs for user: {$userId}");
                         $query->delete();
                         $message = $type === 'all' ? "All data cleared." : "Activity logs cleared.";
                     }
@@ -190,15 +191,15 @@ class DashboardService
 
             if ($type === 'all' || $type === 'customers') {
                 if (Schema::hasTable('customers')) {
-                    \Log::info("Checking customers table for user_id column");
+                    Log::info("Checking customers table for user_id column");
                     $query = Customer::query();
                     if (Schema::hasColumn('customers', 'user_id')) {
                         $query->where('user_id', $userId);
-                        \Log::info("Clearing customers for user: {$userId}");
+                        Log::info("Clearing customers for user: {$userId}");
                         $query->delete(); 
                         $message = $type === 'all' ? "All data cleared." : "Customer records cleared.";
                     } else {
-                        \Log::warning("Customers table missing user_id column, skipping filtered delete");
+                        Log::warning("Customers table missing user_id column, skipping filtered delete");
                     }
                 }
             }
@@ -208,7 +209,7 @@ class DashboardService
                     $query = Inventory::query();
                     if (Schema::hasColumn('inventory', 'user_id')) {
                         $query->where('user_id', $userId);
-                        \Log::info("Clearing inventory for user: {$userId}");
+                        Log::info("Clearing inventory for user: {$userId}");
                         $query->delete(); 
                         $message = $type === 'all' ? "All data cleared." : "Inventory records cleared.";
                     }
@@ -216,26 +217,26 @@ class DashboardService
             }
 
             if ($type === 'all' || $type === 'stores') {
-                \Log::info("Checking for stores table existence");
+                Log::info("Checking for stores table existence");
                 if (Schema::hasTable('stores')) {
                     $query = Store::query();
                     if (Schema::hasColumn('stores', 'user_id')) {
                         $query->where('user_id', $userId);
-                        \Log::info("Clearing stores for user: {$userId}");
+                        Log::info("Clearing stores for user: {$userId}");
                         $query->delete();
                         $message = $type === 'all' ? "All data cleared." : "Connected stores cleared.";
                     }
                 } else {
-                    \Log::warning("Stores table does not exist, skipping");
+                    Log::warning("Stores table does not exist, skipping");
                 }
             }
 
             DB::commit();
-            \Log::info("Data reset completed successfully for user: {$userId}");
+            Log::info("Data reset completed successfully for user: {$userId}");
             return ['status' => 'success', 'message' => $message];
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error("Dashboard Reset Transaction Failed: " . $e->getMessage());
+            Log::error("Dashboard Reset Transaction Failed: " . $e->getMessage());
             throw $e;
         }
     }

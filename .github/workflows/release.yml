@@ -16,15 +16,15 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       - name: Install Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@6012912aaf22240061e86622810ce5b80a13ad0d # v4.0.2
         with:
           node-version: 22
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1482ba694f4b510a574f88b746f3361b47c9c56e # stable
 
       - name: Install dependencies (macOS only)
         if: matrix.platform == 'macos-latest'
@@ -55,7 +55,7 @@ jobs:
           npm install --force @tailwindcss/oxide-linux-x64-gnu lightningcss-linux-x64-gnu
 
       - name: Build and Release
-        uses: tauri-apps/tauri-action@v0
+        uses: tauri-apps/tauri-action@e8e19e78297b817b1ee880cfb7a5a82200ecf8c9 # v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}

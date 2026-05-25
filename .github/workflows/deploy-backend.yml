@@ -37,7 +37,7 @@ jobs:
           composer install --no-dev --optimize-autoloader
 
       - name: 📂 Sync files
-        uses: SamKirkland/FTP-Deploy-Action@8e83cea33a46985b9b870e9f1a23e5954a13298a # v4.3.5
+        uses: SamKirkland/FTP-Deploy-Action@8e83cea47761159955877c3e536136d8594288b9 # v4.3.5
         with:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}

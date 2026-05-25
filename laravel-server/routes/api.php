@@ -3,7 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
-// Namespaced Controllers
+// Namespaced Controllers (deploy trigger)
 use App\Http\Controllers\Api\AuthController;
 
 // Web Controllers

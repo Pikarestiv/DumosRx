@@ -60,7 +60,7 @@ export function DownloadsView({ releaseLinks }: DownloadsViewProps) {
                 )}
               </h3>
               <p className="text-sm text-muted-foreground mb-6">
-                v{app.version} • {app.size}
+                {app.version.startsWith("v") ? app.version : `v${app.version}`} • {app.size}
               </p>
               <Button 
                 className="w-full font-bold h-12" 

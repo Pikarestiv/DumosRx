@@ -89,8 +89,11 @@ export default function DownloadsPage() {
                     <Monitor className="w-6 h-6 text-primary" />
                     Windows
                   </CardTitle>
-                  <CardDescription>
-                    Requires Windows 10+ (64-bit) • {currentLinks.winSize}
+                  <CardDescription className="flex flex-col gap-1 mt-1">
+                    <span className="font-semibold text-foreground">
+                      {currentLinks.version.startsWith("v") ? currentLinks.version : `v${currentLinks.version}`} • {currentLinks.winSize}
+                    </span>
+                    <span>Requires Windows 10+ (64-bit)</span>
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -124,8 +127,11 @@ export default function DownloadsPage() {
                     <Monitor className="w-6 h-6 text-primary" />
                     macOS
                   </CardTitle>
-                  <CardDescription>
-                    Intel & Apple Silicon • {currentLinks.macSize}
+                  <CardDescription className="flex flex-col gap-1 mt-1">
+                    <span className="font-semibold text-foreground">
+                      {currentLinks.version.startsWith("v") ? currentLinks.version : `v${currentLinks.version}`} • {currentLinks.macSize}
+                    </span>
+                    <span>Intel & Apple Silicon</span>
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -166,10 +172,20 @@ export default function DownloadsPage() {
                     <Globe className="w-6 h-6 text-primary" />
                     Linux
                   </CardTitle>
-                  <CardDescription>
-                    {linuxAssetExists
-                      ? `Portable AppImage • ${currentLinks.linuxSize}`
-                      : "AppImage / Deb • Coming Soon"}
+                  <CardDescription className="flex flex-col gap-1 mt-1">
+                    {linuxAssetExists ? (
+                      <>
+                        <span className="font-semibold text-foreground">
+                          {currentLinks.version.startsWith("v") ? currentLinks.version : `v${currentLinks.version}`} • {currentLinks.linuxSize}
+                        </span>
+                        <span>Portable AppImage</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="font-semibold text-amber-600 dark:text-amber-500">Coming Soon</span>
+                        <span>AppImage / Deb</span>
+                      </>
+                    )}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>

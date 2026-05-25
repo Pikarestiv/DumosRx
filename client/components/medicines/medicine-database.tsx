@@ -1,4 +1,3 @@
-/* eslint-disable max-lines */
 "use client";
 
 import { useState, useEffect } from "react";
@@ -13,91 +12,18 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-
-
-import {
-  Plus,
-  Search,
-  Edit,
-  Eye,
-  AlertTriangle,
-  Package,
-} from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { toast } from "sonner";
 import { SearchableInput } from "@/components/ui/searchable-input";
 import { AddMedicineDialog } from "./add-medicine-dialog";
 import { MedicineDetailsDialog } from "./medicine-details-dialog";
 import { insert, update } from "@/lib/db/local-database";
 import { useLocalData } from "@/lib/db/hooks/useLocalData";
-
 import { useStore } from "@/lib/context/store-context";
 import { genericFuzzySearch } from "@/lib/utils/search";
-
-interface Medicine {
-  id: string;
-  name: string;
-  genericName: string;
-  brand: string;
-  category: string;
-  nafdacNumber: string;
-  strength: string;
-  dosageForm: string;
-  manufacturer: string;
-  supplier: string;
-  costPrice: number;
-  sellingPrice: number;
-  stockQuantity: number;
-  reorderLevel: number;
-  expiryDate: string;
-  batchNumber: string;
-  baseUnit: string;
-  bulkUnit: string;
-  unitsPerBulk: number;
-  status: "active" | "inactive" | "expired" | "low_stock";
-}
-
-// Helper to transform API/Local response to UI model (camelCase)
-const transformMedicine = (apiData: any): Medicine => ({
-  id: apiData.id,
-  name: apiData.name,
-  genericName: apiData.generic_name || "",
-  brand: apiData.brand_name || apiData.brand || "",
-  category: apiData.category || apiData.category_id || (apiData.category as any)?.name || "Uncategorized",
-  nafdacNumber: apiData.nafdac_number || "",
-  strength: apiData.strength || "",
-  dosageForm: apiData.dosage_form || "",
-  manufacturer: apiData.manufacturer || "",
-  supplier: apiData.supplier || apiData.supplier_id || (apiData.supplier as any)?.name || "Unknown",
-  costPrice: Number(apiData.cost_price) || 0,
-  sellingPrice: Number(apiData.selling_price) || 0,
-  stockQuantity: Number(apiData.stock_quantity) || 0,
-  reorderLevel: Number(apiData.reorder_level) || 0,
-  expiryDate: apiData.expiry_date
-    ? new Date(apiData.expiry_date).toISOString().split("T")[0]
-    : "",
-  batchNumber: apiData.batch_number || "",
-  baseUnit: apiData.base_unit || "Unit",
-  bulkUnit: apiData.bulk_unit || "",
-  unitsPerBulk: Number(apiData.units_per_bulk) || 1,
-  status: (() => {
-    const stock = Number(apiData.stock_quantity) || 0;
-    const reorder = Number(apiData.reorder_level) || 0;
-    const expiry = apiData.expiry_date ? new Date(apiData.expiry_date) : null;
-    const now = new Date();
-
-    if (expiry && expiry < now) return "expired";
-    if (stock <= reorder) return "low_stock";
-    return (apiData.status as any) || "active";
-  })(),
-});
+import { Medicine, transformMedicine } from "./types";
+import { MedicineStatsCards } from "./medicine-stats-cards";
+import { MedicineTable } from "./medicine-table";
 
 export function MedicineDatabase() {
   const { t, storeType } = useStore();
@@ -270,71 +196,13 @@ export function MedicineDatabase() {
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Total {t('products')}</p>
-                <p className="text-2xl font-bold">{medicines.length}</p>
-              </div>
-              <div className="h-8 w-8 bg-accent/10 rounded-full flex items-center justify-center">
-                <Search className="h-4 w-4 text-accent" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">
-                  Active {t('products')}
-                </p>
-                <p className="text-2xl font-bold">
-                  {medicines.filter((m) => m.status !== "expired").length}
-                </p>
-              </div>
-              <div className="h-8 w-8 bg-primary/10 rounded-full flex items-center justify-center">
-                <Eye className="h-4 w-4 text-primary" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Low Stock</p>
-                <p className="text-2xl font-bold text-destructive">
-                  {medicines.filter((m) => m.stockQuantity <= m.reorderLevel).length}
-                </p>
-              </div>
-              <div className="h-8 w-8 bg-destructive/10 rounded-full flex items-center justify-center">
-                <AlertTriangle className="h-4 w-4 text-destructive" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Expired</p>
-                <p className="text-2xl font-bold text-destructive">
-                  {medicines.filter((m) => m.expiryDate && new Date(m.expiryDate) < new Date()).length}
-                </p>
-              </div>
-              <div className="h-8 w-8 bg-destructive/10 rounded-full flex items-center justify-center">
-                <AlertTriangle className="h-4 w-4 text-destructive" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <MedicineStatsCards
+        totalCount={medicines.length}
+        activeCount={medicines.filter((m) => m.status !== "expired").length}
+        lowStockCount={medicines.filter((m) => m.stockQuantity <= m.reorderLevel).length}
+        expiredCount={medicines.filter((m) => m.expiryDate && new Date(m.expiryDate) < new Date()).length}
+        productsLabel={t('products')}
+      />
 
       {/* Search and Filters */}
       <Card>
@@ -396,106 +264,21 @@ export function MedicineDatabase() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {isFuzzyFallback && filteredMedicines.length > 0 && (
-            <div className="bg-amber-500/10 text-amber-600 px-4 py-2 text-sm border border-amber-500/20 text-center font-medium rounded-md mb-4">
-              Did you mean? (No exact matches found. Showing closest names.)
-            </div>
-          )}
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t('product')} Name</TableHead>
-                  <TableHead>Brand</TableHead>
-                  <TableHead>{t('category')}</TableHead>
-                  <TableHead>{t('registration_number')}</TableHead>
-                  <TableHead>Size / Strength</TableHead>
-                  <TableHead>{t('stock')}</TableHead>
-                  <TableHead>Cost Price</TableHead>
-                  <TableHead>Selling Price</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredMedicines.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={10} className="h-32 text-center">
-                      <div className="flex flex-col items-center justify-center text-muted-foreground">
-                        <Package className="h-8 w-8 mb-2 opacity-50" />
-                        <p className="font-medium">No {t('products').toLowerCase()} found</p>
-                        <p className="text-sm">
-                          {medicines.length === 0
-                            ? `Add your first ${t('product').toLowerCase()} to get started`
-                            : "Try adjusting your search or filters"}
-                        </p>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredMedicines.map((medicine) => (
-                    <TableRow key={medicine.id}>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{medicine.name}</div>
-                          {isPharmacy && medicine.genericName && (
-                            <div className="text-sm text-muted-foreground">
-                              {medicine.genericName}
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>{medicine.brand}</TableCell>
-                      <TableCell>{medicine.category}</TableCell>
-                      <TableCell className="font-mono text-sm">
-                        {medicine.nafdacNumber}
-                      </TableCell>
-                      <TableCell>{medicine.strength}</TableCell>
-                      <TableCell>
-                        <div
-                          className={
-                            medicine.stockQuantity <= medicine.reorderLevel
-                              ? "text-destructive font-medium"
-                              : ""
-                          }
-                        >
-                          {medicine.stockQuantity} {medicine.baseUnit}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          Min: {medicine.reorderLevel}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {formatCurrency(medicine.costPrice)}
-                      </TableCell>
-                      <TableCell>
-                        {formatCurrency(medicine.sellingPrice)}
-                      </TableCell>
-                      <TableCell>{getStatusBadge(medicine.status)}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleViewDetails(medicine)}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => handleEditMedicine(medicine)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+          <MedicineTable
+            filteredMedicines={filteredMedicines}
+            totalCount={medicines.length}
+            isFuzzyFallback={isFuzzyFallback}
+            isPharmacy={isPharmacy}
+            formatCurrency={formatCurrency}
+            getStatusBadge={getStatusBadge}
+            onViewDetails={handleViewDetails}
+            onEditMedicine={handleEditMedicine}
+            productLabel={t('product')}
+            productsLabel={t('products')}
+            stockLabel={t('stock')}
+            categoryLabel={t('category')}
+            regNumLabel={t('registration_number')}
+          />
         </CardContent>
       </Card>
 

@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 
 import { useInitiatePaymentMutation, useSystemConfig } from "@/lib/api/hooks";
 import { toast } from "sonner";
+import { calculateDiscountPercent } from "@/lib/utils";
 
 export function SubscriptionPlans() {
   const [loading, setLoading] = useState<string | null>(null);
@@ -17,6 +18,11 @@ export function SubscriptionPlans() {
   const { data: config, isLoading: isConfigLoading } = useSystemConfig("subscription_plans");
 
   const isYearly = billingPeriod === "yearly";
+
+  // Calculate dynamic discount percentage based on the Pro tier
+  const proMonthly = config?.tiers?.pro?.price_monthly || 30000;
+  const proYearly = config?.tiers?.pro?.price_yearly || 300000;
+  const yearlyDiscountPercent = calculateDiscountPercent(proMonthly, proYearly);
 
   const handleSubscribe = async (tier: string, amount: number, planName: string) => {
     setLoading(tier);
@@ -132,12 +138,14 @@ export function SubscriptionPlans() {
             <TabsTrigger value="monthly">Monthly</TabsTrigger>
             <TabsTrigger value="yearly" className="relative">
               Yearly
-              <Badge
-                variant="secondary"
-                className="absolute -top-3 -right-3 px-1.5 py-0.5 text-[10px] bg-green-500 text-white hover:bg-green-600"
-              >
-                -20%
-              </Badge>
+              {yearlyDiscountPercent > 0 && (
+                <Badge
+                  variant="secondary"
+                  className="absolute -top-3 -right-3 px-1.5 py-0.5 text-[10px] bg-green-500 text-white hover:bg-green-600"
+                >
+                  -{yearlyDiscountPercent}%
+                </Badge>
+              )}
             </TabsTrigger>
           </TabsList>
         </Tabs>

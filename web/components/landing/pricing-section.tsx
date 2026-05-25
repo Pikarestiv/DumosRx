@@ -15,6 +15,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useSystemConfig } from "@/lib/api/hooks";
+import { calculateDiscountPercent } from "@/lib/utils";
 
 export function PricingSection() {
   const [billingPeriod, setBillingPeriod] = useState<"monthly" | "yearly">("monthly");
@@ -43,6 +44,8 @@ export function PricingSection() {
   const proTier = config?.tiers?.pro || { price_monthly: 3000, price_yearly: 30000, active: true };
   const enterpriseTier = config?.tiers?.enterprise || { price_monthly: 8000, price_yearly: 80000, active: true };
 
+  const yearlyDiscountPercent = calculateDiscountPercent(proTier.price_monthly, proTier.price_yearly);
+
   return (
     <section id="pricing" className="py-20">
       <div className="container mx-auto space-y-16">
@@ -66,12 +69,14 @@ export function PricingSection() {
                 <TabsTrigger value="monthly">Monthly</TabsTrigger>
                 <TabsTrigger value="yearly" className="relative">
                   Yearly
-                  <Badge
-                    variant="secondary"
-                    className="absolute -top-3 -right-3 px-1.5 py-0.5 text-[10px] bg-green-500 text-white hover:bg-green-600"
-                  >
-                    -20%
-                  </Badge>
+                  {yearlyDiscountPercent > 0 && (
+                    <Badge
+                      variant="secondary"
+                      className="absolute -top-3 -right-3 px-1.5 py-0.5 text-[10px] bg-green-500 text-white hover:bg-green-600"
+                    >
+                      -{yearlyDiscountPercent}%
+                    </Badge>
+                  )}
                 </TabsTrigger>
               </TabsList>
             </Tabs>

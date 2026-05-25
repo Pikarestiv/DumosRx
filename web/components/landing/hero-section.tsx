@@ -12,18 +12,17 @@ export function HeroSection({ isLoggedIn }: { isLoggedIn: boolean }) {
       </div>
 
       <div className="container px-4 mx-auto text-center">
-        <div className="inline-flex items-center rounded-full px-3 py-1 text-sm font-medium leading-5 text-primary ring-1 ring-inset ring-primary/20 bg-primary/5 mb-8">
+        {/* <div className="inline-flex items-center rounded-full px-3 py-1 text-sm font-medium leading-5 text-primary ring-1 ring-inset ring-primary/20 bg-primary/5 mb-8">
           <span>Trusted by 500+ Nigerian Pharmacies</span>
           <ArrowRight className="ml-1 h-4 w-4" />
-        </div>
+        </div> */}
         <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight mb-6 bg-clip-text text-transparent bg-linear-to-b from-foreground to-foreground/70">
           The Intelligent Way to <br className="hidden md:block" />
           Manage Your <span className="text-primary">Pharmacy</span>
         </h1>
         <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-10 leading-relaxed">
-          DumosRx is Nigeria&apos;s #1 offline-first pharmacy management
-          system. Designed for reliability even during power outages and
-          poor internet.
+          DumosRx is Nigeria&apos;s #1 offline-first pharmacy management system.
+          Designed for reliability even during power outages and poor internet.
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-20">
           {isLoggedIn ? (

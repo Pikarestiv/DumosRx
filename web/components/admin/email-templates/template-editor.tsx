@@ -143,7 +143,7 @@ export function TemplateEditor({
                   HTML / Blade Content
                 </label>
                 <span className="text-[10px] text-slate-500 font-bold">
-                  Standard Blade tags & HTML supported
+                  Standard Blade tags &amp; HTML supported
                 </span>
               </div>
               <Textarea
@@ -219,6 +219,7 @@ export function TemplateEditor({
               <iframe
                 srcDoc={getCompiledPreview()}
                 title="Sandbox Email Live Preview"
+                sandbox=""
                 className="w-full h-full border-none rounded-2xl bg-white shadow-xl max-w-[620px]"
               />
             </div>

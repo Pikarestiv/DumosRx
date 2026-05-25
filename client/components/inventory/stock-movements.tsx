@@ -131,21 +131,27 @@ export function StockMovements() {
   };
 
   const getMovementBadge = (type: StockMovement["type"]) => {
-    const variants = {
-      in: "default",
-      out: "destructive",
-      adjustment: "secondary",
-    } as const;
+    let variant: "default" | "destructive" | "secondary" = "default";
+    let label = "Stock In";
 
-    const labels = {
-      in: "Stock In",
-      out: "Stock Out",
-      adjustment: "Adjustment",
-    };
+    switch (type) {
+      case "in":
+        variant = "default";
+        label = "Stock In";
+        break;
+      case "out":
+        variant = "destructive";
+        label = "Stock Out";
+        break;
+      case "adjustment":
+        variant = "secondary";
+        label = "Adjustment";
+        break;
+    }
 
     return (
-      <Badge variant={variants[type]} className="text-xs">
-        {labels[type]}
+      <Badge variant={variant} className="text-xs">
+        {label}
       </Badge>
     );
   };

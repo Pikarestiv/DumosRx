@@ -55,12 +55,12 @@ export function usePrescriptionQueue() {
       );
 
       // 3. Group items by prescription_id
-      const itemsMap: Record<string, any[]> = {};
+      const itemsMap = new Map<string, any[]>();
       itemsData.forEach((item) => {
-        if (!itemsMap[item.prescription_id]) {
-          itemsMap[item.prescription_id] = [];
+        if (!itemsMap.has(item.prescription_id)) {
+          itemsMap.set(item.prescription_id, []);
         }
-        itemsMap[item.prescription_id].push({
+        itemsMap.get(item.prescription_id)!.push({
           id: item.id,
           medicineName: item.medicine_name,
           strength: item.strength,
@@ -84,7 +84,7 @@ export function usePrescriptionQueue() {
         dateIssued: p.issued_at,
         status: p.status,
         priority: p.priority,
-        medications: itemsMap[p.id] || [],
+        medications: itemsMap.get(p.id) || [],
         insurance: p.insurance,
         totalCost: p.total_cost,
         notes: p.notes,

@@ -88,25 +88,35 @@ export function PurchaseOrders() {
   });
 
   const getStatusBadge = (status: PurchaseOrder["status"]) => {
-    const variants = {
-      draft: "secondary",
-      sent: "outline",
-      confirmed: "default",
-      received: "default",
-      cancelled: "destructive",
-    } as const;
+    let variant: "secondary" | "outline" | "default" | "destructive" = "default";
+    let label = "Confirmed";
 
-    const labels = {
-      draft: "Draft",
-      sent: "Sent",
-      confirmed: "Confirmed",
-      received: "Received",
-      cancelled: "Cancelled",
-    };
+    switch (status) {
+      case "draft":
+        variant = "secondary";
+        label = "Draft";
+        break;
+      case "sent":
+        variant = "outline";
+        label = "Sent";
+        break;
+      case "confirmed":
+        variant = "default";
+        label = "Confirmed";
+        break;
+      case "received":
+        variant = "default";
+        label = "Received";
+        break;
+      case "cancelled":
+        variant = "destructive";
+        label = "Cancelled";
+        break;
+    }
 
     return (
-      <Badge variant={variants[status]} className="text-xs">
-        {labels[status]}
+      <Badge variant={variant} className="text-xs">
+        {label}
       </Badge>
     );
   };

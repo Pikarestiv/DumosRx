@@ -203,18 +203,31 @@ export default function AdminLayout({
                                       item.type === 'User' ? 'Users' : 
                                       item.type === 'Product' ? 'Package' : 'Search'
                                     );
-                                    const IconComp = ({
-                                      Store, Users, Package, Plus, LayoutDashboard, Server, Settings, Search,
-                                      ShieldAlert, TrendingUp, Database, Activity, ShieldCheck
-                                    } as Record<string, any>)[iconName as any] || Search;
                                     
-                                    const colors = ({
-                                      Pharmacy: 'text-indigo-500',
-                                      User: 'text-blue-500',
-                                      Product: 'text-amber-500',
-                                      Action: 'text-rose-500',
-                                      Page: 'text-emerald-500'
-                                    } as Record<string, string>)[item.type as any] || 'text-slate-500';
+                                    let IconComp = Search;
+                                    switch (iconName) {
+                                      case 'Store': IconComp = Store; break;
+                                      case 'Users': IconComp = Users; break;
+                                      case 'Package': IconComp = Package; break;
+                                      case 'Plus': IconComp = Plus; break;
+                                      case 'LayoutDashboard': IconComp = LayoutDashboard; break;
+                                      case 'Server': IconComp = Server; break;
+                                      case 'Settings': IconComp = Settings; break;
+                                      case 'ShieldAlert': IconComp = ShieldAlert; break;
+                                      case 'TrendingUp': IconComp = TrendingUp; break;
+                                      case 'Database': IconComp = Database; break;
+                                      case 'Activity': IconComp = Activity; break;
+                                      case 'ShieldCheck': IconComp = ShieldCheck; break;
+                                    }
+
+                                    let colors = 'text-slate-500';
+                                    switch (item.type) {
+                                      case 'Pharmacy': colors = 'text-indigo-500'; break;
+                                      case 'User': colors = 'text-blue-500'; break;
+                                      case 'Product': colors = 'text-amber-500'; break;
+                                      case 'Action': colors = 'text-rose-500'; break;
+                                      case 'Page': colors = 'text-emerald-500'; break;
+                                    }
 
                                     return <IconComp className={`h-4 w-4 ${colors}`} />;
                                   })()}

@@ -44,7 +44,7 @@ export function ReturnDialog({
   currencyCode,
 }: ReturnDialogProps) {
   const { user } = useAuth();
-  const [selectedItems, setSelectedItems] = useState<Record<string, { selected: boolean; quantity: number }>>({});
+  const [selectedItems, setSelectedItems] = useState<Map<string, { selected: boolean; quantity: number }>>(new Map());
   const [reason, setReason] = useState("");
   const [processing, setProcessing] = useState(false);
 
@@ -55,25 +55,32 @@ export function ReturnDialog({
   );
 
   const handleToggleItem = (itemId: string, maxQty: number) => {
-    setSelectedItems((prev) => ({
-      ...prev,
-      [itemId]: {
-        selected: !prev[itemId]?.selected,
-        quantity: prev[itemId]?.quantity || maxQty,
-      },
-    }));
+    setSelectedItems((prev) => {
+      const next = new Map(prev);
+      const current = next.get(itemId);
+      next.set(itemId, {
+        selected: !current?.selected,
+        quantity: current?.quantity || maxQty,
+      });
+      return next;
+    });
   };
 
   const handleQtyChange = (itemId: string, qty: number, maxQty: number) => {
     const validQty = Math.min(Math.max(1, qty), maxQty);
-    setSelectedItems((prev) => ({
-      ...prev,
-      [itemId]: { ...prev[itemId], quantity: validQty },
-    }));
+    setSelectedItems((prev) => {
+      const next = new Map(prev);
+      const current = next.get(itemId);
+      next.set(itemId, {
+        selected: !!current?.selected,
+        quantity: validQty,
+      });
+      return next;
+    });
   };
 
   const handleSubmit = async () => {
-    const itemsToReturn = Object.entries(selectedItems)
+    const itemsToReturn = Array.from(selectedItems.entries())
       .filter(([_, val]) => val.selected)
       .map(([id, val]) => ({
         ...saleItems.find((si: any) => si.id === id),
@@ -161,7 +168,7 @@ export function ReturnDialog({
                       <input 
                         type="checkbox"
                         className="h-4 w-4 rounded border-gray-300 text-accent focus:ring-accent"
-                        checked={selectedItems[item.id]?.selected || false}
+                        checked={selectedItems.get(item.id)?.selected || false}
                         onChange={() => handleToggleItem(item.id, item.quantity)}
                       />
                     </TableCell>
@@ -171,13 +178,13 @@ export function ReturnDialog({
                       <Input 
                         type="number" 
                         className="w-16 h-8 text-right ml-auto"
-                        value={selectedItems[item.id]?.quantity || item.quantity}
+                        value={selectedItems.get(item.id)?.quantity ?? item.quantity}
                         onChange={(e) => handleQtyChange(item.id, parseInt(e.target.value), item.quantity)}
-                        disabled={!selectedItems[item.id]?.selected}
+                        disabled={!selectedItems.get(item.id)?.selected}
                       />
                     </TableCell>
                     <TableCell className="text-right">
-                      {formatCurrency((selectedItems[item.id]?.quantity || item.quantity) * item.unit_price, currencyCode)}
+                      {formatCurrency((selectedItems.get(item.id)?.quantity ?? item.quantity) * item.unit_price, currencyCode)}
                     </TableCell>
                   </TableRow>
                 ))}

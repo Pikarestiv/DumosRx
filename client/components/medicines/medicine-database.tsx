@@ -207,23 +207,31 @@ export function MedicineDatabase() {
   );
 
   const getStatusBadge = (status: Medicine["status"]) => {
-    const variants = {
-      active: "default",
-      inactive: "secondary",
-      expired: "destructive",
-      low_stock: "outline",
-    } as const;
+    let variant: "default" | "secondary" | "destructive" | "outline" = "default";
+    let label = "Active";
 
-    const labels = {
-      active: "Active",
-      inactive: "Inactive",
-      expired: "Expired",
-      low_stock: "Low Stock",
-    };
+    switch (status) {
+      case "active":
+        variant = "default";
+        label = "Active";
+        break;
+      case "inactive":
+        variant = "secondary";
+        label = "Inactive";
+        break;
+      case "expired":
+        variant = "destructive";
+        label = "Expired";
+        break;
+      case "low_stock":
+        variant = "outline";
+        label = "Low Stock";
+        break;
+    }
 
     return (
-      <Badge variant={variants[status]} className="text-xs">
-        {labels[status]}
+      <Badge variant={variant} className="text-xs">
+        {label}
       </Badge>
     );
   };

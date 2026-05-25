@@ -37,7 +37,7 @@ jobs:
           NEXT_PUBLIC_API_URL: https://api.rx.dumostech.com/api/v1
 
       - name: 📂 Sync files
-        uses: SamKirkland/FTP-Deploy-Action@8e83cea47761159955877c3e536136d8594288b9 # v4.3.5
+        uses: SamKirkland/FTP-Deploy-Action@8e83cea8672e3fbcbb9fdafff34debf6ae4c5f65 # v4.3.5
         with:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}

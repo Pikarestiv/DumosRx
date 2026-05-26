@@ -164,7 +164,7 @@ export async function seedCustomers() {
 
 export async function seedUsers() {
   const { insert, execute } = await db();
-  await execute("DELETE FROM users WHERE id IN ('u1')");
+  await execute("DELETE FROM users WHERE id = 'u1' OR username = 'admin'");
   await insert("users", {
     id: "u1",
     name: "Default Admin",
@@ -214,7 +214,6 @@ export async function resetUsers() {
   await execute("DELETE FROM users");
   await seedUsers();
 }
-
 export async function resetAll() {
   const { execute } = await db();
   const tables = [
@@ -240,6 +239,7 @@ export async function resetAll() {
     "feedback",
     "_sync_queue",
     "_sync_state",
+    "users",
     "store_profile",
   ];
   for (const table of tables) {

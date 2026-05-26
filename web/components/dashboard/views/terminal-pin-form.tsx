@@ -73,21 +73,21 @@ export function TerminalPinForm() {
                       pin: e.target.value.replace(/\D/g, ""),
                     })
                   }
-                  placeholder="••••"
+                  placeholder="Input PIN (e.g. 1234)"
                   className="pl-10 text-center tracking-widest text-lg font-mono"
                   required
                 />
               </div>
               <p className="text-xs text-muted-foreground mt-2">
-                This PIN replaces your password when using the DumosRx
-                client applications on your authorized store devices.
+                This PIN replaces your password when using the DumosRx client
+                applications on your authorized store devices.
               </p>
             </div>
           </CardContent>
           <CardFooter>
             <Button
               type="submit"
-              variant="secondary"
+              // variant="secondary"
               className="w-full mt-4"
               disabled={pinMutation.isPending || pinData.pin.length !== 4}
             >

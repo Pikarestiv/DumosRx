@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { X, Minus, Square, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { MacCloseIcon, MacMinimizeIcon, MacMaximizeIcon } from "./icons";
 
 export function TauriTitleBar() {
   const [isTauri, setIsTauri] = useState(false);
@@ -115,52 +116,21 @@ export function TauriTitleBar() {
               className="w-3.5 h-3.5 rounded-full bg-[#ff5f57] border border-black/10 flex items-center justify-center relative cursor-default"
               aria-label="Close"
             >
-              <svg
-                viewBox="0 0 14 14"
-                className="w-3.5 h-3.5 text-[#4c0002] opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                <path
-                  stroke="currentColor"
-                  strokeWidth="1.2"
-                  strokeLinecap="round"
-                  d="M4 4l6 6M10 4L4 10"
-                />
-              </svg>
+              <MacCloseIcon className="w-3.5 h-3.5 text-[#4c0002] opacity-0 group-hover:opacity-100 transition-opacity" />
             </button>
             <button
               onClick={handleMinimize}
               className="w-3.5 h-3.5 rounded-full bg-[#ffbd2e] border border-black/10 flex items-center justify-center relative cursor-default"
               aria-label="Minimize"
             >
-              <svg
-                viewBox="0 0 14 14"
-                className="w-3.5 h-3.5 text-[#5c3e00] opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                <path
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                  d="M3 7h8"
-                />
-              </svg>
+              <MacMinimizeIcon className="w-3.5 h-3.5 text-[#5c3e00] opacity-0 group-hover:opacity-100 transition-opacity" />
             </button>
             <button
               onClick={handleMaximize}
               className="w-3.5 h-3.5 rounded-full bg-[#28c940] border border-black/10 flex items-center justify-center relative cursor-default"
               aria-label="Maximize"
             >
-              <svg
-                viewBox="0 0 14 14"
-                className="w-3.5 h-3.5 text-[#005000] opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                <path
-                  stroke="currentColor"
-                  strokeWidth="1.2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M7 4H4v3M7 10h3V7"
-                />
-              </svg>
+              <MacMaximizeIcon className="w-3.5 h-3.5 text-[#005000] opacity-0 group-hover:opacity-100 transition-opacity" />
             </button>
           </>
         ) : (

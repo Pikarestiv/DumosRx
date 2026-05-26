@@ -53,7 +53,7 @@ export default function LoginPage() {
       const result = await query<any>(
         "SELECT COUNT(*) as count FROM users WHERE is_active = 1",
       );
-      const count = result[0]?.count || 0;
+      const count = Number(result[0]?.count || 0);
       setUserCount(count);
     } catch (e) {
       console.error("Status check failed", e);

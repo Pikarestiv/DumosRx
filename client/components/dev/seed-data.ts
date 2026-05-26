@@ -249,5 +249,5 @@ export async function resetAll() {
       console.warn(`Could not delete from ${table}:`, e);
     }
   }
-  await seedUsers();
+  // Do not seed default users on full reset so onboarding/setup wizard can be tested
 }

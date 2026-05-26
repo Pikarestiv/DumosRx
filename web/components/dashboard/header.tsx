@@ -56,7 +56,7 @@ export function Header({ onSetActiveTab }: HeaderProps) {
         description: "Back to Admin Dashboard",
       });
 
-      window.location.href = "/admin/pharmacies";
+      window.location.href = "/admin/pharmacies/";
     } catch (_error) {
       toast.error("Failed to restore admin session");
     }

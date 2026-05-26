@@ -40,7 +40,7 @@ export function useOnboarding() {
         const result = await query<any>(
           "SELECT COUNT(*) as count FROM users WHERE is_active = 1",
         );
-        const count = result[0]?.count || 0;
+        const count = Number(result[0]?.count || 0);
         if (
           count > 0 &&
           searchParams.get("step") !== "backup" &&
@@ -149,7 +149,7 @@ export function useOnboarding() {
         
         // Verify we actually have users in the synced data
         const users = await query<any>("SELECT COUNT(*) as count FROM users WHERE _deleted = 0");
-        const userCount = users[0]?.count || 0;
+        const userCount = Number(users[0]?.count || 0);
 
         await new Promise((r) => setTimeout(r, 1000));
         

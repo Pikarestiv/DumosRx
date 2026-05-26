@@ -17,19 +17,25 @@ export default function AdminLoginPage() {
 
   useEffect(() => {
     const checkAuth = async () => {
-      if (!user) {
-        await fetchUser();
-      }
-      
-      // After fetch attempt, check user role
-      if (user?.role === 'super_admin') {
-        router.push("/admin");
-      } else {
-        setChecking(false);
+      try {
+        const currentUser = useAdminAuthStore.getState().user;
+        if (!currentUser) {
+          await fetchUser();
+        }
+      } catch (e) {
+        console.error("Auto-auth check failed:", e);
+      } finally {
+        const finalUser = useAdminAuthStore.getState().user;
+        if (finalUser?.role === 'super_admin') {
+          router.push("/admin");
+        } else {
+          setChecking(false);
+        }
       }
     };
     checkAuth();
-  }, [user, fetchUser, router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (checking) {
     return (

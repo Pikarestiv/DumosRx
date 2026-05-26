@@ -48,11 +48,12 @@ apiClient.interceptors.response.use(
       } catch (_refreshError) {
         if (typeof window !== "undefined") {
           const isAdminPath = window.location.pathname.startsWith('/admin');
-          const isAlreadyOnLoginPage = window.location.pathname === "/admin/login" || window.location.pathname === "/login";
+          const cleanPath = window.location.pathname.replace(/\/$/, "");
+          const isAlreadyOnLoginPage = cleanPath === "/admin/login" || cleanPath === "/login";
           const tokenKey = isAdminPath ? "drx_admin_token" : "drx_token";
           localStorage.removeItem(tokenKey);
           if (!isAlreadyOnLoginPage) {
-            window.location.href = isAdminPath ? "/admin/login" : "/login";
+            window.location.href = isAdminPath ? "/admin/login/" : "/login/";
           }
         }
       }

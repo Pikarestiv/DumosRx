@@ -47,7 +47,9 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const isLoginPage = pathname?.includes("/admin/login");
+  const isLoginPage = pathname 
+    ? pathname.includes("/admin/login") 
+    : (typeof window !== "undefined" ? window.location.pathname.includes("/admin/login") : false);
 
   const { user, fetchUser, loading: authLoading, token: _token } = useAdminAuthStore();
   const { latency } = useAdminStore();

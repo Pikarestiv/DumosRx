@@ -53,6 +53,7 @@ export async function initDatabase(): Promise<any> {
       return db;
     } catch (err) {
       console.error("Failed to init Tauri DB", err);
+      throw err;
     }
   }
 
@@ -132,7 +133,16 @@ export async function query<T = Record<string, unknown>>(
   sql: string,
   params: (string | number | null | Uint8Array)[] = [],
 ): Promise<T[]> {
-  if (!db) await initDatabase();
+  if (!db) {
+    try {
+      await initDatabase();
+    } catch (err) {
+      console.error("[DB] Query failed due to database init error:", err);
+      return [];
+    }
+  }
+
+  if (!db) return [];
 
   if (isTauri()) {
     return await db.select(sql, params);
@@ -155,7 +165,16 @@ export async function execute(
   sql: string,
   params: (string | number | null | Uint8Array)[] = [],
 ): Promise<void> {
-  if (!db) await initDatabase();
+  if (!db) {
+    try {
+      await initDatabase();
+    } catch (err) {
+      console.error("[DB] Execute failed due to database init error:", err);
+      return;
+    }
+  }
+
+  if (!db) return;
 
   if (isTauri()) {
     await db.execute(sql, params);

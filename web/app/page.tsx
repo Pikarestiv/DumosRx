@@ -40,7 +40,8 @@ export default function Home() {
                 alt="DumosRx Logo"
                 width={120}
                 height={38}
-                className="h-10 w-auto object-contain brightness-0 invert"
+                className="h-10 w-auto object-contain"
+                style={{ filter: "var(--logo-filter)", height: "auto" }}
                 priority
               />
             </div>

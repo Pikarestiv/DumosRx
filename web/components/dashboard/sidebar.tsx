@@ -42,7 +42,8 @@ export function Sidebar({ activeTab, setActiveTab, user, onLogout }: SidebarProp
             alt="DumosRx Logo"
             width={100}
             height={36}
-            className="h-12 w-auto object-contain brightness-0 invert"
+            className="h-12 w-auto object-contain"
+            style={{ filter: "var(--logo-filter)", height: "auto" }}
             priority
           />
         </Link>

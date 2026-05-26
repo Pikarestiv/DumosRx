@@ -16,6 +16,9 @@ import { isTauri } from "@/lib/db/core";
 import { APP_NAME } from "@/lib/constants";
 import { TauriTitleBar } from "@/components/tauri/tauri-title-bar";
 
+import { ErrorBoundary } from "@/components/tauri/error-boundary";
+import { GlobalErrorListener } from "@/components/tauri/global-error-listener";
+
 const montserrat = Montserrat({
   subsets: ["latin"],
   display: "swap",
@@ -65,22 +68,26 @@ export default function RootLayout({
       >
         <TauriTitleBar />
         <div className="flex-1 flex flex-col">
-          <ThemeProvider defaultTheme="system" storageKey="dumosrx-ui-theme">
-          <DatabaseProvider>
-            <StoreProvider>
-              <AuthProvider>
-                <AuthListener />
-                <QuickSetupWizard />
-                <LicenseGuard>
-                  {children}
-                </LicenseGuard>
-                <Toaster />
-                {/* Dev utility: remove in production */}
-                {process.env.NODE_ENV === 'development' && <DevSeedButton />}
-              </AuthProvider>
-            </StoreProvider>
-          </DatabaseProvider>
-        </ThemeProvider>
+          <ErrorBoundary>
+            <GlobalErrorListener>
+              <ThemeProvider defaultTheme="system" storageKey="dumosrx-ui-theme">
+                <DatabaseProvider>
+                  <StoreProvider>
+                    <AuthProvider>
+                      <AuthListener />
+                      <QuickSetupWizard />
+                      <LicenseGuard>
+                        {children}
+                      </LicenseGuard>
+                      <Toaster />
+                      {/* Dev utility: remove in production */}
+                      {process.env.NODE_ENV === 'development' && <DevSeedButton />}
+                    </AuthProvider>
+                  </StoreProvider>
+                </DatabaseProvider>
+              </ThemeProvider>
+            </GlobalErrorListener>
+          </ErrorBoundary>
         </div>
       </body>
     </html>

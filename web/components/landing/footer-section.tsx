@@ -14,7 +14,8 @@ export function FooterSection() {
                 alt="DumosRx Logo"
                 width={120}
                 height={38}
-                className="h-8 w-auto object-contain brightness-0 invert"
+                className="h-8 w-auto object-contain"
+                style={{ filter: "var(--logo-filter)", height: "auto" }}
               />
             </Link>
             <p className="text-muted-foreground max-w-xs mb-6">

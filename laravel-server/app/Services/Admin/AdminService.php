@@ -155,7 +155,7 @@ class AdminService
                     'owner' => $store->user ? $store->user->first_name . ' ' . $store->user->last_name : 'N/A',
                     'email' => $store->user ? $store->user->email : 'N/A',
                     'plan' => 'Enterprise',
-                    'status' => 'Active',
+                    'status' => $store->status ?: 'Active',
                     'stores' => 1,
                     'revenue' => '₦0',
                     'date' => $store->created_at->format('M d, Y')
@@ -236,8 +236,12 @@ class AdminService
             ->first();
 
         // Calculate Growth
-        $thisMonth = Medicine::whereMonth('created_at', now()->month)->count();
-        $lastMonth = Medicine::whereMonth('created_at', now()->subMonth()->month)->count();
+        $thisMonth = Medicine::whereYear('created_at', now()->year)
+            ->whereMonth('created_at', now()->month)
+            ->count();
+        $lastMonth = Medicine::whereYear('created_at', now()->subMonth()->year)
+            ->whereMonth('created_at', now()->subMonth()->month)
+            ->count();
         $growth = $this->calculateChange($thisMonth, $lastMonth);
 
         // Stock alerts
@@ -266,35 +270,59 @@ class AdminService
     public function getSystemHealth()
     {
         // CPU Load
-        $load = sys_getloadavg();
-        $cpuUtil = isset($load[0]) ? round($load[0] * 10, 1) : 15.4; // Fallback if restricted
+        $cpuUtil = 15.4; // Fallback if restricted
+        if (function_exists('sys_getloadavg')) {
+            try {
+                $load = @sys_getloadavg();
+                if (is_array($load) && isset($load[0])) {
+                    $cpuUtil = round($load[0] * 10, 1);
+                }
+            } catch (\Throwable $e) {
+                // Ignore
+            }
+        }
         
         // Memory
-        $free = shell_exec('free -m');
         $memory = [
             'used' => '4.2GB',
             'total' => '16GB',
             'percent' => 32
         ];
-        
-        if ($free) {
-            $free = (string)trim($free);
-            $free_arr = explode("\n", $free);
-            if (isset($free_arr[1])) {
-                $mem = preg_split('/\s+/', $free_arr[1]);
-                $totalMem = round($mem[1] / 1024, 1);
-                $usedMem = round($mem[2] / 1024, 1);
-                $memory = [
-                    'used' => $usedMem . 'GB',
-                    'total' => $totalMem . 'GB',
-                    'percent' => round(($usedMem / $totalMem) * 100, 1)
-                ];
+        if (function_exists('shell_exec')) {
+            try {
+                $free = @shell_exec('free -m');
+                if ($free) {
+                    $free = (string)trim($free);
+                    $free_arr = explode("\n", $free);
+                    if (isset($free_arr[1])) {
+                        $mem = preg_split('/\s+/', $free_arr[1]);
+                        $totalMem = round($mem[1] / 1024, 1);
+                        $usedMem = round($mem[2] / 1024, 1);
+                        $memory = [
+                            'used' => $usedMem . 'GB',
+                            'total' => $totalMem . 'GB',
+                            'percent' => round(($usedMem / $totalMem) * 100, 1)
+                        ];
+                    }
+                }
+            } catch (\Throwable $e) {
+                // Ignore
             }
         }
 
         // Disk
-        $diskTotal = disk_total_space("/");
-        $diskFree = disk_free_space("/");
+        $diskTotal = 100 * 1024 * 1024 * 1024; // 100GB fallback
+        $diskFree = 70 * 1024 * 1024 * 1024; // 70GB fallback
+        try {
+            if (function_exists('disk_total_space')) {
+                $diskTotal = @disk_total_space("/") ?: $diskTotal;
+            }
+            if (function_exists('disk_free_space')) {
+                $diskFree = @disk_free_space("/") ?: $diskFree;
+            }
+        } catch (\Throwable $e) {
+            // Ignore
+        }
         $diskUsed = $diskTotal - $diskFree;
         
         // Database & Latency
@@ -402,7 +430,7 @@ class AdminService
             });
         }
 
-        $paginator = User::with('store')->latest()->paginate(10, ['*'], 'page', $page);
+        $paginator = $query->with('store')->latest()->paginate(10, ['*'], 'page', $page);
 
         return [
             'data' => collect($paginator->items())->map(function ($user) {
@@ -461,19 +489,23 @@ class AdminService
             $store = Store::create([
                 'user_id' => $user->id,
                 'name' => $data['pharmacy_name'],
-                'license_key' => 'DRX-' . strtoupper(Str::random(12)),
+                'device_id' => 'WEB-' . strtoupper(Str::random(8)),
                 'status' => 'Active',
             ]);
+
+            // Create trial subscription
+            app(\App\Services\SubscriptionService::class)->createTrial($user);
 
             return $store;
         });
     }
 
-    public function suspendPharmacy($id)
+    public function suspendPharmacy($id, $reason = null)
     {
-        return DB::transaction(function () use ($id) {
+        return DB::transaction(function () use ($id, $reason) {
             $store = Store::findOrFail($id);
             $store->status = 'Suspended';
+            $store->suspension_reason = $reason ?: 'Your pharmacy account has been suspended for violating our terms of usage. Please contact administrative support.';
             $store->save();
 
             // Also suspend the owner account
@@ -486,7 +518,33 @@ class AdminService
             ActivityLog::create([
                 'user_id' => auth()->id(),
                 'action' => 'ACCOUNT_SUSPENSION',
-                'description' => "Suspended pharmacy account: {$store->name} ({$store->id})",
+                'description' => "Suspended pharmacy account: {$store->name} ({$store->id}). Reason: " . ($reason ?: 'N/A'),
+                'status' => 'success'
+            ]);
+
+            return true;
+        });
+    }
+
+    public function unsuspendPharmacy($id)
+    {
+        return DB::transaction(function () use ($id) {
+            $store = Store::findOrFail($id);
+            $store->status = 'Active';
+            $store->suspension_reason = null;
+            $store->save();
+
+            // Also reactivate the owner account
+            if ($store->user) {
+                $store->user->is_active = true;
+                $store->user->save();
+            }
+
+            // Log activity
+            ActivityLog::create([
+                'user_id' => auth()->id(),
+                'action' => 'ACCOUNT_UNSUSPENSION',
+                'description' => "Unsuspended pharmacy account: {$store->name} ({$store->id})",
                 'status' => 'success'
             ]);
 

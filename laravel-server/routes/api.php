@@ -57,7 +57,7 @@ Route::prefix('v1')->group(function () {
     });
 
     // Protected Routes
-    Route::middleware('auth:sanctum')->group(function () {
+    Route::middleware(['auth:sanctum', 'account_status'])->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::get('/user', [AuthController::class, 'user']);
         Route::post('/refresh', [AuthController::class, 'refresh']);
@@ -111,6 +111,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/pharmacies', [AdminController::class, 'pharmacies']);
             Route::post('/pharmacies', [AdminController::class, 'registerPharmacy']);
             Route::post('/pharmacies/{id}/suspend', [AdminController::class, 'suspendPharmacy']);
+            Route::post('/pharmacies/{id}/unsuspend', [AdminController::class, 'unsuspendPharmacy']);
             Route::get('/products', [AdminController::class, 'products']);
             Route::post('/products/standardize', [AdminController::class, 'standardize']);
             Route::get('/users', [AdminController::class, 'users']);

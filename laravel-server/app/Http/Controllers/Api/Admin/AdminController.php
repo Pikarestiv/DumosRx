@@ -7,6 +7,7 @@ use App\Models\ActivityLog;
 use App\Models\Medicine;
 use App\Services\Admin\AdminService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class AdminController extends Controller
 {
@@ -28,7 +29,7 @@ class AdminController extends Controller
             $summary = $this->adminService->getGlobalSummary();
             return response()->json($summary);
         } catch (\Exception $e) {
-            \Log::error("Admin Dashboard Error: " . $e->getMessage());
+            Log::error("Admin Dashboard Error: " . $e->getMessage());
             return response()->json(['error' => 'Failed to fetch admin summary'], 500);
         }
     }
@@ -45,7 +46,7 @@ class AdminController extends Controller
             $data = $this->adminService->getPharmacies($page, $search);
             return response()->json($data);
         } catch (\Exception $e) {
-            \Log::error("Admin Pharmacies Error: " . $e->getMessage());
+            Log::error("Admin Pharmacies Error: " . $e->getMessage());
             return response()->json(['error' => 'Failed to fetch pharmacies'], 500);
         }
     }
@@ -72,7 +73,7 @@ class AdminController extends Controller
                 'pharmacy' => $pharmacy
             ], 201);
         } catch (\Exception $e) {
-            \Log::error("Admin Register Pharmacy Error: " . $e->getMessage());
+            Log::error("Admin Register Pharmacy Error: " . $e->getMessage());
             return response()->json(['error' => 'Failed to register pharmacy'], 500);
         }
     }
@@ -107,7 +108,7 @@ class AdminController extends Controller
             $result = $this->adminService->standardizeCatalog();
             return response()->json($result);
         } catch (\Exception $e) {
-            \Log::error("Admin Standardize Error: " . $e->getMessage());
+            Log::error("Admin Standardize Error: " . $e->getMessage());
             return response()->json(['error' => 'Failed to standardize catalog'], 500);
         }
     }
@@ -122,7 +123,7 @@ class AdminController extends Controller
             $data = $this->adminService->getSystemHealth();
             return response()->json($data);
         } catch (\Exception $e) {
-            \Log::error("Admin Health Error: " . $e->getMessage());
+            Log::error("Admin Health Error: " . $e->getMessage());
             return response()->json(['error' => 'Failed to fetch system health'], 500);
         }
     }
@@ -139,7 +140,7 @@ class AdminController extends Controller
             $data = $this->adminService->getGlobalUsers($page, $search);
             return response()->json($data);
         } catch (\Exception $e) {
-            \Log::error("Admin Users Error: " . $e->getMessage());
+            Log::error("Admin Users Error: " . $e->getMessage());
             return response()->json(['error' => 'Failed to fetch users'], 500);
         }
     }
@@ -157,7 +158,7 @@ class AdminController extends Controller
             $results = $this->adminService->globalSearch($query);
             return response()->json($results);
         } catch (\Exception $e) {
-            \Log::error("Admin Search Error: " . $e->getMessage());
+            Log::error("Admin Search Error: " . $e->getMessage());
             return response()->json(['error' => 'Search failed'], 500);
         }
     }
@@ -167,12 +168,31 @@ class AdminController extends Controller
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
+        $validated = $request->validate([
+            'reason' => 'nullable|string|max:1000',
+        ]);
+
         try {
-            $this->adminService->suspendPharmacy($id);
+            $this->adminService->suspendPharmacy($id, $validated['reason'] ?? null);
             return response()->json(['message' => 'Pharmacy suspended successfully']);
         } catch (\Exception $e) {
-            \Log::error("Admin Suspend Error: " . $e->getMessage());
+            Log::error("Admin Suspend Error: " . $e->getMessage());
             return response()->json(['error' => 'Failed to suspend pharmacy'], 500);
+        }
+    }
+
+    public function unsuspendPharmacy(Request $request, $id)
+    {
+        if ($request->user()->role !== 'super_admin') {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        try {
+            $this->adminService->unsuspendPharmacy($id);
+            return response()->json(['message' => 'Pharmacy re-activated successfully']);
+        } catch (\Exception $e) {
+            Log::error("Admin Unsuspend Error: " . $e->getMessage());
+            return response()->json(['error' => 'Failed to unsuspend pharmacy'], 500);
         }
     }
 
@@ -186,7 +206,7 @@ class AdminController extends Controller
             $this->adminService->deactivateUser($id);
             return response()->json(['message' => 'User deactivated successfully']);
         } catch (\Exception $e) {
-            \Log::error("Admin Deactivate User Error: " . $e->getMessage());
+            Log::error("Admin Deactivate User Error: " . $e->getMessage());
             return response()->json(['error' => 'Failed to deactivate user'], 500);
         }
     }
@@ -201,7 +221,7 @@ class AdminController extends Controller
             $this->adminService->deleteUser($id);
             return response()->json(['message' => 'User and associated data permanently deleted']);
         } catch (\Exception $e) {
-            \Log::error("Admin Delete User Error: " . $e->getMessage());
+            Log::error("Admin Delete User Error: " . $e->getMessage());
             return response()->json(['error' => 'Failed to delete user'], 500);
         }
     }
@@ -219,7 +239,7 @@ class AdminController extends Controller
                 'temp_password' => $result['temp_password']
             ]);
         } catch (\Exception $e) {
-            \Log::error("Admin Force Reset Error: " . $e->getMessage());
+            Log::error("Admin Force Reset Error: " . $e->getMessage());
             return response()->json(['error' => 'Failed to force password reset'], 500);
         }
     }
@@ -239,7 +259,7 @@ class AdminController extends Controller
             $this->adminService->notifyUser($id, $validated['message'], $validated['title']);
             return response()->json(['message' => 'Notification sent successfully']);
         } catch (\Exception $e) {
-            \Log::error("Admin Notify Error: " . $e->getMessage());
+            Log::error("Admin Notify Error: " . $e->getMessage());
             return response()->json(['error' => 'Failed to send notification'], 500);
         }
     }
@@ -263,7 +283,7 @@ class AdminController extends Controller
                 'count' => $count
             ]);
         } catch (\Exception $e) {
-            \Log::error("Admin Bulk Notify Error: " . $e->getMessage());
+            Log::error("Admin Bulk Notify Error: " . $e->getMessage());
             return response()->json(['error' => 'Failed to send bulk notifications'], 500);
         }
     }
@@ -294,7 +314,7 @@ class AdminController extends Controller
 
             return $response;
         } catch (\Exception $e) {
-            \Log::error("Admin Impersonate Error: " . $e->getMessage());
+            Log::error("Admin Impersonate Error: " . $e->getMessage());
             return response()->json(['error' => 'Impersonation failed: ' . $e->getMessage()], 500);
         }
     }

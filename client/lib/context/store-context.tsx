@@ -29,6 +29,9 @@ interface StoreProfile {
   auto_sync_enabled?: number;
   auto_sync_interval?: number;
   subscription_tier?: "free" | "local" | "pro" | "enterprise";
+  status?: "Active" | "Suspended";
+  suspension_reason?: string;
+  show_retail_suggestions?: number;
   updated_at?: string;
 }
 
@@ -101,6 +104,39 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }
     }
   }, [theme]);
+
+  // Trigger sync on mount and when network goes online
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const triggerSync = async () => {
+      const token = localStorage.getItem("auth_token");
+      if (navigator.onLine && token) {
+        console.log("[StoreContext] Network online or app mounted: triggering sync");
+        try {
+          const { sync } = await import("@/lib/db/sync-engine");
+          const result = await sync();
+          if (result.success) {
+            console.log("[StoreContext] Sync successful, refetching local store profile");
+            await refetch();
+          }
+        } catch (e) {
+          console.error("[StoreContext] Auto-sync failed", e);
+        }
+      }
+    };
+
+    triggerSync();
+
+    const handleOnline = () => {
+      triggerSync();
+    };
+
+    window.addEventListener("online", handleOnline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+    };
+  }, [refetch]);
 
   const updateStoreProfile = async (data: Partial<StoreProfile>) => {
     if (!storeProfile) {

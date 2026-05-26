@@ -6,6 +6,7 @@ import {
   Ban,
   Mail,
   Store as StoreIcon,
+  CheckCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +34,7 @@ interface PharmacyTableProps {
   handleViewBilling: (pharmacy: any) => void;
   setSelectedPharmacy: (pharmacy: any) => void;
   setIsSuspendDialogOpen: (open: boolean) => void;
+  handleUnsuspend: (pharmacy: any) => void;
   router: any;
 }
 
@@ -43,6 +45,7 @@ export function PharmacyTable({
   handleViewBilling,
   setSelectedPharmacy,
   setIsSuspendDialogOpen,
+  handleUnsuspend,
   router,
 }: PharmacyTableProps) {
   return (
@@ -174,16 +177,26 @@ export function PharmacyTable({
                     System Logs
                   </DropdownMenuItem>
                   <DropdownMenuSeparator className="my-2 bg-slate-100 dark:bg-slate-800" />
-                  <DropdownMenuItem 
-                    className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors"
-                    onClick={() => {
-                      setSelectedPharmacy(pharmacy);
-                      setIsSuspendDialogOpen(true);
-                    }}
-                  >
-                    <Ban className="h-4 w-4" />
-                    Suspend Account
-                  </DropdownMenuItem>
+                  {pharmacy.status === "Suspended" ? (
+                    <DropdownMenuItem 
+                      className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors"
+                      onClick={() => handleUnsuspend(pharmacy)}
+                    >
+                      <CheckCircle className="h-4 w-4" />
+                      Unsuspend Account
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem 
+                      className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors"
+                      onClick={() => {
+                        setSelectedPharmacy(pharmacy);
+                        setIsSuspendDialogOpen(true);
+                      }}
+                    >
+                      <Ban className="h-4 w-4" />
+                      Suspend Account
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             </TableCell>

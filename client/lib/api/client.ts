@@ -111,6 +111,23 @@ class ApiClient {
         if (response.status === 401) {
           this.clearToken();
         }
+        
+        if (response.status === 403 && errorData.message === "ACCOUNT_SUSPENDED") {
+          try {
+            const { execute } = await import("../db/core");
+            await execute(
+              "UPDATE store_profile SET status = 'Suspended', suspension_reason = ?",
+              [errorData.reason || "Your pharmacy account has been suspended for violating our terms of usage. Please contact administrative support."]
+            );
+            if (typeof window !== "undefined") {
+              window.location.reload();
+              return new Promise(() => {}); // prevent further execution
+            }
+          } catch (e) {
+            console.error("Failed to store suspension status locally:", e);
+          }
+        }
+
         const errorMessage =
           errorData.message || `HTTP error! status: ${response.status}`;
         const serverError = errorData.error
@@ -308,6 +325,11 @@ class ApiClient {
   // Broadcasts
   async getBroadcasts() {
     return this.request<any>("/broadcasts");
+  }
+
+  // System Configurations
+  async getSystemConfig(key: string) {
+    return this.request<any>(`/system-configs/${key}`);
   }
 }
 

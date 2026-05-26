@@ -24,7 +24,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Card, CardContent } from "@/components/ui/card";
-import { useAdminPharmacies, useSuspendPharmacyMutation, useImpersonatePharmacyMutation } from "@/lib/api/admin-hooks";
+import { useAdminPharmacies, useSuspendPharmacyMutation, useUnsuspendPharmacyMutation, useImpersonatePharmacyMutation } from "@/lib/api/admin-hooks";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useDebounce } from "@/hooks/use-debounce";
 import { PharmacyTable } from "@/components/admin/pharmacies/pharmacy-table";
@@ -81,20 +81,39 @@ export default function PharmaciesManagement() {
     a.click();
   };
 
-  const handleSuspend = async () => {
+  const unsuspendMutation = useUnsuspendPharmacyMutation();
+
+  const handleSuspend = async (reason: string) => {
     if (!selectedPharmacy) return;
     
-    suspendMutation.mutate(selectedPharmacy.id, {
+    suspendMutation.mutate({ id: selectedPharmacy.id, reason }, {
       onSuccess: () => {
         toast.success("Account Suspended", {
           description: `${selectedPharmacy.name} has been suspended successfully.`,
         });
         setIsSuspendDialogOpen(false);
         setSelectedPharmacy(null);
+        refetch();
       },
       onError: (err: any) => {
         toast.error("Action Failed", {
           description: err.message || "Failed to suspend pharmacy.",
+        });
+      }
+    });
+  };
+
+  const handleUnsuspend = async (pharmacy: any) => {
+    unsuspendMutation.mutate(pharmacy.id, {
+      onSuccess: () => {
+        toast.success("Account Re-activated", {
+          description: `${pharmacy.name} has been re-activated successfully.`,
+        });
+        refetch();
+      },
+      onError: (err: any) => {
+        toast.error("Action Failed", {
+          description: err.message || "Failed to unsuspend pharmacy.",
         });
       }
     });
@@ -247,6 +266,7 @@ export default function PharmaciesManagement() {
               handleViewBilling={handleViewBilling}
               setSelectedPharmacy={setSelectedPharmacy}
               setIsSuspendDialogOpen={setIsSuspendDialogOpen}
+              handleUnsuspend={handleUnsuspend}
               router={router}
             />
             )}

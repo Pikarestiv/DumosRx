@@ -30,7 +30,7 @@ export function AddMedicineDialog({
   onAddMedicine,
   editingMedicine,
 }: AddMedicineDialogProps) {
-  const { t, storeType } = useStore();
+  const { t, storeType, storeProfile } = useStore();
   const [formData, setFormData] = useState<Medicine>({
     id: "",
     name: "",
@@ -111,7 +111,44 @@ export function AddMedicineDialog({
 
   const isPharmacy = storeType === "pharmacy";
 
-  const suggestions = isPharmacy ? FORM_SUGGESTIONS.pharmacy : FORM_SUGGESTIONS.retail;
+  const [suggestions, setSuggestions] = useState<any>(isPharmacy ? FORM_SUGGESTIONS.pharmacy : FORM_SUGGESTIONS.retail);
+
+  useEffect(() => {
+    let baseSuggestions = FORM_SUGGESTIONS;
+    try {
+      const cached = localStorage.getItem("dumos_suggestions");
+      if (cached) {
+        baseSuggestions = JSON.parse(cached);
+      }
+    } catch (e) {
+      console.error("Failed to parse cached suggestions", e);
+    }
+
+    const pharmList = baseSuggestions.pharmacy || FORM_SUGGESTIONS.pharmacy;
+    const retailList = baseSuggestions.retail || FORM_SUGGESTIONS.retail;
+
+    if (isPharmacy) {
+      const showRetail = storeProfile?.show_retail_suggestions === 1;
+      if (showRetail) {
+        const mergeAndUnique = (arr1: string[] = [], arr2: string[] = []) => {
+          return Array.from(new Set([...arr1, ...arr2]));
+        };
+        setSuggestions({
+          names: mergeAndUnique(pharmList.names, retailList.names),
+          generics: pharmList.generics || [],
+          categories: mergeAndUnique(pharmList.categories, retailList.categories),
+          manufacturers: mergeAndUnique(pharmList.manufacturers, retailList.manufacturers),
+          strengths: pharmList.strengths || [],
+          dosageForms: pharmList.dosageForms || [],
+        });
+      } else {
+        setSuggestions(pharmList);
+      }
+    } else {
+      setSuggestions(retailList);
+    }
+  }, [isPharmacy, storeProfile?.show_retail_suggestions]);
+
   const commonSuggestions = FORM_SUGGESTIONS.common;
 
   const handleSubmit = (e: React.FormEvent) => {

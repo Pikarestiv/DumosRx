@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Card,
   CardContent,
@@ -34,6 +35,7 @@ export function QuickSetupWizard() {
   const [storeType, setStoreType] = useState<StoreType>("pharmacy");
   const [storeName, setStoreName] = useState("");
   const [location, setLocation] = useState("");
+  const [showRetailSuggestions, setShowRetailSuggestions] = useState(false);
   const [open, setOpen] = useState(true);
 
   const handleComplete = () => {
@@ -46,6 +48,7 @@ export function QuickSetupWizard() {
       store_type: storeType,
       name: storeName,
       address: location,
+      show_retail_suggestions: showRetailSuggestions ? 1 : 0,
       is_initialized: 1,
       updated_at: new Date().toISOString(),
     });
@@ -139,6 +142,21 @@ export function QuickSetupWizard() {
                   onChange={(e) => setLocation(e.target.value)}
                 />
               </div>
+              {storeType === "pharmacy" && (
+                <div className="flex items-center justify-between rounded-lg border p-4 mt-2">
+                  <div className="space-y-0.5">
+                    <Label className="text-sm font-semibold">Include Retail Suggestions</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Show retail items (e.g. provisions, cosmetics) alongside medicine suggestions
+                    </p>
+                  </div>
+                  <Switch
+                    id="retail-suggestions-onboarding"
+                    checked={showRetailSuggestions}
+                    onCheckedChange={setShowRetailSuggestions}
+                  />
+                </div>
+              )}
             </div>
           )}
         </div>

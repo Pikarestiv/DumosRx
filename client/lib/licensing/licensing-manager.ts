@@ -21,6 +21,17 @@ export async function checkLicenseStatus(): Promise<LicenseInfo> {
     return { isValid: true, tier: "free", expiryDate: null, isClockTampered: false };
   }
 
+  // 0. Check for account suspension
+  if (profile.status === "Suspended") {
+    return {
+      isValid: false,
+      tier: profile.subscription_tier as any,
+      expiryDate: null,
+      isClockTampered: false,
+      message: profile.suspension_reason || "Your pharmacy account has been suspended for violating our terms of usage. Please contact administrative support."
+    };
+  }
+
   const now = new Date();
   const nowIso = now.toISOString();
   

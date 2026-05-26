@@ -52,7 +52,23 @@ export const useStandardizeProductsMutation = () => {
 export const useSuspendPharmacyMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => webApiClient.request<any>(`admin/pharmacies/${id}/suspend`, { method: "POST" }),
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => 
+      webApiClient.request<any>(`admin/pharmacies/${id}/suspend`, { 
+        method: "POST", 
+        body: { reason } 
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-pharmacies"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
+    },
+  });
+};
+
+export const useUnsuspendPharmacyMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => 
+      webApiClient.request<any>(`admin/pharmacies/${id}/unsuspend`, { method: "POST" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-pharmacies"] });
       queryClient.invalidateQueries({ queryKey: ["admin-summary"] });

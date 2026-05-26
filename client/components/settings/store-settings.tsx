@@ -42,6 +42,8 @@ interface StoreSettingsProps {
   showContact: boolean;
   setShowContact: (val: boolean) => void;
   handleSaveReceiptSettings: () => void;
+  showRetailSuggestions?: boolean;
+  setShowRetailSuggestions?: (val: boolean) => void;
 }
 
 export function StoreSettings({
@@ -70,6 +72,8 @@ export function StoreSettings({
   showContact,
   setShowContact,
   handleSaveReceiptSettings,
+  showRetailSuggestions = false,
+  setShowRetailSuggestions,
 }: StoreSettingsProps) {
   return (
     <div className="space-y-6">
@@ -160,15 +164,30 @@ export function StoreSettings({
             </div>
           </div>
           {storeType === "pharmacy" && (
-            <div className="grid gap-2">
-              <Label htmlFor="pcn">PCN License Number</Label>
-              <Input
-                id="pcn"
-                placeholder="PCN/..."
-                value={localPcn}
-                onChange={(e) => setLocalPcn(e.target.value)}
-              />
-            </div>
+            <>
+              <div className="grid gap-2">
+                <Label htmlFor="pcn">PCN License Number</Label>
+                <Input
+                  id="pcn"
+                  placeholder="PCN/..."
+                  value={localPcn}
+                  onChange={(e) => setLocalPcn(e.target.value)}
+                />
+              </div>
+              <div className="flex items-center justify-between rounded-lg border p-4 mt-4">
+                <div className="space-y-0.5">
+                  <Label className="text-base">Include Retail Items in Suggestions</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Show retail items (provisions, cosmetics, etc.) in product suggestions
+                  </p>
+                </div>
+                <Switch
+                  id="retail-suggestions"
+                  checked={showRetailSuggestions}
+                  onCheckedChange={setShowRetailSuggestions}
+                />
+              </div>
+            </>
           )}
         </CardContent>
         <CardFooter className="border-t px-6 py-4">

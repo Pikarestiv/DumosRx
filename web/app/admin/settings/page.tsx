@@ -4,7 +4,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SystemHealthTab } from "@/components/admin/views/system-health-tab";
 import { EmailTemplatesTab } from "@/components/admin/views/email-templates-tab";
 import { SubscriptionConfigTab } from "@/components/admin/views/subscription-config-tab";
-import { Settings, Activity, Mail, CreditCard } from "lucide-react";
+import { SuggestionsConfigTab } from "@/components/admin/views/suggestions-config-tab";
+import { Settings, Activity, Mail, CreditCard, Sparkles } from "lucide-react";
 
 export default function PlatformSettingsPage() {
   return (
@@ -31,6 +32,10 @@ export default function PlatformSettingsPage() {
             <CreditCard className="h-4 w-4" />
             Billing & Plans
           </TabsTrigger>
+          <TabsTrigger value="suggestions" className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4" />
+            Dynamic Suggestions
+          </TabsTrigger>
           <TabsTrigger value="templates" className="flex items-center gap-2">
             <Mail className="h-4 w-4" />
             Email Templates
@@ -43,6 +48,10 @@ export default function PlatformSettingsPage() {
 
         <TabsContent value="billing" className="focus-visible:outline-none focus-visible:ring-0">
           <SubscriptionConfigTab />
+        </TabsContent>
+
+        <TabsContent value="suggestions" className="focus-visible:outline-none focus-visible:ring-0">
+          <SuggestionsConfigTab />
         </TabsContent>
 
         <TabsContent value="templates" className="focus-visible:outline-none focus-visible:ring-0">

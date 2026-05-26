@@ -230,6 +230,21 @@ export async function sync(): Promise<SyncResult> {
       console.log(`Sync completed: Pushed ${pushResult.pushed}, Pulled ${pullResult.pulled}`);
     }
 
+    try {
+      const suggestionsConfig = await apiClient.getSystemConfig("global_suggestions").catch(() => null);
+      if (suggestionsConfig && suggestionsConfig.success) {
+        const value = suggestionsConfig.data;
+        if (typeof value === "string") {
+          JSON.parse(value); // Validate JSON
+          localStorage.setItem("dumos_suggestions", value);
+        } else if (value && typeof value === "object") {
+          localStorage.setItem("dumos_suggestions", JSON.stringify(value));
+        }
+      }
+    } catch (err) {
+      console.error("Failed to sync autocomplete suggestions:", err);
+    }
+
     localStorage.setItem("last_sync_time", new Date().toISOString());
 
     return {

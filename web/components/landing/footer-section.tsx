@@ -1,8 +1,25 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { Separator } from "@/components/ui/separator";
 
 export function FooterSection() {
+  const [socialLinks, setSocialLinks] = useState<any>(null);
+
+  useEffect(() => {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1"}/system-configs/social_links`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          const val = typeof data.data === "string" ? JSON.parse(data.data) : data.data;
+          setSocialLinks(val);
+        }
+      })
+      .catch((err) => console.error("Failed to load social links", err));
+  }, []);
+
   return (
     <footer className="bg-background border-t py-12">
       <div className="container px-4 mx-auto">
@@ -80,7 +97,15 @@ export function FooterSection() {
                   href="/privacy"
                   className="text-sm text-muted-foreground hover:text-primary"
                 >
-                  Privacy
+                  Privacy Policy
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/terms"
+                  className="text-sm text-muted-foreground hover:text-primary"
+                >
+                  Terms & Conditions
                 </Link>
               </li>
             </ul>
@@ -93,12 +118,37 @@ export function FooterSection() {
             reserved.
           </p>
           <div className="flex gap-6">
-            <Link href="#" className="hover:text-primary">
-              Twitter
-            </Link>
-            <Link href="#" className="hover:text-primary">
-              LinkedIn
-            </Link>
+            {socialLinks && socialLinks.active_links?.twitter !== false && socialLinks.twitter && (
+              <a href={socialLinks.twitter} target="_blank" rel="noopener noreferrer" className="hover:text-primary capitalize">
+                Twitter
+              </a>
+            )}
+            {socialLinks && socialLinks.active_links?.linkedin !== false && socialLinks.linkedin && (
+              <a href={socialLinks.linkedin} target="_blank" rel="noopener noreferrer" className="hover:text-primary capitalize">
+                LinkedIn
+              </a>
+            )}
+            {socialLinks && socialLinks.active_links?.facebook !== false && socialLinks.facebook && (
+              <a href={socialLinks.facebook} target="_blank" rel="noopener noreferrer" className="hover:text-primary capitalize">
+                Facebook
+              </a>
+            )}
+            {socialLinks && socialLinks.active_links?.github !== false && socialLinks.github && (
+              <a href={socialLinks.github} target="_blank" rel="noopener noreferrer" className="hover:text-primary capitalize">
+                GitHub
+              </a>
+            )}
+            {socialLinks && socialLinks.active_links?.instagram !== false && socialLinks.instagram && (
+              <a href={socialLinks.instagram} target="_blank" rel="noopener noreferrer" className="hover:text-primary capitalize">
+                Instagram
+              </a>
+            )}
+            {!socialLinks && (
+              <>
+                <Link href="#" className="hover:text-primary">Twitter</Link>
+                <Link href="#" className="hover:text-primary">LinkedIn</Link>
+              </>
+            )}
           </div>
         </div>
       </div>

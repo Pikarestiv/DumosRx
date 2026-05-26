@@ -79,6 +79,8 @@ export default function SettingsPage() {
     setAutoSyncEnabled,
     autoSyncInterval,
     setAutoSyncInterval,
+    showRetailSuggestions,
+    setShowRetailSuggestions,
     handleSaveProfile,
     handleSaveRegional,
     handleSaveReceiptSettings,
@@ -240,6 +242,8 @@ export default function SettingsPage() {
                   showContact={showContact}
                   setShowContact={setShowContact}
                   handleSaveReceiptSettings={handleSaveReceiptSettings}
+                  showRetailSuggestions={showRetailSuggestions}
+                  setShowRetailSuggestions={setShowRetailSuggestions}
                 />
               </TabsContent>
             )}

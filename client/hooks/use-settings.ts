@@ -66,6 +66,7 @@ export function useSettings() {
   const [localLogo, setLocalLogo] = useState(storeProfile?.logo_url || "");
   const [autoSyncEnabled, setAutoSyncEnabled] = useState(storeProfile?.auto_sync_enabled === 1);
   const [autoSyncInterval, setAutoSyncInterval] = useState(storeProfile?.auto_sync_interval?.toString() || "15");
+  const [showRetailSuggestions, setShowRetailSuggestions] = useState(storeProfile?.show_retail_suggestions === 1);
 
   // Responsive Effect
   useEffect(() => {
@@ -94,6 +95,7 @@ export function useSettings() {
       setExpiryDays(storeProfile.expiry_warning_days?.toString() || "90");
       setLocalLogo(storeProfile.logo_url || "");
       setAutoSyncEnabled(storeProfile.auto_sync_enabled === 1);
+      setShowRetailSuggestions(storeProfile.show_retail_suggestions === 1);
       
       let interval = storeProfile.auto_sync_interval || 15;
       if (interval < minimumSyncIntervalMinutes) {
@@ -162,6 +164,7 @@ export function useSettings() {
       phone: localPhone,
       email: localEmail,
       pcn_license: localPcn,
+      show_retail_suggestions: showRetailSuggestions ? 1 : 0,
       updated_at: new Date().toISOString(),
     });
     toast.success("Store profile updated");
@@ -410,6 +413,8 @@ export function useSettings() {
     setAutoSyncEnabled,
     autoSyncInterval,
     setAutoSyncInterval,
+    showRetailSuggestions,
+    setShowRetailSuggestions,
     handleSaveProfile,
     handleSaveRegional,
     handleSaveReceiptSettings,

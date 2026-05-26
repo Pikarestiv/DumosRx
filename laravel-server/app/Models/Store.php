@@ -37,6 +37,9 @@ class Store extends Model
         'last_sync_at',
         '_version',
         '_synced_at',
+        'status',
+        'suspension_reason',
+        'show_retail_suggestions',
     ];
 
     protected static function boot()

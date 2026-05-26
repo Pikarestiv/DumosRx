@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import { Save, RefreshCw, CreditCard, Loader2 } from "lucide-react";
+import { Save, RefreshCw, CreditCard, Loader2, Globe } from "lucide-react";
 import { toast } from "sonner";
 import { useSystemConfig, useUpdateSystemConfigMutation } from "@/lib/api/hooks";
 import { useEffect } from "react";
@@ -14,6 +14,7 @@ import { useEffect } from "react";
 export function SubscriptionConfigTab() {
 
   const { data: serverConfig, isLoading, isError } = useSystemConfig("subscription_plans");
+  const { data: socialConfig, isLoading: isSocialLoading } = useSystemConfig("social_links");
   const updateMutation = useUpdateSystemConfigMutation();
 
   const [config, setConfig] = useState({
@@ -24,6 +25,21 @@ export function SubscriptionConfigTab() {
       local: { price_one_time: 50000, active: true },
       pro: { price_monthly: 3000, price_yearly: 30000, active: true },
       enterprise: { price_monthly: 8000, price_yearly: 80000, active: true },
+    }
+  });
+
+  const [socialLinks, setSocialLinks] = useState({
+    twitter: "",
+    facebook: "",
+    linkedin: "",
+    github: "",
+    instagram: "",
+    active_links: {
+      twitter: true,
+      facebook: true,
+      linkedin: true,
+      github: true,
+      instagram: true,
     }
   });
 
@@ -40,6 +56,25 @@ export function SubscriptionConfigTab() {
     }
   }, [serverConfig]);
 
+  useEffect(() => {
+    if (socialConfig) {
+      setSocialLinks({
+        twitter: socialConfig.twitter || "",
+        facebook: socialConfig.facebook || "",
+        linkedin: socialConfig.linkedin || "",
+        github: socialConfig.github || "",
+        instagram: socialConfig.instagram || "",
+        active_links: {
+          twitter: socialConfig.active_links?.twitter ?? true,
+          facebook: socialConfig.active_links?.facebook ?? true,
+          linkedin: socialConfig.active_links?.linkedin ?? true,
+          github: socialConfig.active_links?.github ?? true,
+          instagram: socialConfig.active_links?.instagram ?? true,
+        }
+      });
+    }
+  }, [socialConfig]);
+
   const handleSave = async () => {
     try {
       await updateMutation.mutateAsync({ key: "subscription_plans", value: config });
@@ -49,7 +84,16 @@ export function SubscriptionConfigTab() {
     }
   };
 
-  if (isLoading) {
+  const handleSaveSocial = async () => {
+    try {
+      await updateMutation.mutateAsync({ key: "social_links", value: socialLinks });
+      toast.success("Social links saved successfully!");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to save social links");
+    }
+  };
+
+  if (isLoading || isSocialLoading) {
     return (
       <div className="flex items-center justify-center p-12">
         <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
@@ -67,7 +111,7 @@ export function SubscriptionConfigTab() {
 
   return (
     <div className="space-y-6">
-      <Card className="bg-white dark:bg-slate-900">
+      <Card className="bg-white dark:bg-slate-900 border-accent/20">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <CreditCard className="h-5 w-5 text-indigo-500" />
@@ -193,6 +237,55 @@ export function SubscriptionConfigTab() {
           <Button onClick={handleSave} disabled={updateMutation.isPending} className="bg-indigo-600 hover:bg-indigo-700">
             {updateMutation.isPending ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
             Save Configuration
+          </Button>
+        </CardFooter>
+      </Card>
+
+      <Card className="bg-white dark:bg-slate-900 border-accent/20">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Globe className="h-5 w-5 text-indigo-500" />
+            Social Media Configurations
+          </CardTitle>
+          <CardDescription>
+            Update URLs and toggle visibility of social media accounts shown in the website footer.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {["twitter", "facebook", "linkedin", "github", "instagram"].map((platform) => (
+            <div key={platform} className="flex flex-col md:flex-row md:items-center gap-4 p-4 border rounded-xl bg-slate-50 dark:bg-slate-900/50">
+              <div className="flex-1 space-y-1">
+                <Label className="capitalize font-bold text-sm">{platform} URL</Label>
+                <Input
+                  type="text"
+                  placeholder={`e.g. https://${platform}.com/dumosrx`}
+                  value={(socialLinks as any)[platform]}
+                  onChange={(e) => setSocialLinks({ ...socialLinks, [platform]: e.target.value })}
+                  disabled={!(socialLinks.active_links as any)[platform]}
+                  className="bg-white dark:bg-slate-900 border-accent/20"
+                />
+              </div>
+              <div className="flex items-center gap-2 shrink-0 md:pt-6">
+                <Label htmlFor={`toggle-${platform}`} className="text-xs text-muted-foreground">Active</Label>
+                <Switch
+                  id={`toggle-${platform}`}
+                  checked={(socialLinks.active_links as any)[platform]}
+                  onCheckedChange={(c) => setSocialLinks({
+                    ...socialLinks,
+                    active_links: {
+                      ...socialLinks.active_links,
+                      [platform]: c
+                    }
+                  })}
+                />
+              </div>
+            </div>
+          ))}
+        </CardContent>
+        <CardFooter className="bg-slate-50 dark:bg-slate-800/50 p-4 border-t flex justify-end">
+          <Button onClick={handleSaveSocial} disabled={updateMutation.isPending} className="bg-indigo-600 hover:bg-indigo-700">
+            {updateMutation.isPending ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+            Save Social Links
           </Button>
         </CardFooter>
       </Card>

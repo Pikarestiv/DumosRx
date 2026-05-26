@@ -273,7 +273,10 @@ CREATE TABLE IF NOT EXISTS store_profile (
   _synced_at TEXT,
   _deleted INTEGER DEFAULT 0,
   auto_sync_enabled INTEGER DEFAULT 0,
-  auto_sync_interval INTEGER DEFAULT 15
+  auto_sync_interval INTEGER DEFAULT 15,
+  status TEXT DEFAULT 'Active',
+  suspension_reason TEXT,
+  show_retail_suggestions INTEGER DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS expenses (

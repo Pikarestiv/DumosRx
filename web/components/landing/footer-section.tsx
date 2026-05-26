@@ -15,7 +15,7 @@ export function FooterSection() {
                 width={120}
                 height={38}
                 className="h-8 w-auto object-contain"
-                style={{ filter: "var(--logo-filter)", height: "auto" }}
+                style={{ filter: "var(--logo-filter)" }}
               />
             </Link>
             <p className="text-muted-foreground max-w-xs mb-6">

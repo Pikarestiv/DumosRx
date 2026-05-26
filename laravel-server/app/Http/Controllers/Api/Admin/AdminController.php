@@ -8,6 +8,7 @@ use App\Models\Medicine;
 use App\Services\Admin\AdminService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
 
 class AdminController extends Controller
 {
@@ -327,7 +328,7 @@ class AdminController extends Controller
 
         // Log the end of impersonation
         ActivityLog::create([
-            'user_id' => auth()->id(),
+            'user_id' => Auth::id(),
             'action' => 'ADMIN_IMPERSONATION_END',
             'description' => "Admin ended impersonation session",
             'status' => 'success'

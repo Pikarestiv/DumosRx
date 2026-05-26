@@ -13,6 +13,8 @@ use Illuminate\Support\Str;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\AdminNotification;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
 
 class AdminService
 {
@@ -516,7 +518,7 @@ class AdminService
 
             // Log activity
             ActivityLog::create([
-                'user_id' => auth()->id(),
+                'user_id' => Auth::id(),
                 'action' => 'ACCOUNT_SUSPENSION',
                 'description' => "Suspended pharmacy account: {$store->name} ({$store->id}). Reason: " . ($reason ?: 'N/A'),
                 'status' => 'success'
@@ -542,7 +544,7 @@ class AdminService
 
             // Log activity
             ActivityLog::create([
-                'user_id' => auth()->id(),
+                'user_id' => Auth::id(),
                 'action' => 'ACCOUNT_UNSUSPENSION',
                 'description' => "Unsuspended pharmacy account: {$store->name} ({$store->id})",
                 'status' => 'success'
@@ -559,7 +561,7 @@ class AdminService
         $user->save();
 
         ActivityLog::create([
-            'user_id' => auth()->id(),
+            'user_id' => Auth::id(),
             'action' => 'USER_DEACTIVATION',
             'description' => "Deactivated user account: {$user->email} ({$user->id})",
             'status' => 'success'
@@ -583,7 +585,7 @@ class AdminService
             $user->delete();
 
             ActivityLog::create([
-                'user_id' => auth()->id(),
+                'user_id' => Auth::id(),
                 'action' => 'USER_DELETION',
                 'description' => "Permanently deleted user account: {$userEmail} ({$id}) and all associated data.",
                 'status' => 'success'
@@ -609,13 +611,13 @@ class AdminService
                 "DumosRx: Password Reset"
             ));
         } catch (\Exception $e) {
-            \Log::error("Email Sending Failed for password reset: " . $e->getMessage());
+            Log::error("Email Sending Failed for password reset: " . $e->getMessage());
         }
 
         $this->notifyUser($id, "Your password has been reset by an administrator. Your temporary password is: {$tempPassword}. Please change it immediately.", "Security Alert");
 
         ActivityLog::create([
-            'user_id' => auth()->id(),
+            'user_id' => Auth::id(),
             'action' => 'PASSWORD_RESET_FORCE',
             'description' => "Forced password reset for user: {$user->email} ({$user->id}). Temporary password: {$tempPassword}",
             'status' => 'success'
@@ -641,11 +643,11 @@ class AdminService
         try {
             Mail::to($user->email)->send(new AdminNotification($message, $title));
         } catch (\Exception $e) {
-            \Log::error("Email Sending Failed for notifyUser: " . $e->getMessage());
+            Log::error("Email Sending Failed for notifyUser: " . $e->getMessage());
         }
 
         ActivityLog::create([
-            'user_id' => auth()->id(),
+            'user_id' => Auth::id(),
             'action' => 'ADMIN_NOTIFICATION',
             'description' => "Sent notification to user {$user->email}: {$message}",
             'status' => 'success'
@@ -687,14 +689,14 @@ class AdminService
             try {
                 Mail::to($user->email)->send(new AdminNotification($message, $title));
             } catch (\Exception $e) {
-                \Log::error("Email Sending Failed for bulkNotify user {$user->id}: " . $e->getMessage());
+                Log::error("Email Sending Failed for bulkNotify user {$user->id}: " . $e->getMessage());
             }
 
             $count++;
         }
 
         ActivityLog::create([
-            'user_id' => auth()->id(),
+            'user_id' => Auth::id(),
             'action' => 'BULK_ADMIN_NOTIFICATION',
             'description' => "Sent bulk notification '{$title}' to {$count} users.",
             'status' => 'success'
@@ -716,7 +718,7 @@ class AdminService
         $token = $user->createToken('Impersonation Token')->plainTextToken;
 
         ActivityLog::create([
-            'user_id' => auth()->id(),
+            'user_id' => Auth::id(),
             'action' => 'ADMIN_IMPERSONATION',
             'description' => "Admin impersonating pharmacy owner: {$user->email} ({$store->name})",
             'status' => 'success'

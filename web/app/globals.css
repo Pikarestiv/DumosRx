@@ -176,3 +176,14 @@ button:hover svg,
 [data-slot="button"]:hover .hover-spin-plus {
   transform: rotate(90deg) scale(1.1) !important;
 }
+
+/* Prevent hover rotation on header and titlebar icons */
+header button:hover svg,
+header [data-slot="button"]:hover svg,
+header .group:hover svg,
+.tauri-titlebar button:hover svg,
+.tauri-titlebar [data-slot="button"]:hover svg,
+.tauri-titlebar .group:hover svg {
+  transform: none !important;
+  transition: none !important;
+}

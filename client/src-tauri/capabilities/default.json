@@ -15,6 +15,7 @@
     "core:window:allow-close",
     "updater:default",
     "process:allow-restart",
-    "shell:default"
+    "shell:default",
+    "core:window:allow-start-dragging"
   ]
 }

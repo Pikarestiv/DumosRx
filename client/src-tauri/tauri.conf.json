@@ -45,9 +45,7 @@
   "plugins": {
     "os": {},
     "shell": {
-      "allowlist": {
-        "all": true
-      }
+      "open": true
     },
     "process": {},
     "updater": {

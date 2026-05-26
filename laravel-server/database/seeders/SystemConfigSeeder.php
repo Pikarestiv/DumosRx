@@ -77,5 +77,6 @@ class SystemConfigSeeder extends Seeder
         ];
 
         SystemConfig::setVal('subscription_plans', $subscriptionPlans, 'Configuration for the 3-tier DumosRx pricing model including features and limits');
+        SystemConfig::setVal('global_suggestions', [], 'Global autocomplete suggestions configuration');
     }
 }

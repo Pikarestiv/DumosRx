@@ -46,18 +46,18 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
+  const isLoginPage = pathname?.includes("/admin/login");
+
   const { user, fetchUser, loading: authLoading, token: _token } = useAdminAuthStore();
   const { latency } = useAdminStore();
-  const { data: summary, isLoading: summaryLoading } = useAdminSummary();
+  const { data: summary, isLoading: summaryLoading } = useAdminSummary({ enabled: !isLoginPage });
   const router = useRouter();
-  const pathname = usePathname();
   const [checking, setChecking] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any>(null);
   const [_isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
-
-  const isLoginPage = pathname?.includes("/admin/login");
   
   useEffect(() => {
     const delayDebounceFn = setTimeout(async () => {

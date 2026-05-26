@@ -48,9 +48,12 @@ apiClient.interceptors.response.use(
       } catch (_refreshError) {
         if (typeof window !== "undefined") {
           const isAdminPath = window.location.pathname.startsWith('/admin');
+          const isAlreadyOnLoginPage = window.location.pathname === "/admin/login" || window.location.pathname === "/login";
           const tokenKey = isAdminPath ? "drx_admin_token" : "drx_token";
           localStorage.removeItem(tokenKey);
-          window.location.href = isAdminPath ? "/admin/login" : "/login";
+          if (!isAlreadyOnLoginPage) {
+            window.location.href = isAdminPath ? "/admin/login" : "/login";
+          }
         }
       }
     }

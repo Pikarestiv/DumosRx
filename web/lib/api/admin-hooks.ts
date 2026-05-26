@@ -1,11 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { webApiClient } from "./client";
 
-export const useAdminSummary = () => {
+export const useAdminSummary = (options?: { enabled?: boolean }) => {
   return useQuery({
     queryKey: ["admin-summary"],
     queryFn: () => webApiClient.request<any>("admin/summary"),
     staleTime: 5 * 60 * 1000, // 5 minutes
+    ...options,
   });
 };
 

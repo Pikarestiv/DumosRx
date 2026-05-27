@@ -43,6 +43,11 @@ class RolesAndPermissionsSeeder extends Seeder
                 'description' => 'Store owner or high-level manager',
                 'permissions' => array_keys($permissions) // Gets all
             ],
+            'pharmacy_owner' => [
+                'name' => 'Pharmacy Owner',
+                'description' => 'Store owner with full permissions',
+                'permissions' => array_keys($permissions) // Gets all
+            ],
             'manager' => [
                 'name' => 'Store Manager',
                 'description' => 'Store manager with high access',

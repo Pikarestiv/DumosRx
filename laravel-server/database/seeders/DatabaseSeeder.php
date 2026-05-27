@@ -15,6 +15,8 @@ class DatabaseSeeder extends Seeder
         // 1. Create Roles
         $roles = [
             'super_admin' => 'Super Administrator',
+            'admin' => 'Store Admin',
+            'pharmacy_owner' => 'Pharmacy Owner',
             'manager' => 'Pharmacy Manager',
             'pharmacist' => 'Pharmacist',
             'sales_staff' => 'Sales Staff',

@@ -92,11 +92,21 @@ class User extends Authenticatable
     public function hasRole($role)
     {
         if (is_string($role)) {
-            return ($this->userRole !== null && $this->userRole->slug === $role) || $this->role === $role;
+            $actualRole = $this->role === 'pharmacy_owner' ? 'admin' : $this->role;
+            return ($this->userRole !== null && ($this->userRole->slug === $role || ($this->userRole->slug === 'pharmacy_owner' && $role === 'admin')))
+                || $this->role === $role 
+                || $actualRole === $role;
         }
 
         if (is_array($role)) {
-            return ($this->userRole !== null && in_array($this->userRole->slug, $role)) || in_array($this->role, $role);
+            $hasRoleMatch = false;
+            foreach ($role as $r) {
+                if ($this->hasRole($r)) {
+                    $hasRoleMatch = true;
+                    break;
+                }
+            }
+            return $hasRoleMatch;
         }
 
         return false;
@@ -111,12 +121,21 @@ class User extends Authenticatable
 
         // Check through role relation
         if ($this->userRole) {
-            return $this->userRole->permissions()->where('slug', $permissionSlug)->exists();
+            if ($this->userRole->permissions()->where('slug', $permissionSlug)->exists()) {
+                return true;
+            }
+            if ($this->userRole->slug === 'pharmacy_owner') {
+                $adminRole = Role::where('slug', 'admin')->first();
+                if ($adminRole && $adminRole->permissions()->where('slug', $permissionSlug)->exists()) {
+                    return true;
+                }
+            }
         }
 
         // Fallback to role string column
         if ($this->role) {
-            $role = Role::where('slug', $this->role)->first();
+            $roleSlug = $this->role === 'pharmacy_owner' ? 'admin' : $this->role;
+            $role = Role::where('slug', $roleSlug)->first();
             if ($role) {
                 return $role->permissions()->where('slug', $permissionSlug)->exists();
             }

@@ -316,7 +316,7 @@ class AuthController extends Controller
         $user->deletion_reason = $request->reason;
         $user->save();
 
-        // 1. Notify Super Admins
+        // 1. Notify Super Admins & Requesting User
         $superAdmins = User::where('role', 'super_admin')->get();
         foreach ($superAdmins as $superAdmin) {
             \App\Models\Notification::create([
@@ -355,7 +355,7 @@ class AuthController extends Controller
         $user->deletion_reason = null;
         $user->save();
 
-        // 1. Notify Super Admins
+        // 1. Notify Super Admins & Requesting User
         $superAdmins = User::where('role', 'super_admin')->get();
         foreach ($superAdmins as $superAdmin) {
             \App\Models\Notification::create([

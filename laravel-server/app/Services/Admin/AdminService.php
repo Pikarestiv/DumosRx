@@ -78,9 +78,15 @@ class AdminService
         ];
 
         // 4. Security Alerts
-        $securityAlerts = ActivityLog::whereIn('action', ['LOGIN_FAILURE', 'UNAUTHORIZED_ACCESS', 'DATA_EXPORT'])
+        $securityAlerts = ActivityLog::whereIn('action', [
+            'LOGIN_FAILURE', 
+            'UNAUTHORIZED_ACCESS', 
+            'DATA_EXPORT', 
+            'ACCOUNT_DELETION_REQUESTED', 
+            'ACCOUNT_DELETION_CANCELLED'
+        ])
             ->latest()
-            ->limit(3)
+            ->limit(5)
             ->get()
             ->map(function ($log) {
                 return [
@@ -469,7 +475,9 @@ class AdminService
         $map = [
             'LOGIN_FAILURE' => 'Multiple 401s',
             'UNAUTHORIZED_ACCESS' => 'Unauthorized Access Attempt',
-            'DATA_EXPORT' => 'Large Export Initiated'
+            'DATA_EXPORT' => 'Large Export Initiated',
+            'ACCOUNT_DELETION_REQUESTED' => 'Account Deletion Requested',
+            'ACCOUNT_DELETION_CANCELLED' => 'Account Deletion Cancelled'
         ];
         return $map[$action] ?? 'Security Alert';
     }

@@ -140,13 +140,13 @@ export function DevSeedButton() {
 
   return (
     <>
-      <div className="fixed bottom-4 right-4 z-50 flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <Button
           variant="outline"
           size="sm"
           onClick={handleSync}
           disabled={syncing}
-          className="shadow-lg border-2 border-primary bg-background cursor-pointer"
+          className="border border-primary bg-background cursor-pointer"
         >
           <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? "animate-spin" : ""}`} />
           {syncing ? "Syncing..." : "Sync Now"}
@@ -156,7 +156,7 @@ export function DevSeedButton() {
           variant="destructive"
           size="sm"
           onClick={() => setIsResetOpen(true)}
-          className="shadow-lg border-2 border-destructive bg-background hover:bg-destructive/10 text-destructive cursor-pointer"
+          className="border border-destructive bg-background hover:bg-destructive/10 text-destructive cursor-pointer"
         >
           Reset DB
         </Button>
@@ -165,7 +165,7 @@ export function DevSeedButton() {
           variant="outline"
           size="sm"
           onClick={() => setIsOpen(true)}
-          className="shadow-lg border-2 border-primary bg-background cursor-pointer"
+          className="border border-primary bg-background cursor-pointer"
         >
           <Database className="h-4 w-4 mr-2" />
           Seed DB

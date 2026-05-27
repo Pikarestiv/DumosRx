@@ -15,6 +15,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { StoreType } from "@/lib/context/store-context";
+import { DevSeedButton } from "@/components/dev/seed-button";
 
 interface StoreSettingsProps {
   storeType: StoreType;
@@ -364,6 +365,21 @@ export function StoreSettings({
           </Button>
         </CardFooter>
       </Card>
+
+      {/* Developer Tools */}
+      {process.env.NODE_ENV === "development" && (
+        <Card className="border-primary/20 bg-primary/5">
+          <CardHeader>
+            <CardTitle>Developer Tools</CardTitle>
+            <CardDescription>
+              Local database management utilities. These are only visible in development mode.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <DevSeedButton />
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

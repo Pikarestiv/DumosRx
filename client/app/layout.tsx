@@ -11,7 +11,6 @@ import { StoreProvider } from "@/lib/context/store-context";
 import { AuthProvider } from "@/lib/context/auth-context";
 import { QuickSetupWizard } from "@/components/setup/quick-setup-wizard";
 import { LicenseGuard } from "@/components/auth/license-guard";
-import { DevSeedButton } from "@/components/dev/seed-button";
 import { APP_NAME } from "@/lib/constants";
 import { TauriTitleBar } from "@/components/tauri/tauri-title-bar";
 
@@ -76,10 +75,6 @@ export default function RootLayout({
                       <QuickSetupWizard />
                       <LicenseGuard>{children}</LicenseGuard>
                       <Toaster />
-                      {/* Dev utility: remove in production */}
-                      {process.env.NODE_ENV === "development" && (
-                        <DevSeedButton />
-                      )}
                     </AuthProvider>
                   </StoreProvider>
                 </DatabaseProvider>

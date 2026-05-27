@@ -121,8 +121,8 @@ export default function LoginPage() {
       </div>
 
       <div
-        className="absolute z-20"
-        style={{ top: "calc(var(--tauri-top, 0px) + 2rem)", right: "2rem" }}
+        className="absolute z-20 right-6"
+        style={{ top: "calc(var(--tauri-top, 0px) + 1.5rem)" }}
       >
         <ThemeToggle />
       </div>
@@ -291,7 +291,9 @@ export default function LoginPage() {
 
       <ConfirmDialog
         open={!!pendingUpdate}
-        onOpenChange={(open) => { if (!open) setPendingUpdate(null); }}
+        onOpenChange={(open) => {
+          if (!open) setPendingUpdate(null);
+        }}
         title="Update Available"
         description={`Version ${pendingUpdate?.version} is ready to install. The app will restart after installation.`}
         confirmLabel="Install & Restart"

@@ -25,8 +25,8 @@ export default function HomePage() {
       </div>
 
       <div
-        className="absolute z-30"
-        style={{ top: "calc(var(--tauri-top, 0px) + 2rem)", right: "1.5rem" }}
+        className="absolute z-30 right-6"
+        style={{ top: "calc(var(--tauri-top, 0px) + 1.5rem)" }}
       >
         <ThemeToggle />
       </div>

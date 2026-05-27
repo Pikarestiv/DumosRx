@@ -24,7 +24,8 @@ export default function SetupPage() {
     setStep,
     handleRegister,
     handleCloudRestore,
-    goBack, isCloudLinked,
+    goBack,
+    isCloudLinked,
     existingStores,
     searchParams,
   } = useOnboarding();
@@ -49,8 +50,8 @@ export default function SetupPage() {
       </div>
 
       <div
-        className="absolute z-20 flex items-center gap-4"
-        style={{ top: "calc(var(--tauri-top, 0px) + 2rem)", right: "2rem" }}
+        className="absolute z-20 flex items-center gap-4 right-14 md:right-6"
+        style={{ top: "calc(var(--tauri-top, 0px) + 1.5rem)" }}
       >
         <ThemeToggle />
       </div>
@@ -88,21 +89,22 @@ export default function SetupPage() {
         )}
 
         <AnimatePresence mode="wait">
-          {onboardingStep === "welcome" && (
-            <WelcomeStep onSetStep={setStep} />
-          )}
+          {onboardingStep === "welcome" && <WelcomeStep onSetStep={setStep} />}
 
           {onboardingStep === "register" && (
-            <RegisterStep 
-              onRegister={handleRegister} 
-              isLoading={isLoading} 
-              isCloudLinked={isCloudLinked} 
+            <RegisterStep
+              onRegister={handleRegister}
+              isLoading={isLoading}
+              isCloudLinked={isCloudLinked}
               existingStores={existingStores}
             />
           )}
 
           {onboardingStep === "cloud" && (
-            <CloudStep onCloudRestore={handleCloudRestore} isLoading={isLoading} />
+            <CloudStep
+              onCloudRestore={handleCloudRestore}
+              isLoading={isLoading}
+            />
           )}
 
           {onboardingStep === "backup" && (

@@ -27,7 +27,7 @@ export function WelcomeStep({ onSetStep }: WelcomeStepProps) {
       exit={{ opacity: 0, scale: 0.95 }}
     >
       <Card className="border-border shadow-2xl bg-card/60 backdrop-blur-2xl">
-        <CardHeader className="text-center pb-2">
+        <CardHeader className="text-center pb-2 mb-">
           <div className="flex justify-center mb-6">
             <Image
               src="/logo.png"
@@ -43,7 +43,8 @@ export function WelcomeStep({ onSetStep }: WelcomeStepProps) {
           </CardTitle>
           <CardDescription>How would you like to get started?</CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-3 pt-6 pb-8">
+
+        <CardContent className="flex flex-col space-y-3 pt-2 md:pt-6 pb-2 md:pb-8">
           <Button
             variant="outline"
             className="h-auto p-4 flex flex-col items-start text-left gap-1 hover:border-primary/50 hover:bg-primary/5 group"
@@ -53,7 +54,7 @@ export function WelcomeStep({ onSetStep }: WelcomeStepProps) {
               <UserPlus className="h-4 w-4 text-primary" />
               Create New Store
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground text-wrap">
               Setup a fresh local database for a new business.
             </p>
           </Button>
@@ -67,7 +68,7 @@ export function WelcomeStep({ onSetStep }: WelcomeStepProps) {
               <CloudDownload className="h-4 w-4 text-primary" />
               Sync from Cloud
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground text-wrap">
               Existing account? Pull your data from the DumosRx cloud.
             </p>
           </Button>
@@ -81,7 +82,7 @@ export function WelcomeStep({ onSetStep }: WelcomeStepProps) {
               <FileUp className="h-4 w-4 text-primary" />
               Restore from Backup
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground text-wrap">
               Upload a .drx manual backup file to restore your database.
             </p>
           </Button>

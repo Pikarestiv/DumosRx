@@ -68,7 +68,7 @@ export function DashboardSidebar({
       {/* Mobile sidebar overlay */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black bg-opacity-50 lg:hidden"
+          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm lg:hidden transition-all duration-300"
           onClick={onClose}
         />
       )}

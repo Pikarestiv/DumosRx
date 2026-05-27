@@ -42,6 +42,8 @@ class SyncController extends Controller
 
         DB::beginTransaction();
 
+        $hasSyncedAtCache = [];
+
         try {
             foreach ($changes as $change) {
                 $modelClass = $this->getModelForTable($change['table_name']);
@@ -137,7 +139,15 @@ class SyncController extends Controller
                         }
                         
                         $model->id = $recordId;
-                        $model->_synced_at = $now;
+                        
+                        $table = $model->getTable();
+                        if (!isset($hasSyncedAtCache[$table])) {
+                            $hasSyncedAtCache[$table] = \Illuminate\Support\Facades\Schema::hasColumn($table, '_synced_at');
+                        }
+                        if ($hasSyncedAtCache[$table]) {
+                            $model->_synced_at = $now;
+                        }
+                        
                         $model->save();
                     }
                 } elseif ($change['operation'] === 'UPDATE') {
@@ -158,7 +168,14 @@ class SyncController extends Controller
                             }
                         }
 
-                        $model->_synced_at = $now;
+                        $table = $model->getTable();
+                        if (!isset($hasSyncedAtCache[$table])) {
+                            $hasSyncedAtCache[$table] = \Illuminate\Support\Facades\Schema::hasColumn($table, '_synced_at');
+                        }
+                        if ($hasSyncedAtCache[$table]) {
+                            $model->_synced_at = $now;
+                        }
+
                         $model->save();
                     }
                 } elseif ($change['operation'] === 'DELETE') {

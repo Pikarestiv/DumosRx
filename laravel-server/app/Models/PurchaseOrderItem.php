@@ -12,7 +12,7 @@ class PurchaseOrderItem extends Model
 
     protected $fillable = [
         'purchase_order_id', 'medicine_id', 'quantity_ordered', 'quantity_received',
-        'unit_cost', 'total_cost', 'batch_number', 'expiry_date', 'status'
+        'unit_cost', 'total_cost', 'batch_number', 'expiry_date', 'status', '_synced_at'
     ];
 
     protected $casts = [

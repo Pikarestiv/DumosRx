@@ -116,7 +116,7 @@ class AuthController extends Controller
 
         // Dispatch security email if device is unrecognized
         if ($isNewDevice) {
-            \Illuminate\Support\Facades\Mail::to($user->email)->send(
+        Mail::to($user->email)->send(
                 new \App\Mail\NewDeviceLoginEmail($user, $userAgent, $ipAddress, now()->toDateTimeString())
             );
         }
@@ -339,6 +339,45 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Account deletion requested successfully.',
+        ]);
+    }
+
+    public function cancelDeletion(Request $request)
+    {
+        $user = $request->user();
+        if (!$user->deletion_requested_at) {
+            return response()->json([
+                'message' => 'No active account deletion request found.'
+            ], 400);
+        }
+
+        $user->deletion_requested_at = null;
+        $user->deletion_reason = null;
+        $user->save();
+
+        // 1. Notify Super Admins
+        $superAdmins = User::where('role', 'super_admin')->get();
+        foreach ($superAdmins as $superAdmin) {
+            \App\Models\Notification::create([
+                'user_id' => $superAdmin->id,
+                'title' => 'Account Deletion Cancelled',
+                'message' => "User {$user->name} ({$user->email}) has cancelled their account deletion request.",
+                'type' => 'info',
+                'is_read' => false,
+            ]);
+        }
+
+        // 2. Log Activity
+        \App\Models\ActivityLog::create([
+            'user_id' => $user->id,
+            'action' => 'ACCOUNT_DELETION_CANCELLED',
+            'description' => 'Cancelled account deletion request.',
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+        ]);
+
+        return response()->json([
+            'message' => 'Account deletion request cancelled successfully.',
         ]);
     }
 }

@@ -79,6 +79,18 @@ class RolesAndPermissionsSeeder extends Seeder
             // Sync permissions
             $permissionIds = Permission::whereIn('slug', $data['permissions'])->pluck('id');
             $role->permissions()->sync($permissionIds);
+
+            // Correct existing users who have this role string but NULL role_id
+            \App\Models\User::where('role', $slug)
+                ->whereNull('role_id')
+                ->update(['role_id' => $role->id]);
+
+            // Also map legacy pharmacy_owner users to the admin role ID
+            if ($slug === 'admin') {
+                \App\Models\User::where('role', 'pharmacy_owner')
+                    ->whereNull('role_id')
+                    ->update(['role_id' => $role->id]);
+            }
         }
     }
 }

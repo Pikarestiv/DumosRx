@@ -26,6 +26,9 @@ class AuthController extends Controller
             'pharmacy_name' => 'nullable|string|max:255',
         ]);
 
+        $roleSlug = $request->filled('pharmacy_name') ? 'admin' : ($request->role ?? 'pharmacist');
+        $roleObj = \App\Models\Role::where('slug', $roleSlug)->first();
+
         $user = User::create([
             'first_name' => $request->first_name,
             'last_name' => $request->last_name,
@@ -33,7 +36,8 @@ class AuthController extends Controller
             'username' => $request->username,
             'pin' => $request->pin,
             'password' => Hash::make($request->password),
-            'role' => $request->filled('pharmacy_name') ? 'admin' : ($request->role ?? 'pharmacist'),
+            'role' => $roleSlug,
+            'role_id' => $roleObj ? $roleObj->id : null,
             'is_active' => true,
         ]);
 

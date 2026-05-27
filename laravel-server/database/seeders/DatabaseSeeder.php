@@ -12,34 +12,21 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        // 1. Create Roles
-        $roles = [
-            'super_admin' => 'Super Administrator',
-            'admin' => 'Store Admin',
-            'pharmacy_owner' => 'Pharmacy Owner',
-            'manager' => 'Pharmacy Manager',
-            'pharmacist' => 'Pharmacist',
-            'sales_staff' => 'Sales Staff',
-            'auditor' => 'Auditor'
-        ];
-
-        foreach ($roles as $key => $name) {
-            Role::firstOrCreate(
-                ['slug' => $key],
-                ['name' => $name, 'description' => $name]
-            );
-        }
+        // 1. Seed Roles and Permissions
+        $this->call(RolesAndPermissionsSeeder::class);
 
         // 2. Create Super Admin User
         $adminEmail = 'admin@rx.dumostech.com';
         
         if (!User::where('email', $adminEmail)->exists()) {
+            $superAdminRole = Role::where('slug', 'super_admin')->first();
             User::create([
                 'email' => $adminEmail,
                 'password' => Hash::make('Admin123#'),
                 'first_name' => 'Super',
                 'last_name' => 'Admin',
                 'role' => 'super_admin',
+                'role_id' => $superAdminRole ? $superAdminRole->id : null,
                 'is_active' => true,
                 'phone' => '08000000000'
             ]);
@@ -48,24 +35,28 @@ class DatabaseSeeder extends Seeder
         // 3. Create Sample Staff (Optional - commented out or active)
         $pharmacistEmail = 'pharmacist@rx.dumostech.com';
         if (!User::where('email', $pharmacistEmail)->exists()) {
+            $pharmacistRole = Role::where('slug', 'pharmacist')->first();
             User::create([
                 'email' => $pharmacistEmail,
                 'password' => Hash::make('Pharmacist123#'),
                 'first_name' => 'Chinedu',
                 'last_name' => 'Okafor',
                 'role' => 'pharmacist',
+                'role_id' => $pharmacistRole ? $pharmacistRole->id : null,
                 'is_active' => true
             ]);
         }
 
         $salesEmail = 'sales@rx.dumostech.com';
         if (!User::where('email', $salesEmail)->exists()) {
+            $salesRole = Role::where('slug', 'sales_staff')->first();
             User::create([
                 'email' => $salesEmail,
                 'password' => Hash::make('Sales123#'),
                 'first_name' => 'Ngozi',
                 'last_name' => 'Adeyemi',
                 'role' => 'sales_staff',
+                'role_id' => $salesRole ? $salesRole->id : null,
                 'is_active' => true
             ]);
         }

@@ -7,6 +7,7 @@ use App\Models\Store;
 use App\Models\Medicine;
 use App\Models\Sale;
 use App\Models\ActivityLog;
+use App\Models\Role;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -486,13 +487,15 @@ class AdminService
     {
         return DB::transaction(function () use ($data) {
             // Create the owner user
+            $roleObj = Role::where('slug', 'admin')->first();
             $user = User::create([
                 'first_name' => $data['first_name'],
                 'last_name' => $data['last_name'],
                 'email' => $data['email'],
                 'phone' => $data['phone'],
                 'password' => Hash::make($data['password']),
-                'role' => 'pharmacy_owner',
+                'role' => 'admin',
+                'role_id' => $roleObj ? $roleObj->id : null,
             ]);
 
             // Create the store

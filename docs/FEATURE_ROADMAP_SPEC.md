@@ -4,6 +4,14 @@ This document tracks the proposed features for the DumosRx system, grouped by st
 
 ---
 
+## 🛡️ Architectural Rules & Safety Constraints
+These core principles govern the implementation of all new features to ensure system stability, data integrity, and patient safety.
+
+- **Navigation Principle:** "All features must exist in exactly ONE primary entry point (no duplicates across tabs)."
+- **AI System Rule:** AI is NOT allowed to directly mutate state. All actions must go through a generated "intent → confirmation → execution" pipeline.
+- **WhatsApp Integration Architecture Rule:** WhatsApp must operate on read-only queries (safe) or queued write actions (confirmed in app or admin approval).
+- **Internal Observability Requirement:** All systems must log user actions, system failures, sync events, and AI decisions. This is critical for debugging offline-first sync issues and AI auditing.
+
 ## 🌟 Tier 1: The Immediate "Must-Haves" (High Impact, Low Risk)
 These features should be implemented immediately as they directly impact usability and business growth without introducing massive technical risk.
 
@@ -55,6 +63,7 @@ These features solve real problems but carry significant risks (liability or UX 
 - [ ] **8. Substitution Recommendation Engine**
   - **Description:** Suggest same-molecule or drug-class alternatives when an item is out of stock.
   - **Risk: HIGH MEDICAL LIABILITY.** Suggesting the wrong substitute is dangerous.
+  - **Safety Constraint Layer:** Must include a confidence score, a mandatory pharmacist confirmation step, and drug classification validation (ATC or equivalent system).
   - **Mitigation:** Must explicitly state "Pharmacist verification required" and rely on a licensed, highly accurate medical database (not a generalized AI hallucination).
 
 - [ ] **9. Voice Input System**
@@ -67,8 +76,9 @@ These features solve real problems but carry significant risks (liability or UX 
 ## 🛑 Tier 4: The "Scope Expanders" (Future Roadmap)
 Massive features that change the core business model. Should be tabled until the core ERP/POS is completely dominant.
 
-- [ ] **10. E-commerce Integration Layer**
+- [ ] **10. E-commerce Integration Layer (DumosRx Commerce API Layer)**
   - **Description:** Pharmacy-to-online-store conversion system. "Enable Online Store" toggle.
+  - **Clarification:** The local Inventory is the source of truth. The Commerce layer is a read/write projection. Orders generate sales events internally. Treat the online store as another branch.
   - **Complexity:** Turns the product into a Shopify competitor. Requires public web hosting, SEO, payment gateways, and delivery logistics.
   - **Alternative:** Start with a simple "WhatsApp Catalog Export".
 

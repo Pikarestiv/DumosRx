@@ -263,8 +263,9 @@ class AuthController extends Controller
             Mail::to($user->email)->send(new \App\Mail\PasswordResetEmail($user, $resetUrl));
         } catch (\Exception $e) {
             Log::error("Failed to send password reset email: " . $e->getMessage());
-            // In a production environment, you might want to return an error, 
-            // but for now we'll just log it.
+            return response()->json([
+                'message' => 'Unable to send password reset email. Please try again later.'
+            ], 500);
         }
 
         return response()->json(['message' => 'If your email is in our system, you will receive a reset link shortly.']);

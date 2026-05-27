@@ -6,13 +6,15 @@ use App\Http\Controllers\Controller;
 use App\Models\Notification;
 use App\Models\ActivityLog;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class NotificationController extends Controller
 {
     public function index(Request $request)
     {
         try {
-            $userId = $request->user()->id;
+            $user = $request->user();
+            $userId = $user->id;
 
             // Fetch actual notifications from the new table
             $systemNotifications = Notification::where('user_id', $userId)
@@ -31,39 +33,78 @@ class NotificationController extends Controller
                     ];
                 });
 
-            // Fetch recent activity logs
-            $activityLogs = ActivityLog::where('user_id', $userId)
-                ->latest()
-                ->limit(10)
-                ->get()
-                ->map(function ($log) {
-                    return [
-                        'id' => $log->id,
-                        'title' => $log->action,
-                        'description' => $log->description,
-                        'time' => $log->created_at->diffForHumans(),
-                        'type' => $this->inferType($log->action),
-                        'isRead' => true,
-                        'category' => 'log'
-                    ];
-                });
+            // Fetch activity logs
+            if ($user->role === 'super_admin') {
+                // Super admins see global system security alerts from all users
+                $activityLogs = ActivityLog::whereIn('action', [
+                    'LOGIN_FAILURE',
+                    'UNAUTHORIZED_ACCESS',
+                    'DATA_EXPORT',
+                    'ACCOUNT_DELETION_REQUESTED',
+                    'ACCOUNT_DELETION_CANCELLED'
+                ])
+                    ->latest()
+                    ->limit(10)
+                    ->get()
+                    ->map(function ($log) {
+                        return [
+                            'id' => $log->id,
+                            'title' => $this->getGlobalAlertTitle($log->action),
+                            'description' => $log->description,
+                            'time' => $log->created_at->diffForHumans(),
+                            'type' => $this->inferType($log->action),
+                            'isRead' => true,
+                            'category' => 'log'
+                        ];
+                    });
+            } else {
+                // Regular users only see their own activities
+                $activityLogs = ActivityLog::where('user_id', $userId)
+                    ->latest()
+                    ->limit(10)
+                    ->get()
+                    ->map(function ($log) {
+                        return [
+                            'id' => $log->id,
+                            'title' => $log->action,
+                            'description' => $log->description,
+                            'time' => $log->created_at->diffForHumans(),
+                            'type' => $this->inferType($log->action),
+                            'isRead' => true,
+                            'category' => 'log'
+                        ];
+                    });
+            }
 
             // Merge and sort
             $merged = $systemNotifications->concat($activityLogs)->values();
 
             return response()->json($merged);
         } catch (\Exception $e) {
-            \Log::error("Notification Fetch Error: " . $e->getMessage());
+            Log::error("Notification Fetch Error: " . $e->getMessage());
             return response()->json([]);
         }
+    }
+
+    private function getGlobalAlertTitle($action)
+    {
+        $map = [
+            'LOGIN_FAILURE' => 'Multiple 401s',
+            'UNAUTHORIZED_ACCESS' => 'Unauthorized Access Attempt',
+            'DATA_EXPORT' => 'Large Export Initiated',
+            'ACCOUNT_DELETION_REQUESTED' => 'Account Deletion Requested',
+            'ACCOUNT_DELETION_CANCELLED' => 'Account Deletion Cancelled'
+        ];
+        return $map[$action] ?? $action;
     }
 
     private function inferType($action)
     {
         $action = strtolower($action);
         if (str_contains($action, 'sale') || str_contains($action, 'payment')) return 'success';
-        if (str_contains($action, 'stock') || str_contains($action, 'inventory')) return 'warning';
-        if (str_contains($action, 'error') || str_contains($action, 'failed')) return 'error';
+        if (str_contains($action, 'stock') || str_contains($action, 'inventory') || str_contains($action, 'cancelled')) return 'info';
+        if (str_contains($action, 'error') || str_contains($action, 'failed') || str_contains($action, 'failure') || str_contains($action, 'unauthorized')) return 'error';
+        if (str_contains($action, 'deletion') || str_contains($action, 'delete')) return 'warning';
         return 'info';
     }
 

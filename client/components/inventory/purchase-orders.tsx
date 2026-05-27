@@ -31,6 +31,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { Plus, Search, Eye, Edit, FileText, PackageX } from "lucide-react";
 import { apiClient } from "@/lib/api/client";
+import { isTauri } from "@/lib/db/local-database";
 
 interface PurchaseOrder {
   id: string;
@@ -54,13 +55,20 @@ export function PurchaseOrders() {
     async function fetchOrders() {
       setLoading(true);
       try {
-        const res = await apiClient.getPurchaseOrders(1, 100);
+        let res;
+        if (isTauri()) {
+          const { getPurchaseOrders } = await import("@/lib/db/local-database");
+          res = await getPurchaseOrders(1, 100);
+        } else {
+          res = await apiClient.getPurchaseOrders(1, 100);
+        }
+        
         const items = (res.data || []).map((o: any) => ({
           id: o.id,
           orderNumber: o.order_number || o.orderNumber || `PO-${o.id}`,
-          supplier: o.supplier?.name || o.supplier_name || "Unknown",
+          supplier: o.supplier?.name || o.supplier_name || o.vendor_name || "Unknown",
           orderDate: o.order_date || o.created_at,
-          expectedDate: o.expected_date || o.order_date,
+          expectedDate: o.expected_date || o.order_date || o.created_at,
           status: o.status || "draft",
           totalAmount: Number(o.total_amount) || 0,
           itemCount: o.items?.length || o.item_count || 0,

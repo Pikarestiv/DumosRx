@@ -27,6 +27,7 @@ import { Plus, Search, RotateCcw, AlertTriangle, PackageX } from "lucide-react";
 import { apiClient } from "@/lib/api/client";
 import { genericFuzzySearch } from "@/lib/utils/search";
 import { AddStockAdjustmentForm } from "./add-stock-adjustment-form";
+import { isTauri } from "@/lib/db/local-database";
 
 export interface StockAdjustment {
   id: string;
@@ -68,7 +69,14 @@ export function StockAdjustments() {
     async function fetchAdjustments() {
       setLoading(true);
       try {
-        const res = await apiClient.getStockAdjustments(1, 100);
+        let res;
+        if (isTauri()) {
+          const { getStockAdjustments } = await import("@/lib/db/local-database");
+          res = await getStockAdjustments(1, 100);
+        } else {
+          res = await apiClient.getStockAdjustments(1, 100);
+        }
+
         const items = (res.data || []).map((a: any) => ({
           id: a.id,
           date: a.created_at || a.date,
@@ -96,7 +104,7 @@ export function StockAdjustments() {
     ["medicine", "reason"]
   );
 
-  const handleSubmitAdjustment = (e: React.FormEvent) => {
+  const handleSubmitAdjustment = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (
@@ -108,19 +116,52 @@ export function StockAdjustments() {
       return;
     }
 
+    const calculatedQty =
+      newAdjustment.adjustmentType === "decrease"
+        ? -Math.abs(newAdjustment.quantity)
+        : Math.abs(newAdjustment.quantity);
+
+    if (isTauri()) {
+      try {
+        const { query, execute } = await import("@/lib/db/core");
+        // Resolve medicine ID from the name selection
+        const med = await query<any>("SELECT id FROM medicines WHERE name = ? LIMIT 1", [newAdjustment.medicine]);
+        if (!med || med.length === 0) {
+          toast.error("Selected medicine not found in database. Please enter or register a valid medicine.");
+          return;
+        }
+        const medicineId = med[0].id;
+        const uuid = crypto.randomUUID();
+
+        // Insert stock movement record
+        await execute(
+          `INSERT INTO stock_movements (id, medicine_id, movement_type, quantity, reason, created_at, _synced) 
+           VALUES (?, ?, 'adjustment', ?, ?, ?, 0)`,
+          [uuid, medicineId, calculatedQty, newAdjustment.reason, new Date().toISOString()]
+        );
+
+        // Adjust medicine stock level locally
+        await execute(
+          `UPDATE medicines SET stock_quantity = stock_quantity + ?, updated_at = ? WHERE id = ?`,
+          [calculatedQty, new Date().toISOString(), medicineId]
+        );
+      } catch (err) {
+        console.error("Failed to apply local adjustment:", err);
+        toast.error("Failed to save stock adjustment locally");
+        return;
+      }
+    }
+
     const adjustment: StockAdjustment = {
       id: Date.now().toString(),
       date: new Date().toISOString(),
       medicine: newAdjustment.medicine,
       adjustmentType: newAdjustment.adjustmentType,
-      quantity:
-        newAdjustment.adjustmentType === "decrease"
-          ? -Math.abs(newAdjustment.quantity)
-          : Math.abs(newAdjustment.quantity),
+      quantity: calculatedQty,
       reason: newAdjustment.reason,
       notes: newAdjustment.notes,
       user: "Current User",
-      approved: false,
+      approved: isTauri() ? true : false,
     };
 
     setAdjustments([adjustment, ...adjustments]);
@@ -132,7 +173,7 @@ export function StockAdjustments() {
       notes: "",
     });
     setShowAddForm(false);
-    toast.success("Stock adjustment submitted for approval");
+    toast.success(isTauri() ? "Stock adjustment applied successfully" : "Stock adjustment submitted for approval");
   };
 
   const formatDateTime = (dateString: string) => {

@@ -83,6 +83,12 @@ Route::prefix('v1')->group(function () {
         Route::get('/alerts', [NotificationController::class, 'index']);
         Route::post('/alerts/{id}/read', [NotificationController::class, 'markAsRead']);
         Route::get('/announcements', [BroadcastController::class, 'index']);
+        
+        // Stock Movements, Adjustments & Purchase Orders
+        Route::get('/stock-movements', [\App\Http\Controllers\Api\App\StockMovementController::class, 'index']);
+        Route::get('/stock-adjustments', [\App\Http\Controllers\Api\App\StockMovementController::class, 'adjustments']);
+        Route::get('/purchase-orders', [\App\Http\Controllers\Api\App\PurchaseOrderController::class, 'index']);
+
         Route::apiResource('staff', StaffController::class)->middleware(['permission:manage_staff', 'subscription']);
         Route::apiResource('stores', StoreController::class);
 

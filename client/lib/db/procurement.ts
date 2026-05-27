@@ -123,7 +123,7 @@ export async function receivePurchaseOrder(id: string) {
       [totalBaseUnits, now, item.medicine_id]
     );
 
-    await insert("inventory", {
+    const invId = await insert("inventory", {
       medicine_id: item.medicine_id,
       quantity: totalBaseUnits,
       cost_price: Number(item.unit_cost) / unitsPerBulk,
@@ -131,6 +131,25 @@ export async function receivePurchaseOrder(id: string) {
       batch_number: poData.id.split('-')[0].toUpperCase(),
       expiry_date: null,
       created_at: now
+    });
+
+    // Log local stock movement
+    await insert("stock_movements", {
+      id: crypto.randomUUID(),
+      medicine_id: item.medicine_id,
+      inventory_id: invId,
+      movement_type: "purchase",
+      quantity: totalBaseUnits,
+      unit_cost: Number(item.unit_cost) / unitsPerBulk,
+      total_cost: Number(item.subtotal),
+      reference_id: poData.id,
+      reference_type: "purchase_order",
+      reason: "Purchase order received",
+      movement_date: now,
+      created_at: now,
+      _version: 1,
+      _synced: 0,
+      _deleted: 0
     });
   }
 

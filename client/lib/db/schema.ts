@@ -446,4 +446,25 @@ CREATE TABLE IF NOT EXISTS feedback (
   _synced INTEGER DEFAULT 0,
   _synced_at TEXT
 );
+
+CREATE TABLE IF NOT EXISTS stock_movements (
+  id TEXT PRIMARY KEY,
+  inventory_id TEXT,
+  medicine_id TEXT NOT NULL,
+  movement_type TEXT NOT NULL,
+  quantity INTEGER NOT NULL,
+  unit_cost REAL,
+  total_cost REAL,
+  reference_id TEXT,
+  reference_type TEXT,
+  reason TEXT,
+  performed_by TEXT,
+  movement_date TEXT,
+  created_at TEXT,
+  updated_at TEXT,
+  _version INTEGER DEFAULT 1,
+  _synced INTEGER DEFAULT 0,
+  _synced_at TEXT,
+  _deleted INTEGER DEFAULT 0
+);
 `;

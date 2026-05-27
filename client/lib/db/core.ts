@@ -51,6 +51,7 @@ export async function initDatabase(): Promise<any> {
     { table: 'loyalty_transactions', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
     { table: 'store_profile', columns: ['created_at TEXT', 'pcn_license TEXT', 'receipt_header TEXT', 'receipt_footer TEXT', 'show_logo_on_receipt INTEGER DEFAULT 1', 'show_contact_on_receipt INTEGER DEFAULT 1', 'low_stock_warning INTEGER DEFAULT 1', 'expiry_warning INTEGER DEFAULT 1', 'expiry_warning_days INTEGER DEFAULT 90', '_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0', 'auto_sync_enabled INTEGER DEFAULT 0', 'auto_sync_interval INTEGER DEFAULT 15', 'status TEXT DEFAULT \'Active\'', 'suspension_reason TEXT', 'show_retail_suggestions INTEGER DEFAULT 0'] },
     { table: 'feedback', columns: ['updated_at TEXT', '_version INTEGER DEFAULT 1', '_deleted INTEGER DEFAULT 0', '_synced INTEGER DEFAULT 0', '_synced_at TEXT'] },
+    { table: 'stock_movements', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
   ];
 
   if (isTauri()) {

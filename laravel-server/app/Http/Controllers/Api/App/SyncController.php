@@ -17,6 +17,9 @@ use App\Models\User;
 use App\Models\ActivityLog;
 use App\Models\Vendor;
 use App\Models\Expense;
+use App\Models\StockMovement;
+use App\Models\PurchaseOrder;
+use App\Models\PurchaseOrderItem;
 
 class SyncController extends Controller
 {
@@ -61,6 +64,35 @@ class SyncController extends Controller
                 if ($change['table_name'] === 'inventory' && isset($payload['quantity'])) {
                     $payload['quantity_in_stock'] = $payload['quantity'];
                     unset($payload['quantity']);
+                }
+
+                // Map vendor_id to supplier_id for purchase orders
+                if ($change['table_name'] === 'purchase_orders') {
+                    if (isset($payload['vendor_id'])) {
+                        $payload['supplier_id'] = $payload['vendor_id'];
+                        unset($payload['vendor_id']);
+                    }
+                    if (!isset($payload['ordered_by']) && isset($payload['user_id'])) {
+                        $payload['ordered_by'] = $payload['user_id'];
+                        unset($payload['user_id']);
+                    }
+                }
+
+                // Map purchase_order_items fields
+                if ($change['table_name'] === 'purchase_order_items') {
+                    if (isset($payload['po_id'])) {
+                        $payload['purchase_order_id'] = $payload['po_id'];
+                        unset($payload['po_id']);
+                    }
+                    if (isset($payload['subtotal'])) {
+                        $payload['total_cost'] = $payload['subtotal'];
+                        unset($payload['subtotal']);
+                    }
+                    if (isset($payload['bulk_quantity']) && isset($payload['units_per_bulk'])) {
+                        $payload['quantity_ordered'] = intval($payload['bulk_quantity']) * intval($payload['units_per_bulk']);
+                        unset($payload['bulk_quantity']);
+                        unset($payload['units_per_bulk']);
+                    }
                 }
 
                 // Handle user specific mappings
@@ -160,7 +192,7 @@ class SyncController extends Controller
         $changes = [];
         $serverTimestamp = now()->toIso8601String();
 
-        $tables = ['medicines', 'customers', 'suppliers', 'sales', 'store_profile', 'users'];
+        $tables = ['medicines', 'customers', 'suppliers', 'sales', 'store_profile', 'users', 'stock_movements', 'purchase_orders', 'purchase_order_items'];
 
         foreach ($tables as $table) {
             $lastSynced = $lastSyncedMap[$table] ?? null;
@@ -190,6 +222,19 @@ class SyncController extends Controller
                     $storeIds = Store::where('user_id', $user->id)->pluck('id')->toArray();
                     $userIds = User::whereIn('store_id', $storeIds)->pluck('id')->push($user->id)->toArray();
                     $query->whereIn('cashier_id', $userIds);
+                } elseif ($table === 'purchase_orders') {
+                    $storeIds = Store::where('user_id', $user->id)->pluck('id')->toArray();
+                    $userIds = User::whereIn('store_id', $storeIds)->pluck('id')->push($user->id)->toArray();
+                    $query->whereIn('ordered_by', $userIds);
+                } elseif ($table === 'purchase_order_items') {
+                    $storeIds = Store::where('user_id', $user->id)->pluck('id')->toArray();
+                    $userIds = User::whereIn('store_id', $storeIds)->pluck('id')->push($user->id)->toArray();
+                    $poIds = PurchaseOrder::whereIn('ordered_by', $userIds)->pluck('id')->toArray();
+                    $query->whereIn('purchase_order_id', $poIds);
+                } elseif ($table === 'stock_movements') {
+                    $storeIds = Store::where('user_id', $user->id)->pluck('id')->toArray();
+                    $userIds = User::whereIn('store_id', $storeIds)->pluck('id')->push($user->id)->toArray();
+                    $query->whereIn('performed_by', $userIds);
                 } else {
                     // Default to filtering by user_id for medicines, customers, suppliers
                     $query->where('user_id', $user->id);
@@ -219,6 +264,30 @@ class SyncController extends Controller
                     $array['user_id'] = $array['cashier_id'];
                 }
 
+                // Map supplier_id to vendor_id and ordered_by to user_id for purchase_orders
+                if ($table === 'purchase_orders') {
+                    if (isset($array['supplier_id'])) {
+                        $array['vendor_id'] = $array['supplier_id'];
+                    }
+                    if (isset($array['ordered_by'])) {
+                        $array['user_id'] = $array['ordered_by'];
+                    }
+                }
+
+                // Map purchase_order_items back to SQLite format
+                if ($table === 'purchase_order_items') {
+                    if (isset($array['purchase_order_id'])) {
+                        $array['po_id'] = $array['purchase_order_id'];
+                    }
+                    if (isset($array['total_cost'])) {
+                        $array['subtotal'] = $array['total_cost'];
+                    }
+                    if (isset($array['quantity_ordered'])) {
+                        $array['bulk_quantity'] = $array['quantity_ordered'];
+                        $array['units_per_bulk'] = 1;
+                    }
+                }
+
                 return $array;
             });
         }
@@ -246,6 +315,9 @@ class SyncController extends Controller
             'vendors' => Vendor::class,
             'expenses' => Expense::class,
             'feedback' => \App\Models\Feedback::class,
+            'stock_movements' => StockMovement::class,
+            'purchase_orders' => PurchaseOrder::class,
+            'purchase_order_items' => PurchaseOrderItem::class,
         ];
         return $map[$tableName] ?? null;
     }

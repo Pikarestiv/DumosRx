@@ -70,6 +70,25 @@ export async function createSale(saleData: any, items: any[]) {
       "UPDATE medicines SET stock_quantity = stock_quantity - ? WHERE id = ?",
       [item.quantity, item.medicine_id]
     );
+
+    // Log local stock movement
+    await insert("stock_movements", {
+      id: crypto.randomUUID(),
+      medicine_id: item.medicine_id,
+      inventory_id: item.inventory_id || null,
+      movement_type: "sale",
+      quantity: -Math.abs(item.quantity),
+      unit_cost: item.cost_price || 0,
+      total_cost: (item.cost_price || 0) * item.quantity,
+      reference_id: saleId,
+      reference_type: "sale",
+      reason: "Customer sale",
+      movement_date: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+      _version: 1,
+      _synced: 0,
+      _deleted: 0
+    });
   }
 
   return saleId;
@@ -140,4 +159,51 @@ export async function updateUser(id: string, data: any) {
 
 export async function deleteUser(id: string) {
   return await execute("UPDATE users SET _deleted = 1, updated_at = ? WHERE id = ?", [new Date().toISOString(), id]);
+}
+
+/**
+ * Stock Movements & Adjustments
+ */
+export async function getStockMovements(page = 1, limit = 50) {
+  const offset = (page - 1) * limit;
+  const results = await query<any>(
+    `SELECT sm.*, m.name as medicine_name 
+     FROM stock_movements sm 
+     LEFT JOIN medicines m ON sm.medicine_id = m.id 
+     WHERE sm._deleted = 0 
+     ORDER BY sm.created_at DESC 
+     LIMIT ? OFFSET ?`,
+    [limit, offset]
+  );
+  return { data: results, page, limit };
+}
+
+export async function getStockAdjustments(page = 1, limit = 50) {
+  const offset = (page - 1) * limit;
+  const results = await query<any>(
+    `SELECT sm.*, m.name as medicine_name 
+     FROM stock_movements sm 
+     LEFT JOIN medicines m ON sm.medicine_id = m.id 
+     WHERE sm._deleted = 0 AND sm.movement_type IN ('adjustment', 'expired', 'damaged') 
+     ORDER BY sm.created_at DESC 
+     LIMIT ? OFFSET ?`,
+    [limit, offset]
+  );
+  // Map fields to match what frontend expects
+  const mapped = results.map((r: any) => ({
+    ...r,
+    adjustment_type: r.quantity > 0 ? "increase" : "decrease",
+    approved: 1
+  }));
+  return { data: mapped, page, limit };
+}
+
+export async function createStockMovement(data: any) {
+  return await insert("stock_movements", {
+    ...data,
+    id: data.id || crypto.randomUUID(),
+    created_at: new Date().toISOString(),
+    _version: 1,
+    _synced: 0
+  });
 }

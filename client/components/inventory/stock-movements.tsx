@@ -37,6 +37,7 @@ import {
 } from "lucide-react";
 import { apiClient } from "@/lib/api/client";
 import { genericFuzzySearch } from "@/lib/utils/search";
+import { isTauri } from "@/lib/db/local-database";
 
 interface StockMovement {
   id: string;
@@ -62,15 +63,22 @@ export function StockMovements() {
     async function fetchMovements() {
       setLoading(true);
       try {
-        const res = await apiClient.getStockMovements(1, 100);
+        let res;
+        if (isTauri()) {
+          const { getStockMovements } = await import("@/lib/db/local-database");
+          res = await getStockMovements(1, 100);
+        } else {
+          res = await apiClient.getStockMovements(1, 100);
+        }
+
         const items = (res.data || []).map((m: any) => ({
           id: m.id,
-          date: m.created_at || m.date,
+          date: m.created_at || m.date || m.movement_date,
           medicine: m.medicine?.name || m.medicine_name || "Unknown",
-          type: m.type || "adjustment",
+          type: m.type || m.movement_type || "adjustment",
           quantity: m.quantity || 0,
           reason: m.reason || "",
-          reference: m.reference || "",
+          reference: m.reference || m.reference_id || "",
           user: m.user?.name || m.user_name || "System",
           supplier: m.supplier?.name || m.supplier_name,
           batchNumber: m.batch_number,

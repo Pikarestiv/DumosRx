@@ -24,7 +24,7 @@ const COLLAPSED_KEY = "sidebar_collapsed";
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const router = useRouter();
   const { storeProfile } = useStore();
   const { user } = useAuth();
@@ -34,7 +34,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   useEffect(() => {
     try {
       const stored = localStorage.getItem(COLLAPSED_KEY);
-      if (stored === "true") setSidebarCollapsed(true);
+      // Only override the default if the user has an explicit stored preference
+      if (stored === "false") setSidebarCollapsed(false);
+      else if (stored === "true") setSidebarCollapsed(true);
+      // If nothing stored, the useState(true) default applies
     } catch {
       // localStorage unavailable (e.g. SSR or private mode)
     }

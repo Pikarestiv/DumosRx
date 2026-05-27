@@ -32,7 +32,7 @@ class SendFunnelReminders extends Command
         $now = now();
 
         // Find users who are active, but haven't logged in from a desktop app
-        $users = User::where('is_active', true)
+        $users = User::query()->where('is_active', true)
             ->where('setup_reminder_level', '<', 3) // Stop after 3 reminders
             ->whereDoesntHave('tokens', function ($query) {
                 // If they have any token that isn't 'web', they've logged in from the desktop app
@@ -43,6 +43,7 @@ class SendFunnelReminders extends Command
         $emailsSent = 0;
 
         foreach ($users as $user) {
+            /** @var \App\Models\User $user */
             $shouldSend = false;
 
             if ($user->setup_reminder_level === 0) {

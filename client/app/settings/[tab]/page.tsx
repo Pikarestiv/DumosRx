@@ -2,8 +2,10 @@ import SettingsClient from "./settings-client";
 
 export function generateStaticParams() {
   return [
+    { tab: "general" },
     { tab: "appearance" },
     { tab: "store" },
+    { tab: "alerts" },
     { tab: "notifications" },
     { tab: "data" },
     { tab: "security" },

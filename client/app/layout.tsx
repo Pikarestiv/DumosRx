@@ -1,7 +1,6 @@
 import type React from "react";
 import type { Metadata } from "next";
-import { Montserrat } from "next/font/google";
-import { Open_Sans } from "next/font/google";
+import { Inter, Montserrat } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AuthListener } from "@/components/auth-listener";
@@ -17,18 +16,17 @@ import { TauriTitleBar } from "@/components/tauri/tauri-title-bar";
 import { ErrorBoundary } from "@/components/tauri/error-boundary";
 import { GlobalErrorListener } from "@/components/tauri/global-error-listener";
 
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-sans",
+});
+
 const montserrat = Montserrat({
   subsets: ["latin"],
   display: "swap",
-  variable: "--font-montserrat",
+  variable: "--font-heading",
   weight: ["400", "600", "700", "900"],
-});
-
-const openSans = Open_Sans({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-open-sans",
-  weight: ["400", "500", "600"],
 });
 
 export const metadata: Metadata = {
@@ -56,7 +54,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${montserrat.variable} ${openSans.variable} antialiased`}
+      className={`${inter.variable} ${montserrat.variable} antialiased`}
     >
       <body
         className="font-sans min-h-screen flex flex-col"

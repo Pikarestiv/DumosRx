@@ -57,7 +57,7 @@ Route::prefix('v1')->group(function () {
     });
 
     // Protected Routes
-    Route::middleware(['auth:sanctum', 'account_status'])->group(function () {
+    Route::middleware(['auth:sanctum', 'account_status', 'throttle:60,1'])->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::get('/user', [AuthController::class, 'user']);
         Route::post('/refresh', [AuthController::class, 'refresh']);

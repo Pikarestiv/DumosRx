@@ -126,11 +126,9 @@
 
 @theme inline {
   /* Updated font family mappings for professional typography */
-  --font-sans: var(--font-open-sans);
-  --font-serif: var(--font-montserrat);
-  --font-mono:
-    ui-monospace, SFMono-Regular, "SF Mono", Monaco, Consolas,
-    "Liberation Mono", "Courier New", monospace;
+  --font-sans: var(--font-sans, Inter, system-ui, sans-serif);
+  --font-heading: var(--font-heading, Montserrat, sans-serif);
+  --font-mono: var(--font-mono, SFMono-Regular, ui-monospace);
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);

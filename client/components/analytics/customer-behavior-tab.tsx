@@ -97,28 +97,30 @@ export function CustomerBehaviorTab({
               <p className="text-sm mt-1">Sales will appear here once transactions are recorded.</p>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Time Period</TableHead>
-                  <TableHead>Transactions</TableHead>
-                  <TableHead>Avg. Value</TableHead>
-                  <TableHead>Top Category</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {purchasePatterns.map((row) => (
-                  <TableRow key={row.slot}>
-                    <TableCell className="font-medium">{row.slot}</TableCell>
-                    <TableCell>{row.transactions.toLocaleString()}</TableCell>
-                    <TableCell>
-                      {symbol}{Math.round(row.avgValue).toLocaleString()}
-                    </TableCell>
-                    <TableCell>{row.topCategory}</TableCell>
+            <div className="w-full overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Time Period</TableHead>
+                    <TableHead>Transactions</TableHead>
+                    <TableHead>Avg. Value</TableHead>
+                    <TableHead>Top Category</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {purchasePatterns.map((row) => (
+                    <TableRow key={row.slot}>
+                      <TableCell className="font-medium">{row.slot}</TableCell>
+                      <TableCell>{row.transactions.toLocaleString()}</TableCell>
+                      <TableCell>
+                        {symbol}{Math.round(row.avgValue).toLocaleString()}
+                      </TableCell>
+                      <TableCell>{row.topCategory}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>

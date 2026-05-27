@@ -14,7 +14,6 @@ import {
   XAxis, 
   YAxis, 
   CartesianGrid, 
-  ResponsiveContainer, 
   Area, 
   AreaChart 
 } from "recharts";
@@ -47,14 +46,14 @@ export function SalesAnalyticsTab({
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <ChartContainer
-              config={{
-                revenue: { label: "Revenue", color: "#0ea5e9" },
-                profit: { label: "Profit", color: "#10b981" },
-              }}
-              className="h-80"
-            >
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="h-80 w-full">
+              <ChartContainer
+                config={{
+                  revenue: { label: "Revenue", color: "#0ea5e9" },
+                  profit: { label: "Profit", color: "#10b981" },
+                }}
+                className="h-full w-full"
+              >
                 <AreaChart data={monthlySalesData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="month" />
@@ -81,8 +80,8 @@ export function SalesAnalyticsTab({
                     fillOpacity={0.6}
                   />
                 </AreaChart>
-              </ResponsiveContainer>
-            </ChartContainer>
+              </ChartContainer>
+            </div>
           </CardContent>
         </Card>
 
@@ -149,23 +148,21 @@ export function SalesAnalyticsTab({
               }}
               className="h-80 w-80"
             >
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={formattedCategoryData}
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={100}
-                    dataKey="value"
-                    label={({ name, value }) => `${name}: ${value}`}
-                  >
-                    {formattedCategoryData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                </PieChart>
-              </ResponsiveContainer>
+              <PieChart>
+                <Pie
+                  data={formattedCategoryData}
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={100}
+                  dataKey="value"
+                  label={({ name, value }) => `${name}: ${value}`}
+                >
+                  {formattedCategoryData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <ChartTooltip content={<ChartTooltipContent />} />
+              </PieChart>
             </ChartContainer>
           </div>
         </CardContent>

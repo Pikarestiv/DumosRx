@@ -50,7 +50,7 @@ export function POSProductList({
         )}
 
         {loadingMedicines ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-2 gap-3">
             {[...Array(4)].map((_, i) => (
               <div key={i} className="p-3 border rounded-lg space-y-2">
                 <Skeleton className="h-4 w-3/4" />
@@ -68,7 +68,7 @@ export function POSProductList({
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-96 overflow-y-auto">
+          <div className="grid grid-cols-2 md:grid-cols-2 gap-3 max-h-[28rem] overflow-y-auto">
             {filteredMedicines.map((medicine) => (
               <div
                 key={medicine.id}

@@ -288,60 +288,64 @@ export function POSSystem() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="font-serif font-bold text-3xl text-foreground">
+    <div className="space-y-4">
+      {/* Header: title left, actions right — wraps on mobile */}
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="font-serif font-bold text-2xl sm:text-3xl text-foreground leading-tight">
             Point of Sale
           </h1>
-          <p className="text-muted-foreground mt-2">
+          <p className="text-muted-foreground mt-1 text-sm">
             Process sales transactions and manage {t('products').toLowerCase()} orders
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button 
-            variant={posMode === "standard" ? "default" : "outline"} 
-            size="sm"
-            onClick={() => setPosMode("standard")}
-            className="flex items-center gap-2"
-          >
-            Standard View
-          </Button>
-          <Button 
-            variant={posMode === "speed" ? "default" : "outline"} 
-            size="sm"
-            onClick={() => setPosMode("speed")}
-            className="flex items-center gap-2"
-          >
-            <Zap className="h-4 w-4" />
-            Retail Speed
-          </Button>
-          <div className="w-px h-8 bg-border mx-1" />
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={handleHoldTransaction}
-            disabled={cart.length === 0}
-            className="flex items-center gap-2 border-amber-500/20 hover:bg-amber-500/5 text-amber-600"
-          >
-            <PauseCircle className="h-4 w-4" />
-            Pause
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => setShowHeldDialog(true)}
-            className="flex items-center gap-2"
-          >
-            <Clock className="h-4 w-4" />
-            Held Sales
-          </Button>
-          <div className="flex items-center gap-2 px-3 py-1 bg-muted rounded-full border">
-            <User className="h-3 w-3 text-muted-foreground" />
-            <span className="text-xs font-medium">{user?.name}</span>
-            <Button variant="ghost" size="icon" className="h-4 w-4 p-0 ml-1" onClick={logout}>
-              <LogOut className="h-3 w-3" />
+        {/* Action buttons — scroll horizontally when they don't fit */}
+        <div className="w-full sm:w-auto overflow-x-auto scrollbar-none">
+          <div className="flex items-center gap-2 min-w-max">
+            <Button 
+              variant={posMode === "standard" ? "default" : "outline"} 
+              size="sm"
+              onClick={() => setPosMode("standard")}
+              className="flex items-center gap-1.5 shrink-0"
+            >
+              Standard View
             </Button>
+            <Button 
+              variant={posMode === "speed" ? "default" : "outline"} 
+              size="sm"
+              onClick={() => setPosMode("speed")}
+              className="flex items-center gap-1.5 shrink-0"
+            >
+              <Zap className="h-4 w-4" />
+              Retail Speed
+            </Button>
+            <div className="w-px h-6 bg-border mx-0.5 shrink-0" />
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleHoldTransaction}
+              disabled={cart.length === 0}
+              className="flex items-center gap-1.5 shrink-0 border-amber-500/20 hover:bg-amber-500/5 text-amber-600"
+            >
+              <PauseCircle className="h-4 w-4" />
+              Pause
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setShowHeldDialog(true)}
+              className="flex items-center gap-1.5 shrink-0"
+            >
+              <Clock className="h-4 w-4" />
+              Held Sales
+            </Button>
+            <div className="flex items-center gap-2 px-3 py-1 bg-muted rounded-full border shrink-0">
+              <User className="h-3 w-3 text-muted-foreground" />
+              <span className="text-xs font-medium max-w-[80px] truncate">{user?.name}</span>
+              <Button variant="ghost" size="icon" className="h-4 w-4 p-0 ml-1" onClick={logout}>
+                <LogOut className="h-3 w-3" />
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -367,13 +371,16 @@ export function POSSystem() {
           setShowPaymentDialog={setShowPaymentDialog}
         />
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="flex flex-col lg:grid lg:grid-cols-3 gap-4 lg:gap-6">
+          {/* Left: product search + list */}
           <div className="lg:col-span-2 space-y-4">
             <Tabs defaultValue="products" className="w-full">
-              <TabsList className="bg-muted/50 p-1 h-auto flex-wrap justify-start mb-4">
-                <TabsTrigger value="products" className="px-4 py-2">Products</TabsTrigger>
-                <TabsTrigger value="history" className="px-4 py-2">Recent Transactions</TabsTrigger>
-              </TabsList>
+              <div className="overflow-x-auto scrollbar-none">
+                <TabsList className="w-max min-w-full bg-muted/50 p-1 flex mb-4">
+                  <TabsTrigger value="products" className="px-4 py-2 shrink-0">Products</TabsTrigger>
+                  <TabsTrigger value="history" className="px-4 py-2 shrink-0">Recent Transactions</TabsTrigger>
+                </TabsList>
+              </div>
               
               <TabsContent value="products" className="space-y-4">
                 <POSSearchCard
@@ -411,6 +418,7 @@ export function POSSystem() {
             </Tabs>
           </div>
 
+          {/* Right (or bottom on mobile): customer + cart */}
           <div className="space-y-4">
             <POSCustomerSelector 
               selectedCustomer={selectedCustomer}

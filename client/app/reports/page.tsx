@@ -48,16 +48,18 @@ export default function ReportsPage() {
         onValueChange={handleTabChange}
         className="space-y-6"
       >
-        <TabsList className="bg-muted/50 p-1">
-          <TabsTrigger value="reports" className="gap-2 px-4 py-2">
+      <div className="w-full overflow-x-auto scrollbar-none pb-1">
+        <TabsList className="w-max min-w-full bg-muted/50 p-1 flex">
+          <TabsTrigger value="reports" className="gap-2 px-4 py-2 shrink-0">
             <FileText className="w-4 h-4" />
             Operational Reports
           </TabsTrigger>
-          <TabsTrigger value="analytics" className="gap-2 px-4 py-2">
+          <TabsTrigger value="analytics" className="gap-2 px-4 py-2 shrink-0">
             <TrendingUp className="w-4 h-4" />
             Analytics & Insights
           </TabsTrigger>
         </TabsList>
+      </div>
 
         <TabsContent value="reports" className="mt-0 border-none p-0">
           <ReportCenter />

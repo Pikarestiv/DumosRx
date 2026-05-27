@@ -324,7 +324,7 @@ class ApiClient {
 
   // Broadcasts
   async getBroadcasts() {
-    return this.request<any>("/broadcasts");
+    return this.request<any>("/announcements");
   }
 
   // System Configurations

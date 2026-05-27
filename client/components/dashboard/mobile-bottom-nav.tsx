@@ -35,6 +35,8 @@ export function MobileBottomNav({ onOpenFeedback }: MobileBottomNavProps) {
     { name: "Customers", href: "/customers", icon: Users },
   ];
 
+  const isMoreActive = pathname && !primaryTabs.some(tab => pathname.startsWith(tab.href));
+
   return (
     <>
       <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-t border-border pb-safe">
@@ -70,10 +72,16 @@ export function MobileBottomNav({ onOpenFeedback }: MobileBottomNavProps) {
           <button
             onClick={() => setMoreDrawerOpen(true)}
             className={cn(
-              "flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors text-muted-foreground hover:text-foreground"
+              "flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors",
+              isMoreActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
             )}
           >
-            <div className="flex items-center justify-center rounded-full p-1">
+            <div
+              className={cn(
+                "flex items-center justify-center rounded-full p-1",
+                isMoreActive ? "bg-primary/10" : ""
+              )}
+            >
               <Menu className="h-5 w-5" />
             </div>
             <span className="text-[10px] font-medium tracking-tight">More</span>

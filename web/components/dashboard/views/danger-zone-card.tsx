@@ -22,10 +22,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { webApiClient } from "@/lib/api/client";
+import { useDashboard } from "@/app/dashboard/use-dashboard";
 
 export function DangerZoneCard() {
+  const { user, refetch } = useDashboard();
+  const queryClient = useQueryClient();
   const [isDeletionDialogOpen, setIsDeletionDialogOpen] = useState(false);
   const [deletionReason, setDeletionReason] = useState("");
 
@@ -37,9 +40,25 @@ export function DangerZoneCard() {
       });
       setIsDeletionDialogOpen(false);
       setDeletionReason("");
+      queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+      refetch();
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || "Failed to request deletion");
+    },
+  });
+
+  const cancelDeletionMutation = useMutation({
+    mutationFn: () => webApiClient.cancelAccountDeletion(),
+    onSuccess: () => {
+      toast.success("Request Cancelled", {
+        description: "Your account deletion request has been cancelled.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+      refetch();
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || "Failed to cancel deletion request");
     },
   });
 
@@ -68,12 +87,29 @@ export function DangerZoneCard() {
                 <p className="text-sm text-slate-500 dark:text-slate-400">
                   Submit a request to permanently delete your account and all associated data.
                 </p>
+                {user?.deletion_requested_at && (
+                  <div className="mt-2 text-xs flex items-center gap-2 bg-amber-500/10 text-amber-700 dark:text-amber-400 p-2.5 rounded-lg border border-amber-500/20">
+                    <span>
+                      Account deletion requested. If you changed your mind, you can cancel this request:
+                    </span>
+                    <Button
+                      type="button"
+                      variant="link"
+                      className="text-primary hover:text-primary/80 font-bold p-0 h-auto text-xs underline cursor-pointer"
+                      onClick={() => cancelDeletionMutation.mutate()}
+                      disabled={cancelDeletionMutation.isPending}
+                    >
+                      {cancelDeletionMutation.isPending ? "Cancelling..." : "Cancel Request"}
+                    </Button>
+                  </div>
+                )}
               </div>
               <Button
-                variant="destructive"
+                variant={user?.deletion_requested_at ? "outline" : "destructive"}
                 onClick={() => setIsDeletionDialogOpen(true)}
+                disabled={!!user?.deletion_requested_at}
               >
-                Request Deletion
+                {user?.deletion_requested_at ? "Requested" : "Request Deletion"}
               </Button>
             </div>
           </CardContent>

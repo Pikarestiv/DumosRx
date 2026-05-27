@@ -66,6 +66,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/set-pin', [AuthController::class, 'updatePin']);
             Route::post('/change-password', [AuthController::class, 'changePassword']);
             Route::post('/request-deletion', [AuthController::class, 'requestDeletion']);
+            Route::post('/cancel-deletion', [AuthController::class, 'cancelDeletion']);
         });
 
         Route::prefix('sessions')->group(function () {

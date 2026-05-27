@@ -159,6 +159,11 @@ class WebApiClient {
     const { data } = await apiClient.post("/profile/request-deletion", payload);
     return data;
   }
+  
+  async cancelAccountDeletion() {
+    const { data } = await apiClient.post("/profile/cancel-deletion");
+    return data;
+  }
 
   async changePassword(payload: any) {
     const { data } = await apiClient.post("/profile/change-password", payload);

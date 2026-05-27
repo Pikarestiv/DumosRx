@@ -7,10 +7,10 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
-use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
 
 class AuthController extends Controller
 {
@@ -51,7 +51,7 @@ class AuthController extends Controller
             try {
                 Mail::to($user->email)->send(new \App\Mail\WelcomeEmail($user, $request->pharmacy_name));
             } catch (\Exception $e) {
-                \Log::error("Failed to send welcome email: " . $e->getMessage());
+                Log::error("Failed to send welcome email: " . $e->getMessage());
             }
         }
 
@@ -262,7 +262,7 @@ class AuthController extends Controller
         try {
             Mail::to($user->email)->send(new \App\Mail\PasswordResetEmail($user, $resetUrl));
         } catch (\Exception $e) {
-            \Log::error("Failed to send password reset email: " . $e->getMessage());
+            Log::error("Failed to send password reset email: " . $e->getMessage());
             // In a production environment, you might want to return an error, 
             // but for now we'll just log it.
         }

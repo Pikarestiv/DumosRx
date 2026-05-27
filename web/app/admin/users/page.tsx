@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { 
   Search, 
   Filter, 
@@ -32,7 +32,7 @@ import {
   useDeleteUserMutation
 } from "@/lib/api/admin-hooks";
 import { useDebounce } from "@/hooks/use-debounce";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
 
@@ -46,12 +46,21 @@ import {
 } from "@/components/admin/users/user-dialogs";
 import { UserTable } from "@/components/admin/users/user-table";
 
-export default function GlobalUsersDirectory() {
+function GlobalUsersDirectoryContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialSearch = searchParams ? (searchParams.get("search") || "") : "";
+
   const [page, setPage] = useState(1);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(initialSearch);
   const [roleFilter, setRoleFilter] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<any>(null);
+
+  useEffect(() => {
+    if (initialSearch && initialSearch !== search) {
+      setSearch(initialSearch);
+    }
+  }, [initialSearch]);
   
   const [isDeactivateDialogOpen, setIsDeactivateDialogOpen] = useState(false);
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
@@ -269,5 +278,13 @@ export default function GlobalUsersDirectory() {
         deleteMutation={deleteMutation}
       />
     </div>
+  );
+}
+
+export default function GlobalUsersDirectory() {
+  return (
+    <Suspense fallback={<AdminSkeleton />}>
+      <GlobalUsersDirectoryContent />
+    </Suspense>
   );
 }

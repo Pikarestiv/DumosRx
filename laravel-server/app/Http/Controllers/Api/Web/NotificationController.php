@@ -22,6 +22,12 @@ class NotificationController extends Controller
                 ->limit(10)
                 ->get()
                 ->map(function ($notif) {
+                    $link = null;
+                    if (str_contains($notif->title, 'Account Deletion')) {
+                        if (preg_match('/\(([^)]+)\)/', $notif->message, $matches)) {
+                            $link = "/admin/users?search=" . urlencode($matches[1]);
+                        }
+                    }
                     return [
                         'id' => $notif->id,
                         'title' => $notif->title,
@@ -29,7 +35,8 @@ class NotificationController extends Controller
                         'time' => $notif->created_at->diffForHumans(),
                         'type' => $notif->type ?? 'info',
                         'isRead' => $notif->is_read,
-                        'category' => 'system'
+                        'category' => 'system',
+                        'link' => $link
                     ];
                 });
 
@@ -43,10 +50,15 @@ class NotificationController extends Controller
                     'ACCOUNT_DELETION_REQUESTED',
                     'ACCOUNT_DELETION_CANCELLED'
                 ])
+                    ->with('user')
                     ->latest()
                     ->limit(10)
                     ->get()
                     ->map(function ($log) {
+                        $link = null;
+                        if (in_array($log->action, ['ACCOUNT_DELETION_REQUESTED', 'ACCOUNT_DELETION_CANCELLED']) && $log->user) {
+                            $link = "/admin/users?search=" . urlencode($log->user->email);
+                        }
                         return [
                             'id' => $log->id,
                             'title' => $this->getGlobalAlertTitle($log->action),
@@ -54,7 +66,8 @@ class NotificationController extends Controller
                             'time' => $log->created_at->diffForHumans(),
                             'type' => $this->inferType($log->action),
                             'isRead' => true,
-                            'category' => 'log'
+                            'category' => 'log',
+                            'link' => $link
                         ];
                     });
             } else {
@@ -71,7 +84,8 @@ class NotificationController extends Controller
                             'time' => $log->created_at->diffForHumans(),
                             'type' => $this->inferType($log->action),
                             'isRead' => true,
-                            'category' => 'log'
+                            'category' => 'log',
+                            'link' => null
                         ];
                     });
             }

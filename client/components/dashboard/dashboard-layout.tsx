@@ -43,7 +43,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       <FeedbackForm open={feedbackOpen} onOpenChange={setFeedbackOpen} />
 
       {/* Main content */}
-      <div className="lg:pl-64 flex flex-col min-h-screen">
+      <div
+        className="lg:pl-64 flex flex-col min-h-screen"
+        style={{ paddingTop: "var(--tauri-top, 0px)" }}
+      >
         <BroadcastBanner />
 
         {/* Top header */}

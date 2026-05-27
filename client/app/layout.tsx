@@ -70,7 +70,7 @@ export default function RootLayout({
         <div className="flex-1 flex flex-col">
           <ErrorBoundary>
             <GlobalErrorListener>
-              <ThemeProvider defaultTheme="system" storageKey="dumosrx-ui-theme">
+              <ThemeProvider defaultTheme="light" storageKey="dumosrx-ui-theme">
                 <DatabaseProvider>
                   <StoreProvider>
                     <AuthProvider>

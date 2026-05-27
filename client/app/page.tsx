@@ -24,7 +24,10 @@ export default function HomePage() {
         <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-accent/10 dark:bg-accent/20 rounded-full blur-[120px] mix-blend-multiply dark:mix-blend-screen animate-blob animation-delay-2000" />
       </div>
 
-      <div className="absolute top-6 right-6 z-30">
+      <div
+        className="absolute z-30"
+        style={{ top: "calc(var(--tauri-top, 0px) + 3.5rem)", right: "1.5rem" }}
+      >
         <ThemeToggle />
       </div>
 

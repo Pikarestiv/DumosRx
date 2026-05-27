@@ -55,13 +55,21 @@ class StaffController extends Controller
             'store_id' => 'required|exists:stores,id',
         ]);
 
+        $email = $request->email;
+        if (empty($email)) {
+            $email = $request->username . '@local.dumosrx.com';
+        }
+
+        $roleObj = \App\Models\Role::where('slug', $request->role)->first();
+
         $user = User::create([
             'store_id' => $request->store_id,
             'first_name' => $request->first_name,
             'last_name' => $request->last_name,
-            'email' => $request->email,
-            'username' => $request->username ?: explode('@', $request->email)[0],
+            'email' => $email,
+            'username' => $request->username,
             'role' => $request->role,
+            'role_id' => $roleObj ? $roleObj->id : null,
             'password' => $request->password ? Hash::make($request->password) : null,
             'pin' => $request->pin ?: '1234',
             'is_active' => true,
@@ -75,7 +83,7 @@ class StaffController extends Controller
         $request->validate([
             'first_name' => 'string',
             'last_name' => 'string',
-            'email' => 'email|unique:users,email,' . $user->id,
+            'email' => 'nullable|email|unique:users,email,' . $user->id,
             'username' => 'string|unique:users,username,' . $user->id,
             'role' => 'string|in:admin,manager,pharmacist,sales_staff,auditor',
             'pin' => 'string|size:4',
@@ -84,8 +92,18 @@ class StaffController extends Controller
 
         $data = $request->only(['first_name', 'last_name', 'email', 'username', 'role', 'pin', 'store_id', 'is_active']);
         
-        if ($request->has('password')) {
+        if ($request->has('password') && !empty($request->password)) {
             $data['password'] = Hash::make($request->password);
+        }
+
+        if ($request->has('role')) {
+            $roleObj = \App\Models\Role::where('slug', $request->role)->first();
+            $data['role_id'] = $roleObj ? $roleObj->id : null;
+        }
+
+        if ($request->has('email') && empty($request->email)) {
+            $username = $request->username ?? $user->username;
+            $data['email'] = $username . '@local.dumosrx.com';
         }
 
         $user->update($data);

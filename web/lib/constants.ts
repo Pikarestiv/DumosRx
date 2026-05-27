@@ -1,3 +1,3 @@
 export const APP_NAME = "DumosRx";
-export const APP_VERSION = "v0.0.11";
+export const APP_VERSION = "v0.0.12"; // DumosRx current version (update when bumping version)
 export const GITHUB_REPO = "Pikarestiv/DumosRx";

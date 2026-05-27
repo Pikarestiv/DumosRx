@@ -29,6 +29,30 @@ export function generateId(): string {
 export async function initDatabase(): Promise<any> {
   if (db) return db;
 
+  // ---- Migration: ensure sync tracking and missing columns exist ----
+  const syncColumns = [
+    { table: 'medicines', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
+    { table: 'inventory', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
+    { table: 'categories', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
+    { table: 'customers', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
+    { table: 'vendors', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
+    { table: 'sales', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0', 'amount_paid REAL DEFAULT 0', 'change_given REAL DEFAULT 0', 'tax_percentage REAL DEFAULT 0', 'discount_percentage REAL DEFAULT 0', 'points_earned REAL DEFAULT 0', 'points_redeemed REAL DEFAULT 0', 'cashier_id TEXT'] },
+    { table: 'sale_items', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
+    { table: 'prescriptions', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
+    { table: 'expenses', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
+    { table: 'users', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0', 'store_id TEXT'] },
+    { table: 'audit_logs', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
+    { table: 'returns', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
+    { table: 'purchase_orders', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
+    { table: 'purchase_order_items', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
+    { table: 'suppliers', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
+    { table: 'stock_audits', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
+    { table: 'held_transactions', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
+    { table: 'loyalty_transactions', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
+    { table: 'store_profile', columns: ['created_at TEXT', 'pcn_license TEXT', 'receipt_header TEXT', 'receipt_footer TEXT', 'show_logo_on_receipt INTEGER DEFAULT 1', 'show_contact_on_receipt INTEGER DEFAULT 1', 'low_stock_warning INTEGER DEFAULT 1', 'expiry_warning INTEGER DEFAULT 1', 'expiry_warning_days INTEGER DEFAULT 90', '_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0', 'auto_sync_enabled INTEGER DEFAULT 0', 'auto_sync_interval INTEGER DEFAULT 15', 'status TEXT DEFAULT \'Active\'', 'suspension_reason TEXT', 'show_retail_suggestions INTEGER DEFAULT 0'] },
+    { table: 'feedback', columns: ['updated_at TEXT', '_version INTEGER DEFAULT 1', '_deleted INTEGER DEFAULT 0', '_synced INTEGER DEFAULT 0', '_synced_at TEXT'] },
+  ];
+
   if (isTauri()) {
     try {
       const sqlPlugin = await import("@tauri-apps/plugin-sql");
@@ -41,32 +65,16 @@ export async function initDatabase(): Promise<any> {
         await db.execute(statement);
       }
 
-      // Migrations for existing schemas
-      try {
-        await db.execute("ALTER TABLE feedback ADD COLUMN updated_at TEXT");
-      } catch (_e) {}
-      try {
-        await db.execute("ALTER TABLE feedback ADD COLUMN _version INTEGER DEFAULT 1");
-      } catch (_e) {}
-      try {
-        await db.execute("ALTER TABLE feedback ADD COLUMN _deleted INTEGER DEFAULT 0");
-      } catch (_e) {}
-      try {
-        await db.execute("ALTER TABLE feedback ADD COLUMN _synced INTEGER DEFAULT 0");
-      } catch (_e) {}
-      try {
-        await db.execute("ALTER TABLE feedback ADD COLUMN _synced_at TEXT");
-      } catch (_e) {}
-
-      try {
-        await db.execute("ALTER TABLE store_profile ADD COLUMN status TEXT DEFAULT 'Active'");
-      } catch (_e) {}
-      try {
-        await db.execute("ALTER TABLE store_profile ADD COLUMN suspension_reason TEXT");
-      } catch (_e) {}
-      try {
-        await db.execute("ALTER TABLE store_profile ADD COLUMN show_retail_suggestions INTEGER DEFAULT 0");
-      } catch (_e) {}
+      // Run migrations for Tauri
+      for (const { table, columns } of syncColumns) {
+        for (const colDef of columns) {
+          try {
+            await db.execute(`ALTER TABLE ${table} ADD COLUMN ${colDef}`);
+          } catch (_e) {
+            // Column likely already exists; ignore
+          }
+        }
+      }
 
       return db;
     } catch (err) {
@@ -99,30 +107,7 @@ export async function initDatabase(): Promise<any> {
       db.run(SCHEMA_SQL);
     }
 
-    // ---- Migration: ensure sync tracking and missing columns exist ----
-    const syncColumns = [
-      { table: 'medicines', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
-      { table: 'inventory', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
-      { table: 'categories', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
-      { table: 'customers', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
-      { table: 'vendors', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
-      { table: 'sales', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0', 'amount_paid REAL DEFAULT 0', 'change_given REAL DEFAULT 0', 'tax_percentage REAL DEFAULT 0', 'discount_percentage REAL DEFAULT 0', 'points_earned REAL DEFAULT 0', 'points_redeemed REAL DEFAULT 0', 'cashier_id TEXT'] },
-      { table: 'sale_items', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
-      { table: 'prescriptions', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
-      { table: 'expenses', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
-      { table: 'users', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0', 'store_id TEXT'] },
-      { table: 'audit_logs', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
-      { table: 'returns', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
-      { table: 'purchase_orders', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
-      { table: 'purchase_order_items', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
-      { table: 'suppliers', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
-      { table: 'stock_audits', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
-      { table: 'held_transactions', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
-      { table: 'loyalty_transactions', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
-      { table: 'store_profile', columns: ['created_at TEXT', 'pcn_license TEXT', 'receipt_header TEXT', 'receipt_footer TEXT', 'show_logo_on_receipt INTEGER DEFAULT 1', 'show_contact_on_receipt INTEGER DEFAULT 1', 'low_stock_warning INTEGER DEFAULT 1', 'expiry_warning INTEGER DEFAULT 1', 'expiry_warning_days INTEGER DEFAULT 90', '_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0', 'auto_sync_enabled INTEGER DEFAULT 0', 'auto_sync_interval INTEGER DEFAULT 15', 'status TEXT DEFAULT \'Active\'', 'suspension_reason TEXT', 'show_retail_suggestions INTEGER DEFAULT 0'] },
-      { table: 'feedback', columns: ['updated_at TEXT', '_version INTEGER DEFAULT 1', '_deleted INTEGER DEFAULT 0', '_synced INTEGER DEFAULT 0', '_synced_at TEXT'] },
-    ];
-
+    // Run migrations for Web (non-Tauri)
     for (const { table, columns } of syncColumns) {
       for (const colDef of columns) {
         try {

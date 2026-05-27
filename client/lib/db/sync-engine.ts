@@ -139,25 +139,54 @@ export async function pullChanges(): Promise<{
           }
 
           const columns = Object.keys(data);
-          const placeholders = columns.map(() => "?");
-          const values = columns.map((c) => data[c]);
+          const values = columns.map((c) => {
+            const val = data[c];
+            if (typeof val === "boolean") {
+              return val ? 1 : 0;
+            }
+            return val;
+          });
 
-          const allCols = ["id", ...columns, "_synced", "_version", "_deleted"];
-          const allPlaceholders = ["?", ...placeholders, "?", "?", "?"];
-          const allValues = [
-            id,
-            ...values,
-            1,
-            (record as any)._version || 1,
-            _deleted ? 1 : 0,
-          ];
-
-          const sql = `INSERT OR REPLACE INTO ${table} (${allCols.join(", ")}) VALUES (${allPlaceholders.join(", ")})`;
+          // Check if record already exists to preserve local-only columns (e.g. is_initialized, theme, license_token)
+          const exists = await query<any>(`SELECT 1 FROM ${table} WHERE id = ?`, [id]);
           
-          if (isTauri()) {
-            await execute(sql, allValues);
-          } else if (rawDb) {
-            rawDb.run(sql, allValues);
+          if (exists.length > 0) {
+            // Update only columns returned by server to preserve local columns
+            const setClause = [...columns, "_synced", "_version", "_deleted"]
+              .map((c) => `${c} = ?`)
+              .join(", ");
+            const sql = `UPDATE ${table} SET ${setClause} WHERE id = ?`;
+            const params = [
+              ...values,
+              1,
+              (record as any)._version || 1,
+              _deleted ? 1 : 0,
+              id,
+            ];
+            
+            if (isTauri()) {
+              await execute(sql, params);
+            } else if (rawDb) {
+              rawDb.run(sql, params);
+            }
+          } else {
+            // Insert new record
+            const allCols = ["id", ...columns, "_synced", "_version", "_deleted"];
+            const allPlaceholders = allCols.map(() => "?");
+            const sql = `INSERT INTO ${table} (${allCols.join(", ")}) VALUES (${allPlaceholders.join(", ")})`;
+            const params = [
+              id,
+              ...values,
+              1,
+              (record as any)._version || 1,
+              _deleted ? 1 : 0,
+            ];
+            
+            if (isTauri()) {
+              await execute(sql, params);
+            } else if (rawDb) {
+              rawDb.run(sql, params);
+            }
           }
 
           pulledCount++;

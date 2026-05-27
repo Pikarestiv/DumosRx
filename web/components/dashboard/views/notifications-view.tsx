@@ -21,7 +21,7 @@ export function NotificationsView({ onBack }: NotificationsViewProps) {
   const markAsRead = async (id: string, category: string) => {
     if (category !== 'system') return;
     try {
-      await webApiClient.request(`notifications/${id}/read`, { method: 'POST' });
+      await webApiClient.request(`alerts/${id}/read`, { method: 'POST' });
       refetch();
     } catch (error) {
       console.error("Failed to mark as read:", error);

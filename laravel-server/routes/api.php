@@ -80,9 +80,9 @@ Route::prefix('v1')->group(function () {
             Route::get('/summary', [DashboardController::class, 'summary']);
             Route::post('/reset', [DashboardController::class, 'resetData']);
         });
-        Route::get('/notifications', [NotificationController::class, 'index']);
-        Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
-        Route::get('/broadcasts', [BroadcastController::class, 'index']);
+        Route::get('/alerts', [NotificationController::class, 'index']);
+        Route::post('/alerts/{id}/read', [NotificationController::class, 'markAsRead']);
+        Route::get('/announcements', [BroadcastController::class, 'index']);
         Route::apiResource('staff', StaffController::class)->middleware(['permission:manage_staff', 'subscription']);
         Route::apiResource('stores', StoreController::class);
 
@@ -133,7 +133,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/feedback/{id}/status', [\App\Http\Controllers\Api\Web\FeedbackController::class, 'updateStatus']);
 
             // Broadcasts
-            Route::prefix('broadcasts')->middleware('subscription:broadcast_create')->group(function () {
+            Route::prefix('announcements')->middleware('subscription:broadcast_create')->group(function () {
                 Route::get('/', [BroadcastController::class, 'adminIndex']);
                 Route::post('/', [BroadcastController::class, 'store']);
                 Route::put('/{id}', [BroadcastController::class, 'update']);

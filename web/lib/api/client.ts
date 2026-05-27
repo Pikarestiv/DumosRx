@@ -121,7 +121,7 @@ class WebApiClient {
   }
 
   async getNotifications() {
-    const { data } = await apiClient.get("/notifications");
+    const { data } = await apiClient.get("/alerts");
     return data;
   }
 
@@ -197,32 +197,32 @@ class WebApiClient {
 
   // Broadcasts
   async getBroadcasts() {
-    const { data } = await apiClient.get("/broadcasts");
+    const { data } = await apiClient.get("/announcements");
     return data;
   }
 
   async adminGetBroadcasts() {
-    const { data } = await apiClient.get("/admin/broadcasts");
+    const { data } = await apiClient.get("/admin/announcements");
     return data;
   }
 
   async createBroadcast(payload: any) {
-    const { data } = await apiClient.post("/admin/broadcasts", payload);
+    const { data } = await apiClient.post("/admin/announcements", payload);
     return data;
   }
 
   async updateBroadcast(id: string, payload: any) {
-    const { data } = await apiClient.put(`/admin/broadcasts/${id}`, payload);
+    const { data } = await apiClient.put(`/admin/announcements/${id}`, payload);
     return data;
   }
 
   async toggleBroadcast(id: string) {
-    const { data } = await apiClient.patch(`/admin/broadcasts/${id}/toggle`);
+    const { data } = await apiClient.patch(`/admin/announcements/${id}/toggle`);
     return data;
   }
 
   async deleteBroadcast(id: string) {
-    const { data } = await apiClient.delete(`/admin/broadcasts/${id}`);
+    const { data } = await apiClient.delete(`/admin/announcements/${id}`);
     return data;
   }
 

@@ -40,6 +40,14 @@ export function useTauriWindow() {
     init();
   }, []);
 
+  useEffect(() => {
+    if (isTauri) {
+      document.body.style.setProperty("--tauri-top", "40px");
+    } else {
+      document.body.style.setProperty("--tauri-top", "0px");
+    }
+  }, [isTauri]);
+
   const handleMinimize = async () => {
     if (!appWindow) return;
     await appWindow.minimize();

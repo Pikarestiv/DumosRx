@@ -29,7 +29,11 @@ interface DashboardSidebarProps {
   onOpenFeedback: () => void;
 }
 
-export function DashboardSidebar({ isOpen, onClose, onOpenFeedback }: DashboardSidebarProps) {
+export function DashboardSidebar({
+  isOpen,
+  onClose,
+  onOpenFeedback,
+}: DashboardSidebarProps) {
   const pathname = usePathname();
   const { storeType, t } = useStore();
   const { logout, isAdmin, isPharmacist } = useAuth();

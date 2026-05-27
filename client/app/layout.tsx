@@ -12,7 +12,6 @@ import { AuthProvider } from "@/lib/context/auth-context";
 import { QuickSetupWizard } from "@/components/setup/quick-setup-wizard";
 import { LicenseGuard } from "@/components/auth/license-guard";
 import { DevSeedButton } from "@/components/dev/seed-button";
-import { isTauri } from "@/lib/db/core";
 import { APP_NAME } from "@/lib/constants";
 import { TauriTitleBar } from "@/components/tauri/tauri-title-bar";
 
@@ -54,17 +53,16 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const tauri = isTauri();
 
   return (
     <html
       lang="en"
       className={`${montserrat.variable} ${openSans.variable} antialiased`}
     >
-      <body 
-        className="font-sans min-h-screen flex flex-col" 
+      <body
+        className="font-sans min-h-screen flex flex-col"
         suppressHydrationWarning
-        style={{ "--tauri-top": tauri ? "40px" : "0px" } as React.CSSProperties}
+        style={{ "--tauri-top": "0px" } as React.CSSProperties}
       >
         <TauriTitleBar />
         <div className="flex-1 flex flex-col">
@@ -76,12 +74,12 @@ export default function RootLayout({
                     <AuthProvider>
                       <AuthListener />
                       <QuickSetupWizard />
-                      <LicenseGuard>
-                        {children}
-                      </LicenseGuard>
+                      <LicenseGuard>{children}</LicenseGuard>
                       <Toaster />
                       {/* Dev utility: remove in production */}
-                      {process.env.NODE_ENV === 'development' && <DevSeedButton />}
+                      {process.env.NODE_ENV === "development" && (
+                        <DevSeedButton />
+                      )}
                     </AuthProvider>
                   </StoreProvider>
                 </DatabaseProvider>

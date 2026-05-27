@@ -108,10 +108,10 @@ export default function DownloadsPage() {
                       className="w-full h-12 font-bold shadow-lg shadow-primary/20"
                       asChild
                     >
-                      <a href={currentLinks.windows}>
+                      <Link href="/register?redirect=downloads">
                         <Download className="w-4 h-4 mr-2" />
-                        Download
-                      </a>
+                        Register to Download
+                      </Link>
                     </Button>
                   </div>
                 </CardContent>
@@ -146,10 +146,10 @@ export default function DownloadsPage() {
                       className="w-full h-12 font-bold shadow-lg shadow-primary/20"
                       asChild
                     >
-                      <a href={currentLinks.macos}>
+                      <Link href="/register?redirect=downloads">
                         <Download className="w-4 h-4 mr-2" />
-                        Download
-                      </a>
+                        Register to Download
+                      </Link>
                     </Button>
                   </div>
                 </CardContent>
@@ -210,10 +210,10 @@ export default function DownloadsPage() {
                         className="w-full h-12 font-bold shadow-lg shadow-primary/20"
                         asChild
                       >
-                        <a href={currentLinks.linux}>
+                        <Link href="/register?redirect=downloads">
                           <Download className="w-4 h-4 mr-2" />
-                          Download
-                        </a>
+                          Register to Download
+                        </Link>
                       </Button>
                     ) : (
                       <Button

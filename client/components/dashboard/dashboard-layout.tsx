@@ -14,6 +14,7 @@ import { Menu } from "lucide-react";
 import { FeedbackForm } from "@/components/feedback/feedback-form";
 import { BroadcastBanner } from "./broadcast-banner";
 import { DashboardSidebar } from "./dashboard-sidebar";
+import { MobileBottomNav } from "./mobile-bottom-nav";
 import { cn } from "@/lib/utils";
 
 interface DashboardLayoutProps {
@@ -23,7 +24,6 @@ interface DashboardLayoutProps {
 const COLLAPSED_KEY = "sidebar_collapsed";
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const router = useRouter();
   const { storeProfile } = useStore();
@@ -62,19 +62,19 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
     <div className="min-h-screen bg-background">
       <DashboardSidebar
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
         onOpenFeedback={() => setFeedbackOpen(true)}
         collapsed={sidebarCollapsed}
         onToggleCollapse={handleToggleCollapse}
       />
+
+      <MobileBottomNav onOpenFeedback={() => setFeedbackOpen(true)} />
 
       <FeedbackForm open={feedbackOpen} onOpenChange={setFeedbackOpen} />
 
       {/* Main content — shifts right to clear the sidebar */}
       <div
         className={cn(
-          "flex flex-col min-h-screen transition-all duration-300",
+          "flex flex-col min-h-screen transition-all duration-300 pb-16 lg:pb-0",
           sidebarCollapsed ? "lg:pl-[68px]" : "lg:pl-64"
         )}
         style={{ paddingTop: "var(--tauri-top, 0px)" }}
@@ -87,15 +87,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           style={{ top: "var(--tauri-top, 0px)" }}
         >
           <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="lg:hidden"
-              onClick={() => setSidebarOpen(true)}
-            >
-              <Menu className="h-4 w-4" />
-            </Button>
-
             <h1 className="font-serif font-black text-xl text-foreground truncate">
               {storeProfile?.name || APP_NAME}
             </h1>

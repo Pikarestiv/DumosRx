@@ -33,16 +33,12 @@ import {
 } from "lucide-react";
 
 interface DashboardSidebarProps {
-  isOpen: boolean;
-  onClose: () => void;
   onOpenFeedback: () => void;
   collapsed: boolean;
   onToggleCollapse: () => void;
 }
 
 export function DashboardSidebar({
-  isOpen,
-  onClose,
   onOpenFeedback,
   collapsed,
   onToggleCollapse,
@@ -93,13 +89,13 @@ export function DashboardSidebar({
     href: string;
     icon: React.ElementType;
     name: string;
-    onClick?: () => void;
+    icon: React.ElementType;
+    name: string;
   }) => {
     const isActive = pathname.startsWith(href);
     const link = (
       <Link
         href={href}
-        onClick={onClick}
         className={cn(
           "flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200",
           collapsed ? "justify-center px-2" : "",
@@ -169,22 +165,11 @@ export function DashboardSidebar({
   return (
     <TooltipProvider>
       <>
-        {/* Mobile overlay */}
-        {isOpen && (
-          <div
-            className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm lg:hidden transition-all duration-300"
-            onClick={onClose}
-          />
-        )}
-
         {/* Sidebar */}
         <div
           className={cn(
-            "fixed inset-y-0 left-0 z-50 bg-sidebar border-r border-sidebar-border transform transition-all duration-300 ease-in-out lg:translate-x-0 flex flex-col",
-            /* on mobile always 64 wide when open; on lg respect collapsed */
-            "w-64 lg:w-64",
-            collapsed ? "lg:w-[68px]" : "lg:w-64",
-            isOpen ? "translate-x-0" : "-translate-x-full",
+            "hidden lg:flex fixed inset-y-0 left-0 z-50 bg-sidebar border-r border-sidebar-border transition-all duration-300 ease-in-out flex-col",
+            collapsed ? "w-[68px]" : "w-64"
           )}
           style={{
             top: "var(--tauri-top, 0px)",
@@ -217,18 +202,6 @@ export function DashboardSidebar({
                 style={{ filter: "var(--logo-filter)" }}
               />
             )}
-
-            {/* Mobile close button — visible only on small screens */}
-            {!collapsed && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="lg:hidden ml-auto"
-                onClick={onClose}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            )}
           </div>
 
           {/* Nav */}
@@ -244,7 +217,6 @@ export function DashboardSidebar({
                 href={item.href}
                 icon={item.icon}
                 name={item.name}
-                onClick={onClose}
               />
             ))}
 
@@ -254,7 +226,6 @@ export function DashboardSidebar({
                 name="Help & Feedback"
                 onClick={() => {
                   onOpenFeedback();
-                  onClose();
                 }}
               />
               <ActionItem icon={LogOut} name="Sign Out" onClick={logout} />

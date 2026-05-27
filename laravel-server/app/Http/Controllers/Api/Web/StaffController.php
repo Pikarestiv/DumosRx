@@ -62,6 +62,9 @@ class StaffController extends Controller
 
         $roleObj = \App\Models\Role::where('slug', $request->role)->first();
 
+        $pin = $request->pin ?: '1234';
+        $password = $request->password ? Hash::make($request->password) : Hash::make($pin);
+
         $user = User::create([
             'store_id' => $request->store_id,
             'first_name' => $request->first_name,
@@ -70,8 +73,8 @@ class StaffController extends Controller
             'username' => $request->username,
             'role' => $request->role,
             'role_id' => $roleObj ? $roleObj->id : null,
-            'password' => $request->password ? Hash::make($request->password) : null,
-            'pin' => $request->pin ?: '1234',
+            'password' => $password,
+            'pin' => $pin,
             'is_active' => true,
         ]);
 

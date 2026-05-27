@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 
-export function SyncIndicator() {
+export function SyncIndicator({ collapsed = false }: { collapsed?: boolean }) {
   const [status, setStatus] = useState<
     "online" | "offline" | "syncing" | "error"
   >("online");
@@ -109,6 +109,69 @@ export function SyncIndicator() {
     }
   };
 
+  const statusLabel = isSyncInProgress
+    ? "Syncing..."
+    : status === "offline"
+      ? "Offline"
+      : status === "error"
+        ? "Sync Error"
+        : isLinked
+          ? "Cloud Active"
+          : "Not Linked";
+
+  const statusIcon = isSyncInProgress ? (
+    <RefreshCw className="h-4 w-4 text-blue-500 animate-spin" />
+  ) : status === "offline" ? (
+    <CloudOff className="h-4 w-4 text-muted-foreground" />
+  ) : status === "error" ? (
+    <AlertCircle className="h-4 w-4 text-destructive" />
+  ) : (
+    <Cloud className="h-4 w-4 text-emerald-500" />
+  );
+
+  const tooltipText = isSyncInProgress
+    ? "Syncing your changes to the cloud..."
+    : status === "offline"
+      ? "Offline mode. Changes are saved locally."
+      : status === "error"
+        ? errorMessage || "Sync failed. Please try again."
+        : isLinked
+          ? "Your data is securely backed up to the DumosRx cloud."
+          : "Connect your cloud account to enable backups.";
+
+  if (collapsed) {
+    return (
+      <div className="px-2 py-3 flex flex-col items-center gap-2">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={handleManualSync}
+                disabled={isSyncInProgress || status === "offline"}
+                className="p-2 rounded-lg transition-colors disabled:opacity-30 cursor-pointer hover:bg-sidebar-accent border border-transparent hover:border-sidebar-border"
+                title={statusLabel}
+              >
+                {statusIcon}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="bg-card border-accent/10 max-w-[180px]">
+              <div className="space-y-1">
+                <p className="text-xs font-bold">{statusLabel}</p>
+                <p className="text-[10px] text-muted-foreground leading-relaxed">{tooltipText}</p>
+                {lastSync && (
+                  <p className="text-[10px] text-muted-foreground">
+                    Last sync: {formatDistanceToNow(new Date(lastSync))} ago
+                  </p>
+                )}
+              </div>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        <AuthModal open={showAuthModal} onOpenChange={setShowAuthModal} />
+      </div>
+    );
+  }
+
   return (
     <div className="px-4 py-4 border-t border-sidebar-border bg-sidebar-accent/5">
       <TooltipProvider>
@@ -117,25 +180,9 @@ export function SyncIndicator() {
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  {isSyncInProgress ? (
-                    <RefreshCw className="h-4 w-4 text-blue-500 animate-spin" />
-                  ) : status === "offline" ? (
-                    <CloudOff className="h-4 w-4 text-muted-foreground" />
-                  ) : status === "error" ? (
-                    <AlertCircle className="h-4 w-4 text-destructive" />
-                  ) : (
-                    <Cloud className="h-4 w-4 text-emerald-500" />
-                  )}
+                  {statusIcon}
                   <span className="text-xs font-bold text-sidebar-foreground uppercase tracking-tight">
-                    {isSyncInProgress
-                      ? "Syncing..."
-                      : status === "offline"
-                        ? "Offline"
-                        : status === "error"
-                          ? "Sync Error"
-                          : isLinked
-                            ? "Cloud Active"
-                            : "Not Linked"}
+                    {statusLabel}
                   </span>
                 </div>
 
@@ -170,15 +217,7 @@ export function SyncIndicator() {
             <div className="space-y-1">
               <p className="text-xs font-bold">Cloud Sync Engine</p>
               <p className="text-[10px] text-muted-foreground leading-relaxed">
-                {isSyncInProgress
-                  ? "Syncing your changes to the cloud..."
-                  : status === "offline"
-                    ? "Offline mode. Changes are saved locally."
-                    : status === "error"
-                      ? errorMessage || "Sync failed. Please try again."
-                      : isLinked
-                        ? "Your data is securely backed up to the DumosRx cloud."
-                        : "Connect your cloud account to enable automatic backups and sync."}
+                {tooltipText}
               </p>
             </div>
           </TooltipContent>

@@ -14,17 +14,41 @@ import { Menu } from "lucide-react";
 import { FeedbackForm } from "@/components/feedback/feedback-form";
 import { BroadcastBanner } from "./broadcast-banner";
 import { DashboardSidebar } from "./dashboard-sidebar";
+import { cn } from "@/lib/utils";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
 }
 
+const COLLAPSED_KEY = "sidebar_collapsed";
+
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const router = useRouter();
   const { storeProfile } = useStore();
   const { user } = useAuth();
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+
+  /* Hydrate collapse preference from localStorage */
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(COLLAPSED_KEY);
+      if (stored === "true") setSidebarCollapsed(true);
+    } catch {
+      // localStorage unavailable (e.g. SSR or private mode)
+    }
+  }, []);
+
+  const handleToggleCollapse = () => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(COLLAPSED_KEY, String(next));
+      } catch {}
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (!user) {
@@ -38,13 +62,18 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         onOpenFeedback={() => setFeedbackOpen(true)}
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={handleToggleCollapse}
       />
 
       <FeedbackForm open={feedbackOpen} onOpenChange={setFeedbackOpen} />
 
-      {/* Main content */}
+      {/* Main content — shifts right to clear the sidebar */}
       <div
-        className="lg:pl-64 flex flex-col min-h-screen"
+        className={cn(
+          "flex flex-col min-h-screen transition-all duration-300",
+          sidebarCollapsed ? "lg:pl-[68px]" : "lg:pl-64"
+        )}
         style={{ paddingTop: "var(--tauri-top, 0px)" }}
       >
         <BroadcastBanner />

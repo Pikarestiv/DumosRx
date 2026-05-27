@@ -84,11 +84,8 @@ export function DashboardSidebar({
     href,
     icon: Icon,
     name,
-    onClick,
   }: {
     href: string;
-    icon: React.ElementType;
-    name: string;
     icon: React.ElementType;
     name: string;
   }) => {
@@ -169,7 +166,7 @@ export function DashboardSidebar({
         <div
           className={cn(
             "hidden lg:flex fixed inset-y-0 left-0 z-50 bg-sidebar border-r border-sidebar-border transition-all duration-300 ease-in-out flex-col",
-            collapsed ? "w-[68px]" : "w-64"
+            collapsed ? "w-[68px]" : "w-64",
           )}
           style={{
             top: "var(--tauri-top, 0px)",

@@ -30,6 +30,7 @@ class CheckSubscription
         }
 
         $subscriptionService = app(SubscriptionService::class);
+        $owner = $subscriptionService->getSubscriptionOwner($user);
 
         // If a specific feature is requested
         if ($feature) {
@@ -42,12 +43,12 @@ class CheckSubscription
             }
         } else {
             // General subscription check
-            $sub = $user->subscriptions()->where('status', 'active')->where('end_date', '>', now())->latest()->first();
+            $sub = $owner->subscriptions()->where('status', 'active')->where('end_date', '>', now())->latest()->first();
             if (!$sub) {
                 // Check grace period
                 $systemConfig = SystemConfig::getVal('subscription_plans', []);
                 $graceDays = $systemConfig['grace_period_days'] ?? 3;
-                $expiredSub = $user->subscriptions()->where('status', 'active')->where('end_date', '>', now()->subDays($graceDays))->latest()->first();
+                $expiredSub = $owner->subscriptions()->where('status', 'active')->where('end_date', '>', now()->subDays($graceDays))->latest()->first();
                 
                 if (!$expiredSub) {
                     return response()->json([

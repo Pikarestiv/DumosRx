@@ -315,6 +315,27 @@ class AuthController extends Controller
         $user->deletion_reason = $request->reason;
         $user->save();
 
+        // 1. Notify Super Admins
+        $superAdmins = User::where('role', 'super_admin')->get();
+        foreach ($superAdmins as $superAdmin) {
+            \App\Models\Notification::create([
+                'user_id' => $superAdmin->id,
+                'title' => 'Account Deletion Requested',
+                'message' => "User {$user->name} ({$user->email}) has requested account deletion. Reason: {$request->reason}",
+                'type' => 'warning',
+                'is_read' => false,
+            ]);
+        }
+
+        // 2. Log Activity
+        \App\Models\ActivityLog::create([
+            'user_id' => $user->id,
+            'action' => 'ACCOUNT_DELETION_REQUESTED',
+            'description' => "Requested account deletion. Reason: {$request->reason}",
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+        ]);
+
         return response()->json([
             'message' => 'Account deletion requested successfully.',
         ]);

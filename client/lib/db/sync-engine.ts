@@ -117,9 +117,7 @@ export async function pullChanges(): Promise<{
     try {
       const rawDb = isTauri() ? null : (await import("./core")).getDatabase();
       
-      if (isTauri()) {
-        await execute("BEGIN TRANSACTION");
-      } else if (rawDb) {
+      if (!isTauri() && rawDb) {
         rawDb.run("BEGIN");
       }
 
@@ -175,9 +173,7 @@ export async function pullChanges(): Promise<{
         }
       }
 
-      if (isTauri()) {
-        await execute("COMMIT");
-      } else if (rawDb) {
+      if (!isTauri() && rawDb) {
         rawDb.run("COMMIT");
         (await import("./core")).saveDatabase();
       }
@@ -185,9 +181,7 @@ export async function pullChanges(): Promise<{
       console.error("Failed to apply pull changes:", err);
       try {
         const rawDb = isTauri() ? null : (await import("./core")).getDatabase();
-        if (isTauri()) {
-          await execute("ROLLBACK");
-        } else if (rawDb) {
+        if (!isTauri() && rawDb) {
           rawDb.run("ROLLBACK");
         }
       } catch (_rollbackErr) {

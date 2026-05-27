@@ -24,8 +24,10 @@ class StoreController extends Controller
             'phone' => 'nullable|string',
         ]);
 
+        $user = $request->user();
+
         $store = Store::create([
-            'user_id' => $request->user()->id,
+            'user_id' => $user->id,
             'name' => $request->name,
             'location' => $request->location,
             'address' => $request->address,
@@ -33,6 +35,11 @@ class StoreController extends Controller
             'device_id' => 'WEB-' . strtoupper(Str::random(8)),
             'store_type' => 'pharmacy',
         ]);
+
+        // Auto-create a trial subscription if the user doesn't have one
+        if (!$user->subscriptions()->exists()) {
+            app(\App\Services\SubscriptionService::class)->createTrial($user);
+        }
 
         return response()->json([
             'message' => 'Store registered successfully',

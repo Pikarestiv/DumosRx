@@ -11,10 +11,32 @@ class StaffController extends Controller
 {
     public function index(Request $request)
     {
-        $query = User::where('role', '!=', 'super_admin');
+        $user = $request->user();
         
-        if ($request->has('store_id') && $request->store_id !== 'all') {
-            $query->where('store_id', $request->store_id);
+        if ($user->role === 'super_admin') {
+            $query = User::where('role', '!=', 'super_admin');
+            
+            if ($request->has('store_id') && $request->store_id !== 'all') {
+                $query->where('store_id', $request->store_id);
+            }
+        } else {
+            $subscriptionService = app(\App\Services\SubscriptionService::class);
+            $owner = $subscriptionService->getSubscriptionOwner($user);
+            
+            $storeIds = \App\Models\Store::where('user_id', $owner->id)->pluck('id')->toArray();
+            
+            $query = User::where(function($q) use ($storeIds, $owner) {
+                $q->whereIn('store_id', $storeIds)
+                  ->orWhere('id', $owner->id);
+            });
+            
+            if ($request->has('store_id') && $request->store_id !== 'all') {
+                if (in_array($request->store_id, $storeIds)) {
+                    $query->where('store_id', $request->store_id);
+                } else {
+                    $query->whereNull('id');
+                }
+            }
         }
         
         return $query->get();

@@ -5,6 +5,7 @@ This document tracks the proposed features for the DumosRx system, grouped by st
 ---
 
 ## 🛡️ Architectural Rules & Safety Constraints
+
 These core principles govern the implementation of all new features to ensure system stability, data integrity, and patient safety.
 
 - **Navigation Principle:** "All features must exist in exactly ONE primary entry point (no duplicates across tabs)."
@@ -13,6 +14,7 @@ These core principles govern the implementation of all new features to ensure sy
 - **Internal Observability Requirement:** All systems must log user actions, system failures, sync events, and AI decisions. This is critical for debugging offline-first sync issues and AI auditing.
 
 ## 🌟 Tier 1: The Immediate "Must-Haves" (High Impact, Low Risk)
+
 These features should be implemented immediately as they directly impact usability and business growth without introducing massive technical risk.
 
 - [ ] **1. Mobile Navigation Change (CRITICAL UX RESTRUCTURE)**
@@ -40,6 +42,7 @@ These features should be implemented immediately as they directly impact usabili
 ---
 
 ## 🚀 Tier 2: The "Game Changers" (High Value, Medium Complexity)
+
 These features will make DumosRx feel like "the future" compared to competitors, but require careful engineering.
 
 - [ ] **5. AI Assistant Module (NEW CORE FEATURE)**
@@ -58,6 +61,7 @@ These features will make DumosRx feel like "the future" compared to competitors,
 ---
 
 ## ⚠️ Tier 3: Proceed With Caution (High Risk)
+
 These features solve real problems but carry significant risks (liability or UX frustration) that must be mitigated.
 
 - [ ] **8. Substitution Recommendation Engine**
@@ -74,6 +78,7 @@ These features solve real problems but carry significant risks (liability or UX 
 ---
 
 ## 🛑 Tier 4: The "Scope Expanders" (Future Roadmap)
+
 Massive features that change the core business model. Should be tabled until the core ERP/POS is completely dominant.
 
 - [ ] **10. E-commerce Integration Layer (DumosRx Commerce API Layer)**

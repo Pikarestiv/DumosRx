@@ -2,16 +2,16 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { 
-  LayoutDashboard, 
-  Store, 
-  Users, 
-  CreditCard, 
-  Download, 
+import {
+  LayoutDashboard,
+  Store,
+  Users,
+  CreditCard,
+  Download,
   LogOut,
   Bell,
   Shield,
-  Activity
+  Activity,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -21,7 +21,12 @@ interface SidebarProps {
   onLogout: () => void;
 }
 
-export function Sidebar({ activeTab, setActiveTab, user, onLogout }: SidebarProps) {
+export function Sidebar({
+  activeTab,
+  setActiveTab,
+  user,
+  onLogout,
+}: SidebarProps) {
   const sidebarItems = [
     { id: "overview", name: "Overview", icon: LayoutDashboard },
     { id: "notifications", name: "Notifications", icon: Bell },
@@ -35,15 +40,15 @@ export function Sidebar({ activeTab, setActiveTab, user, onLogout }: SidebarProp
 
   return (
     <aside className="hidden lg:flex w-72 flex-col bg-background border-r h-full">
-      <div className="p-6">
+      <div className="p-5">
         <Link href="/" className="flex items-center">
           <Image
             src="/logo.png"
             alt="DumosRx Logo"
             width={100}
             height={36}
-            className="h-12 w-auto object-contain"
-            style={{ filter: "var(--logo-filter)", height: "auto" }}
+            className="h-10 w-auto object-contain"
+            style={{ filter: "var(--logo-filter)" }}
             priority
           />
         </Link>
@@ -73,7 +78,9 @@ export function Sidebar({ activeTab, setActiveTab, user, onLogout }: SidebarProp
           </div>
           <div className="flex-1 overflow-hidden">
             <p className="text-sm font-bold truncate">{user?.name || "User"}</p>
-            <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+            <p className="text-xs text-muted-foreground truncate">
+              {user?.email}
+            </p>
           </div>
           <button
             onClick={onLogout}

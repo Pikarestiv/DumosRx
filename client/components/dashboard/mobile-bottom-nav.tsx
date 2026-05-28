@@ -21,7 +21,7 @@ interface MobileBottomNavProps {
 
 export function MobileBottomNav({ onOpenFeedback }: MobileBottomNavProps) {
   const pathname = usePathname();
-  const { storeType, t } = useStore();
+  const { storeType } = useStore();
   const [moreDrawerOpen, setMoreDrawerOpen] = useState(false);
 
   const primaryTabs = [
@@ -35,7 +35,8 @@ export function MobileBottomNav({ onOpenFeedback }: MobileBottomNavProps) {
     { name: "Customers", href: "/customers", icon: Users },
   ];
 
-  const isMoreActive = pathname && !primaryTabs.some(tab => pathname.startsWith(tab.href));
+  const isMoreActive =
+    pathname && !primaryTabs.some((tab) => pathname.startsWith(tab.href));
 
   return (
     <>
@@ -44,20 +45,22 @@ export function MobileBottomNav({ onOpenFeedback }: MobileBottomNavProps) {
           {primaryTabs.map((tab) => {
             const isActive = pathname.startsWith(tab.href);
             const Icon = tab.icon;
-            
+
             return (
               <Link
                 key={tab.name}
                 href={tab.href}
                 className={cn(
                   "flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors",
-                  isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                  isActive
+                    ? "text-primary"
+                    : "text-muted-foreground hover:text-foreground",
                 )}
               >
                 <div
                   className={cn(
                     "flex items-center justify-center rounded-full p-1",
-                    isActive ? "bg-primary/10" : ""
+                    isActive ? "bg-primary/10" : "",
                   )}
                 >
                   <Icon className="h-5 w-5" />
@@ -73,13 +76,15 @@ export function MobileBottomNav({ onOpenFeedback }: MobileBottomNavProps) {
             onClick={() => setMoreDrawerOpen(true)}
             className={cn(
               "flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors",
-              isMoreActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
+              isMoreActive
+                ? "text-primary"
+                : "text-muted-foreground hover:text-foreground",
             )}
           >
             <div
               className={cn(
                 "flex items-center justify-center rounded-full p-1",
-                isMoreActive ? "bg-primary/10" : ""
+                isMoreActive ? "bg-primary/10" : "",
               )}
             >
               <Menu className="h-5 w-5" />
@@ -89,9 +94,9 @@ export function MobileBottomNav({ onOpenFeedback }: MobileBottomNavProps) {
         </nav>
       </div>
 
-      <MobileMoreDrawer 
-        open={moreDrawerOpen} 
-        onOpenChange={setMoreDrawerOpen} 
+      <MobileMoreDrawer
+        open={moreDrawerOpen}
+        onOpenChange={setMoreDrawerOpen}
         onOpenFeedback={onOpenFeedback}
       />
     </>

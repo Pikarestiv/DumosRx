@@ -4,13 +4,11 @@ import type React from "react";
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { ThemeCustomizer } from "@/components/ui/theme-customizer";
 import { useAuth } from "@/lib/context/auth-context";
 import { useStore } from "@/lib/context/store-context";
 import { APP_NAME } from "@/lib/constants";
-import { Menu } from "lucide-react";
 import { FeedbackForm } from "@/components/feedback/feedback-form";
 import { BroadcastBanner } from "./broadcast-banner";
 import { DashboardSidebar } from "./dashboard-sidebar";
@@ -75,7 +73,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       <div
         className={cn(
           "flex flex-col min-h-screen transition-all duration-300 pb-16 lg:pb-0",
-          sidebarCollapsed ? "lg:pl-[68px]" : "lg:pl-64"
+          sidebarCollapsed ? "lg:pl-[68px]" : "lg:pl-64",
         )}
         style={{ paddingTop: "var(--tauri-top, 0px)" }}
       >

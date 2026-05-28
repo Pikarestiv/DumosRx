@@ -187,7 +187,12 @@ class SyncController extends Controller
 
             // Update the last sync time for the user's store
             if ($request->user()) {
-                Store::where('user_id', $request->user()->id)->update(['last_sync_at' => now()]);
+                $user = $request->user();
+                if ($user->store_id) {
+                    Store::where('id', $user->store_id)->update(['last_sync_at' => now()]);
+                } else {
+                    Store::where('user_id', $user->id)->update(['last_sync_at' => now()]);
+                }
             }
 
             DB::commit();

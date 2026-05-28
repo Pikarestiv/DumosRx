@@ -89,13 +89,12 @@ class DashboardService
         
         $lastSyncTime = 'Never';
         try {
-            $lastSyncedRecord = DB::table('sales')
-                ->whereIn('cashier_id', $userIds)
-                ->whereNotNull('_synced_at')
-                ->orderBy('_synced_at', 'desc')
-                ->first();
-            
-            $lastSyncTime = $lastSyncedRecord ? Carbon::parse($lastSyncedRecord->_synced_at)->diffForHumans() : 'Never';
+            if ($userStores->count() > 0) {
+                $latestStore = $userStores->sortByDesc('last_sync_at')->first();
+                if ($latestStore && $latestStore->last_sync_at) {
+                    $lastSyncTime = Carbon::parse($latestStore->last_sync_at)->diffForHumans();
+                }
+            }
         } catch (\Exception $e) {
              Log::error("DashboardService [Sync]: " . $e->getMessage());
         }

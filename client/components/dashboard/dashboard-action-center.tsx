@@ -14,7 +14,7 @@ import {
   Clock,
   ArrowRight,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -37,15 +37,18 @@ interface AlertItem {
   actionRoute: string;
 }
 
-export function DashboardActionCenter({ expiringCount, lowStockCount }: ActionCenterProps) {
+export function DashboardActionCenter({
+  expiringCount,
+  lowStockCount,
+}: ActionCenterProps) {
   const router = useRouter();
   const { isAuthenticated, isAdmin } = useAuth();
   const { storeProfile } = useStore();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
-  
+
   const { data: staffData } = useLocalData<{ count: number }>(
-    "SELECT COUNT(*) as count FROM users WHERE _deleted = 0 AND id != 'default-admin'"
+    "SELECT COUNT(*) as count FROM users WHERE _deleted = 0 AND id != 'default-admin'",
   );
 
   const staffCount = staffData[0]?.count || 0;
@@ -58,11 +61,12 @@ export function DashboardActionCenter({ expiringCount, lowStockCount }: ActionCe
         items.push({
           id: "cloud-sync",
           title: "No Cloud Account Linked",
-          description: "Link to DumosRx Cloud to enable backups and remote sync.",
+          description:
+            "Link to DumosRx Cloud to enable backups and remote sync.",
           icon: CloudOff,
           priority: "critical",
           actionLabel: "Link Account",
-          actionRoute: "/settings/cloud"
+          actionRoute: "/settings/cloud",
         });
       }
 
@@ -70,40 +74,53 @@ export function DashboardActionCenter({ expiringCount, lowStockCount }: ActionCe
         items.push({
           id: "no-staff",
           title: "No Staff Accounts Found",
-          description: "Create staff PINs so your cashiers can log in to the POS.",
+          description:
+            "Create staff PINs so your cashiers can log in to the POS.",
           icon: UserPlus,
           priority: "critical",
           actionLabel: "Create Staff",
-          actionRoute: "/settings/staff"
+          actionRoute: "/settings/staff",
         });
       }
 
       if (storeProfile) {
-        const fieldsToCheck = ['address', 'phone', 'email', 'pcn_license', 'logo_url'];
-        const filledFields = fieldsToCheck.filter(field => !!(storeProfile as any)[field]);
-        const percentage = Math.round((filledFields.length / fieldsToCheck.length) * 100);
+        const fieldsToCheck = [
+          "address",
+          "phone",
+          "email",
+          "pcn_license",
+          "logo_url",
+        ];
+        const filledFields = fieldsToCheck.filter(
+          (field) => !!(storeProfile as any)[field],
+        );
+        const percentage = Math.round(
+          (filledFields.length / fieldsToCheck.length) * 100,
+        );
 
         if (percentage < 100) {
           items.push({
             id: "profile-incomplete",
             title: `Store Profile is ${percentage}% Complete`,
-            description: "Complete your profile to ensure your receipts look professional.",
+            description:
+              "Complete your profile to ensure your receipts look professional.",
             icon: Settings,
             priority: "info",
             actionLabel: "Complete Now",
-            actionRoute: "/settings/store"
+            actionRoute: "/settings/store",
           });
         }
       } else {
-          items.push({
-              id: "profile-missing",
-              title: `Store Setup Required`,
-              description: "Please configure your business details and terminology.",
-              icon: Settings,
-              priority: "critical",
-              actionLabel: "Setup Now",
-              actionRoute: "/settings/store"
-            });
+        items.push({
+          id: "profile-missing",
+          title: `Store Setup Required`,
+          description:
+            "Please configure your business details and terminology.",
+          icon: Settings,
+          priority: "critical",
+          actionLabel: "Setup Now",
+          actionRoute: "/settings/store",
+        });
       }
 
       if (expiringCount > 0) {
@@ -114,7 +131,7 @@ export function DashboardActionCenter({ expiringCount, lowStockCount }: ActionCe
           icon: Clock,
           priority: "warning",
           actionLabel: "Check Now",
-          actionRoute: "/inventory?filter=expiring"
+          actionRoute: "/inventory?filter=expiring",
         });
       }
 
@@ -122,19 +139,28 @@ export function DashboardActionCenter({ expiringCount, lowStockCount }: ActionCe
         items.push({
           id: "low-stock",
           title: `${lowStockCount} Items Low on Stock`,
-          description: "You have products below their designated reorder level.",
+          description:
+            "You have products below their designated reorder level.",
           icon: PackageX,
           priority: "warning",
           actionLabel: "View Needs",
-          actionRoute: "/inventory?filter=low-stock"
+          actionRoute: "/inventory?filter=low-stock",
         });
       }
     }
 
     const priorityWeights = { critical: 3, warning: 2, info: 1, success: 0 };
-    return items.sort((a, b) => priorityWeights[b.priority] - priorityWeights[a.priority]);
-
-  }, [isAuthenticated, isAdmin, staffCount, storeProfile, expiringCount, lowStockCount]);
+    return items.sort(
+      (a, b) => priorityWeights[b.priority] - priorityWeights[a.priority],
+    );
+  }, [
+    isAuthenticated,
+    isAdmin,
+    staffCount,
+    storeProfile,
+    expiringCount,
+    lowStockCount,
+  ]);
 
   // Auto-rotate logic
   useEffect(() => {
@@ -162,11 +188,13 @@ export function DashboardActionCenter({ expiringCount, lowStockCount }: ActionCe
     }
   };
 
-  const handleNext = () => setCurrentIndex((prev) => (prev + 1) % alerts.length);
-  const handlePrev = () => setCurrentIndex((prev) => (prev - 1 + alerts.length) % alerts.length);
+  const handleNext = () =>
+    setCurrentIndex((prev) => (prev + 1) % alerts.length);
+  const handlePrev = () =>
+    setCurrentIndex((prev) => (prev - 1 + alerts.length) % alerts.length);
 
   return (
-    <Card 
+    <Card
       className="border-border bg-card shadow-sm mb-6 overflow-hidden relative"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
@@ -181,10 +209,16 @@ export function DashboardActionCenter({ expiringCount, lowStockCount }: ActionCe
         </div>
         {alerts.length > 1 && (
           <div className="flex items-center gap-1">
-            <button onClick={handlePrev} className="p-1 hover:bg-accent rounded-md transition-colors text-muted-foreground hover:text-foreground">
+            <button
+              onClick={handlePrev}
+              className="p-1 hover:bg-accent rounded-md transition-colors text-muted-foreground hover:text-foreground"
+            >
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <button onClick={handleNext} className="p-1 hover:bg-accent rounded-md transition-colors text-muted-foreground hover:text-foreground">
+            <button
+              onClick={handleNext}
+              className="p-1 hover:bg-accent rounded-md transition-colors text-muted-foreground hover:text-foreground"
+            >
               <ChevronRight className="h-4 w-4" />
             </button>
           </div>
@@ -200,17 +234,21 @@ export function DashboardActionCenter({ expiringCount, lowStockCount }: ActionCe
             transition={{ duration: 0.2 }}
             className="p-4 flex flex-col sm:flex-row sm:items-center gap-4 transition-colors"
           >
-            <div className={`p-3 rounded-2xl shrink-0 ${getPriorityColors(currentAlert.priority)}`}>
+            <div
+              className={`p-3 rounded-2xl shrink-0 self-start ${getPriorityColors(currentAlert.priority)}`}
+            >
               <currentAlert.icon className="h-5 w-5" />
             </div>
             <div className="flex-1 min-w-0">
-              <h4 className="font-bold text-sm text-foreground">{currentAlert.title}</h4>
+              <h4 className="font-bold text-sm text-foreground">
+                {currentAlert.title}
+              </h4>
               <p className="text-xs font-medium text-muted-foreground mt-0.5 pr-4 truncate sm:whitespace-normal">
                 {currentAlert.description}
               </p>
             </div>
-            <Button 
-              size="sm" 
+            <Button
+              size="sm"
               variant="outline"
               onClick={() => router.push(currentAlert.actionRoute)}
               className="shrink-0 w-full sm:w-auto h-9 font-bold bg-background border-border hover:bg-accent hover:text-accent-foreground"

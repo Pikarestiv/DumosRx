@@ -2,6 +2,7 @@
 
 import { useStore } from "@/lib/context/store-context";
 import { APP_NAME } from "@/lib/constants";
+import Barcode from "react-barcode";
 
 interface ReceiptProps {
   transaction: {
@@ -30,38 +31,65 @@ export function ReceiptView({ transaction }: ReceiptProps) {
     }).format(amount);
   };
 
+  const shortId = transaction.id.split('-')[0].toUpperCase();
+  const invoiceNo = `INV-${shortId}`;
+
   return (
     <div className="bg-white p-8 max-w-[400px] mx-auto text-black font-mono text-sm leading-tight printable-receipt">
-      <div className="text-center border-b pb-4 mb-4">
-        <h2 className="text-lg font-bold uppercase">{storeProfile?.name}</h2>
-        <p>{storeProfile?.address}</p>
-        <p>{storeProfile?.phone}</p>
+      {/* Header */}
+      <div className="text-center border-b border-black pb-4 mb-4">
+        <h2 className="text-xl font-bold uppercase">{storeProfile?.name}</h2>
+        {storeProfile?.address && <p>{storeProfile?.address}</p>}
+        {storeProfile?.phone && <p>{storeProfile?.phone}</p>}
       </div>
 
-      <div className="mb-4">
-        <p>Date: {new Date(transaction.date).toLocaleString()}</p>
-        <p>Receipt #: {transaction.id.slice(0, 8).toUpperCase()}</p>
-        {transaction.customer && <p>Customer: {transaction.customer.name}</p>}
+      <div className="text-center mb-4">
+        <h3 className="text-lg font-bold uppercase tracking-widest border border-black inline-block px-4 py-1">Invoice</h3>
       </div>
 
-      <div className="border-b border-dashed pb-2 mb-2">
-        <div className="flex justify-between font-bold mb-1">
-          <span className="flex-1 italic">{t('product')}</span>
-          <span className="w-8 text-center italic">Qty</span>
-          <span className="w-20 text-right italic">Price</span>
+      <div className="mb-6 space-y-1">
+        <div className="flex justify-between">
+            <span className="font-bold">Invoice no:</span>
+            <span>{invoiceNo}</span>
+        </div>
+        <div className="flex justify-between">
+            <span className="font-bold">Customer:</span>
+            <span>{transaction.customer?.name || "Walk-in Customer"}</span>
+        </div>
+        {transaction.customer?.phone && (
+            <div className="flex justify-between">
+                <span className="font-bold">Mobile:</span>
+                <span>{transaction.customer.phone}</span>
+            </div>
+        )}
+        <div className="flex justify-between">
+            <span className="font-bold">Date:</span>
+            <span>{new Date(transaction.date).toLocaleString('en-GB')}</span>
+        </div>
+      </div>
+
+      {/* Items Table */}
+      <div className="border-b border-black pb-2 mb-2">
+        <div className="flex justify-between font-bold mb-2 border-b border-dashed border-black pb-1 text-xs">
+          <span className="flex-1 w-1/2">Product</span>
+          <span className="w-8 text-center">Qty</span>
+          <span className="w-16 text-right">Price</span>
+          <span className="w-20 text-right">Total</span>
         </div>
         {transaction.items.map((item) => (
-          <div key={item.id} className="flex justify-between mb-1">
-            <span className="flex-1">{item.name}</span>
+          <div key={item.id} className="flex justify-between mb-1 text-xs items-start">
+            <span className="flex-1 w-1/2 break-words pr-2 leading-tight">{item.name}</span>
             <span className="w-8 text-center">{item.quantity}</span>
+            <span className="w-16 text-right">{formatCurrency(item.unit_price)}</span>
             <span className="w-20 text-right">{formatCurrency(item.subtotal)}</span>
           </div>
         ))}
       </div>
 
-      <div className="space-y-1 border-b border-dashed pb-2 mb-4">
+      {/* Footer / Totals */}
+      <div className="space-y-1 pb-4 mb-4 border-b border-black">
         <div className="flex justify-between">
-          <span>Subtotal:</span>
+          <span>Sub total:</span>
           <span>{formatCurrency(transaction.subtotal)}</span>
         </div>
         {transaction.tax > 0 && (
@@ -76,27 +104,41 @@ export function ReceiptView({ transaction }: ReceiptProps) {
             <span>-{formatCurrency(transaction.discount)}</span>
           </div>
         )}
-        <div className="flex justify-between font-bold text-lg pt-1 border-t border-dotted">
-          <span>TOTAL:</span>
+        <div className="flex justify-between font-bold text-lg pt-2 mt-1 border-t border-dashed border-black">
+          <span>Total:</span>
           <span>{formatCurrency(transaction.total)}</span>
         </div>
       </div>
 
-      <div className="space-y-1 mb-6">
+      {/* Payment details */}
+      <div className="space-y-1 mb-6 text-xs">
         <div className="flex justify-between">
-          <span>Paid via {transaction.paymentMethod?.toUpperCase()}:</span>
+          <span>Payment type:</span>
+          <span className="uppercase font-bold">{transaction.paymentMethod}</span>
+        </div>
+        <div className="flex justify-between">
+          <span>Date:</span>
+          <span>{new Date(transaction.date).toLocaleDateString('en-GB')}</span>
+        </div>
+        <div className="flex justify-between">
+          <span>Total paid:</span>
           <span>{formatCurrency(transaction.amountPaid)}</span>
         </div>
         {transaction.change > 0 && (
           <div className="flex justify-between font-bold">
-            <span>CHANGE:</span>
+            <span>Change:</span>
             <span>{formatCurrency(transaction.change)}</span>
           </div>
         )}
       </div>
 
-      <div className="text-center pt-4 border-t italic">
-        <p>Thank you for your business!</p>
+      {/* Barcode */}
+      <div className="flex flex-col items-center justify-center pt-4 mb-4 overflow-hidden">
+        <Barcode value={transaction.id} width={1.2} height={40} fontSize={10} background="transparent" />
+      </div>
+
+      <div className="text-center italic text-xs">
+        <p>Thank you for your patronage!</p>
         <p>{APP_NAME} - NextGen {storeProfile?.store_type === 'pharmacy' ? 'Pharmacy' : 'Retail'} POS</p>
       </div>
       

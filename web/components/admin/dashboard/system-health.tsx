@@ -13,27 +13,27 @@ export function SystemHealth({ liveOperations, securityAlerts }: SystemHealthPro
 
   return (
     <div className="space-y-6">
-      <div className="bg-slate-900 rounded-3xl p-6 border border-slate-800 shadow-xl relative overflow-hidden group">
+      <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-xl relative overflow-hidden group">
         <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
-            <Globe className="h-32 w-32 text-white" />
+            <Globe className="h-32 w-32 text-slate-900 dark:text-white" />
         </div>
         <div className="relative z-10">
             <div className="flex items-center gap-2 mb-4">
-                <Activity className="h-5 w-5 text-indigo-400 animate-pulse" />
-                <h3 className="text-lg font-black text-white">Live Operations</h3>
+                <Activity className="h-5 w-5 text-indigo-500 dark:text-indigo-400 animate-pulse" />
+                <h3 className="text-lg font-black text-slate-900 dark:text-white">Live Operations</h3>
             </div>
             <div className="space-y-4">
-                <div className="flex items-center justify-between p-3 bg-white/5 rounded-2xl border border-white/5">
-                    <span className="text-xs font-bold text-slate-400">Total API Requests</span>
-                    <span className="text-sm font-black text-white">{liveOperations.total_requests || '0'}</span>
+                <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-white/5 rounded-2xl border border-slate-100 dark:border-white/5">
+                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Total API Requests</span>
+                    <span className="text-sm font-black text-slate-900 dark:text-white">{liveOperations.total_requests || '0'}</span>
                 </div>
-                <div className="flex items-center justify-between p-3 bg-white/5 rounded-2xl border border-white/5">
-                    <span className="text-xs font-bold text-slate-400">Sync Success Rate</span>
-                    <span className="text-sm font-black text-emerald-400">{liveOperations.sync_success_rate || '100%'}</span>
+                <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-white/5 rounded-2xl border border-slate-100 dark:border-white/5">
+                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Sync Success Rate</span>
+                    <span className="text-sm font-black text-emerald-500 dark:text-emerald-400">{liveOperations.sync_success_rate || '100%'}</span>
                 </div>
-                <div className="flex items-center justify-between p-3 bg-white/5 rounded-2xl border border-white/5">
-                    <span className="text-xs font-bold text-slate-400">Active WebSocket Connections</span>
-                    <span className="text-sm font-black text-indigo-400">{liveOperations.active_connections || '0'}</span>
+                <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-white/5 rounded-2xl border border-slate-100 dark:border-white/5">
+                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Active WebSocket Connections</span>
+                    <span className="text-sm font-black text-indigo-500 dark:text-indigo-400">{liveOperations.active_connections || '0'}</span>
                 </div>
             </div>
         </div>

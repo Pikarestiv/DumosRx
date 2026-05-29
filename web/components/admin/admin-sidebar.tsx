@@ -14,6 +14,7 @@ import {
   MessageSquare,
   Settings,
   Ticket,
+  Megaphone,
 } from "lucide-react";
 import { useAdminAuthStore } from "@/lib/store/use-admin-auth-store";
 import { useAdminSummary } from "@/lib/api/admin-hooks";
@@ -42,10 +43,10 @@ const sidebarItems = [
     href: "/admin/communications",
   },
   {
-    id: "coupons",
-    name: "Coupons & Trials",
-    icon: Ticket,
-    href: "/admin/marketing/coupons",
+    id: "marketing",
+    name: "Marketing",
+    icon: Megaphone,
+    href: "/admin/marketing",
   },
   {
     id: "settings",

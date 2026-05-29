@@ -20,7 +20,6 @@ export default function MarketingPage() {
       <Tabs defaultValue="coupons" className="space-y-4">
         <TabsList>
           <TabsTrigger value="coupons">Coupons & Trials</TabsTrigger>
-          <TabsTrigger value="campaigns" disabled>Email Campaigns (Soon)</TabsTrigger>
           <TabsTrigger value="affiliates" disabled>Affiliates (Soon)</TabsTrigger>
         </TabsList>
         <TabsContent value="coupons" className="space-y-4">

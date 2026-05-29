@@ -11,7 +11,8 @@ class SubscriptionController extends Controller
 {
     public function status()
     {
-        $user = auth()->user();
+        /** @var \App\Models\User $user */
+        $user = \Illuminate\Support\Facades\Auth::user();
         $sub = Subscription::where('user_id', $user->id)
             ->where('status', 'active')
             ->where('end_date', '>', now())
@@ -74,7 +75,7 @@ class SubscriptionController extends Controller
 
     public function billingHistory(Request $request)
     {
-        $userId = auth()->id();
+        $userId = \Illuminate\Support\Facades\Auth::id();
 
         // Get transactions linked directly to the user's subscriptions
         $subscriptionIds = Subscription::where('user_id', $userId)->pluck('id');
@@ -98,20 +99,92 @@ class SubscriptionController extends Controller
         return response()->json(['transactions' => $transactions]);
     }
 
-    public function initiatePayment(Request $request, \App\Services\Payment\PaymentService $paymentService)
+    public function validateCoupon(Request $request, \App\Services\SubscriptionService $subscriptionService)
+    {
+        $request->validate([
+            'code' => 'required|string',
+            'plan_name' => 'nullable|string',
+            'interval' => 'nullable|in:monthly,yearly',
+        ]);
+
+        /** @var \App\Models\User $user */
+        $user = $request->user();
+
+        $result = $subscriptionService->validateCoupon(
+            $user, 
+            $request->code, 
+            $request->plan_name, 
+            $request->interval
+        );
+
+        if (!$result['valid']) {
+            return response()->json(['valid' => false, 'message' => $result['message']], 400);
+        }
+
+        return response()->json([
+            'valid' => true,
+            'coupon' => [
+                'code' => $result['coupon']->code,
+                'type' => $result['coupon']->type,
+                'value' => $result['coupon']->value,
+                'target_plan' => $result['coupon']->target_plan,
+                'target_interval' => $result['coupon']->target_interval,
+            ]
+        ]);
+    }
+
+    public function initiatePayment(Request $request, \App\Services\Payment\PaymentService $paymentService, \App\Services\SubscriptionService $subscriptionService)
     {
         $request->validate([
             'amount' => 'required|numeric',
             'plan_name' => 'required|string',
+            'coupon_code' => 'nullable|string',
+            'interval' => 'nullable|string',
         ]);
 
-        $user = auth()->user();
+        /** @var \App\Models\User $user */
+        $user = \Illuminate\Support\Facades\Auth::user();
+
+        // Handle 100% discounts / Free Trials directly
+        if ($request->amount <= 0 && $request->coupon_code) {
+            $couponResult = $subscriptionService->validateCoupon($user, $request->coupon_code, $request->plan_name, $request->interval ?? 'monthly');
+            if (!$couponResult['valid']) {
+                return response()->json(['success' => false, 'message' => $couponResult['message']], 400);
+            }
+
+            $coupon = $couponResult['coupon'];
+            $daysToAdd = 30; // default for monthly
+
+            if ($coupon->type === 'trial_extension') {
+                $daysToAdd = $coupon->value;
+            } else if ($request->interval === 'yearly') {
+                $daysToAdd = 365;
+            }
+
+            $sub = Subscription::create([
+                'user_id' => $user->id,
+                'plan_name' => $request->plan_name,
+                'start_date' => now(),
+                'end_date' => now()->addDays($daysToAdd),
+                'status' => 'active',
+                'license_key' => 'DRX-' . strtoupper(bin2hex(random_bytes(8))),
+            ]);
+
+            $subscriptionService->recordCouponUsage($coupon, $user, $sub);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Subscription activated successfully with coupon.',
+                'subscription' => $sub,
+                'payment_url' => null // No payment needed
+            ]);
+        }
 
         try {
             $payment = $paymentService->initializeTransaction(
                 $request->amount,
                 $user->email,
-                ['plan_name' => $request->plan_name, 'user_id' => $user->id]
+                ['plan_name' => $request->plan_name, 'user_id' => $user->id, 'coupon_code' => $request->coupon_code]
             );
 
             $txn = PaymentTransaction::create([
@@ -121,7 +194,7 @@ class SubscriptionController extends Controller
                 'amount' => $request->amount,
                 'currency' => 'NGN',
                 'status' => 'pending',
-                'metadata' => ['plan_name' => $request->plan_name, 'user_id' => $user->id]
+                'metadata' => ['plan_name' => $request->plan_name, 'user_id' => $user->id, 'coupon_code' => $request->coupon_code]
             ]);
 
             return response()->json([
@@ -162,7 +235,7 @@ class SubscriptionController extends Controller
 
                 // Create or Update Subscription
                 $sub = Subscription::create([
-                    'user_id' => $txn->metadata['user_id'] ?? auth()->id(),
+                    'user_id' => $txn->metadata['user_id'] ?? \Illuminate\Support\Facades\Auth::id(),
                     'plan_name' => $txn->metadata['plan_name'],
                     'start_date' => now(),
                     'end_date' => now()->addMonth(), // Assuming monthly for now
@@ -171,6 +244,18 @@ class SubscriptionController extends Controller
                 ]);
 
                 $txn->update(['subscription_id' => $sub->id]);
+
+                // Record coupon usage if present
+                if (!empty($txn->metadata['coupon_code'])) {
+                    $coupon = \App\Models\Coupon::where('code', $txn->metadata['coupon_code'])->first();
+                    if ($coupon) {
+                        $subscriptionService = app(\App\Services\SubscriptionService::class);
+                        $user = \App\Models\User::find($txn->metadata['user_id'] ?? \Illuminate\Support\Facades\Auth::id());
+                        if ($user) {
+                            $subscriptionService->recordCouponUsage($coupon, $user, $sub);
+                        }
+                    }
+                }
 
                 return response()->json([
                     'success' => true,

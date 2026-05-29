@@ -95,6 +95,7 @@ Route::prefix('v1')->group(function () {
         Route::prefix('subscription')->group(function () {
             Route::get('/status', [SubscriptionController::class, 'status']);
             Route::post('/verify-license', [SubscriptionController::class, 'verifyLicense']);
+            Route::post('/validate-coupon', [SubscriptionController::class, 'validateCoupon']);
             Route::post('/pay', [SubscriptionController::class, 'initiatePayment']);
             Route::post('/verify', [SubscriptionController::class, 'verifyPayment']);
             Route::get('/billing-history', [SubscriptionController::class, 'billingHistory']);
@@ -152,6 +153,13 @@ Route::prefix('v1')->group(function () {
 
             // System Configs
             Route::put('/system-configs/{key}', [SystemConfigController::class, 'update']);
+
+            // Coupons
+            Route::get('/coupons', [\App\Http\Controllers\Api\Admin\CouponController::class, 'index']);
+            Route::post('/coupons', [\App\Http\Controllers\Api\Admin\CouponController::class, 'store']);
+            Route::put('/coupons/{coupon}/toggle', [\App\Http\Controllers\Api\Admin\CouponController::class, 'toggleActive']);
+            Route::get('/coupons/{coupon}/usages', [\App\Http\Controllers\Api\Admin\CouponController::class, 'usages']);
+            Route::delete('/coupons/{coupon}', [\App\Http\Controllers\Api\Admin\CouponController::class, 'destroy']);
         });
         // --- APP / TERMINAL ROUTES ---
         Route::prefix('app')->middleware('subscription')->group(function () {

@@ -13,6 +13,7 @@ import {
   Activity,
   MessageSquare,
   Settings,
+  Ticket,
 } from "lucide-react";
 import { useAdminAuthStore } from "@/lib/store/use-admin-auth-store";
 import { useAdminSummary } from "@/lib/api/admin-hooks";
@@ -39,6 +40,12 @@ const sidebarItems = [
     name: "Communications",
     icon: MessageSquare,
     href: "/admin/communications",
+  },
+  {
+    id: "coupons",
+    name: "Coupons & Trials",
+    icon: Ticket,
+    href: "/admin/marketing/coupons",
   },
   {
     id: "settings",

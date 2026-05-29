@@ -14,6 +14,10 @@ import { calculateDiscountPercent } from "@/lib/utils";
 export function SubscriptionPlans() {
   const [loading, setLoading] = useState<string | null>(null);
   const [billingPeriod, setBillingPeriod] = useState<"monthly" | "yearly">("monthly");
+  const [couponCode, setCouponCode] = useState("");
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState<{code: string, type: string, value: number, target_plan: string | null, target_interval: string | null} | null>(null);
+  
   const initiatePayment = useInitiatePaymentMutation();
   const { data: config, isLoading: isConfigLoading } = useSystemConfig("subscription_plans");
 
@@ -24,16 +28,68 @@ export function SubscriptionPlans() {
   const proYearly = config?.tiers?.pro?.price_yearly || 300000;
   const yearlyDiscountPercent = calculateDiscountPercent(proMonthly, proYearly);
 
-  const handleSubscribe = async (tier: string, amount: number, planName: string) => {
+  const handleValidateCoupon = async () => {
+    if (!couponCode) return;
+    setValidatingCoupon(true);
+    try {
+      const response = await fetch('/api/subscription/validate-coupon', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        },
+        body: JSON.stringify({ code: couponCode })
+      });
+      const data = await response.json();
+      if (data.valid) {
+        setAppliedCoupon(data.coupon);
+        toast.success(`Coupon applied: ${data.coupon.type === 'discount_percent' ? data.coupon.value + '% off' : '+' + data.coupon.value + ' days'}`);
+      } else {
+        toast.error(data.message || 'Invalid coupon code');
+        setAppliedCoupon(null);
+      }
+    } catch (error) {
+      toast.error('Failed to validate coupon');
+      setAppliedCoupon(null);
+    } finally {
+      setValidatingCoupon(false);
+    }
+  };
+
+  const handleSubscribe = async (tier: string, baseAmount: number, planName: string) => {
     setLoading(tier);
+    
+    let finalAmount = baseAmount;
+    if (appliedCoupon?.type === 'discount_percent') {
+      finalAmount = baseAmount - (baseAmount * (appliedCoupon.value / 100));
+    } else if (appliedCoupon?.type === 'trial_extension') {
+      // Trial extension means they might not pay now if they are just claiming the trial.
+      // But if they are subscribing, the trial applies to the end date.
+      // We still charge the baseAmount, but they get extra days.
+      // Actually, if amount > 0, they pay. If they want to claim a free trial, we pass amount: 0 to initiatePayment
+      // Let's assume trial extension coupons are usually 100% off the first checkout OR just extra days. 
+      // We will pass the coupon code regardless.
+    }
+
+    // Force 0 if it's 100% off
+    if (finalAmount < 0) finalAmount = 0;
+
     try {
       const response = await initiatePayment.mutateAsync({
-        amount,
-        plan_name: planName
-      });
+        amount: finalAmount,
+        plan_name: planName,
+        coupon_code: appliedCoupon?.code,
+        interval: billingPeriod
+      } as any); // using any because we added fields to the API
 
-      if (response.success && response.payment_url) {
-        window.location.assign(response.payment_url);
+      if (response.success) {
+        if (response.payment_url) {
+          window.location.assign(response.payment_url);
+        } else {
+          // It was a free checkout!
+          toast.success("Subscription activated successfully!");
+          window.location.reload();
+        }
       } else {
         toast.error(response.message || "Failed to initiate payment");
         setLoading(null);
@@ -151,6 +207,28 @@ export function SubscriptionPlans() {
         </Tabs>
       </div>
 
+      <div className="max-w-md mx-auto mb-8 bg-muted/30 p-4 rounded-lg flex items-center gap-3 border border-muted">
+        <div className="flex-1 relative">
+          <input
+            type="text"
+            placeholder="Have a coupon code?"
+            value={couponCode}
+            onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+            disabled={validatingCoupon || appliedCoupon !== null}
+            className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+          />
+        </div>
+        {appliedCoupon ? (
+          <Button variant="outline" size="sm" onClick={() => { setAppliedCoupon(null); setCouponCode(""); }}>
+            Remove
+          </Button>
+        ) : (
+          <Button size="sm" onClick={handleValidateCoupon} disabled={!couponCode || validatingCoupon}>
+            {validatingCoupon ? <Loader2 className="h-4 w-4 animate-spin" /> : "Apply"}
+          </Button>
+        )}
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {plans.map((plan) => (
           <Card key={plan.id} className={`flex flex-col relative ${plan.popular ? 'border-primary shadow-md' : ''}`}>
@@ -167,9 +245,27 @@ export function SubscriptionPlans() {
             </CardHeader>
             <CardContent className="flex-1 space-y-6">
               <div className="flex items-baseline gap-1">
-                <span className="text-3xl font-bold">{plan.price}</span>
+                {appliedCoupon?.type === 'discount_percent' && 
+                 (!appliedCoupon.target_plan || appliedCoupon.target_plan.toLowerCase() === plan.name.toLowerCase()) && 
+                 (!appliedCoupon.target_interval || appliedCoupon.target_interval === billingPeriod) ? (
+                  <>
+                    <span className="text-xl font-bold line-through text-muted-foreground mr-2">{plan.price}</span>
+                    <span className="text-3xl font-bold text-green-600">
+                      {formatPrice(plan.numericPrice - (plan.numericPrice * (appliedCoupon.value / 100)))}
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-3xl font-bold">{plan.price}</span>
+                )}
                 <span className="text-muted-foreground font-medium">{plan.period}</span>
               </div>
+              {appliedCoupon?.type === 'trial_extension' && 
+               (!appliedCoupon.target_plan || appliedCoupon.target_plan.toLowerCase() === plan.name.toLowerCase()) && 
+               (!appliedCoupon.target_interval || appliedCoupon.target_interval === billingPeriod) && (
+                 <div className="text-sm font-medium text-green-600 bg-green-50 p-2 rounded-md">
+                   Includes +{appliedCoupon.value} Days Free Trial
+                 </div>
+              )}
               
               <ul className="space-y-3 text-sm">
                 {plan.features.map((f, i) => (

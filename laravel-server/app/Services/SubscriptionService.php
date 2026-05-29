@@ -103,4 +103,48 @@ class SubscriptionService
 
         return $current < $limit;
     }
+
+    /**
+     * Validate a coupon code for a user and plan
+     */
+    public function validateCoupon(User $user, string $code, ?string $planName = null, ?string $interval = null)
+    {
+        $coupon = \App\Models\Coupon::where('code', $code)->first();
+        
+        if (!$coupon) {
+            return ['valid' => false, 'message' => 'Invalid coupon code'];
+        }
+
+        $owner = $this->getSubscriptionOwner($user);
+
+        if (!$coupon->isValidForUser($owner)) {
+            return ['valid' => false, 'message' => 'Coupon is not valid or has exceeded usage limits'];
+        }
+
+        if ($planName && $interval) {
+            if (!$coupon->isValidForPlan($planName, $interval)) {
+                return ['valid' => false, 'message' => 'Coupon is not valid for this plan or billing interval'];
+            }
+        }
+
+        return [
+            'valid' => true,
+            'coupon' => clone $coupon,
+        ];
+    }
+
+    /**
+     * Record a coupon usage
+     */
+    public function recordCouponUsage(\App\Models\Coupon $coupon, User $user, ?Subscription $subscription = null)
+    {
+        $owner = $this->getSubscriptionOwner($user);
+        
+        \App\Models\CouponUsage::create([
+            'coupon_id' => $coupon->id,
+            'user_id' => $owner->id,
+            'subscription_id' => $subscription ? $subscription->id : null,
+            'used_at' => now(),
+        ]);
+    }
 }

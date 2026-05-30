@@ -147,7 +147,7 @@ export function ReferralTab() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {stats?.referrals.map((ref) => (
+                  {stats?.referrals.map((ref: ReferredUser) => (
                     <TableRow key={ref.id}>
                       <TableCell className="font-semibold">{ref.pharmacy_name}</TableCell>
                       <TableCell>{ref.name}</TableCell>
@@ -198,7 +198,7 @@ export function ReferralTab() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {stats?.transactions.map((txn) => (
+                  {stats?.transactions.map((txn: CreditTransaction) => (
                     <TableRow key={txn.id}>
                       <TableCell className="text-muted-foreground text-sm font-mono">
                         {format(new Date(txn.created_at), "dd/MM/yyyy HH:mm")}

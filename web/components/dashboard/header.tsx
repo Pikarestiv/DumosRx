@@ -29,9 +29,18 @@ interface HeaderProps {
   onSetActiveTab: (tab: string) => void;
 }
 
+interface AppNotification {
+  id: string | number;
+  type?: string;
+  time?: string;
+  title?: string;
+  description?: string;
+  isRead?: boolean;
+}
+
 export function Header({ onSetActiveTab }: HeaderProps) {
   const { data: notifications = [] } = useNotifications({ refetchInterval: 60000 });
-  const unreadCount = notifications.filter((n: any) => !n.isRead).length;
+  const unreadCount = notifications.filter((n: AppNotification) => !n.isRead).length;
   const [isImpersonating, setIsImpersonating] = useState(false);
 
   useEffect(() => {
@@ -128,7 +137,7 @@ export function Header({ onSetActiveTab }: HeaderProps) {
                   No notifications yet.
                 </div>
               ) : (
-                notifications.map((n) => (
+                notifications.map((n: AppNotification) => (
                   <DropdownMenuItem
                     key={n.id}
                     className="flex flex-col items-start gap-1 p-3 cursor-pointer rounded-xl hover:bg-muted/50 transition-colors"

@@ -10,7 +10,29 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useLogs } from "@/lib/api/hooks";
 
-export function ActivitiesView({ stores = [] }: { stores?: any[] }) {
+interface StoreProp {
+  id: string | number;
+  name: string;
+}
+
+interface ActivityLog {
+  id: string | number;
+  created_at?: string | Date;
+  action: string;
+  table_name?: string;
+  details?: string;
+  user_id?: string | number;
+  user?: {
+    name?: string;
+    first_name?: string;
+    store_id?: string | number;
+    store?: {
+      name?: string;
+    };
+  };
+}
+
+export function ActivitiesView({ stores = [] }: { stores?: StoreProp[] }) {
   const { data: response, isLoading: loading } = useLogs();
   const logs = response?.data ? response.data : Array.isArray(response) ? response : [];
   const [search, setSearch] = useState("");
@@ -31,11 +53,11 @@ export function ActivitiesView({ stores = [] }: { stores?: any[] }) {
     }
   };
 
-  const filteredLogs = logs.filter((log) => {
+  const filteredLogs = logs.filter((log: ActivityLog) => {
     const matchesSearch = log.details?.toLowerCase().includes(search.toLowerCase()) || 
                           log.table_name?.toLowerCase().includes(search.toLowerCase());
     const matchesAction = filterAction === "all" || log.action?.toLowerCase() === filterAction.toLowerCase();
-    const matchesStore = filterStore === "all" || log.user?.store_id === filterStore;
+    const matchesStore = filterStore === "all" || log.user?.store_id?.toString() === filterStore;
     return matchesSearch && matchesAction && matchesStore;
   });
 
@@ -86,7 +108,7 @@ export function ActivitiesView({ stores = [] }: { stores?: any[] }) {
                 <SelectContent>
                   <SelectItem value="all">All Stores</SelectItem>
                   {stores.map(store => (
-                    <SelectItem key={store.id} value={store.id}>
+                    <SelectItem key={store.id} value={store.id.toString()}>
                       {store.name}
                     </SelectItem>
                   ))}
@@ -126,7 +148,7 @@ export function ActivitiesView({ stores = [] }: { stores?: any[] }) {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredLogs.map((log) => (
+                filteredLogs.map((log: ActivityLog) => (
                   <TableRow key={log.id} className="border-muted hover:bg-muted/30 transition-colors">
                     <TableCell className="pl-6 py-4 font-medium whitespace-nowrap">
                       {format(new Date(log.created_at || new Date()), "MMM dd, yyyy HH:mm")}

@@ -5,7 +5,8 @@ import { SystemHealthTab } from "@/components/admin/views/system-health-tab";
 import { EmailTemplatesTab } from "@/components/admin/views/email-templates-tab";
 import { SubscriptionConfigTab } from "@/components/admin/views/subscription-config-tab";
 import { SuggestionsConfigTab } from "@/components/admin/views/suggestions-config-tab";
-import { Settings, Activity, Mail, CreditCard, Sparkles } from "lucide-react";
+import { IntegrationsTab } from "@/components/admin/views/integrations-tab";
+import { Settings, Activity, Mail, CreditCard, Sparkles, Plug } from "lucide-react";
 
 export default function PlatformSettingsPage() {
   return (
@@ -40,6 +41,10 @@ export default function PlatformSettingsPage() {
             <Mail className="h-4 w-4" />
             Email Templates
           </TabsTrigger>
+          <TabsTrigger value="integrations" className="flex items-center gap-2">
+            <Plug className="h-4 w-4" />
+            Integrations
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="health" className="focus-visible:outline-none focus-visible:ring-0">
@@ -56,6 +61,10 @@ export default function PlatformSettingsPage() {
 
         <TabsContent value="templates" className="focus-visible:outline-none focus-visible:ring-0">
           <EmailTemplatesTab />
+        </TabsContent>
+
+        <TabsContent value="integrations" className="focus-visible:outline-none focus-visible:ring-0">
+          <IntegrationsTab />
         </TabsContent>
       </Tabs>
     </div>

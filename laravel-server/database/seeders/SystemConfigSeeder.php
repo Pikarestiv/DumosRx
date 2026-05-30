@@ -86,5 +86,8 @@ class SystemConfigSeeder extends Seeder
             'allow_full_credit_payment' => true
         ];
         SystemConfig::setVal('referral_program', $referralConfig, 'Configuration for the subscription referral program and credit rewards');
+
+        // Live Chat
+        SystemConfig::setVal('smartsupp_key', '', 'Smartsupp Live Chat widget key. Leave empty to disable the chat widget.');
     }
 }

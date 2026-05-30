@@ -21,7 +21,7 @@ interface ReceiptProps {
 }
 
 export function ReceiptView({ transaction }: ReceiptProps) {
-  const { storeProfile, vatPercentage, t } = useStore();
+  const { storeProfile, vatPercentage } = useStore();
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-NG", {
@@ -31,7 +31,7 @@ export function ReceiptView({ transaction }: ReceiptProps) {
     }).format(amount);
   };
 
-  const shortId = transaction.id.split('-')[0].toUpperCase();
+  const shortId = transaction.id.split("-")[0].toUpperCase();
   const invoiceNo = `INV-${shortId}`;
 
   return (
@@ -44,27 +44,29 @@ export function ReceiptView({ transaction }: ReceiptProps) {
       </div>
 
       <div className="text-center mb-4">
-        <h3 className="text-lg font-bold uppercase tracking-widest border border-black inline-block px-4 py-1">Invoice</h3>
+        <h3 className="text-lg font-bold uppercase tracking-widest border border-black inline-block px-4 py-1">
+          Invoice
+        </h3>
       </div>
 
       <div className="mb-6 space-y-1">
         <div className="flex justify-between">
-            <span className="font-bold">Invoice no:</span>
-            <span>{invoiceNo}</span>
+          <span className="font-bold">Invoice no:</span>
+          <span>{invoiceNo}</span>
         </div>
         <div className="flex justify-between">
-            <span className="font-bold">Customer:</span>
-            <span>{transaction.customer?.name || "Walk-in Customer"}</span>
+          <span className="font-bold">Customer:</span>
+          <span>{transaction.customer?.name || "Walk-in Customer"}</span>
         </div>
         {transaction.customer?.phone && (
-            <div className="flex justify-between">
-                <span className="font-bold">Mobile:</span>
-                <span>{transaction.customer.phone}</span>
-            </div>
+          <div className="flex justify-between">
+            <span className="font-bold">Mobile:</span>
+            <span>{transaction.customer.phone}</span>
+          </div>
         )}
         <div className="flex justify-between">
-            <span className="font-bold">Date:</span>
-            <span>{new Date(transaction.date).toLocaleString('en-GB')}</span>
+          <span className="font-bold">Date:</span>
+          <span>{new Date(transaction.date).toLocaleString("en-GB")}</span>
         </div>
       </div>
 
@@ -77,11 +79,20 @@ export function ReceiptView({ transaction }: ReceiptProps) {
           <span className="w-20 text-right">Total</span>
         </div>
         {transaction.items.map((item) => (
-          <div key={item.id} className="flex justify-between mb-1 text-xs items-start">
-            <span className="flex-1 w-1/2 break-words pr-2 leading-tight">{item.name}</span>
+          <div
+            key={item.id}
+            className="flex justify-between mb-1 text-xs items-start"
+          >
+            <span className="flex-1 w-1/2 break-words pr-2 leading-tight">
+              {item.name}
+            </span>
             <span className="w-8 text-center">{item.quantity}</span>
-            <span className="w-16 text-right">{formatCurrency(item.unit_price)}</span>
-            <span className="w-20 text-right">{formatCurrency(item.subtotal)}</span>
+            <span className="w-16 text-right">
+              {formatCurrency(item.unit_price)}
+            </span>
+            <span className="w-20 text-right">
+              {formatCurrency(item.subtotal)}
+            </span>
           </div>
         ))}
       </div>
@@ -114,11 +125,13 @@ export function ReceiptView({ transaction }: ReceiptProps) {
       <div className="space-y-1 mb-6 text-xs">
         <div className="flex justify-between">
           <span>Payment type:</span>
-          <span className="uppercase font-bold">{transaction.paymentMethod}</span>
+          <span className="uppercase font-bold">
+            {transaction.paymentMethod}
+          </span>
         </div>
         <div className="flex justify-between">
           <span>Date:</span>
-          <span>{new Date(transaction.date).toLocaleDateString('en-GB')}</span>
+          <span>{new Date(transaction.date).toLocaleDateString("en-GB")}</span>
         </div>
         <div className="flex justify-between">
           <span>Total paid:</span>
@@ -134,20 +147,30 @@ export function ReceiptView({ transaction }: ReceiptProps) {
 
       {/* Barcode */}
       <div className="flex flex-col items-center justify-center pt-4 mb-4 overflow-hidden">
-        <Barcode value={transaction.id} width={1.2} height={40} fontSize={10} background="transparent" />
+        <Barcode
+          value={transaction.id}
+          width={1.2}
+          height={40}
+          fontSize={10}
+          background="transparent"
+        />
       </div>
 
       <div className="text-center italic text-xs">
         <p>Thank you for your patronage!</p>
-        <p>{APP_NAME} - NextGen {storeProfile?.store_type === 'pharmacy' ? 'Pharmacy' : 'Retail'} POS</p>
+        <p>
+          {APP_NAME} - NextGen{" "}
+          {storeProfile?.store_type === "pharmacy" ? "Pharmacy" : "Retail"} POS
+        </p>
       </div>
-      
+
       <style jsx global>{`
         @media print {
           body * {
             visibility: hidden;
           }
-          .printable-receipt, .printable-receipt * {
+          .printable-receipt,
+          .printable-receipt * {
             visibility: visible;
           }
           .printable-receipt {

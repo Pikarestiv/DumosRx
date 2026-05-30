@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Save, RefreshCw, MessageCircle, Loader2, ExternalLink, Eye, EyeOff } from "lucide-react";
+import { Save, RefreshCw, MessageCircle, Loader2, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { useSystemConfig, useUpdateSystemConfigMutation } from "@/lib/api/hooks";
 
@@ -22,7 +22,6 @@ export function IntegrationsTab() {
   const updateMutation = useUpdateSystemConfigMutation();
 
   const [key, setKey] = useState("");
-  const [showKey, setShowKey] = useState(false);
 
   useEffect(() => {
     if (smartsuppKey !== undefined && smartsuppKey !== null) {
@@ -97,19 +96,12 @@ export function IntegrationsTab() {
             <div className="relative">
               <Input
                 id="smartsupp-key"
-                type={showKey ? "text" : "password"}
+                type="text"
                 placeholder="e.g. bb4e3e8124f9ba118d58ddc33d32a48691e80b23"
                 value={key}
                 onChange={(e) => setKey(e.target.value)}
-                className="pr-10 font-mono text-sm"
+                className="font-mono text-sm"
               />
-              <button
-                type="button"
-                onClick={() => setShowKey((p) => !p)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
-                {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
             </div>
             <p className="text-xs text-muted-foreground">
               Find this in your Smartsupp account under{" "}

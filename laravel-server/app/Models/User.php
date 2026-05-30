@@ -29,6 +29,9 @@ class User extends Authenticatable
         'role',
         'is_active',
         'last_login_at',
+        'referred_by_id',
+        'referral_code',
+        'referral_credits',
     ];
 
     /**
@@ -158,5 +161,70 @@ class User extends Authenticatable
         if ($permission) {
             $this->permissions()->detach($permission->id);
         }
+    }
+
+    public static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($user) {
+            // Generate unique referral code for admins / pharmacy owners
+            if (in_array($user->role, ['admin', 'pharmacy_owner'])) {
+                $user->referral_code = self::generateUniqueReferralCode();
+            }
+        });
+    }
+
+    public static function generateUniqueReferralCode()
+    {
+        do {
+            $code = 'DRX-' . strtoupper(\Illuminate\Support\Str::random(6));
+        } while (self::where('referral_code', $code)->exists());
+
+        return $code;
+    }
+
+    public function referredBy()
+    {
+        return $this->belongsTo(User::class, 'referred_by_id');
+    }
+
+    public function referrals()
+    {
+        return $this->hasMany(User::class, 'referred_by_id');
+    }
+
+    public function creditTransactions()
+    {
+        return $this->hasMany(ReferralCreditTransaction::class);
+    }
+
+    public function addCredits(float $amount, string $description, ?string $referredUserId = null, string $type = 'earned')
+    {
+        $this->referral_credits += $amount;
+        $this->save();
+
+        return $this->creditTransactions()->create([
+            'referred_user_id' => $referredUserId,
+            'type' => $type,
+            'amount' => $amount,
+            'description' => $description,
+        ]);
+    }
+
+    public function deductCredits(float $amount, string $description)
+    {
+        if ($this->referral_credits < $amount) {
+            throw new \Exception('Insufficient referral credits.');
+        }
+
+        $this->referral_credits -= $amount;
+        $this->save();
+
+        return $this->creditTransactions()->create([
+            'type' => 'spent',
+            'amount' => $amount,
+            'description' => $description,
+        ]);
     }
 }

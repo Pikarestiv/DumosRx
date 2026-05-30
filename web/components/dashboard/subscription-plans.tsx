@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Check, ShieldAlert, CreditCard, Loader2 } from "lucide-react";
@@ -17,9 +17,32 @@ export function SubscriptionPlans() {
   const [couponCode, setCouponCode] = useState("");
   const [validatingCoupon, setValidatingCoupon] = useState(false);
   const [appliedCoupon, setAppliedCoupon] = useState<{code: string, type: string, value: number, target_plan: string | null, target_interval: string | null} | null>(null);
+  const [userCredits, setUserCredits] = useState(0);
+  const [useCredits, setUseCredits] = useState(false);
   
   const initiatePayment = useInitiatePaymentMutation();
   const { data: config, isLoading: isConfigLoading } = useSystemConfig("subscription_plans");
+
+  useEffect(() => {
+    fetchCredits();
+  }, []);
+
+  const fetchCredits = async () => {
+    try {
+      const token = localStorage.getItem("drx_token") || localStorage.getItem("auth_token");
+      const response = await fetch('/api/subscription/referral-stats', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const data = await response.json();
+      if (data && data.referral_credits !== undefined) {
+        setUserCredits(data.referral_credits);
+      }
+    } catch (error) {
+      console.error("Failed to fetch referral credits", error);
+    }
+  };
 
   const isYearly = billingPeriod === "yearly";
 
@@ -59,28 +82,21 @@ export function SubscriptionPlans() {
   const handleSubscribe = async (tier: string, baseAmount: number, planName: string) => {
     setLoading(tier);
     
-    let finalAmount = baseAmount;
+    let amountAfterCoupon = baseAmount;
     if (appliedCoupon?.type === 'discount_percent') {
-      finalAmount = baseAmount - (baseAmount * (appliedCoupon.value / 100));
-    } else if (appliedCoupon?.type === 'trial_extension') {
-      // Trial extension means they might not pay now if they are just claiming the trial.
-      // But if they are subscribing, the trial applies to the end date.
-      // We still charge the baseAmount, but they get extra days.
-      // Actually, if amount > 0, they pay. If they want to claim a free trial, we pass amount: 0 to initiatePayment
-      // Let's assume trial extension coupons are usually 100% off the first checkout OR just extra days. 
-      // We will pass the coupon code regardless.
+      amountAfterCoupon = baseAmount - (baseAmount * (appliedCoupon.value / 100));
     }
 
-    // Force 0 if it's 100% off
-    if (finalAmount < 0) finalAmount = 0;
+    if (amountAfterCoupon < 0) amountAfterCoupon = 0;
 
     try {
       const response = await initiatePayment.mutateAsync({
-        amount: finalAmount,
+        amount: amountAfterCoupon,
         plan_name: planName,
         coupon_code: appliedCoupon?.code,
-        interval: billingPeriod
-      } as any); // using any because we added fields to the API
+        interval: billingPeriod,
+        use_credits: useCredits
+      });
 
       if (response.success) {
         if (response.payment_url) {
@@ -102,6 +118,34 @@ export function SubscriptionPlans() {
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', minimumFractionDigits: 0 }).format(price);
+  };
+
+  const getDiscountedPrice = (plan: any) => {
+    let price = plan.numericPrice;
+    
+    // Apply coupon
+    if (appliedCoupon?.type === 'discount_percent' && 
+       (!appliedCoupon.target_plan || appliedCoupon.target_plan.toLowerCase() === plan.name.toLowerCase()) && 
+       (!appliedCoupon.target_interval || appliedCoupon.target_interval === billingPeriod)) {
+      price = price - (price * (appliedCoupon.value / 100));
+    }
+
+    // Apply credits
+    if (useCredits && userCredits > 0) {
+      const creditsApplied = Math.min(userCredits, price);
+      price = price - creditsApplied;
+    }
+
+    return price;
+  };
+
+  const isDiscounted = (plan: any) => {
+    const hasCoupon = appliedCoupon?.type === 'discount_percent' && 
+       (!appliedCoupon.target_plan || appliedCoupon.target_plan.toLowerCase() === plan.name.toLowerCase()) && 
+       (!appliedCoupon.target_interval || appliedCoupon.target_interval === billingPeriod);
+
+    const hasCredits = useCredits && userCredits > 0;
+    return hasCoupon || hasCredits;
   };
 
   const plans = [
@@ -229,6 +273,21 @@ export function SubscriptionPlans() {
         )}
       </div>
 
+      {userCredits > 0 && (
+        <div className="max-w-md mx-auto mb-8 bg-primary/5 p-4 rounded-lg flex items-center justify-between border border-primary/20">
+          <div className="space-y-0.5">
+            <span className="text-sm font-semibold">Apply Referral Credits</span>
+            <p className="text-xs text-muted-foreground">Available balance: ₦{userCredits.toLocaleString()}</p>
+          </div>
+          <input
+            type="checkbox"
+            checked={useCredits}
+            onChange={(e) => setUseCredits(e.target.checked)}
+            className="h-4 w-4 rounded border-input bg-background text-primary focus:ring-ring"
+          />
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {plans.map((plan) => (
           <Card key={plan.id} className={`flex flex-col relative ${plan.popular ? 'border-primary shadow-md' : ''}`}>
@@ -245,13 +304,11 @@ export function SubscriptionPlans() {
             </CardHeader>
             <CardContent className="flex-1 space-y-6">
               <div className="flex items-baseline gap-1">
-                {appliedCoupon?.type === 'discount_percent' && 
-                 (!appliedCoupon.target_plan || appliedCoupon.target_plan.toLowerCase() === plan.name.toLowerCase()) && 
-                 (!appliedCoupon.target_interval || appliedCoupon.target_interval === billingPeriod) ? (
+                {isDiscounted(plan) ? (
                   <>
                     <span className="text-xl font-bold line-through text-muted-foreground mr-2">{plan.price}</span>
                     <span className="text-3xl font-bold text-green-600">
-                      {formatPrice(plan.numericPrice - (plan.numericPrice * (appliedCoupon.value / 100)))}
+                      {formatPrice(getDiscountedPrice(plan))}
                     </span>
                   </>
                 ) : (

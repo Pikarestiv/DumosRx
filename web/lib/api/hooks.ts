@@ -103,7 +103,7 @@ export const useSubscriptionStatus = () => {
 
 export const useInitiatePaymentMutation = () => {
   return useMutation({
-    mutationFn: (payload: { amount: number; plan_name: string }) => webApiClient.initiatePayment(payload),
+    mutationFn: (payload: { amount: number; plan_name: string; coupon_code?: string; interval?: string; use_credits?: boolean }) => webApiClient.initiatePayment(payload),
   });
 };
 

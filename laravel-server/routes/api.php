@@ -99,6 +99,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/pay', [SubscriptionController::class, 'initiatePayment']);
             Route::post('/verify', [SubscriptionController::class, 'verifyPayment']);
             Route::get('/billing-history', [SubscriptionController::class, 'billingHistory']);
+            Route::get('/referral-stats', [SubscriptionController::class, 'getReferralStats']);
         });
 
         // Backups
@@ -160,6 +161,14 @@ Route::prefix('v1')->group(function () {
             Route::put('/coupons/{coupon}/toggle', [\App\Http\Controllers\Api\Admin\CouponController::class, 'toggleActive']);
             Route::get('/coupons/{coupon}/usages', [\App\Http\Controllers\Api\Admin\CouponController::class, 'usages']);
             Route::delete('/coupons/{coupon}', [\App\Http\Controllers\Api\Admin\CouponController::class, 'destroy']);
+
+            // Referrals
+            Route::get('/referrals/summary', [\App\Http\Controllers\Api\Admin\ReferralController::class, 'getSummary']);
+            Route::get('/referrals', [\App\Http\Controllers\Api\Admin\ReferralController::class, 'getReferrals']);
+            Route::get('/referrals/transactions', [\App\Http\Controllers\Api\Admin\ReferralController::class, 'getTransactions']);
+            Route::post('/referrals/adjust-credits', [\App\Http\Controllers\Api\Admin\ReferralController::class, 'adjustCredits']);
+            Route::get('/referrals/settings', [\App\Http\Controllers\Api\Admin\ReferralController::class, 'getSettings']);
+            Route::put('/referrals/settings', [\App\Http\Controllers\Api\Admin\ReferralController::class, 'updateSettings']);
         });
         // --- APP / TERMINAL ROUTES ---
         Route::prefix('app')->middleware('subscription')->group(function () {

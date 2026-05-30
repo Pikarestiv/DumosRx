@@ -24,7 +24,20 @@ class AuthController extends Controller
             'pin' => 'nullable|string|size:4',
             'password' => 'required|string|min:8',
             'pharmacy_name' => 'nullable|string|max:255',
+            'ref' => 'nullable|string',
+            'referrer' => 'nullable|string',
         ]);
+
+        $referredById = null;
+        $refCode = $request->ref ?? $request->referrer;
+        if (!empty($refCode)) {
+            $referrerUser = User::where('referral_code', $refCode)
+                ->orWhere('username', $refCode)
+                ->first();
+            if ($referrerUser) {
+                $referredById = $referrerUser->id;
+            }
+        }
 
         $roleSlug = $request->filled('pharmacy_name') ? 'admin' : ($request->role ?? 'pharmacist');
         $roleObj = \App\Models\Role::where('slug', $roleSlug)->first();
@@ -39,6 +52,7 @@ class AuthController extends Controller
             'role' => $roleSlug,
             'role_id' => $roleObj ? $roleObj->id : null,
             'is_active' => true,
+            'referred_by_id' => $referredById,
         ]);
 
         if ($request->filled('pharmacy_name')) {

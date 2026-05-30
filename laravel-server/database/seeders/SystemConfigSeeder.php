@@ -78,5 +78,13 @@ class SystemConfigSeeder extends Seeder
 
         SystemConfig::setVal('subscription_plans', $subscriptionPlans, 'Configuration for the 3-tier DumosRx pricing model including features and limits');
         SystemConfig::setVal('global_suggestions', [], 'Global autocomplete suggestions configuration');
+
+        $referralConfig = [
+            'enabled' => true,
+            'reward_percentage' => 10.0,
+            'reward_trigger' => 'recurring', // 'first' or 'recurring'
+            'allow_full_credit_payment' => true
+        ];
+        SystemConfig::setVal('referral_program', $referralConfig, 'Configuration for the subscription referral program and credit rewards');
     }
 }

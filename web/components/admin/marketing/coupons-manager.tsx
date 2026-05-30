@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -93,7 +93,7 @@ export function CouponsManager() {
     try {
       await toggleMutation.mutateAsync(id);
       toast.success("Coupon status updated");
-    } catch (error) {
+    } catch (_error) {
       toast.error("Failed to update status");
     }
   };
@@ -103,7 +103,7 @@ export function CouponsManager() {
     try {
       await deleteMutation.mutateAsync(id);
       toast.success("Coupon deleted");
-    } catch (error) {
+    } catch (_error) {
       toast.error("Failed to delete coupon");
     }
   };

@@ -19,7 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { Copy, Check, Users, Gift, ArrowUpRight, ArrowDownRight, Loader2 } from "lucide-react";
+import { Copy, Check, Users, Gift, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { useReferralStats } from "@/lib/api/hooks";
@@ -38,13 +38,6 @@ interface CreditTransaction {
   amount: string;
   description: string;
   created_at: string;
-}
-
-interface ReferralStats {
-  referral_code: string;
-  referral_credits: number;
-  referrals: ReferredUser[];
-  transactions: CreditTransaction[];
 }
 
 export function ReferralTab() {
@@ -68,8 +61,8 @@ export function ReferralTab() {
     );
   }
 
-  const referralLink = stats?.referral_code 
-    ? `${window.location.origin}/register?ref=${stats.referral_code}` 
+  const referralLink = stats?.referral_code
+    ? `${window.location.origin}/register?ref=${stats.referral_code}`
     : "";
 
   return (
@@ -79,10 +72,13 @@ export function ReferralTab() {
         <Card className="md:col-span-2 border-none shadow-sm flex flex-col justify-between">
           <CardHeader>
             <CardTitle className="text-xl flex items-center gap-2">
-              <Gift className="h-5 w-5 text-primary" /> Invite Pharmacies, Earn Credits!
+              <Gift className="h-5 w-5 text-primary" /> Invite Pharmacies, Earn
+              Credits!
             </CardTitle>
             <CardDescription>
-              Share your referral link with other pharmacy owners. When they subscribe to any plan, you'll earn a percentage of their payment as credits to offset your own future bills!
+              Share your referral link with other pharmacy owners. When they
+              subscribe to any plan, you'll earn a percentage of their payment
+              as credits to offset your own future bills!
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -95,7 +91,11 @@ export function ReferralTab() {
                 />
               </div>
               <Button onClick={copyReferralLink} size="icon" variant="outline">
-                {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                {copied ? (
+                  <Check className="h-4 w-4 text-green-500" />
+                ) : (
+                  <Copy className="h-4 w-4" />
+                )}
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
@@ -105,7 +105,7 @@ export function ReferralTab() {
         </Card>
 
         {/* Balance Card */}
-        <Card className="border-none shadow-sm bg-gradient-to-br from-primary/10 to-transparent">
+        <Card className="border-none shadow-sm bg-linear-to-br from-primary/10 to-transparent">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
               Referral Balance
@@ -116,7 +116,8 @@ export function ReferralTab() {
               ₦{stats?.referral_credits?.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground">
-              These credits will be automatically available at checkout to discount your subscriptions.
+              These credits will be automatically available at checkout to
+              discount your subscriptions.
             </p>
           </CardContent>
         </Card>
@@ -128,12 +129,15 @@ export function ReferralTab() {
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5 text-muted-foreground" /> Referred Signups
           </CardTitle>
-          <CardDescription>Pharmacies that registered using your referral link.</CardDescription>
+          <CardDescription>
+            Pharmacies that registered using your referral link.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {stats?.referrals && stats.referrals.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              You haven't referred any pharmacies yet. Share your link to get started!
+              You haven't referred any pharmacies yet. Share your link to get
+              started!
             </div>
           ) : (
             <div className="border rounded-md border-muted/50 overflow-hidden">
@@ -149,7 +153,9 @@ export function ReferralTab() {
                 <TableBody>
                   {stats?.referrals.map((ref: ReferredUser) => (
                     <TableRow key={ref.id}>
-                      <TableCell className="font-semibold">{ref.pharmacy_name}</TableCell>
+                      <TableCell className="font-semibold">
+                        {ref.pharmacy_name}
+                      </TableCell>
                       <TableCell>{ref.name}</TableCell>
                       <TableCell className="text-muted-foreground text-sm">
                         {format(new Date(ref.created_at), "dd/MM/yyyy")}
@@ -163,7 +169,9 @@ export function ReferralTab() {
                           }
                           variant="outline"
                         >
-                          {ref.status === "active" ? "Subscribed" : "Registered / Trial"}
+                          {ref.status === "active"
+                            ? "Subscribed"
+                            : "Registered / Trial"}
                         </Badge>
                       </TableCell>
                     </TableRow>
@@ -179,7 +187,9 @@ export function ReferralTab() {
       <Card className="border-none shadow-sm">
         <CardHeader>
           <CardTitle>Credit Statements</CardTitle>
-          <CardDescription>Statement of credits earned and applied.</CardDescription>
+          <CardDescription>
+            Statement of credits earned and applied.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {stats?.transactions && stats.transactions.length === 0 ? (
@@ -205,16 +215,31 @@ export function ReferralTab() {
                       </TableCell>
                       <TableCell>
                         <Badge
-                          variant={txn.type === "earned" ? "default" : "secondary"}
-                          className={txn.type === "earned" ? "bg-green-500" : "bg-muted-foreground/30 text-foreground"}
+                          variant={
+                            txn.type === "earned" ? "default" : "secondary"
+                          }
+                          className={
+                            txn.type === "earned"
+                              ? "bg-green-500"
+                              : "bg-muted-foreground/30 text-foreground"
+                          }
                         >
-                          {txn.type === "earned" ? "Credit" : txn.type === "spent" ? "Debit" : "Adjustment"}
+                          {txn.type === "earned"
+                            ? "Credit"
+                            : txn.type === "spent"
+                              ? "Debit"
+                              : "Adjustment"}
                         </Badge>
                       </TableCell>
-                      <TableCell className={`font-bold ${txn.type === "earned" ? "text-green-500" : "text-rose-500"}`}>
-                        {txn.type === "earned" ? "+" : "-"}₦{Number(txn.amount).toLocaleString()}
+                      <TableCell
+                        className={`font-bold ${txn.type === "earned" ? "text-green-500" : "text-rose-500"}`}
+                      >
+                        {txn.type === "earned" ? "+" : "-"}₦
+                        {Number(txn.amount).toLocaleString()}
                       </TableCell>
-                      <TableCell className="text-sm">{txn.description}</TableCell>
+                      <TableCell className="text-sm">
+                        {txn.description}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

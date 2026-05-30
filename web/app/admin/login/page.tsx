@@ -12,7 +12,7 @@ import { useAdminAuthStore } from "@/lib/store/use-admin-auth-store";
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const { token: _token, user, fetchUser } = useAdminAuthStore();
+  const { token: _token, user: _user, fetchUser } = useAdminAuthStore();
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
@@ -34,7 +34,7 @@ export default function AdminLoginPage() {
       }
     };
     checkAuth();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   if (checking) {

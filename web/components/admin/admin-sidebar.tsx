@@ -13,7 +13,6 @@ import {
   Activity,
   MessageSquare,
   Settings,
-  Ticket,
   Megaphone,
 } from "lucide-react";
 import { useAdminAuthStore } from "@/lib/store/use-admin-auth-store";

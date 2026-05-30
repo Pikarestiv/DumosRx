@@ -13,7 +13,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 type SuggestionType = "pharmacy_names" | "pharmacy_generics" | "pharmacy_categories" | "pharmacy_manufacturers" | "retail_names" | "retail_categories" | "retail_manufacturers";
 
 export function SuggestionsConfigTab() {
-  const { data: serverConfig, isLoading, isError } = useSystemConfig("global_suggestions");
+  const { data: serverConfig, isLoading, isError: _isError } = useSystemConfig("global_suggestions");
   const updateMutation = useUpdateSystemConfigMutation();
 
   const [activeList, setActiveList] = useState<SuggestionType>("pharmacy_names");

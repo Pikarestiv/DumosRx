@@ -17,7 +17,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { webApiClient } from "@/lib/api/client";
+import { useCreatePharmacyMutation } from "@/lib/api/admin-hooks";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -64,7 +64,6 @@ const registerSchema = z
 
 export default function AdminNewPharmacyPage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { fetchSummary } = useAdminStore();
 
@@ -83,22 +82,20 @@ export default function AdminNewPharmacyPage() {
     },
   });
 
-  async function onSubmit(values: z.infer<typeof registerSchema>) {
-    setLoading(true);
-    setError(null);
+  const createPharmacyMutation = useCreatePharmacyMutation();
+  const loading = createPharmacyMutation.isPending;
 
-    try {
-      await webApiClient.request("admin/pharmacies", {
-        method: "POST",
-        body: values,
-      });
-      fetchSummary(true);
-      router.push("/admin/pharmacies");
-    } catch (err: any) {
-      setError(err.message || "Registration failed. Please try again.");
-    } finally {
-      setLoading(false);
-    }
+  function onSubmit(values: z.infer<typeof registerSchema>) {
+    setError(null);
+    createPharmacyMutation.mutate(values, {
+      onSuccess: () => {
+        fetchSummary(true);
+        router.push("/admin/pharmacies");
+      },
+      onError: (err: any) => {
+        setError(err.message || "Registration failed. Please try again.");
+      },
+    });
   }
 
   return (

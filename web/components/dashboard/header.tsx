@@ -10,6 +10,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { webApiClient } from "@/lib/api/client";
+import { useNotifications } from "@/lib/api/hooks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ModeToggle } from "@/components/mode-toggle";
@@ -29,8 +30,8 @@ interface HeaderProps {
 }
 
 export function Header({ onSetActiveTab }: HeaderProps) {
-  const [notifications, setNotifications] = useState<any[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const { data: notifications = [] } = useNotifications({ refetchInterval: 60000 });
+  const unreadCount = notifications.filter((n: any) => !n.isRead).length;
   const [isImpersonating, setIsImpersonating] = useState(false);
 
   useEffect(() => {
@@ -61,22 +62,6 @@ export function Header({ onSetActiveTab }: HeaderProps) {
       toast.error("Failed to restore admin session");
     }
   };
-
-  useEffect(() => {
-    const fetchNotifications = async () => {
-      try {
-        const data = await webApiClient.getNotifications();
-        setNotifications(data);
-        setUnreadCount(data.filter((n: any) => !n.isRead).length);
-      } catch (_error) {
-        console.error("Failed to fetch notifications:", _error);
-      }
-    };
-
-    fetchNotifications();
-    const interval = setInterval(fetchNotifications, 60000); // Every minute
-    return () => clearInterval(interval);
-  }, []);
 
   return (
     <header className="h-20 bg-background border-b flex items-center justify-between px-8">

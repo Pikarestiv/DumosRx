@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { format } from "date-fns";
 import { Activity, Search, Filter, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -8,32 +8,14 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { webApiClient } from "@/lib/api/client";
+import { useLogs } from "@/lib/api/hooks";
 
 export function ActivitiesView({ stores = [] }: { stores?: any[] }) {
-  const [logs, setLogs] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: response, isLoading: loading } = useLogs();
+  const logs = response?.data ? response.data : Array.isArray(response) ? response : [];
   const [search, setSearch] = useState("");
   const [filterAction, setFilterAction] = useState("all");
   const [filterStore, setFilterStore] = useState("all");
-
-  useEffect(() => {
-    const fetchLogs = async () => {
-      try {
-        const response = await webApiClient.request<any>("/logs");
-        if (response?.data) {
-          setLogs(response.data);
-        } else if (Array.isArray(response)) {
-          setLogs(response);
-        }
-      } catch (error) {
-        console.error("Failed to fetch logs:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchLogs();
-  }, []);
 
   const getActionColor = (action: string) => {
     switch (action.toLowerCase()) {

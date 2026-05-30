@@ -22,10 +22,35 @@ export const useStaff = (storeId?: string) => {
   });
 };
 
-export const useNotifications = () => {
+export const useNotifications = (options?: { refetchInterval?: number }) => {
   return useQuery({
     queryKey: ["notifications"],
     queryFn: () => webApiClient.getNotifications(),
+    refetchInterval: options?.refetchInterval,
+  });
+};
+
+export const useReadNotificationMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => webApiClient.request(`alerts/${id}/read`, { method: "POST" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    },
+  });
+};
+
+export const useLogs = () => {
+  return useQuery({
+    queryKey: ["logs"],
+    queryFn: () => webApiClient.request<any>("logs"),
+  });
+};
+
+export const useBroadcasts = () => {
+  return useQuery({
+    queryKey: ["broadcasts"],
+    queryFn: () => webApiClient.getBroadcasts(),
   });
 };
 

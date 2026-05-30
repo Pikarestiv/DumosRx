@@ -252,3 +252,52 @@ export const useDeleteCouponMutation = () => {
     },
   });
 };
+
+// Email Templates Hooks
+export const useAdminEmailTemplates = () => {
+  return useQuery({
+    queryKey: ["admin-email-templates"],
+    queryFn: () => webApiClient.request<any>("admin/email-templates"),
+  });
+};
+
+export const useUpdateAdminEmailTemplateMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ key, subject, body }: { key: string; subject: string; body: string }) =>
+      webApiClient.request<any>(`admin/email-templates/${key}`, {
+        method: "PUT",
+        body: { subject, body },
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-email-templates"] });
+    },
+  });
+};
+
+// Pharmacy Hooks
+export const useCreatePharmacyMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: any) =>
+      webApiClient.request<any>("admin/pharmacies", {
+        method: "POST",
+        body: payload,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-pharmacies"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
+    },
+  });
+};
+
+// Broadcast Hooks
+export const useDeleteBroadcastMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => webApiClient.deleteBroadcast(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["broadcasts"] });
+    },
+  });
+};

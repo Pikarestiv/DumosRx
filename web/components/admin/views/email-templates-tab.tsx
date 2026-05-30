@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { webApiClient } from "@/lib/api/client";
+import { useAdminEmailTemplates, useUpdateAdminEmailTemplateMutation } from "@/lib/api/admin-hooks";
 import { Mail, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { TemplateList } from "@/components/admin/email-templates/template-list";
@@ -17,39 +18,18 @@ interface EmailTemplate {
 }
 
 export function EmailTemplatesTab() {
-  const [templates, setTemplates] = useState<EmailTemplate[]>([]);
+  const { data: response, isLoading: loading } = useAdminEmailTemplates();
+  const templates = response?.templates || [];
   const [selectedTemplate, setSelectedTemplate] =
     useState<EmailTemplate | null>(null);
   const [subject, setSubject] = useState("");
   const [content, setContent] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [_activeTab, setActiveTab] = useState("edit");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const updateMutation = useUpdateAdminEmailTemplateMutation();
+  const saving = updateMutation.isPending;
 
-  useEffect(() => {
-    fetchTemplates();
-  }, []);
-
-  const fetchTemplates = async () => {
-    setLoading(true);
-    try {
-      const response = await webApiClient.request<any>("admin/email-templates");
-      if (response.success) {
-        setTemplates(response.templates);
-        if (response.templates.length > 0) {
-          loadTemplateDetails(response.templates[0].id);
-        }
-      }
-    } catch (error) {
-      console.error("Error fetching templates:", error);
-      toast.error("Failed to load email templates");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadTemplateDetails = async (id: number) => {
+  async function loadTemplateDetails(id: number) {
     try {
       const response = await webApiClient.request<any>(
         `admin/email-templates/${id}`,
@@ -64,35 +44,28 @@ export function EmailTemplatesTab() {
       console.error("Error loading template details:", error);
       toast.error("Failed to load template details");
     }
-  };
+  }
 
-  const handleSave = async () => {
-    if (!selectedTemplate) return;
-    setSaving(true);
-    try {
-      const response = await webApiClient.request<any>(
-        `admin/email-templates/${selectedTemplate.id}`,
-        {
-          method: "PUT",
-          body: { subject, content },
-        },
-      );
-      if (response.success) {
-        toast.success(`${selectedTemplate.name} updated successfully!`);
-        // Refresh template list to update subject preview
-        setTemplates((prev) =>
-          prev.map((t) =>
-            t.id === selectedTemplate.id ? { ...t, subject } : t,
-          ),
-        );
-        setSelectedTemplate(response.template);
-      }
-    } catch (error) {
-      console.error("Error saving template:", error);
-      toast.error("Failed to save email template");
-    } finally {
-      setSaving(false);
+  useEffect(() => {
+    if (templates.length > 0 && !selectedTemplate) {
+      loadTemplateDetails(templates[0].id);
     }
+  }, [templates, selectedTemplate]);
+
+  const handleSave = () => {
+    if (!selectedTemplate) return;
+    updateMutation.mutate(
+      { key: selectedTemplate.id.toString(), subject, body: content },
+      {
+        onSuccess: () => {
+          toast.success(`${selectedTemplate.name} updated successfully!`);
+        },
+        onError: (error) => {
+          console.error("Error saving template:", error);
+          toast.error("Failed to save email template");
+        },
+      }
+    );
   };
 
   const insertVariable = (variableName: string) => {

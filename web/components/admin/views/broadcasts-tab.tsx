@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { 
   Plus, 
   Loader2, 
@@ -36,13 +36,20 @@ import {
 
 import { CreateBroadcastDialog, EditBroadcastDialog } from "@/components/admin/broadcasts/broadcast-dialogs";
 import { webApiClient } from "@/lib/api/client";
-import { toast } from "sonner";
 import { format } from "date-fns";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useDeleteBroadcastMutation } from "@/lib/api/admin-hooks";
 
 export function BroadcastsTab() {
-  const [broadcasts, setBroadcasts] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const { data: response, isLoading } = useQuery({
+    queryKey: ["admin-broadcasts"],
+    queryFn: () => webApiClient.adminGetBroadcasts(),
+  });
+  const broadcasts = response?.data ? response.data : Array.isArray(response) ? response : [];
+  const deleteMutation = useDeleteBroadcastMutation();
+
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -61,31 +68,6 @@ export function BroadcastsTab() {
     is_active: true
   });
 
-  const fetchBroadcasts = async () => {
-    setIsLoading(true);
-    try {
-      const response = await webApiClient.adminGetBroadcasts();
-      console.log("Admin broadcasts response:", response);
-      // The API returns { success: true, data: [...] }
-      if (response && response.success && Array.isArray(response.data)) {
-        setBroadcasts(response.data);
-      } else if (Array.isArray(response)) {
-        setBroadcasts(response);
-      } else {
-        console.warn("Unexpected response format:", response);
-      }
-    } catch (_error) {
-      console.error("Failed to fetch broadcasts:", _error);
-      toast.error("Failed to load broadcasts");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchBroadcasts();
-  }, []);
-
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -101,7 +83,8 @@ export function BroadcastsTab() {
         expires_at: "",
         is_active: true
       });
-      fetchBroadcasts();
+      queryClient.invalidateQueries({ queryKey: ["admin-broadcasts"] });
+      queryClient.invalidateQueries({ queryKey: ["broadcasts"] });
     } catch (_error) {
       toast.error("Failed to create broadcast");
     }
@@ -113,7 +96,8 @@ export function BroadcastsTab() {
       await webApiClient.updateBroadcast(selectedBroadcast.id, formData);
       toast.success("Broadcast updated successfully");
       setIsEditOpen(false);
-      fetchBroadcasts();
+      queryClient.invalidateQueries({ queryKey: ["admin-broadcasts"] });
+      queryClient.invalidateQueries({ queryKey: ["broadcasts"] });
     } catch (_error) {
       toast.error("Failed to update broadcast");
     }
@@ -123,22 +107,25 @@ export function BroadcastsTab() {
     setDeleteTargetId(id);
   };
 
-  const confirmDelete = async (id: string) => {
-    try {
-      await webApiClient.deleteBroadcast(id);
-      toast.success("Broadcast deleted");
-      fetchBroadcasts();
-    } catch (_error) {
-      toast.error("Failed to delete broadcast");
-    } finally {
-      setDeleteTargetId(null);
-    }
+  const confirmDelete = (id: string) => {
+    deleteMutation.mutate(id, {
+      onSuccess: () => {
+        toast.success("Broadcast deleted");
+        queryClient.invalidateQueries({ queryKey: ["admin-broadcasts"] });
+        setDeleteTargetId(null);
+      },
+      onError: () => {
+        toast.error("Failed to delete broadcast");
+        setDeleteTargetId(null);
+      }
+    });
   };
 
   const handleToggle = async (id: string) => {
     try {
       await webApiClient.toggleBroadcast(id);
-      fetchBroadcasts();
+      queryClient.invalidateQueries({ queryKey: ["admin-broadcasts"] });
+      queryClient.invalidateQueries({ queryKey: ["broadcasts"] });
     } catch (_error) {
       toast.error("Failed to toggle status");
     }

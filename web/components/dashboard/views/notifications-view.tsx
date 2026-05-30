@@ -2,8 +2,7 @@
 
 import { ChevronRight, Bell, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useNotifications } from "@/lib/api/hooks";
-import { webApiClient } from "@/lib/api/client";
+import { useNotifications, useReadNotificationMutation } from "@/lib/api/hooks";
 import {
   Card,
   CardContent,
@@ -17,15 +16,11 @@ interface NotificationsViewProps {
 
 export function NotificationsView({ onBack }: NotificationsViewProps) {
   const { data: notifications, isLoading, refetch } = useNotifications();
+  const readNotificationMutation = useReadNotificationMutation();
 
-  const markAsRead = async (id: string, category: string) => {
+  const markAsRead = (id: string, category: string) => {
     if (category !== 'system') return;
-    try {
-      await webApiClient.request(`alerts/${id}/read`, { method: 'POST' });
-      refetch();
-    } catch (error) {
-      console.error("Failed to mark as read:", error);
-    }
+    readNotificationMutation.mutate(id);
   };
 
   if (isLoading && !notifications) {

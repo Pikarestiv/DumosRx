@@ -38,6 +38,7 @@ import { useAdminAuthStore } from "@/lib/store/use-admin-auth-store";
 import { useAdminStore } from "@/lib/store/use-admin-store";
 import { webApiClient } from "@/lib/api/client";
 import { useAdminSummary } from "@/lib/api/admin-hooks";
+import { useNotifications } from "@/lib/api/hooks";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
@@ -70,26 +71,8 @@ export default function AdminLayout({
   const [searchResults, setSearchResults] = useState<any>(null);
   const [_isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
-  const [notifications, setNotifications] = useState<any[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-
-  useEffect(() => {
-    if (isLoginPage) return;
-
-    const fetchNotifications = async () => {
-      try {
-        const data = await webApiClient.getNotifications();
-        setNotifications(data);
-        setUnreadCount(data.filter((n: any) => !n.isRead).length);
-      } catch (error) {
-        console.error("Failed to fetch notifications:", error);
-      }
-    };
-
-    fetchNotifications();
-    const interval = setInterval(fetchNotifications, 60000); // Every minute
-    return () => clearInterval(interval);
-  }, [isLoginPage]);
+  const { data: notifications = [] } = useNotifications({ refetchInterval: 60000 });
+  const unreadCount = notifications.filter((n: any) => !n.isRead).length;
 
   useEffect(() => {
     const delayDebounceFn = setTimeout(async () => {

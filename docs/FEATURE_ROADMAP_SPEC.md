@@ -35,21 +35,6 @@ These must be done before a public launch. They directly affect user trust, onbo
 
 ---
 
-### ✅ Support System Enhancement *(Partial — proceed to complete)*
-
-- **What exists:** In-app feedback form (`FeedbackForm`) that syncs to the admin dashboard.
-- **What's missing:** Live chat widget (Smartsupp) and a ticket/escalation system.
-- **Implementation:**
-  - Add Smartsupp script to `web/app/layout.tsx` (landing + dashboard)
-  - Wire user identity (name, email, plan) into Smartsupp on auth
-  - Optionally expose ticket status in the user dashboard
-- **Cost:**
-  - Smartsupp: Free plan (100 conversations/month). Paid from $19.50/mo.
-  - Alternative: Crisp (free up to 2 agents), Tidio, Intercom (expensive)
-- **Effort:** ~2–3 hours
-
----
-
 ### ✅ Smart Suggestions Engine *(Partial — engine logic needed)*
 
 - **What exists:** `show_retail_suggestions` flag on the `stores` table, toggle in store settings and admin dashboard.
@@ -77,25 +62,27 @@ Features that improve the platform significantly but are not hard blockers for l
 **Why NOT embed a local model:**
 
 | Approach | Bundle Size Added | Works Offline | Quality | Monthly Cost |
-|---|---|---|---|---|
+| --- | --- | --- | --- | --- |
 | Local model (llama.cpp/Ollama) | +2–8 GB | ✅ | Medium | Free |
 | VPS-hosted LLM (self-hosted Ollama) | None | ❌ | Medium | ~$20–50/mo |
 | **Third-party API (Gemini/GPT)** | **None** | **❌ (online-only)** | **Best** | **~$0–5/mo at low volume** |
 
-**Chosen approach: Server-Proxied Gemini API**
+### Chosen approach: Server-Proxied Gemini API
 
 - The client sends requests to a new Laravel endpoint (e.g. `POST /api/v1/ai/query`)
 - The Laravel server calls the **Google Gemini API** and returns a structured response
 - The API key is stored securely server-side (never exposed to the client)
 - The AI tab is clearly **online-only** (same as sync, backups, broadcasts — acceptable)
 
-**Recommended Model: Google Gemini 1.5 Flash**
+### Recommended Model: Google Gemini 1.5 Flash
+
 - Extremely fast response times
 - Structured JSON output support (required for action cards)
 - **Free tier:** 15 requests/minute, 1 million tokens/day, 1,500 requests/day — enough for early-stage usage
 - **Paid tier:** $0.075 per 1M input tokens, $0.30 per 1M output tokens — effectively cents per query
 
 **Setup Requirements:**
+
 1. Google AI Studio account → generate Gemini API key
 2. Add `GEMINI_API_KEY` to Laravel `.env`
 3. Install `google/generative-ai` PHP package (or use plain HTTP client)
@@ -104,6 +91,7 @@ Features that improve the platform significantly but are not hard blockers for l
 6. Apply `throttle:20,1` middleware to AI routes to prevent abuse
 
 **Cost Summary:**
+
 - Development: ~3–5 days
 - Running cost at 500 queries/day: **effectively $0** (within free tier)
 - Running cost at 10,000 queries/day: ~**$1.50–3/month**
@@ -117,7 +105,7 @@ Features that improve the platform significantly but are not hard blockers for l
 **Cost Breakdown (Nigeria-specific):**
 
 | Conversation Type | First 1,000/month | After Free Tier |
-|---|---|---|
+| --- | --- | --- |
 | User-initiated (service) | Free | ~$0.021/conversation |
 | Business-initiated (utility/alerts) | Free | ~$0.034/conversation |
 | Business-initiated (marketing) | Free | ~$0.042/conversation |
@@ -125,10 +113,12 @@ Features that improve the platform significantly but are not hard blockers for l
 > A "conversation" = a 24-hour messaging window, not per-message. At typical pharmacy usage (alerts, stock queries), most interactions fall in the free tier for months.
 
 **Estimated Monthly Cost at Scale:**
+
 - 100 active pharmacies, avg 20 WhatsApp interactions/month each = 2,000 conversations
 - ~1,000 free + 1,000 × $0.021 = **~$21/month total platform cost**
 
 **Setup Requirements (High Friction — plan 2–3 weeks):**
+
 1. **Facebook Business Manager account** — must be verified (requires business docs: CAC, address, etc.)
 2. **Meta Business Verification** — typically takes 3–7 business days
 3. **Dedicated phone number** — cannot be a number already on personal/regular WhatsApp
@@ -137,6 +127,7 @@ Features that improve the platform significantly but are not hard blockers for l
 6. **Message templates** — pre-approved by Meta for business-initiated messages (24–48hr approval)
 
 **Implementation Phases:**
+
 - **Phase 1 (Alerts):** Low-stock alerts, expiry warnings, payment reminders — outbound only
 - **Phase 2 (Queries):** Natural language queries ("how many paracetamol left?") — inbound, read-only
 - **Phase 3 (Commands):** Queued write actions ("/reorder amoxicillin 50") — requires in-app confirmation
@@ -192,6 +183,8 @@ These change the core business model. Hold until core ERP/POS is dominant.
 - [x] **Public Access Policy Change** — Downloads page gates all platform buttons (Windows/macOS/Linux) behind `/register?redirect=downloads`. Direct downloads are not publicly accessible.
 
 - [x] **Referral & Growth System** — Full system: DB migration, `ReferralCreditTransaction` model, `ReferralController` (admin endpoints), referral stats on subscription API, credit adjustment dialog in admin UI, referral settings management.
+
+- [x] **Support System Enhancement** — Three-layer support: (1) In-app `FeedbackForm` with bug/feature/general types → syncs to backend `feedback` table, (2) Admin feedback dashboard with status filters (Pending/Resolved/Dismissed), (3) Smartsupp live chat widget — admin-configurable key via Platform Settings → Integrations tab, auto-identifies logged-in users by name/email/role. Formal ticket system deferred to post-launch.
 
 ---
 

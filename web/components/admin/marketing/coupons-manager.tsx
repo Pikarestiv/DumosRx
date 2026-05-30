@@ -29,7 +29,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import api from "@/lib/api/client";
+import {
+  useAdminCoupons,
+  useGenerateCouponMutation,
+  useToggleCouponMutation,
+  useDeleteCouponMutation,
+} from "@/lib/api/admin-hooks";
 import { toast } from "sonner";
 
 interface Coupon {
@@ -47,29 +52,19 @@ interface Coupon {
 }
 
 export function CouponsManager() {
-  const [coupons, setCoupons] = useState<Coupon[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: couponsData, isLoading: loading } = useAdminCoupons();
+  const coupons: Coupon[] = couponsData?.data || couponsData || [];
+
+  const generateMutation = useGenerateCouponMutation();
+  const toggleMutation = useToggleCouponMutation();
+  const deleteMutation = useDeleteCouponMutation();
+
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newCoupon, setNewCoupon] = useState<Partial<Coupon>>({
     type: "discount_percent",
     max_uses_per_user: 1,
     is_active: true,
   });
-
-  useEffect(() => {
-    fetchCoupons();
-  }, []);
-
-  const fetchCoupons = async () => {
-    try {
-      const { data } = await api.get("/admin/coupons");
-      setCoupons(data);
-    } catch (error) {
-      toast.error("Failed to load coupons");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleGenerate = async () => {
     try {
@@ -81,10 +76,14 @@ export function CouponsManager() {
         max_uses_per_user: Number(newCoupon.max_uses_per_user) || 1,
       };
 
-      await api.post("/admin/coupons", payload);
+      await generateMutation.mutateAsync(payload);
       toast.success("Coupon generated successfully");
       setIsDialogOpen(false);
-      fetchCoupons();
+      setNewCoupon({
+        type: "discount_percent",
+        max_uses_per_user: 1,
+        is_active: true,
+      });
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Failed to generate coupon");
     }
@@ -92,9 +91,8 @@ export function CouponsManager() {
 
   const handleToggle = async (id: string) => {
     try {
-      await api.put(`/admin/coupons/${id}/toggle`);
+      await toggleMutation.mutateAsync(id);
       toast.success("Coupon status updated");
-      fetchCoupons();
     } catch (error) {
       toast.error("Failed to update status");
     }
@@ -103,9 +101,8 @@ export function CouponsManager() {
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this coupon?")) return;
     try {
-      await api.delete(`/admin/coupons/${id}`);
+      await deleteMutation.mutateAsync(id);
       toast.success("Coupon deleted");
-      fetchCoupons();
     } catch (error) {
       toast.error("Failed to delete coupon");
     }

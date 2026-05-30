@@ -205,3 +205,50 @@ export const useAdjustReferralsCreditsMutation = () => {
   });
 };
 
+// Coupons Manager Hooks
+export const useAdminCoupons = () => {
+  return useQuery({
+    queryKey: ["admin-coupons"],
+    queryFn: () => webApiClient.request<any>("admin/coupons"),
+  });
+};
+
+export const useGenerateCouponMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: any) =>
+      webApiClient.request<any>("admin/coupons", {
+        method: "POST",
+        body: payload,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-coupons"] });
+    },
+  });
+};
+
+export const useToggleCouponMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      webApiClient.request<any>(`admin/coupons/${id}/toggle`, {
+        method: "PUT",
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-coupons"] });
+    },
+  });
+};
+
+export const useDeleteCouponMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      webApiClient.request<any>(`admin/coupons/${id}`, {
+        method: "DELETE",
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-coupons"] });
+    },
+  });
+};

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Copy, Check, Users, Gift, ArrowUpRight, ArrowDownRight, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { useReferralStats } from "@/lib/api/hooks";
 
 interface ReferredUser {
   id: string;
@@ -47,31 +48,8 @@ interface ReferralStats {
 }
 
 export function ReferralTab() {
-  const [stats, setStats] = useState<ReferralStats | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: stats, isLoading: loading } = useReferralStats();
   const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    fetchStats();
-  }, []);
-
-  const fetchStats = async () => {
-    try {
-      const token = localStorage.getItem("drx_token");
-      const response = await fetch("/api/subscription/referral-stats", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const data = await response.json();
-      setStats(data);
-    } catch (error) {
-      console.error("Failed to load referral stats:", error);
-      toast.error("Failed to load referral program data.");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const copyReferralLink = () => {
     if (!stats?.referral_code) return;

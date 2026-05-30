@@ -101,6 +101,13 @@ export const useSubscriptionStatus = () => {
   });
 };
 
+export const useReferralStats = () => {
+  return useQuery({
+    queryKey: ["referral-stats"],
+    queryFn: () => webApiClient.getReferralStats(),
+  });
+};
+
 export const useInitiatePaymentMutation = () => {
   return useMutation({
     mutationFn: (payload: { amount: number; plan_name: string; coupon_code?: string; interval?: string; use_credits?: boolean }) => webApiClient.initiatePayment(payload),

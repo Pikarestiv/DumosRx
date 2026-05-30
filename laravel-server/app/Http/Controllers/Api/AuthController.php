@@ -4,6 +4,14 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\Role;
+use App\Models\Store;
+use App\Models\Notification;
+use App\Models\ActivityLog;
+use App\Services\SubscriptionService;
+use App\Mail\WelcomeEmail;
+use App\Mail\NewDeviceLoginEmail;
+use App\Mail\PasswordResetEmail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
@@ -11,6 +19,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
+use Exception;
 
 class AuthController extends Controller
 {
@@ -40,7 +49,7 @@ class AuthController extends Controller
         }
 
         $roleSlug = $request->filled('pharmacy_name') ? 'admin' : ($request->role ?? 'pharmacist');
-        $roleObj = \App\Models\Role::where('slug', $roleSlug)->first();
+        $roleObj = Role::where('slug', $roleSlug)->first();
 
         $user = User::create([
             'first_name' => $request->first_name,
@@ -56,19 +65,19 @@ class AuthController extends Controller
         ]);
 
         if ($request->filled('pharmacy_name')) {
-            \App\Models\Store::create([
+            Store::create([
                 'user_id' => $user->id,
                 'name' => $request->pharmacy_name,
                 'device_id' => 'WEB-' . strtoupper(Str::random(8)),
             ]);
 
             // Create trial subscription
-            app(\App\Services\SubscriptionService::class)->createTrial($user);
+            app(SubscriptionService::class)->createTrial($user);
 
             // Send Welcome Email
             try {
-                Mail::to($user->email)->send(new \App\Mail\WelcomeEmail($user, $request->pharmacy_name));
-            } catch (\Exception $e) {
+                Mail::to($user->email)->send(new WelcomeEmail($user, $request->pharmacy_name));
+            } catch (Exception $e) {
                 Log::error("Failed to send welcome email: " . $e->getMessage());
             }
         }
@@ -134,8 +143,8 @@ class AuthController extends Controller
 
         // Dispatch security email if device is unrecognized
         if ($isNewDevice) {
-        Mail::to($user->email)->send(
-                new \App\Mail\NewDeviceLoginEmail($user, $userAgent, $ipAddress, now()->toDateTimeString())
+            Mail::to($user->email)->send(
+                new NewDeviceLoginEmail($user, $userAgent, $ipAddress, now()->toDateTimeString())
             );
         }
 
@@ -278,8 +287,8 @@ class AuthController extends Controller
         $resetUrl = "https://rx.dumostech.com/reset-password?token=$token&email=" . urlencode($request->email);
 
         try {
-            Mail::to($user->email)->send(new \App\Mail\PasswordResetEmail($user, $resetUrl));
-        } catch (\Exception $e) {
+            Mail::to($user->email)->send(new PasswordResetEmail($user, $resetUrl));
+        } catch (Exception $e) {
             Log::error("Failed to send password reset email: " . $e->getMessage());
             return response()->json([
                 'message' => 'Unable to send password reset email. Please try again later.'
@@ -337,7 +346,7 @@ class AuthController extends Controller
         // 1. Notify Super Admins & Requesting User
         $superAdmins = User::where('role', 'super_admin')->get();
         foreach ($superAdmins as $superAdmin) {
-            \App\Models\Notification::create([
+            Notification::create([
                 'user_id' => $superAdmin->id,
                 'title' => 'Account Deletion Requested',
                 'message' => "User {$user->name} ({$user->email}) has requested account deletion. Reason: {$request->reason}",
@@ -347,7 +356,7 @@ class AuthController extends Controller
         }
 
         // 2. Log Activity
-        \App\Models\ActivityLog::create([
+        ActivityLog::create([
             'user_id' => $user->id,
             'action' => 'ACCOUNT_DELETION_REQUESTED',
             'description' => "Requested account deletion. Reason: {$request->reason}",
@@ -376,7 +385,7 @@ class AuthController extends Controller
         // 1. Notify Super Admins & Requesting User
         $superAdmins = User::where('role', 'super_admin')->get();
         foreach ($superAdmins as $superAdmin) {
-            \App\Models\Notification::create([
+            Notification::create([
                 'user_id' => $superAdmin->id,
                 'title' => 'Account Deletion Cancelled',
                 'message' => "User {$user->name} ({$user->email}) has cancelled their account deletion request.",
@@ -386,7 +395,7 @@ class AuthController extends Controller
         }
 
         // 2. Log Activity
-        \App\Models\ActivityLog::create([
+        ActivityLog::create([
             'user_id' => $user->id,
             'action' => 'ACCOUNT_DELETION_CANCELLED',
             'description' => 'Cancelled account deletion request.',

@@ -5,6 +5,9 @@ namespace App\Services;
 use App\Models\Subscription;
 use App\Models\User;
 use App\Models\SystemConfig;
+use App\Models\Store;
+use App\Models\Coupon;
+use App\Models\CouponUsage;
 use Illuminate\Support\Str;
 
 class SubscriptionService
@@ -39,9 +42,9 @@ class SubscriptionService
         
         // If the user is staff, they have a store_id
         if ($user->store_id) {
-            $store = \App\Models\Store::find($user->store_id);
+            $store = Store::find($user->store_id);
             if ($store && $store->user_id) {
-                return \App\Models\User::find($store->user_id) ?? $user;
+                return User::find($store->user_id) ?? $user;
             }
         }
         
@@ -96,7 +99,7 @@ class SubscriptionService
                 $current = $owner->store()->count();
                 break;
             case 'staff':
-                $storeIds = \App\Models\Store::where('user_id', $owner->id)->pluck('id');
+                $storeIds = Store::where('user_id', $owner->id)->pluck('id');
                 $current = User::whereIn('store_id', $storeIds)->count();
                 break;
         }
@@ -109,7 +112,7 @@ class SubscriptionService
      */
     public function validateCoupon(User $user, string $code, ?string $planName = null, ?string $interval = null)
     {
-        $coupon = \App\Models\Coupon::where('code', $code)->first();
+        $coupon = Coupon::where('code', $code)->first();
         
         if (!$coupon) {
             return ['valid' => false, 'message' => 'Invalid coupon code'];
@@ -136,11 +139,11 @@ class SubscriptionService
     /**
      * Record a coupon usage
      */
-    public function recordCouponUsage(\App\Models\Coupon $coupon, User $user, ?Subscription $subscription = null)
+    public function recordCouponUsage(Coupon $coupon, User $user, ?Subscription $subscription = null)
     {
         $owner = $this->getSubscriptionOwner($user);
         
-        \App\Models\CouponUsage::create([
+        CouponUsage::create([
             'coupon_id' => $coupon->id,
             'user_id' => $owner->id,
             'subscription_id' => $subscription ? $subscription->id : null,

@@ -5,14 +5,23 @@ namespace App\Http\Controllers\Api\Web;
 use App\Http\Controllers\Controller;
 use App\Models\Subscription;
 use App\Models\PaymentTransaction;
+use App\Models\User;
+use App\Models\License;
+use App\Models\SystemConfig;
+use App\Models\Coupon;
+use App\Models\ReferralCreditTransaction;
+use App\Services\SubscriptionService;
+use App\Services\Payment\PaymentService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Exception;
 
 class SubscriptionController extends Controller
 {
     public function status()
     {
-        /** @var \App\Models\User $user */
-        $user = \Illuminate\Support\Facades\Auth::user();
+        /** @var User $user */
+        $user = Auth::user();
         $sub = Subscription::where('user_id', $user->id)
             ->where('status', 'active')
             ->where('end_date', '>', now())
@@ -49,7 +58,7 @@ class SubscriptionController extends Controller
             return response()->json(['valid' => false, 'message' => 'Subscription expired.'], 403);
         }
 
-        $license = \App\Models\License::firstOrCreate(
+        $license = License::firstOrCreate(
             [
                 'subscription_id' => $sub->id,
                 'machine_id' => $request->machine_id,
@@ -75,7 +84,7 @@ class SubscriptionController extends Controller
 
     public function billingHistory(Request $request)
     {
-        $userId = \Illuminate\Support\Facades\Auth::id();
+        $userId = Auth::id();
 
         // Get transactions linked directly to the user's subscriptions
         $subscriptionIds = Subscription::where('user_id', $userId)->pluck('id');
@@ -99,7 +108,7 @@ class SubscriptionController extends Controller
         return response()->json(['transactions' => $transactions]);
     }
 
-    public function validateCoupon(Request $request, \App\Services\SubscriptionService $subscriptionService)
+    public function validateCoupon(Request $request, SubscriptionService $subscriptionService)
     {
         $request->validate([
             'code' => 'required|string',
@@ -107,7 +116,7 @@ class SubscriptionController extends Controller
             'interval' => 'nullable|in:monthly,yearly',
         ]);
 
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
 
         $result = $subscriptionService->validateCoupon(
@@ -133,7 +142,7 @@ class SubscriptionController extends Controller
         ]);
     }
 
-    public function initiatePayment(Request $request, \App\Services\Payment\PaymentService $paymentService, \App\Services\SubscriptionService $subscriptionService)
+    public function initiatePayment(Request $request, PaymentService $paymentService, SubscriptionService $subscriptionService)
     {
         $request->validate([
             'amount' => 'required|numeric',
@@ -143,8 +152,8 @@ class SubscriptionController extends Controller
             'use_credits' => 'nullable|boolean',
         ]);
 
-        /** @var \App\Models\User $user */
-        $user = \Illuminate\Support\Facades\Auth::user();
+        /** @var User $user */
+        $user = Auth::user();
 
         $useCredits = $request->boolean('use_credits');
         $availableCredits = (float) $user->referral_credits;
@@ -235,7 +244,7 @@ class SubscriptionController extends Controller
                 'transaction_reference' => $txn->provider_reference,
                 'payment_url' => $payment['checkout_url'],
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage()
@@ -243,7 +252,7 @@ class SubscriptionController extends Controller
         }
     }
 
-    public function verifyPayment(Request $request, \App\Services\Payment\PaymentService $paymentService)
+    public function verifyPayment(Request $request, PaymentService $paymentService)
     {
         $request->validate([
             'reference' => 'required|string',
@@ -265,12 +274,12 @@ class SubscriptionController extends Controller
             if ($verification['success']) {
                 $txn->update(['status' => 'success', 'metadata' => array_merge($txn->metadata ?? [], ['verification_data' => $verification['data']])]);
 
-                $user = \App\Models\User::find($txn->metadata['user_id'] ?? \Illuminate\Support\Facades\Auth::id());
+                $user = User::find($txn->metadata['user_id'] ?? Auth::id());
 
                 // Create or Update Subscription
                 $interval = $txn->metadata['interval'] ?? 'monthly';
                 $sub = Subscription::create([
-                    'user_id' => $user ? $user->id : \Illuminate\Support\Facades\Auth::id(),
+                    'user_id' => $user ? $user->id : Auth::id(),
                     'plan_name' => $txn->metadata['plan_name'],
                     'start_date' => now(),
                     'end_date' => ($interval === 'yearly') ? now()->addYear() : now()->addMonth(),
@@ -288,7 +297,7 @@ class SubscriptionController extends Controller
 
                 // Award referral credits
                 if ($user && $user->referred_by_id) {
-                    $referralConfig = \App\Models\SystemConfig::getVal('referral_program', []);
+                    $referralConfig = SystemConfig::getVal('referral_program', []);
                     if ($referralConfig && ($referralConfig['enabled'] ?? false)) {
                         $trigger = $referralConfig['reward_trigger'] ?? 'recurring';
                         $isFirstTime = Subscription::where('user_id', $user->id)->count() <= 1;
@@ -311,9 +320,9 @@ class SubscriptionController extends Controller
 
                 // Record coupon usage if present
                 if (!empty($txn->metadata['coupon_code'])) {
-                    $coupon = \App\Models\Coupon::where('code', $txn->metadata['coupon_code'])->first();
+                    $coupon = Coupon::where('code', $txn->metadata['coupon_code'])->first();
                     if ($coupon && $user) {
-                        $subscriptionService = app(\App\Services\SubscriptionService::class);
+                        $subscriptionService = app(SubscriptionService::class);
                         $subscriptionService->recordCouponUsage($coupon, $user, $sub);
                     }
                 }
@@ -328,18 +337,18 @@ class SubscriptionController extends Controller
             $txn->update(['status' => 'failed']);
             return response()->json(['success' => false, 'message' => 'Payment verification failed.'], 400);
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
 
     public function getReferralStats(Request $request)
     {
-        /** @var \App\Models\User $user */
-        $user = \Illuminate\Support\Facades\Auth::user();
+        /** @var User $user */
+        $user = Auth::user();
 
         // Get referred users
-        $referrals = \App\Models\User::where('referred_by_id', $user->id)
+        $referrals = User::where('referred_by_id', $user->id)
             ->with(['store'])
             ->orderBy('created_at', 'desc')
             ->get()

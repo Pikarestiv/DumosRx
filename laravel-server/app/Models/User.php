@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Support\Str;
+use Exception;
 
 class User extends Authenticatable
 {
@@ -178,7 +180,7 @@ class User extends Authenticatable
     public static function generateUniqueReferralCode()
     {
         do {
-            $code = 'DRX-' . strtoupper(\Illuminate\Support\Str::random(6));
+            $code = 'DRX-' . strtoupper(Str::random(6));
         } while (self::where('referral_code', $code)->exists());
 
         return $code;
@@ -215,7 +217,7 @@ class User extends Authenticatable
     public function deductCredits(float $amount, string $description)
     {
         if ($this->referral_credits < $amount) {
-            throw new \Exception('Insufficient referral credits.');
+            throw new Exception('Insufficient referral credits.');
         }
 
         $this->referral_credits -= $amount;

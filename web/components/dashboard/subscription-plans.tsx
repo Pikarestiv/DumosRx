@@ -7,7 +7,8 @@ import { Check, ShieldAlert, CreditCard, Loader2 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 
-import { useInitiatePaymentMutation, useSystemConfig } from "@/lib/api/hooks";
+import { useInitiatePaymentMutation, useSystemConfig, useReferralStats } from "@/lib/api/hooks";
+import { webApiClient } from "@/lib/api/client";
 import { toast } from "sonner";
 import { calculateDiscountPercent } from "@/lib/utils";
 
@@ -17,32 +18,13 @@ export function SubscriptionPlans() {
   const [couponCode, setCouponCode] = useState("");
   const [validatingCoupon, setValidatingCoupon] = useState(false);
   const [appliedCoupon, setAppliedCoupon] = useState<{code: string, type: string, value: number, target_plan: string | null, target_interval: string | null} | null>(null);
-  const [userCredits, setUserCredits] = useState(0);
   const [useCredits, setUseCredits] = useState(false);
   
   const initiatePayment = useInitiatePaymentMutation();
   const { data: config, isLoading: isConfigLoading } = useSystemConfig("subscription_plans");
+  const { data: referralStats } = useReferralStats();
 
-  useEffect(() => {
-    fetchCredits();
-  }, []);
-
-  const fetchCredits = async () => {
-    try {
-      const token = localStorage.getItem("drx_token") || localStorage.getItem("auth_token");
-      const response = await fetch('/api/subscription/referral-stats', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      const data = await response.json();
-      if (data && data.referral_credits !== undefined) {
-        setUserCredits(data.referral_credits);
-      }
-    } catch (error) {
-      console.error("Failed to fetch referral credits", error);
-    }
-  };
+  const userCredits = referralStats?.referral_credits || 0;
 
   const isYearly = billingPeriod === "yearly";
 
@@ -55,24 +37,16 @@ export function SubscriptionPlans() {
     if (!couponCode) return;
     setValidatingCoupon(true);
     try {
-      const response = await fetch('/api/subscription/validate-coupon', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        },
-        body: JSON.stringify({ code: couponCode })
-      });
-      const data = await response.json();
-      if (data.valid) {
-        setAppliedCoupon(data.coupon);
-        toast.success(`Coupon applied: ${data.coupon.type === 'discount_percent' ? data.coupon.value + '% off' : '+' + data.coupon.value + ' days'}`);
+      const response = await webApiClient.validateCoupon({ code: couponCode });
+      if (response.valid) {
+        setAppliedCoupon(response.coupon);
+        toast.success(`Coupon applied: ${response.coupon.type === 'discount_percent' ? response.coupon.value + '% off' : '+' + response.coupon.value + ' days'}`);
       } else {
-        toast.error(data.message || 'Invalid coupon code');
+        toast.error(response.message || 'Invalid coupon code');
         setAppliedCoupon(null);
       }
-    } catch (error) {
-      toast.error('Failed to validate coupon');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to validate coupon');
       setAppliedCoupon(null);
     } finally {
       setValidatingCoupon(false);

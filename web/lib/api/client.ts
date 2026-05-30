@@ -84,6 +84,16 @@ class WebApiClient {
     return data;
   }
 
+  async getReferralStats() {
+    const { data } = await apiClient.get("/subscription/referral-stats");
+    return data;
+  }
+
+  async validateCoupon(payload: { code: string; plan_name?: string; interval?: string }) {
+    const { data } = await apiClient.post("/subscription/validate-coupon", payload);
+    return data;
+  }
+
   async verifyPayment(reference: string) {
     const { data } = await apiClient.post("/subscription/verify", { reference });
     return data;

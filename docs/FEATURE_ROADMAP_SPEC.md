@@ -6,87 +6,192 @@ This document tracks the proposed features for the DumosRx system, grouped by st
 
 ## 🛡️ Architectural Rules & Safety Constraints
 
-These core principles govern the implementation of all new features to ensure system stability, data integrity, and patient safety.
-
-- **Navigation Principle:** "All features must exist in exactly ONE primary entry point (no duplicates across tabs)."
+- **Navigation Principle:** All features must exist in exactly ONE primary entry point (no duplicates across tabs).
 - **AI System Rule:** AI is NOT allowed to directly mutate state. All actions must go through a generated "intent → confirmation → execution" pipeline.
-- **WhatsApp Integration Architecture Rule:** WhatsApp must operate on read-only queries (safe) or queued write actions (confirmed in app or admin approval).
-- **Internal Observability Requirement:** All systems must log user actions, system failures, sync events, and AI decisions. This is critical for debugging offline-first sync issues and AI auditing.
+- **WhatsApp Architecture Rule:** WhatsApp must operate on read-only queries (safe) or queued write actions (confirmed in-app or via admin approval).
+- **Internal Observability Requirement:** All systems must log user actions, system failures, sync events, and AI decisions. Critical for debugging offline-first sync issues and AI auditing.
 
 ---
 
-## 🚧 PENDING FEATURES
+## 🚀 LAUNCH BLOCKERS — Must Ship Before v1.0
 
-### 🌟 Tier 1 — Immediate "Must-Haves"
-
-- [ ] **3. Migration System**
-  - **Description:** Upgrade data import system into a guided migration pipeline.
-  - **Supported Formats:** QuickBooks IIF, CSV/Excel, legacy POS exports.
-  - **Features:** Auto-detect schema, mapping UI, validation preview, migration report, duplicate detection.
-
-- [ ] **4. Bug Tracking & Logging System** *(Partial — custom logger exists, no Sentry/PostHog yet)*
-  - **Description:** Internal observability layer for bug tracking, system logging (POS errors, sync failures), and event tracking (feature usage, funnels).
-  - **Status:** `error-logger.ts` + `GlobalErrorListener` handle crash logging to local DB. Sentry and PostHog integrations still pending.
+These must be done before a public launch. They directly affect user trust, onboarding success, and platform stability.
 
 ---
 
-### 🚀 Tier 2 — "Game Changers"
+### ✅ Bug Tracking & Logging System *(Partial — proceed to complete)*
 
-- [ ] **5. AI Assistant Module (NEW CORE FEATURE)**
-  - **Description:** AI as a first-class system tab with Query, Command (`/reorder`), and Action modes.
-  - **Output Rule:** Responses must be structured cards, structured actions, and clickable workflows (not chat paragraphs).
-  - **Complexity:** Requires LLM tool-calling and robust backend integration.
-
-- [ ] **6. Smart Suggestions Engine** *(Partial — toggle & DB flag exist, no engine logic yet)*
-  - **Description:** Context-aware product intelligence during POS checkout. Suggest complementary products, bundles, or upsells.
-  - **Status:** `show_retail_suggestions` flag exists on `stores` table and is exposed in store settings. The suggestion engine itself (rule-based or ML) is not yet built.
-  - **Complexity:** Can start simple (rule-based: antibiotic -> probiotics) and evolve into ML-based on historical sales.
-
-- [ ] **7. WhatsApp Integration System**
-  - **Description:** WhatsApp as an external control terminal (Command, Natural Language, and Alert modes).
-  - **Complexity:** Highly innovative for emerging markets. Requires managing Meta/WhatsApp API costs, approvals, and robust authentication.
+- **What exists:** Custom `error-logger.ts` + `GlobalErrorListener` captures crashes to local SQLite → syncs to backend `feedback` table.
+- **What's missing:** Sentry SDK integration in both `client` (Tauri app) and `web` (Next.js), plus PostHog for funnel analytics/session replays.
+- **Implementation:**
+  - Install `@sentry/nextjs` in `web/`
+  - Install `@sentry/react` (or tauri-compatible build) in `client/`
+  - Set `SENTRY_DSN` in `.env`
+  - PostHog: add snippet to `app/layout.tsx` and `client/app/layout.tsx`
+- **Cost:**
+  - Sentry: Free tier (5,000 errors/month, 10k sessions). Paid from $26/mo.
+  - PostHog: Free up to 1M events/month. Very generous.
+- **Effort:** ~half a day
 
 ---
 
-### ⚠️ Tier 3 — Proceed With Caution
+### ✅ Support System Enhancement *(Partial — proceed to complete)*
 
-- [ ] **8. Substitution Recommendation Engine**
-  - **Description:** Suggest same-molecule or drug-class alternatives when an item is out of stock.
-  - **Risk: HIGH MEDICAL LIABILITY.** Suggesting the wrong substitute is dangerous.
-  - **Safety Constraint Layer:** Must include a confidence score, a mandatory pharmacist confirmation step, and drug classification validation (ATC or equivalent system).
-  - **Mitigation:** Must explicitly state "Pharmacist verification required" and rely on a licensed, highly accurate medical database (not a generalized AI hallucination).
-
-- [ ] **9. Voice Input System**
-  - **Description:** Voice-enabled input layer for POS, Search, and AI queries.
-  - **Risk: HIGH FRUSTRATION.** Noisy retail environments and complex drug terminologies make speech-to-text highly error-prone.
-  - **Mitigation:** Treat as an experimental accelerator, not primary control.
+- **What exists:** In-app feedback form (`FeedbackForm`) that syncs to the admin dashboard.
+- **What's missing:** Live chat widget (Smartsupp) and a ticket/escalation system.
+- **Implementation:**
+  - Add Smartsupp script to `web/app/layout.tsx` (landing + dashboard)
+  - Wire user identity (name, email, plan) into Smartsupp on auth
+  - Optionally expose ticket status in the user dashboard
+- **Cost:**
+  - Smartsupp: Free plan (100 conversations/month). Paid from $19.50/mo.
+  - Alternative: Crisp (free up to 2 agents), Tidio, Intercom (expensive)
+- **Effort:** ~2–3 hours
 
 ---
 
-### 🛑 Tier 4 — Future Roadmap
+### ✅ Smart Suggestions Engine *(Partial — engine logic needed)*
 
-- [ ] **10. E-commerce Integration Layer (DumosRx Commerce API Layer)**
-  - **Description:** Pharmacy-to-online-store conversion system. "Enable Online Store" toggle.
-  - **Clarification:** The local Inventory is the source of truth. The Commerce layer is a read/write projection. Orders generate sales events internally. Treat the online store as another branch.
-  - **Complexity:** Turns the product into a Shopify competitor. Requires public web hosting, SEO, payment gateways, and delivery logistics.
-  - **Alternative:** Start with a simple "WhatsApp Catalog Export".
+- **What exists:** `show_retail_suggestions` flag on the `stores` table, toggle in store settings and admin dashboard.
+- **What's missing:** The actual rule-based suggestion logic in the POS checkout flow.
+- **Implementation:**
+  - Build a `SuggestionsEngine` class/module in the client app
+  - Phase 1 (rule-based): antibiotics → probiotics, antihypertensives → potassium supplements, etc.
+  - Phase 2 (data-driven): query local sales history for frequently co-purchased items
+  - Render as a non-intrusive suggestion card at checkout, only if `show_retail_suggestions = true`
+- **Cost:** None — fully local/offline logic.
+- **Effort:** ~1–2 days
 
-- [ ] **12. Support System Enhancement** *(Partial — feedback form exists, no live chat/ticket system yet)*
-  - **Description:** Multi-layer system: Self-service AI, Live chat (Smartsupp), Ticket system.
-  - **Status:** In-app feedback form syncs to backend. Smartsupp live chat and formal ticket system not yet integrated.
+---
+
+## 📅 POST-LAUNCH — v1.1 Targets
+
+Features that improve the platform significantly but are not hard blockers for launch.
+
+---
+
+### 🤖 AI Assistant Module
+
+> **Architecture Decision: Use third-party LLM APIs, server-proxied.**
+
+**Why NOT embed a local model:**
+
+| Approach | Bundle Size Added | Works Offline | Quality | Monthly Cost |
+|---|---|---|---|---|
+| Local model (llama.cpp/Ollama) | +2–8 GB | ✅ | Medium | Free |
+| VPS-hosted LLM (self-hosted Ollama) | None | ❌ | Medium | ~$20–50/mo |
+| **Third-party API (Gemini/GPT)** | **None** | **❌ (online-only)** | **Best** | **~$0–5/mo at low volume** |
+
+**Chosen approach: Server-Proxied Gemini API**
+
+- The client sends requests to a new Laravel endpoint (e.g. `POST /api/v1/ai/query`)
+- The Laravel server calls the **Google Gemini API** and returns a structured response
+- The API key is stored securely server-side (never exposed to the client)
+- The AI tab is clearly **online-only** (same as sync, backups, broadcasts — acceptable)
+
+**Recommended Model: Google Gemini 1.5 Flash**
+- Extremely fast response times
+- Structured JSON output support (required for action cards)
+- **Free tier:** 15 requests/minute, 1 million tokens/day, 1,500 requests/day — enough for early-stage usage
+- **Paid tier:** $0.075 per 1M input tokens, $0.30 per 1M output tokens — effectively cents per query
+
+**Setup Requirements:**
+1. Google AI Studio account → generate Gemini API key
+2. Add `GEMINI_API_KEY` to Laravel `.env`
+3. Install `google/generative-ai` PHP package (or use plain HTTP client)
+4. Build `AiController` with `query`, `command`, and `action` endpoints
+5. Implement the AI tab in the `client` app (structured card output, not chat paragraphs)
+6. Apply `throttle:20,1` middleware to AI routes to prevent abuse
+
+**Cost Summary:**
+- Development: ~3–5 days
+- Running cost at 500 queries/day: **effectively $0** (within free tier)
+- Running cost at 10,000 queries/day: ~**$1.50–3/month**
+
+---
+
+### 💬 WhatsApp Integration System
+
+> **Use Meta WhatsApp Cloud API directly (no middleman BSP needed).**
+
+**Cost Breakdown (Nigeria-specific):**
+
+| Conversation Type | First 1,000/month | After Free Tier |
+|---|---|---|
+| User-initiated (service) | Free | ~$0.021/conversation |
+| Business-initiated (utility/alerts) | Free | ~$0.034/conversation |
+| Business-initiated (marketing) | Free | ~$0.042/conversation |
+
+> A "conversation" = a 24-hour messaging window, not per-message. At typical pharmacy usage (alerts, stock queries), most interactions fall in the free tier for months.
+
+**Estimated Monthly Cost at Scale:**
+- 100 active pharmacies, avg 20 WhatsApp interactions/month each = 2,000 conversations
+- ~1,000 free + 1,000 × $0.021 = **~$21/month total platform cost**
+
+**Setup Requirements (High Friction — plan 2–3 weeks):**
+1. **Facebook Business Manager account** — must be verified (requires business docs: CAC, address, etc.)
+2. **Meta Business Verification** — typically takes 3–7 business days
+3. **Dedicated phone number** — cannot be a number already on personal/regular WhatsApp
+4. **WhatsApp Cloud API access** — applied through Meta Developer Console
+5. **Webhook endpoint** — add `POST /api/v1/webhooks/whatsapp` to Laravel
+6. **Message templates** — pre-approved by Meta for business-initiated messages (24–48hr approval)
+
+**Implementation Phases:**
+- **Phase 1 (Alerts):** Low-stock alerts, expiry warnings, payment reminders — outbound only
+- **Phase 2 (Queries):** Natural language queries ("how many paracetamol left?") — inbound, read-only
+- **Phase 3 (Commands):** Queued write actions ("/reorder amoxicillin 50") — requires in-app confirmation
+
+**Best paired with AI Assistant (Phase 2 & 3 rely on LLM intent parsing).**
+
+---
+
+### 📦 Migration System
+
+- **Description:** Guided import pipeline for pharmacies migrating from existing systems.
+- **Supported Formats:** CSV/Excel, QuickBooks IIF, legacy POS exports.
+- **Features:** Auto-detect column schema, mapping UI, validation preview, migration report, duplicate detection.
+- **Effort:** ~3–5 days
+- **Cost:** None (server-side processing)
+
+---
+
+## 🛑 FUTURE ROADMAP — v2.0+
+
+These change the core business model. Hold until core ERP/POS is dominant.
+
+---
+
+### 🛒 E-commerce Integration Layer
+
+- **Description:** "Enable Online Store" toggle — turns pharmacy inventory into a browsable online store.
+- **Plan Gating:** Lock behind **Enterprise plan** (or a dedicated Commerce add-on).
+- **v1 Shortcut:** Start with **WhatsApp Catalog Export** — generates a shareable product list from live inventory, zero infrastructure needed.
+- **Full implementation:** Public storefront, SEO, Paystack checkout, delivery logistics, order-to-sale pipeline.
+- **Complexity:** High. Treat online store as another "branch" — inventory is the source of truth.
+
+---
+
+### 🔊 Voice Input System *(Hold)*
+
+- **Risk:** HIGH FRUSTRATION — noisy retail environments + complex drug names = poor accuracy.
+- **Mitigation if implemented:** Treat as experimental accelerator only, never primary input.
+
+---
+
+### 💊 Substitution Recommendation Engine *(Hold)*
+
+- **Risk:** HIGH MEDICAL LIABILITY — wrong substitute suggestion is dangerous.
+- **Safety requirements before building:** Confidence scores, mandatory pharmacist confirmation, ATC drug classification database, explicit "Pharmacist verification required" UI.
 
 ---
 
 ## ✅ COMPLETED FEATURES
 
-- [x] **1. Mobile Navigation Change**
-  - 5-tab bottom navigation (`mobile-bottom-nav.tsx`) with "More" hub drawer (`mobile-more-drawer.tsx`) fully integrated into the dashboard layout. Sidebar remains for desktop (lg+). More hub includes search and all low-frequency modules.
+- [x] **Mobile Navigation Change** — 5-tab bottom nav (`mobile-bottom-nav.tsx`) with searchable "More" hub drawer (`mobile-more-drawer.tsx`), fully wired into `dashboard-layout.tsx`. Sidebar retained for desktop (lg+).
 
-- [x] **2. Public Access Policy Change**
-  - Downloads page gates all platform buttons (Windows, macOS, Linux) behind `/register?redirect=downloads`. Direct download links are no longer publicly accessible.
+- [x] **Public Access Policy Change** — Downloads page gates all platform buttons (Windows/macOS/Linux) behind `/register?redirect=downloads`. Direct downloads are not publicly accessible.
 
-- [x] **11. Referral & Growth System**
-  - Full referral system: DB migration, `ReferralCreditTransaction` model, `ReferralController` (admin), referral stats endpoint on subscription, credit adjustment dialog in admin UI, and referral settings management.
+- [x] **Referral & Growth System** — Full system: DB migration, `ReferralCreditTransaction` model, `ReferralController` (admin endpoints), referral stats on subscription API, credit adjustment dialog in admin UI, referral settings management.
 
 ---
 

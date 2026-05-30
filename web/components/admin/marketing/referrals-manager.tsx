@@ -10,16 +10,9 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Plus, RefreshCw } from "lucide-react";
-import api from "@/lib/api/client";
 import { toast } from "sonner";
 
-import {
-  ReferralSummary,
-  ReferralProgramSettings,
-  ReferralRelationship,
-  CreditTransaction,
-  UserListItem,
-} from "./types";
+import { ReferralProgramSettings } from "./types";
 
 import { ReferralsSummaryCards } from "./referrals-summary-cards";
 import { ReferralsSettingsForm } from "./referrals-settings-form";
@@ -27,57 +20,43 @@ import { ReferralsRelationshipsTable } from "./referrals-relationships-table";
 import { ReferralsAuditLog } from "./referrals-audit-log";
 import { ReferralsAdjustDialog } from "./referrals-adjust-dialog";
 
-export function ReferralsManager() {
-  const [summary, setSummary] = useState<ReferralSummary | null>(null);
-  const [settings, setSettings] = useState<ReferralProgramSettings | null>(
-    null,
-  );
-  const [referrals, setReferrals] = useState<ReferralRelationship[]>([]);
-  const [transactions, setTransactions] = useState<CreditTransaction[]>([]);
-  const [users, setUsers] = useState<UserListItem[]>([]);
+import {
+  useAdminUsers,
+  useReferralsSummary,
+  useReferralsSettings,
+  useReferralsRelationships,
+  useReferralsTransactions,
+  useUpdateReferralsSettingsMutation,
+  useAdjustReferralsCreditsMutation,
+} from "@/lib/api/admin-hooks";
 
-  const [loading, setLoading] = useState(true);
-  const [savingSettings, setSavingSettings] = useState(false);
+export function ReferralsManager() {
+  const { data: summaryData, isLoading: loadingSummary } = useReferralsSummary();
+  const { data: settingsData, isLoading: loadingSettings } = useReferralsSettings();
+  const { data: referralsData, isLoading: loadingReferrals } = useReferralsRelationships();
+  const { data: transactionsData, isLoading: loadingTransactions } = useReferralsTransactions();
+  const { data: usersData, isLoading: loadingUsers } = useAdminUsers();
+
+  const updateSettingsMutation = useUpdateReferralsSettingsMutation();
+  const adjustCreditsMutation = useAdjustReferralsCreditsMutation();
+
+  const [settings, setSettings] = useState<ReferralProgramSettings | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
+  // Sync settings when loaded
   useEffect(() => {
-    fetchInitialData();
-  }, []);
-
-  const fetchInitialData = async () => {
-    setLoading(true);
-    try {
-      const [summaryRes, settingsRes, referralsRes, txnsRes, usersRes] =
-        await Promise.all([
-          api.get("/admin/referrals/summary"),
-          api.get("/admin/referrals/settings"),
-          api.get("/admin/referrals"),
-          api.get("/admin/referrals/transactions"),
-          api.get("/admin/users"),
-        ]);
-
-      setSummary(summaryRes.data);
-      setSettings(settingsRes.data);
-      setReferrals(referralsRes.data.data || []);
-      setTransactions(txnsRes.data.data || []);
-      setUsers(usersRes.data.data || []);
-    } catch (error) {
-      toast.error("Failed to load referral data");
-    } finally {
-      setLoading(false);
+    if (settingsData) {
+      setSettings(settingsData);
     }
-  };
+  }, [settingsData]);
 
   const handleSaveSettings = async () => {
     if (!settings) return;
-    setSavingSettings(true);
     try {
-      await api.put("/admin/referrals/settings", settings);
+      await updateSettingsMutation.mutateAsync(settings);
       toast.success("Referral program settings updated");
     } catch (error) {
       toast.error("Failed to save settings");
-    } finally {
-      setSavingSettings(false);
     }
   };
 
@@ -87,15 +66,20 @@ export function ReferralsManager() {
     type: "earned" | "spent" | "admin_adjustment",
     description: string
   ) => {
-    await api.post("/admin/referrals/adjust-credits", {
+    await adjustCreditsMutation.mutateAsync({
       user_id: userId,
       amount,
       type,
       description,
     });
-    // Refresh table data and metrics
-    await fetchInitialData();
   };
+
+  const loading =
+    loadingSummary ||
+    loadingSettings ||
+    loadingReferrals ||
+    loadingTransactions ||
+    loadingUsers;
 
   if (loading) {
     return (
@@ -104,6 +88,11 @@ export function ReferralsManager() {
       </div>
     );
   }
+
+  const summary = summaryData || null;
+  const referrals = referralsData?.data || [];
+  const transactions = transactionsData?.data || [];
+  const users = usersData?.data || [];
 
   return (
     <div className="space-y-6">
@@ -116,7 +105,7 @@ export function ReferralsManager() {
           settings={settings}
           onChange={setSettings}
           onSave={handleSaveSettings}
-          saving={savingSettings}
+          saving={updateSettingsMutation.isPending}
         />
 
         <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">

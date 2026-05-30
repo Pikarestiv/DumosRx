@@ -140,3 +140,68 @@ export const useUpdateFeedbackStatusMutation = () => {
     },
   });
 };
+
+// Referrals Manager Hooks
+export const useReferralsSummary = () => {
+  return useQuery({
+    queryKey: ["referrals-summary"],
+    queryFn: () => webApiClient.request<any>("admin/referrals/summary"),
+  });
+};
+
+export const useReferralsSettings = () => {
+  return useQuery({
+    queryKey: ["referrals-settings"],
+    queryFn: () => webApiClient.request<any>("admin/referrals/settings"),
+  });
+};
+
+export const useReferralsRelationships = () => {
+  return useQuery({
+    queryKey: ["referrals-relationships"],
+    queryFn: () => webApiClient.request<any>("admin/referrals"),
+  });
+};
+
+export const useReferralsTransactions = () => {
+  return useQuery({
+    queryKey: ["referrals-transactions"],
+    queryFn: () => webApiClient.request<any>("admin/referrals/transactions"),
+  });
+};
+
+export const useUpdateReferralsSettingsMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (settings: any) =>
+      webApiClient.request<any>("admin/referrals/settings", {
+        method: "PUT",
+        body: settings,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["referrals-settings"] });
+    },
+  });
+};
+
+export const useAdjustReferralsCreditsMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: {
+      user_id: string;
+      amount: number;
+      type: string;
+      description: string;
+    }) =>
+      webApiClient.request<any>("admin/referrals/adjust-credits", {
+        method: "POST",
+        body: payload,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["referrals-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["referrals-relationships"] });
+      queryClient.invalidateQueries({ queryKey: ["referrals-transactions"] });
+    },
+  });
+};
+

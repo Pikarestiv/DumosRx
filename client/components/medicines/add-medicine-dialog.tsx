@@ -53,6 +53,7 @@ export function AddMedicineDialog({
     bulkUnit: "",
     unitsPerBulk: 1,
     status: "active",
+    showOnline: false,
   });
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
 
@@ -81,6 +82,7 @@ export function AddMedicineDialog({
         bulkUnit: editingMedicine.bulkUnit || "",
         unitsPerBulk: editingMedicine.unitsPerBulk || 1,
         status: editingMedicine.status || "active",
+        showOnline: editingMedicine.showOnline || false,
       });
     } else if (!editingMedicine && open) {
       setFormData({
@@ -105,6 +107,7 @@ export function AddMedicineDialog({
         bulkUnit: "",
         unitsPerBulk: 1,
         status: "active",
+        showOnline: false,
       });
     }
   }, [editingMedicine, open]);
@@ -199,6 +202,7 @@ export function AddMedicineDialog({
       bulk_unit: formData.bulkUnit,
       units_per_bulk: formData.unitsPerBulk,
       status: status,
+      show_online: formData.showOnline ? 1 : 0,
     };
 
     onAddMedicine(payload as any);
@@ -226,6 +230,7 @@ export function AddMedicineDialog({
       bulkUnit: "",
       unitsPerBulk: 1,
       status: "active",
+      showOnline: false,
     });
   };
 

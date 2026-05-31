@@ -15,6 +15,7 @@ import { TauriTitleBar } from "@/components/tauri/tauri-title-bar";
 
 import { ErrorBoundary } from "@/components/tauri/error-boundary";
 import { GlobalErrorListener } from "@/components/tauri/global-error-listener";
+import { PwaRegistrar } from "@/components/pwa-registrar";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -42,7 +43,15 @@ export const metadata: Metadata = {
     ],
     apple: "/apple-touch-icon.png",
   },
-  manifest: "/site.webmanifest",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: APP_NAME,
+  },
+  formatDetection: {
+    telephone: false,
+  },
 };
 
 export default function RootLayout({
@@ -80,6 +89,7 @@ export default function RootLayout({
             </GlobalErrorListener>
           </ErrorBoundary>
         </div>
+        <PwaRegistrar />
       </body>
     </html>
   );

@@ -2,6 +2,7 @@ import React from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SearchableInput } from "@/components/ui/searchable-input";
+import { Switch } from "@/components/ui/switch";
 import { Medicine } from "./types";
 
 interface MedicineFormFieldsProps {
@@ -256,6 +257,20 @@ export function MedicineFormFields({
             }
             placeholder="Scan or type barcode"
           />
+        </div>
+
+        <div className="space-y-2 flex flex-col justify-center">
+          <Label htmlFor="showOnline" className="mb-2">Show in Public Storefront</Label>
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="showOnline"
+              checked={formData.showOnline}
+              onCheckedChange={(checked) => onInputChange("showOnline", checked)}
+            />
+            <span className="text-sm text-muted-foreground">
+              {formData.showOnline ? "Visible online" : "Hidden"}
+            </span>
+          </div>
         </div>
       </div>
 

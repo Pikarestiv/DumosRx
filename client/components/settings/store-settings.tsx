@@ -27,6 +27,8 @@ interface StoreSettingsProps {
   setLocalPhone: (val: string) => void;
   localEmail: string;
   setLocalEmail: (val: string) => void;
+  localStoreSlug: string;
+  setLocalStoreSlug: (val: string) => void;
   localPcn: string;
   setLocalPcn: (val: string) => void;
   handleSaveProfile: () => void;
@@ -61,6 +63,8 @@ export function StoreSettings({
   setLocalPhone,
   localEmail,
   setLocalEmail,
+  localStoreSlug,
+  setLocalStoreSlug,
   localPcn,
   setLocalPcn,
   handleSaveProfile,
@@ -100,6 +104,8 @@ export function StoreSettings({
         setLocalPhone={setLocalPhone}
         localEmail={localEmail}
         setLocalEmail={setLocalEmail}
+        localStoreSlug={localStoreSlug}
+        setLocalStoreSlug={setLocalStoreSlug}
         localPcn={localPcn}
         setLocalPcn={setLocalPcn}
         showRetailSuggestions={showRetailSuggestions}

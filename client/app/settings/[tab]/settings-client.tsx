@@ -54,6 +54,8 @@ export default function SettingsPage() {
     setLocalPhone,
     localEmail,
     setLocalEmail,
+    localStoreSlug,
+    setLocalStoreSlug,
     localCurrency,
     setLocalCurrency,
     localVat,
@@ -231,6 +233,8 @@ export default function SettingsPage() {
                   setLocalPhone={setLocalPhone}
                   localEmail={localEmail}
                   setLocalEmail={setLocalEmail}
+                  localStoreSlug={localStoreSlug}
+                  setLocalStoreSlug={setLocalStoreSlug}
                   localPcn={localPcn}
                   setLocalPcn={setLocalPcn}
                   handleSaveProfile={handleSaveProfile}

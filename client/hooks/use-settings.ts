@@ -53,6 +53,7 @@ export function useSettings() {
   const [localAddress, setLocalAddress] = useState(storeProfile?.address || "");
   const [localPhone, setLocalPhone] = useState(storeProfile?.phone || "");
   const [localEmail, setLocalEmail] = useState(storeProfile?.email || "");
+  const [localStoreSlug, setLocalStoreSlug] = useState(storeProfile?.store_slug || "");
   const [localCurrency, setLocalCurrency] = useState(storeProfile?.currency || "NGN");
   const [localVat, setLocalVat] = useState(storeProfile?.vat_percentage?.toString() || "7.5");
   const [localPcn, setLocalPcn] = useState(storeProfile?.pcn_license || "");
@@ -87,6 +88,7 @@ export function useSettings() {
       setLocalAddress(storeProfile.address || "");
       setLocalPhone(storeProfile.phone || "");
       setLocalEmail(storeProfile.email || "");
+      setLocalStoreSlug(storeProfile.store_slug || "");
       setLocalCurrency(storeProfile.currency || "NGN");
       setLocalVat(storeProfile.vat_percentage?.toString() || "7.5");
       setLocalPcn(storeProfile.pcn_license || "");
@@ -173,6 +175,7 @@ export function useSettings() {
       address: localAddress,
       phone: localPhone,
       email: localEmail,
+      store_slug: localStoreSlug,
       pcn_license: localPcn,
       show_retail_suggestions: showRetailSuggestions ? 1 : 0,
       require_payment_account: requirePaymentAccount ? 1 : 0,
@@ -400,6 +403,8 @@ export function useSettings() {
     setLocalPhone,
     localEmail,
     setLocalEmail,
+    localStoreSlug,
+    setLocalStoreSlug,
     localCurrency,
     setLocalCurrency,
     localVat,

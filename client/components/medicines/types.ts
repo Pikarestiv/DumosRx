@@ -20,6 +20,7 @@ export interface Medicine {
   bulkUnit: string;
   unitsPerBulk: number;
   status: "active" | "inactive" | "expired" | "low_stock";
+  showOnline: boolean;
 }
 
 // Helper to transform API/Local response to UI model (camelCase)
@@ -46,6 +47,7 @@ export const transformMedicine = (apiData: any): Medicine => ({
   baseUnit: apiData.base_unit || "Unit",
   bulkUnit: apiData.bulk_unit || "",
   unitsPerBulk: Number(apiData.units_per_bulk) || 1,
+  showOnline: apiData.show_online === 1 || apiData.show_online === true,
   status: (() => {
     const stock = Number(apiData.stock_quantity) || 0;
     const reorder = Number(apiData.reorder_level) || 0;

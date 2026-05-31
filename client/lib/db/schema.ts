@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS medicines (
   requires_prescription INTEGER DEFAULT 0,
   is_controlled INTEGER DEFAULT 0,
   is_active INTEGER DEFAULT 1,
+  show_online INTEGER DEFAULT 0,
   barcode TEXT,
   expiry_date TEXT,
   batch_number TEXT,
@@ -247,6 +248,7 @@ CREATE TABLE IF NOT EXISTS customer_payments (
 CREATE TABLE IF NOT EXISTS store_profile (
   id TEXT PRIMARY KEY,
   name TEXT,
+  store_slug TEXT UNIQUE,
   store_type TEXT DEFAULT 'pharmacy',
   address TEXT,
   phone TEXT,

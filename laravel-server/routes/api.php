@@ -44,6 +44,9 @@ Route::prefix('v1')->group(function () {
         return response()->json(['status' => 'ok', 'timestamp' => now()]);
     });
 
+    // Public Storefront
+    Route::get('/storefront/{store_slug}', [\App\Http\Controllers\Api\Public\StorefrontController::class, 'show']);
+
 
 
     // Webhooks (Public)

@@ -23,6 +23,8 @@ interface StoreInformationCardProps {
   setLocalPhone: (val: string) => void;
   localEmail: string;
   setLocalEmail: (val: string) => void;
+  localStoreSlug?: string;
+  setLocalStoreSlug?: (val: string) => void;
   localPcn: string;
   setLocalPcn: (val: string) => void;
   showRetailSuggestions?: boolean;
@@ -40,6 +42,8 @@ export function StoreInformationCard({
   setLocalPhone,
   localEmail,
   setLocalEmail,
+  localStoreSlug,
+  setLocalStoreSlug,
   localPcn,
   setLocalPcn,
   showRetailSuggestions = false,
@@ -63,6 +67,24 @@ export function StoreInformationCard({
             value={localName}
             onChange={(e) => setLocalName(e.target.value)}
           />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="store-slug">Store URL Slug</Label>
+          <div className="flex rounded-md shadow-sm">
+            <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-input bg-muted text-muted-foreground text-sm">
+              dumosrx.com/store/
+            </span>
+            <Input
+              id="store-slug"
+              className="rounded-l-none"
+              placeholder="my-pharmacy"
+              value={localStoreSlug || ""}
+              onChange={(e) => setLocalStoreSlug?.(e.target.value)}
+            />
+          </div>
+          <p className="text-[0.8rem] text-muted-foreground">
+            This will be your unique public storefront link.
+          </p>
         </div>
         <div className="grid gap-2">
           <Label htmlFor="address">Address</Label>

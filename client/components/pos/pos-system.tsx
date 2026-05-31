@@ -11,20 +11,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
-import {
-  Receipt,
-  User,
-  Zap,
-  LogOut,
-  PauseCircle,
-  Clock,
-} from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Receipt, User, Zap, LogOut, PauseCircle, Clock } from "lucide-react";
 import { useLocalData } from "@/lib/db/hooks/useLocalData";
 
 interface Medicine {
@@ -74,7 +62,9 @@ export function POSSystem() {
   const searchInputRef = React.useRef<HTMLInputElement>(null);
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
+    null,
+  );
   const [posMode, setPosMode] = useState<"standard" | "speed">("standard");
   const [showReturnDialog, setShowReturnDialog] = useState(false);
   const [saleToReturn, setSaleToReturn] = useState<any>(null);
@@ -87,7 +77,7 @@ export function POSSystem() {
     loading: loadingMedicines,
     refetch: refetchMedicines,
   } = useLocalData<Medicine>(
-    'SELECT * FROM medicines WHERE _deleted = 0 ORDER BY name ASC',
+    "SELECT * FROM medicines WHERE _deleted = 0 ORDER BY name ASC",
     [],
     {
       transform: (m: any) => ({
@@ -105,7 +95,7 @@ export function POSSystem() {
   );
 
   const { data: recentSales } = useLocalData<any>(
-    "SELECT s.*, c.first_name || ' ' || c.last_name as customer_name FROM sales s LEFT JOIN customers c ON s.customer_id = c.id WHERE s._deleted = 0 ORDER BY s.created_at DESC LIMIT 10"
+    "SELECT s.*, c.first_name || ' ' || c.last_name as customer_name FROM sales s LEFT JOIN customers c ON s.customer_id = c.id WHERE s._deleted = 0 ORDER BY s.created_at DESC LIMIT 10",
   );
 
   // Fetch customers from local DB
@@ -143,12 +133,12 @@ export function POSSystem() {
     if (storeProfile?.enabled_payment_methods) {
       enabledPaymentMethods = JSON.parse(storeProfile.enabled_payment_methods);
     }
-  } catch (e) {
+  } catch (_e) {
     // default
   }
 
   const { data: paymentAccounts } = useLocalData<any>(
-    "SELECT * FROM payment_accounts WHERE _deleted = 0 ORDER BY created_at DESC"
+    "SELECT * FROM payment_accounts WHERE _deleted = 0 ORDER BY created_at DESC",
   );
 
   const {
@@ -185,7 +175,7 @@ export function POSSystem() {
         e.preventDefault();
         searchInputRef.current?.focus();
       }
-      
+
       if (cart.length > 0) {
         if (e.key === "F2") {
           e.preventDefault();
@@ -224,7 +214,16 @@ export function POSSystem() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [cart, selectedCustomer, showPaymentDialog, showReceiptDialog, searchTerm, clearCart, setShowPaymentDialog, setPaymentMethod]);
+  }, [
+    cart,
+    selectedCustomer,
+    showPaymentDialog,
+    showReceiptDialog,
+    searchTerm,
+    clearCart,
+    setShowPaymentDialog,
+    setPaymentMethod,
+  ]);
 
   const { results: filteredMedicines, isFuzzyFallback } = React.useMemo(() => {
     return searchMedicines(searchTerm, medicines);
@@ -239,7 +238,9 @@ export function POSSystem() {
   const handleScanSuccess = (scannedBarcode: string) => {
     const query = scannedBarcode.toLowerCase().trim();
     const barcodeMatch = medicines.find(
-      (m) => m.barcode?.toLowerCase() === query || m.batch_number?.toLowerCase() === query
+      (m) =>
+        m.barcode?.toLowerCase() === query ||
+        m.batch_number?.toLowerCase() === query,
     );
 
     if (barcodeMatch) {
@@ -263,10 +264,12 @@ export function POSSystem() {
       await insert("held_transactions", {
         id,
         customer_id: selectedCustomer?.id || null,
-        customer_name: selectedCustomer ? `${selectedCustomer.first_name} ${selectedCustomer.last_name}` : "Walk-in Customer",
+        customer_name: selectedCustomer
+          ? `${selectedCustomer.first_name} ${selectedCustomer.last_name}`
+          : "Walk-in Customer",
         items_json: JSON.stringify(cart),
         total_amount: total,
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
       });
 
       toast.success("Transaction held successfully");
@@ -285,28 +288,32 @@ export function POSSystem() {
 
       // 2. Parse items and add to cart
       const items = JSON.parse(held.items_json);
-      const restoredItems = items.map((item: any) => {
-        const medicine = medicines.find(m => m.id === (item.medicine_id || item.id));
-        if (medicine) {
-          return {
-            ...medicine,
-            quantity: item.quantity,
-            subtotal: medicine.unit_price * item.quantity
-          };
-        }
-        return null;
-      }).filter(Boolean);
-      
+      const restoredItems = items
+        .map((item: any) => {
+          const medicine = medicines.find(
+            (m) => m.id === (item.medicine_id || item.id),
+          );
+          if (medicine) {
+            return {
+              ...medicine,
+              quantity: item.quantity,
+              subtotal: medicine.unit_price * item.quantity,
+            };
+          }
+          return null;
+        })
+        .filter(Boolean);
+
       restoreCart(restoredItems);
 
       if (held.customer_id) {
-        const customer = customers.find(c => c.id === held.customer_id);
+        const customer = customers.find((c) => c.id === held.customer_id);
         if (customer) setSelectedCustomer(customer);
       }
 
       // 3. Delete from held
       await remove("held_transactions", held.id);
-      
+
       toast.success("Transaction recalled");
       setShowHeldDialog(false);
     } catch (err) {
@@ -324,22 +331,23 @@ export function POSSystem() {
             Point of Sale
           </h1>
           <p className="text-muted-foreground mt-1 text-sm">
-            Process sales transactions and manage {t('products').toLowerCase()} orders
+            Process sales transactions and manage {t("products").toLowerCase()}{" "}
+            orders
           </p>
         </div>
         {/* Action buttons — scroll horizontally when they don't fit */}
         <div className="w-full sm:w-auto overflow-x-auto scrollbar-none">
           <div className="flex items-center gap-2 min-w-max">
-            <Button 
-              variant={posMode === "standard" ? "default" : "outline"} 
+            <Button
+              variant={posMode === "standard" ? "default" : "outline"}
               size="sm"
               onClick={() => setPosMode("standard")}
               className="flex items-center gap-1.5 shrink-0"
             >
               Standard View
             </Button>
-            <Button 
-              variant={posMode === "speed" ? "default" : "outline"} 
+            <Button
+              variant={posMode === "speed" ? "default" : "outline"}
               size="sm"
               onClick={() => setPosMode("speed")}
               className="flex items-center gap-1.5 shrink-0"
@@ -348,8 +356,8 @@ export function POSSystem() {
               Retail Speed
             </Button>
             <div className="w-px h-6 bg-border mx-0.5 shrink-0" />
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="sm"
               onClick={handleHoldTransaction}
               disabled={cart.length === 0}
@@ -358,8 +366,8 @@ export function POSSystem() {
               <PauseCircle className="h-4 w-4" />
               Pause
             </Button>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="sm"
               onClick={() => setShowHeldDialog(true)}
               className="flex items-center gap-1.5 shrink-0"
@@ -369,8 +377,15 @@ export function POSSystem() {
             </Button>
             <div className="flex items-center gap-2 px-3 py-1 bg-muted rounded-full border shrink-0">
               <User className="h-3 w-3 text-muted-foreground" />
-              <span className="text-xs font-medium max-w-[80px] truncate">{user?.name}</span>
-              <Button variant="ghost" size="icon" className="h-4 w-4 p-0 ml-1" onClick={logout}>
+              <span className="text-xs font-medium max-w-[80px] truncate">
+                {user?.name}
+              </span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-4 w-4 p-0 ml-1"
+                onClick={logout}
+              >
                 <LogOut className="h-3 w-3" />
               </Button>
             </div>
@@ -405,11 +420,15 @@ export function POSSystem() {
             <Tabs defaultValue="products" className="w-full">
               <div className="overflow-x-auto scrollbar-none">
                 <TabsList className="w-max min-w-full bg-muted/50 p-1 flex mb-4">
-                  <TabsTrigger value="products" className="px-4 py-2 shrink-0">Products</TabsTrigger>
-                  <TabsTrigger value="history" className="px-4 py-2 shrink-0">Recent Transactions</TabsTrigger>
+                  <TabsTrigger value="products" className="px-4 py-2 shrink-0">
+                    Products
+                  </TabsTrigger>
+                  <TabsTrigger value="history" className="px-4 py-2 shrink-0">
+                    Recent Transactions
+                  </TabsTrigger>
                 </TabsList>
               </div>
-              
+
               <TabsContent value="products" className="space-y-4">
                 <POSSearchCard
                   searchTerm={searchTerm}
@@ -419,7 +438,7 @@ export function POSSystem() {
                   searchInputRef={searchInputRef}
                   completedTransaction={completedTransaction}
                   setShowReceiptDialog={setShowReceiptDialog}
-                  productTerm={t('product')}
+                  productTerm={t("product")}
                 />
 
                 <POSProductList
@@ -428,13 +447,13 @@ export function POSSystem() {
                   isFuzzyFallback={isFuzzyFallback}
                   medicinesLength={medicines.length}
                   addToCart={addToCart}
-                  productTerm={t('product')}
+                  productTerm={t("product")}
                   currencyCode={storeProfile?.currency}
                 />
               </TabsContent>
 
               <TabsContent value="history">
-                <POSTransactionHistory 
+                <POSTransactionHistory
                   recentSales={recentSales}
                   onReturnClick={(sale) => {
                     setSaleToReturn(sale);
@@ -448,14 +467,14 @@ export function POSSystem() {
 
           {/* Right (or bottom on mobile): customer + cart */}
           <div className="space-y-4">
-            <POSCustomerSelector 
+            <POSCustomerSelector
               selectedCustomer={selectedCustomer}
               customers={customers}
               loadingCustomers={loadingCustomers}
               onSelectCustomer={setSelectedCustomer as any}
             />
 
-            <POSCart 
+            <POSCart
               cart={cart}
               subtotal={subtotal}
               tax={tax}
@@ -498,18 +517,23 @@ export function POSSystem() {
           <DialogHeader className="p-6 bg-muted/50 border-b">
             <DialogTitle>Sale Completed</DialogTitle>
             <DialogDescription>
-              Transaction ID: {completedTransaction?.id?.slice(0, 8).toUpperCase()}
+              Transaction ID:{" "}
+              {completedTransaction?.id?.slice(0, 8).toUpperCase()}
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="max-h-[60vh] overflow-y-auto">
             {completedTransaction && (
               <ReceiptView transaction={completedTransaction} />
             )}
           </div>
-          
+
           <div className="flex gap-3 p-6 bg-muted/50 border-t">
-            <Button variant="outline" className="flex-1" onClick={() => setShowReceiptDialog(false)}>
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => setShowReceiptDialog(false)}
+            >
               Close
             </Button>
             <Button className="flex-1" onClick={handlePrint}>
@@ -519,7 +543,7 @@ export function POSSystem() {
           </div>
         </DialogContent>
       </Dialog>
-      <ReturnDialog 
+      <ReturnDialog
         open={showReturnDialog}
         onOpenChange={setShowReturnDialog}
         sale={saleToReturn}
@@ -530,7 +554,7 @@ export function POSSystem() {
         currencyCode={storeProfile?.currency}
       />
 
-      <HeldTransactionsDialog 
+      <HeldTransactionsDialog
         isOpen={showHeldDialog}
         onClose={() => setShowHeldDialog(false)}
         onRecall={handleRecallTransaction}
@@ -542,7 +566,10 @@ export function POSSystem() {
         title="Clear Cart?"
         description="All items in the current cart will be removed. This cannot be undone."
         confirmLabel="Clear Cart"
-        onConfirm={() => { clearCart(); setShowClearCartDialog(false); }}
+        onConfirm={() => {
+          clearCart();
+          setShowClearCartDialog(false);
+        }}
       />
     </div>
   );

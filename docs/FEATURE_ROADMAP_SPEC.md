@@ -19,6 +19,26 @@ These must be done before a public launch. They directly affect user trust, onbo
 
 ---
 
+### Mixed Payment (Split Payment)
+
+- **Description:** Add "Mixed" as a 5th payment method in POS. When selected, the cashier can split payment across multiple methods (e.g., ₦3,000 transfer + ₦500 cash + ₦1,500 on credit).
+- **Source:** Real-world feedback from POS users at competing systems.
+- **Storage:** New `payment_details` JSON column on `sales` table. Existing `payment_method` column stores `"mixed"` for split sales.
+- **Impact:** Eliminates manual tracking of split payments, reduces end-of-day reconciliation errors.
+- **Effort:** ~1 day
+
+---
+
+### Payment Accounts (Transfer Destinations)
+
+- **Description:** Store owners set up named payment accounts (e.g., "Zenith Bank", "Moniepoint POS 1", "OPay") in Store Settings. When a cashier selects Transfer or Card at checkout, they pick which account received the payment.
+- **Source:** Real-world feedback — Nigerian pharmacies typically have 3–5 payment destinations and need to reconcile each at end-of-day.
+- **Storage:** New `payment_accounts` table. Account reference stored in `payment_details` JSON on each sale.
+- **Impact:** Enables per-account reconciliation reports ("Moniepoint 1: ₦45,000 across 12 transactions today").
+- **Effort:** ~1 day
+
+---
+
 ### ✅ Smart Suggestions Engine *(Partial — engine logic needed)*
 
 - **What exists:** `show_retail_suggestions` flag on the `stores` table, toggle in store settings and admin dashboard.

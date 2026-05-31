@@ -17,18 +17,12 @@ import { RecentPharmacies } from "@/components/admin/dashboard/recent-pharmacies
 import { SystemHealth } from "@/components/admin/dashboard/system-health";
 import { PharmacyDialog } from "@/components/admin/dashboard/pharmacy-dialog";
 
+import { LiveClock } from "@/components/admin/dashboard/live-clock";
+
 export default function AdminDashboard() {
   const { data: summary, isLoading, error, refetch } = useAdminSummary();
   const router = useRouter();
-  const [currentTime, setCurrentTime] = useState(new Date());
   const [selectedPharmacy, setSelectedPharmacy] = useState<any>(null);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
 
   if (isLoading && !summary) {
     return <AdminSkeleton />;
@@ -58,7 +52,7 @@ export default function AdminDashboard() {
         <div>
           <h1 className="text-4xl font-black tracking-tight text-slate-900 dark:text-white">Global Control</h1>
           <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium italic">
-            Connected to Production Cluster • {currentTime.toLocaleTimeString()}
+            Connected to Production Cluster • <LiveClock />
           </p>
         </div>
         <div className="flex items-center gap-3">

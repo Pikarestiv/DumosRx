@@ -19,22 +19,6 @@ These must be done before a public launch. They directly affect user trust, onbo
 
 ---
 
-### ✅ Bug Tracking & Logging System *(Partial — proceed to complete)*
-
-- **What exists:** Custom `error-logger.ts` + `GlobalErrorListener` captures crashes to local SQLite → syncs to backend `feedback` table.
-- **What's missing:** Sentry SDK integration in both `client` (Tauri app) and `web` (Next.js), plus PostHog for funnel analytics/session replays.
-- **Implementation:**
-  - Install `@sentry/nextjs` in `web/`
-  - Install `@sentry/react` (or tauri-compatible build) in `client/`
-  - Set `SENTRY_DSN` in `.env`
-  - PostHog: add snippet to `app/layout.tsx` and `client/app/layout.tsx`
-- **Cost:**
-  - Sentry: Free tier (5,000 errors/month, 10k sessions). Paid from $26/mo.
-  - PostHog: Free up to 1M events/month. Very generous.
-- **Effort:** ~half a day
-
----
-
 ### ✅ Smart Suggestions Engine *(Partial — engine logic needed)*
 
 - **What exists:** `show_retail_suggestions` flag on the `stores` table, toggle in store settings and admin dashboard.
@@ -176,6 +160,16 @@ These change the core business model. Hold until core ERP/POS is dominant.
 
 ---
 
+### 📊 Sentry & PostHog Integration *(Post-launch polish)*
+
+- **Description:** Add Sentry (crash dashboards, alerting, stack trace grouping, source maps) and PostHog (funnel analytics, session replays) on top of the existing custom crash logger.
+- **Note:** Sentry supports offline queueing via `makeBrowserOfflineTransport` — works with the Tauri app. Events queue in IndexedDB and flush when online.
+- **Why deferred:** The custom `error-logger.ts` + `GlobalErrorListener` pipeline already captures crashes to SQLite → syncs to backend. Sentry adds developer-quality-of-life (dashboards, alerts, deduplication) but is not user-facing.
+- **Cost:** Sentry free tier: 5k errors/mo. PostHog free tier: 1M events/mo.
+- **Effort:** ~half a day
+
+---
+
 ## ✅ COMPLETED FEATURES
 
 - [x] **Mobile Navigation Change** — 5-tab bottom nav (`mobile-bottom-nav.tsx`) with searchable "More" hub drawer (`mobile-more-drawer.tsx`), fully wired into `dashboard-layout.tsx`. Sidebar retained for desktop (lg+).
@@ -185,6 +179,8 @@ These change the core business model. Hold until core ERP/POS is dominant.
 - [x] **Referral & Growth System** — Full system: DB migration, `ReferralCreditTransaction` model, `ReferralController` (admin endpoints), referral stats on subscription API, credit adjustment dialog in admin UI, referral settings management.
 
 - [x] **Support System Enhancement** — Three-layer support: (1) In-app `FeedbackForm` with bug/feature/general types → syncs to backend `feedback` table, (2) Admin feedback dashboard with status filters (Pending/Resolved/Dismissed), (3) Smartsupp live chat widget — admin-configurable key via Platform Settings → Integrations tab, auto-identifies logged-in users by name/email/role. Formal ticket system deferred to post-launch.
+
+- [x] **Bug Tracking & Logging System** — Custom `error-logger.ts` + `GlobalErrorListener` captures all uncaught errors and unhandled promise rejections. Crashes are written to local SQLite `feedback` table (with platform, stack trace, user context) and sync to backend. Admin views crash logs in the Feedback dashboard. Sentry/PostHog deferred to post-launch polish.
 
 ---
 

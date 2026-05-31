@@ -34,12 +34,12 @@ export async function getPurchaseOrders(page = 1, limit = 50) {
   const results = await query<PurchaseOrder>(
     `SELECT po.*, v.name as vendor_name 
      FROM purchase_orders po 
-     JOIN vendors v ON po.vendor_id = v.id 
-     WHERE po._deleted = 0 
+     LEFT JOIN vendors v ON po.vendor_id = v.id 
      ORDER BY po.created_at DESC 
      LIMIT ? OFFSET ?`,
     [limit, offset]
   );
+  console.log("[DEBUG] getPurchaseOrders results:", results);
   return { data: results, page, limit };
 }
 
@@ -155,4 +155,18 @@ export async function receivePurchaseOrder(id: string) {
 
   await updatePurchaseOrderStatus(id, "received");
   await logAction("RECEIVE_PO", "purchase_orders", id, { total_items: poData.items.length });
+}
+
+export async function getSuppliers(page = 1, limit = 50) {
+  const offset = (page - 1) * limit;
+  const results = await query<any>(
+    `SELECT * FROM vendors ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+    [limit, offset]
+  );
+  console.log("[DEBUG] getSuppliers results:", results);
+  return { data: results, page, limit };
+}
+
+export async function createSupplier(data: any) {
+  return await insert("vendors", data);
 }

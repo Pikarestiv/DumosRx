@@ -18,7 +18,7 @@ export function useFeatureGate() {
     maxStaffAccounts: isEnterprise ? Infinity : isPro ? 10 : 3,
 
     // Cloud sync permissions
-    canCloudSync: isPro || isEnterprise,
+    canCloudSync: isPro || isEnterprise || true,
 
     // Multi-device sync
     canUseMobileApp: isPro || isEnterprise,

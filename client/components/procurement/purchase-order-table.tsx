@@ -131,9 +131,9 @@ export function PurchaseOrderTable({
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold uppercase">
-                        {po.vendor_name[0]}
+                        {po.vendor_name ? po.vendor_name[0] : "V"}
                       </div>
-                      <span className="font-medium">{po.vendor_name}</span>
+                      <span className="font-medium">{po.vendor_name || "Unknown Vendor"}</span>
                     </div>
                   </TableCell>
                   <TableCell className="text-muted-foreground text-sm">

@@ -135,14 +135,14 @@ export async function seedProcurement() {
     id: "po1", order_number: "PO-2026-001", vendor_id: "v1", ordered_by: "u1", order_date: todayDate, status: "received", total_amount: 150000, notes: "Monthly restock", created_at: today, received_at: today, updated_at: today
   });
   await insert("purchase_order_items", {
-    id: "poi1", po_id: "po1", medicine_id: "m1", bulk_quantity: 10, units_per_bulk: 100, quantity_ordered: 1000, quantity_received: 1000, unit_cost: 15000, subtotal: 150000, total_cost: 150000, status: "received", created_at: today, updated_at: today
+    id: "poi1", po_id: "po1", medicine_id: "m1", bulk_quantity: 10, units_per_bulk: 100, unit_cost: 15000, subtotal: 150000, created_at: today, updated_at: today
   });
 
   await insert("purchase_orders", {
-    id: "po2", order_number: "PO-2026-002", vendor_id: "v2", ordered_by: "u1", order_date: todayDate, status: "pending", total_amount: 50000, notes: "Urgent shortage", created_at: today, updated_at: today
+    id: "po2", order_number: "PO-2026-002", vendor_id: "v2", ordered_by: "u1", order_date: todayDate, status: "draft", total_amount: 50000, notes: "Urgent shortage", created_at: today, updated_at: today
   });
   await insert("purchase_order_items", {
-    id: "poi2", po_id: "po2", medicine_id: "m2", bulk_quantity: 5, units_per_bulk: 50, quantity_ordered: 250, quantity_received: 0, unit_cost: 10000, subtotal: 50000, total_cost: 50000, status: "pending", created_at: today, updated_at: today
+    id: "poi2", po_id: "po2", medicine_id: "m2", bulk_quantity: 5, units_per_bulk: 50, unit_cost: 10000, subtotal: 50000, created_at: today, updated_at: today
   });
 }
 

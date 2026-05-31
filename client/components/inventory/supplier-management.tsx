@@ -15,7 +15,7 @@ import {
   Plus,
   Search,
 } from "lucide-react";
-import { apiClient } from "@/lib/api/client";
+import { getSuppliers, createSupplier } from "@/lib/db/local-database";
 import { AddSupplierDialog } from "@/components/suppliers/add-supplier-dialog";
 import { useStore } from "@/lib/context/store-context";
 import { SupplierStats } from "./supplier-stats";
@@ -70,8 +70,7 @@ export function SupplierManagement() {
   const fetchSuppliers = async () => {
     setLoading(true);
     try {
-      const response = await apiClient.getSuppliers(1, 100);
-      const data = response.data || [];
+      const { data } = await getSuppliers(1, 100);
       const transformed = data.map(transformSupplier);
       setSuppliers(transformed);
     } catch (error) {
@@ -83,8 +82,8 @@ export function SupplierManagement() {
 
   const handleAddSupplier = async (payload: any) => {
     try {
-      const response = await apiClient.createSupplier(payload);
-      const newSupplier = transformSupplier(response);
+      const newId = await createSupplier(payload);
+      const newSupplier = transformSupplier({ ...payload, id: newId });
       setSuppliers([newSupplier, ...suppliers]);
       setShowAddDialog(false);
     } catch (error) {

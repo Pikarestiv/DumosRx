@@ -92,6 +92,7 @@ export function POSTransactionHistory({
         open={!!selectedSale}
         onOpenChange={(open) => !open && setSelectedSale(null)}
         currencyCode={currencyCode}
+        onReturnClick={onReturnClick}
       />
     </Card>
   );

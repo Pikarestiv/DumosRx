@@ -19,11 +19,16 @@ interface POSTransactionHistoryProps {
   currencyCode?: string;
 }
 
+import { useState } from "react";
+import { TransactionDetailsDialog } from "./transaction-details-dialog";
+
 export function POSTransactionHistory({
   recentSales,
   onReturnClick,
   currencyCode
 }: POSTransactionHistoryProps) {
+  const [selectedSale, setSelectedSale] = useState<any>(null);
+
   return (
     <Card>
       <CardHeader>
@@ -52,7 +57,11 @@ export function POSTransactionHistory({
                 </TableRow>
               ) : (
                 recentSales?.map((sale: any) => (
-                  <TableRow key={sale.id}>
+                  <TableRow 
+                    key={sale.id} 
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => setSelectedSale(sale)}
+                  >
                     <TableCell className="font-mono text-xs">{sale.transaction_number}</TableCell>
                     <TableCell>{sale.customer_name || 'Walk-in'}</TableCell>
                     <TableCell className="text-right font-bold">{formatCurrency(sale.total_amount, currencyCode)}</TableCell>
@@ -61,7 +70,10 @@ export function POSTransactionHistory({
                         variant="ghost" 
                         size="sm" 
                         className="text-accent hover:text-accent hover:bg-accent/10"
-                        onClick={() => onReturnClick(sale)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onReturnClick(sale);
+                        }}
                       >
                         <RotateCcw className="h-3 w-3 mr-1" />
                         Return
@@ -74,6 +86,13 @@ export function POSTransactionHistory({
           </Table>
         </div>
       </CardContent>
+
+      <TransactionDetailsDialog
+        sale={selectedSale}
+        open={!!selectedSale}
+        onOpenChange={(open) => !open && setSelectedSale(null)}
+        currencyCode={currencyCode}
+      />
     </Card>
   );
 }

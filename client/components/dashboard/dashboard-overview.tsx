@@ -22,6 +22,7 @@ import { DashboardQuickActions } from "./dashboard-quick-actions";
 import { EODSummaryDialog } from "./eod-summary-dialog";
 import { DashboardActionCenter } from "./dashboard-action-center";
 import { useState } from "react";
+import { TransactionDetailsDialog } from "@/components/pos/transaction-details-dialog";
 
 interface ActivityItem {
   id: string;
@@ -34,6 +35,7 @@ export function DashboardOverview() {
   const { t, storeProfile } = useStore();
   const { user } = useAuth();
   const [showEOD, setShowEOD] = useState(false);
+  const [selectedSale, setSelectedSale] = useState<any>(null);
   
   // Single source of truth for all inventory-related stat cards
   const inventoryStats = useInventoryStats();
@@ -81,11 +83,12 @@ export function DashboardOverview() {
     topStaff: topStaff[0] || { name: "No sales yet", total: 0 }
   };
 
-  const activities: ActivityItem[] = recentSales.map((sale: any) => ({
+  const activities = recentSales.map((sale: any) => ({
     id: sale.id,
     type: "sale",
     message: `${t('product')} sale: ${sale.transaction_number}`,
     timestamp: sale.created_at,
+    rawSale: sale
   }));
 
   const formatCurrency = (amount: number) => {
@@ -191,6 +194,11 @@ export function DashboardOverview() {
           activities={activities}
           storeTerm={t('store')}
           getActivityColor={getActivityColor}
+          onActivityClick={(activity) => {
+            if (activity.type === "sale" && activity.rawSale) {
+              setSelectedSale(activity.rawSale);
+            }
+          }}
         />
 
         <DashboardQuickActions 
@@ -204,6 +212,13 @@ export function DashboardOverview() {
         open={showEOD} 
         onOpenChange={setShowEOD} 
         summary={eodSummary}
+        currencyCode={storeProfile?.currency}
+      />
+
+      <TransactionDetailsDialog
+        sale={selectedSale}
+        open={!!selectedSale}
+        onOpenChange={(open) => !open && setSelectedSale(null)}
         currencyCode={storeProfile?.currency}
       />
     </div>

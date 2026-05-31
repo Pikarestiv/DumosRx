@@ -51,8 +51,18 @@ export function POSSearchCard({
               value={searchTerm}
               onChange={(e) => onSearchChange(e.target.value)}
               onKeyDown={onKeyDown}
-              className="pl-10"
+              className="pl-10 pr-10"
             />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => onSearchChange("")}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground focus:outline-none"
+              >
+                <span className="sr-only">Clear</span>
+                <span aria-hidden="true" className="text-lg font-bold leading-none">&times;</span>
+              </button>
+            )}
           </div>
           <Button
             variant="outline"

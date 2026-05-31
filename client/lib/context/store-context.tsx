@@ -34,6 +34,7 @@ interface StoreProfile {
   show_retail_suggestions?: number;
   require_payment_account?: number;
   enabled_payment_methods?: string;
+  store_slug?: string;
   updated_at?: string;
 }
 

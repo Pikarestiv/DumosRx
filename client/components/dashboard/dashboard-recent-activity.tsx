@@ -14,18 +14,21 @@ interface ActivityItem {
   type: string;
   message: string;
   timestamp: string;
+  rawSale?: any;
 }
 
 interface DashboardRecentActivityProps {
   activities: ActivityItem[];
   storeTerm: string;
   getActivityColor: (type: string) => string;
+  onActivityClick?: (activity: ActivityItem) => void;
 }
 
 export function DashboardRecentActivity({
   activities,
   storeTerm,
-  getActivityColor
+  getActivityColor,
+  onActivityClick
 }: DashboardRecentActivityProps) {
   return (
     <Card className="border-border">
@@ -51,7 +54,8 @@ export function DashboardRecentActivity({
             {activities.map((activity) => (
               <div
                 key={activity.id}
-                className="flex items-center gap-3 p-3 bg-muted rounded-lg"
+                className={`flex items-center gap-3 p-3 bg-muted rounded-lg transition-colors ${onActivityClick ? 'cursor-pointer hover:bg-muted/80' : ''}`}
+                onClick={() => onActivityClick && onActivityClick(activity)}
               >
                 <div
                   className={`w-2 h-2 ${getActivityColor(activity.type)} rounded-full`}

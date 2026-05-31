@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -55,6 +56,12 @@ export function POSPaymentDialog({
   paymentAccounts = [],
 }: POSPaymentDialogProps) {
   const isMethodEnabled = (method: string) => enabledPaymentMethods.includes(method);
+  
+  useEffect(() => {
+    if (showPaymentDialog && (!amountPaid || amountPaid === "0")) {
+      setAmountPaid(total.toString());
+    }
+  }, [showPaymentDialog, total, paymentMethod]);
 
   const handleAddSplit = (method: string) => {
     if (!setPaymentSplits || !paymentSplits) return;

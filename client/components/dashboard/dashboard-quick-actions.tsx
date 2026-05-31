@@ -77,13 +77,13 @@ export function DashboardQuickActions({
             <FileBarChart className="h-6 w-6 mb-2 text-primary" />
             <span className="text-sm font-medium">Generate P&L</span>
           </button>
-          <button
-            onClick={onCloseRegister}
+          <Link
+            href="/reports?tab=daily_close"
             className="p-4 bg-destructive/10 text-destructive rounded-lg hover:bg-destructive/20 transition-colors flex flex-col items-center justify-center text-center cursor-pointer border border-destructive/20"
           >
             <XCircle className="h-6 w-6 mb-2" />
             <span className="text-sm font-medium">Close Register</span>
-          </button>
+          </Link>
         </div>
 
         <PandLReportDialog 

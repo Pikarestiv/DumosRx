@@ -72,7 +72,7 @@ export function AdminSidebar() {
   const fullName = user
     ? `${user.first_name} ${user.last_name}`
     : "Dumos Admin";
-  const email = user ? user.email : "admin@dumostech.com";
+  const email = user ? user.email : "admin@dumosrx.com";
 
   return (
     <aside className="hidden lg:flex w-72 flex-col bg-slate-950 text-slate-200 border-r border-slate-800">

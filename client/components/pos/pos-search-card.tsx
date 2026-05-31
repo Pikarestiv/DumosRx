@@ -34,7 +34,7 @@ export function POSSearchCard({
     <Card>
       <CardHeader>
         <CardTitle className="font-serif font-semibold flex items-center gap-2">
-          <Search className="h-5 w-5" />
+          <Search className="h-5 w-5 pointer-events-none" />
           {productTerm} Search
         </CardTitle>
         <CardDescription>
@@ -44,7 +44,7 @@ export function POSSearchCard({
       <CardContent>
         <div className="flex gap-2">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             <Input
               ref={searchInputRef}
               placeholder={`Search ${productTerm.toLowerCase()}s or scan barcode...`}
@@ -57,7 +57,7 @@ export function POSSearchCard({
               <button
                 type="button"
                 onClick={() => onSearchChange("")}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground focus:outline-none"
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground focus:outline-none cursor-pointer"
               >
                 <span className="sr-only">Clear</span>
                 <span aria-hidden="true" className="text-lg font-bold leading-none">&times;</span>

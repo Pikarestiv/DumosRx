@@ -52,7 +52,7 @@ export function CustomerDirectory({
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div className="relative w-96">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 pointer-events-none" />
           <Input
             placeholder="Search customers by name, email, or phone..."
             value={searchTerm}

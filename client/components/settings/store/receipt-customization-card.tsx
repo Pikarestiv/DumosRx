@@ -73,7 +73,7 @@ export function ReceiptCustomizationCard({
                       onClick={handleRemoveLogo}
                       className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
                     >
-                      <X className="h-3 w-3" />
+                      <X className="h-3 w-3 cursor-pointer" />
                     </button>
                   </div>
                 ) : (

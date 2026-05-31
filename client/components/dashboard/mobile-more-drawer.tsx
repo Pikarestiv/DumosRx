@@ -63,7 +63,7 @@ export function MobileMoreDrawer({
         
         <div className="px-6 pb-4">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             <Input 
               placeholder="Search features..." 
               className="pl-9 bg-muted/50 border-0"

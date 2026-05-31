@@ -81,7 +81,7 @@ export function DashboardQuickActions({
             href="/reports?tab=daily_close"
             className="p-4 bg-destructive/10 text-destructive rounded-lg hover:bg-destructive/20 transition-colors flex flex-col items-center justify-center text-center cursor-pointer border border-destructive/20"
           >
-            <XCircle className="h-6 w-6 mb-2" />
+            <XCircle className="h-6 w-6 mb-2 cursor-pointer" />
             <span className="text-sm font-medium">Close Register</span>
           </Link>
         </div>

@@ -143,7 +143,7 @@ export function EODSummaryDialog({
 
         <DialogFooter className="p-6 bg-muted/30 border-t border-accent/10 flex sm:justify-between gap-3">
           <Button variant="ghost" onClick={() => onOpenChange(false)} className="cursor-pointer">
-            <XCircle className="h-4 w-4 mr-2" />
+            <XCircle className="h-4 w-4 mr-2 cursor-pointer" />
             Discard
           </Button>
           <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold cursor-pointer">

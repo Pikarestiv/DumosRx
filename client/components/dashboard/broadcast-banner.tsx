@@ -88,7 +88,7 @@ export function BroadcastBanner() {
           onClick={handleDismiss}
           className="p-1.5 hover:bg-white/20 rounded-lg transition-colors"
         >
-          <X className="h-4 w-4" />
+          <X className="h-4 w-4 cursor-pointer" />
         </button>
       </div>
     </div>

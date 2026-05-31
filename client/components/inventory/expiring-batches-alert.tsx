@@ -61,7 +61,7 @@ export function ExpiringBatchesAlert() {
               onClick={() => setDismissed(true)}
               className="text-amber-500 hover:text-amber-700 transition-colors p-1"
             >
-              <X className="w-4 h-4" />
+              <X className="w-4 h-4 cursor-pointer" />
             </button>
           </div>
           <p className="text-xs text-amber-800/70 dark:text-amber-200/70 leading-relaxed">

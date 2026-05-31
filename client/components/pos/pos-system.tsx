@@ -342,7 +342,7 @@ export function POSSystem() {
               variant={posMode === "standard" ? "default" : "outline"}
               size="sm"
               onClick={() => setPosMode("standard")}
-              className="flex items-center gap-1.5 shrink-0"
+              className="cursor-pointer flex items-center gap-1.5 shrink-0"
             >
               Standard View
             </Button>
@@ -350,7 +350,7 @@ export function POSSystem() {
               variant={posMode === "speed" ? "default" : "outline"}
               size="sm"
               onClick={() => setPosMode("speed")}
-              className="flex items-center gap-1.5 shrink-0"
+              className="cursor-pointer flex items-center gap-1.5 shrink-0"
             >
               <Zap className="h-4 w-4" />
               Retail Speed
@@ -361,7 +361,7 @@ export function POSSystem() {
               size="sm"
               onClick={handleHoldTransaction}
               disabled={cart.length === 0}
-              className="flex items-center gap-1.5 shrink-0 border-amber-500/20 hover:bg-amber-500/5 text-amber-600"
+              className="cursor-pointer flex items-center gap-1.5 shrink-0 border-amber-500/20 hover:bg-amber-500/5 text-amber-600"
             >
               <PauseCircle className="h-4 w-4" />
               Pause
@@ -370,7 +370,7 @@ export function POSSystem() {
               variant="outline"
               size="sm"
               onClick={() => setShowHeldDialog(true)}
-              className="flex items-center gap-1.5 shrink-0"
+              className="cursor-pointer flex items-center gap-1.5 shrink-0"
             >
               <Clock className="h-4 w-4" />
               Held Sales

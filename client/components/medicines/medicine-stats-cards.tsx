@@ -27,7 +27,7 @@ export function MedicineStatsCards({
               <p className="text-2xl font-bold">{totalCount}</p>
             </div>
             <div className="h-8 w-8 bg-accent/10 rounded-full flex items-center justify-center">
-              <Search className="h-4 w-4 text-accent" />
+              <Search className="h-4 w-4 text-accent pointer-events-none" />
             </div>
           </div>
         </CardContent>

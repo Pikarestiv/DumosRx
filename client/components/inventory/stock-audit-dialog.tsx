@@ -139,7 +139,7 @@ export function StockAuditDialog({ isOpen, onClose, onSuccess }: StockAuditDialo
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
           <div className="space-y-4">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
               <Input
                 placeholder="Search product..."
                 className="pl-9 bg-card border-accent/10"

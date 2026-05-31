@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Plus, Trash2, Edit2, Loader2, CreditCard, Smartphone, Banknote } from "lucide-react";
 import { useStore } from "@/lib/context/store-context";
+import { useAuth } from "@/lib/context/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -54,7 +55,11 @@ export function PaymentAccountsCard() {
     bank_name: "",
   });
 
-  const { activeStoreId, activeUserId } = useStore();
+  const { storeProfile } = useStore();
+  const { user } = useAuth();
+
+  const activeStoreId = storeProfile?.id;
+  const activeUserId = user?.id;
 
   const { data: accounts, loading, refetch } = useLocalData<PaymentAccount>(
     activeStoreId 

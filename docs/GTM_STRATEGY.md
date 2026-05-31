@@ -78,7 +78,29 @@ To ensure every flow is seamless and robust, we will execute our testing in stri
 
 ## 3. Product Suggestions & Suggestion System Data
 
-DumosRx's **Smart Suggestions Engine** must help pharmacists upsell and provide better clinical advice. To seed the rule-based suggestions system, we need to curate clinical and sales correlation pairings.
+DumosRx's **Smart Suggestions Engine** will help pharmacists upsell and provide better clinical advice. 
+
+### Technical Implementation of suggestions
+To keep the application fast and offline-resilient, suggestions will run entirely on the client side:
+1. **Database Schema**: We will introduce a local SQLite table `product_suggestions` to store relationships:
+   ```sql
+   CREATE TABLE product_suggestions (
+     id TEXT PRIMARY KEY,
+     trigger_name TEXT NOT NULL,         -- Can match category, generic name, or specific brand
+     suggested_item_name TEXT NOT NULL,  -- Product name or generic name to suggest
+     suggestion_type TEXT NOT NULL,      -- 'clinical' (cross-sell antibiotic+probiotic) or 'commercial' (upsell larger size)
+     message TEXT NOT NULL,              -- Upsell tooltip text (e.g. "Suggest probiotics with antibiotics")
+     _deleted INTEGER DEFAULT 0
+   );
+   ```
+2. **Suggestions Hook (`useSmartSuggestions.ts`)**:
+   * Listens to the local POS cart state.
+   * Matches the items currently in the cart against `trigger_name` in `product_suggestions`.
+   * Filters out any suggested items that are *already in the cart*.
+   * Queries local SQLite `medicines` to verify if the suggested item is currently in stock (`stock_quantity > 0`). If out of stock, it does not suggest it.
+3. **UI Integration**:
+   * Renders a small, non-intrusive alert/suggestion badge directly in the POS sidebar (e.g., `"Consider recommending Bifidobacterium Probiotic (+ ₦1,200)"`).
+   * Clicking the suggestion instantly appends the item to the cart.
 
 ### Core Data Categories to Seed
 * **Clinical Co-Purchases**:
@@ -93,6 +115,7 @@ DumosRx's **Smart Suggestions Engine** must help pharmacists upsell and provide 
 1. **Initial Seed Script**: We will bundle a predefined seed file (`suggestions_seed.sql`) containing standard therapeutic pairings.
 2. **Local Machine Learning (Post-Launch)**: In Phase 2, the `SuggestionsEngine` will query local transaction history to find items with high co-occurrence support and confidence scores, adapting dynamically to what each shop's customers buy together.
 
+
 ---
 
 ## 4. Lead Pipeline & Blocker Matrix
@@ -104,13 +127,32 @@ Below is our current prospect pipeline, mapped to their specific requirements an
 | **Chisom RH** | Barsoft, VirtualRx | Expert Beta Tester. Ask for detailed POS UX feedback. | None (Desktop Tauri Web app) | Primary Dev |
 | **Mmesoma RH** | Barsoft, VirtualRx | Expert Beta Tester. Compare layout & speeds. | None (Desktop Tauri Web app) | Primary Dev |
 | **Nest Cashiers** | QuickBooks | Paid testing (₦5k/week). Run POS speed tests. | None | Primary Dev |
-| **Umueze Pharmacy** | None / Paper | **3-6 Months Free**. Mobile phone setup. | **Android App Build** (Must package React/Tauri or web app wrapper to Android APK). | Primary Dev |
+| **Umueze Pharmacy** | None / Paper | **3-6 Months Free**. Mobile phone setup. | **Android App Build** | Primary Dev |
 | **Cynthia Adaeze** (Nest Pharmacy Owner) | QuickBooks (Active) | **3-6 Months Free**. Ask for QuickBooks feature gaps. Confirm pricing. | **QuickBooks Import/Migration tool** | Primary Dev |
 | **Ben Umembaoma** | None (Perfume) | Standard launch offer. Pivot POS templates for general retail inventory. | POS General Retail Template support | Primary Dev |
 | **Sienne** (Betacure) | Legacy Inventory | Pitch Shopify/WooCommerce sync to pull them off legacy app. | **E-commerce Sync Layer** (WooCommerce/Shopify API) | Primary Dev |
 | **Mmesoma** (Former Apprentice) | Legacy Inventory | E-commerce integration benefits. | **E-commerce Sync Layer** | Primary Dev |
 | **Makhillz Pharmacy** (2+ stores) | QuickBooks | 2+ store aggregated dashboard. | **Enterprise Multi-Store Sync** | Co-Founder Mike |
 | **Ikem/Gloria** (DotCom) | Scope Shopmaster | Pitch missing features they wish Scope had. | Feature Gap Analysis | Primary Dev |
+
+### Technical Strategy for Major Feature Blockers
+
+#### A. Android APK & PWA Release Flow
+For mobile-only users (like Umueze Pharmacy) and iOS users (who don't use PCs):
+1. **Android Compilation (Tauri v2 Mobile)**: We will utilize Tauri's built-in mobile support to bundle the Next.js client directly into an Android package (`.apk`).
+2. **PWA (Progressive Web App) Route (For iOS/iPhone)**:
+   * **Why**: Publishing to the iOS App Store is slow, requires a $99/year developer account, and has high friction.
+   * **How**: We will add a Web App Manifest (`manifest.json`), service workers, and iOS-specific meta tags to the Next.js project.
+   * **UX**: iOS users open the app in Safari, tap "Add to Home Screen," and run it as a full-screen standalone application. Because it utilizes the browser's local storage/IndexedDB for the offline-first SQLite database, it operates identically to the desktop client with zero App Store friction.
+
+#### B. E-Commerce Integration (Online Branch)
+For clients like Betacure (Sienne) who require an online presence to migrate:
+1. **Option A: Third-Party API Sync (WooCommerce/Shopify)**:
+   * Build a synchronization service in the Laravel server.
+   * When product quantity changes on DumosRx, trigger an API payload to WooCommerce (`PUT /wp-json/wc/v3/products/<id>`) or Shopify to update stock counts.
+2. **Option B: Hosted DumosRx Storefront (Recommended)**:
+   * Instead of sync with WooCommerce/Shopify, we offer a built-in storefront (e.g. `betacure.dumosrx.com` or custom domain mapping) hosted on our server.
+   * **Why it's better**: Zero maintenance of third-party plugins, unified subscription pricing, and keeps the pharmacy locked into the DumosRx ecosystem. We will build WooCommerce/Shopify sync as a migration bridge but upsell them to the hosted storefront.
 
 ---
 
@@ -122,7 +164,38 @@ Below is our current prospect pipeline, mapped to their specific requirements an
 > * **Cost**: Negligible (~$10–$15 per year).
 > * **Security & Prevention**: Prevents domain squatting by competitors or domain brokers once marketing or public testing begins.
 > * **Professionalism**: Setting up `sales@dumosrx.com` or `support@dumosrx.com` is essential when approaching bigger chains like Makhillz Pharmacy or Betacure.
-> * **Action**: Register the domain now, point the name servers to your current cPanel web server, and redirect it to the app registration page.
+
+### How to Link Your Namecheap Domain to Your Existing cPanel
+Since the domain has been registered and transferred to your main Namecheap account, follow these steps to connect it to your existing web hosting:
+
+#### Step 1: Get Your Nameservers
+1. Log into your **cPanel**.
+2. On the right-sidebar under **General Information**, look for your server's IP address or the **Nameservers** (typically something like `ns1.yourhost.com` and `ns2.yourhost.com`). Copy these nameserver addresses.
+
+#### Step 2: Configure Namecheap DNS
+1. Log into your **Namecheap Dashboard**.
+2. Go to **Domain List** and click **Manage** next to `dumosrx.com`.
+3. Locate the **Nameservers** section.
+4. Change the dropdown from *Namecheap BasicDNS* to **Custom DNS**.
+5. Paste the two nameservers you copied from cPanel into the fields.
+6. Click the green checkmark to save. *(Propagation takes from 30 minutes to 24 hours).*
+
+#### Step 3: Add the Domain in cPanel
+1. Log into **cPanel**.
+2. Scroll to the **Domains** section and click on **Domains** (or *Addon Domains*).
+3. Click the **Create A New Domain** button.
+4. Enter `dumosrx.com` in the domain name field.
+5. **Set folder root**:
+   * **Check** "Share document root" if you want `dumosrx.com` to point to your main website folder (`public_html`) and mirror your current main domain.
+   * **Uncheck** "Share document root" if you want it to point to its own separate folder (e.g., `public_html/dumosrx.com`) so it doesn't conflict with your current website files.
+6. Click **Submit**.
+
+#### Step 4: Create cPanel Emails
+1. In cPanel, search for **Email Accounts**.
+2. Click **Create**.
+3. Select `dumosrx.com` from the Domain dropdown list.
+4. Enter your username (e.g., `sales` or `support`).
+5. Choose a password and click **Create**. You can access your email via `dumosrx.com/webmail`.
 
 ### Hosting & VPS Migration Plan
 * **Short-Term (Beta & Launch)**: Remain on the **cPanel Shared Hosting**. This keeps overhead costs at ₦0/month while we gather user feedback. The current sync controller is lightweight enough to support 5–10 concurrent pharmacies.
@@ -132,3 +205,4 @@ Below is our current prospect pipeline, mapped to their specific requirements an
     * Shared servers have low PHP request execution limits, which can block large batch sync operations.
     * VPS allows setting up robust database clustering and cron-backed automated backups.
   * **Trigger for Migration**: Reaching 15–20 active paying pharmacies, or when database sync latency exceeds 2 seconds during peak hours.
+

@@ -44,21 +44,21 @@ export function DashboardQuickActions({
         <div className="grid grid-cols-2 gap-3">
           <Link
             href="/inventory?action=add"
-            className="p-4 bg-accent text-accent-foreground rounded-lg hover:bg-accent/90 transition-colors flex flex-col items-center justify-center text-center cursor-pointer"
+            className="p-4 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors flex flex-col items-center justify-center text-center cursor-pointer border border-primary/20"
           >
             <Package className="h-6 w-6 mb-2" />
             <span className="text-sm font-medium">Add {productTerm}</span>
           </Link>
           <Link
             href="/pos"
-            className="p-4 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors flex flex-col items-center justify-center text-center cursor-pointer"
+            className="p-4 bg-emerald-500/10 text-emerald-600 rounded-lg hover:bg-emerald-500/20 transition-colors flex flex-col items-center justify-center text-center cursor-pointer border border-emerald-200"
           >
             <ShoppingCart className="h-6 w-6 mb-2" />
             <span className="text-sm font-medium">New Sale</span>
           </Link>
           <Link
             href="/inventory"
-            className="p-4 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/90 transition-colors flex flex-col items-center justify-center text-center cursor-pointer"
+            className="p-4 bg-amber-500/10 text-amber-600 rounded-lg hover:bg-amber-500/20 transition-colors flex flex-col items-center justify-center text-center cursor-pointer border border-amber-200"
           >
             <AlertTriangle className="h-6 w-6 mb-2" />
             <span className="text-sm font-medium">Check Expiry</span>
@@ -72,9 +72,9 @@ export function DashboardQuickActions({
           </Link>
           <button
             onClick={() => setIsReportOpen(true)}
-            className="p-4 bg-muted text-muted-foreground rounded-lg hover:bg-muted/80 transition-colors flex flex-col items-center justify-center text-center cursor-pointer"
+            className="p-4 bg-blue-500/10 text-blue-600 rounded-lg hover:bg-blue-500/20 transition-colors flex flex-col items-center justify-center text-center cursor-pointer border border-blue-200"
           >
-            <FileBarChart className="h-6 w-6 mb-2 text-primary" />
+            <FileBarChart className="h-6 w-6 mb-2" />
             <span className="text-sm font-medium">Generate P&L</span>
           </button>
           <Link

@@ -131,14 +131,14 @@ export async function seedProcurement() {
   const today = new Date().toISOString();
 
   await insert("purchase_orders", {
-    id: "po1", vendor_id: "v1", status: "completed", total_amount: 150000, notes: "Monthly restock", created_at: today, received_at: today, updated_at: today
+    id: "po1", order_number: "PO-2026-001", vendor_id: "v1", status: "completed", total_amount: 150000, notes: "Monthly restock", created_at: today, received_at: today, updated_at: today
   });
   await insert("purchase_order_items", {
     id: "poi1", po_id: "po1", medicine_id: "m1", bulk_quantity: 10, units_per_bulk: 100, unit_cost: 15000, subtotal: 150000, created_at: today, updated_at: today
   });
 
   await insert("purchase_orders", {
-    id: "po2", vendor_id: "v2", status: "draft", total_amount: 50000, notes: "Urgent shortage", created_at: today, updated_at: today
+    id: "po2", order_number: "PO-2026-002", vendor_id: "v2", status: "draft", total_amount: 50000, notes: "Urgent shortage", created_at: today, updated_at: today
   });
   await insert("purchase_order_items", {
     id: "poi2", po_id: "po2", medicine_id: "m2", bulk_quantity: 5, units_per_bulk: 50, unit_cost: 10000, subtotal: 50000, created_at: today, updated_at: today

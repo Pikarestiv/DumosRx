@@ -349,6 +349,7 @@ CREATE TABLE IF NOT EXISTS returns (
 
 CREATE TABLE IF NOT EXISTS purchase_orders (
   id TEXT PRIMARY KEY,
+  order_number TEXT,
   vendor_id TEXT NOT NULL,
   status TEXT DEFAULT 'draft',
   total_amount REAL DEFAULT 0,

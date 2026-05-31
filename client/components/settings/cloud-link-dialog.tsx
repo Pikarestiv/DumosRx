@@ -13,9 +13,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/lib/context/auth-context";
+import { useStore } from "@/lib/context/store-context";
 import { toast } from "sonner";
-import { Cloud, Loader2 } from "lucide-react";
+import { Cloud, Loader2, AlertTriangle } from "lucide-react";
 import { WEB_APP_URL } from "@/lib/constants";
+import { useEffect } from "react";
 
 interface CloudLinkDialogProps {
   open: boolean;
@@ -28,6 +30,13 @@ export function CloudLinkDialog({ open, onOpenChange, onSuccess }: CloudLinkDial
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { linkCloudAccount } = useAuth();
+  const { storeProfile } = useStore();
+
+  useEffect(() => {
+    if (open && storeProfile?.email && !email) {
+      setEmail(storeProfile.email);
+    }
+  }, [open, storeProfile?.email]);
 
   const handleLink = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,6 +99,15 @@ export function CloudLinkDialog({ open, onOpenChange, onSuccess }: CloudLinkDial
                 disabled={isLoading}
               />
             </div>
+            {storeProfile?.email && email && email.toLowerCase() !== storeProfile.email.toLowerCase() && (
+              <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-md text-xs">
+                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                <p>
+                  <strong>Warning:</strong> You are linking an email that differs from your store profile ({storeProfile.email}). 
+                  Syncing to a different cloud account could overwrite data if the accounts belong to different stores.
+                </p>
+              </div>
+            )}
           </div>
           <div className="text-center pb-2">
             <p className="text-xs text-muted-foreground">

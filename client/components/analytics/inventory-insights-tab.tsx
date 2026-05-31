@@ -121,7 +121,11 @@ export function InventoryInsightsTab({
               <ChartContainer config={chartConfig} className="h-full w-full">
                 <BarChart data={salesByCategory}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                  <XAxis 
+                    dataKey="name" 
+                    tick={{ fontSize: 11 }} 
+                    tickFormatter={(value) => value.length > 10 ? `${value.substring(0, 10)}...` : value}
+                  />
                   <YAxis />
                   <ChartTooltip content={<ChartTooltipContent />} />
                   <Bar dataKey="value" fill="#0ea5e9" radius={[4, 4, 0, 0]} />

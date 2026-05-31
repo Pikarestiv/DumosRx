@@ -351,6 +351,8 @@ CREATE TABLE IF NOT EXISTS purchase_orders (
   id TEXT PRIMARY KEY,
   order_number TEXT,
   vendor_id TEXT NOT NULL,
+  ordered_by TEXT,
+  order_date TEXT,
   status TEXT DEFAULT 'draft',
   total_amount REAL DEFAULT 0,
   notes TEXT,

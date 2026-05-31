@@ -24,6 +24,7 @@ interface UsePOSPaymentProps {
   selectedCustomer: Customer | null;
   clearCart: () => void;
   refetchMedicines: () => void;
+  requirePaymentAccount?: boolean;
 }
 
 export function usePOSPayment({
@@ -35,9 +36,12 @@ export function usePOSPayment({
   selectedCustomer,
   clearCart,
   refetchMedicines,
+  requirePaymentAccount = false,
 }: UsePOSPaymentProps) {
-  const [paymentMethod, setPaymentMethod] = useState<"cash" | "card" | "transfer" | "credit">("cash");
+  const [paymentMethod, setPaymentMethod] = useState<"cash" | "card" | "transfer" | "credit" | "mixed">("cash");
   const [amountPaid, setAmountPaid] = useState("");
+  const [selectedAccountId, setSelectedAccountId] = useState<string>("");
+  const [paymentSplits, setPaymentSplits] = useState<{method: string; amount: number; accountId?: string}[]>([]);
   const [processingPayment, setProcessingPayment] = useState(false);
   const [completedTransaction, setCompletedTransaction] = useState<any>(null);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
@@ -53,6 +57,25 @@ export function usePOSPayment({
       const paid = Number.parseFloat(amountPaid);
       if (!paid || paid < total) {
         toast.error("Insufficient payment amount");
+        return;
+      }
+    } else if (paymentMethod === "mixed") {
+      const totalSplits = paymentSplits.reduce((acc, split) => acc + (split.amount || 0), 0);
+      if (totalSplits < total) {
+        toast.error("Mixed payment splits do not cover the total amount");
+        return;
+      }
+      
+      if (requirePaymentAccount) {
+        const missingAccount = paymentSplits.some(s => (s.method === "card" || s.method === "transfer") && !s.accountId);
+        if (missingAccount) {
+          toast.error("Please select a destination account for all Card/Transfer splits");
+          return;
+        }
+      }
+    } else if (paymentMethod === "card" || paymentMethod === "transfer") {
+      if (requirePaymentAccount && !selectedAccountId) {
+        toast.error(`Please select a destination account for this ${paymentMethod}`);
         return;
       }
     }
@@ -78,17 +101,25 @@ export function usePOSPayment({
         amount_paid:
           paymentMethod === "cash"
             ? Number.parseFloat(amountPaid) || total
-            : paymentMethod === "credit"
-              ? 0
-              : total,
+            : paymentMethod === "mixed"
+              ? paymentSplits.reduce((acc, s) => acc + (s.amount || 0), 0)
+              : paymentMethod === "credit"
+                ? 0
+                : total,
         change_given:
           paymentMethod === "cash"
             ? Math.max(0, (Number.parseFloat(amountPaid) || 0) - total)
-            : 0,
+            : paymentMethod === "mixed"
+              ? Math.max(0, paymentSplits.reduce((acc, s) => acc + (s.amount || 0), 0) - total)
+              : 0,
         points_earned: earnedPoints,
         points_redeemed: 0,
         payment_method: paymentMethod,
         payment_status: paymentMethod === "credit" ? "pending" : "completed",
+        payment_details: JSON.stringify({
+          splits: paymentMethod === "mixed" ? paymentSplits : [],
+          accountId: (paymentMethod === "card" || paymentMethod === "transfer") ? selectedAccountId : null,
+        }),
         transaction_date: new Date().toISOString(),
         receipt_printed: 0,
         notes: "POS Sale",
@@ -111,6 +142,13 @@ export function usePOSPayment({
         await update("customers", selectedCustomer.id, {
           outstanding_balance: (selectedCustomer.outstanding_balance || 0) + total
         });
+      } else if (paymentMethod === "mixed" && selectedCustomer) {
+        const creditSplit = paymentSplits.find(s => s.method === "credit");
+        if (creditSplit && creditSplit.amount > 0) {
+          await update("customers", selectedCustomer.id, {
+            outstanding_balance: (selectedCustomer.outstanding_balance || 0) + creditSplit.amount
+          });
+        }
       }
 
       if (earnedPoints > 0 && selectedCustomer) {
@@ -140,14 +178,25 @@ export function usePOSPayment({
         discount,
         total,
         paymentMethod,
-        amountPaid: paymentMethod === "cash" ? Number.parseFloat(amountPaid) : total,
-        change: paymentMethod === "cash" ? Math.max(0, Number.parseFloat(amountPaid) - total) : 0,
+        paymentSplits: paymentMethod === "mixed" ? paymentSplits : null,
+        amountPaid: paymentMethod === "cash" 
+          ? Number.parseFloat(amountPaid) 
+          : paymentMethod === "mixed"
+            ? paymentSplits.reduce((acc, s) => acc + (s.amount || 0), 0)
+            : total,
+        change: paymentMethod === "cash" 
+          ? Math.max(0, Number.parseFloat(amountPaid) - total) 
+          : paymentMethod === "mixed"
+            ? Math.max(0, paymentSplits.reduce((acc, s) => acc + (s.amount || 0), 0) - total)
+            : 0,
       };
 
       setCompletedTransaction(transaction);
       clearCart();
       setPaymentMethod("cash");
       setAmountPaid("");
+      setSelectedAccountId("");
+      setPaymentSplits([]);
       setShowPaymentDialog(false);
       setShowReceiptDialog(true);
       toast.success("Transaction completed successfully!");
@@ -164,6 +213,10 @@ export function usePOSPayment({
     setPaymentMethod,
     amountPaid,
     setAmountPaid,
+    selectedAccountId,
+    setSelectedAccountId,
+    paymentSplits,
+    setPaymentSplits,
     processingPayment,
     handlePayment,
     completedTransaction,

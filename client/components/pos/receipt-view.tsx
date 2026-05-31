@@ -17,6 +17,7 @@ interface ReceiptProps {
     paymentMethod: string;
     amountPaid: number;
     change: number;
+    paymentSplits?: {method: string; amount: number; accountId?: string}[];
   };
 }
 
@@ -123,22 +124,37 @@ export function ReceiptView({ transaction }: ReceiptProps) {
 
       {/* Payment details */}
       <div className="space-y-1 mb-6 text-xs">
-        <div className="flex justify-between">
-          <span>Payment type:</span>
-          <span className="uppercase font-bold">
-            {transaction.paymentMethod}
-          </span>
-        </div>
-        <div className="flex justify-between">
+        {transaction.paymentMethod === "mixed" && transaction.paymentSplits ? (
+          <>
+            <div className="font-bold border-b border-dashed border-black pb-1 mb-1">
+              Payment Breakdown (MIXED)
+            </div>
+            {transaction.paymentSplits.map((split, i) => (
+              <div key={i} className="flex justify-between">
+                <span className="uppercase">{split.method}:</span>
+                <span>{formatCurrency(split.amount)}</span>
+              </div>
+            ))}
+          </>
+        ) : (
+          <div className="flex justify-between">
+            <span>Payment type:</span>
+            <span className="uppercase font-bold">
+              {transaction.paymentMethod}
+            </span>
+          </div>
+        )}
+        
+        <div className="flex justify-between mt-2 pt-2 border-t border-dashed border-black">
           <span>Date:</span>
           <span>{new Date(transaction.date).toLocaleDateString("en-GB")}</span>
         </div>
-        <div className="flex justify-between">
+        <div className="flex justify-between font-bold">
           <span>Total paid:</span>
           <span>{formatCurrency(transaction.amountPaid)}</span>
         </div>
         {transaction.change > 0 && (
-          <div className="flex justify-between font-bold">
+          <div className="flex justify-between font-bold text-lg">
             <span>Change:</span>
             <span>{formatCurrency(transaction.change)}</span>
           </div>

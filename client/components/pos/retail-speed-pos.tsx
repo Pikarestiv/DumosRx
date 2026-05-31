@@ -202,7 +202,7 @@ export function RetailSpeedPOS({
         </Card>
 
         {/* Payment Shortcut Bar */}
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-5 gap-4">
           <Button 
             className="h-16 text-lg font-bold bg-green-600 hover:bg-green-700 shadow-lg"
             disabled={cart.length === 0}
@@ -235,6 +235,17 @@ export function RetailSpeedPOS({
           >
             <User className="mr-2 h-6 w-6" />
             DEBT (F4)
+          </Button>
+          <Button 
+            className="h-16 text-lg font-bold bg-amber-600 hover:bg-amber-700 shadow-lg"
+            disabled={cart.length === 0}
+            onClick={() => {
+              setPaymentMethod("mixed");
+              setShowPaymentDialog(true);
+            }}
+          >
+            <Banknote className="mr-2 h-6 w-6" />
+            MIX (F5)
           </Button>
           <Button 
             variant="outline" 

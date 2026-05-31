@@ -81,6 +81,10 @@ export default function SettingsPage() {
     setAutoSyncInterval,
     showRetailSuggestions,
     setShowRetailSuggestions,
+    requirePaymentAccount,
+    setRequirePaymentAccount,
+    enabledPaymentMethods,
+    setEnabledPaymentMethods,
     handleSaveProfile,
     handleSaveRegional,
     handleSaveReceiptSettings,
@@ -244,6 +248,10 @@ export default function SettingsPage() {
                   handleSaveReceiptSettings={handleSaveReceiptSettings}
                   showRetailSuggestions={showRetailSuggestions}
                   setShowRetailSuggestions={setShowRetailSuggestions}
+                  requirePaymentAccount={requirePaymentAccount}
+                  setRequirePaymentAccount={setRequirePaymentAccount}
+                  enabledPaymentMethods={enabledPaymentMethods}
+                  setEnabledPaymentMethods={setEnabledPaymentMethods}
                 />
               </TabsContent>
             )}

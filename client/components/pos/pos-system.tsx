@@ -137,11 +137,29 @@ export function POSSystem() {
     discount,
   } = usePOSCart(medicines);
 
+  const requirePaymentAccount = storeProfile?.require_payment_account === 1;
+  let enabledPaymentMethods = ["cash", "card", "transfer", "credit", "mixed"];
+  try {
+    if (storeProfile?.enabled_payment_methods) {
+      enabledPaymentMethods = JSON.parse(storeProfile.enabled_payment_methods);
+    }
+  } catch (e) {
+    // default
+  }
+
+  const { data: paymentAccounts } = useLocalData<any>(
+    "SELECT * FROM payment_accounts WHERE _deleted = 0 ORDER BY created_at DESC"
+  );
+
   const {
     paymentMethod,
     setPaymentMethod,
     amountPaid,
     setAmountPaid,
+    selectedAccountId,
+    setSelectedAccountId,
+    paymentSplits,
+    setPaymentSplits,
     processingPayment,
     handlePayment,
     completedTransaction,
@@ -158,6 +176,7 @@ export function POSSystem() {
     selectedCustomer,
     clearCart,
     refetchMedicines,
+    requirePaymentAccount,
   });
 
   useEffect(() => {
@@ -178,9 +197,18 @@ export function POSSystem() {
           setPaymentMethod("card");
           setShowPaymentDialog(true);
         }
-        if (e.key === "F4" && selectedCustomer) {
+        if (e.key === "F4") {
           e.preventDefault();
+          if (!selectedCustomer) {
+            toast.error("Please select a customer for credit sales");
+            return;
+          }
           setPaymentMethod("credit");
+          setShowPaymentDialog(true);
+        }
+        if (e.key === "F5") {
+          e.preventDefault();
+          setPaymentMethod("mixed");
           setShowPaymentDialog(true);
         }
       }
@@ -452,10 +480,17 @@ export function POSSystem() {
         setPaymentMethod={setPaymentMethod}
         amountPaid={amountPaid}
         setAmountPaid={setAmountPaid}
+        selectedAccountId={selectedAccountId}
+        setSelectedAccountId={setSelectedAccountId}
+        paymentSplits={paymentSplits}
+        setPaymentSplits={setPaymentSplits}
         processingPayment={processingPayment}
         handlePayment={handlePayment}
         selectedCustomer={selectedCustomer}
         currencyCode={storeProfile?.currency}
+        requirePaymentAccount={requirePaymentAccount}
+        enabledPaymentMethods={enabledPaymentMethods}
+        paymentAccounts={paymentAccounts || []}
       />
 
       <Dialog open={showReceiptDialog} onOpenChange={setShowReceiptDialog}>

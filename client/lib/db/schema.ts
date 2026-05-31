@@ -132,6 +132,7 @@ CREATE TABLE IF NOT EXISTS sales (
   amount_paid REAL DEFAULT 0,
   change_given REAL DEFAULT 0,
   payment_method TEXT,
+  payment_details TEXT,
   payment_status TEXT DEFAULT 'completed',
   transaction_date TEXT,
   notes TEXT,
@@ -276,7 +277,9 @@ CREATE TABLE IF NOT EXISTS store_profile (
   auto_sync_interval INTEGER DEFAULT 15,
   status TEXT DEFAULT 'Active',
   suspension_reason TEXT,
-  show_retail_suggestions INTEGER DEFAULT 0
+  show_retail_suggestions INTEGER DEFAULT 0,
+  require_payment_account INTEGER DEFAULT 0,
+  enabled_payment_methods TEXT DEFAULT '["cash","card","transfer","credit","mixed"]'
 );
 
 CREATE TABLE IF NOT EXISTS expenses (
@@ -460,6 +463,22 @@ CREATE TABLE IF NOT EXISTS stock_movements (
   reason TEXT,
   performed_by TEXT,
   movement_date TEXT,
+  created_at TEXT,
+  updated_at TEXT,
+  _version INTEGER DEFAULT 1,
+  _synced INTEGER DEFAULT 0,
+  _synced_at TEXT,
+  _deleted INTEGER DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS payment_accounts (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  account_type TEXT NOT NULL,
+  account_number TEXT,
+  bank_name TEXT,
+  is_active INTEGER DEFAULT 1,
+  sort_order INTEGER DEFAULT 0,
   created_at TEXT,
   updated_at TEXT,
   _version INTEGER DEFAULT 1,

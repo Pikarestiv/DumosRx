@@ -13,6 +13,8 @@ import { DevSeedButton } from "@/components/dev/seed-button";
 import { BusinessVerticalCard } from "./store/business-vertical-card";
 import { StoreInformationCard } from "./store/store-information-card";
 import { ReceiptCustomizationCard } from "./store/receipt-customization-card";
+import { PaymentSettingsCard } from "./store/payment-settings-card";
+import { PaymentAccountsCard } from "./store/payment-accounts-card";
 
 interface StoreSettingsProps {
   storeType: StoreType;
@@ -42,6 +44,10 @@ interface StoreSettingsProps {
   handleSaveReceiptSettings: () => void;
   showRetailSuggestions?: boolean;
   setShowRetailSuggestions?: (val: boolean) => void;
+  requirePaymentAccount: boolean;
+  setRequirePaymentAccount: (val: boolean) => void;
+  enabledPaymentMethods: string[];
+  setEnabledPaymentMethods: (val: string[]) => void;
 }
 
 export function StoreSettings({
@@ -72,6 +78,10 @@ export function StoreSettings({
   handleSaveReceiptSettings,
   showRetailSuggestions = false,
   setShowRetailSuggestions,
+  requirePaymentAccount,
+  setRequirePaymentAccount,
+  enabledPaymentMethods,
+  setEnabledPaymentMethods,
 }: StoreSettingsProps) {
   return (
     <div className="space-y-6">
@@ -114,6 +124,16 @@ export function StoreSettings({
         setShowContact={setShowContact}
         handleSaveReceiptSettings={handleSaveReceiptSettings}
       />
+
+      <PaymentSettingsCard
+        requirePaymentAccount={requirePaymentAccount}
+        setRequirePaymentAccount={setRequirePaymentAccount}
+        enabledPaymentMethods={enabledPaymentMethods}
+        setEnabledPaymentMethods={setEnabledPaymentMethods}
+        handleSaveProfile={handleSaveProfile}
+      />
+
+      <PaymentAccountsCard />
 
       {/* Developer Tools */}
       {process.env.NODE_ENV === "development" && (

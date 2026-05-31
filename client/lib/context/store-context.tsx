@@ -32,6 +32,8 @@ interface StoreProfile {
   status?: "Active" | "Suspended";
   suspension_reason?: string;
   show_retail_suggestions?: number;
+  require_payment_account?: number;
+  enabled_payment_methods?: string;
   updated_at?: string;
 }
 

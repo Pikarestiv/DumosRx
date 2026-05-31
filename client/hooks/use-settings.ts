@@ -67,6 +67,10 @@ export function useSettings() {
   const [autoSyncEnabled, setAutoSyncEnabled] = useState(storeProfile?.auto_sync_enabled === 1);
   const [autoSyncInterval, setAutoSyncInterval] = useState(storeProfile?.auto_sync_interval?.toString() || "15");
   const [showRetailSuggestions, setShowRetailSuggestions] = useState(storeProfile?.show_retail_suggestions === 1);
+  const [requirePaymentAccount, setRequirePaymentAccount] = useState(storeProfile?.require_payment_account === 1);
+  const [enabledPaymentMethods, setEnabledPaymentMethods] = useState<string[]>(
+    storeProfile?.enabled_payment_methods ? JSON.parse(storeProfile.enabled_payment_methods) : ["cash", "card", "transfer", "credit", "mixed"]
+  );
 
   // Responsive Effect
   useEffect(() => {
@@ -96,6 +100,12 @@ export function useSettings() {
       setLocalLogo(storeProfile.logo_url || "");
       setAutoSyncEnabled(storeProfile.auto_sync_enabled === 1);
       setShowRetailSuggestions(storeProfile.show_retail_suggestions === 1);
+      setRequirePaymentAccount(storeProfile.require_payment_account === 1);
+      try {
+        setEnabledPaymentMethods(storeProfile.enabled_payment_methods ? JSON.parse(storeProfile.enabled_payment_methods) : ["cash", "card", "transfer", "credit", "mixed"]);
+      } catch (e) {
+        setEnabledPaymentMethods(["cash", "card", "transfer", "credit", "mixed"]);
+      }
       
       let interval = storeProfile.auto_sync_interval || 15;
       if (interval < minimumSyncIntervalMinutes) {
@@ -165,6 +175,8 @@ export function useSettings() {
       email: localEmail,
       pcn_license: localPcn,
       show_retail_suggestions: showRetailSuggestions ? 1 : 0,
+      require_payment_account: requirePaymentAccount ? 1 : 0,
+      enabled_payment_methods: JSON.stringify(enabledPaymentMethods),
       updated_at: new Date().toISOString(),
     });
     toast.success("Store profile updated");
@@ -415,6 +427,10 @@ export function useSettings() {
     setAutoSyncInterval,
     showRetailSuggestions,
     setShowRetailSuggestions,
+    requirePaymentAccount,
+    setRequirePaymentAccount,
+    enabledPaymentMethods,
+    setEnabledPaymentMethods,
     handleSaveProfile,
     handleSaveRegional,
     handleSaveReceiptSettings,

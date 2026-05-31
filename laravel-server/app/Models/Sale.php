@@ -17,13 +17,14 @@ class Sale extends Model
         'subtotal', 'discount_amount', 'discount_percentage', 'tax_amount',
         'tax_percentage', 'total_amount', 'payment_method', 'payment_status',
         'amount_paid', 'change_given', 'points_earned', 'points_redeemed',
-        'transaction_date', 'notes', 'receipt_printed'
+        'transaction_date', 'notes', 'receipt_printed', 'payment_details'
     ];
 
     protected $casts = [
         'transaction_date' => 'datetime',
         'receipt_printed' => 'boolean',
         'total_amount' => 'decimal:2',
+        'payment_details' => 'array',
     ];
 
      protected static function boot()

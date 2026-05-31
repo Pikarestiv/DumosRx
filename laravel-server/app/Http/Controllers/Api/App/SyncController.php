@@ -214,7 +214,7 @@ class SyncController extends Controller
         $changes = [];
         $serverTimestamp = now()->toIso8601String();
 
-        $tables = ['medicines', 'inventory', 'categories', 'customers', 'vendors', 'suppliers', 'sales', 'store_profile', 'users', 'stock_movements', 'purchase_orders', 'purchase_order_items', 'expenses'];
+        $tables = ['medicines', 'inventory', 'categories', 'customers', 'vendors', 'suppliers', 'sales', 'store_profile', 'users', 'stock_movements', 'purchase_orders', 'purchase_order_items', 'expenses', 'payment_accounts'];
 
         foreach ($tables as $table) {
             $lastSynced = $lastSyncedMap[$table] ?? null;
@@ -340,6 +340,7 @@ class SyncController extends Controller
             'stock_movements' => StockMovement::class,
             'purchase_orders' => PurchaseOrder::class,
             'purchase_order_items' => PurchaseOrderItem::class,
+            'payment_accounts' => \App\Models\PaymentAccount::class,
         ];
         return $map[$tableName] ?? null;
     }

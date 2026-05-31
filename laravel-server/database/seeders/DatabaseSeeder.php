@@ -63,5 +63,6 @@ class DatabaseSeeder extends Seeder
 
         $this->call(EmailTemplateSeeder::class);
         $this->call(SystemConfigSeeder::class);
+        $this->call(PaymentAccountSeeder::class);
     }
 }

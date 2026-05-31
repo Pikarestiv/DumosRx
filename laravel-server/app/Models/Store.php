@@ -40,6 +40,13 @@ class Store extends Model
         'status',
         'suspension_reason',
         'show_retail_suggestions',
+        'require_payment_account',
+        'enabled_payment_methods',
+    ];
+
+    protected $casts = [
+        'enabled_payment_methods' => 'array',
+        'require_payment_account' => 'boolean',
     ];
 
     protected static function boot()

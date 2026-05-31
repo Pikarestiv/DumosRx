@@ -5,7 +5,7 @@ export { seedSales } from "./seeds/sales";
  * Each category is independently seedable.
  */
 
-export type SeedKey = "medicines" | "suppliers" | "expenses" | "sales" | "customers" | "users";
+export type SeedKey = "medicines" | "suppliers" | "expenses" | "sales" | "customers" | "users" | "procurement" | "prescriptions";
 
 export interface SeedCategory {
   id: string;
@@ -22,6 +22,8 @@ export const SEED_CATEGORIES: { key: SeedKey; label: string; description: string
   { key: "sales", label: "Sales & Items", description: "2 sample completed sales with detailed items" },
   { key: "customers", label: "Customers", description: "3 sample customers with varying loyalty and credit history" },
   { key: "users", label: "Staff Users", description: "1 default admin user (admin / 1234)" },
+  { key: "procurement", label: "Procurement", description: "Sample purchase orders and items" },
+  { key: "prescriptions", label: "Prescriptions", description: "Sample prescriptions and items" },
 ];
 
 // Lazy-import DB helpers inside seed fns to avoid SSR issues
@@ -82,16 +84,86 @@ export async function seedSuppliers() {
 
 export async function seedExpenses() {
   const { insert, execute } = await db();
-  await execute("DELETE FROM expenses WHERE id IN ('e1')");
+  await execute("DELETE FROM expenses WHERE id IN ('e1', 'e2', 'e3')");
+  
+  const today = new Date().toISOString().split("T")[0];
+  const lastWeek = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+  
   await insert("expenses", {
     id: "e1",
     category: "Rent",
     amount: 150000,
     description: "Monthly shop rent",
-    date: new Date().toISOString().split("T")[0],
+    date: today,
     payment_method: "Bank Transfer",
     vendor_name: "Isolo Properties",
     reference_number: "REF-RENT-2026",
+  });
+  
+  await insert("expenses", {
+    id: "e2",
+    category: "Utilities",
+    amount: 25000,
+    description: "Electricity Bill",
+    date: today,
+    payment_method: "Card",
+    vendor_name: "PHCN",
+    reference_number: "REF-UTIL-2026",
+  });
+  
+  await insert("expenses", {
+    id: "e3",
+    category: "Salary",
+    amount: 80000,
+    description: "Pharmacist Salary",
+    date: lastWeek,
+    payment_method: "Bank Transfer",
+    vendor_name: "Staff",
+    reference_number: "REF-SAL-2026",
+  });
+}
+
+export async function seedProcurement() {
+  const { insert, execute } = await db();
+  await execute("DELETE FROM purchase_orders WHERE id IN ('po1', 'po2')");
+  await execute("DELETE FROM purchase_order_items WHERE po_id IN ('po1', 'po2')");
+
+  const today = new Date().toISOString();
+
+  await insert("purchase_orders", {
+    id: "po1", vendor_id: "v1", status: "completed", total_amount: 150000, notes: "Monthly restock", created_at: today, received_at: today, updated_at: today
+  });
+  await insert("purchase_order_items", {
+    id: "poi1", po_id: "po1", medicine_id: "m1", bulk_quantity: 10, units_per_bulk: 100, unit_cost: 15000, subtotal: 150000, created_at: today, updated_at: today
+  });
+
+  await insert("purchase_orders", {
+    id: "po2", vendor_id: "v2", status: "draft", total_amount: 50000, notes: "Urgent shortage", created_at: today, updated_at: today
+  });
+  await insert("purchase_order_items", {
+    id: "poi2", po_id: "po2", medicine_id: "m2", bulk_quantity: 5, units_per_bulk: 50, unit_cost: 10000, subtotal: 50000, created_at: today, updated_at: today
+  });
+}
+
+export async function seedPrescriptions() {
+  const { insert, execute } = await db();
+  await execute("DELETE FROM prescriptions WHERE id IN ('rx1', 'rx2')");
+  await execute("DELETE FROM prescription_items WHERE prescription_id IN ('rx1', 'rx2')");
+
+  const today = new Date().toISOString();
+
+  await insert("prescriptions", {
+    id: "rx1", prescription_number: "RX-2026-001", customer_id: "c1", patient_name: "John Doe", patient_phone: "08012345678", patient_age: 38, doctor_name: "Dr. Smith", doctor_license: "MD12345", status: "completed", priority: "normal", total_cost: 12000, issued_at: today, created_at: today, updated_at: today
+  });
+  await insert("prescription_items", {
+    id: "rxi1", prescription_id: "rx1", medicine_name: "Amoxicillin", strength: "500mg", dosage: "1 tablet every 8 hours", quantity: 21, instructions: "Take after meals", cost: 12000, created_at: today, updated_at: today
+  });
+
+  await insert("prescriptions", {
+    id: "rx2", prescription_number: "RX-2026-002", patient_name: "Jane Smith", patient_phone: "08098765432", patient_age: 34, doctor_name: "Dr. Adams", doctor_license: "MD67890", status: "pending", priority: "high", total_cost: 8500, issued_at: today, created_at: today, updated_at: today
+  });
+  await insert("prescription_items", {
+    id: "rxi2", prescription_id: "rx2", medicine_name: "Salbutamol Inhaler", strength: "100mcg", dosage: "2 puffs as needed", quantity: 1, instructions: "For shortness of breath", cost: 8500, created_at: today, updated_at: today
   });
 }
 
@@ -213,6 +285,18 @@ export async function resetUsers() {
   const { execute } = await db();
   await execute("DELETE FROM users");
   await seedUsers();
+}
+
+export async function resetProcurement() {
+  const { execute } = await db();
+  await execute("DELETE FROM purchase_orders");
+  await execute("DELETE FROM purchase_order_items");
+}
+
+export async function resetPrescriptions() {
+  const { execute } = await db();
+  await execute("DELETE FROM prescriptions");
+  await execute("DELETE FROM prescription_items");
 }
 export async function resetAll() {
   const { execute } = await db();

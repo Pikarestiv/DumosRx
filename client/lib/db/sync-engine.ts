@@ -54,10 +54,16 @@ export async function pushChanges(): Promise<{ pushed: number }> {
 
     try {
       // payload needs to be parsed from string
-      const changes = batch.map((item) => ({
-        ...item,
-        payload: JSON.parse(item.payload),
-      }));
+      const changes = batch.map((item) => {
+        const payload = JSON.parse(item.payload);
+        if (item.table_name === "sales" && payload.payment_method === "mixed") {
+          payload.payment_method = "split";
+        }
+        return {
+          ...item,
+          payload,
+        };
+      });
 
       const response = (await apiClient.pushChanges({
         changes,

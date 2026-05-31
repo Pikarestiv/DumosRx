@@ -24,12 +24,16 @@ import {
   seedSales,
   seedCustomers,
   seedUsers,
+  seedProcurement,
+  seedPrescriptions,
   resetMedicines,
   resetSuppliers,
   resetExpenses,
   resetSales,
   resetCustomers,
   resetUsers,
+  resetProcurement,
+  resetPrescriptions,
   resetAll,
   SEED_CATEGORIES,
   type SeedKey,
@@ -64,6 +68,8 @@ export function DevSeedButton() {
         case "sales": await seedSales(cashierId); break;
         case "customers": await seedCustomers(); break;
         case "users": await seedUsers(); break;
+        case "procurement": await seedProcurement(); break;
+        case "prescriptions": await seedPrescriptions(); break;
       }
       setDone((d) => ({ ...d, [key]: true }));
       toast.success(`${SEED_CATEGORIES.find((c) => c.key === key)?.label} seeded successfully`);
@@ -93,6 +99,8 @@ export function DevSeedButton() {
         case "sales": await resetSales(); break;
         case "customers": await resetCustomers(); break;
         case "users": await resetUsers(); break;
+        case "procurement": await resetProcurement(); break;
+        case "prescriptions": await resetPrescriptions(); break;
       }
       setResetDone((d) => ({ ...d, [key]: true }));
       toast.success(`${SEED_CATEGORIES.find((c) => c.key === key)?.label} reset successfully`);

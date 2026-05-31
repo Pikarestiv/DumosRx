@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Plus, Trash2, Edit2, Loader2, CreditCard, Smartphone, Banknote } from "lucide-react";
+import { useStore } from "@/lib/context/store-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -53,8 +54,12 @@ export function PaymentAccountsCard() {
     bank_name: "",
   });
 
+  const { activeStoreId, activeUserId } = useStore();
+
   const { data: accounts, loading, refetch } = useLocalData<PaymentAccount>(
-    "SELECT * FROM payment_accounts WHERE _deleted = 0 ORDER BY created_at DESC"
+    activeStoreId 
+      ? `SELECT * FROM payment_accounts WHERE _deleted = 0 AND store_id = '${activeStoreId}' ORDER BY created_at DESC`
+      : `SELECT * FROM payment_accounts WHERE _deleted = 0 ORDER BY created_at DESC`
   );
 
   const handleOpenDialog = (account?: PaymentAccount) => {
@@ -97,6 +102,8 @@ export function PaymentAccountsCard() {
       } else {
         await insert("payment_accounts", {
           id: `pa_${Date.now()}`,
+          user_id: activeUserId,
+          store_id: activeStoreId,
           name: formData.name,
           account_type: formData.account_type,
           account_number: formData.account_number,

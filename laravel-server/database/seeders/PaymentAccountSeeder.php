@@ -36,10 +36,20 @@ class PaymentAccountSeeder extends Seeder
             ]
         ];
 
+        $store = \App\Models\Store::first();
+        $userId = $store ? $store->user_id : null;
+        $storeId = $store ? $store->id : null;
+
         foreach ($accounts as $account) {
             PaymentAccount::firstOrCreate(
-                ['name' => $account['name']],
-                $account
+                [
+                    'name' => $account['name'],
+                    'store_id' => $storeId,
+                ],
+                array_merge($account, [
+                    'user_id' => $userId,
+                    'store_id' => $storeId,
+                ])
             );
         }
     }

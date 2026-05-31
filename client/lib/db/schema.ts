@@ -473,6 +473,8 @@ CREATE TABLE IF NOT EXISTS stock_movements (
 
 CREATE TABLE IF NOT EXISTS payment_accounts (
   id TEXT PRIMARY KEY,
+  user_id TEXT,
+  store_id TEXT,
   name TEXT NOT NULL,
   account_type TEXT NOT NULL,
   account_number TEXT,

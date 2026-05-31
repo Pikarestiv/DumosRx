@@ -199,7 +199,7 @@ export function POSPaymentDialog({
                       <option value="cash">Cash</option>
                       <option value="card">Card</option>
                       <option value="transfer">Transfer</option>
-                      <option value="credit">Credit</option>
+                      <option value="credit" disabled={!selectedCustomer}>Credit</option>
                     </select>
                     
                     <div className="flex-1 space-y-1">
@@ -234,6 +234,13 @@ export function POSPaymentDialog({
                   <Button variant="outline" size="sm" onClick={() => handleAddSplit("cash")}>+ Cash</Button>
                   <Button variant="outline" size="sm" onClick={() => handleAddSplit("transfer")}>+ Transfer</Button>
                   <Button variant="outline" size="sm" onClick={() => handleAddSplit("card")}>+ Card</Button>
+                  <Button variant="outline" size="sm" onClick={() => {
+                    if (!selectedCustomer) {
+                      toast.error("Please select a customer for credit sales");
+                      return;
+                    }
+                    handleAddSplit("credit");
+                  }}>+ Credit</Button>
                 </div>
               </div>
 

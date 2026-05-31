@@ -13,6 +13,8 @@ import { FeedbackForm } from "@/components/feedback/feedback-form";
 import { BroadcastBanner } from "./broadcast-banner";
 import { DashboardSidebar } from "./dashboard-sidebar";
 import { MobileBottomNav } from "./mobile-bottom-nav";
+import { DashboardActionCenter } from "./dashboard-action-center";
+import { LiveClock } from "./live-clock";
 import { cn } from "@/lib/utils";
 
 interface DashboardLayoutProps {
@@ -88,6 +90,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             <h1 className="font-serif font-black text-xl text-foreground truncate">
               {storeProfile?.name || APP_NAME}
             </h1>
+            <LiveClock />
           </div>
 
           <div className="flex items-center gap-2">

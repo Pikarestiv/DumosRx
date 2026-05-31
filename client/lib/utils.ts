@@ -17,3 +17,15 @@ export function formatCurrency(amount: number, currencyCode: string = "NGN") {
     minimumFractionDigits: 0,
   }).format(amount);
 }
+
+/**
+ * Returns the current date in YYYY-MM-DD format based on the user's local timezone
+ * rather than UTC. This prevents timezone offset bugs around midnight.
+ */
+export function getLocalTodayDate(): string {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}

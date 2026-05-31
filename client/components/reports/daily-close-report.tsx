@@ -25,6 +25,7 @@ import {
   Download,
   Printer,
 } from "lucide-react";
+import { getLocalTodayDate } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -40,7 +41,7 @@ export function DailyCloseReport() {
 
   // 1. Fetch sales for today
   const { data: salesToday } = useLocalData<any>(
-    `SELECT * FROM sales WHERE date(transaction_date) = date('now') AND _deleted = 0`,
+    `SELECT * FROM sales WHERE date(transaction_date) = '${getLocalTodayDate()}' AND _deleted = 0`,
   );
 
   // 2. Fetch sale items for today to calculate profit and top sellers
@@ -49,7 +50,7 @@ export function DailyCloseReport() {
      FROM sale_items si 
      JOIN sales s ON si.sale_id = s.id 
      LEFT JOIN medicines m ON si.medicine_id = m.id 
-     WHERE date(s.transaction_date) = date('now') AND si._deleted = 0 AND s._deleted = 0`,
+     WHERE date(s.transaction_date) = '${getLocalTodayDate()}' AND si._deleted = 0 AND s._deleted = 0`,
   );
 
   // Parse Mixed payments by joining with customer_payments if needed, but we can rely on `payment_splits` which is stored as JSON in `payment_details` if we modified it?

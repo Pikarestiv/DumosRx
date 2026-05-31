@@ -102,7 +102,7 @@ To maintain the "Premium" feel:
 
 ## 🌍 Environment & Deployment
 
-- **Hosting**: The server is deployed on **cPanel**. There is no local MySQL database on the development machine.
+- **Hosting**: The server is deployed on **cPanel** at the primary domain `dumosrx.com`. There is no local MySQL database on the development machine.
 - **PHP Executable Paths**:
   - **Mac (Local)**: `/opt/homebrew/opt/php@8.2/bin/php`
   - **cPanel (Production)**: `/opt/alt/php82/usr/bin/php`

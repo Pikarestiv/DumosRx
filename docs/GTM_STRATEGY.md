@@ -159,43 +159,12 @@ For clients like Betacure (Sienne) who require an online presence to migrate:
 ## 5. Domain, Hosting, and Infrastructure Decisions
 
 ### Domain Strategy: `dumosrx.com`
-> [!IMPORTANT]
-> **Decision: Purchase `dumosrx.com` IMMEDIATELY.**
-> * **Cost**: Negligible (~$10–$15 per year).
-> * **Security & Prevention**: Prevents domain squatting by competitors or domain brokers once marketing or public testing begins.
-> * **Professionalism**: Setting up `sales@dumosrx.com` or `support@dumosrx.com` is essential when approaching bigger chains like Makhillz Pharmacy or Betacure.
-
-### How to Link Your Namecheap Domain to Your Existing cPanel
-Since the domain has been registered and transferred to your main Namecheap account, follow these steps to connect it to your existing web hosting:
-
-#### Step 1: Get Your Nameservers
-1. Log into your **cPanel**.
-2. On the right-sidebar under **General Information**, look for your server's IP address or the **Nameservers** (typically something like `ns1.yourhost.com` and `ns2.yourhost.com`). Copy these nameserver addresses.
-
-#### Step 2: Configure Namecheap DNS
-1. Log into your **Namecheap Dashboard**.
-2. Go to **Domain List** and click **Manage** next to `dumosrx.com`.
-3. Locate the **Nameservers** section.
-4. Change the dropdown from *Namecheap BasicDNS* to **Custom DNS**.
-5. Paste the two nameservers you copied from cPanel into the fields.
-6. Click the green checkmark to save. *(Propagation takes from 30 minutes to 24 hours).*
-
-#### Step 3: Add the Domain in cPanel
-1. Log into **cPanel**.
-2. Scroll to the **Domains** section and click on **Domains** (or *Addon Domains*).
-3. Click the **Create A New Domain** button.
-4. Enter `dumosrx.com` in the domain name field.
-5. **Set folder root**:
-   * **Check** "Share document root" if you want `dumosrx.com` to point to your main website folder (`public_html`) and mirror your current main domain.
-   * **Uncheck** "Share document root" if you want it to point to its own separate folder (e.g., `public_html/dumosrx.com`) so it doesn't conflict with your current website files.
-6. Click **Submit**.
-
-#### Step 4: Create cPanel Emails
-1. In cPanel, search for **Email Accounts**.
-2. Click **Create**.
-3. Select `dumosrx.com` from the Domain dropdown list.
-4. Enter your username (e.g., `sales` or `support`).
-5. Choose a password and click **Create**. You can access your email via `dumosrx.com/webmail`.
+> [!NOTE]
+> **Status: Domain `dumosrx.com` successfully purchased and configured.**
+> * The app is now hosted entirely on `dumosrx.com`.
+> * Namecheap DNS and cPanel have been fully integrated.
+> * Required CORS policies have been updated to support `https://dumosrx.com` and its subdomains.
+> * Professional emails (e.g., `sales@dumosrx.com` and `support@dumosrx.com`) can now be utilized.
 
 ### Hosting & VPS Migration Plan
 * **Short-Term (Beta & Launch)**: Remain on the **cPanel Shared Hosting**. This keeps overhead costs at ₦0/month while we gather user feedback. The current sync controller is lightweight enough to support 5–10 concurrent pharmacies.

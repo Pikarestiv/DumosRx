@@ -1,11 +1,11 @@
 import axios from "axios";
 
 // Ensure you run: npm install axios
-// Set NEXT_PUBLIC_API_URL=https://api.rx.dumostech.com/api/v1 in your .env.local
+// Set NEXT_PUBLIC_API_URL=https://api.dumosrx.com/api/v1 in your .env.local
 
 const api = axios.create({
   baseURL:
-    process.env.NEXT_PUBLIC_API_URL || "https://api.rx.dumostech.com/api/v1",
+    process.env.NEXT_PUBLIC_API_URL || "https://api.dumosrx.com/api/v1",
   headers: {
     "Content-Type": "application/json",
     Accept: "application/json",

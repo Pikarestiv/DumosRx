@@ -34,7 +34,7 @@ jobs:
         run: npm run build
         env:
           # Production API URL
-          NEXT_PUBLIC_API_URL: https://api.rx.dumostech.com/api/v1
+          NEXT_PUBLIC_API_URL: https://api.dumosrx.com/api/v1
 
       - name: Sync files to FTP
         uses: SamKirkland/FTP-Deploy-Action@8e83cea8672e3fbcbb9fdafff34debf6ae4c5f65 # v4.3.5
@@ -42,8 +42,8 @@ jobs:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
-          # The directory on the server where the 'rx' subdomain points to
-          server-dir: /rx.dumostech.com/
+          # The directory on the server where the root domain points to
+          server-dir: /dumosrx.com/
           local-dir: ./web/out/
           exclude: |
             **/.git*

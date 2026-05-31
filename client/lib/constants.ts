@@ -1,5 +1,5 @@
 export const APP_NAME = "DumosRx";
 export const APP_VERSION = "0.0.12"; // DumosRx current version (update when bumping version)
 
-export const WEB_APP_URL = "https://rx.dumostech.com";
-export const API_BASE_URL = "https://api.rx.dumostech.com/api/v1";
+export const WEB_APP_URL = "https://dumosrx.com";
+export const API_BASE_URL = "https://api.dumosrx.com/api/v1";

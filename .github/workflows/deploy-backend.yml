@@ -42,7 +42,7 @@ jobs:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
-          server-dir: /api.rx.dumostech.com/
+          server-dir: /api.dumosrx.com/
           local-dir: ./laravel-server/
           exclude: |
             **/.git*

@@ -163,7 +163,7 @@ class AuthController extends Controller
                 $token,
                 60 * 24,
                 '/',
-                $request->getHost() === 'localhost' ? null : '.rx.dumostech.com',
+                $request->getHost() === 'localhost' || filter_var($request->getHost(), FILTER_VALIDATE_IP) ? null : '.' . implode('.', array_slice(explode('.', $request->getHost()), -2)),
                 $request->isSecure(), // secure
                 true, // httpOnly
                 false,
@@ -196,7 +196,7 @@ class AuthController extends Controller
                     $token,
                     60 * 24,
                     "/",
-                    $request->getHost() === "localhost" ? null : ".rx.dumostech.com",
+                    $request->getHost() === "localhost" || filter_var($request->getHost(), FILTER_VALIDATE_IP) ? null : "." . implode(".", array_slice(explode(".", $request->getHost()), -2)),
                     $request->isSecure(),
                     true,
                     false,
@@ -284,7 +284,7 @@ class AuthController extends Controller
             ]
         );
 
-        $resetUrl = "https://rx.dumostech.com/reset-password?token=$token&email=" . urlencode($request->email);
+        $resetUrl = config('app.frontend_url', 'https://dumosrx.com') . "/reset-password?token=$token&email=" . urlencode($request->email);
 
         try {
             Mail::to($user->email)->send(new PasswordResetEmail($user, $resetUrl));

@@ -234,7 +234,7 @@ header .group:hover svg,
 
 @media print {
   /* Fix cut off pages and overflow */
-  body, html, main, .overflow-y-auto, .overflow-hidden, .max-h-[90vh], .max-h-screen, div {
+  body, html, main, .overflow-y-auto, .overflow-hidden, .max-h-\[90vh\], .max-h-screen, div {
     overflow: visible !important;
     height: auto !important;
     max-height: none !important;

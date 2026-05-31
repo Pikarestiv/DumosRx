@@ -22,7 +22,7 @@ class FunnelSetupReminderEmail extends Mailable
     public function __construct(User $user)
     {
         $this->user = $user;
-        $this->dashboardUrl = env('APP_URL', 'https://rx.dumostech.com') . '/dashboard/downloads';
+        $this->dashboardUrl = env('APP_URL', 'https://dumosrx.com') . '/dashboard/downloads';
     }
 
     /**

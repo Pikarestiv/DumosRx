@@ -16,7 +16,7 @@ class DatabaseSeeder extends Seeder
         $this->call(RolesAndPermissionsSeeder::class);
 
         // 2. Create Super Admin User
-        $adminEmail = 'admin@rx.dumostech.com';
+        $adminEmail = 'admin@dumosrx.com';
         
         if (!User::where('email', $adminEmail)->exists()) {
             $superAdminRole = Role::where('slug', 'super_admin')->first();
@@ -33,7 +33,7 @@ class DatabaseSeeder extends Seeder
         }
 
         // 3. Create Sample Staff (Optional - commented out or active)
-        $pharmacistEmail = 'pharmacist@rx.dumostech.com';
+        $pharmacistEmail = 'pharmacist@dumosrx.com';
         if (!User::where('email', $pharmacistEmail)->exists()) {
             $pharmacistRole = Role::where('slug', 'pharmacist')->first();
             User::create([
@@ -47,7 +47,7 @@ class DatabaseSeeder extends Seeder
             ]);
         }
 
-        $salesEmail = 'sales@rx.dumostech.com';
+        $salesEmail = 'sales@dumosrx.com';
         if (!User::where('email', $salesEmail)->exists()) {
             $salesRole = Role::where('slug', 'sales_staff')->first();
             User::create([

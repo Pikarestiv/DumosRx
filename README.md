@@ -142,7 +142,7 @@ After running the database seeders, use these default credentials:
 
 ```
 Super Admin:
-Email: admin@rx.dumostech.com
+Email: admin@dumosrx.com
 Password: password
 ```
 

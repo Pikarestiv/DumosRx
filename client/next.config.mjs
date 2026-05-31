@@ -3,7 +3,7 @@ const nextConfig = {
   output: "export",
   // rewrites() are not supported in static export
   // async rewrites() {
-  //   const REMOTE_API_ROOT = "https://api.rx.dumostech.com";
+  //   const REMOTE_API_ROOT = "https://api.dumosrx.com";
   //   return [
   //     {
   //       source: "/api/v1/:path*",

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Cloud, CloudOff, RefreshCw, AlertCircle } from "lucide-react";
+import { useLocalData } from "@/lib/db/hooks/useLocalData";
 import {
   Tooltip,
   TooltipContent,
@@ -26,6 +27,17 @@ export function SyncIndicator({ collapsed = false }: { collapsed?: boolean }) {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [isLinked, setIsLinked] = useState(false);
   const { storeProfile } = useStore();
+
+  const { data: queueData } = useLocalData<{ count: number }>(
+    "SELECT COUNT(*) as count FROM _sync_queue"
+  );
+  const pendingCount = queueData[0]?.count || 0;
+
+  const isSyncOverdue = lastSync
+    ? Date.now() - new Date(lastSync).getTime() > 30 * 60 * 1000
+    : false;
+
+  const needsSync = pendingCount > 0 && isSyncOverdue;
 
   useEffect(() => {
     updateOnlineStatus();
@@ -115,9 +127,11 @@ export function SyncIndicator({ collapsed = false }: { collapsed?: boolean }) {
       ? "Offline"
       : status === "error"
         ? "Sync Error"
-        : isLinked
-          ? "Cloud Active"
-          : "Not Linked";
+        : needsSync
+          ? "Pending Sync"
+          : isLinked
+            ? "Cloud Active"
+            : "Not Linked";
 
   const statusIcon = isSyncInProgress ? (
     <RefreshCw className="h-4 w-4 text-blue-500 animate-spin" />
@@ -125,6 +139,8 @@ export function SyncIndicator({ collapsed = false }: { collapsed?: boolean }) {
     <CloudOff className="h-4 w-4 text-muted-foreground" />
   ) : status === "error" ? (
     <AlertCircle className="h-4 w-4 text-destructive" />
+  ) : needsSync ? (
+    <Cloud className="h-4 w-4 text-amber-500 animate-pulse" />
   ) : (
     <Cloud className="h-4 w-4 text-emerald-500" />
   );
@@ -135,9 +151,11 @@ export function SyncIndicator({ collapsed = false }: { collapsed?: boolean }) {
       ? "Offline mode. Changes are saved locally."
       : status === "error"
         ? errorMessage || "Sync failed. Please try again."
-        : isLinked
-          ? "Your data is securely backed up to the DumosRx cloud."
-          : "Connect your cloud account to enable backups.";
+        : needsSync
+          ? `${pendingCount} local change${pendingCount > 1 ? "s" : ""} pending sync since ${lastSync ? formatDistanceToNow(new Date(lastSync)) + " ago" : "a while"}.`
+          : isLinked
+            ? "Your data is securely backed up to the DumosRx cloud."
+            : "Connect your cloud account to enable backups.";
 
   if (collapsed) {
     return (
@@ -202,14 +220,31 @@ export function SyncIndicator({ collapsed = false }: { collapsed?: boolean }) {
               </div>
 
               <div className="flex flex-col gap-1">
-                <p className="text-[10px] text-sidebar-foreground/50 font-medium">
-                  LAST BACKUP
-                </p>
-                <p className="text-[10px] text-sidebar-foreground/80 font-bold">
-                  {lastSync
-                    ? formatDistanceToNow(new Date(lastSync)) + " ago"
-                    : "Never"}
-                </p>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="text-[10px] text-sidebar-foreground/50 font-medium">
+                      LAST BACKUP
+                    </p>
+                    <p className="text-[10px] text-sidebar-foreground/80 font-bold">
+                      {lastSync
+                        ? formatDistanceToNow(new Date(lastSync)) + " ago"
+                        : "Never"}
+                    </p>
+                  </div>
+                  {pendingCount > 0 && (
+                    <div className="text-right">
+                      <p className="text-[10px] text-sidebar-foreground/50 font-medium">
+                        UNSYNCED
+                      </p>
+                      <p className={cn(
+                        "text-[10px] font-bold",
+                        needsSync ? "text-amber-500 animate-pulse" : "text-sidebar-foreground/80"
+                      )}>
+                        {pendingCount} item{pendingCount > 1 ? "s" : ""}
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </TooltipTrigger>

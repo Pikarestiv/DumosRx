@@ -22,10 +22,14 @@ import {
   ChartTooltip, 
   ChartTooltipContent 
 } from "@/components/ui/chart";
+import { useState } from "react";
 
 interface SalesAnalyticsTabProps {
   monthlySalesData: any[];
-  topSellingMedicines: any[];
+  topSellingMedicines: {
+    revenue: any[];
+    quantity: any[];
+  };
   formattedCategoryData: any[];
 }
 
@@ -34,6 +38,8 @@ export function SalesAnalyticsTab({
   topSellingMedicines,
   formattedCategoryData
 }: SalesAnalyticsTabProps) {
+  const [sortBy, setSortBy] = useState<"revenue" | "quantity">("revenue");
+  const medicines = (sortBy === "revenue" ? topSellingMedicines?.revenue : topSellingMedicines?.quantity) || [];
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -87,20 +93,46 @@ export function SalesAnalyticsTab({
 
         {/* Top Selling Medicines */}
         <Card>
-          <CardHeader>
-            <CardTitle>Top Selling Medicines</CardTitle>
-            <CardDescription>
-              Best performing products by revenue
-            </CardDescription>
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <div>
+              <CardTitle>Top Selling Medicines</CardTitle>
+              <CardDescription>
+                Best performing products by {sortBy === "revenue" ? "revenue" : "quantity"}
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-1 bg-muted p-0.5 rounded-lg text-xs">
+              <button
+                onClick={() => setSortBy("revenue")}
+                className={`px-3 py-1 rounded-md transition-all font-medium ${
+                  sortBy === "revenue"
+                    ? "bg-white shadow-sm text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+                style={{ cursor: "pointer" }}
+              >
+                Revenue
+              </button>
+              <button
+                onClick={() => setSortBy("quantity")}
+                className={`px-3 py-1 rounded-md transition-all font-medium ${
+                  sortBy === "quantity"
+                    ? "bg-white shadow-sm text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+                style={{ cursor: "pointer" }}
+              >
+                Quantity
+              </button>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {topSellingMedicines.length === 0 ? (
+              {medicines.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   No sales data available for this period.
                 </div>
               ) : (
-                topSellingMedicines.map((medicine, index) => (
+                medicines.map((medicine, index) => (
                   <div
                     key={medicine.name}
                     className="flex items-center justify-between"

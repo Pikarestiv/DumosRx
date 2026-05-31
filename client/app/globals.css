@@ -214,12 +214,21 @@ header .group:hover svg,
   body {
     @apply bg-background text-foreground;
   }
-  button,
-  [role="button"],
-  input[type="button"],
-  input[type="submit"],
-  input[type="reset"],
-  .cursor-pointer {
+  button:not(:disabled),
+  [role="button"]:not(:disabled),
+  input[type="button"]:not(:disabled),
+  input[type="submit"]:not(:disabled),
+  input[type="reset"]:not(:disabled),
+  .cursor-pointer:not(:disabled) {
+    cursor: pointer;
+  }
+  button:disabled,
+  [role="button"]:disabled,
+  input[type="button"]:disabled,
+  input[type="submit"]:disabled,
+  input[type="reset"]:disabled,
+  .cursor-pointer:disabled {
+    cursor: not-allowed;
   }
 }
 

@@ -67,13 +67,16 @@ function PrintReportContent() {
         }
         
         if (isMounted) {
+          const isPreview = searchParams.get("preview") === "true";
           setData(rows);
           setHeaders(cols);
           setLoading(false);
-          // Wait for DOM to render then trigger print
-          setTimeout(() => {
-            window.print();
-          }, 500);
+          // Wait for DOM to render then trigger print if not in preview mode
+          if (!isPreview) {
+            setTimeout(() => {
+              window.print();
+            }, 500);
+          }
         }
       } catch (err: any) {
         if (isMounted) {

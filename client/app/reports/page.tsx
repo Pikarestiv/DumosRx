@@ -53,7 +53,7 @@ export default function ReportsPage() {
         className="space-y-6"
       >
       <div className="w-full overflow-x-auto scrollbar-none pb-1">
-        <TabsList className="w-max min-w-full bg-muted/50 p-1 flex">
+        <TabsList className="w-max bg-muted/50 p-1 flex">
           <TabsTrigger value="reports" className="gap-2 px-4 py-2 shrink-0">
             <FileText className="w-4 h-4" />
             Operational Reports

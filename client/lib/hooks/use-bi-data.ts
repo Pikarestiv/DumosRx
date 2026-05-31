@@ -159,33 +159,45 @@ export function useBIData(externalTimeRange?: string) {
     transactions: number;
   }>(
     `SELECT
-      strftime('%b', s.transaction_date) as month,
+      strftime('%Y-%m', s.transaction_date) as month,
       SUM(s.total_amount) as revenue,
       SUM(si.cost_price * si.quantity) as cogs,
       COUNT(DISTINCT s.id) as transactions
      FROM sales s
      LEFT JOIN sale_items si ON s.id = si.sale_id
      WHERE s.transaction_date >= ? AND s._deleted = 0
-     GROUP BY strftime('%m', s.transaction_date)
-     ORDER BY strftime('%m', s.transaction_date) ASC`,
+     GROUP BY strftime('%Y-%m', s.transaction_date)
+     ORDER BY strftime('%Y-%m', s.transaction_date) ASC`,
     [dateFilter]
   );
 
   const { data: rawExpenseData } = useLocalData<{ month: string; expenses: number }>(
     `SELECT
-      strftime('%b', date) as month,
+      strftime('%Y-%m', date) as month,
       SUM(amount) as expenses
      FROM expenses
      WHERE date >= ? AND _deleted = 0
-     GROUP BY strftime('%m', date)`,
+     GROUP BY strftime('%Y-%m', date)`,
     [dateFilter]
   );
 
   const monthlySalesData = useMemo(() => {
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     return rawMonthlyData.map((item) => {
       const exp = rawExpenseData.find((e) => e.month === item.month)?.expenses || 0;
+      let monthLabel = item.month;
+      if (item.month) {
+        const parts = item.month.split("-");
+        if (parts.length === 2) {
+          const mIdx = parseInt(parts[1], 10) - 1;
+          if (mIdx >= 0 && mIdx < 12) {
+            monthLabel = `${monthNames[mIdx]} '${parts[0].slice(2)}`;
+          }
+        }
+      }
       return {
         ...item,
+        month: monthLabel,
         profit: item.revenue - item.cogs - exp,
         expenses: exp,
       };
@@ -194,7 +206,7 @@ export function useBIData(externalTimeRange?: string) {
 
   // ─── Top Selling Medicines ─────────────────────────────────────────────────
 
-  const { data: topSellingMedicines } = useLocalData<{
+  const { data: topSellingByRevenue } = useLocalData<{
     name: string;
     sales: number;
     units: number;
@@ -204,9 +216,10 @@ export function useBIData(externalTimeRange?: string) {
       m.name,
       SUM(si.total_price) as sales,
       SUM(si.quantity) as units,
-      m.category_id as category
+      COALESCE(c.name, 'Uncategorized') as category
      FROM sale_items si
      JOIN medicines m ON si.medicine_id = m.id
+     LEFT JOIN categories c ON m.category_id = c.id
      JOIN sales s ON si.sale_id = s.id
      WHERE s.transaction_date >= ? AND s._deleted = 0
      GROUP BY m.id
@@ -215,18 +228,45 @@ export function useBIData(externalTimeRange?: string) {
     [dateFilter]
   );
 
-  // ─── Sales by Category ─────────────────────────────────────────────────────
-
-  const { data: categoryDistribution } = useLocalData<{ name: string; value: number }>(
+  const { data: topSellingByQuantity } = useLocalData<{
+    name: string;
+    sales: number;
+    units: number;
+    category: string;
+  }>(
     `SELECT
-      COALESCE(c.name, 'Uncategorized') as name,
-      COUNT(*) as value
+      m.name,
+      SUM(si.total_price) as sales,
+      SUM(si.quantity) as units,
+      COALESCE(c.name, 'Uncategorized') as category
      FROM sale_items si
      JOIN medicines m ON si.medicine_id = m.id
      LEFT JOIN categories c ON m.category_id = c.id
      JOIN sales s ON si.sale_id = s.id
      WHERE s.transaction_date >= ? AND s._deleted = 0
-     GROUP BY m.category_id`,
+     GROUP BY m.id
+     ORDER BY units DESC
+     LIMIT 5`,
+    [dateFilter]
+  );
+
+  const topSellingMedicines = useMemo(() => ({
+    revenue: topSellingByRevenue,
+    quantity: topSellingByQuantity,
+  }), [topSellingByRevenue, topSellingByQuantity]);
+
+  // ─── Sales by Category ─────────────────────────────────────────────────────
+
+  const { data: categoryDistribution } = useLocalData<{ name: string; value: number }>(
+    `SELECT
+      COALESCE(c.name, 'Uncategorized') as name,
+      SUM(si.total_price) as value
+     FROM sale_items si
+     JOIN medicines m ON si.medicine_id = m.id
+     LEFT JOIN categories c ON m.category_id = c.id
+     JOIN sales s ON si.sale_id = s.id
+     WHERE s.transaction_date >= ? AND s._deleted = 0
+     GROUP BY COALESCE(c.name, 'Uncategorized')`,
     [dateFilter]
   );
 

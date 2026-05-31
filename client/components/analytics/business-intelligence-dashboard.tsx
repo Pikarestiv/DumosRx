@@ -76,7 +76,7 @@ export function BusinessIntelligenceDashboard() {
       {/* Main Analytics Tabs */}
       <Tabs defaultValue="sales" className="space-y-6">
         <div className="w-full overflow-x-auto scrollbar-none pb-1">
-          <TabsList className="w-max min-w-full bg-muted/50 p-1 flex">
+          <TabsList className="w-max bg-muted/50 p-1 flex">
             <TabsTrigger value="sales" className="px-6 shrink-0">Sales Analytics</TabsTrigger>
             <TabsTrigger value="profit-loss" className="px-6 shrink-0">Profit & Loss</TabsTrigger>
             <TabsTrigger value="inventory" className="px-6 shrink-0">Inventory Insights</TabsTrigger>

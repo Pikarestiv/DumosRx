@@ -16,6 +16,7 @@ import {
   Calendar as CalendarIcon,
   Loader2,
   CheckCircle2,
+  Eye,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -25,6 +26,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   useReportExport,
   RecentDownload,
@@ -110,6 +117,15 @@ export function ReportCenter() {
   const runPrint = (reportId: string) => {
     const { from, to } = getDateRange(datePreset);
     const params = new URLSearchParams({ report: reportId });
+    if (from) params.set("from", from);
+    if (to) params.set("to", to);
+    const printUrl = `/reports/print?${params.toString()}`;
+    router.push(printUrl);
+  };
+
+  const runPreview = (reportId: string) => {
+    const { from, to } = getDateRange(datePreset);
+    const params = new URLSearchParams({ report: reportId, preview: "true" });
     if (from) params.set("from", from);
     if (to) params.set("to", to);
     const printUrl = `/reports/print?${params.toString()}`;
@@ -209,26 +225,47 @@ export function ReportCenter() {
                         size="sm"
                         variant="outline"
                         className="h-8 gap-2"
+                        onClick={() => runPreview(report.id)}
+                        disabled={isLoading}
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        Preview
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 gap-2"
                         onClick={() => runPrint(report.id)}
                         disabled={isLoading}
                       >
                         <Printer className="h-3.5 w-3.5" />
                         Print
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-8 gap-2"
-                        onClick={() => runExport(report.id)}
-                        disabled={isLoading}
-                      >
-                        {isLoading ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <Download className="h-3.5 w-3.5" />
-                        )}
-                        Export CSV
-                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 gap-2"
+                            disabled={isLoading}
+                          >
+                            {isLoading ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Download className="h-3.5 w-3.5" />
+                            )}
+                            Export
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => runExport(report.id)} className="cursor-pointer">
+                            Export CSV
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => runPrint(report.id)} className="cursor-pointer">
+                            Export PDF
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
                 </div>

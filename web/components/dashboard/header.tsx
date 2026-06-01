@@ -27,6 +27,7 @@ import {
 
 interface HeaderProps {
   onSetActiveTab: (tab: string) => void;
+  onMenuClick?: () => void;
 }
 
 interface AppNotification {
@@ -38,7 +39,7 @@ interface AppNotification {
   isRead?: boolean;
 }
 
-export function Header({ onSetActiveTab }: HeaderProps) {
+export function Header({ onSetActiveTab, onMenuClick }: HeaderProps) {
   const { data: notifications = [] } = useNotifications({ refetchInterval: 60000 });
   const unreadCount = notifications.filter((n: AppNotification) => !n.isRead).length;
   const [isImpersonating, setIsImpersonating] = useState(false);
@@ -185,7 +186,7 @@ export function Header({ onSetActiveTab }: HeaderProps) {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        <Button className="lg:hidden" variant="ghost" size="icon">
+        <Button className="lg:hidden" variant="ghost" size="icon" onClick={onMenuClick}>
           <Menu className="h-6 w-6" />
         </Button>
       </div>

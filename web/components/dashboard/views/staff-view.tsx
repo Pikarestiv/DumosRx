@@ -91,14 +91,14 @@ export function StaffView({ staff, stores }: StaffViewProps) {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-3xl font-black tracking-tight">Staff Management</h1>
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight">Staff Management</h1>
           <p className="text-muted-foreground">Monitor performance and manage accounts across your fleet</p>
         </div>
-        <div className="flex gap-4">
+        <div className="flex flex-col sm:flex-row gap-3 sm:items-center w-full lg:w-auto">
           <select 
-            className="bg-background border border-input px-4 py-2 rounded-lg text-sm font-bold focus:ring-2 focus:ring-primary outline-none transition-all"
+            className="bg-background border border-input px-4 py-2 rounded-lg text-sm font-bold focus:ring-2 focus:ring-primary outline-none transition-all h-10 w-full sm:w-40"
             value={selectedStore}
             onChange={(e) => setSelectedStore(e.target.value)}
           >
@@ -107,8 +107,8 @@ export function StaffView({ staff, stores }: StaffViewProps) {
               <option key={store.id} value={store.id}>{store.name}</option>
             ))}
           </select>
-          <Button variant="outline" className="font-bold">Export Staff List</Button>
-          <Button className="font-bold bg-primary hover:bg-primary/90" onClick={handleCreate}>
+          <Button variant="outline" className="font-bold w-full sm:w-auto">Export Staff List</Button>
+          <Button className="font-bold bg-primary hover:bg-primary/90 w-full sm:w-auto" onClick={handleCreate}>
             <UserPlus className="h-4 w-4 mr-2" />
             Add Staff Member
           </Button>
@@ -153,7 +153,7 @@ export function StaffView({ staff, stores }: StaffViewProps) {
               : "No staff records found for this selection."}
           </CardDescription>
         </CardHeader>
-        <CardContent className="p-0">
+        <CardContent className="p-0 overflow-x-auto">
           {!hasStaff ? (
             <div className="py-20 text-center flex flex-col items-center justify-center">
               <Users className="h-12 w-12 text-muted-foreground mb-4 opacity-20" />
@@ -161,81 +161,83 @@ export function StaffView({ staff, stores }: StaffViewProps) {
               <Button variant="link" onClick={handleCreate} className="mt-2 font-bold text-primary">Create your first staff account</Button>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent border-muted text-xs font-bold uppercase">
-                  <TableHead className="pl-6">Staff Member</TableHead>
-                  <TableHead className="text-center">Role</TableHead>
-                  <TableHead className="text-center">Store / Shop</TableHead>
-                  <TableHead className="text-center">Credentials</TableHead>
-                  <TableHead className="text-center">Status</TableHead>
-                  <TableHead className="text-right pr-6">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredStaff.map((s: any) => (
-                  <TableRow key={s.id} className="border-muted hover:bg-muted/30 group">
-                    <TableCell className="font-bold py-4 pl-6">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-black shadow-sm">
-                          {s.first_name?.charAt(0) || "U"}
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="text-slate-900 dark:text-white">{(s.first_name || '') + ' ' + (s.last_name || '')}</span>
-                          <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-tighter">
-                            {s.email}
-                          </span>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge variant="secondary" className="font-bold capitalize px-3">
-                        {s.role}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-center text-sm font-bold text-slate-500">
-                      {s.store?.name || stores.find(st => st.id === s.store_id)?.name || "Main Branch"}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <div className="flex flex-col items-center gap-1">
-                        <div className="flex items-center gap-1 text-[10px] font-black text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-0.5 rounded-full">
-                           <Shield className="h-3 w-3" />
-                           {s.username || 'N/A'}
-                        </div>
-                        <div className="flex items-center gap-1 text-[10px] font-black text-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-0.5 rounded-full">
-                           <Key className="h-3 w-3" />
-                           {s.pin || '****'}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge
-                        variant="outline"
-                        className={`${(s.is_active) ? "bg-green-50 text-green-700 border-green-200" : "bg-slate-50 text-slate-500 border-slate-200"} font-bold`}
-                      >
-                        <Circle className={`h-2 w-2 mr-2 fill-current ${(s.is_active) ? "text-green-500" : "text-slate-300"}`} />
-                        {s.is_active ? "Active" : "Inactive"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right pr-6">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-[160px] font-bold">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => handleEdit(s)}>Edit Details</DropdownMenuItem>
-                          <DropdownMenuItem className="text-rose-600 focus:text-rose-600" onClick={() => handleDelete(s.id)}>Deactivate</DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
+            <div className="min-w-[800px] w-full">
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent border-muted text-xs font-bold uppercase">
+                    <TableHead className="pl-6">Staff Member</TableHead>
+                    <TableHead className="text-center">Role</TableHead>
+                    <TableHead className="text-center">Store / Shop</TableHead>
+                    <TableHead className="text-center">Credentials</TableHead>
+                    <TableHead className="text-center">Status</TableHead>
+                    <TableHead className="text-right pr-6">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {filteredStaff.map((s: any) => (
+                    <TableRow key={s.id} className="border-muted hover:bg-muted/30 group">
+                      <TableCell className="font-bold py-4 pl-6">
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-black shadow-sm">
+                            {s.first_name?.charAt(0) || "U"}
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-slate-900 dark:text-white">{(s.first_name || '') + ' ' + (s.last_name || '')}</span>
+                            <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-tighter">
+                              {s.email}
+                            </span>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant="secondary" className="font-bold capitalize px-3">
+                          {s.role}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-center text-sm font-bold text-slate-500">
+                        {s.store?.name || stores.find(st => st.id === s.store_id)?.name || "Main Branch"}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex flex-col items-center gap-1">
+                          <div className="flex items-center gap-1 text-[10px] font-black text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-0.5 rounded-full">
+                             <Shield className="h-3 w-3" />
+                             {s.username || 'N/A'}
+                          </div>
+                          <div className="flex items-center gap-1 text-[10px] font-black text-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-0.5 rounded-full">
+                             <Key className="h-3 w-3" />
+                             {s.pin || '****'}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge
+                          variant="outline"
+                          className={`${(s.is_active) ? "bg-green-50 text-green-700 border-green-200" : "bg-slate-50 text-slate-500 border-slate-200"} font-bold`}
+                        >
+                          <Circle className={`h-2 w-2 mr-2 fill-current ${(s.is_active) ? "text-green-500" : "text-slate-300"}`} />
+                          {s.is_active ? "Active" : "Inactive"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right pr-6">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-[160px] font-bold">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => handleEdit(s)}>Edit Details</DropdownMenuItem>
+                            <DropdownMenuItem className="text-rose-600 focus:text-rose-600" onClick={() => handleDelete(s.id)}>Deactivate</DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>

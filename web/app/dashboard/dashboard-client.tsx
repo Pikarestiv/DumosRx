@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import { useDashboard } from "./use-dashboard";
 import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
 
@@ -21,6 +21,7 @@ import { ProfileView } from "@/components/dashboard/views/profile-view";
 import { webApiClient } from "@/lib/api/client";
 
 export function DashboardClient({ view }: { view: string }) {
+  const [mobileOpen, setMobileOpen] = useState(false);
   const {
     activeTab: _activeTab,
     setActiveTab,
@@ -77,11 +78,18 @@ export function DashboardClient({ view }: { view: string }) {
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
-      <Sidebar activeTab={view} setActiveTab={setActiveTab} user={user} onLogout={logout} />
+      <Sidebar 
+        activeTab={view} 
+        setActiveTab={setActiveTab} 
+        user={user} 
+        onLogout={logout} 
+        mobileOpen={mobileOpen}
+        setMobileOpen={setMobileOpen}
+      />
       <div className="flex-1 flex flex-col min-w-0">
         <BroadcastBanner />
-        <Header onSetActiveTab={setActiveTab} />
-        <main className="flex-1 overflow-y-auto p-8 scrollbar-hide">
+        <Header onSetActiveTab={setActiveTab} onMenuClick={() => setMobileOpen(true)} />
+        <main className="flex-1 overflow-y-auto p-4 md:p-8 scrollbar-hide">
           <div className="max-w-7xl mx-auto">
             {renderView()}
           </div>

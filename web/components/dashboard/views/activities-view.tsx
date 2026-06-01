@@ -117,68 +117,70 @@ export function ActivitiesView({ stores = [] }: { stores?: StoreProp[] }) {
             )}
           </div>
         </CardHeader>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent border-muted text-xs font-bold uppercase">
-                <TableHead className="pl-6 py-5">Date & Time</TableHead>
-                <TableHead>User / Staff</TableHead>
-                <TableHead>Action</TableHead>
-                <TableHead>Target (Table)</TableHead>
-                <TableHead className="pr-6">Details</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="h-48 text-center">
-                    <div className="flex flex-col items-center justify-center gap-3 text-muted-foreground">
-                      <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                      <p className="font-semibold text-sm">Loading activities...</p>
-                    </div>
-                  </TableCell>
+        <CardContent className="p-0 overflow-x-auto">
+          <div className="min-w-[800px] w-full">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent border-muted text-xs font-bold uppercase">
+                  <TableHead className="pl-6 py-5">Date & Time</TableHead>
+                  <TableHead>User / Staff</TableHead>
+                  <TableHead>Action</TableHead>
+                  <TableHead>Target (Table)</TableHead>
+                  <TableHead className="pr-6">Details</TableHead>
                 </TableRow>
-              ) : filteredLogs.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="h-48 text-center">
-                    <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
-                      <Activity className="h-8 w-8 opacity-20" />
-                      <p className="font-bold">No activities found</p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredLogs.map((log: ActivityLog) => (
-                  <TableRow key={log.id} className="border-muted hover:bg-muted/30 transition-colors">
-                    <TableCell className="pl-6 py-4 font-medium whitespace-nowrap">
-                      {format(new Date(log.created_at || new Date()), "MMM dd, yyyy HH:mm")}
-                    </TableCell>
-                    <TableCell className="font-bold">
-                      <div className="flex flex-col">
-                        <span>{log.user?.name || log.user?.first_name || log.user_id || "System"}</span>
-                        {log.user?.store && (
-                          <span className="text-xs font-normal text-muted-foreground">{log.user.store.name}</span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={`font-black uppercase tracking-wider text-[10px] ${getActionColor(log.action)}`}>
-                        {log.action}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="font-semibold text-sm capitalize text-muted-foreground">
-                      {log.table_name?.replace(/_/g, " ")}
-                    </TableCell>
-                    <TableCell className="pr-6 text-sm">
-                      <div className="truncate max-w-[300px]" title={log.details}>
-                        {log.details || "-"}
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="h-48 text-center pl-6 pr-6">
+                      <div className="flex flex-col items-center justify-center gap-3 text-muted-foreground">
+                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                        <p className="font-semibold text-sm">Loading activities...</p>
                       </div>
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ) : filteredLogs.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="h-48 text-center pl-6 pr-6">
+                      <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
+                        <Activity className="h-8 w-8 opacity-20" />
+                        <p className="font-bold">No activities found</p>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredLogs.map((log: ActivityLog) => (
+                    <TableRow key={log.id} className="border-muted hover:bg-muted/30 transition-colors">
+                      <TableCell className="pl-6 py-4 font-medium whitespace-nowrap">
+                        {format(new Date(log.created_at || new Date()), "MMM dd, yyyy HH:mm")}
+                      </TableCell>
+                      <TableCell className="font-bold">
+                        <div className="flex flex-col">
+                          <span>{log.user?.name || log.user?.first_name || log.user_id || "System"}</span>
+                          {log.user?.store && (
+                            <span className="text-xs font-normal text-muted-foreground">{log.user.store.name}</span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={`font-black uppercase tracking-wider text-[10px] ${getActionColor(log.action)}`}>
+                          {log.action}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="font-semibold text-sm capitalize text-muted-foreground">
+                        {log.table_name?.replace(/_/g, " ")}
+                      </TableCell>
+                      <TableCell className="pr-6 text-sm">
+                        <div className="truncate max-w-[300px]" title={log.details}>
+                          {log.details || "-"}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
     </div>

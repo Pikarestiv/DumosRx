@@ -134,14 +134,14 @@ export function OverviewView({ stats, user, stores, onReset }: OverviewViewProps
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-black tracking-tight">Cloud Overview</h1>
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight">Cloud Overview</h1>
           <p className="text-muted-foreground">
             Unified insights for <span className="font-bold text-foreground">{user.pharmacy_name}</span>
           </p>
         </div>
-        <Button className="font-bold">
+        <Button className="font-bold w-full sm:w-auto">
           <Plus className="h-4 w-4 mr-2" />
           Add New Store
         </Button>
@@ -161,7 +161,7 @@ export function OverviewView({ stats, user, stores, onReset }: OverviewViewProps
               </div>
               <div>
                 <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">{stat.name}</p>
-                <h3 className="text-2xl font-black mt-1">{stat.value}</h3>
+                <h3 className="text-xl sm:text-2xl font-black mt-1">{stat.value}</h3>
               </div>
             </CardContent>
           </Card>
@@ -177,37 +177,39 @@ export function OverviewView({ stats, user, stores, onReset }: OverviewViewProps
             </div>
             <Button variant="ghost" size="sm" className="font-bold">View All</Button>
           </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent border-muted text-xs font-bold uppercase">
-                  <TableHead>Store Name</TableHead>
-                  <TableHead className="text-center">Status</TableHead>
-                  <TableHead className="text-center">Last Sync</TableHead>
-                  <TableHead className="text-right">Total Sales</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {stores.map((store: any) => (
-                  <TableRow key={store.id} className="border-muted hover:bg-muted/30">
-                    <TableCell className="font-bold py-4">
-                      <div className="flex flex-col">
-                        <span>{store.name}</span>
-                        <span className="text-[10px] font-mono text-muted-foreground">{store.id}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        <Circle className={`h-2 w-2 fill-current ${store.status === "online" ? "text-green-500" : "text-slate-300"}`} />
-                        <span className="text-sm capitalize font-medium">{store.status}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center text-sm text-muted-foreground">{store.lastSync}</TableCell>
-                    <TableCell className="text-right font-black">{store.sales}</TableCell>
+          <CardContent className="p-0 sm:p-6 overflow-x-auto">
+            <div className="min-w-[600px] w-full">
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent border-muted text-xs font-bold uppercase">
+                    <TableHead className="pl-6">Store Name</TableHead>
+                    <TableHead className="text-center">Status</TableHead>
+                    <TableHead className="text-center">Last Sync</TableHead>
+                    <TableHead className="text-right pr-6">Total Sales</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {stores.map((store: any) => (
+                    <TableRow key={store.id} className="border-muted hover:bg-muted/30">
+                      <TableCell className="font-bold py-4 pl-6">
+                        <div className="flex flex-col">
+                          <span>{store.name}</span>
+                          <span className="text-[10px] font-mono text-muted-foreground">{store.id}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <Circle className={`h-2 w-2 fill-current ${store.status === "online" ? "text-green-500" : "text-slate-300"}`} />
+                          <span className="text-sm capitalize font-medium">{store.status}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center text-sm text-muted-foreground">{store.lastSync}</TableCell>
+                      <TableCell className="text-right font-black pr-6">{store.sales}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
 

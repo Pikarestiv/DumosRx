@@ -131,6 +131,7 @@ jobs:
           echo "Selected APK directory: $APK_DIR"
 
       - name: Sign APK
+        id: sign_app
         if: env.ANDROID_KEYSTORE_BASE64 != ''
         uses: r0adkll/sign-android-release@349ebdef58775b1e0d8099458af0816dc79b6407 # v1
         with:
@@ -142,9 +143,22 @@ jobs:
         env:
           BUILD_TOOLS_VERSION: "34.0.0"
 
+      - name: Prepare Signed APK for upload
+        if: env.ANDROID_KEYSTORE_BASE64 != ''
+        run: |
+          cp "${{ steps.sign_app.outputs.signedReleaseFile }}" "${{ env.APK_DIR }}/DumosRx-Android.apk"
+          echo "UPLOAD_FILE=${{ env.APK_DIR }}/DumosRx-Android.apk" >> $GITHUB_ENV
+
+      - name: Prepare Unsigned APK for upload
+        if: env.ANDROID_KEYSTORE_BASE64 == ''
+        run: |
+          APK_PATH=$(find ${{ env.APK_DIR }} -name "*.apk" | head -n 1)
+          cp "$APK_PATH" "${{ env.APK_DIR }}/DumosRx-Android-unsigned.apk"
+          echo "UPLOAD_FILE=${{ env.APK_DIR }}/DumosRx-Android-unsigned.apk" >> $GITHUB_ENV
+
       - name: Upload APK Release Asset
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           files: |
-            ${{ env.APK_DIR }}/*.apk
+            ${{ env.UPLOAD_FILE }}
           tag_name: ${{ github.ref_name }}

@@ -1,18 +1,9 @@
 "use client";
 
-import {
-  Card,
-  CardContent,
-  CardHeader,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { getLocalTodayDate } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Package,
-  ShoppingCart,
-  AlertTriangle,
-  TrendingUp,
-} from "lucide-react";
+import { Package, ShoppingCart, AlertTriangle, TrendingUp } from "lucide-react";
 import { useLocalData } from "@/lib/db/hooks/useLocalData";
 import { useInventoryStats } from "@/lib/hooks/use-inventory-stats";
 import { useStore } from "@/lib/context/store-context";
@@ -20,28 +11,25 @@ import { useAuth } from "@/lib/context/auth-context";
 import { DashboardStats } from "./dashboard-stats";
 import { DashboardRecentActivity } from "./dashboard-recent-activity";
 import { DashboardQuickActions } from "./dashboard-quick-actions";
-import { EODSummaryDialog } from "./eod-summary-dialog";
 import { DashboardActionCenter } from "./dashboard-action-center";
 import { useState } from "react";
 import { TransactionDetailsDialog } from "@/components/pos/transaction-details-dialog";
 
-interface ActivityItem {
-  id: string;
-  type: string;
-  message: string;
-  timestamp: string;
-}
-
 export function DashboardOverview() {
   const { t, storeProfile } = useStore();
   const { user } = useAuth();
-  const [showEOD, setShowEOD] = useState(false);
   const [selectedSale, setSelectedSale] = useState<any>(null);
-  
+
   // Single source of truth for all inventory-related stat cards
   const inventoryStats = useInventoryStats();
 
-  const { data: salesToday } = useLocalData<{ total: number; count: number; cash: number; card: number; debt: number }>(
+  const { data: salesToday } = useLocalData<{
+    total: number;
+    count: number;
+    cash: number;
+    card: number;
+    debt: number;
+  }>(
     `SELECT 
       SUM(total_amount) as total, 
       COUNT(*) as count,
@@ -52,18 +40,8 @@ export function DashboardOverview() {
      WHERE date(transaction_date) = '${getLocalTodayDate()}' AND _deleted = 0`,
   );
 
-  const { data: topStaff } = useLocalData<{ name: string; total: number }>(
-    `SELECT u.name, SUM(s.total_amount) as total 
-     FROM sales s 
-     JOIN users u ON s.user_id = u.id 
-     WHERE date(s.transaction_date) = '${getLocalTodayDate()}' AND s._deleted = 0 
-     GROUP BY u.name 
-     ORDER BY total DESC 
-     LIMIT 1`
-  );
-
   const { data: recentSales } = useLocalData<any>(
-    "SELECT * FROM sales WHERE _deleted = 0 ORDER BY created_at DESC LIMIT 5"
+    "SELECT * FROM sales WHERE _deleted = 0 ORDER BY created_at DESC LIMIT 5",
   );
 
   const expiryDays = storeProfile?.expiry_warning_days || 30;
@@ -75,21 +53,12 @@ export function DashboardOverview() {
     lowStockCount: inventoryStats.lowStockCount,
   };
 
-  const eodSummary = {
-    totalSales: salesToday[0]?.total || 0,
-    cashSales: salesToday[0]?.cash || 0,
-    cardSales: salesToday[0]?.card || 0,
-    debtSales: salesToday[0]?.debt || 0,
-    transactionCount: salesToday[0]?.count || 0,
-    topStaff: topStaff[0] || { name: "No sales yet", total: 0 }
-  };
-
   const activities = recentSales.map((sale: any) => ({
     id: sale.id,
     type: "sale",
-    message: `${t('product')} sale: ${sale.transaction_number}`,
+    message: `${t("product")} sale: ${sale.transaction_number}`,
     timestamp: sale.created_at,
-    rawSale: sale
+    rawSale: sale,
   }));
 
   const formatCurrency = (amount: number) => {
@@ -115,9 +84,9 @@ export function DashboardOverview() {
 
   const statsCards = [
     {
-      title: `Total ${t('products')}`,
+      title: `Total ${t("products")}`,
       value: stats.totalMedicines.toLocaleString(),
-      description: `Active ${t('products').toLowerCase()} in stock`,
+      description: `Active ${t("products").toLowerCase()} in stock`,
       icon: Package,
       trend: "In database",
     },
@@ -173,17 +142,17 @@ export function DashboardOverview() {
     <div className="space-y-6">
       <div>
         <p className="text-primary font-medium mb-1">
-          Welcome back, {user?.name || 'User'}
+          Welcome back, {user?.name || "User"}
         </p>
         <h1 className="font-serif font-bold text-3xl text-foreground">
           Dashboard Overview
         </h1>
         <p className="text-muted-foreground mt-2">
-          Monitor your {t('store').toLowerCase()} operations and key metrics
+          Monitor your {t("store").toLowerCase()} operations and key metrics
         </p>
       </div>
 
-      <DashboardActionCenter 
+      <DashboardActionCenter
         expiringCount={stats.expiringSoon}
         lowStockCount={stats.lowStockCount}
       />
@@ -191,9 +160,9 @@ export function DashboardOverview() {
       <DashboardStats statsCards={statsCards} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <DashboardRecentActivity 
+        <DashboardRecentActivity
           activities={activities}
-          storeTerm={t('store')}
+          storeTerm={t("store")}
           getActivityColor={getActivityColor}
           onActivityClick={(activity) => {
             if (activity.type === "sale" && activity.rawSale) {
@@ -202,19 +171,11 @@ export function DashboardOverview() {
           }}
         />
 
-        <DashboardQuickActions 
-          storeTerm={t('store')}
-          productTerm={t('product')}
-          onCloseRegister={() => setShowEOD(true)}
+        <DashboardQuickActions
+          storeTerm={t("store")}
+          productTerm={t("product")}
         />
       </div>
-
-      <EODSummaryDialog 
-        open={showEOD} 
-        onOpenChange={setShowEOD} 
-        summary={eodSummary}
-        currencyCode={storeProfile?.currency}
-      />
 
       <TransactionDetailsDialog
         sale={selectedSale}

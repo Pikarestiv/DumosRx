@@ -22,13 +22,11 @@ import { PandLReportDialog } from "./p-and-l-report-dialog";
 interface DashboardQuickActionsProps {
   storeTerm: string;
   productTerm: string;
-  onCloseRegister?: () => void;
 }
 
 export function DashboardQuickActions({
   storeTerm,
   productTerm,
-  onCloseRegister
 }: DashboardQuickActionsProps) {
   const [isReportOpen, setIsReportOpen] = useState(false);
 

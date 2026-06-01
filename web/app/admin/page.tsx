@@ -1,12 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { 
-  Activity,
-  ShieldAlert,
-  Plus,
-  Loader2,
-} from "lucide-react";
+import { useState } from "react";
+import { Activity, ShieldAlert, Plus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAdminSummary } from "@/lib/api/admin-hooks";
 import { useRouter } from "next/navigation";
@@ -32,10 +27,16 @@ export default function AdminDashboard() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
         <div className="p-4 bg-rose-500/10 text-rose-500 rounded-full">
-            <ShieldAlert className="h-10 w-10" />
+          <ShieldAlert className="h-10 w-10" />
         </div>
-        <p className="text-rose-500 font-bold">{error instanceof Error ? error.message : "Failed to sync platform data"}</p>
-        <Button onClick={() => refetch()} variant="outline">Retry Sync</Button>
+        <p className="text-rose-500 font-bold">
+          {error instanceof Error
+            ? error.message
+            : "Failed to sync platform data"}
+        </p>
+        <Button onClick={() => refetch()} variant="outline">
+          Retry Sync
+        </Button>
       </div>
     );
   }
@@ -50,47 +51,53 @@ export default function AdminDashboard() {
       {/* Header section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-black tracking-tight text-slate-900 dark:text-white">Global Control</h1>
+          <h1 className="text-4xl font-black tracking-tight text-slate-900 dark:text-white">
+            Global Control
+          </h1>
           <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium italic">
             Connected to Production Cluster • <LiveClock />
           </p>
         </div>
         <div className="flex items-center gap-3">
-            <Button 
-                variant="outline" 
-                className="border-2 font-bold dark:bg-slate-900 dark:border-slate-800"
-                onClick={() => refetch()}
-                disabled={isLoading}
-            >
-                {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Activity className="h-4 w-4 mr-2 text-indigo-500" />}
-                Refresh Pulse
-            </Button>
-            <Button 
-                className="bg-indigo-600 hover:bg-indigo-700 font-bold shadow-lg shadow-indigo-600/20"
-                onClick={() => router.push("/admin/pharmacies/new")}
-            >
-                <Plus className="h-4 w-4 mr-2" />
-                Register Pharmacy
-            </Button>
+          <Button
+            variant="outline"
+            className="border-2 font-bold dark:bg-slate-900 dark:border-slate-800"
+            onClick={() => refetch()}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Activity className="h-4 w-4 mr-2 text-indigo-500" />
+            )}
+            Refresh Pulse
+          </Button>
+          <Button
+            className="bg-indigo-600 hover:bg-indigo-700 font-bold shadow-lg shadow-indigo-600/20"
+            onClick={() => router.push("/admin/pharmacies/new")}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Register Pharmacy
+          </Button>
         </div>
       </div>
 
       <StatsGrid globalStats={globalStats} />
 
       <div className="grid lg:grid-cols-3 gap-8">
-        <RecentPharmacies 
-          recentPharmacies={recentPharmacies} 
-          setSelectedPharmacy={setSelectedPharmacy} 
+        <RecentPharmacies
+          recentPharmacies={recentPharmacies}
+          setSelectedPharmacy={setSelectedPharmacy}
         />
-        <SystemHealth 
-          liveOperations={liveOperations} 
-          securityAlerts={securityAlerts} 
+        <SystemHealth
+          liveOperations={liveOperations}
+          securityAlerts={securityAlerts}
         />
       </div>
 
-      <PharmacyDialog 
-        selectedPharmacy={selectedPharmacy} 
-        setSelectedPharmacy={setSelectedPharmacy} 
+      <PharmacyDialog
+        selectedPharmacy={selectedPharmacy}
+        setSelectedPharmacy={setSelectedPharmacy}
       />
     </div>
   );

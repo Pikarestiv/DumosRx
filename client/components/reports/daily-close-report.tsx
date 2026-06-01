@@ -18,13 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  AlertCircle,
-  FileText,
-  CheckCircle2,
-  Download,
-  Printer,
-} from "lucide-react";
+import { CheckCircle2, Download, Printer } from "lucide-react";
 import { getLocalTodayDate } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -97,7 +91,6 @@ export function DailyCloseReport() {
 
   // Calculate top sellers & profit
   let totalCostPrice = 0;
-  let totalRevenue = 0;
   const itemMap: Record<
     string,
     { name: string; quantity: number; revenue: number }
@@ -106,7 +99,6 @@ export function DailyCloseReport() {
   itemsToday.forEach((item: any) => {
     const cost = item.cost_price || item.med_cost_price || 0;
     totalCostPrice += cost * item.quantity;
-    totalRevenue += item.total_price || 0;
 
     if (!itemMap[item.medicine_id]) {
       itemMap[item.medicine_id] = {

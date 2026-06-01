@@ -1,5 +1,128 @@
 import { API_BASE_URL } from "../constants";
 
+interface ApiLogEntry {
+  timestamp: string;
+  type: "request" | "response" | "error";
+  method?: string;
+  url?: string;
+  status?: number;
+  durationMs?: number;
+  payload?: any;
+  error?: any;
+}
+
+// In-memory circular log buffer
+if (typeof window !== "undefined") {
+  (window as any).__DRX_API_LOGS__ = (window as any).__DRX_API_LOGS__ || [];
+}
+
+const addLogToBuffer = (entry: ApiLogEntry) => {
+  if (typeof window === "undefined") return;
+  const win = window as any;
+  win.__DRX_API_LOGS__ = win.__DRX_API_LOGS__ || [];
+  win.__DRX_API_LOGS__.push(entry);
+  if (win.__DRX_API_LOGS__.length > 50) {
+    win.__DRX_API_LOGS__.shift();
+  }
+};
+
+const sanitizePayload = (payload: any): any => {
+  if (!payload) return payload;
+  
+  try {
+    let parsed = payload;
+    if (typeof payload === "string") {
+      parsed = JSON.parse(payload);
+    }
+    
+    if (typeof parsed === "object") {
+      const sanitized = Array.isArray(parsed) ? [...parsed] : { ...parsed };
+      
+      // Handle array truncation
+      if (Array.isArray(sanitized)) {
+        if (sanitized.length > 10) {
+          return [
+            `Array(${sanitized.length})`,
+            ...sanitized.slice(0, 3).map(item => sanitizePayload(item)),
+            "...truncated"
+          ];
+        }
+        return sanitized.map(item => sanitizePayload(item));
+      }
+      
+      // Mask sensitive keys
+      const sensitiveKeys = ["password", "token", "pin", "newpassword", "oldpassword", "credentials"];
+      for (const key of Object.keys(sanitized)) {
+        const lowerKey = key.toLowerCase();
+        if (sensitiveKeys.some(sk => lowerKey.includes(sk))) {
+          sanitized[key] = "********";
+        } else if (typeof sanitized[key] === "object") {
+          sanitized[key] = sanitizePayload(sanitized[key]);
+        }
+      }
+      return sanitized;
+    }
+    return parsed;
+  } catch (_) {
+    return payload;
+  }
+};
+
+// Rate limiting & deduplication
+let recentErrors: Array<{ timestamp: number; key: string }> = [];
+const cleanRecentErrors = () => {
+  const now = Date.now();
+  recentErrors = recentErrors.filter(e => now - e.timestamp < 60000);
+};
+
+const shouldReportError = (method: string, url: string, status: number, message: string): boolean => {
+  cleanRecentErrors();
+  
+  if (recentErrors.length >= 5) {
+    return false;
+  }
+  
+  const errorKey = `${method}:${url}:${status}:${message}`;
+  if (recentErrors.some(e => e.key === errorKey)) {
+    return false;
+  }
+  
+  recentErrors.push({ timestamp: Date.now(), key: errorKey });
+  return true;
+};
+
+const reportClientError = (method: string, url: string, status: number | undefined, message: string, details: any, baseURL: string, token: string | null) => {
+  if (url.includes("/logs/client-error")) return;
+  if (!shouldReportError(method, url, status || 0, message)) return;
+  
+  try {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+    };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+    
+    fetch(`${baseURL}/logs/client-error`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        method,
+        url,
+        status: status || null,
+        message,
+        details: sanitizePayload(details),
+      }),
+      keepalive: true,
+    }).catch(err => {
+      console.warn("Failed to transmit error telemetry:", err);
+    });
+  } catch (_) {
+    // Silently catch exceptions
+  }
+};
+
 class ApiClient {
   private baseURL: string;
   private token: string | null = null;
@@ -103,11 +226,74 @@ class ApiClient {
       ...options,
     };
 
+    const startTime = Date.now();
+    const method = config.method || "GET";
+
+    addLogToBuffer({
+      timestamp: new Date().toISOString(),
+      type: "request",
+      method: method,
+      url: url,
+      payload: sanitizePayload(config.body),
+    });
+
+    if (process.env.NODE_ENV === "development" && typeof window !== "undefined") {
+      console.log(
+        `%c[API Request] ${method} ${url}`,
+        "color: #6366f1; font-weight: bold;",
+        {
+          headers: config.headers,
+          data: sanitizePayload(config.body),
+        }
+      );
+    }
+
     try {
       const response = await fetch(url, config);
+      const duration = Date.now() - startTime;
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        
+        // Log Error Response
+        addLogToBuffer({
+          timestamp: new Date().toISOString(),
+          type: "error",
+          method: method,
+          url: url,
+          status: response.status,
+          durationMs: duration,
+          error: errorData.message || `HTTP error! status: ${response.status}`,
+          payload: sanitizePayload(errorData),
+        });
+
+        if (typeof window !== "undefined") {
+          if (process.env.NODE_ENV === "development") {
+            console.groupCollapsed(
+              `%c[API Error] ${method} ${url} - Status: ${response.status} (${duration}ms)`,
+              "color: #ef4444; font-weight: bold;"
+            );
+            console.error("Message:", errorData.message);
+            console.log("Details:", errorData);
+            console.log("Request Payload:", sanitizePayload(config.body));
+            console.groupEnd();
+          } else {
+            console.error(`[API Error] ${method} ${url} - Status: ${response.status} - ${errorData.message}`);
+          }
+
+          if (response.status !== 401 && !url.includes("/logs/client-error")) {
+            reportClientError(
+              method,
+              url,
+              response.status,
+              errorData.message || "Request failed",
+              { details: errorData, durationMs: duration },
+              this.baseURL,
+              currentToken
+            );
+          }
+        }
+
         if (response.status === 401) {
           this.clearToken();
         }
@@ -136,8 +322,59 @@ class ApiClient {
         throw new Error(errorMessage + serverError);
       }
 
-      return await response.json();
-    } catch (error) {
+      const responseData = await response.json();
+      
+      // Log Success Response
+      addLogToBuffer({
+        timestamp: new Date().toISOString(),
+        type: "response",
+        method: method,
+        url: url,
+        status: response.status,
+        durationMs: duration,
+        payload: sanitizePayload(responseData),
+      });
+
+      if (process.env.NODE_ENV === "development" && typeof window !== "undefined") {
+        console.log(
+          `%c[API Response] ${method} ${url} - Status: ${response.status} (${duration}ms)`,
+          "color: #10b981; font-weight: bold;",
+          {
+            data: sanitizePayload(responseData),
+          }
+        );
+      }
+
+      return responseData;
+    } catch (error: any) {
+      const duration = Date.now() - startTime;
+      
+      if (!error.message?.includes("HTTP error!")) {
+         // Network or parse error (not handled by the response.ok block)
+         addLogToBuffer({
+          timestamp: new Date().toISOString(),
+          type: "error",
+          method: method,
+          url: url,
+          status: 0,
+          durationMs: duration,
+          error: error.message || "Network Error",
+          payload: null,
+        });
+
+        if (typeof window !== "undefined" && !url.includes("/logs/client-error")) {
+          reportClientError(
+            method,
+            url,
+            0,
+            error.message || "Network Error",
+            { durationMs: duration },
+            this.baseURL,
+            currentToken
+          );
+        }
+      }
+
       console.error("API request failed:", error);
       throw error;
     }

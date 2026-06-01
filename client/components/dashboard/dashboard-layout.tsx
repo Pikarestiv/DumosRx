@@ -3,7 +3,7 @@
 import type React from "react";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { ThemeCustomizer } from "@/components/ui/theme-customizer";
 import { useAuth } from "@/lib/context/auth-context";
@@ -25,9 +25,48 @@ const COLLAPSED_KEY = "sidebar_collapsed";
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const router = useRouter();
+  const pathname = usePathname();
   const { storeProfile } = useStore();
   const { user } = useAuth();
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    // Ignore if touch is inside a horizontal scroll container
+    let el = e.target as HTMLElement | null;
+    while (el && el !== e.currentTarget) {
+      const style = window.getComputedStyle(el);
+      if (
+        (style.overflowX === "auto" || style.overflowX === "scroll") &&
+        el.scrollWidth > el.clientWidth
+      ) {
+        return;
+      }
+      el = el.parentElement;
+    }
+    setTouchStart({ x: e.touches[0].clientX, y: e.touches[0].clientY });
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!touchStart) return;
+    const endX = e.changedTouches[0].clientX;
+    const endY = e.changedTouches[0].clientY;
+    const diffX = endX - touchStart.x;
+    const diffY = endY - touchStart.y;
+
+    if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 50) {
+      const tabs = ["/dashboard", "/pos", "/inventory", "/customers"];
+      const currentIndex = tabs.findIndex(t => pathname.startsWith(t));
+      if (currentIndex !== -1) {
+        if (diffX > 0 && currentIndex > 0) {
+          router.push(tabs[currentIndex - 1]);
+        } else if (diffX < 0 && currentIndex < tabs.length - 1) {
+          router.push(tabs[currentIndex + 1]);
+        }
+      }
+    }
+    setTouchStart(null);
+  };
 
   /* Hydrate collapse preference from localStorage */
   useEffect(() => {
@@ -73,10 +112,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* Main content — shifts right to clear the sidebar */}
       <div
         className={cn(
-          "flex flex-col min-h-screen transition-all duration-300 pb-16 lg:pb-0",
+          "flex flex-col min-h-screen transition-all duration-300 pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0",
           sidebarCollapsed ? "lg:pl-[68px]" : "lg:pl-64",
         )}
         style={{ paddingTop: "var(--tauri-top, 0px)" }}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
       >
         <BroadcastBanner />
 

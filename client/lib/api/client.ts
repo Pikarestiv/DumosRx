@@ -28,33 +28,40 @@ const addLogToBuffer = (entry: ApiLogEntry) => {
 
 const sanitizePayload = (payload: any): any => {
   if (!payload) return payload;
-  
+
   try {
     let parsed = payload;
     if (typeof payload === "string") {
       parsed = JSON.parse(payload);
     }
-    
+
     if (typeof parsed === "object") {
       const sanitized = Array.isArray(parsed) ? [...parsed] : { ...parsed };
-      
+
       // Handle array truncation
       if (Array.isArray(sanitized)) {
         if (sanitized.length > 10) {
           return [
             `Array(${sanitized.length})`,
-            ...sanitized.slice(0, 3).map(item => sanitizePayload(item)),
-            "...truncated"
+            ...sanitized.slice(0, 3).map((item) => sanitizePayload(item)),
+            "...truncated",
           ];
         }
-        return sanitized.map(item => sanitizePayload(item));
+        return sanitized.map((item) => sanitizePayload(item));
       }
-      
+
       // Mask sensitive keys
-      const sensitiveKeys = ["password", "token", "pin", "newpassword", "oldpassword", "credentials"];
+      const sensitiveKeys = [
+        "password",
+        "token",
+        "pin",
+        "newpassword",
+        "oldpassword",
+        "credentials",
+      ];
       for (const key of Object.keys(sanitized)) {
         const lowerKey = key.toLowerCase();
-        if (sensitiveKeys.some(sk => lowerKey.includes(sk))) {
+        if (sensitiveKeys.some((sk) => lowerKey.includes(sk))) {
           sanitized[key] = "********";
         } else if (typeof sanitized[key] === "object") {
           sanitized[key] = sanitizePayload(sanitized[key]);
@@ -72,38 +79,51 @@ const sanitizePayload = (payload: any): any => {
 let recentErrors: Array<{ timestamp: number; key: string }> = [];
 const cleanRecentErrors = () => {
   const now = Date.now();
-  recentErrors = recentErrors.filter(e => now - e.timestamp < 60000);
+  recentErrors = recentErrors.filter((e) => now - e.timestamp < 60000);
 };
 
-const shouldReportError = (method: string, url: string, status: number, message: string): boolean => {
+const shouldReportError = (
+  method: string,
+  url: string,
+  status: number,
+  message: string,
+): boolean => {
   cleanRecentErrors();
-  
+
   if (recentErrors.length >= 5) {
     return false;
   }
-  
+
   const errorKey = `${method}:${url}:${status}:${message}`;
-  if (recentErrors.some(e => e.key === errorKey)) {
+  if (recentErrors.some((e) => e.key === errorKey)) {
     return false;
   }
-  
+
   recentErrors.push({ timestamp: Date.now(), key: errorKey });
   return true;
 };
 
-const reportClientError = (method: string, url: string, status: number | undefined, message: string, details: any, baseURL: string, token: string | null) => {
+const reportClientError = (
+  method: string,
+  url: string,
+  status: number | undefined,
+  message: string,
+  details: any,
+  baseURL: string,
+  token: string | null,
+) => {
   if (url.includes("/logs/client-error")) return;
   if (!shouldReportError(method, url, status || 0, message)) return;
-  
+
   try {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
-      "Accept": "application/json",
+      Accept: "application/json",
     };
     if (token) {
       headers["Authorization"] = `Bearer ${token}`;
     }
-    
+
     fetch(`${baseURL}/logs/client-error`, {
       method: "POST",
       headers,
@@ -115,7 +135,7 @@ const reportClientError = (method: string, url: string, status: number | undefin
         details: sanitizePayload(details),
       }),
       keepalive: true,
-    }).catch(err => {
+    }).catch((err) => {
       console.warn("Failed to transmit error telemetry:", err);
     });
   } catch (_) {
@@ -162,8 +182,11 @@ class ApiClient {
     this.refreshPromise = (async () => {
       try {
         const url = `${this.baseURL}/refresh`;
-        const currentToken = typeof window !== "undefined" ? localStorage.getItem("auth_token") || this.token : this.token;
-        
+        const currentToken =
+          typeof window !== "undefined"
+            ? localStorage.getItem("auth_token") || this.token
+            : this.token;
+
         if (!currentToken) return;
 
         const response = await fetch(url, {
@@ -198,7 +221,11 @@ class ApiClient {
     options: RequestInit = {},
   ): Promise<T> {
     // Intercept to silently refresh token if it's older than 7 days
-    if (typeof window !== "undefined" && !endpoint.includes("/login") && !endpoint.includes("/refresh")) {
+    if (
+      typeof window !== "undefined" &&
+      !endpoint.includes("/login") &&
+      !endpoint.includes("/refresh")
+    ) {
       const issuedAtStr = localStorage.getItem("auth_token_issued_at");
       if (issuedAtStr && navigator.onLine) {
         const issuedAt = parseInt(issuedAtStr, 10);
@@ -237,14 +264,17 @@ class ApiClient {
       payload: sanitizePayload(config.body),
     });
 
-    if (process.env.NODE_ENV === "development" && typeof window !== "undefined") {
+    if (
+      process.env.NODE_ENV === "development" &&
+      typeof window !== "undefined"
+    ) {
       console.log(
         `%c[API Request] ${method} ${url}`,
         "color: #6366f1; font-weight: bold;",
         {
           headers: config.headers,
           data: sanitizePayload(config.body),
-        }
+        },
       );
     }
 
@@ -254,7 +284,7 @@ class ApiClient {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        
+
         // Log Error Response
         addLogToBuffer({
           timestamp: new Date().toISOString(),
@@ -271,14 +301,16 @@ class ApiClient {
           if (process.env.NODE_ENV === "development") {
             console.groupCollapsed(
               `%c[API Error] ${method} ${url} - Status: ${response.status} (${duration}ms)`,
-              "color: #ef4444; font-weight: bold;"
+              "color: #ef4444; font-weight: bold;",
             );
             console.error("Message:", errorData.message);
             console.log("Details:", errorData);
             console.log("Request Payload:", sanitizePayload(config.body));
             console.groupEnd();
           } else {
-            console.error(`[API Error] ${method} ${url} - Status: ${response.status} - ${errorData.message}`);
+            console.error(
+              `[API Error] ${method} ${url} - Status: ${response.status} - ${errorData.message}`,
+            );
           }
 
           if (response.status !== 401 && !url.includes("/logs/client-error")) {
@@ -289,7 +321,7 @@ class ApiClient {
               errorData.message || "Request failed",
               { details: errorData, durationMs: duration },
               this.baseURL,
-              currentToken
+              currentToken,
             );
           }
         }
@@ -297,13 +329,19 @@ class ApiClient {
         if (response.status === 401) {
           this.clearToken();
         }
-        
-        if (response.status === 403 && errorData.message === "ACCOUNT_SUSPENDED") {
+
+        if (
+          response.status === 403 &&
+          errorData.message === "ACCOUNT_SUSPENDED"
+        ) {
           try {
             const { execute } = await import("../db/core");
             await execute(
               "UPDATE store_profile SET status = 'Suspended', suspension_reason = ?",
-              [errorData.reason || "Your pharmacy account has been suspended for violating our terms of usage. Please contact administrative support."]
+              [
+                errorData.reason ||
+                  "Your pharmacy account has been suspended for violating our terms of usage. Please contact administrative support.",
+              ],
             );
             if (typeof window !== "undefined") {
               window.location.reload();
@@ -323,7 +361,7 @@ class ApiClient {
       }
 
       const responseData = await response.json();
-      
+
       // Log Success Response
       addLogToBuffer({
         timestamp: new Date().toISOString(),
@@ -335,23 +373,26 @@ class ApiClient {
         payload: sanitizePayload(responseData),
       });
 
-      if (process.env.NODE_ENV === "development" && typeof window !== "undefined") {
+      if (
+        process.env.NODE_ENV === "development" &&
+        typeof window !== "undefined"
+      ) {
         console.log(
           `%c[API Response] ${method} ${url} - Status: ${response.status} (${duration}ms)`,
           "color: #10b981; font-weight: bold;",
           {
             data: sanitizePayload(responseData),
-          }
+          },
         );
       }
 
       return responseData;
     } catch (error: any) {
       const duration = Date.now() - startTime;
-      
+
       if (!error.message?.includes("HTTP error!")) {
-         // Network or parse error (not handled by the response.ok block)
-         addLogToBuffer({
+        // Network or parse error (not handled by the response.ok block)
+        addLogToBuffer({
           timestamp: new Date().toISOString(),
           type: "error",
           method: method,
@@ -362,7 +403,10 @@ class ApiClient {
           payload: null,
         });
 
-        if (typeof window !== "undefined" && !url.includes("/logs/client-error")) {
+        if (
+          typeof window !== "undefined" &&
+          !url.includes("/logs/client-error")
+        ) {
           reportClientError(
             method,
             url,
@@ -370,7 +414,7 @@ class ApiClient {
             error.message || "Network Error",
             { durationMs: duration },
             this.baseURL,
-            currentToken
+            currentToken,
           );
         }
       }

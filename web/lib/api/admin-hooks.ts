@@ -10,10 +10,10 @@ export const useAdminSummary = (options?: { enabled?: boolean }) => {
   });
 };
 
-export const useAdminPharmacies = (page = 1, search = "") => {
+export const useAdminPharmacies = (page = 1, search = "", status = "", plan = "") => {
   return useQuery({
-    queryKey: ["admin-pharmacies", page, search],
-    queryFn: () => webApiClient.request<any>(`admin/pharmacies?page=${page}${search ? `&search=${search}` : ""}`),
+    queryKey: ["admin-pharmacies", page, search, status, plan],
+    queryFn: () => webApiClient.request<any>(`admin/pharmacies?page=${page}${search ? `&search=${search}` : ""}${status ? `&status=${status}` : ""}${plan ? `&plan=${plan}` : ""}`),
   });
 };
 

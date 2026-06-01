@@ -138,7 +138,7 @@ class AdminService
         ];
     }
 
-    public function getPharmacies($page = 1, $search = null)
+    public function getPharmacies($page = 1, $search = null, $status = null, $plan = null)
     {
         $query = Store::with(['user.subscriptions'])
             ->withSum(['sales as total_revenue' => function ($q) {
@@ -155,6 +155,36 @@ class AdminService
                          ->orWhere('email', 'like', "%{$search}%");
                   });
             });
+        }
+
+        if ($status && $status !== 'all') {
+            // Capitalize status if needed or check directly (e.g. Active, Suspended)
+            $query->where('status', ucwords(strtolower($status)));
+        }
+
+        if ($plan && $plan !== 'all') {
+            if ($plan === 'basic') {
+                $query->where(function ($q) {
+                    $q->whereHas('user.subscriptions', function ($sq) {
+                        $sq->where('status', 'active')
+                           ->where('end_date', '>', now())
+                           ->whereIn('plan_name', ['Starter', 'basic', 'starter']);
+                    })->orWhereDoesntHave('user.subscriptions');
+                });
+            } else {
+                $query->whereHas('user.subscriptions', function ($sq) use ($plan) {
+                    $sq->where('status', 'active')
+                       ->where('end_date', '>', now());
+                    
+                    if ($plan === 'pro') {
+                        $sq->whereIn('plan_name', ['Dumos Pro', 'pro']);
+                    } elseif ($plan === 'enterprise') {
+                        $sq->whereIn('plan_name', ['Enterprise', 'enterprise']);
+                    } elseif ($plan === 'local') {
+                        $sq->whereIn('plan_name', ['Dumos Local', 'local']);
+                    }
+                });
+            }
         }
 
         $paginator = $query->latest()->paginate(10, ['*'], 'page', $page);

@@ -106,9 +106,31 @@ class SyncController extends Controller
                     }
                 }
 
+                // Handle audit_logs specific mappings
+                if ($change['table_name'] === 'audit_logs') {
+                    $payload['description'] = "Action: " . ($payload['action'] ?? 'Unknown') . " on " . ($payload['table_name'] ?? 'unknown');
+                    $payload['properties'] = [
+                        'client_id' => $payload['id'] ?? null,
+                        'table_name' => $payload['table_name'] ?? null,
+                        'record_id' => $payload['record_id'] ?? null,
+                        'details' => $payload['details'] ?? null,
+                    ];
+                    $payload['ip_address'] = $request->ip();
+                    $payload['user_agent'] = $request->userAgent();
+                    unset($payload['table_name']);
+                    unset($payload['record_id']);
+                    unset($payload['details']);
+                    unset($payload['id']);
+                }
+
                 if ($change['operation'] === 'INSERT') {
                     $recordId = $change['record_id'] ?? ($payload['id'] ?? null);
-                    $exists = $modelClass::where('id', $recordId)->exists();
+                    
+                    if ($change['table_name'] === 'audit_logs') {
+                        $exists = $modelClass::where('properties->client_id', $recordId)->exists();
+                    } else {
+                        $exists = $modelClass::where('id', $recordId)->exists();
+                    }
                     
                     // Prevent duplicate email/username crashes for users
                     if (!$exists && $change['table_name'] === 'users') {
@@ -138,7 +160,13 @@ class SyncController extends Controller
                             }
                         }
                         
-                        $model->id = $recordId;
+                        if ($change['table_name'] === 'audit_logs') {
+                            if (isset($payload['created_at'])) {
+                                $model->created_at = $payload['created_at'];
+                            }
+                        } else {
+                            $model->id = $recordId;
+                        }
                         
                         $table = $model->getTable();
                         if (!isset($hasSyncedAtCache[$table])) {
@@ -281,8 +309,17 @@ class SyncController extends Controller
                     $plan = 'free';
                     if ($item->user && $item->user->subscriptions->isNotEmpty()) {
                         $sub = $item->user->subscriptions->sortByDesc('created_at')->first();
-                        if ($sub && in_array(strtolower($sub->plan_name), ['free', 'local', 'pro', 'enterprise'])) {
-                            $plan = strtolower($sub->plan_name);
+                        if ($sub) {
+                            $subPlan = strtolower($sub->plan_name);
+                            if ($subPlan === 'starter') {
+                                $plan = 'pro'; // Trial has pro features
+                            } elseif ($subPlan === 'dumos local') {
+                                $plan = 'local';
+                            } elseif ($subPlan === 'dumos pro') {
+                                $plan = 'pro';
+                            } elseif (in_array($subPlan, ['free', 'local', 'pro', 'enterprise'])) {
+                                $plan = $subPlan;
+                            }
                         }
                     }
                     $array['subscription_tier'] = $plan;
@@ -345,6 +382,7 @@ class SyncController extends Controller
             'users' => User::class,
             'inventory' => Inventory::class,
             'activity_logs' => ActivityLog::class,
+            'audit_logs' => ActivityLog::class,
             'categories' => \App\Models\Category::class,
             'vendors' => Supplier::class, // Map client vendors to server suppliers
             'expenses' => Expense::class,

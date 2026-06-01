@@ -7,7 +7,7 @@ import { Check, ShieldAlert, CreditCard, Loader2 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 
-import { useInitiatePaymentMutation, useSystemConfig, useReferralStats } from "@/lib/api/hooks";
+import { useInitiatePaymentMutation, useSystemConfig, useReferralStats, useSubscriptionStatus } from "@/lib/api/hooks";
 import { webApiClient } from "@/lib/api/client";
 import { toast } from "sonner";
 import { calculateDiscountPercent } from "@/lib/utils";
@@ -21,6 +21,7 @@ export function SubscriptionPlans() {
   const [useCredits, setUseCredits] = useState(false);
   
   const initiatePayment = useInitiatePaymentMutation();
+  const { data: subStatus } = useSubscriptionStatus();
   const { data: config, isLoading: isConfigLoading } = useSystemConfig("subscription_plans");
   const { data: referralStats } = useReferralStats();
 
@@ -194,13 +195,31 @@ export function SubscriptionPlans() {
   return (
     <div className="space-y-8">
       {/* Current Plan Alert */}
-      <div className="bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-lg flex items-start gap-3">
-        <ShieldAlert className="h-5 w-5 mt-0.5 shrink-0" />
-        <div className="space-y-1">
-          <p className="font-medium">You are on the Free Trial ({config?.trial_days || 14} Days Remaining)</p>
-          <p className="text-sm">Upgrade to a paid plan below to ensure your cloud data remains protected.</p>
+      {subStatus?.status === "active" && (subStatus.plan === "Starter" || subStatus.plan === "Trial" || subStatus.plan?.toLowerCase()?.includes("trial")) ? (
+        <div className="bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-lg flex items-start gap-3">
+          <ShieldAlert className="h-5 w-5 mt-0.5 shrink-0" />
+          <div className="space-y-1">
+            <p className="font-medium">You are on the Free Trial ({subStatus.days_remaining ?? config?.trial_days ?? 14} Days Remaining)</p>
+            <p className="text-sm">Upgrade to a paid plan below to ensure your cloud data remains protected.</p>
+          </div>
         </div>
-      </div>
+      ) : subStatus?.status === "active" ? (
+        <div className="bg-green-50 border border-green-200 text-green-800 p-4 rounded-lg flex items-start gap-3">
+          <Check className="h-5 w-5 mt-0.5 shrink-0 text-green-600" />
+          <div className="space-y-1">
+            <p className="font-medium">You are on the {subStatus.plan} Plan ({subStatus.days_remaining ?? 0} Days Remaining)</p>
+            <p className="text-sm">Your subscription is active. Thank you for protecting your cloud data with DumosRx.</p>
+          </div>
+        </div>
+      ) : subStatus?.status === "inactive" ? (
+        <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-lg flex items-start gap-3">
+          <ShieldAlert className="h-5 w-5 mt-0.5 shrink-0 text-red-600" />
+          <div className="space-y-1">
+            <p className="font-medium">No Active Subscription / Expired</p>
+            <p className="text-sm">Upgrade or renew your plan below to ensure your cloud data remains protected.</p>
+          </div>
+        </div>
+      ) : null}
 
       <div className="flex justify-center my-8">
         <Tabs

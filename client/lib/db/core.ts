@@ -255,6 +255,24 @@ export async function logAction(action: string, table: string, recordId: string,
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
     [id, currentUser?.id || null, action, table, recordId, details ? JSON.stringify(details) : null, now]
   );
+
+  // Enqueue log action into the sync queue so it gets synced to the server
+  const record = {
+    id,
+    user_id: currentUser?.id || null,
+    action,
+    table_name: table,
+    record_id: recordId,
+    details: details ? JSON.stringify(details) : null,
+    created_at: now,
+    updated_at: now
+  };
+
+  await execute(
+    `INSERT INTO _sync_queue (table_name, record_id, operation, payload, created_at)
+     VALUES (?, ?, ?, ?, ?)`,
+    ["audit_logs", id, "INSERT", JSON.stringify(record), now]
+  );
 }
 
 export function getDatabase(): Database | null {

@@ -47,7 +47,9 @@ class AdminController extends Controller
         try {
             $page = $request->query('page', 1);
             $search = $request->query('search');
-            $data = $this->adminService->getPharmacies($page, $search);
+            $status = $request->query('status');
+            $plan = $request->query('plan');
+            $data = $this->adminService->getPharmacies($page, $search, $status, $plan);
             return response()->json($data);
         } catch (\Exception $e) {
             Log::error("Admin Pharmacies Error: " . $e->getMessage());

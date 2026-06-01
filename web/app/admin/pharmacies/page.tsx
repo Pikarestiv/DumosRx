@@ -26,13 +26,20 @@ export default function PharmaciesManagement() {
 
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState(initialSearch);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [planFilter, setPlanFilter] = useState("all");
   const [selectedPharmacy, setSelectedPharmacy] = useState<any>(null);
   const [isSuspendDialogOpen, setIsSuspendDialogOpen] = useState(false);
   const [isTrialDialogOpen, setIsTrialDialogOpen] = useState(false);
   
   const debouncedSearch = useDebounce(search, 500);
 
-  const { data: response, isLoading, error, refetch } = useAdminPharmacies(page, debouncedSearch);
+  const { data: response, isLoading, error, refetch } = useAdminPharmacies(
+    page,
+    debouncedSearch,
+    statusFilter === "all" ? "" : statusFilter,
+    planFilter === "all" ? "" : planFilter
+  );
   const suspendMutation = useSuspendPharmacyMutation();
   const unsuspendMutation = useUnsuspendPharmacyMutation();
   const impersonateMutation = useImpersonatePharmacyMutation();
@@ -200,6 +207,10 @@ export default function PharmaciesManagement() {
           <PharmacyToolbar
             search={search}
             onSearchChange={setSearch}
+            statusFilter={statusFilter}
+            onStatusFilterChange={(val) => { setStatusFilter(val); setPage(1); }}
+            planFilter={planFilter}
+            onPlanFilterChange={(val) => { setPlanFilter(val); setPage(1); }}
             isLoading={isLoading}
             totalShown={pharmacyList.length}
             totalCount={pharmacyMeta?.total || 0}

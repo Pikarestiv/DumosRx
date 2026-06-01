@@ -68,7 +68,7 @@ class SubscriptionService
             if (!$sub) return false;
         }
 
-        $plan = strtolower($sub->plan_name);
+        $plan = $this->normalizePlanName($sub->plan_name);
         
         // Map old plan names if needed, or assume they are local/pro/enterprise
         $systemConfig = SystemConfig::getVal('subscription_plans', []);
@@ -87,7 +87,7 @@ class SubscriptionService
         
         if (!$sub) return false;
 
-        $plan = strtolower($sub->plan_name);
+        $plan = $this->normalizePlanName($sub->plan_name);
         $systemConfig = SystemConfig::getVal('subscription_plans', []);
         $limit = $systemConfig['tiers'][$plan]['limits'][$type] ?? 0;
 
@@ -149,5 +149,20 @@ class SubscriptionService
             'subscription_id' => $subscription ? $subscription->id : null,
             'used_at' => now(),
         ]);
+    }
+
+    private function normalizePlanName(string $planName): string
+    {
+        $plan = strtolower($planName);
+        if ($plan === 'starter') {
+            return 'pro'; // Trial gets Pro features
+        }
+        if ($plan === 'dumos local') {
+            return 'local';
+        }
+        if ($plan === 'dumos pro') {
+            return 'pro';
+        }
+        return $plan;
     }
 }

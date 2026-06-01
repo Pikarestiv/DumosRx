@@ -7,6 +7,7 @@ use App\Models\ActivityLog;
 use App\Models\Store;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class ActivityLogController extends Controller
 {
@@ -45,7 +46,7 @@ class ActivityLogController extends Controller
         $user = $request->user();
 
         // Log to laravel.log
-        \Log::error("Client API Error [User: {$user->id} ({$user->email})]: {$request->input('method')} {$request->input('url')} - Status: {$request->input('status')} - Message: {$request->input('message')}", [
+        Log::error("Client API Error [User: {$user->id} ({$user->email})]: {$request->input('method')} {$request->input('url')} - Status: {$request->input('status')} - Message: {$request->input('message')}", [
             'details' => $request->input('details'),
             'ip' => $request->ip(),
             'user_agent' => $request->userAgent()

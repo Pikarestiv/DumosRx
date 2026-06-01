@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import { SearchableInput } from "@/components/ui/searchable-input";
 import { AddMedicineDialog } from "./add-medicine-dialog";
 import { MedicineDetailsDialog } from "./medicine-details-dialog";
-import { insert, update } from "@/lib/db/local-database";
+import { insert, update, query } from "@/lib/db/local-database";
 import { useLocalData } from "@/lib/db/hooks/useLocalData";
 import { useStore } from "@/lib/context/store-context";
 import { genericFuzzySearch } from "@/lib/utils/search";
@@ -57,12 +57,16 @@ export function MedicineDatabase() {
 
   const isPharmacy = storeType === "pharmacy";
 
-  // Fetch medicines from local DB
   const {
     data: medicines,
     refetch,
   } = useLocalData<Medicine>(
-    "SELECT * FROM medicines WHERE _deleted = 0 ORDER BY created_at DESC",
+    `SELECT m.*, c.name as category_name, v.name as supplier_name
+     FROM medicines m
+     LEFT JOIN categories c ON m.category_id = c.id
+     LEFT JOIN vendors v ON m.supplier_id = v.id
+     WHERE m._deleted = 0
+     ORDER BY m.created_at DESC`,
     [],
     { transform: transformMedicine },
   );
@@ -83,6 +87,46 @@ export function MedicineDatabase() {
         is_active: payload.status === "inactive" ? 0 : 1,
       };
       delete localPayload.status;
+
+      // Resolve category string to UUID
+      if (payload.category_id) {
+        const categoryName = payload.category_id.trim();
+        const existing = await query<any>("SELECT id FROM categories WHERE name = ? AND _deleted = 0", [categoryName]);
+        if (existing && existing.length > 0) {
+          localPayload.category_id = existing[0].id;
+        } else {
+          const newId = crypto.randomUUID();
+          await insert("categories", {
+            id: newId,
+            name: categoryName,
+            is_active: 1,
+            created_at: new Date().toISOString(),
+          });
+          localPayload.category_id = newId;
+        }
+      } else {
+        localPayload.category_id = null;
+      }
+
+      // Resolve supplier string to UUID (maps to client vendors table)
+      if (payload.supplier_id) {
+        const supplierName = payload.supplier_id.trim();
+        const existing = await query<any>("SELECT id FROM vendors WHERE name = ? AND _deleted = 0", [supplierName]);
+        if (existing && existing.length > 0) {
+          localPayload.supplier_id = existing[0].id;
+        } else {
+          const newId = crypto.randomUUID();
+          await insert("vendors", {
+            id: newId,
+            name: supplierName,
+            is_active: 1,
+            created_at: new Date().toISOString(),
+          });
+          localPayload.supplier_id = newId;
+        }
+      } else {
+        localPayload.supplier_id = null;
+      }
 
       if (isEditing) {
         const id = localPayload.id;

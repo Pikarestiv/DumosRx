@@ -19,6 +19,7 @@ interface StockItem {
   unit_price: number;
   batch_number: string;
   status: "healthy" | "low" | "critical" | "overstock";
+  barcode?: string;
 }
 
 interface StockStatusListProps {

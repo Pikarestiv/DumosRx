@@ -20,16 +20,20 @@ import { insert } from "./base-helpers";
  */
 export async function getMedicines(page = 1, limit = 50, search = "") {
   const offset = (page - 1) * limit;
-  let sql = "SELECT * FROM medicines WHERE _deleted = 0";
+  let sql = `SELECT m.*, c.name as category_name, v.name as supplier_name 
+             FROM medicines m 
+             LEFT JOIN categories c ON m.category_id = c.id 
+             LEFT JOIN vendors v ON m.supplier_id = v.id 
+             WHERE m._deleted = 0`;
   const params: any[] = [];
 
   if (search) {
-    sql += " AND (name LIKE ? OR generic_name LIKE ? OR barcode LIKE ?)";
+    sql += " AND (m.name LIKE ? OR m.generic_name LIKE ? OR m.barcode LIKE ?)";
     const searchParam = `%${search}%`;
     params.push(searchParam, searchParam, searchParam);
   }
 
-  sql += " ORDER BY name ASC LIMIT ? OFFSET ?";
+  sql += " ORDER BY m.name ASC LIMIT ? OFFSET ?";
   params.push(limit, offset);
 
   const data = await query<any>(sql, params);

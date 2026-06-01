@@ -338,7 +338,7 @@ class SyncController extends Controller
         $map = [
             'medicines' => Medicine::class,
             'customers' => Customer::class,
-            'suppliers' => Supplier::class,
+            'suppliers' => null, // Defer to 'vendors' which maps to Supplier
             'sales' => Sale::class,
             'sale_items' => SaleItem::class,
             'store_profile' => Store::class,
@@ -346,7 +346,7 @@ class SyncController extends Controller
             'inventory' => Inventory::class,
             'activity_logs' => ActivityLog::class,
             'categories' => \App\Models\Category::class,
-            'vendors' => Vendor::class,
+            'vendors' => Supplier::class, // Map client vendors to server suppliers
             'expenses' => Expense::class,
             'feedback' => \App\Models\Feedback::class,
             'stock_movements' => StockMovement::class,

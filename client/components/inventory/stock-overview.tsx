@@ -23,6 +23,7 @@ interface StockItem {
   unit_cost: number;
   expiry_date: string;
   status: "healthy" | "low" | "critical" | "overstock";
+  barcode?: string;
 }
 
 export function StockOverview() {
@@ -35,7 +36,7 @@ export function StockOverview() {
   const { data: stockData, loading: stockLoading } = useLocalData<any>(
     `SELECT 
       id, name as medicine_name, brand_name, batch_number, expiry_date,
-      stock_quantity as quantity, reorder_level, cost_price, selling_price
+      stock_quantity as quantity, reorder_level, cost_price, selling_price, barcode
      FROM medicines
      WHERE _deleted = 0
      ORDER BY stock_quantity ASC
@@ -165,6 +166,7 @@ export function StockOverview() {
               id: item.id,
               name: item.medicine_name,
               unit_price: item.unit_price,
+              barcode: item.barcode,
             })
           }
         />

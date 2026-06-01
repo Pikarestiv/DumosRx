@@ -64,4 +64,9 @@ class Store extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    public function sales()
+    {
+        return $this->hasManyThrough(Sale::class, User::class, 'store_id', 'cashier_id');
+    }
 }

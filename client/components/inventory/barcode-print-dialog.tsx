@@ -25,6 +25,7 @@ interface Medicine {
   id: string;
   name: string;
   unit_price: number;
+  barcode?: string;
 }
 
 interface BarcodePrintDialogProps {
@@ -44,7 +45,7 @@ export function BarcodePrintDialog({ isOpen, onClose, medicine }: BarcodePrintDi
       printBarcodeLabels([{
         name: medicine.name,
         price: medicine.unit_price,
-        barcode: medicine.id, // Using ID as barcode for now
+        barcode: medicine.barcode || medicine.id, // Fallback to ID if no barcode
         currency: storeProfile?.currency || "NGN"
       }], quantity);
       

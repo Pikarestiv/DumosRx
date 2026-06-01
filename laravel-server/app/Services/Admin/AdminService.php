@@ -140,7 +140,10 @@ class AdminService
 
     public function getPharmacies($page = 1, $search = null)
     {
-        $query = Store::with(['user.subscriptions']);
+        $query = Store::with(['user.subscriptions'])
+            ->withSum(['sales as total_revenue' => function ($q) {
+                $q->where('payment_status', 'completed');
+            }], 'total_amount');
 
         if ($search) {
             $query->where(function ($q) use ($search) {
@@ -172,7 +175,7 @@ class AdminService
                     'plan' => $plan,
                     'status' => $store->status ?: 'Active',
                     'stores' => 1,
-                    'revenue' => '₦0', // TODO: compute actual revenue from sales
+                    'revenue' => '₦' . number_format($store->total_revenue ?? 0),
                     'date' => $store->created_at->format('M d, Y')
                 ];
             }),

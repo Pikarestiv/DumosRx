@@ -1,23 +1,23 @@
 {
-  "version": "0.0.15",
-  "notes": "DumosRx Production Release v0.0.15. Added Android native splash screen, mobile telemetry tracking, and responsive web system dashboard.",
-  "pub_date": "2026-06-01T17:59:00Z",
+  "version": "0.0.16",
+  "notes": "DumosRx Production Release v0.0.16. Added mobile swipe-to-navigate and fixed safe area paddings.",
+  "pub_date": "2026-06-01T19:10:00Z",
   "platforms": {
     "windows-x86_64": {
       "signature": "REPLACE_WITH_WINDOWS_SIG",
-      "url": "https://github.com/Pikarestiv/DumosRx/releases/download/v0.0.15/DumosRx_0.0.15_x64_en-US.msi"
+      "url": "https://github.com/Pikarestiv/DumosRx/releases/download/v0.0.16/DumosRx_0.0.16_x64_en-US.msi"
     },
     "darwin-aarch64": {
       "signature": "REPLACE_WITH_MAC_ARM_SIG",
-      "url": "https://github.com/Pikarestiv/DumosRx/releases/download/v0.0.15/DumosRx_0.0.15_aarch64.dmg"
+      "url": "https://github.com/Pikarestiv/DumosRx/releases/download/v0.0.16/DumosRx_0.0.16_aarch64.dmg"
     },
     "darwin-x86_64": {
       "signature": "REPLACE_WITH_MAC_INTEL_SIG",
-      "url": "https://github.com/Pikarestiv/DumosRx/releases/download/v0.0.15/DumosRx_0.0.15_x64.dmg"
+      "url": "https://github.com/Pikarestiv/DumosRx/releases/download/v0.0.16/DumosRx_0.0.16_x64.dmg"
     },
     "linux-x86_64": {
       "signature": "REPLACE_WITH_LINUX_SIG",
-      "url": "https://github.com/Pikarestiv/DumosRx/releases/download/v0.0.15/DumosRx_0.0.15_amd64.AppImage"
+      "url": "https://github.com/Pikarestiv/DumosRx/releases/download/v0.0.16/DumosRx_0.0.16_amd64.AppImage"
     }
   }
 }

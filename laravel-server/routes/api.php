@@ -59,6 +59,28 @@ Route::prefix('v1')->group(function () {
         return 'Cleared';
     });
 
+    Route::get('/dev/nuke-database', function() {
+        if (request()->query('key') !== 'DumosRxReset992') {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+        try {
+            \Illuminate\Support\Facades\Artisan::call('migrate:fresh', [
+                '--seed' => true,
+                '--force' => true
+            ]);
+            return response()->json([
+                'success' => true,
+                'message' => 'Database nuked and seeded successfully.',
+                'output' => \Illuminate\Support\Facades\Artisan::output()
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    });
+
     // Protected Routes
     Route::middleware(['auth:sanctum', 'account_status', 'throttle:60,1'])->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);

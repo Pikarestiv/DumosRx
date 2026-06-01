@@ -32,34 +32,7 @@ class DatabaseSeeder extends Seeder
             ]);
         }
 
-        // 3. Create Sample Staff (Optional - commented out or active)
-        $pharmacistEmail = 'pharmacist@dumosrx.com';
-        if (!User::where('email', $pharmacistEmail)->exists()) {
-            $pharmacistRole = Role::where('slug', 'pharmacist')->first();
-            User::create([
-                'email' => $pharmacistEmail,
-                'password' => Hash::make('Pharmacist123#'),
-                'first_name' => 'Chinedu',
-                'last_name' => 'Okafor',
-                'role' => 'pharmacist',
-                'role_id' => $pharmacistRole ? $pharmacistRole->id : null,
-                'is_active' => true
-            ]);
-        }
 
-        $salesEmail = 'sales@dumosrx.com';
-        if (!User::where('email', $salesEmail)->exists()) {
-            $salesRole = Role::where('slug', 'sales_staff')->first();
-            User::create([
-                'email' => $salesEmail,
-                'password' => Hash::make('Sales123#'),
-                'first_name' => 'Ngozi',
-                'last_name' => 'Adeyemi',
-                'role' => 'sales_staff',
-                'role_id' => $salesRole ? $salesRole->id : null,
-                'is_active' => true
-            ]);
-        }
 
         $this->call(EmailTemplateSeeder::class);
         $this->call(SystemConfigSeeder::class);

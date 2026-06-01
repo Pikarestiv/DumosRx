@@ -24,6 +24,17 @@ async function getStorefrontData(store_slug: string) {
   return res.json();
 }
 
+export async function generateStaticParams() {
+  // For static exports (output: "export") on Namecheap/FTP hosting.
+  // Manually add the slugs of pharmacies that have requested a storefront here.
+  // Example: When a pharmacy wants 'health-first', add { store_slug: 'health-first' }
+  // You will need to run 'npm run build' and upload the files again when you add a new one.
+  return [
+    { store_slug: 'demo' },
+    // { store_slug: 'another-store' },
+  ];
+}
+
 export default async function StorefrontPage({ params }: StorefrontProps) {
   const data = await getStorefrontData(params.store_slug);
 

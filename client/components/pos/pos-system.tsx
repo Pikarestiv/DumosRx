@@ -23,6 +23,7 @@ interface Medicine {
   strength: string;
   unit_price: number;
   stock: number;
+  cost_price?: number;
   barcode?: string;
   batch_number?: string;
 }
@@ -88,6 +89,7 @@ export function POSSystem() {
         strength: m.strength || "",
         unit_price: m.selling_price || 0,
         stock: m.stock_quantity || 0,
+        cost_price: m.cost_price || 0,
         barcode: m.barcode || "",
         batch_number: m.batch_number || "",
       }),

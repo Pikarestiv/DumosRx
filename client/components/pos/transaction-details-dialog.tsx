@@ -45,7 +45,9 @@ export function TransactionDetailsDialog({
 
   const totalCostPrice =
     items?.reduce((acc: number, item: any) => {
-      const cost = item.cost_price || item.med_cost_price || 0;
+      const cost = (item.cost_price !== null && item.cost_price !== undefined)
+        ? item.cost_price
+        : (item.med_cost_price || 0);
       return acc + cost * item.quantity;
     }, 0) || 0;
   const profit = sale.total_amount - totalCostPrice;

@@ -12,6 +12,7 @@ export interface Medicine {
   strength: string;
   unit_price: number;
   stock: number;
+  cost_price?: number;
   barcode?: string;
   batch_number?: string;
 }

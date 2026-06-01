@@ -1,23 +1,23 @@
 {
-  "version": "0.0.12",
-  "notes": "DumosRx Production Release v0.0.12. Bug fixes in admin controller and service.",
+  "version": "0.0.13",
+  "notes": "DumosRx Production Release v0.0.13. Bug fixes in admin controller and service.",
   "pub_date": "2026-05-27T14:30:00Z",
   "platforms": {
     "windows-x86_64": {
       "signature": "",
-      "url": "https://github.com/Pikarestiv/DumosRx/releases/download/v0.0.12/DumosRx_0.0.12_x64_en-US.msi"
+      "url": "https://github.com/Pikarestiv/DumosRx/releases/download/v0.0.13/DumosRx_0.0.13_x64_en-US.msi"
     },
     "darwin-aarch64": {
       "signature": "",
-      "url": "https://github.com/Pikarestiv/DumosRx/releases/download/v0.0.12/DumosRx_0.0.12_aarch64.dmg"
+      "url": "https://github.com/Pikarestiv/DumosRx/releases/download/v0.0.13/DumosRx_0.0.13_aarch64.dmg"
     },
     "darwin-x86_64": {
       "signature": "",
-      "url": "https://github.com/Pikarestiv/DumosRx/releases/download/v0.0.12/DumosRx_0.0.12_x64.dmg"
+      "url": "https://github.com/Pikarestiv/DumosRx/releases/download/v0.0.13/DumosRx_0.0.13_x64.dmg"
     },
     "linux-x86_64": {
       "signature": "",
-      "url": "https://github.com/Pikarestiv/DumosRx/releases/download/v0.0.12/DumosRx_0.0.12_amd64.AppImage"
+      "url": "https://github.com/Pikarestiv/DumosRx/releases/download/v0.0.13/DumosRx_0.0.13_amd64.AppImage"
     }
   }
 }

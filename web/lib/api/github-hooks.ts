@@ -5,10 +5,12 @@ export interface ReleaseLinks {
   windows: string;
   macos: string;
   linux: string;
+  android: string;
   version: string;
   winSize: string;
   macSize: string;
   linuxSize: string;
+  androidSize: string;
 }
 
 const formatSize = (bytes: number) => {
@@ -40,6 +42,10 @@ export const useLatestRelease = () => {
         a.name.toLowerCase().endsWith(".appimage") ||
         a.name.toLowerCase().includes("linux")
       );
+      const android = assets.find((a: any) => 
+        a.name.toLowerCase().endsWith(".apk") ||
+        a.name.toLowerCase().includes("android")
+      );
 
       const defaultUrl = `https://github.com/${GITHUB_REPO}/releases/latest`;
 
@@ -47,10 +53,12 @@ export const useLatestRelease = () => {
         windows: win?.browser_download_url || defaultUrl,
         macos: mac?.browser_download_url || defaultUrl,
         linux: linux?.browser_download_url || defaultUrl,
+        android: android?.browser_download_url || defaultUrl,
         version: data.tag_name || APP_VERSION,
         winSize: formatSize(win?.size),
         macSize: formatSize(mac?.size),
         linuxSize: formatSize(linux?.size),
+        androidSize: formatSize(android?.size),
       };
     },
     staleTime: 60 * 60 * 1000, // 1 hour cache

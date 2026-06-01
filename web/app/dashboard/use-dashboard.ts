@@ -35,10 +35,12 @@ export function useDashboard() {
     windows: `https://github.com/${GITHUB_REPO}/releases/latest`,
     macos: `https://github.com/${GITHUB_REPO}/releases/latest`,
     linux: `https://github.com/${GITHUB_REPO}/releases/latest`,
+    android: `https://github.com/${GITHUB_REPO}/releases/latest`,
     version: APP_VERSION,
     winSize: "---",
     macSize: "---",
     linuxSize: "---",
+    androidSize: "---",
   };
 
   return {

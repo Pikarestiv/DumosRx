@@ -1,6 +1,6 @@
 "use client";
 
-import { Smartphone, Activity, Globe } from "lucide-react";
+import { Smartphone, Monitor, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -16,14 +16,14 @@ export function DownloadsView({ releaseLinks }: DownloadsViewProps) {
   const downloadCards = [
     {
       os: "Windows",
-      icon: Smartphone,
+      icon: Monitor,
       version: releaseLinks.version,
       size: releaseLinks.winSize,
       link: releaseLinks.windows,
     },
     {
       os: "macOS",
-      icon: Activity,
+      icon: Monitor,
       version: releaseLinks.version,
       size: releaseLinks.macSize,
       link: releaseLinks.macos,
@@ -35,16 +35,23 @@ export function DownloadsView({ releaseLinks }: DownloadsViewProps) {
       size: releaseLinks.linuxSize,
       link: releaseLinks.linux,
     },
+    {
+      os: "Android",
+      icon: Smartphone,
+      version: releaseLinks.version + " (APK)",
+      size: releaseLinks.androidSize,
+      link: releaseLinks.android,
+    },
   ];
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div>
         <h1 className="text-3xl font-black tracking-tight">App Downloads</h1>
-        <p className="text-muted-foreground">Download the DumosRx Local Client for your pharmacy computers</p>
+        <p className="text-muted-foreground">Download the DumosRx Local Client for your pharmacy devices</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {downloadCards.map((app, i) => (
           <Card key={i} className="border-none shadow-sm hover:border-primary/50 transition-colors border-2 border-transparent">
             <CardContent className="p-8 text-center flex flex-col items-center">

@@ -121,11 +121,20 @@ jobs:
           cd client
           NDK_HOME=$ANDROID_NDK_ROOT npm run tauri android build -- --apk
 
+      - name: Locate APK Directory
+        run: |
+          echo "All generated APK files:"
+          find client/src-tauri/gen/android/app/build/outputs/ -name "*.apk"
+          APK_PATH=$(find client/src-tauri/gen/android/app/build/outputs/ -name "*.apk" | head -n 1)
+          APK_DIR=$(dirname "$APK_PATH")
+          echo "APK_DIR=$APK_DIR" >> $GITHUB_ENV
+          echo "Selected APK directory: $APK_DIR"
+
       - name: Sign APK
         if: env.ANDROID_KEYSTORE_BASE64 != ''
         uses: r0adkll/sign-android-release@349ebdef58775b1e0d8099458af0816dc79b6407 # v1
         with:
-          releaseDirectory: client/src-tauri/gen/android/app/build/outputs/apk/release
+          releaseDirectory: ${{ env.APK_DIR }}
           signingKeyBase64: ${{ env.ANDROID_KEYSTORE_BASE64 }}
           alias: ${{ secrets.ANDROID_KEY_ALIAS }}
           keyStorePassword: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -135,5 +144,5 @@ jobs:
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           files: |
-            client/src-tauri/gen/android/app/build/outputs/apk/release/*.apk
+            ${{ env.APK_DIR }}/*.apk
           tag_name: ${{ github.ref_name }}

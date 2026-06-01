@@ -116,6 +116,12 @@ class AuthController extends Controller
         $user->last_login_at = now();
         $user->save();
 
+        if ($user->role !== 'super_admin') {
+            $subService = app(SubscriptionService::class);
+            $owner = $subService->getSubscriptionOwner($user);
+            $subService->enforceStaffLimits($owner);
+        }
+
         $tokenResult = $user->createToken($request->device_name);
         $token = $tokenResult->plainTextToken;
         

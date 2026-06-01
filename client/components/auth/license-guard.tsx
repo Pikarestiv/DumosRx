@@ -12,6 +12,74 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useStore } from "@/lib/context/store-context";
+import { useTheme } from "@/components/theme-provider";
+import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
+
+function ThemeRestrictor() {
+  const { currentTier } = useFeatureGate();
+  const { theme, setTheme } = useTheme();
+  const { storeProfile, updateStoreProfile } = useStore();
+
+  useEffect(() => {
+    if (currentTier === "free") {
+      if (theme !== "light") {
+        setTheme("light");
+      }
+      if (storeProfile && storeProfile.theme !== "default") {
+        updateStoreProfile({ theme: "default" });
+      }
+    }
+  }, [currentTier, theme, storeProfile, setTheme, updateStoreProfile]);
+
+  return null;
+}
+
+function MobileRestrictionGuard() {
+  const { currentTier } = useFeatureGate();
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(
+        window.innerWidth < 768 || 
+        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+      );
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  if (isMobile && (currentTier === "free" || currentTier === "starter")) {
+    return (
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/85 backdrop-blur-xl p-6">
+        <Card className="max-w-md w-full border-border/40 shadow-2xl bg-card text-card-foreground">
+          <CardHeader className="text-center pb-4">
+            <div className="mx-auto w-14 h-14 bg-destructive/10 text-destructive rounded-full flex items-center justify-center mb-4">
+              <Lock className="h-6 w-6" />
+            </div>
+            <CardTitle className="text-2xl font-bold font-serif tracking-tight">📱 Mobile App Access Locked</CardTitle>
+            <CardDescription className="mt-2 text-sm leading-relaxed text-muted-foreground">
+              Mobile access is a premium feature available on Pro and Enterprise plans. Please upgrade your plan to access your dashboard on the go.
+            </CardDescription>
+          </CardHeader>
+          <CardFooter className="flex flex-col gap-3 pt-2">
+            <Button 
+              className="w-full bg-primary hover:bg-primary/95 text-primary-foreground font-bold shadow-lg shadow-primary/20 h-11" 
+              onClick={() => {
+                window.open("https://dumosrx.com/dashboard/billing", "_blank", "noreferrer");
+              }}
+            >
+              Upgrade to Pro Plan
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+    );
+  }
+
+  return null;
+}
 
 export function LicenseGuard({ children }: { children: React.ReactNode }) {
   const { storeProfile } = useStore();
@@ -64,7 +132,13 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
 
   // If license is valid, render children
   if (license?.isValid) {
-    return <>{children}</>;
+    return (
+      <>
+        <ThemeRestrictor />
+        <MobileRestrictionGuard />
+        {children}
+      </>
+    );
   }
 
   const isSuspended = license?.message?.includes("suspended") || false;

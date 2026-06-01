@@ -28,7 +28,9 @@ import {
   MessageSquare,
   ChevronsLeft,
   ChevronsRight,
+  Lock,
 } from "lucide-react";
+import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 
 interface DashboardSidebarProps {
   onOpenFeedback: () => void;
@@ -44,6 +46,12 @@ export function DashboardSidebar({
   const pathname = usePathname();
   const { storeType, t } = useStore();
   const { logout, isAdmin, isPharmacist } = useAuth();
+  const { currentTier } = useFeatureGate();
+
+  const isLocked = (href: string) => {
+    if (currentTier !== "free") return false;
+    return ["/prescriptions", "/procurement", "/expenses"].includes(href);
+  };
 
   const navigationItems = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -88,20 +96,28 @@ export function DashboardSidebar({
     name: string;
   }) => {
     const isActive = pathname.startsWith(href);
+    const locked = isLocked(href);
     const link = (
       <Link
         href={href}
         className={cn(
-          "flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200",
+          "flex items-center justify-between gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200",
           collapsed ? "justify-center px-2" : "",
           isActive
             ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20 cursor-default"
-            : "text-sidebar-foreground hover:bg-primary/50 hover:text-primary-foreground",
+            : locked
+              ? "text-sidebar-foreground/40 hover:text-sidebar-foreground/60 cursor-not-allowed"
+              : "text-sidebar-foreground hover:bg-primary/50 hover:text-primary-foreground",
         )}
       >
-        <Icon className="h-[18px] w-[18px] shrink-0" />
-        {!collapsed && (
-          <span className="truncate transition-all duration-200">{name}</span>
+        <div className="flex items-center gap-3 truncate">
+          <Icon className="h-[18px] w-[18px] shrink-0" />
+          {!collapsed && (
+            <span className="truncate transition-all duration-200">{name}</span>
+          )}
+        </div>
+        {locked && !collapsed && (
+          <Lock className="h-3 w-3 text-sidebar-foreground/40 shrink-0" />
         )}
       </Link>
     );
@@ -111,7 +127,7 @@ export function DashboardSidebar({
         <Tooltip delayDuration={100}>
           <TooltipTrigger asChild>{link}</TooltipTrigger>
           <TooltipContent side="right" className="font-medium text-xs">
-            {name}
+            {name} {locked ? "🔒" : ""}
           </TooltipContent>
         </Tooltip>
       );

@@ -32,6 +32,18 @@ class CheckSubscription
         $subscriptionService = app(SubscriptionService::class);
         $owner = $subscriptionService->getSubscriptionOwner($user);
 
+        // Mobile access check
+        $token = $request->user()->currentAccessToken();
+        if ($token && \Illuminate\Support\Str::contains(strtolower($token->name), ['android', 'ios', 'mobile'])) {
+            if (!$subscriptionService->hasFeature($user, 'mobile_access')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Mobile App access is a premium feature available on Pro and Enterprise plans. Please upgrade.',
+                    'code' => 'UPGRADE_REQUIRED'
+                ], 403);
+            }
+        }
+
         // If a specific feature is requested
         if ($feature) {
             if (!$subscriptionService->hasFeature($user, $feature)) {
@@ -51,11 +63,10 @@ class CheckSubscription
                 $expiredSub = $owner->subscriptions()->where('status', 'active')->where('end_date', '>', now()->subDays($graceDays))->latest()->first();
                 
                 if (!$expiredSub) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Your subscription has expired. Please renew to continue using the platform.',
-                        'code' => 'SUBSCRIPTION_EXPIRED'
-                    ], 402); // 402 Payment Required
+                    // Under the 4-tier model, if they don't have an active paid subscription,
+                    // they are downgraded to 'free'. So we allow general API access, 
+                    // and let the sync/feature gates handle specific restrictions.
+                    return $next($request);
                 }
             }
         }

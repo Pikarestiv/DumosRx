@@ -28,6 +28,15 @@ class SyncController extends Controller
      */
     public function push(Request $request)
     {
+        $validation = $this->validateSync($request);
+        if (!$validation['valid']) {
+            return response()->json([
+                'success' => false,
+                'message' => $validation['message'],
+                'code' => $validation['code']
+            ], $validation['status']);
+        }
+
         $request->validate([
             'changes' => 'required|array',
             'changes.*.table_name' => 'required|string',
@@ -238,6 +247,15 @@ class SyncController extends Controller
      */
     public function pull(Request $request)
     {
+        $validation = $this->validateSync($request);
+        if (!$validation['valid']) {
+            return response()->json([
+                'success' => false,
+                'message' => $validation['message'],
+                'code' => $validation['code']
+            ], $validation['status']);
+        }
+
         $lastSyncedMap = $request->input('last_synced', []);
         $changes = [];
         $serverTimestamp = now()->toIso8601String();
@@ -308,16 +326,18 @@ class SyncController extends Controller
                 if ($table === 'store_profile') {
                     $plan = 'free';
                     if ($item->user && $item->user->subscriptions->isNotEmpty()) {
-                        $sub = $item->user->subscriptions->sortByDesc('created_at')->first();
+                        $sub = $item->user->subscriptions()
+                            ->where('status', 'active')
+                            ->where('end_date', '>', now())
+                            ->latest()
+                            ->first();
                         if ($sub) {
                             $subPlan = strtolower($sub->plan_name);
-                            if ($subPlan === 'starter') {
-                                $plan = 'pro'; // Trial has pro features
-                            } elseif ($subPlan === 'dumos local') {
-                                $plan = 'local';
-                            } elseif ($subPlan === 'dumos pro') {
+                            if ($subPlan === 'starter' || $subPlan === 'dumos local' || $subPlan === 'local') {
+                                $plan = 'starter';
+                            } elseif ($subPlan === 'dumos pro' || $subPlan === 'pro' || $subPlan === 'professional') {
                                 $plan = 'pro';
-                            } elseif (in_array($subPlan, ['free', 'local', 'pro', 'enterprise'])) {
+                            } elseif (in_array($subPlan, ['free', 'starter', 'pro', 'enterprise'])) {
                                 $plan = $subPlan;
                             }
                         }
@@ -393,5 +413,46 @@ class SyncController extends Controller
             'payment_accounts' => \App\Models\PaymentAccount::class,
         ];
         return $map[$tableName] ?? null;
+    }
+
+    private function validateSync(Request $request)
+    {
+        $user = $request->user();
+        if ($user && $user->role !== 'super_admin') {
+            $subscriptionService = app(\App\Services\SubscriptionService::class);
+            $owner = $subscriptionService->getSubscriptionOwner($user);
+            
+            // Check active subscription
+            $sub = $owner->subscriptions()->where('status', 'active')->where('end_date', '>', now())->latest()->first();
+            $plan = $sub ? strtolower($sub->plan_name) : 'free';
+            
+            // Normalize plan
+            if ($plan === 'starter' || $plan === 'dumos local' || $plan === 'local') {
+                $store = Store::where('user_id', $owner->id)->first() ?? Store::where('id', $user->store_id)->first();
+                if ($store && $store->last_sync_at) {
+                    $hoursSinceLastSync = now()->diffInHours($store->last_sync_at);
+                    if ($hoursSinceLastSync < 6) {
+                        return [
+                            'valid' => false,
+                            'message' => 'Sync limit reached. Starter plan synchronizes once every 6 hours. Last sync: ' . $store->last_sync_at->diffForHumans() . '. Please upgrade to Pro for real-time sync.',
+                            'code' => 'SYNC_THROTTLED',
+                            'status' => 429
+                        ];
+                    }
+                }
+            } elseif ($plan === 'free') {
+                return [
+                    'valid' => false,
+                    'message' => 'Cloud sync is disabled on the Free plan. Please upgrade to a paid plan to backup your data.',
+                    'code' => 'SYNC_DISABLED',
+                    'status' => 403
+                ];
+            }
+            
+            // Enforce staff limits
+            $subscriptionService->enforceStaffLimits($owner);
+        }
+        
+        return ['valid' => true];
     }
 }

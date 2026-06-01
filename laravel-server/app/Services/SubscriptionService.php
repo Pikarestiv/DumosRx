@@ -22,7 +22,7 @@ class SubscriptionService
         
         return Subscription::create([
             'user_id' => $user->id,
-            'plan_name' => 'Starter',
+            'plan_name' => 'Pro', // Start on Pro Trial
             'start_date' => now(),
             'end_date' => now()->addDays($trialDays),
             'status' => 'active',
@@ -64,13 +64,10 @@ class SubscriptionService
             $systemConfig = SystemConfig::getVal('subscription_plans', []);
             $graceDays = $systemConfig['grace_period_days'] ?? 3;
             $sub = $owner->subscriptions()->where('status', 'active')->where('end_date', '>', now()->subDays($graceDays))->latest()->first();
-            
-            if (!$sub) return false;
         }
 
-        $plan = $this->normalizePlanName($sub->plan_name);
+        $plan = $sub ? $this->normalizePlanName($sub->plan_name) : 'free';
         
-        // Map old plan names if needed, or assume they are local/pro/enterprise
         $systemConfig = SystemConfig::getVal('subscription_plans', []);
         $features = $systemConfig['tiers'][$plan]['features'] ?? [];
         
@@ -85,9 +82,7 @@ class SubscriptionService
         $owner = $this->getSubscriptionOwner($user);
         $sub = $owner->subscriptions()->where('status', 'active')->where('end_date', '>', now())->latest()->first();
         
-        if (!$sub) return false;
-
-        $plan = $this->normalizePlanName($sub->plan_name);
+        $plan = $sub ? $this->normalizePlanName($sub->plan_name) : 'free';
         $systemConfig = SystemConfig::getVal('subscription_plans', []);
         $limit = $systemConfig['tiers'][$plan]['limits'][$type] ?? 0;
 
@@ -105,6 +100,47 @@ class SubscriptionService
         }
 
         return $current < $limit;
+    }
+
+    /**
+     * Enforces staff limits on downgrade
+     */
+    public function enforceStaffLimits(User $owner)
+    {
+        $sub = $owner->subscriptions()->where('status', 'active')->where('end_date', '>', now())->latest()->first();
+        $plan = $sub ? $this->normalizePlanName($sub->plan_name) : 'free';
+        
+        $systemConfig = SystemConfig::getVal('subscription_plans', []);
+        $limit = $systemConfig['tiers'][$plan]['limits']['staff'] ?? 0;
+        
+        $storeIds = Store::where('user_id', $owner->id)->pluck('id');
+        
+        if ($limit === -1) {
+            return;
+        }
+        
+        // Find active staff (exclude the owner who has no store_id or different role)
+        $activeStaff = User::whereIn('store_id', $storeIds)
+            ->where('is_active', true)
+            ->orderBy('created_at', 'asc') // Keep oldest staff active
+            ->get();
+            
+        if ($activeStaff->count() > $limit) {
+            $excessCount = $activeStaff->count() - $limit;
+            
+            // Deactivate excess staff
+            $deactivateIds = $activeStaff->slice($limit)->pluck('id');
+            User::whereIn('id', $deactivateIds)->update(['is_active' => false]);
+            
+            // Create a warning notification for the owner
+            \App\Models\Notification::create([
+                'user_id' => $owner->id,
+                'title' => 'Staff Accounts Suspended',
+                'message' => "Your store was transitioned to the " . ucfirst($plan) . " plan. To respect your user limit, {$excessCount} of your staff accounts have been temporarily deactivated. Upgrade to reactivate them.",
+                'type' => 'warning',
+                'is_read' => false,
+            ]);
+        }
     }
 
     /**
@@ -154,14 +190,17 @@ class SubscriptionService
     private function normalizePlanName(string $planName): string
     {
         $plan = strtolower($planName);
-        if ($plan === 'starter') {
-            return 'pro'; // Trial gets Pro features
+        if ($plan === 'starter' || $plan === 'dumos local' || $plan === 'local') {
+            return 'starter';
         }
-        if ($plan === 'dumos local') {
-            return 'local';
-        }
-        if ($plan === 'dumos pro') {
+        if ($plan === 'dumos pro' || $plan === 'pro' || $plan === 'professional') {
             return 'pro';
+        }
+        if ($plan === 'free') {
+            return 'free';
+        }
+        if ($plan === 'enterprise') {
+            return 'enterprise';
         }
         return $plan;
     }

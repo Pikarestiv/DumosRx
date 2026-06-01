@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/table";
 import { SubscriptionWrapper } from "@/components/dashboard/subscription-wrapper";
 import { toast } from "sonner";
+import { useSubscriptionStatus } from "@/lib/api/hooks";
 
 interface OverviewViewProps {
   stats: any;
@@ -40,6 +41,9 @@ interface OverviewViewProps {
 }
 
 export function OverviewView({ stats, user, stores, onReset }: OverviewViewProps) {
+  const { data: subscription } = useSubscriptionStatus();
+  const isStarter = subscription?.plan?.toLowerCase() === "starter";
+
   const [resetConfig, setResetConfig] = useState<{
     isOpen: boolean;
     type: string;
@@ -146,6 +150,18 @@ export function OverviewView({ stats, user, stores, onReset }: OverviewViewProps
           Add New Store
         </Button>
       </div>
+
+      {isStarter && (
+        <div className="bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-200 p-4 rounded-xl flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0 text-amber-500" />
+          <div className="space-y-1">
+            <p className="font-semibold text-amber-800 dark:text-amber-300">Delayed Dashboard Data</p>
+            <p className="text-sm opacity-90 text-amber-700 dark:text-amber-200">
+              You are on the <strong>Starter</strong> plan. Cloud dashboard metrics sync every 6 hours. Upgrade to Pro or Enterprise for real-time reporting.
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {statCards.map((stat, i) => (

@@ -6,17 +6,20 @@ import { StockAdjustments } from "./stock-adjustments"
 import { BatchTracking } from "./batch-tracking"
 import { MedicineDatabase } from "@/components/medicines/medicine-database"
 import { Button } from "@/components/ui/button"
-import { ClipboardCheck } from "lucide-react"
+import { ClipboardCheck, Lock } from "lucide-react"
 import { useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { StockAuditDialog } from "./stock-audit-dialog"
 import { ExpiringBatchesAlert } from "./expiring-batches-alert"
 import { useStore } from "@/lib/context/store-context"
+import { useFeatureGate } from "@/lib/hooks/use-feature-gate"
+import { toast } from "sonner"
 
 export function InventoryManagement() {
   const [isAuditOpen, setIsAuditOpen] = useState(false)
   const { t } = useStore()
   const searchParams = useSearchParams()
+  const { canUseAuditMode } = useFeatureGate()
 
   // If navigated here with ?action=add or ?status=low_stock, land on the products tab
   const hasProductsParam = searchParams.get("action") === "add" || !!searchParams.get("status")
@@ -34,10 +37,20 @@ export function InventoryManagement() {
           </p>
         </div>
         <Button 
-          onClick={() => setIsAuditOpen(true)}
+          onClick={() => {
+            if (!canUseAuditMode) {
+              toast.error("Audit Mode is a premium feature available on the Starter plan and above.")
+              return
+            }
+            setIsAuditOpen(true)
+          }}
           className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold cursor-pointer h-11"
         >
-          <ClipboardCheck className="w-5 h-5 mr-2" />
+          {canUseAuditMode ? (
+            <ClipboardCheck className="w-5 h-5 mr-2" />
+          ) : (
+            <Lock className="w-4 h-4 mr-2" />
+          )}
           Start Audit Mode
         </Button>
       </div>

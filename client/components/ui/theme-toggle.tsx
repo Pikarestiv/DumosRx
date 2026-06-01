@@ -3,9 +3,20 @@ import { Moon, Sun, Monitor } from "lucide-react"
 import { useTheme } from "@/components/theme-provider"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { useFeatureGate } from "@/lib/hooks/use-feature-gate"
+import { toast } from "sonner"
 
 export function ThemeToggle() {
   const { setTheme, theme } = useTheme()
+  const { canUseDarkMode } = useFeatureGate()
+
+  const handleSetTheme = (newTheme: "light" | "dark" | "system") => {
+    if (newTheme !== "light" && !canUseDarkMode) {
+      toast.error("Dark Mode is a premium feature available on the Starter plan and above.")
+      return
+    }
+    setTheme(newTheme)
+  }
 
   return (
     <DropdownMenu>
@@ -17,17 +28,17 @@ export function ThemeToggle() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => setTheme("light")} className="cursor-pointer">
+        <DropdownMenuItem onClick={() => handleSetTheme("light")} className="cursor-pointer">
           <Sun className="mr-2 h-4 w-4" />
           <span>Light</span>
           {theme === "light" && <span className="ml-auto text-xs">✓</span>}
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("dark")} className="cursor-pointer">
+        <DropdownMenuItem onClick={() => handleSetTheme("dark")} className="cursor-pointer">
           <Moon className="mr-2 h-4 w-4" />
           <span>Dark</span>
           {theme === "dark" && <span className="ml-auto text-xs">✓</span>}
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("system")} className="cursor-pointer">
+        <DropdownMenuItem onClick={() => handleSetTheme("system")} className="cursor-pointer">
           <Monitor className="mr-2 h-4 w-4" />
           <span>System</span>
           {theme === "system" && <span className="ml-auto text-xs">✓</span>}

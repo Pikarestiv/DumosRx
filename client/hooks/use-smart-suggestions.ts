@@ -1,71 +1,65 @@
-import { useLocalData } from "@/lib/db/hooks/useLocalData";
-import { CartItem } from "@/lib/hooks/use-pos-cart";
 import { useMemo } from "react";
+import { CartItem, Medicine } from "@/lib/hooks/use-pos-cart";
+import { SMART_SUGGESTIONS_RULES } from "@/lib/constants/smart-suggestions-rules";
 
-export function useSmartSuggestions(cart: CartItem[]) {
-  // Extract categories of products in the cart
-  const cartCategories = useMemo(() => {
-    return cart.map((item) => item.category_id).filter(Boolean) as string[];
-  }, [cart]);
+export function useSmartSuggestions(cart: CartItem[], medicines: Medicine[]) {
+  const suggestions = useMemo(() => {
+    if (cart.length === 0 || medicines.length === 0) return [];
 
-  // Define target recommendation categories based on clinical and upsell triggers
-  const targetCategories = useMemo(() => {
-    if (cartCategories.length === 0) return [];
-    
-    const targets = new Set<string>();
-    
-    for (const cat of cartCategories) {
-      const lowerCat = cat.toLowerCase();
-      if (lowerCat.includes("antimalarial")) {
-        targets.add("Vitamins");
-        targets.add("Vitamins & Supplements");
-        targets.add("Analgesics");
-      } else if (lowerCat.includes("antibiotic")) {
-        targets.add("Vitamins");
-        targets.add("Vitamins & Supplements");
-      } else if (lowerCat.includes("cough") || lowerCat.includes("cold")) {
-        targets.add("Vitamins");
-        targets.add("Vitamins & Supplements");
-      } else if (lowerCat.includes("analgesic")) {
-        targets.add("Antacids");
+    const targetCategories = new Set<string>();
+    const targetNames = new Set<string>();
+
+    // Process each cart item to find matched rules
+    for (const item of cart) {
+      const nameLower = item.name.toLowerCase();
+      const categoryLower = item.category_id ? item.category_id.toLowerCase() : "";
+
+      for (const rule of SMART_SUGGESTIONS_RULES) {
+        let isMatched = false;
+
+        // Match category
+        if (rule.triggerCategory && categoryLower === rule.triggerCategory.toLowerCase()) {
+          isMatched = true;
+        }
+
+        // Match keyword
+        if (rule.triggerKeywords && rule.triggerKeywords.some(keyword => nameLower.includes(keyword.toLowerCase()))) {
+          isMatched = true;
+        }
+
+        if (isMatched) {
+          if (rule.suggestedCategories) {
+            rule.suggestedCategories.forEach(cat => targetCategories.add(cat.toLowerCase()));
+          }
+          if (rule.suggestedNames) {
+            rule.suggestedNames.forEach(name => targetNames.add(name.toLowerCase()));
+          }
+        }
       }
     }
-    
-    return Array.from(targets);
-  }, [cartCategories]);
 
-  // Build SQLite query to retrieve in-stock matching products
-  const { sql, params } = useMemo(() => {
-    if (targetCategories.length === 0) {
-      return { sql: "SELECT 1 WHERE 1=0", params: [] };
-    }
-    const placeholders = targetCategories.map(() => "?").join(", ");
-    return {
-      sql: `SELECT id, name, generic_name, brand_name as brand, strength, selling_price as unit_price, stock_quantity as stock, category_id FROM medicines WHERE category_id IN (${placeholders}) AND stock_quantity > 0 AND is_active = 1 AND _deleted = 0 LIMIT 10`,
-      params: targetCategories
-    };
-  }, [targetCategories]);
+    if (targetCategories.size === 0 && targetNames.size === 0) return [];
 
-  const { data: rawSuggestions, loading } = useLocalData<any>(sql, params);
+    const cartIds = new Set(cart.map(item => item.id));
 
-  // Filter out items already in cart and format the result
-  const suggestions = useMemo(() => {
-    if (!rawSuggestions || rawSuggestions.length === 0) return [];
-    const cartIds = new Set(cart.map((item) => item.id));
-    return rawSuggestions
-      .filter((item: any) => !cartIds.has(item.id))
-      .map((m: any) => ({
-        id: m.id,
-        name: m.name,
-        generic_name: m.generic_name || "",
-        brand: m.brand || "",
-        strength: m.strength || "",
-        unit_price: m.unit_price || 0,
-        stock: m.stock || 0,
-        category_id: m.category_id || "",
-      }))
-      .slice(0, 3); // return top 3 recommendations
-  }, [rawSuggestions, cart]);
+    // Filter in-stock medicines matching recommended categories or names
+    return medicines.filter(medicine => {
+      // Must not already be in the cart
+      if (cartIds.has(medicine.id)) return false;
 
-  return { suggestions, loading };
+      // Must be in stock
+      if (medicine.stock <= 0) return false;
+
+      const medNameLower = medicine.name.toLowerCase();
+      const medCatLower = medicine.category_id ? medicine.category_id.toLowerCase() : "";
+
+      // Match category
+      if (targetCategories.has(medCatLower)) return true;
+
+      // Match name by checking if it contains the target keyword
+      return Array.from(targetNames).some(target => medNameLower.includes(target));
+    }).slice(0, 4); // return top 4 recommendations
+  }, [cart, medicines]);
+
+  return { suggestions };
 }

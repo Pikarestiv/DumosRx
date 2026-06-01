@@ -52,7 +52,7 @@ import { POSSearchCard } from "./pos-search-card";
 import { POSTransactionHistory } from "./pos-transaction-history";
 import { POSCustomerSelector } from "./pos-customer-selector";
 import { POSCart } from "./pos-cart";
-import { POSSuggestions } from "./pos-suggestions";
+import { useSmartSuggestions } from "@/hooks/use-smart-suggestions";
 import { HeldTransactionsDialog } from "./held-transactions-dialog";
 import { insert, remove } from "@/lib/db/local-database";
 import { searchMedicines } from "@/lib/utils/search";
@@ -102,6 +102,17 @@ export function POSSystem() {
     "SELECT s.*, c.first_name || ' ' || c.last_name as customer_name FROM sales s LEFT JOIN customers c ON s.customer_id = c.id WHERE s._deleted = 0 ORDER BY s.created_at DESC LIMIT 10",
   );
 
+  const { data: recentlySoldData } = useLocalData<any>(
+    "SELECT DISTINCT medicine_id FROM sale_items ORDER BY created_at DESC LIMIT 8"
+  );
+
+  const { data: commonlySoldData } = useLocalData<any>(
+    "SELECT medicine_id, SUM(quantity) as total_qty FROM sale_items GROUP BY medicine_id ORDER BY total_qty DESC LIMIT 8"
+  );
+
+  const recentlySoldIds = recentlySoldData?.map((item: any) => item.medicine_id) || [];
+  const commonlySoldIds = commonlySoldData?.map((item: any) => item.medicine_id) || [];
+
   // Fetch customers from local DB
   const { data: customers, loading: loadingCustomers } = useLocalData<Customer>(
     "SELECT * FROM customers WHERE _deleted = 0 ORDER BY first_name ASC",
@@ -130,6 +141,8 @@ export function POSSystem() {
     total,
     discount,
   } = usePOSCart(medicines);
+
+  const { suggestions } = useSmartSuggestions(cart, medicines);
 
   const requirePaymentAccount = storeProfile?.require_payment_account === 1;
   let enabledPaymentMethods = ["cash", "card", "transfer", "credit", "mixed"];
@@ -453,6 +466,9 @@ export function POSSystem() {
                   addToCart={addToCart}
                   productTerm={t("product")}
                   currencyCode={storeProfile?.currency}
+                  suggestions={suggestions}
+                  recentlySoldIds={recentlySoldIds}
+                  commonlySoldIds={commonlySoldIds}
                 />
               </TabsContent>
 
@@ -490,12 +506,6 @@ export function POSSystem() {
               removeFromCart={removeFromCart}
               clearCart={clearCart}
               onCheckout={() => setShowPaymentDialog(true)}
-            />
-
-            <POSSuggestions
-              cart={cart}
-              addToCart={addToCart}
-              currencyCode={storeProfile?.currency}
             />
           </div>
         </div>

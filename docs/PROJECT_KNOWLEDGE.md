@@ -111,12 +111,13 @@ To maintain the "Premium" feel:
 
 ## 📈 Commercial & Pricing Strategy (Nigeria)
 
-DumosRx targets the Nigerian market against competitors like VirtualRx and cracked QuickBooks 2013 installations. We utilize a **4-Tier Pricing Strategy**:
+DumosRx targets the Nigerian market against competitors like VirtualRx and cracked QuickBooks 2013 installations. We utilize a **4-Tier Subscription Pricing Strategy**:
 
-1. **Free Trial (14 Days)**: Full access to Pro features.
-2. **Dumos Local (~₦50k one-time)**: Offline only. Max 3 staff. NO cloud backups, NO mobile access. Requires exactly ONE initial internet sync to validate payment.
-3. **Dumos Pro (~₦30k/year)**: Cloud sync, unlimited devices, mobile app access. Max 10 staff accounts. Single store.
-4. **Enterprise (~₦80k/year)**: Multi-store management, unlimited staff, E-Commerce API integrations.
+1. **Free (₦0/mo)**: Standalone desktop app (no cashier connections). Max 1 staff (owner only). No cloud sync, no web dashboard, no mobile app. Locked to default Dumos Blue theme and light mode only. Restricted to End-of-Day (EOD) reports. Prescriptions, Procurement, Expenses, and Audit modules are locked/grayed out. Reminders (stock/expiry) are enabled as standard read-only alerts.
+2. **Starter (₦3,000/mo)**: Desktop host + up to 2 local cashier network clients. Max 3 staff accounts. Cloud sync limited to once every 6 hours (twice daily). Includes a restricted web dashboard (shows a delayed data warning). Prescriptions, Procurement, Expenses, and active Audit modules are fully unlocked.
+3. **Pro (₦8,000/mo)**: Desktop + Mobile App + Full Web Dashboard (automatic sync every 15-30 minutes). Max 10 staff accounts. Daily automatic cloud backups, Smart POS suggestions, custom receipt header/footer + logo, and custom store URL/E-commerce integration.
+4. **Enterprise (₦15,000/mo)**: Unlimited multi-device access across all platforms. Unlimited staff accounts. Real-time/instant cloud sync and backups. Includes Multi-Store HQ remote dashboard. Custom white-labeling/branding, priority SMS/Email alerts, and custom audits.
+5. **Free Trial (14 Days)**: Upon registration, new users automatically start on a 14-Day Pro Free Trial. If they do not subscribe to a paid tier when the trial expires, they are automatically downgraded to the **Free** tier. All staff accounts beyond the owner/admin are suspended, and premium modules are locked.
 
 ### Licensing & Anti-Tampering
 

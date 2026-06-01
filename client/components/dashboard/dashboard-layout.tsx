@@ -106,6 +106,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     }
   }, [user, router]);
 
+  const slideVariants = {
+    enter: (d: number) => ({ x: d > 0 ? 30 : -30, opacity: 0 }),
+    center: { x: 0, opacity: 1 },
+    exit: (d: number) => ({ x: d > 0 ? -30 : 30, opacity: 0 }),
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <DashboardSidebar
@@ -154,9 +160,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             <motion.div
               key={currentIndex !== -1 ? currentIndex : pathname}
               custom={direction}
-              initial={(d: number) => ({ x: d > 0 ? 30 : -30, opacity: 0 })}
-              animate={{ x: 0, opacity: 1 }}
-              exit={(d: number) => ({ x: d > 0 ? -30 : 30, opacity: 0 })}
+              variants={slideVariants}
+              initial="enter"
+              animate="center"
+              exit="exit"
               transition={{ duration: 0.2, ease: "easeInOut" }}
               className="w-full h-full"
             >

@@ -140,7 +140,7 @@ class AdminService
 
     public function getPharmacies($page = 1, $search = null)
     {
-        $query = Store::with('user');
+        $query = Store::with(['user.subscriptions']);
 
         if ($search) {
             $query->where(function ($q) use ($search) {
@@ -158,15 +158,21 @@ class AdminService
 
         return [
             'data' => collect($paginator->items())->map(function ($store) {
+                $plan = 'Basic';
+                if ($store->user && $store->user->subscriptions->isNotEmpty()) {
+                    $sub = $store->user->subscriptions->sortByDesc('created_at')->first();
+                    $plan = ucwords($sub->plan_name);
+                }
+
                 return [
                     'id' => $store->id,
                     'name' => $store->name,
                     'owner' => $store->user ? $store->user->first_name . ' ' . $store->user->last_name : 'N/A',
                     'email' => $store->user ? $store->user->email : 'N/A',
-                    'plan' => 'Enterprise',
+                    'plan' => $plan,
                     'status' => $store->status ?: 'Active',
                     'stores' => 1,
-                    'revenue' => '₦0',
+                    'revenue' => '₦0', // TODO: compute actual revenue from sales
                     'date' => $store->created_at->format('M d, Y')
                 ];
             }),

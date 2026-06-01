@@ -111,6 +111,11 @@ jobs:
           cd client
           npm install
 
+      - name: Fix Tailwind/LightningCSS Native Bindings (Linux only)
+        run: |
+          cd client
+          npm install --force @tailwindcss/oxide-linux-x64-gnu lightningcss-linux-x64-gnu
+
       - name: Build Android App (Release)
         run: |
           cd client

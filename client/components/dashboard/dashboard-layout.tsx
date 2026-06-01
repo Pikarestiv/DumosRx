@@ -2,8 +2,9 @@
 
 import type React from "react";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { ThemeCustomizer } from "@/components/ui/theme-customizer";
 import { useAuth } from "@/lib/context/auth-context";
@@ -31,6 +32,16 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
 
+  const tabs = ["/dashboard", "/pos", "/inventory", "/customers"];
+  const currentIndex = tabs.findIndex(t => pathname.startsWith(t));
+  const prevIndexRef = useRef(currentIndex);
+  
+  useEffect(() => {
+    prevIndexRef.current = currentIndex;
+  }, [currentIndex]);
+
+  const direction = currentIndex > prevIndexRef.current ? 1 : -1;
+
   const handleTouchStart = (e: React.TouchEvent) => {
     // Ignore if touch is inside a horizontal scroll container
     let el = e.target as HTMLElement | null;
@@ -55,8 +66,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     const diffY = endY - touchStart.y;
 
     if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 50) {
-      const tabs = ["/dashboard", "/pos", "/inventory", "/customers"];
-      const currentIndex = tabs.findIndex(t => pathname.startsWith(t));
       if (currentIndex !== -1) {
         if (diffX > 0 && currentIndex > 0) {
           router.push(tabs[currentIndex - 1]);
@@ -140,7 +149,21 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         </header>
 
         {/* Page content */}
-        <main className="p-6">{children}</main>
+        <div className="flex-1 relative overflow-hidden">
+          <AnimatePresence mode="wait" initial={false} custom={direction}>
+            <motion.div
+              key={currentIndex !== -1 ? currentIndex : pathname}
+              custom={direction}
+              initial={(d: number) => ({ x: d > 0 ? 30 : -30, opacity: 0 })}
+              animate={{ x: 0, opacity: 1 }}
+              exit={(d: number) => ({ x: d > 0 ? -30 : 30, opacity: 0 })}
+              transition={{ duration: 0.2, ease: "easeInOut" }}
+              className="w-full h-full"
+            >
+              <main className="p-6">{children}</main>
+            </motion.div>
+          </AnimatePresence>
+        </div>
       </div>
     </div>
   );

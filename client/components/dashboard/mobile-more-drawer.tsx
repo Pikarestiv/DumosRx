@@ -56,7 +56,7 @@ export function MobileMoreDrawer({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-[90vh] flex flex-col p-0 pb-6 rounded-t-xl">
+      <SheetContent side="bottom" className="h-[90vh] flex flex-col p-0 pb-6 rounded-t-xl" onOpenAutoFocus={(e) => e.preventDefault()}>
         <SheetHeader className="px-6 pt-6 pb-2 text-left">
           <SheetTitle className="font-serif font-black text-2xl">More</SheetTitle>
         </SheetHeader>

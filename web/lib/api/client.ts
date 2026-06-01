@@ -2,6 +2,133 @@ import axios from "axios";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
+interface ApiLogEntry {
+  timestamp: string;
+  type: "request" | "response" | "error";
+  method?: string;
+  url?: string;
+  status?: number;
+  durationMs?: number;
+  payload?: any;
+  error?: any;
+}
+
+// In-memory circular log buffer
+if (typeof window !== "undefined") {
+  (window as any).__DRX_API_LOGS__ = (window as any).__DRX_API_LOGS__ || [];
+}
+
+const addLogToBuffer = (entry: ApiLogEntry) => {
+  if (typeof window === "undefined") return;
+  const win = window as any;
+  win.__DRX_API_LOGS__ = win.__DRX_API_LOGS__ || [];
+  win.__DRX_API_LOGS__.push(entry);
+  if (win.__DRX_API_LOGS__.length > 50) {
+    win.__DRX_API_LOGS__.shift();
+  }
+};
+
+const sanitizePayload = (payload: any): any => {
+  if (!payload) return payload;
+  
+  try {
+    let parsed = payload;
+    if (typeof payload === "string") {
+      parsed = JSON.parse(payload);
+    }
+    
+    if (typeof parsed === "object") {
+      const sanitized = Array.isArray(parsed) ? [...parsed] : { ...parsed };
+      
+      // Handle array truncation
+      if (Array.isArray(sanitized)) {
+        if (sanitized.length > 10) {
+          return [
+            `Array(${sanitized.length})`,
+            ...sanitized.slice(0, 3).map(item => sanitizePayload(item)),
+            "...truncated"
+          ];
+        }
+        return sanitized.map(item => sanitizePayload(item));
+      }
+      
+      // Mask sensitive keys
+      const sensitiveKeys = ["password", "token", "pin", "newpassword", "oldpassword", "credentials"];
+      for (const key of Object.keys(sanitized)) {
+        const lowerKey = key.toLowerCase();
+        if (sensitiveKeys.some(sk => lowerKey.includes(sk))) {
+          sanitized[key] = "********";
+        } else if (typeof sanitized[key] === "object") {
+          sanitized[key] = sanitizePayload(sanitized[key]);
+        }
+      }
+      return sanitized;
+    }
+    return parsed;
+  } catch (_) {
+    return payload;
+  }
+};
+
+// Rate limiting & deduplication
+let recentErrors: Array<{ timestamp: number; key: string }> = [];
+const cleanRecentErrors = () => {
+  const now = Date.now();
+  recentErrors = recentErrors.filter(e => now - e.timestamp < 60000);
+};
+
+const shouldReportError = (method: string, url: string, status: number, message: string): boolean => {
+  cleanRecentErrors();
+  
+  if (recentErrors.length >= 5) {
+    return false;
+  }
+  
+  const errorKey = `${method}:${url}:${status}:${message}`;
+  if (recentErrors.some(e => e.key === errorKey)) {
+    return false;
+  }
+  
+  recentErrors.push({ timestamp: Date.now(), key: errorKey });
+  return true;
+};
+
+const reportClientError = (method: string, url: string, status: number | undefined, message: string, details: any) => {
+  if (url.includes("/logs/client-error")) return;
+  if (!shouldReportError(method, url, status || 0, message)) return;
+  
+  try {
+    const token = typeof window !== "undefined"
+      ? localStorage.getItem(window.location.pathname.startsWith('/admin') ? "drx_admin_token" : "drx_token")
+      : null;
+      
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+    };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+    
+    fetch(`${API_URL}/logs/client-error`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        method,
+        url,
+        status: status || null,
+        message,
+        details: sanitizePayload(details),
+      }),
+      keepalive: true,
+    }).catch(err => {
+      console.warn("Failed to transmit error telemetry:", err);
+    });
+  } catch (_) {
+    // Silently catch exceptions
+  }
+};
+
 const apiClient = axios.create({
   baseURL: API_URL,
   headers: {
@@ -13,6 +140,8 @@ const apiClient = axios.create({
 
 // Request interceptor for token fallback
 apiClient.interceptors.request.use((config) => {
+  (config as any).metadata = { startTime: Date.now() };
+
   if (typeof window !== "undefined") {
     const isAdminPath = window.location.pathname.startsWith('/admin');
     const tokenKey = isAdminPath ? "drx_admin_token" : "drx_token";
@@ -22,14 +151,114 @@ apiClient.interceptors.request.use((config) => {
       config.headers.Authorization = `Bearer ${token}`;
     }
   }
+
+  // Dev Request Logging
+  if (process.env.NODE_ENV === "development" && typeof window !== "undefined") {
+    console.log(
+      `%c[API Request] ${config.method?.toUpperCase()} ${config.url}`,
+      "color: #6366f1; font-weight: bold;",
+      {
+        headers: config.headers,
+        data: sanitizePayload(config.data),
+      }
+    );
+  }
+
+  // Add to buffer
+  addLogToBuffer({
+    timestamp: new Date().toISOString(),
+    type: "request",
+    method: config.method?.toUpperCase(),
+    url: config.url,
+    payload: sanitizePayload(config.data),
+  });
+
   return config;
 });
 
-// Response interceptor for 401 refresh
+// Response interceptor for logging & 401 refresh
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    const startTime = (response.config as any).metadata?.startTime;
+    const duration = startTime ? Date.now() - startTime : undefined;
+
+    // Add to buffer
+    addLogToBuffer({
+      timestamp: new Date().toISOString(),
+      type: "response",
+      method: response.config.method?.toUpperCase(),
+      url: response.config.url,
+      status: response.status,
+      durationMs: duration,
+      payload: sanitizePayload(response.data),
+    });
+
+    // Dev Response Logging
+    if (process.env.NODE_ENV === "development" && typeof window !== "undefined") {
+      console.log(
+        `%c[API Response] ${response.config.method?.toUpperCase()} ${response.config.url} - Status: ${response.status} (${duration || 0}ms)`,
+        "color: #10b981; font-weight: bold;",
+        {
+          data: sanitizePayload(response.data),
+        }
+      );
+    }
+
+    return response;
+  },
   async (error) => {
     const originalRequest = error.config;
+    const startTime = originalRequest?.metadata?.startTime;
+    const duration = startTime ? Date.now() - startTime : undefined;
+    const status = error.response?.status;
+    const method = originalRequest?.method?.toUpperCase();
+    const url = originalRequest?.url;
+    const errorMessage = error.message || "Unknown error";
+    const errorDetails = error.response?.data || error.stack;
+
+    // Add to buffer
+    addLogToBuffer({
+      timestamp: new Date().toISOString(),
+      type: "error",
+      method,
+      url,
+      status,
+      durationMs: duration,
+      error: errorMessage,
+      payload: sanitizePayload(errorDetails),
+    });
+
+    // Error logging
+    if (typeof window !== "undefined") {
+      const isDev = process.env.NODE_ENV === "development";
+      if (isDev) {
+        console.groupCollapsed(
+          `%c[API Error] ${method} ${url} - Status: ${status || "NETWORK_ERROR"} (${duration || 0}ms)`,
+          "color: #ef4444; font-weight: bold;"
+        );
+        console.error("Message:", errorMessage);
+        console.log("Details:", errorDetails);
+        console.log("Request Payload:", originalRequest ? sanitizePayload(originalRequest.data) : null);
+        console.groupEnd();
+      } else {
+        console.error(`[API Error] ${method} ${url} - Status: ${status || "NETWORK_ERROR"} - ${errorMessage}`);
+      }
+
+      // Telemetry reporting for non-401 errors
+      if (originalRequest && status !== 401 && !originalRequest.url?.includes("/logs/client-error")) {
+        reportClientError(
+          method || "UNKNOWN",
+          url || "UNKNOWN",
+          status,
+          errorMessage,
+          {
+            details: errorDetails,
+            requestData: originalRequest.data,
+            durationMs: duration,
+          }
+        );
+      }
+    }
     
     if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url.includes('/login') && !originalRequest.url.includes('/refresh')) {
       originalRequest._retry = true;

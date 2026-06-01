@@ -114,6 +114,7 @@ Route::prefix('v1')->group(function () {
 
         // Activity Logs
         Route::get('/logs', [ActivityLogController::class, 'index'])->middleware(['permission:view_reports', 'subscription']);
+        Route::post('/logs/client-error', [ActivityLogController::class, 'logClientError']);
 
         // Publicly accessible within authenticated session (for impersonation return)
         Route::post('/admin/restore-session', [AdminController::class, 'restoreSession']);

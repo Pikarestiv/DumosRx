@@ -38,8 +38,10 @@ import { getUsers, createUser, deleteUser } from "@/lib/db/local-database";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { checkIsAdmin, checkIsPharmacist } from "@/lib/context/auth-context";
+import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 
 export function StaffManagement() {
+  const { maxStaffAccounts } = useFeatureGate();
   const [users, setUsers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -137,11 +139,19 @@ export function StaffManagement() {
           <h2 className="text-xl font-bold font-serif">Staff Management</h2>
           <p className="text-sm text-muted-foreground">
             Create and manage sub-accounts for your team members.
+            {users.length >= maxStaffAccounts && (
+              <span className="block mt-1 text-amber-600 font-medium">
+                You have reached your limit of {maxStaffAccounts} staff accounts on your current plan. Upgrade to Dumos Pro or Enterprise to add more.
+              </span>
+            )}
           </p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-primary hover:bg-primary/90">
+            <Button 
+              className="bg-primary hover:bg-primary/90"
+              disabled={users.length >= maxStaffAccounts}
+            >
               <UserPlus className="w-4 h-4 mr-2" />
               Add Staff Member
             </Button>

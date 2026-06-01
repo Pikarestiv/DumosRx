@@ -12,6 +12,9 @@ use Illuminate\Support\Facades\Auth;
 
 class AdminController extends Controller
 {
+    /**
+     * @var \App\Services\Admin\AdminService
+     */
     protected $adminService;
 
     public function __construct(AdminService $adminService)
@@ -194,6 +197,26 @@ class AdminController extends Controller
         } catch (\Exception $e) {
             Log::error("Admin Unsuspend Error: " . $e->getMessage());
             return response()->json(['error' => 'Failed to unsuspend pharmacy'], 500);
+        }
+    }
+
+    public function grantTrial(Request $request, $id)
+    {
+        if ($request->user()->role !== 'super_admin') {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        $validated = $request->validate([
+            'plan' => 'required|string|in:Local,Pro,Enterprise',
+            'duration' => 'required|string',
+        ]);
+
+        try {
+            $this->adminService->grantTrial($id, $validated['plan'], $validated['duration']);
+            return response()->json(['message' => 'Trial granted successfully']);
+        } catch (\Exception $e) {
+            Log::error("Admin Grant Trial Error: " . $e->getMessage());
+            return response()->json(['error' => 'Failed to grant trial: ' . $e->getMessage()], 500);
         }
     }
 

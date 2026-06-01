@@ -238,7 +238,7 @@ class SyncController extends Controller
                             ->orWhereIn('store_id', $storeIds);
                     });
                 } elseif ($table === 'store_profile') {
-                    $query->where('user_id', $user->id);
+                    $query->where('user_id', $user->id)->with(['user.subscriptions']);
                 } elseif ($table === 'sales') {
                     // For sales, we pull all sales from the stores owned by the user
                     $storeIds = Store::where('user_id', $user->id)->pluck('id')->toArray();
@@ -275,6 +275,18 @@ class SyncController extends Controller
             $changes[$table] = $records->map(function ($item) use ($table) {
                 $array = $item->toArray();
                 $array['_deleted'] = (\method_exists($item, 'trashed') && $item->trashed()) ? 1 : 0;
+
+                // Map subscription_tier for store_profile
+                if ($table === 'store_profile') {
+                    $plan = 'free';
+                    if ($item->user && $item->user->subscriptions->isNotEmpty()) {
+                        $sub = $item->user->subscriptions->sortByDesc('created_at')->first();
+                        if ($sub && in_array(strtolower($sub->plan_name), ['free', 'local', 'pro', 'enterprise'])) {
+                            $plan = strtolower($sub->plan_name);
+                        }
+                    }
+                    $array['subscription_tier'] = $plan;
+                }
 
                 // SQLite on desktop has a NOT NULL constraint on username
                 if ($table === 'users' && empty($array['username'])) {

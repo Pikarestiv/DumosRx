@@ -571,6 +571,56 @@ class AdminService
         });
     }
 
+    public function grantTrial($storeId, $plan, $durationString)
+    {
+        return DB::transaction(function () use ($storeId, $plan, $durationString) {
+            $store = Store::findOrFail($storeId);
+            $user = $store->user;
+
+            if (!$user) {
+                throw new \Exception("Pharmacy has no owner.");
+            }
+
+            // Parse duration string into days
+            $days = 14; // Default
+            if (str_contains($durationString, '1day')) $days = 1;
+            elseif (str_contains($durationString, '3 days')) $days = 3;
+            elseif (str_contains($durationString, '7 days')) $days = 7;
+            elseif (str_contains($durationString, '14 days')) $days = 14;
+            elseif (str_contains($durationString, '21 days')) $days = 21;
+            elseif (str_contains($durationString, '30 days')) $days = 30;
+            elseif (str_contains($durationString, '3 months')) $days = 90;
+            elseif (str_contains($durationString, '6 months')) $days = 180;
+
+            // Optional: Mark previous active subscriptions as superseded or just leave them
+            $user->subscriptions()->where('status', 'active')->update(['status' => 'superseded']);
+
+            // Create new trial subscription
+            \App\Models\Subscription::create([
+                'user_id' => $user->id,
+                'plan_name' => strtolower($plan),
+                'start_date' => now(),
+                'end_date' => now()->addDays($days),
+                'status' => 'active',
+                'license_key' => 'DRX-TRIAL-' . strtoupper(Str::random(12)),
+            ]);
+
+            // Update store plan in UI cache / trigger sync
+            $store->last_sync_at = now();
+            $store->save();
+
+            // Log activity
+            ActivityLog::create([
+                'user_id' => Auth::id(),
+                'action' => 'GRANT_FREE_TRIAL',
+                'description' => "Granted {$durationString} {$plan} Free Trial to {$store->name} ({$store->id})",
+                'status' => 'success'
+            ]);
+
+            return true;
+        });
+    }
+
     public function deactivateUser($id)
     {
         $user = User::findOrFail($id);

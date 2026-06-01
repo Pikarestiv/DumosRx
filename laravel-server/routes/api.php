@@ -125,6 +125,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/pharmacies', [AdminController::class, 'registerPharmacy']);
             Route::post('/pharmacies/{id}/suspend', [AdminController::class, 'suspendPharmacy']);
             Route::post('/pharmacies/{id}/unsuspend', [AdminController::class, 'unsuspendPharmacy']);
+            Route::post('/pharmacies/{id}/grant-trial', [AdminController::class, 'grantTrial']);
             Route::get('/products', [AdminController::class, 'products']);
             Route::post('/products/standardize', [AdminController::class, 'standardize']);
             Route::get('/users', [AdminController::class, 'users']);

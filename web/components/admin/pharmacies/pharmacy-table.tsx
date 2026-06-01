@@ -7,6 +7,7 @@ import {
   Mail,
   Store as StoreIcon,
   CheckCircle,
+  Gift,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +35,7 @@ interface PharmacyTableProps {
   handleViewBilling: (pharmacy: any) => void;
   setSelectedPharmacy: (pharmacy: any) => void;
   setIsSuspendDialogOpen: (open: boolean) => void;
+  setIsTrialDialogOpen: (open: boolean) => void;
   handleUnsuspend: (pharmacy: any) => void;
   router: any;
 }
@@ -45,6 +47,7 @@ export function PharmacyTable({
   handleViewBilling,
   setSelectedPharmacy,
   setIsSuspendDialogOpen,
+  setIsTrialDialogOpen,
   handleUnsuspend,
   router,
 }: PharmacyTableProps) {
@@ -175,6 +178,16 @@ export function PharmacyTable({
                   >
                     <History className="h-4 w-4 text-blue-500" />
                     System Logs
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold text-amber-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors"
+                    onClick={() => {
+                      setSelectedPharmacy(pharmacy);
+                      setIsTrialDialogOpen(true);
+                    }}
+                  >
+                    <Gift className="h-4 w-4" />
+                    Grant Trial
                   </DropdownMenuItem>
                   <DropdownMenuSeparator className="my-2 bg-slate-100 dark:bg-slate-800" />
                   {pharmacy.status === "Suspended" ? (

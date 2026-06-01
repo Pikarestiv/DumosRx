@@ -77,6 +77,21 @@ export const useUnsuspendPharmacyMutation = () => {
   });
 };
 
+export const useGrantTrialMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, plan, duration }: { id: string; plan: string; duration: string }) => 
+      webApiClient.request<any>(`admin/pharmacies/${id}/grant-trial`, { 
+        method: "POST", 
+        body: { plan, duration } 
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-pharmacies"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
+    },
+  });
+};
+
 export const useDeactivateUserMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({

@@ -24,11 +24,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Card, CardContent } from "@/components/ui/card";
-import { useAdminPharmacies, useSuspendPharmacyMutation, useUnsuspendPharmacyMutation, useImpersonatePharmacyMutation } from "@/lib/api/admin-hooks";
+import { useAdminPharmacies, useSuspendPharmacyMutation, useUnsuspendPharmacyMutation, useImpersonatePharmacyMutation, useGrantTrialMutation } from "@/lib/api/admin-hooks";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useDebounce } from "@/hooks/use-debounce";
 import { PharmacyTable } from "@/components/admin/pharmacies/pharmacy-table";
 import { SuspendPharmacyDialog } from "@/components/admin/pharmacies/pharmacy-dialogs";
+import { GrantTrialDialog } from "@/components/admin/pharmacies/grant-trial-dialog";
 import { toast } from "sonner";
 import { AdminSkeleton } from "@/components/admin/admin-skeleton";
 
@@ -41,6 +42,7 @@ export default function PharmaciesManagement() {
   const [search, setSearch] = useState(initialSearch);
   const [selectedPharmacy, setSelectedPharmacy] = useState<any>(null);
   const [isSuspendDialogOpen, setIsSuspendDialogOpen] = useState(false);
+  const [isTrialDialogOpen, setIsTrialDialogOpen] = useState(false);
   
   const debouncedSearch = useDebounce(search, 500);
 
@@ -114,6 +116,28 @@ export default function PharmaciesManagement() {
       onError: (err: any) => {
         toast.error("Action Failed", {
           description: err.message || "Failed to unsuspend pharmacy.",
+        });
+      }
+    });
+  };
+
+  const grantTrialMutation = useGrantTrialMutation();
+
+  const handleGrantTrial = async (plan: string, duration: string) => {
+    if (!selectedPharmacy) return;
+
+    grantTrialMutation.mutate({ id: selectedPharmacy.id, plan, duration }, {
+      onSuccess: () => {
+        toast.success("Trial Granted", {
+          description: `Granted ${duration} ${plan} trial to ${selectedPharmacy.name}.`,
+        });
+        setIsTrialDialogOpen(false);
+        setSelectedPharmacy(null);
+        refetch();
+      },
+      onError: (err: any) => {
+        toast.error("Action Failed", {
+          description: err.message || "Failed to grant trial.",
         });
       }
     });
@@ -266,6 +290,7 @@ export default function PharmaciesManagement() {
               handleViewBilling={handleViewBilling}
               setSelectedPharmacy={setSelectedPharmacy}
               setIsSuspendDialogOpen={setIsSuspendDialogOpen}
+              setIsTrialDialogOpen={setIsTrialDialogOpen}
               handleUnsuspend={handleUnsuspend}
               router={router}
             />
@@ -356,6 +381,14 @@ export default function PharmaciesManagement() {
         selectedPharmacy={selectedPharmacy}
         handleSuspend={handleSuspend}
         isPending={suspendMutation.isPending}
+      />
+
+      <GrantTrialDialog
+        open={isTrialDialogOpen}
+        onOpenChange={setIsTrialDialogOpen}
+        pharmacy={selectedPharmacy}
+        onConfirm={handleGrantTrial}
+        isPending={grantTrialMutation.isPending}
       />
     </div>
   );

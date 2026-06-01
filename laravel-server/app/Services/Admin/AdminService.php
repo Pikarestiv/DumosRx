@@ -61,7 +61,7 @@ class AdminService
                     'id' => $store->id,
                     'name' => $store->name,
                     'owner' => $store->user ? $store->user->first_name . ' ' . $store->user->last_name : 'N/A',
-                    'plan' => 'Enterprise', // Link to subscriptions table when schema is ready
+                    'plan' => ($store->user && $store->user->subscriptions->isNotEmpty()) ? ucwords($store->user->subscriptions->sortByDesc('created_at')->first()->plan_name) : 'Basic',
                     'status' => $status,
                     'date' => $store->created_at->diffForHumans()
                 ];

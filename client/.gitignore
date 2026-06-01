@@ -38,3 +38,7 @@ next-env.d.ts
 *.db-journal
 *.db-shm
 *.db-wal
+
+# Android signing
+*.jks
+*-base64.txt

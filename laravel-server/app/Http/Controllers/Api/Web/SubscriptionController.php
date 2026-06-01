@@ -347,6 +347,12 @@ class SubscriptionController extends Controller
         /** @var User $user */
         $user = Auth::user();
 
+        // Backfill referral code for users created before auto-generation was added
+        if (!$user->referral_code) {
+            $user->referral_code = User::generateUniqueReferralCode();
+            $user->save();
+        }
+
         // Get referred users
         $referrals = User::where('referred_by_id', $user->id)
             ->with(['store'])

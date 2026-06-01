@@ -34,7 +34,7 @@ export function ReceiptPreview({
             />
           )}
           <div className="font-bold text-xs uppercase">
-            {localName || "DUMOSRX PHARMACY"}
+            {localName || "DUMOSRX STORE"}
           </div>
           {showContact && (
             <div className="text-[8px] leading-tight">

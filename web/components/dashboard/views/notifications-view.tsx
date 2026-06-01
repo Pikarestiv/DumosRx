@@ -34,7 +34,7 @@ export function NotificationsView({ onBack }: NotificationsViewProps) {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-black tracking-tight">Notifications Center</h1>
-          <p className="text-muted-foreground font-medium">Stay updated with your pharmacy fleet's activity and administrative messages</p>
+          <p className="text-muted-foreground font-medium">Stay updated with your store fleet's activity and administrative messages</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" className="rounded-xl font-bold" onClick={() => refetch()}>Refresh</Button>

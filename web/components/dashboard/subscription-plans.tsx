@@ -128,7 +128,7 @@ export function SubscriptionPlans() {
       name: "Dumos Local",
       price: config?.tiers?.local?.price_one_time ? formatPrice(config.tiers.local.price_one_time) : "₦50,000",
       period: "One-Time",
-      description: "Perfect for single offline pharmacies.",
+      description: "Perfect for single offline stores.",
       features: [
         "Full POS & Inventory",
         "Up to 3 Staff Accounts",
@@ -149,7 +149,7 @@ export function SubscriptionPlans() {
         ? (config?.tiers?.pro?.price_yearly ? formatPrice(config.tiers.pro.price_yearly) : "₦300,000")
         : (config?.tiers?.pro?.price_monthly ? formatPrice(config.tiers.pro.price_monthly) : "₦30,000"),
       period: isYearly ? "/ year" : "/ month",
-      description: "Cloud-enabled modern pharmacy management.",
+      description: "Cloud-enabled modern store management.",
       features: [
         "Everything in Local",
         "Up to 10 Staff Accounts",

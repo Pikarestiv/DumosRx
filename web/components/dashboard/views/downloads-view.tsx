@@ -48,7 +48,7 @@ export function DownloadsView({ releaseLinks }: DownloadsViewProps) {
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div>
         <h1 className="text-3xl font-black tracking-tight">App Downloads</h1>
-        <p className="text-muted-foreground">Download the DumosRx Local Client for your pharmacy devices</p>
+        <p className="text-muted-foreground">Download the DumosRx Local Client for your store devices</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

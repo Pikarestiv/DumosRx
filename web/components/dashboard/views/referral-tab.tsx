@@ -72,12 +72,12 @@ export function ReferralTab() {
         <Card className="md:col-span-2 border-none shadow-sm flex flex-col justify-between">
           <CardHeader>
             <CardTitle className="text-xl flex items-center gap-2">
-              <Gift className="h-5 w-5 text-primary" /> Invite Pharmacies, Earn
+              <Gift className="h-5 w-5 text-primary" /> Invite Others, Earn
               Credits!
             </CardTitle>
             <CardDescription>
-              Share your referral link with other pharmacy owners. When they
-              subscribe to any plan, you'll earn a percentage of their payment
+              Share your referral link with other store owners. When they
+              subscribe to any plan, you&apos;ll earn a percentage of their payment
               as credits to offset your own future bills!
             </CardDescription>
           </CardHeader>
@@ -87,10 +87,11 @@ export function ReferralTab() {
                 <Input
                   readOnly
                   value={referralLink}
+                  placeholder="Loading your referral link..."
                   className="bg-muted/30 border-muted pr-10 text-sm font-mono truncate"
                 />
               </div>
-              <Button onClick={copyReferralLink} size="icon" variant="outline">
+              <Button onClick={copyReferralLink} size="icon" variant="outline" disabled={!referralLink}>
                 {copied ? (
                   <Check className="h-4 w-4 text-green-500" />
                 ) : (
@@ -130,13 +131,13 @@ export function ReferralTab() {
             <Users className="h-5 w-5 text-muted-foreground" /> Referred Signups
           </CardTitle>
           <CardDescription>
-            Pharmacies that registered using your referral link.
+            Businesses that registered using your referral link.
           </CardDescription>
         </CardHeader>
         <CardContent>
           {stats?.referrals && stats.referrals.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              You haven't referred any pharmacies yet. Share your link to get
+              You haven&apos;t referred anyone yet. Share your link to get
               started!
             </div>
           ) : (
@@ -144,7 +145,7 @@ export function ReferralTab() {
               <Table>
                 <TableHeader className="bg-muted/10">
                   <TableRow>
-                    <TableHead>Pharmacy Name</TableHead>
+                    <TableHead>Store Name</TableHead>
                     <TableHead>Owner</TableHead>
                     <TableHead>Registered On</TableHead>
                     <TableHead>Status</TableHead>

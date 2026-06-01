@@ -69,7 +69,7 @@ export default function DownloadsPage() {
               Current Version: {isLoading ? "Checking..." : currentLinks.version}
             </div>
             <h1 className="text-4xl md:text-6xl font-black mb-6 tracking-tight">
-              Take your Pharmacy <br />
+              Take your Business <br />
               <span className="text-primary">Offline.</span>
             </h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed">

@@ -51,7 +51,7 @@ export function useDashboard() {
     releaseLinks: releaseData || defaultReleaseLinks,
     logout,
     refetch,
-    user: data?.user || { name: "User", email: "", pharmacy_name: "DumosRx Pharmacy" },
+    user: data?.user || { name: "User", email: "", pharmacy_name: "My Store" },
     stores: data?.stores || [],
     stats: data?.stats,
     staff: data?.staff || [],

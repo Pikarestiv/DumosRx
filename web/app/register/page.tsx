@@ -77,7 +77,7 @@ export default function RegisterPage() {
               Join the Network
             </h2>
             <p className="text-gray-400">
-              Modernize your pharmacy operations today
+              Modernize your business operations today
             </p>
           </div>
 

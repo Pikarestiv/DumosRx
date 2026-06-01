@@ -54,7 +54,7 @@ export default async function StorefrontPage({ params }: StorefrontProps) {
             {store.name}
           </h1>
           <p className="mt-4 text-xl text-gray-500">
-            {store.location || store.address || "Your trusted local pharmacy, now online."}
+            {store.location || store.address || "Your trusted local store, now online."}
           </p>
           {(store.phone || store.email) && (
             <div className="mt-4 flex flex-col sm:flex-row gap-4 items-center md:justify-start justify-center">

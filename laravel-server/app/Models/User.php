@@ -170,7 +170,7 @@ class User extends Authenticatable
         parent::boot();
 
         static::creating(function ($user) {
-            // Generate unique referral code for admins / pharmacy owners
+            // Generate unique referral code for store owners
             if (in_array($user->role, ['admin', 'pharmacy_owner'])) {
                 $user->referral_code = self::generateUniqueReferralCode();
             }

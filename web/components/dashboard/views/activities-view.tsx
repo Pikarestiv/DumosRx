@@ -70,7 +70,7 @@ export function ActivitiesView({ stores = [] }: { stores?: StoreProp[] }) {
             Staff Activities
           </h2>
           <p className="text-muted-foreground font-medium mt-1">
-            Track actions performed across your connected pharmacies.
+            Track actions performed across your connected stores.
           </p>
         </div>
       </div>

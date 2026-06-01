@@ -87,7 +87,7 @@ export default function LoginPage() {
               Sign In
             </h2>
             <p className="text-gray-400">
-              Authorized access to your pharmacy portal
+              Authorized access to your business portal
             </p>
           </div>
 

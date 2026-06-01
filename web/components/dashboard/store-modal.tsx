@@ -83,8 +83,8 @@ export function StoreModal({ isOpen, onClose, onSuccess, store }: StoreModalProp
             <DialogTitle className="text-2xl font-black">{isEditing ? "Edit Store Details" : "Register New Store"}</DialogTitle>
             <DialogDescription className="text-muted-foreground font-medium">
                 {isEditing 
-                  ? "Update the information for this pharmacy location."
-                  : "Expand your fleet by adding a new pharmacy instance."}
+                  ? "Update the information for this store location."
+                  : "Expand your fleet by adding a new store instance."}
             </DialogDescription>
           </DialogHeader>
 
@@ -140,7 +140,7 @@ export function StoreModal({ isOpen, onClose, onSuccess, store }: StoreModalProp
                 <Input 
                   id="address" 
                   className="pl-10 font-medium" 
-                  placeholder="123 Pharmacy Way..."
+                  placeholder="123 Main Street..."
                   value={formData.address}
                   onChange={(e) => setFormData({...formData, address: e.target.value})}
                 />

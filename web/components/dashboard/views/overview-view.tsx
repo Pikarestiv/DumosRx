@@ -72,7 +72,7 @@ export function OverviewView({ stats, user, stores, onReset }: OverviewViewProps
       },
       stores: {
         title: "Clear Terminals",
-        description: "Are you sure you want to delete all connected pharmacy terminals? They will need to re-register to sync data.",
+        description: "Are you sure you want to delete all connected terminals? They will need to re-register to sync data.",
       },
       all: {
         title: "Full Account Reset",
@@ -173,7 +173,7 @@ export function OverviewView({ stats, user, stores, onReset }: OverviewViewProps
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle>Connected Stores</CardTitle>
-              <CardDescription>Real-time sync status for your local pharmacy instances.</CardDescription>
+              <CardDescription>Real-time sync status for your local store instances.</CardDescription>
             </div>
             <Button variant="ghost" size="sm" className="font-bold">View All</Button>
           </CardHeader>

@@ -18,11 +18,13 @@ DumosRx is a modern, comprehensive pharmacy management system specifically desig
 - **🔐 Role-Based Authentication** - Super Admin, Manager, Pharmacist, Sales Staff, Auditor roles
 - **💊 Medicine Database** - Management of Nigerian medicines with NAFDAC compliance support
 - **📦 Inventory Management** - Real-time stock tracking, batch management, expiry alerts
-- **🛒 Point of Sale (POS)** - Complete transaction processing with Nigerian payment methods
+- **🛒 Point of Sale (POS)** - Complete transaction processing with Nigerian payment methods and split-payment support
 - **📋 Prescription Management** - Digital prescription handling and dispensing tracking
 - **👥 Customer & Loyalty** - Customer profiles, loyalty points, membership tiers
 - **📊 Business Intelligence** - Comprehensive analytics and reporting dashboards
 - **🏢 Supplier Management** - Vendor relationships and purchase order tracking
+- **📱 PWA & Tauri Mobile** - Progressive Web App support for Android/iOS, and native Android packaging with GitHub Actions release flows
+- **💡 Smart Suggestions Engine** - Zero-latency, client-side clinical and commercial upsell recommendations at POS checkout
 
 ### 🇳🇬 Nigerian-Specific Features
 

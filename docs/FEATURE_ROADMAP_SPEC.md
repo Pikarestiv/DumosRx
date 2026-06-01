@@ -39,17 +39,19 @@ These must be done before a public launch. They directly affect user trust, onbo
 
 ---
 
-### ✅ Smart Suggestions Engine *(Partial — engine logic needed)*
+### ✅ Smart Suggestions Engine *(COMPLETED)*
 
-- **What exists:** `show_retail_suggestions` flag on the `stores` table, toggle in store settings and admin dashboard.
-- **What's missing:** The actual rule-based suggestion logic in the POS checkout flow.
+- **Description:** A local clinical and commercial upsell recommendation system.
 - **Implementation:**
-  - Build a `SuggestionsEngine` class/module in the client app
-  - Phase 1 (rule-based): antibiotics → probiotics, antihypertensives → potassium supplements, etc.
-  - Phase 2 (data-driven): query local sales history for frequently co-purchased items
-  - Render as a non-intrusive suggestion card at checkout, only if `show_retail_suggestions = true`
-- **Cost:** None — fully local/offline logic.
-- **Effort:** ~1–2 days
+  - Developed [useSmartSuggestions.ts](file:///Users/admin/Documents/Projects/DumosRx/client/hooks/use-smart-suggestions.ts) hook matching cart items against category triggers.
+  - Checks SQLite inventory (`stock_quantity > 0` and `is_active = 1` and `_deleted = 0`) so recommended products are always in stock.
+  - Excludes products already present in the cart.
+  - Renders a premium, non-intrusive, dashed recommendation widget [POSSuggestions](file:///Users/admin/Documents/Projects/DumosRx/client/components/pos/pos-suggestions.tsx) in the POS sidebar checkout layout with a one-click "Add" button.
+- **Rules Integrated:**
+  - `Antimalarials` triggers `Vitamins` and `Analgesics` (e.g. Vitamin C, Paracetamol).
+  - `Antibiotics` triggers `Vitamins` (e.g. Probiotics / Vitamin B-complex).
+  - `Cough & Cold` triggers `Vitamins`.
+  - `Analgesics` triggers `Antacids` (gastric protection for NSAIDs).
 
 ---
 

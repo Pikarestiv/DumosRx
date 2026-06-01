@@ -78,29 +78,23 @@ To ensure every flow is seamless and robust, we will execute our testing in stri
 
 ## 3. Product Suggestions & Suggestion System Data
 
-DumosRx's **Smart Suggestions Engine** will help pharmacists upsell and provide better clinical advice. 
+DumosRx's **Smart Suggestions Engine** helps pharmacists upsell and provide better clinical advice.
 
-### Technical Implementation of suggestions
-To keep the application fast and offline-resilient, suggestions will run entirely on the client side:
-1. **Database Schema**: We will introduce a local SQLite table `product_suggestions` to store relationships:
-   ```sql
-   CREATE TABLE product_suggestions (
-     id TEXT PRIMARY KEY,
-     trigger_name TEXT NOT NULL,         -- Can match category, generic name, or specific brand
-     suggested_item_name TEXT NOT NULL,  -- Product name or generic name to suggest
-     suggestion_type TEXT NOT NULL,      -- 'clinical' (cross-sell antibiotic+probiotic) or 'commercial' (upsell larger size)
-     message TEXT NOT NULL,              -- Upsell tooltip text (e.g. "Suggest probiotics with antibiotics")
-     _deleted INTEGER DEFAULT 0
-   );
-   ```
-2. **Suggestions Hook (`useSmartSuggestions.ts`)**:
+### Technical Implementation of Suggestions
+To keep the application fast and offline-resilient, suggestions run entirely client-side:
+1. **Trigger Engine**: We match the items currently in the cart against target recommendation categories. For example:
+   * `Antimalarials` ➔ Recommends `Vitamins` and `Analgesics` (e.g., Vitamin C, Paracetamol).
+   * `Antibiotics` ➔ Recommends `Vitamins` (e.g., Probiotics, B-complex).
+   * `Cough & Cold` ➔ Recommends `Vitamins`.
+   * `Analgesics` (NSAIDs) ➔ Recommends `Antacids`.
+2. **Suggestions Hook ([useSmartSuggestions.ts](file:///Users/admin/Documents/Projects/DumosRx/client/hooks/use-smart-suggestions.ts))**:
    * Listens to the local POS cart state.
-   * Matches the items currently in the cart against `trigger_name` in `product_suggestions`.
+   * Extracts the categories of products in the cart.
+   * Queries local SQLite `medicines` to verify if matching products are currently in stock (`stock_quantity > 0` and `is_active = 1` and `_deleted = 0`).
    * Filters out any suggested items that are *already in the cart*.
-   * Queries local SQLite `medicines` to verify if the suggested item is currently in stock (`stock_quantity > 0`). If out of stock, it does not suggest it.
-3. **UI Integration**:
-   * Renders a small, non-intrusive alert/suggestion badge directly in the POS sidebar (e.g., `"Consider recommending Bifidobacterium Probiotic (+ ₦1,200)"`).
-   * Clicking the suggestion instantly appends the item to the cart.
+3. **UI Integration ([POSSuggestions](file:///Users/admin/Documents/Projects/DumosRx/client/components/pos/pos-suggestions.tsx))**:
+   * Renders a beautiful, dashed card in the POS checkout sidebar listing the top suggestions.
+   * Includes a one-click "Add" button that instantly appends the item to the cart.
 
 ### Core Data Categories to Seed
 * **Clinical Co-Purchases**:

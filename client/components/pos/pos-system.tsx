@@ -52,6 +52,7 @@ import { POSSearchCard } from "./pos-search-card";
 import { POSTransactionHistory } from "./pos-transaction-history";
 import { POSCustomerSelector } from "./pos-customer-selector";
 import { POSCart } from "./pos-cart";
+import { POSSuggestions } from "./pos-suggestions";
 import { HeldTransactionsDialog } from "./held-transactions-dialog";
 import { insert, remove } from "@/lib/db/local-database";
 import { searchMedicines } from "@/lib/utils/search";
@@ -92,6 +93,7 @@ export function POSSystem() {
         cost_price: m.cost_price || 0,
         barcode: m.barcode || "",
         batch_number: m.batch_number || "",
+        category_id: m.category_id || "",
       }),
     },
   );
@@ -488,6 +490,12 @@ export function POSSystem() {
               removeFromCart={removeFromCart}
               clearCart={clearCart}
               onCheckout={() => setShowPaymentDialog(true)}
+            />
+
+            <POSSuggestions
+              cart={cart}
+              addToCart={addToCart}
+              currencyCode={storeProfile?.currency}
             />
           </div>
         </div>

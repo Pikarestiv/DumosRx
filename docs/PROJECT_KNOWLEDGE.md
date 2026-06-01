@@ -180,7 +180,14 @@ Hardening the platform against vulnerabilities.
 - **Sales Dashboard**: Complete dashboard with real-time sync status indicators.
 - **Barcode Scanning**: Integration for the POS.
 - **Report Generation**: Enhanced PDF/Excel generation for regulatory audits.
+- **Smart Suggestions**: *(DONE)* Recommends clinical/upsell matches in the POS cart using client-side SQLite queries matching categories and inventory stock.
+
+### 8. Mobile Compilation & PWA
+
+- **Tauri Android**: Package configuration retained under `com.dumostech.dumosrx` to preserve company domain scope across future application launches.
+- **Next.js PWA**: Served static progressive web app configuration utilizing `/manifest.json`, registered via [PwaRegistrar](file:///Users/admin/Documents/Projects/DumosRx/client/components/pwa-registrar.tsx) on client load.
+- **iOS standalone configuration**: Configured via Next.js metadata API mapping to standard `/apple-touch-icon.png` assets with standalone viewport scaling.
 
 ---
 
-*This document was last updated on 2026-05-21. Move forward with precision and elegance.*
+*This document was last updated on 2026-06-01. Move forward with precision and elegance.*

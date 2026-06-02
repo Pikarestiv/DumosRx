@@ -29,8 +29,11 @@ class AdminService
         $prevPharmacies = Store::where('created_at', '<', $last7Days)->count();
         $pharmacyChange = $this->calculateChange($totalPharmacies, $prevPharmacies);
 
-        $activeUsers = User::where('is_active', true)->count();
+        $activeUsers = User::where('is_active', true)
+            ->where('role', '!=', 'super_admin')
+            ->count();
         $prevActiveUsers = User::where('is_active', true)
+            ->where('role', '!=', 'super_admin')
             ->where('created_at', '<', $last7Days)
             ->count();
         $userChange = $this->calculateChange($activeUsers, $prevActiveUsers);
@@ -75,7 +78,7 @@ class AdminService
         $liveOperations = [
             'total_requests' => number_format(ActivityLog::count()),
             'sync_success_rate' => $syncRate . '%',
-            'active_connections' => number_format(User::where('is_active', true)->count())
+            'active_connections' => number_format(User::where('is_active', true)->where('role', '!=', 'super_admin')->count())
         ];
 
         // 4. Security Alerts

@@ -22,9 +22,10 @@ export function SubscriptionConfigTab() {
     grace_period_days: 3,
     enable_paystack: true,
     tiers: {
-      local: { price_one_time: 50000, active: true },
-      pro: { price_monthly: 3000, price_yearly: 30000, active: true },
-      enterprise: { price_monthly: 8000, price_yearly: 80000, active: true },
+      free: { price_monthly: 0, price_yearly: 0, active: true },
+      starter: { price_monthly: 3000, price_yearly: 30000, active: true },
+      pro: { price_monthly: 8000, price_yearly: 80000, active: true },
+      enterprise: { price_monthly: 15000, price_yearly: 150000, active: true },
     }
   });
 
@@ -48,9 +49,26 @@ export function SubscriptionConfigTab() {
       setConfig({
         ...serverConfig,
         tiers: {
-          local: { ...serverConfig.tiers?.local },
-          pro: { ...serverConfig.tiers?.pro },
-          enterprise: { ...serverConfig.tiers?.enterprise },
+          free: {
+            price_monthly: serverConfig.tiers?.free?.price_monthly ?? 0,
+            price_yearly: serverConfig.tiers?.free?.price_yearly ?? 0,
+            active: serverConfig.tiers?.free?.active ?? true,
+          },
+          starter: {
+            price_monthly: serverConfig.tiers?.starter?.price_monthly ?? 3000,
+            price_yearly: serverConfig.tiers?.starter?.price_yearly ?? 30000,
+            active: serverConfig.tiers?.starter?.active ?? true,
+          },
+          pro: {
+            price_monthly: serverConfig.tiers?.pro?.price_monthly ?? 8000,
+            price_yearly: serverConfig.tiers?.pro?.price_yearly ?? 80000,
+            active: serverConfig.tiers?.pro?.active ?? true,
+          },
+          enterprise: {
+            price_monthly: serverConfig.tiers?.enterprise?.price_monthly ?? 15000,
+            price_yearly: serverConfig.tiers?.enterprise?.price_yearly ?? 150000,
+            active: serverConfig.tiers?.enterprise?.active ?? true,
+          },
         }
       });
     }
@@ -124,23 +142,34 @@ export function SubscriptionConfigTab() {
         <CardContent className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             
-            {/* Dumos Local */}
+            {/* Starter */}
             <div className="p-4 border rounded-xl bg-slate-50 dark:bg-slate-900/50 space-y-4">
               <div className="flex items-center justify-between">
-                <Label className="font-bold text-base">Dumos Local</Label>
+                <Label className="font-bold text-base">Starter Plan</Label>
                 <Switch 
-                  checked={config.tiers.local.active} 
-                  onCheckedChange={(c) => setConfig({ ...config, tiers: { ...config.tiers, local: { ...config.tiers.local, active: c } } })}
+                  checked={config.tiers.starter.active} 
+                  onCheckedChange={(c) => setConfig({ ...config, tiers: { ...config.tiers, starter: { ...config.tiers.starter, active: c } } })}
                 />
               </div>
-              <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">Price (₦) - One Time</Label>
-                <Input 
-                  type="number" 
-                  value={config.tiers.local.price_one_time} 
-                  onChange={(e) => setConfig({ ...config, tiers: { ...config.tiers, local: { ...config.tiers.local, price_one_time: Number(e.target.value) } } })}
-                  disabled={!config.tiers.local.active}
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Price (₦) / Month</Label>
+                  <Input 
+                    type="number" 
+                    value={config.tiers.starter.price_monthly} 
+                    onChange={(e) => setConfig({ ...config, tiers: { ...config.tiers, starter: { ...config.tiers.starter, price_monthly: Number(e.target.value) } } })}
+                    disabled={!config.tiers.starter.active}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Price (₦) / Year</Label>
+                  <Input 
+                    type="number" 
+                    value={config.tiers.starter.price_yearly} 
+                    onChange={(e) => setConfig({ ...config, tiers: { ...config.tiers, starter: { ...config.tiers.starter, price_yearly: Number(e.target.value) } } })}
+                    disabled={!config.tiers.starter.active}
+                  />
+                </div>
               </div>
             </div>
 

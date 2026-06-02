@@ -68,6 +68,7 @@ export function GrantTrialDialog({
                 <SelectValue placeholder="Select plan" />
               </SelectTrigger>
               <SelectContent className="rounded-xl">
+                <SelectItem value="Starter">Starter Plan</SelectItem>
                 <SelectItem value="Pro">Pro Plan</SelectItem>
                 <SelectItem value="Enterprise">Enterprise Plan</SelectItem>
               </SelectContent>

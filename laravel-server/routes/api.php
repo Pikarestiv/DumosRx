@@ -59,54 +59,6 @@ Route::prefix('v1')->group(function () {
         return 'Cleared';
     });
 
-    Route::get('/dev/nuke-database', function() {
-        if (request()->query('key') !== 'DumosRxReset992') {
-            return response()->json(['error' => 'Unauthorized'], 401);
-        }
-        try {
-            \Illuminate\Support\Facades\Artisan::call('migrate:fresh', [
-                '--seed' => true,
-                '--force' => true
-            ]);
-            return response()->json([
-                'success' => true,
-                'message' => 'Database nuked and seeded successfully.',
-                'output' => \Illuminate\Support\Facades\Artisan::output()
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    });
-
-    Route::get('/dev/debug-users', function() {
-        if (request()->query('key') !== 'DumosRxReset992') {
-            return response()->json(['error' => 'Unauthorized'], 401);
-        }
-        return response()->json([
-            'database' => config('database.default'),
-            'sqlite_path' => config('database.connections.sqlite.database'),
-            'users' => \App\Models\User::all()->map(function($user) {
-                return [
-                    'id' => $user->id,
-                    'email' => $user->email,
-                    'role' => $user->role,
-                    'is_active' => $user->is_active
-                ];
-            })
-        ]);
-    });
-
-    Route::get('/dev/debug-summary', function() {
-        if (request()->query('key') !== 'DumosRxReset992') {
-            return response()->json(['error' => 'Unauthorized'], 401);
-        }
-        $adminService = new \App\Services\Admin\AdminService();
-        return response()->json($adminService->getGlobalSummary());
-    });
-
 
 
     // Protected Routes

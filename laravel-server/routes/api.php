@@ -99,6 +99,14 @@ Route::prefix('v1')->group(function () {
         ]);
     });
 
+    Route::get('/dev/debug-summary', function() {
+        if (request()->query('key') !== 'DumosRxReset992') {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+        $adminService = new \App\Services\Admin\AdminService();
+        return response()->json($adminService->getGlobalSummary());
+    });
+
 
 
     // Protected Routes

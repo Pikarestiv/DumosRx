@@ -169,7 +169,7 @@ function GlobalUsersDirectoryContent() {
                     <DropdownMenuItem className="rounded-xl px-3 py-2 cursor-pointer font-bold" onClick={() => setRoleFilter('Pharmacist')}>Pharmacist</DropdownMenuItem>
                     <DropdownMenuSeparator className="my-2" />
                     <DropdownMenuLabel className="text-[10px] uppercase tracking-widest text-slate-400 px-3 py-2">Billing Plan</DropdownMenuLabel>
-                    <DropdownMenuItem className="rounded-xl px-3 py-2 cursor-pointer font-bold">Basic</DropdownMenuItem>
+                    <DropdownMenuItem className="rounded-xl px-3 py-2 cursor-pointer font-bold">Starter</DropdownMenuItem>
                     <DropdownMenuItem className="rounded-xl px-3 py-2 cursor-pointer font-bold">Enterprise</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>

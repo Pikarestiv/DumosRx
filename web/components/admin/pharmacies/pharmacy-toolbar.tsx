@@ -117,11 +117,11 @@ export function PharmacyToolbar({
               {planFilter === "all" && <Check className="h-3.5 w-3.5" />}
             </DropdownMenuItem>
             <DropdownMenuItem 
-              className={`rounded-xl px-3 py-2 cursor-pointer font-bold flex items-center justify-between ${planFilter === "basic" ? "text-indigo-600 bg-indigo-50/50 dark:text-indigo-400 dark:bg-indigo-500/10" : ""}`}
-              onClick={() => onPlanFilterChange("basic")}
+              className={`rounded-xl px-3 py-2 cursor-pointer font-bold flex items-center justify-between ${planFilter === "starter" ? "text-indigo-600 bg-indigo-50/50 dark:text-indigo-400 dark:bg-indigo-500/10" : ""}`}
+              onClick={() => onPlanFilterChange("starter")}
             >
-              <span>Basic / Starter</span>
-              {planFilter === "basic" && <Check className="h-3.5 w-3.5" />}
+              <span>Starter</span>
+              {planFilter === "starter" && <Check className="h-3.5 w-3.5" />}
             </DropdownMenuItem>
             <DropdownMenuItem 
               className={`rounded-xl px-3 py-2 cursor-pointer font-bold flex items-center justify-between ${planFilter === "pro" ? "text-indigo-600 bg-indigo-50/50 dark:text-indigo-400 dark:bg-indigo-500/10" : ""}`}

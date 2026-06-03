@@ -1,7 +1,7 @@
 import axios from "axios";
 import { addLogToBuffer, sanitizePayload, reportClientError } from "./logger";
 
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+export const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.dumosrx.com/api/v1";
 
 export const apiClient = axios.create({
   baseURL: API_URL,

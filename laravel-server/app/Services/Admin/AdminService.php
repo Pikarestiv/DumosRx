@@ -166,7 +166,7 @@ class AdminService
         }
 
         if ($plan && $plan !== 'all') {
-            if ($plan === 'basic') {
+            if ($plan === 'starter' || $plan === 'basic') {
                 $query->where(function ($q) {
                     $q->whereHas('user.subscriptions', function ($sq) {
                         $sq->where('status', 'active')
@@ -194,7 +194,7 @@ class AdminService
 
         return [
             'data' => collect($paginator->items())->map(function ($store) {
-                $plan = 'Basic';
+                $plan = 'Starter';
                 if ($store->user && $store->user->subscriptions->isNotEmpty()) {
                     $sub = $store->user->subscriptions->sortByDesc('created_at')->first();
                     $plan = ucwords($sub->plan_name);

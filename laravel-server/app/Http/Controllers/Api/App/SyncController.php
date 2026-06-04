@@ -332,14 +332,7 @@ class SyncController extends Controller
                             ->latest()
                             ->first();
                         if ($sub) {
-                            $subPlan = strtolower($sub->plan_name);
-                            if ($subPlan === 'starter' || $subPlan === 'dumos local' || $subPlan === 'local') {
-                                $plan = 'starter';
-                            } elseif ($subPlan === 'dumos pro' || $subPlan === 'pro' || $subPlan === 'professional') {
-                                $plan = 'pro';
-                            } elseif (in_array($subPlan, ['free', 'starter', 'pro', 'enterprise'])) {
-                                $plan = $subPlan;
-                            }
+                            $plan = $sub->plan_name;
                         }
                     }
                     $array['subscription_tier'] = $plan;
@@ -424,10 +417,9 @@ class SyncController extends Controller
             
             // Check active subscription
             $sub = $owner->subscriptions()->where('status', 'active')->where('end_date', '>', now())->latest()->first();
-            $plan = $sub ? strtolower($sub->plan_name) : 'free';
+            $plan = $sub ? $sub->plan_name : 'free';
             
-            // Normalize plan
-            if ($plan === 'starter' || $plan === 'dumos local' || $plan === 'local') {
+            if ($plan === 'starter') {
                 $store = Store::where('user_id', $owner->id)->first() ?? Store::where('id', $user->store_id)->first();
                 if ($store && $store->last_sync_at) {
                     $hoursSinceLastSync = now()->diffInHours($store->last_sync_at);

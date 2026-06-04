@@ -22,7 +22,7 @@ class SubscriptionService
         
         return Subscription::create([
             'user_id' => $user->id,
-            'plan_name' => 'Pro', // Start on Pro Trial
+            'plan_name' => 'pro', // Start on Pro Trial
             'start_date' => now(),
             'end_date' => now()->addDays($trialDays),
             'status' => 'active',
@@ -66,7 +66,7 @@ class SubscriptionService
             $sub = $owner->subscriptions()->where('status', 'active')->where('end_date', '>', now()->subDays($graceDays))->latest()->first();
         }
 
-        $plan = $sub ? $this->normalizePlanName($sub->plan_name) : 'free';
+        $plan = $sub ? $sub->plan_name : 'free';
         
         $systemConfig = SystemConfig::getVal('subscription_plans', []);
         $features = $systemConfig['tiers'][$plan]['features'] ?? [];
@@ -82,7 +82,7 @@ class SubscriptionService
         $owner = $this->getSubscriptionOwner($user);
         $sub = $owner->subscriptions()->where('status', 'active')->where('end_date', '>', now())->latest()->first();
         
-        $plan = $sub ? $this->normalizePlanName($sub->plan_name) : 'free';
+        $plan = $sub ? $sub->plan_name : 'free';
         $systemConfig = SystemConfig::getVal('subscription_plans', []);
         $limit = $systemConfig['tiers'][$plan]['limits'][$type] ?? 0;
 
@@ -108,7 +108,7 @@ class SubscriptionService
     public function enforceStaffLimits(User $owner)
     {
         $sub = $owner->subscriptions()->where('status', 'active')->where('end_date', '>', now())->latest()->first();
-        $plan = $sub ? $this->normalizePlanName($sub->plan_name) : 'free';
+        $plan = $sub ? $sub->plan_name : 'free';
         
         $systemConfig = SystemConfig::getVal('subscription_plans', []);
         $limit = $systemConfig['tiers'][$plan]['limits']['staff'] ?? 0;
@@ -187,21 +187,5 @@ class SubscriptionService
         ]);
     }
 
-    private function normalizePlanName(string $planName): string
-    {
-        $plan = strtolower($planName);
-        if ($plan === 'starter' || $plan === 'dumos local' || $plan === 'local') {
-            return 'starter';
-        }
-        if ($plan === 'dumos pro' || $plan === 'pro' || $plan === 'professional') {
-            return 'pro';
-        }
-        if ($plan === 'free') {
-            return 'free';
-        }
-        if ($plan === 'enterprise') {
-            return 'enterprise';
-        }
-        return $plan;
-    }
+
 }

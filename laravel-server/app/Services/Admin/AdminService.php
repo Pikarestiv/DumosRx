@@ -166,38 +166,21 @@ class AdminService
         }
 
         if ($plan && $plan !== 'all') {
-            if ($plan === 'starter' || $plan === 'basic') {
-                $query->where(function ($q) {
-                    $q->whereHas('user.subscriptions', function ($sq) {
-                        $sq->where('status', 'active')
-                           ->where('end_date', '>', now())
-                           ->whereIn('plan_name', ['Starter', 'basic', 'starter']);
-                    })->orWhereDoesntHave('user.subscriptions');
-                });
-            } else {
-                $query->whereHas('user.subscriptions', function ($sq) use ($plan) {
-                    $sq->where('status', 'active')
-                       ->where('end_date', '>', now());
-                    
-                    if ($plan === 'pro') {
-                        $sq->whereIn('plan_name', ['Dumos Pro', 'pro']);
-                    } elseif ($plan === 'enterprise') {
-                        $sq->whereIn('plan_name', ['Enterprise', 'enterprise']);
-                    } elseif ($plan === 'local') {
-                        $sq->whereIn('plan_name', ['Dumos Local', 'local']);
-                    }
-                });
-            }
+            $query->whereHas('user.subscriptions', function ($sq) use ($plan) {
+                $sq->where('status', 'active')
+                   ->where('end_date', '>', now())
+                   ->where('plan_name', $plan);
+            });
         }
 
         $paginator = $query->latest()->paginate(10, ['*'], 'page', $page);
 
         return [
             'data' => collect($paginator->items())->map(function ($store) {
-                $plan = 'Starter';
+                $plan = 'free';
                 if ($store->user && $store->user->subscriptions->isNotEmpty()) {
                     $sub = $store->user->subscriptions->sortByDesc('created_at')->first();
-                    $plan = ucwords($sub->plan_name);
+                    $plan = $sub->plan_name;
                 }
 
                 return [

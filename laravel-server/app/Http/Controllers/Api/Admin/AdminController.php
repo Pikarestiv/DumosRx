@@ -209,7 +209,7 @@ class AdminController extends Controller
         }
 
         $validated = $request->validate([
-            'plan' => 'required|string|in:Local,Pro,Enterprise',
+            'plan' => 'required|string|in:starter,pro,enterprise',
             'duration' => 'required|string',
         ]);
 

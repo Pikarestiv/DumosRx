@@ -33,7 +33,7 @@ export function GrantTrialDialog({
   onConfirm,
   isPending,
 }: GrantTrialDialogProps) {
-  const [plan, setPlan] = useState("Pro");
+  const [plan, setPlan] = useState("pro");
   const [duration, setDuration] = useState("14 days");
 
   const durations = [
@@ -68,9 +68,9 @@ export function GrantTrialDialog({
                 <SelectValue placeholder="Select plan" />
               </SelectTrigger>
               <SelectContent className="rounded-xl">
-                <SelectItem value="Starter">Starter Plan</SelectItem>
-                <SelectItem value="Pro">Pro Plan</SelectItem>
-                <SelectItem value="Enterprise">Enterprise Plan</SelectItem>
+                <SelectItem value="starter">Starter Plan</SelectItem>
+                <SelectItem value="pro">Pro Plan</SelectItem>
+                <SelectItem value="enterprise">Enterprise Plan</SelectItem>
               </SelectContent>
             </Select>
           </div>

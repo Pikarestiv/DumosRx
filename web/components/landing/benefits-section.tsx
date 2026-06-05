@@ -10,7 +10,7 @@ export function BenefitsSection() {
         <div className="flex flex-col lg:flex-row items-center gap-16">
           <div className="flex-1 space-y-8">
             <h2 className="text-4xl font-black leading-tight">
-              Why Nigerian Pharmacists choose{" "}
+              Why Nigerian Retailers choose{" "}
               <span className="text-primary">DumosRx</span>
             </h2>
             <div className="space-y-6">

@@ -19,7 +19,7 @@ These must be done before a public launch. They directly affect user trust, onbo
 
 ---
 
-### Mixed Payment (Split Payment)
+### ✅ Mixed Payment (Split Payment) *(COMPLETED)*
 
 - **Description:** Add "Mixed" as a 5th payment method in POS. When selected, the cashier can split payment across multiple methods (e.g., ₦3,000 transfer + ₦500 cash + ₦1,500 on credit).
 - **Source:** Real-world feedback from POS users at competing systems.
@@ -29,10 +29,10 @@ These must be done before a public launch. They directly affect user trust, onbo
 
 ---
 
-### Payment Accounts (Transfer Destinations)
+### ✅ Payment Accounts (Transfer Destinations) *(COMPLETED)*
 
 - **Description:** Store owners set up named payment accounts (e.g., "Zenith Bank", "Moniepoint POS 1", "OPay") in Store Settings. When a cashier selects Transfer or Card at checkout, they pick which account received the payment.
-- **Source:** Real-world feedback — Nigerian pharmacies typically have 3–5 payment destinations and need to reconcile each at end-of-day.
+- **Source:** Real-world feedback — Nigerian retail stores typically have 3–5 payment destinations and need to reconcile each at end-of-day.
 - **Storage:** New `payment_accounts` table. Account reference stored in `payment_details` JSON on each sale.
 - **Impact:** Enables per-account reconciliation reports ("Moniepoint 1: ₦45,000 across 12 transactions today").
 - **Effort:** ~1 day
@@ -116,11 +116,11 @@ Features that improve the platform significantly but are not hard blockers for l
 | Business-initiated (utility/alerts) | Free | ~$0.034/conversation |
 | Business-initiated (marketing) | Free | ~$0.042/conversation |
 
-> A "conversation" = a 24-hour messaging window, not per-message. At typical pharmacy usage (alerts, stock queries), most interactions fall in the free tier for months.
+> A "conversation" = a 24-hour messaging window, not per-message. At typical store usage (alerts, stock queries), most interactions fall in the free tier for months.
 
 **Estimated Monthly Cost at Scale:**
 
-- 100 active pharmacies, avg 20 WhatsApp interactions/month each = 2,000 conversations
+- 100 active stores, avg 20 WhatsApp interactions/month each = 2,000 conversations
 - ~1,000 free + 1,000 × $0.021 = **~$21/month total platform cost**
 
 **Setup Requirements (High Friction — plan 2–3 weeks):**
@@ -144,7 +144,7 @@ Features that improve the platform significantly but are not hard blockers for l
 
 ### 📦 Migration System
 
-- **Description:** Guided import pipeline for pharmacies migrating from existing systems.
+- **Description:** Guided import pipeline for stores migrating from existing systems.
 - **Supported Formats:** CSV/Excel, QuickBooks IIF, legacy POS exports.
 - **Features:** Auto-detect column schema, mapping UI, validation preview, migration report, duplicate detection.
 - **Effort:** ~3–5 days
@@ -160,7 +160,7 @@ These change the core business model. Hold until core ERP/POS is dominant.
 
 ### 🛒 E-commerce Integration Layer
 
-- **Description:** "Enable Online Store" toggle — turns pharmacy inventory into a browsable online store.
+- **Description:** "Enable Online Store" toggle — turns store inventory into a browsable online store.
 - **Plan Gating:** Lock behind **Enterprise plan** (or a dedicated Commerce add-on).
 - **v1 Shortcut:** Start with **WhatsApp Catalog Export** — generates a shareable product list from live inventory, zero infrastructure needed.
 - **Full implementation:** Public storefront, SEO, Paystack checkout, delivery logistics, order-to-sale pipeline.
@@ -178,7 +178,7 @@ These change the core business model. Hold until core ERP/POS is dominant.
 ### 💊 Substitution Recommendation Engine *(Hold)*
 
 - **Risk:** HIGH MEDICAL LIABILITY — wrong substitute suggestion is dangerous.
-- **Safety requirements before building:** Confidence scores, mandatory pharmacist confirmation, ATC drug classification database, explicit "Pharmacist verification required" UI.
+- **Safety requirements before building:** Confidence scores, mandatory retailer confirmation, ATC drug classification database, explicit "Retailer verification required" UI.
 
 ---
 
@@ -207,4 +207,4 @@ These change the core business model. Hold until core ERP/POS is dominant.
 ---
 
 **Strategic Outcome Goal:**
-A pharmacy operating system that doesn't just record operations, but actively runs and optimizes them.
+A store operating system that doesn't just record operations, but actively runs and optimizes them.

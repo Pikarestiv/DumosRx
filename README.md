@@ -1,6 +1,6 @@
-# DumosRx - Pharmacy Management System
+# DumosRx - retail management system
 
-*A comprehensive pharmacy management solution for Nigerian pharmacies*
+*A comprehensive store management solution for Nigerian retail stores*
 
 [![Built with Next.js](https://img.shields.io/badge/Built%20with-Next.js-black?style=for-the-badge&logo=next.js)](https://nextjs.org)
 [![Powered by Laravel](https://img.shields.io/badge/Powered%20by-Laravel-FF2D20?style=for-the-badge&logo=laravel)](https://laravel.com)
@@ -8,14 +8,14 @@
 
 ## 🏥 Overview
 
-DumosRx is a modern, comprehensive pharmacy management system specifically designed for Nigerian pharmacies. It provides a robust solution that handles medicine inventory, sales transactions, prescription management, and business analytics, tailored for the local market.
+DumosRx is a modern, comprehensive retail management system specifically designed for Nigerian retail stores. It provides a robust solution that handles medicine inventory, sales transactions, prescription management, and business analytics, tailored for the local market.
 
 > [!TIP]
 > **For AI Assistants & Developers**: See [PROJECT_KNOWLEDGE.md](PROJECT_KNOWLEDGE.md) for a deep dive into the project's architecture, sync engine, and design philosophy.
 
 ### 🎯 Key Features
 
-- **🔐 Role-Based Authentication** - Super Admin, Manager, Pharmacist, Sales Staff, Auditor roles
+- **🔐 Role-Based Authentication** - Super Admin, Manager, Retailer, Sales Staff, Auditor roles
 - **💊 Medicine Database** - Management of Nigerian medicines with NAFDAC compliance support
 - **📦 Inventory Management** - Real-time stock tracking, batch management, expiry alerts
 - **🛒 Point of Sale (POS)** - Complete transaction processing with Nigerian payment methods and split-payment support
@@ -185,4 +185,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**DumosRx** - Modernizing Nigerian pharmacy operations, one prescription at a time. 🇳🇬
+**DumosRx** - Modernizing Nigerian store operations, one prescription at a time. 🇳🇬

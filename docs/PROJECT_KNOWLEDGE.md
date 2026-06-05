@@ -1,6 +1,6 @@
 # 🧠 DumosRx: Project Intelligence & Handover
 
-Welcome to the **DumosRx** project. This document serves as the definitive source of "tribal knowledge" and architectural context for the pharmacy management system. It is designed to be read by the next AI assistant to ensure a seamless transition and continuity of design and logic.
+Welcome to the **DumosRx** project. This document serves as the definitive source of "tribal knowledge" and architectural context for the retail management system. It is designed to be read by the next AI assistant to ensure a seamless transition and continuity of design and logic.
 
 ## 🏗️ Core Architecture & Philosophy
 
@@ -31,7 +31,7 @@ The most critical part of the system is the **Sync Engine** (`client/lib/db/sync
 
 - **Stateless API**: Uses Laravel Sanctum for token-based auth.
 - **Sync Controller**: `App\Http\Controllers\Api\SyncController` handles the heavy lifting of merging client batches into the MySQL database.
-- **Roles**: Super Admin, Manager, Pharmacist, Sales.
+- **Roles**: Super Admin, Manager, Retailer, Sales.
 
 ---
 
@@ -162,7 +162,7 @@ Enhanced security and visibility for user access.
 Real-time communication with all platform users.
 
 - **Admin UI**: Control center for creating and targeting broadcasts.
-- **Client Display**: Seamless delivery of info/warning/danger alerts to pharmacy dashboards.
+- **Client Display**: Seamless delivery of info/warning/danger alerts to store dashboards.
 
 ### 5. Security Audit & Assessment
 

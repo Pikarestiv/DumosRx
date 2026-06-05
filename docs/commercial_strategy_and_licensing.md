@@ -1,6 +1,6 @@
 # DumosRx Commercial Strategy & Licensing Plan (Revised)
 
-Based on your feedback and a competitive analysis of the Nigerian pharmacy software market (VirtualRx, Scope, Xprmed, and one-time cracked installers), here is a revised 4-tier strategy and technical architecture.
+Based on your feedback and a competitive analysis of the Nigerian store software market (VirtualRx, Scope, Xprmed, and one-time cracked installers), here is a revised 4-tier strategy and technical architecture.
 
 ---
 
@@ -13,8 +13,8 @@ Based on your feedback and a competitive analysis of the Nigerian pharmacy softw
 | Tier | Price (NGN) | Target Audience | Key Restrictions |
 | :--- | :--- | :--- | :--- |
 | **1. Free Trial** | Free (14 Days) | Every new sign-up | Full access to Pro features for 14 days to prove value. |
-| **2. Dumos Local** | ~₦50,000 (One-Time) | Pharmacies used to "Buy Once" | **Offline ONLY.** No cloud backups, no mobile access, no web dashboard, 1 PC only, Max 3 Staff. |
-| **3. Dumos Pro** | ~₦30,000 / Year | Standard modern pharmacy | **Cloud Sync.** Unlimited staff, mobile app access, auto cloud backups. (Single Location). |
+| **2. Dumos Local** | ~₦50,000 (One-Time) | stores used to "Buy Once" | **Offline ONLY.** No cloud backups, no mobile access, no web dashboard, 1 PC only, Max 3 Staff. |
+| **3. Dumos Pro** | ~₦30,000 / Year | Standard modern store | **Cloud Sync.** Unlimited staff, mobile app access, auto cloud backups. (Single Location). |
 | **4. Enterprise** | ~₦80,000 / Year | Chains & large operations | **Multi-Store.** Aggregated analytics, unlimited locations, API integrations. |
 
 > [!TIP]
@@ -47,7 +47,7 @@ You asked: *"So they get a key to enter? Or its automatic?"*
 
 **It is Automatic!** Here is how the Web Subscription seamlessly integrates with the Local App to prevent piracy:
 
-1. **The Purchase**: The pharmacy pays via **Paystack** on your Web Dashboard.
+1. **The Purchase**: The store pays via **Paystack** on your Web Dashboard.
 2. **The Generation**: Paystack triggers a webhook. DumosRx Web generates a highly secure **JSON Web Token (JWT)** (the "License").
 3. **The Sync (Automatic)**: When the local app connects to the internet, it silently downloads this JWT in the background. The user does not have to copy-paste any keys.
 4. **Offline Mode**: If the user goes offline, the local app uses this JWT. The token mathematically proves they paid, and has an embedded expiration date.

@@ -7,7 +7,7 @@ This document outlines the core strategies, patterns, and configurations designe
 ## 🏎️ Performance Optimization Strategies
 
 ### 1. Database Indexing (Local SQLite & Cloud MySQL)
-Proper indexing ensures query latency remains under 50ms even as pharmacy transactional history grows (100k+ sales records).
+Proper indexing ensures query latency remains under 50ms even as store transactional history grows (100k+ sales records).
 
 *   **Offline Client (SQLite)**:
     *   Since queries are executed inside a client-side WebAssembly environment, memory is constrained. Indexes are critical on query filter keys:
@@ -19,8 +19,8 @@ Proper indexing ensures query latency remains under 50ms even as pharmacy transa
 *   **Cloud API (MySQL)**:
     *   Index composite columns frequently used in reports and dashboards:
         ```sql
-        ALTER TABLE sales ADD INDEX idx_sales_pharmacy_created (pharmacy_id, created_at);
-        ALTER TABLE medicines ADD INDEX idx_med_sync (pharmacy_id, updated_at);
+        ALTER TABLE sales ADD INDEX idx_sales_store_created (store_id, created_at);
+        ALTER TABLE medicines ADD INDEX idx_med_sync (store_id, updated_at);
         ```
 
 ### 2. Database Connection Pooling (Laravel Cloud Server)
@@ -34,8 +34,8 @@ Connection creation overhead can degrade API throughput under peak sync events.
 *   **Cloud Server (Laravel + Redis)**:
     *   Cache frequently accessed configurations, tenant subscription statuses, and aggregate sales analytics:
         ```php
-        Cache::remember("pharmacy_{$id}_subscription", 3600, function () use ($id) {
-            return Subscription::where('pharmacy_id', $id)->first();
+        Cache::remember("store_{$id}_subscription", 3600, function () use ($id) {
+            return Subscription::where('store_id', $id)->first();
         });
         ```
 
@@ -95,6 +95,6 @@ Offline apps are vulnerable to billing bypasses via computer clock manipulation.
 
 ### 4. Load Testing and Security Auditing
 *   **Load Testing**:
-    *   Simulate concurrent pharmacy sync routines using **Artillery** or **k6** to validate that database connection pools and locks handle writing safely.
+    *   Simulate concurrent store sync routines using **Artillery** or **k6** to validate that database connection pools and locks handle writing safely.
 *   **Static Code Analysis (SAST)**:
     *   Continuous integration scans using **Semgrep** or **SecureCoder** ensure zero vulnerabilities (e.g. SQL Injection, XSS) slip into production bundles.

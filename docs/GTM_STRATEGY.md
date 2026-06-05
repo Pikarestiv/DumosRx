@@ -1,6 +1,6 @@
 # DumosRx Go-To-Market (GTM) & Launch Strategy
 
-This document outlines the commercial rollout, penetration pricing model, testing cycles, and lead pipeline for **DumosRx**. It serves as our operational blueprint to transition from beta testing to a commercial launch in the Nigerian pharmacy software market.
+This document outlines the commercial rollout, penetration pricing model, testing cycles, and lead pipeline for **DumosRx**. It serves as our operational blueprint to transition from beta testing to a commercial launch in the Nigerian store software market.
 
 ---
 
@@ -45,7 +45,7 @@ graph TD
 
 ## 2. Structured Quality Assurance & UX Blueprint
 
-Pharmacists and sales assistants are often not computer-literate. If the POS lags, freezes, or fails to sync, cashiers will immediately revert to paper ledgers or legacy POS systems. **UX simplicity and absolute reliability are our primary retention engines.**
+Retailers and sales assistants are often not computer-literate. If the POS lags, freezes, or fails to sync, cashiers will immediately revert to paper ledgers or legacy POS systems. **UX simplicity and absolute reliability are our primary retention engines.**
 
 ### "Zero-Friction" UX Principles for Non-Tech-Savvy Users
 1. **Large, Tap-Friendly Target Zones**: Ensure POS buttons (checkout, payment methods, search bar) have generous padding and are easy to click on tablets or mobile phones.
@@ -62,23 +62,23 @@ To ensure every flow is seamless and robust, we will execute our testing in stri
 
 * **Phase 1: Developer QA & Bug Squashing (Current)**
   * **Objective**: Fix existing bugs, optimize SQLite queries, and test database schema synchronization edge cases.
-* **Phase 2: Expert Pharmacist Review**
+* **Phase 2: Expert Retailer Review**
   * **Testers**: Chisom RH & Mmesoma RH (both have hands-on experience with Barsoft and VirtualRx).
-  * **Goal**: Validate that the POS layout, medicine entry, and inventory flow match real-world pharmacy speed and expectations. Gather feedback on differences between DumosRx and legacy tools.
-* **Phase 3: Paid Cashier Simulation (Nest Pharmacy)**
-  * **Testers**: Hire 1-2 Cashiers/Nurses from Nest Pharmacy (Pay ₦5,000 for 1–2 weeks of active testing).
+  * **Goal**: Validate that the POS layout, medicine entry, and inventory flow match real-world store speed and expectations. Gather feedback on differences between DumosRx and legacy tools.
+* **Phase 3: Paid Cashier Simulation (Nest store)**
+  * **Testers**: Hire 1-2 Cashiers/Nurses from Nest store (Pay ₦5,000 for 1–2 weeks of active testing).
   * **Goal**: Observe them using the app *without guiding them*. Identify onboarding friction points, confusing buttons, or flow blockers for computer-illiterate users.
 * **Phase 4: Select Pilot Rollout (3-6 Months Free Trial)**
-  * **Testers**: Umueze Pharmacy (Android) and Cynthia Adaeze / Nest Pharmacy (QuickBooks migration).
+  * **Testers**: Umueze store (Android) and Cynthia Adaeze / Nest store (QuickBooks migration).
   * **Goal**: Live business operations. Verify database integrity, sync stability, and user retention.
 * **Phase 5: Commercial Proposals & Scaling**
-  * **Target**: Makhillz Pharmacy (2+ stores), Betacure (Sienne), DotCom (Ikem/Gloria).
+  * **Target**: Makhillz store (2+ stores), Betacure (Sienne), DotCom (Ikem/Gloria).
 
 ---
 
 ## 3. Product Suggestions & Suggestion System Data
 
-DumosRx's **Smart Suggestions Engine** helps pharmacists upsell and provide better clinical advice.
+DumosRx's **Smart Suggestions Engine** helps retailers upsell and provide better clinical advice.
 
 ### Technical Implementation of Suggestions
 To keep the application fast and offline-resilient, suggestions run entirely client-side:
@@ -121,18 +121,18 @@ Below is our current prospect pipeline, mapped to their specific requirements an
 | **Chisom RH** | Barsoft, VirtualRx | Expert Beta Tester. Ask for detailed POS UX feedback. | None (Desktop Tauri Web app) | Primary Dev |
 | **Mmesoma RH** | Barsoft, VirtualRx | Expert Beta Tester. Compare layout & speeds. | None (Desktop Tauri Web app) | Primary Dev |
 | **Nest Cashiers** | QuickBooks | Paid testing (₦5k/week). Run POS speed tests. | None | Primary Dev |
-| **Umueze Pharmacy** | None / Paper | **3-6 Months Free**. Mobile phone setup. | **Android App Build** | Primary Dev |
-| **Cynthia Adaeze** (Nest Pharmacy Owner) | QuickBooks (Active) | **3-6 Months Free**. Ask for QuickBooks feature gaps. Confirm pricing. | **QuickBooks Import/Migration tool** | Primary Dev |
+| **Umueze store** | None / Paper | **3-6 Months Free**. Mobile phone setup. | **Android App Build** | Primary Dev |
+| **Cynthia Adaeze** (Nest store Owner) | QuickBooks (Active) | **3-6 Months Free**. Ask for QuickBooks feature gaps. Confirm pricing. | **QuickBooks Import/Migration tool** | Primary Dev |
 | **Ben Umembaoma** | None (Perfume) | Standard launch offer. Pivot POS templates for general retail inventory. | POS General Retail Template support | Primary Dev |
 | **Sienne** (Betacure) | Legacy Inventory | Pitch Shopify/WooCommerce sync to pull them off legacy app. | **E-commerce Sync Layer** (WooCommerce/Shopify API) | Primary Dev |
 | **Mmesoma** (Former Apprentice) | Legacy Inventory | E-commerce integration benefits. | **E-commerce Sync Layer** | Primary Dev |
-| **Makhillz Pharmacy** (2+ stores) | QuickBooks | 2+ store aggregated dashboard. | **Enterprise Multi-Store Sync** | Co-Founder Mike |
+| **Makhillz store** (2+ stores) | QuickBooks | 2+ store aggregated dashboard. | **Enterprise Multi-Store Sync** | Co-Founder Mike |
 | **Ikem/Gloria** (DotCom) | Scope Shopmaster | Pitch missing features they wish Scope had. | Feature Gap Analysis | Primary Dev |
 
 ### Technical Strategy for Major Feature Blockers
 
 #### A. Android APK & PWA Release Flow
-For mobile-only users (like Umueze Pharmacy) and iOS users (who don't use PCs):
+For mobile-only users (like Umueze store) and iOS users (who don't use PCs):
 1. **Android Compilation (Tauri v2 Mobile)**: We will utilize Tauri's built-in mobile support to bundle the Next.js client directly into an Android package (`.apk`).
 2. **PWA (Progressive Web App) Route (For iOS/iPhone)**:
    * **Why**: Publishing to the iOS App Store is slow, requires a $99/year developer account, and has high friction.
@@ -146,7 +146,7 @@ For clients like Betacure (Sienne) who require an online presence to migrate:
    * When product quantity changes on DumosRx, trigger an API payload to WooCommerce (`PUT /wp-json/wc/v3/products/<id>`) or Shopify to update stock counts.
 2. **Option B: Hosted DumosRx Storefront (Recommended)**:
    * Instead of sync with WooCommerce/Shopify, we offer a built-in storefront (e.g. `betacure.dumosrx.com` or custom domain mapping) hosted on our server.
-   * **Why it's better**: Zero maintenance of third-party plugins, unified subscription pricing, and keeps the pharmacy locked into the DumosRx ecosystem. We will build WooCommerce/Shopify sync as a migration bridge but upsell them to the hosted storefront.
+   * **Why it's better**: Zero maintenance of third-party plugins, unified subscription pricing, and keeps the store locked into the DumosRx ecosystem. We will build WooCommerce/Shopify sync as a migration bridge but upsell them to the hosted storefront.
 
 ---
 
@@ -161,11 +161,11 @@ For clients like Betacure (Sienne) who require an online presence to migrate:
 > * Professional emails (e.g., `sales@dumosrx.com` and `support@dumosrx.com`) can now be utilized.
 
 ### Hosting & VPS Migration Plan
-* **Short-Term (Beta & Launch)**: Remain on the **cPanel Shared Hosting**. This keeps overhead costs at ₦0/month while we gather user feedback. The current sync controller is lightweight enough to support 5–10 concurrent pharmacies.
-* **Medium-Term (Scale Phase - 20+ Pharmacies)**: Migrate to a dedicated **VPS (Virtual Private Server)** (e.g., DigitalOcean, Linode, or Hetzner).
+* **Short-Term (Beta & Launch)**: Remain on the **cPanel Shared Hosting**. This keeps overhead costs at ₦0/month while we gather user feedback. The current sync controller is lightweight enough to support 5–10 concurrent stores.
+* **Medium-Term (Scale Phase - 20+ stores)**: Migrate to a dedicated **VPS (Virtual Private Server)** (e.g., DigitalOcean, Linode, or Hetzner).
   * **Why VPS is necessary later**:
     * Shared cPanel hosting restricts web socket connections, limiting live multi-device POS updates.
     * Shared servers have low PHP request execution limits, which can block large batch sync operations.
     * VPS allows setting up robust database clustering and cron-backed automated backups.
-  * **Trigger for Migration**: Reaching 15–20 active paying pharmacies, or when database sync latency exceeds 2 seconds during peak hours.
+  * **Trigger for Migration**: Reaching 15–20 active paying stores, or when database sync latency exceeds 2 seconds during peak hours.
 

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ConfirmationModal } from "@/components/dashboard/confirmation-modal";
+import { StoreModal } from "@/components/dashboard/store-modal";
 import { 
   TrendingUp, 
   Store, 
@@ -38,11 +39,13 @@ interface OverviewViewProps {
   user: any;
   stores: any[];
   onReset: (type: string) => Promise<any>;
+  onNavigate?: (tab: string) => void;
 }
 
-export function OverviewView({ stats, user, stores, onReset }: OverviewViewProps) {
+export function OverviewView({ stats, user, stores, onReset, onNavigate }: OverviewViewProps) {
   const { data: subscription } = useSubscriptionStatus();
   const isStarter = subscription?.plan?.toLowerCase() === "starter";
+  const [isStoreModalOpen, setIsStoreModalOpen] = useState(false);
 
   const [resetConfig, setResetConfig] = useState<{
     isOpen: boolean;
@@ -138,6 +141,11 @@ export function OverviewView({ stats, user, stores, onReset }: OverviewViewProps
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <StoreModal 
+        isOpen={isStoreModalOpen} 
+        onClose={() => setIsStoreModalOpen(false)} 
+        onSuccess={() => {}} 
+      />
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl sm:text-3xl font-black tracking-tight">Cloud Overview</h1>
@@ -145,7 +153,7 @@ export function OverviewView({ stats, user, stores, onReset }: OverviewViewProps
             Unified insights for <span className="font-bold text-foreground">{user.store_name}</span>
           </p>
         </div>
-        <Button className="font-bold w-full sm:w-auto">
+        <Button className="font-bold w-full sm:w-auto" onClick={() => setIsStoreModalOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
           Add New Store
         </Button>
@@ -185,7 +193,7 @@ export function OverviewView({ stats, user, stores, onReset }: OverviewViewProps
       </div>
 
       <div className="grid lg:grid-cols-3 gap-8">
-        <Card className="lg:col-span-2 border-none shadow-sm">
+        <Card className="lg:col-span-2 border-none shadow-sm min-w-0 overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle>Connected Stores</CardTitle>
@@ -194,7 +202,22 @@ export function OverviewView({ stats, user, stores, onReset }: OverviewViewProps
             <Button variant="ghost" size="sm" className="font-bold">View All</Button>
           </CardHeader>
           <CardContent className="p-0 sm:p-6">
-            <Table className="min-w-[600px]">
+            {!stores || stores.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+                <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                  <Store className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <h3 className="text-xl font-bold tracking-tight">No connected stores</h3>
+                <p className="text-sm text-muted-foreground mt-2 mb-6 max-w-sm">
+                  Get started by connecting your first terminal to sync data, track performance, and manage your inventory.
+                </p>
+                <Button className="font-bold" onClick={() => setIsStoreModalOpen(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add First Store
+                </Button>
+              </div>
+            ) : (
+              <Table className="min-w-[600px]">
                 <TableHeader>
                   <TableRow className="hover:bg-transparent border-muted text-xs font-bold uppercase">
                     <TableHead className="pl-6">Store Name</TableHead>
@@ -224,6 +247,7 @@ export function OverviewView({ stats, user, stores, onReset }: OverviewViewProps
                   ))}
                 </TableBody>
               </Table>
+            )}
           </CardContent>
         </Card>
 

@@ -52,7 +52,7 @@ export function DashboardClient({ view }: { view: string }) {
 
     switch (view) {
       case "overview":
-        return <OverviewView stats={stats} user={user} stores={stores} onReset={resetAccountData} />;
+        return <OverviewView stats={stats} user={user} stores={stores} onReset={resetAccountData} onNavigate={setActiveTab} />;
       case "fleet":
         return <FleetView stores={stores} />;
       case "staff":
@@ -72,7 +72,7 @@ export function DashboardClient({ view }: { view: string }) {
       case "profile":
         return <ProfileView />;
       default:
-        return <OverviewView stats={stats} user={user} stores={stores} onReset={resetAccountData} />;
+        return <OverviewView stats={stats} user={user} stores={stores} onReset={resetAccountData} onNavigate={setActiveTab} />;
     }
   };
 

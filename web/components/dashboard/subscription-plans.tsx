@@ -174,13 +174,13 @@ export function SubscriptionPlans() {
                 <div className="space-y-1">
                   <p className="font-medium">
                     {isTrial 
-                      ? `You are on the Free Trial (${daysLeft} Days Remaining)` 
+                      ? `You are on the ${String(subStatus.plan || 'Free').charAt(0).toUpperCase() + String(subStatus.plan || '').slice(1)} Trial (${daysLeft} Days Remaining)` 
                       : `You are on the ${String(subStatus.plan || '').charAt(0).toUpperCase() + String(subStatus.plan || '').slice(1)} Plan (${daysLeft} Days Remaining)`
                     }
                   </p>
                   <p className="text-sm">
                     {isTrial 
-                      ? "Upgrade to a paid plan below to ensure your cloud data remains protected." 
+                      ? "Upgrade or subscribe to a paid plan below to ensure your cloud data remains protected." 
                       : "Your subscription is expiring soon. Please renew to ensure your cloud data remains protected."
                     }
                   </p>
@@ -330,7 +330,7 @@ export function SubscriptionPlans() {
                     if (currentWeight === targetWeight && !subStatus.is_trial) {
                       buttonText = "Current Plan";
                       buttonAction = "current";
-                    } else if (currentWeight < targetWeight || (subStatus.is_trial && currentWeight !== targetWeight)) {
+                    } else if (currentWeight < targetWeight) {
                       buttonText = "Upgrade";
                       buttonAction = "upgrade";
                     } else if (currentWeight > targetWeight) {

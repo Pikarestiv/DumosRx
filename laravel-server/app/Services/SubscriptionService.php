@@ -19,10 +19,11 @@ class SubscriptionService
     {
         $config = SystemConfig::getVal('subscription_plans', []);
         $trialDays = $config['trial_days'] ?? 14;
+        $trialPlan = $config['trial_plan'] ?? 'pro';
         
         return Subscription::create([
             'user_id' => $user->id,
-            'plan_name' => 'pro', // Start on Pro Trial
+            'plan_name' => $trialPlan,
             'start_date' => now(),
             'end_date' => now()->addDays($trialDays),
             'status' => 'active',

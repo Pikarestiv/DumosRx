@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Save, RefreshCw, CreditCard, Loader2, Globe } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { useSystemConfig, useUpdateSystemConfigMutation } from "@/lib/api/hooks";
 import { useEffect } from "react";
@@ -19,6 +20,7 @@ export function SubscriptionConfigTab() {
 
   const [config, setConfig] = useState({
     trial_days: 14,
+    trial_plan: "pro",
     grace_period_days: 3,
     enable_paystack: true,
     tiers: {
@@ -48,6 +50,7 @@ export function SubscriptionConfigTab() {
     if (serverConfig) {
       setConfig({
         ...serverConfig,
+        trial_plan: serverConfig.trial_plan ?? "pro",
         tiers: {
           free: {
             price_monthly: serverConfig.tiers?.free?.price_monthly ?? 0,
@@ -240,14 +243,33 @@ export function SubscriptionConfigTab() {
           </div>
 
           <div className="border-t pt-6 mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <Label>Free Trial Duration (Days)</Label>
-              <Input 
-                type="number" 
-                value={config.trial_days} 
-                onChange={(e) => setConfig({ ...config, trial_days: Number(e.target.value) })}
-              />
-              <p className="text-xs text-muted-foreground">Default trial period for new registrations.</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Free Trial Duration (Days)</Label>
+                <Input 
+                  type="number" 
+                  value={config.trial_days} 
+                  onChange={(e) => setConfig({ ...config, trial_days: Number(e.target.value) })}
+                />
+                <p className="text-xs text-muted-foreground">Length of trial.</p>
+              </div>
+              <div className="space-y-2">
+                <Label>Free Trial Plan</Label>
+                <Select
+                  value={config.trial_plan}
+                  onValueChange={(value) => setConfig({ ...config, trial_plan: value })}
+                >
+                  <SelectTrigger className="w-full bg-white dark:bg-slate-900">
+                    <SelectValue placeholder="Select plan" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="starter">Starter Plan</SelectItem>
+                    <SelectItem value="pro">Dumos Pro</SelectItem>
+                    <SelectItem value="enterprise">Enterprise</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">Tier to trial.</p>
+              </div>
             </div>
             
             <div className="space-y-3 p-4 border rounded-lg bg-white dark:bg-slate-900">

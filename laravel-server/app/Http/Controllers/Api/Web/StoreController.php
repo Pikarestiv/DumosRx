@@ -33,7 +33,7 @@ class StoreController extends Controller
             'address' => $request->address,
             'phone' => $request->phone,
             'device_id' => 'WEB-' . strtoupper(Str::random(8)),
-            'store_type' => 'pharmacy',
+            'store_type' => 'retail',
         ]);
 
         // Auto-create a trial subscription if the user doesn't have one

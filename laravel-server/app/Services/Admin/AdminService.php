@@ -806,7 +806,7 @@ class AdminService
         ActivityLog::create([
             'user_id' => Auth::id(),
             'action' => 'ADMIN_IMPERSONATION',
-            'description' => "Admin impersonating pharmacy owner: {$user->email} ({$store->name})",
+            'description' => "Admin impersonating store owner: {$user->email} ({$store->name})",
             'status' => 'success'
         ]);
 
@@ -817,7 +817,7 @@ class AdminService
                 'name' => $user->first_name . ' ' . $user->last_name,
                 'email' => $user->email,
                 'role' => $user->role,
-                'pharmacy' => $store->name
+                'store' => $store->name
             ]
         ];
     }

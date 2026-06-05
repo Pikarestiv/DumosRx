@@ -1,7 +1,7 @@
 {
   "name": "dumosrx-server",
   "version": "1.0.0",
-  "description": "NestJS backend for DumosRx pharmacy management system",
+  "description": "NestJS backend for DumosRx store management system",
   "author": "DumosRx Team",
   "private": true,
   "license": "UNLICENSED",

@@ -13,7 +13,7 @@
         <p style="font-size: 12px; color: #777;">
             This email was sent to you by the DumosRx Administration team.
             <br>
-            DumosRx Pharmacy
+            DumosRx
         </p>
     </div>
 </body>

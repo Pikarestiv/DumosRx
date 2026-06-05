@@ -367,7 +367,7 @@ class SubscriptionController extends Controller
                 return [
                     'id' => $referredUser->id,
                     'name' => $referredUser->name,
-                    'pharmacy_name' => $referredUser->store ? $referredUser->store->name : 'N/A',
+                    'store_name' => $referredUser->store ? $referredUser->store->name : 'N/A',
                     'created_at' => $referredUser->created_at,
                     'status' => $hasActiveSub ? 'active' : 'pending',
                 ];

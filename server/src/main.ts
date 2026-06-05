@@ -26,8 +26,8 @@ async function bootstrap() {
 
   // Swagger documentation
   const config = new DocumentBuilder()
-    .setTitle("DumosRx Pharmacy Management API")
-    .setDescription("Complete pharmacy management system API for Nigerian pharmacies")
+    .setTitle("DumosRx Store Management API")
+    .setDescription("Complete store management system API for Nigerian businesses")
     .setVersion("1.0")
     .addBearerAuth()
     .build()

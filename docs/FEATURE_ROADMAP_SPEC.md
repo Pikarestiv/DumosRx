@@ -13,9 +13,9 @@ This document tracks the proposed features for the DumosRx system, grouped by st
 
 ---
 
-## 🚀 LAUNCH BLOCKERS — Must Ship Before v1.0
+## ✅ SHIPPED — v1.0 Launch Features
 
-These must be done before a public launch. They directly affect user trust, onboarding success, and platform stability.
+These features have been successfully built and shipped for the v1.0 launch.
 
 ---
 
@@ -55,9 +55,9 @@ These must be done before a public launch. They directly affect user trust, onbo
 
 ---
 
-## 📅 POST-LAUNCH — v1.1 Targets
+## 🚀 CURRENT FOCUS — v1.1 Targets
 
-Features that improve the platform significantly but are not hard blockers for launch.
+These features are our active development targets for the next major release.
 
 ---
 

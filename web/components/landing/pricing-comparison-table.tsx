@@ -1,4 +1,5 @@
 import React from "react";
+import { CheckCircle2, XCircle } from "lucide-react";
 
 export function PricingComparisonTable() {
   return (
@@ -92,7 +93,7 @@ export function PricingComparisonTable() {
                   Cloud Sync Frequency
                 </td>
                 <td className="p-4 text-center text-muted-foreground">
-                  ❌ No Cloud Sync
+                  <XCircle className="inline-block h-4 w-4 text-muted-foreground/60 mr-1.5 -mt-0.5" /> No Cloud Sync
                 </td>
                 <td className="p-4 text-center text-muted-foreground">
                   Scheduled (Every 6 Hours)
@@ -109,7 +110,7 @@ export function PricingComparisonTable() {
                   Web Dashboard Analytics
                 </td>
                 <td className="p-4 text-center text-muted-foreground">
-                  ❌ No Dashboard
+                  <XCircle className="inline-block h-4 w-4 text-muted-foreground/60 mr-1.5 -mt-0.5" /> No Dashboard
                 </td>
                 <td className="p-4 text-center text-muted-foreground">
                   Restricted (6-Hour Delay)
@@ -126,16 +127,16 @@ export function PricingComparisonTable() {
                   Mobile Companion App
                 </td>
                 <td className="p-4 text-center text-muted-foreground">
-                  ❌ No Access
+                  <XCircle className="inline-block h-4 w-4 text-muted-foreground/60 mr-1.5 -mt-0.5" /> No Access
                 </td>
                 <td className="p-4 text-center text-muted-foreground">
-                  ❌ No Access
+                  <XCircle className="inline-block h-4 w-4 text-muted-foreground/60 mr-1.5 -mt-0.5" /> No Access
                 </td>
                 <td className="p-4 text-center text-muted-foreground font-medium text-foreground bg-primary/5">
-                  ✅ Fully Enabled
+                  <CheckCircle2 className="inline-block h-4 w-4 text-emerald-500 mr-1.5 -mt-0.5" /> Fully Enabled
                 </td>
                 <td className="p-4 text-center text-muted-foreground">
-                  ✅ Fully Enabled
+                  <CheckCircle2 className="inline-block h-4 w-4 text-emerald-500 mr-1.5 -mt-0.5" /> Fully Enabled
                 </td>
               </tr>
 
@@ -153,16 +154,16 @@ export function PricingComparisonTable() {
                   Prescriptions & Expenses
                 </td>
                 <td className="p-4 text-center text-muted-foreground">
-                  ❌ Grayed Out (Locked)
+                  <XCircle className="inline-block h-4 w-4 text-muted-foreground/60 mr-1.5 -mt-0.5" /> Grayed Out (Locked)
                 </td>
                 <td className="p-4 text-center text-muted-foreground">
-                  ✅ Included
+                  <CheckCircle2 className="inline-block h-4 w-4 text-emerald-500 mr-1.5 -mt-0.5" /> Included
                 </td>
                 <td className="p-4 text-center text-muted-foreground font-medium text-foreground bg-primary/5">
-                  ✅ Included
+                  <CheckCircle2 className="inline-block h-4 w-4 text-emerald-500 mr-1.5 -mt-0.5" /> Included
                 </td>
                 <td className="p-4 text-center text-muted-foreground">
-                  ✅ Included
+                  <CheckCircle2 className="inline-block h-4 w-4 text-emerald-500 mr-1.5 -mt-0.5" /> Included
                 </td>
               </tr>
               <tr>
@@ -170,16 +171,16 @@ export function PricingComparisonTable() {
                   Smart POS Suggestions
                 </td>
                 <td className="p-4 text-center text-muted-foreground">
-                  ❌ Locked
+                  <XCircle className="inline-block h-4 w-4 text-muted-foreground/60 mr-1.5 -mt-0.5" /> Locked
                 </td>
                 <td className="p-4 text-center text-muted-foreground">
-                  ❌ Locked
+                  <XCircle className="inline-block h-4 w-4 text-muted-foreground/60 mr-1.5 -mt-0.5" /> Locked
                 </td>
                 <td className="p-4 text-center text-muted-foreground font-medium text-foreground bg-primary/5">
-                  ✅ AI Cross-sell Engine
+                  <CheckCircle2 className="inline-block h-4 w-4 text-emerald-500 mr-1.5 -mt-0.5" /> AI Cross-sell Engine
                 </td>
                 <td className="p-4 text-center text-muted-foreground">
-                  ✅ Custom Models Enabled
+                  <CheckCircle2 className="inline-block h-4 w-4 text-emerald-500 mr-1.5 -mt-0.5" /> Custom Models Enabled
                 </td>
               </tr>
               <tr>
@@ -190,13 +191,13 @@ export function PricingComparisonTable() {
                   Locked to Blue/Light Mode
                 </td>
                 <td className="p-4 text-center text-muted-foreground">
-                  ✅ All Themes & Dark Mode
+                  <CheckCircle2 className="inline-block h-4 w-4 text-emerald-500 mr-1.5 -mt-0.5" /> All Themes & Dark Mode
                 </td>
                 <td className="p-4 text-center text-muted-foreground font-medium text-foreground bg-primary/5">
-                  ✅ All Themes & Dark Mode
+                  <CheckCircle2 className="inline-block h-4 w-4 text-emerald-500 mr-1.5 -mt-0.5" /> All Themes & Dark Mode
                 </td>
                 <td className="p-4 text-center text-muted-foreground">
-                  ✅ Custom White-Labeling
+                  <CheckCircle2 className="inline-block h-4 w-4 text-emerald-500 mr-1.5 -mt-0.5" /> Custom White-Labeling
                 </td>
               </tr>
               <tr>
@@ -204,16 +205,16 @@ export function PricingComparisonTable() {
                   E-Commerce E-store URL
                 </td>
                 <td className="p-4 text-center text-muted-foreground">
-                  ❌ Locked
+                  <XCircle className="inline-block h-4 w-4 text-muted-foreground/60 mr-1.5 -mt-0.5" /> Locked
                 </td>
                 <td className="p-4 text-center text-muted-foreground">
-                  ❌ Locked
+                  <XCircle className="inline-block h-4 w-4 text-muted-foreground/60 mr-1.5 -mt-0.5" /> Locked
                 </td>
                 <td className="p-4 text-center text-muted-foreground font-medium text-foreground bg-primary/5">
-                  ✅ Custom Online URL
+                  <CheckCircle2 className="inline-block h-4 w-4 text-emerald-500 mr-1.5 -mt-0.5" /> Custom Online URL
                 </td>
                 <td className="p-4 text-center text-muted-foreground">
-                  ✅ API Integrations Included
+                  <CheckCircle2 className="inline-block h-4 w-4 text-emerald-500 mr-1.5 -mt-0.5" /> API Integrations Included
                 </td>
               </tr>
             </tbody>

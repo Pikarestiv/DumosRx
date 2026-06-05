@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { useInitiatePaymentMutation, useSystemConfig, useReferralStats, useSubscriptionStatus } from "@/lib/api/hooks";
 import { webApiClient } from "@/lib/api/client";
 import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { calculateDiscountPercent } from "@/lib/utils";
 import { getSubscriptionPlans } from "@/lib/constants/subscription-plans";
 
@@ -20,6 +21,7 @@ export function SubscriptionPlans() {
   const [validatingCoupon, setValidatingCoupon] = useState(false);
   const [appliedCoupon, setAppliedCoupon] = useState<{code: string, type: string, value: number, target_plan: string | null, target_interval: string | null} | null>(null);
   const [useCredits, setUseCredits] = useState(false);
+  const [downgradePlan, setDowngradePlan] = useState<{id: string, amount: number, name: string} | null>(null);
   
   const initiatePayment = useInitiatePaymentMutation();
   const { data: subStatus } = useSubscriptionStatus();
@@ -122,6 +124,16 @@ export function SubscriptionPlans() {
 
     const hasCredits = useCredits && userCredits > 0;
     return hasCoupon || hasCredits;
+  };
+
+  const getPlanWeight = (planName: string) => {
+    if (!planName) return -1;
+    const lower = planName.toLowerCase();
+    if (lower.includes("enterprise")) return 3;
+    if (lower.includes("pro")) return 2;
+    if (lower.includes("starter")) return 1;
+    if (lower.includes("free")) return 0;
+    return -1;
   };
 
   const plans = getSubscriptionPlans(config, isYearly, formatPrice);
@@ -307,24 +319,70 @@ export function SubscriptionPlans() {
             </CardContent>
             {config?.enable_paystack !== false && (
               <CardFooter>
-                <Button 
-                  className="w-full" 
-                  variant={plan.popular ? "default" : "outline"}
-                  onClick={() => handleSubscribe(plan.id, plan.numericPrice, plan.name)}
-                  disabled={loading !== null}
-                >
-                  {loading === plan.id ? "Processing..." : (
-                    <>
-                      <CreditCard className="w-4 h-4 mr-2" />
-                      {plan.period === "One-Time" ? "Buy Now" : "Subscribe"}
-                    </>
-                  )}
-                </Button>
+                {(() => {
+                  let buttonText = plan.period === "One-Time" ? "Buy Now" : "Subscribe";
+                  let buttonAction = "subscribe";
+                  
+                  if (subStatus?.status === "active") {
+                    const currentWeight = getPlanWeight(subStatus.plan || "");
+                    const targetWeight = getPlanWeight(plan.name);
+                    
+                    if (currentWeight === targetWeight && !subStatus.is_trial) {
+                      buttonText = "Current Plan";
+                      buttonAction = "current";
+                    } else if (currentWeight < targetWeight || (subStatus.is_trial && currentWeight !== targetWeight)) {
+                      buttonText = "Upgrade";
+                      buttonAction = "upgrade";
+                    } else if (currentWeight > targetWeight) {
+                      buttonText = "Downgrade";
+                      buttonAction = "downgrade";
+                    } else if (subStatus.is_trial && currentWeight === targetWeight) {
+                      buttonText = "Subscribe";
+                      buttonAction = "subscribe";
+                    }
+                  }
+
+                  return (
+                    <Button 
+                      className="w-full" 
+                      variant={plan.popular ? "default" : "outline"}
+                      onClick={() => {
+                        if (buttonAction === "downgrade") {
+                          setDowngradePlan({ id: plan.id, amount: plan.numericPrice, name: plan.name });
+                        } else {
+                          handleSubscribe(plan.id, plan.numericPrice, plan.name);
+                        }
+                      }}
+                      disabled={loading !== null || buttonAction === "current"}
+                    >
+                      {loading === plan.id ? "Processing..." : (
+                        <>
+                          {buttonAction !== "current" && <CreditCard className="w-4 h-4 mr-2" />}
+                          {buttonText}
+                        </>
+                      )}
+                    </Button>
+                  );
+                })()}
               </CardFooter>
             )}
           </Card>
         ))}
       </div>
+
+      <ConfirmDialog
+        open={downgradePlan !== null}
+        onOpenChange={(open) => !open && setDowngradePlan(null)}
+        title="Downgrade Subscription?"
+        description={`Are you sure you want to downgrade to the ${downgradePlan?.name} plan? You may lose access to premium features like cloud backups, extra staff accounts, mobile app companion, and smart POS suggestions immediately upon downgrade.`}
+        confirmLabel="Yes, Downgrade"
+        variant="destructive"
+        onConfirm={() => {
+          if (downgradePlan) {
+            handleSubscribe(downgradePlan.id, downgradePlan.amount, downgradePlan.name);
+          }
+        }}
+      />
     </div>
   );
 }

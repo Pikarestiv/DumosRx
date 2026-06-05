@@ -85,6 +85,18 @@ export function CloudStep({ onCloudRestore, isLoading }: CloudStepProps) {
                 "Start Cloud Sync"
               )}
             </Button>
+            <div className="text-center pt-2">
+              <p className="text-sm text-muted-foreground">
+                Don't have a cloud account?{" "}
+                <button
+                  type="button"
+                  onClick={() => window.open((process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3002") + "/register", "_blank")}
+                  className="text-primary hover:underline font-semibold"
+                >
+                  Create one here
+                </button>
+              </p>
+            </div>
           </CardFooter>
         </form>
       </Card>

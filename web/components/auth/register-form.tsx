@@ -24,9 +24,9 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const registerSchema = z
   .object({
-    pharmacy_name: z
+    store_name: z
       .string()
-      .min(2, { message: "Pharmacy name must be at least 2 characters" }),
+      .min(2, { message: "Store name must be at least 2 characters" }),
     first_name: z.string().min(2, { message: "First name must be at least 2 characters" }),
     last_name: z.string().min(2, { message: "Last name must be at least 2 characters" }),
     email: z.string().email({ message: "Invalid email address" }),
@@ -49,7 +49,7 @@ export function RegisterForm() {
   const form = useForm<z.infer<typeof registerSchema>>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
-      pharmacy_name: "",
+      store_name: "",
       first_name: "",
       last_name: "",
       email: "",
@@ -110,14 +110,14 @@ export function RegisterForm() {
             <motion.div variants={item}>
               <FormField
                 control={form.control}
-                name="pharmacy_name"
+                name="store_name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-gray-300">Pharmacy / Store Name</FormLabel>
+                    <FormLabel className="text-gray-300">Store / Store Name</FormLabel>
                     <FormControl>
                       <div className="relative group">
                         <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 group-focus-within:text-accent transition-colors" />
-                        <Input placeholder="Dumos Pharmacy" className="pl-10 bg-white/5 border-white/10 text-white focus:border-accent/50 focus:ring-accent/20 h-11" {...field} />
+                        <Input placeholder="Dumos Store" className="pl-10 bg-white/5 border-white/10 text-white focus:border-accent/50 focus:ring-accent/20 h-11" {...field} />
                       </div>
                     </FormControl>
                     <FormMessage className="text-xs text-red-400" />

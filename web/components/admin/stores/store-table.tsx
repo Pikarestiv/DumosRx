@@ -28,35 +28,35 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-interface PharmacyTableProps {
-  pharmacyList: any[];
+interface StoreTableProps {
+  storeList: any[];
   isLoading: boolean;
-  handleImpersonate: (pharmacy: any) => void;
-  handleViewBilling: (pharmacy: any) => void;
-  setSelectedPharmacy: (pharmacy: any) => void;
+  handleImpersonate: (store: any) => void;
+  handleViewBilling: (store: any) => void;
+  setSelectedStore: (store: any) => void;
   setIsSuspendDialogOpen: (open: boolean) => void;
   setIsTrialDialogOpen: (open: boolean) => void;
-  handleUnsuspend: (pharmacy: any) => void;
+  handleUnsuspend: (store: any) => void;
   router: any;
 }
 
-export function PharmacyTable({
-  pharmacyList,
+export function StoreTable({
+  storeList,
   isLoading,
   handleImpersonate,
   handleViewBilling,
-  setSelectedPharmacy,
+  setSelectedStore,
   setIsSuspendDialogOpen,
   setIsTrialDialogOpen,
   handleUnsuspend,
   router,
-}: PharmacyTableProps) {
+}: StoreTableProps) {
   return (
     <Table>
       <TableHeader>
         <TableRow className="hover:bg-transparent border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
           <TableHead className="font-bold text-[10px] uppercase text-slate-400 pl-6 h-12">
-            Pharmacy Details
+            Store Details
           </TableHead>
           <TableHead className="font-bold text-[10px] uppercase text-slate-400 h-12">
             Owner & Contact
@@ -77,22 +77,22 @@ export function PharmacyTable({
         </TableRow>
       </TableHeader>
       <TableBody>
-        {pharmacyList.map((pharmacy: any) => (
+        {storeList.map((store: any) => (
           <TableRow
-            key={pharmacy.id}
+            key={store.id}
             className="border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 group transition-colors"
           >
             <TableCell className="pl-6 py-5">
               <div className="flex items-center gap-4">
                 <div className="h-10 w-10 rounded-xl bg-indigo-500/10 flex items-center justify-center font-black text-indigo-500 border border-indigo-500/20 text-xs">
-                  {pharmacy.name.charAt(0)}
+                  {store.name.charAt(0)}
                 </div>
                 <div className="flex flex-col">
                   <span className="font-bold text-slate-900 dark:text-slate-100 group-hover:text-indigo-600 transition-colors">
-                    {pharmacy.name}
+                    {store.name}
                   </span>
                   <span className="text-[10px] font-mono text-slate-400 uppercase tracking-tighter">
-                    {pharmacy.id}
+                    {store.id}
                   </span>
                 </div>
               </div>
@@ -100,11 +100,11 @@ export function PharmacyTable({
             <TableCell>
               <div className="flex flex-col">
                 <span className="font-bold text-sm text-slate-700 dark:text-slate-300">
-                  {pharmacy.owner}
+                  {store.owner}
                 </span>
                 <div className="flex items-center gap-1 text-[10px] text-slate-400">
                   <Mail className="h-3 w-3" />
-                  {pharmacy.email}
+                  {store.email}
                 </div>
               </div>
             </TableCell>
@@ -114,35 +114,35 @@ export function PharmacyTable({
                   variant="outline"
                   className="bg-indigo-50 text-indigo-600 border-indigo-100 dark:bg-indigo-500/10 dark:border-indigo-500/20 font-bold text-[10px] py-0.5"
                 >
-                  {pharmacy.plan}
+                  {store.plan}
                 </Badge>
                 <span className="text-[9px] text-slate-400 mt-1">
-                  Since {pharmacy.date}
+                  Since {store.date}
                 </span>
               </div>
             </TableCell>
             <TableCell className="text-center">
               <div className="flex items-center justify-center gap-2">
                 <div className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 font-black text-xs text-slate-700 dark:text-slate-200">
-                  {pharmacy.stores}
+                  {store.stores}
                 </div>
                 <StoreIcon className="h-3 w-3 text-slate-400" />
               </div>
             </TableCell>
             <TableCell className="text-right pr-4 font-black text-slate-900 dark:text-white">
-              {pharmacy.revenue}
+              {store.revenue}
             </TableCell>
             <TableCell className="text-center">
               <Badge
                 className={
-                  pharmacy.status === "Active"
+                  store.status === "Active"
                     ? "bg-emerald-500 hover:bg-emerald-600"
-                    : pharmacy.status === "Suspended"
+                    : store.status === "Suspended"
                       ? "bg-rose-500 hover:bg-rose-600"
                       : "bg-amber-500 hover:bg-amber-600"
                 }
               >
-                {pharmacy.status}
+                {store.status}
               </Badge>
             </TableCell>
             <TableCell className="pr-6">
@@ -160,21 +160,21 @@ export function PharmacyTable({
                   <DropdownMenuLabel className="text-[10px] uppercase tracking-widest text-slate-400 px-3 py-2">Actions</DropdownMenuLabel>
                   <DropdownMenuItem 
                     className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold"
-                    onClick={() => handleImpersonate(pharmacy)}
+                    onClick={() => handleImpersonate(store)}
                   >
                     <ExternalLink className="h-4 w-4 text-indigo-500" />
                     Impersonate (Admin)
                   </DropdownMenuItem>
                   <DropdownMenuItem 
                     className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold"
-                    onClick={() => handleViewBilling(pharmacy)}
+                    onClick={() => handleViewBilling(store)}
                   >
                     <CreditCard className="h-4 w-4 text-emerald-500" />
                     View Billing History
                   </DropdownMenuItem>
                   <DropdownMenuItem 
                     className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold"
-                    onClick={() => router.push(`/admin/system?search=${pharmacy.id}`)}
+                    onClick={() => router.push(`/admin/system?search=${store.id}`)}
                   >
                     <History className="h-4 w-4 text-blue-500" />
                     System Logs
@@ -182,7 +182,7 @@ export function PharmacyTable({
                   <DropdownMenuItem 
                     className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold text-amber-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors"
                     onClick={() => {
-                      setSelectedPharmacy(pharmacy);
+                      setSelectedStore(store);
                       setIsTrialDialogOpen(true);
                     }}
                   >
@@ -190,10 +190,10 @@ export function PharmacyTable({
                     Grant Trial
                   </DropdownMenuItem>
                   <DropdownMenuSeparator className="my-2 bg-slate-100 dark:bg-slate-800" />
-                  {pharmacy.status === "Suspended" ? (
+                  {store.status === "Suspended" ? (
                     <DropdownMenuItem 
                       className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors"
-                      onClick={() => handleUnsuspend(pharmacy)}
+                      onClick={() => handleUnsuspend(store)}
                     >
                       <CheckCircle className="h-4 w-4" />
                       Unsuspend Account
@@ -202,7 +202,7 @@ export function PharmacyTable({
                     <DropdownMenuItem 
                       className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors"
                       onClick={() => {
-                        setSelectedPharmacy(pharmacy);
+                        setSelectedStore(store);
                         setIsSuspendDialogOpen(true);
                       }}
                     >
@@ -215,7 +215,7 @@ export function PharmacyTable({
             </TableCell>
           </TableRow>
         ))}
-        {pharmacyList.length === 0 && !isLoading && (
+        {storeList.length === 0 && !isLoading && (
           <TableRow>
             <TableCell
               colSpan={7}
@@ -223,7 +223,7 @@ export function PharmacyTable({
             >
               <div className="flex flex-col items-center gap-2">
                 <StoreIcon className="h-10 w-10 opacity-20" />
-                <span>No pharmacies match your search criteria</span>
+                <span>No stores match your search criteria</span>
               </div>
             </TableCell>
           </TableRow>

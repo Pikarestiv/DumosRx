@@ -28,7 +28,7 @@ export function BusinessVerticalCard({
       <CardContent>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { id: "pharmacy", label: "Pharmacy", icon: Pill },
+            { id: "store", label: "Store", icon: Pill },
             { id: "grocery", label: "Grocery", icon: ShoppingBasket },
             {
               id: "supermarket",

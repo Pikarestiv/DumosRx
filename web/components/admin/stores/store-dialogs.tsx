@@ -12,21 +12,21 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 
-interface SuspendPharmacyDialogProps {
+interface SuspendStoreDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  selectedPharmacy: any;
+  selectedStore: any;
   handleSuspend: (reason: string) => void;
   isPending: boolean;
 }
 
-export function SuspendPharmacyDialog({
+export function SuspendStoreDialog({
   isOpen,
   onOpenChange,
-  selectedPharmacy,
+  selectedStore,
   handleSuspend,
   isPending,
-}: SuspendPharmacyDialogProps) {
+}: SuspendStoreDialogProps) {
   const [reason, setReason] = useState("");
 
   // Reset reason when dialog is opened/closed
@@ -44,11 +44,11 @@ export function SuspendPharmacyDialog({
             <div className="h-10 w-10 rounded-xl bg-rose-500/10 flex items-center justify-center">
               <Ban className="h-5 w-5 text-rose-500" />
             </div>
-            Suspend Pharmacy Account?
+            Suspend Store Account?
           </DialogTitle>
           <DialogDescription className="text-slate-500 dark:text-slate-400 font-medium pt-2">
-            Are you sure you want to suspend <span className="font-bold text-slate-900 dark:text-white">{selectedPharmacy?.name}</span>? 
-            The pharmacy will lose access to all platform features and their database sync will be locked.
+            Are you sure you want to suspend <span className="font-bold text-slate-900 dark:text-white">{selectedStore?.name}</span>? 
+            The store will lose access to all platform features and their database sync will be locked.
           </DialogDescription>
         </DialogHeader>
         
@@ -56,7 +56,7 @@ export function SuspendPharmacyDialog({
           <Label htmlFor="suspension-reason" className="font-bold text-sm">Suspension Reason (Visible to user)</Label>
           <Textarea
             id="suspension-reason"
-            placeholder="e.g. Your pharmacy account has been suspended for violating our terms of usage. Please contact administrative support."
+            placeholder="e.g. Your store account has been suspended for violating our terms of usage. Please contact administrative support."
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             className="min-h-[100px] rounded-xl border-slate-200 dark:border-slate-800 focus-visible:ring-rose-500"

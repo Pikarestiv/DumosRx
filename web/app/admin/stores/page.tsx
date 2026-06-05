@@ -8,18 +8,18 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { useAdminPharmacies, useSuspendPharmacyMutation, useUnsuspendPharmacyMutation, useImpersonatePharmacyMutation, useGrantTrialMutation } from "@/lib/api/admin-hooks";
+import { useAdminStores, useSuspendStoreMutation, useUnsuspendStoreMutation, useImpersonateStoreMutation, useGrantTrialMutation } from "@/lib/api/admin-hooks";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useDebounce } from "@/hooks/use-debounce";
-import { PharmacyTable } from "@/components/admin/pharmacies/pharmacy-table";
-import { PharmacyToolbar } from "@/components/admin/pharmacies/pharmacy-toolbar";
-import { PharmacyPagination } from "@/components/admin/pharmacies/pharmacy-pagination";
-import { SuspendPharmacyDialog } from "@/components/admin/pharmacies/pharmacy-dialogs";
-import { GrantTrialDialog } from "@/components/admin/pharmacies/grant-trial-dialog";
+import { StoreTable } from "@/components/admin/stores/store-table";
+import { StoreToolbar } from "@/components/admin/stores/store-toolbar";
+import { StorePagination } from "@/components/admin/stores/store-pagination";
+import { SuspendStoreDialog } from "@/components/admin/stores/store-dialogs";
+import { GrantTrialDialog } from "@/components/admin/stores/grant-trial-dialog";
 import { toast } from "sonner";
 import { AdminSkeleton } from "@/components/admin/admin-skeleton";
 
-export default function PharmaciesManagement() {
+export default function StoresManagement() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const initialSearch = searchParams.get("search") || "";
@@ -28,21 +28,21 @@ export default function PharmaciesManagement() {
   const [search, setSearch] = useState(initialSearch);
   const [statusFilter, setStatusFilter] = useState("all");
   const [planFilter, setPlanFilter] = useState("all");
-  const [selectedPharmacy, setSelectedPharmacy] = useState<any>(null);
+  const [selectedStore, setSelectedStore] = useState<any>(null);
   const [isSuspendDialogOpen, setIsSuspendDialogOpen] = useState(false);
   const [isTrialDialogOpen, setIsTrialDialogOpen] = useState(false);
   
   const debouncedSearch = useDebounce(search, 500);
 
-  const { data: response, isLoading, error, refetch } = useAdminPharmacies(
+  const { data: response, isLoading, error, refetch } = useAdminStores(
     page,
     debouncedSearch,
     statusFilter === "all" ? "" : statusFilter,
     planFilter === "all" ? "" : planFilter
   );
-  const suspendMutation = useSuspendPharmacyMutation();
-  const unsuspendMutation = useUnsuspendPharmacyMutation();
-  const impersonateMutation = useImpersonatePharmacyMutation();
+  const suspendMutation = useSuspendStoreMutation();
+  const unsuspendMutation = useUnsuspendStoreMutation();
+  const impersonateMutation = useImpersonateStoreMutation();
   const grantTrialMutation = useGrantTrialMutation();
 
   useEffect(() => {
@@ -57,14 +57,14 @@ export default function PharmaciesManagement() {
     }
   };
 
-  const pharmacyList = response?.data || [];
-  const pharmacyMeta = response?.meta;
+  const storeList = response?.data || [];
+  const storeMeta = response?.meta;
 
   const handleExportCSV = () => {
-    if (pharmacyList.length === 0) return;
+    if (storeList.length === 0) return;
 
     const headers = ["ID", "Name", "Owner", "Email", "Plan", "Status", "Date"];
-    const csvData = pharmacyList.map((p: any) =>
+    const csvData = storeList.map((p: any) =>
       [p.id, p.name, p.owner, p.email, p.plan, p.status, p.date].join(","),
     );
 
@@ -74,56 +74,56 @@ export default function PharmaciesManagement() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `pharmacies-export-${new Date().toISOString().split("T")[0]}.csv`;
+    a.download = `stores-export-${new Date().toISOString().split("T")[0]}.csv`;
     a.click();
   };
 
   const handleSuspend = async (reason: string) => {
-    if (!selectedPharmacy) return;
+    if (!selectedStore) return;
     
-    suspendMutation.mutate({ id: selectedPharmacy.id, reason }, {
+    suspendMutation.mutate({ id: selectedStore.id, reason }, {
       onSuccess: () => {
         toast.success("Account Suspended", {
-          description: `${selectedPharmacy.name} has been suspended successfully.`,
+          description: `${selectedStore.name} has been suspended successfully.`,
         });
         setIsSuspendDialogOpen(false);
-        setSelectedPharmacy(null);
+        setSelectedStore(null);
         refetch();
       },
       onError: (err: any) => {
         toast.error("Action Failed", {
-          description: err.message || "Failed to suspend pharmacy.",
+          description: err.message || "Failed to suspend store.",
         });
       }
     });
   };
 
-  const handleUnsuspend = async (pharmacy: any) => {
-    unsuspendMutation.mutate(pharmacy.id, {
+  const handleUnsuspend = async (store: any) => {
+    unsuspendMutation.mutate(store.id, {
       onSuccess: () => {
         toast.success("Account Re-activated", {
-          description: `${pharmacy.name} has been re-activated successfully.`,
+          description: `${store.name} has been re-activated successfully.`,
         });
         refetch();
       },
       onError: (err: any) => {
         toast.error("Action Failed", {
-          description: err.message || "Failed to unsuspend pharmacy.",
+          description: err.message || "Failed to unsuspend store.",
         });
       }
     });
   };
 
   const handleGrantTrial = async (plan: string, duration: string) => {
-    if (!selectedPharmacy) return;
+    if (!selectedStore) return;
 
-    grantTrialMutation.mutate({ id: selectedPharmacy.id, plan, duration }, {
+    grantTrialMutation.mutate({ id: selectedStore.id, plan, duration }, {
       onSuccess: () => {
         toast.success("Trial Granted", {
-          description: `Granted ${duration} ${plan} trial to ${selectedPharmacy.name}.`,
+          description: `Granted ${duration} ${plan} trial to ${selectedStore.name}.`,
         });
         setIsTrialDialogOpen(false);
-        setSelectedPharmacy(null);
+        setSelectedStore(null);
         refetch();
       },
       onError: (err: any) => {
@@ -134,8 +134,8 @@ export default function PharmaciesManagement() {
     });
   };
 
-  const handleImpersonate = (pharmacy: any) => {
-    impersonateMutation.mutate(pharmacy.id, {
+  const handleImpersonate = (store: any) => {
+    impersonateMutation.mutate(store.id, {
       onSuccess: (data: any) => {
         toast.success("Impersonation Successful", {
           description: `Logged in as ${data.user.name}. Redirecting...`,
@@ -162,9 +162,9 @@ export default function PharmaciesManagement() {
     });
   };
 
-  const handleViewBilling = (pharmacy: any) => {
+  const handleViewBilling = (store: any) => {
     toast.info("Billing History", {
-      description: `Fetching billing records for ${pharmacy.name}...`,
+      description: `Fetching billing records for ${store.name}...`,
     });
   };
 
@@ -177,7 +177,7 @@ export default function PharmaciesManagement() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-4xl font-black tracking-tight text-slate-900 dark:text-white">
-            Pharmacy Fleet
+            Store Fleet
           </h1>
           <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium">
             Manage and monitor all business accounts on the platform
@@ -194,17 +194,17 @@ export default function PharmaciesManagement() {
           </Button>
           <Button
             className="bg-indigo-600 hover:bg-indigo-700 font-bold shadow-lg shadow-indigo-600/20"
-            onClick={() => router.push("/admin/pharmacies/new")}
+            onClick={() => router.push("/admin/stores/new")}
           >
             <Plus className="h-4 w-4 mr-2" />
-            Register Pharmacy
+            Register Store
           </Button>
         </div>
       </div>
 
       <Card className="border-none shadow-sm overflow-hidden bg-white dark:bg-slate-900">
         <CardContent className="p-0">
-          <PharmacyToolbar
+          <StoreToolbar
             search={search}
             onSearchChange={setSearch}
             statusFilter={statusFilter}
@@ -212,8 +212,8 @@ export default function PharmaciesManagement() {
             planFilter={planFilter}
             onPlanFilterChange={(val) => { setPlanFilter(val); setPage(1); }}
             isLoading={isLoading}
-            totalShown={pharmacyList.length}
-            totalCount={pharmacyMeta?.total || 0}
+            totalShown={storeList.length}
+            totalCount={storeMeta?.total || 0}
           />
 
           <div className="overflow-x-auto min-h-[400px]">
@@ -229,12 +229,12 @@ export default function PharmaciesManagement() {
                 </Button>
               </div>
             ) : (
-            <PharmacyTable 
-              pharmacyList={pharmacyList}
+            <StoreTable 
+              storeList={storeList}
               isLoading={isLoading}
               handleImpersonate={handleImpersonate}
               handleViewBilling={handleViewBilling}
-              setSelectedPharmacy={setSelectedPharmacy}
+              setSelectedStore={setSelectedStore}
               setIsSuspendDialogOpen={setIsSuspendDialogOpen}
               setIsTrialDialogOpen={setIsTrialDialogOpen}
               handleUnsuspend={handleUnsuspend}
@@ -243,19 +243,19 @@ export default function PharmaciesManagement() {
             )}
           </div>
 
-          {pharmacyMeta && (
-            <PharmacyPagination
-              meta={pharmacyMeta}
+          {storeMeta && (
+            <StorePagination
+              meta={storeMeta}
               onPageChange={handlePageChange}
             />
           )}
         </CardContent>
       </Card>
 
-      <SuspendPharmacyDialog
+      <SuspendStoreDialog
         isOpen={isSuspendDialogOpen}
         onOpenChange={setIsSuspendDialogOpen}
-        selectedPharmacy={selectedPharmacy}
+        selectedStore={selectedStore}
         handleSuspend={handleSuspend}
         isPending={suspendMutation.isPending}
       />
@@ -263,7 +263,7 @@ export default function PharmaciesManagement() {
       <GrantTrialDialog
         open={isTrialDialogOpen}
         onOpenChange={setIsTrialDialogOpen}
-        pharmacy={selectedPharmacy}
+        store={selectedStore}
         onConfirm={handleGrantTrial}
         isPending={grantTrialMutation.isPending}
       />

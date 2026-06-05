@@ -25,7 +25,7 @@ export function BenefitsSection() {
                 },
                 {
                   title: "Transparent Pricing",
-                  desc: "Pay in Naira, no hidden fees. Choose a plan that fits your pharmacy size.",
+                  desc: "Pay in Naira, no hidden fees. Choose a plan that fits your store size.",
                 },
               ].map((item, i) => (
                 <div key={i} className="flex gap-4">

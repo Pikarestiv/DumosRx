@@ -38,7 +38,7 @@ class AdminController extends Controller
         }
     }
 
-    public function pharmacies(Request $request)
+    public function stores(Request $request)
     {
         if ($request->user()->role !== 'super_admin') {
             return response()->json(['error' => 'Unauthorized'], 403);
@@ -49,22 +49,22 @@ class AdminController extends Controller
             $search = $request->query('search');
             $status = $request->query('status');
             $plan = $request->query('plan');
-            $data = $this->adminService->getPharmacies($page, $search, $status, $plan);
+            $data = $this->adminService->getStores($page, $search, $status, $plan);
             return response()->json($data);
         } catch (\Exception $e) {
-            Log::error("Admin Pharmacies Error: " . $e->getMessage());
-            return response()->json(['error' => 'Failed to fetch pharmacies'], 500);
+            Log::error("Admin Stores Error: " . $e->getMessage());
+            return response()->json(['error' => 'Failed to fetch stores'], 500);
         }
     }
 
-    public function registerPharmacy(Request $request)
+    public function registerStore(Request $request)
     {
         if ($request->user()->role !== 'super_admin') {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
         $validated = $request->validate([
-            'pharmacy_name' => 'required|string|min:2',
+            'store_name' => 'required|string|min:2',
             'first_name' => 'required|string|min:2',
             'last_name' => 'required|string|min:2',
             'email' => 'required|email|unique:users,email',
@@ -73,14 +73,14 @@ class AdminController extends Controller
         ]);
 
         try {
-            $pharmacy = $this->adminService->registerPharmacy($validated);
+            $store = $this->adminService->registerStore($validated);
             return response()->json([
-                'message' => 'Pharmacy registered successfully',
-                'pharmacy' => $pharmacy
+                'message' => 'Store registered successfully',
+                'store' => $store
             ], 201);
         } catch (\Exception $e) {
-            Log::error("Admin Register Pharmacy Error: " . $e->getMessage());
-            return response()->json(['error' => 'Failed to register pharmacy'], 500);
+            Log::error("Admin Register Store Error: " . $e->getMessage());
+            return response()->json(['error' => 'Failed to register store'], 500);
         }
     }
 
@@ -168,7 +168,7 @@ class AdminController extends Controller
             return response()->json(['error' => 'Search failed'], 500);
         }
     }
-    public function suspendPharmacy(Request $request, $id)
+    public function suspendStore(Request $request, $id)
     {
         if ($request->user()->role !== 'super_admin') {
             return response()->json(['error' => 'Unauthorized'], 403);
@@ -179,26 +179,26 @@ class AdminController extends Controller
         ]);
 
         try {
-            $this->adminService->suspendPharmacy($id, $validated['reason'] ?? null);
-            return response()->json(['message' => 'Pharmacy suspended successfully']);
+            $this->adminService->suspendStore($id, $validated['reason'] ?? null);
+            return response()->json(['message' => 'Store suspended successfully']);
         } catch (\Exception $e) {
             Log::error("Admin Suspend Error: " . $e->getMessage());
-            return response()->json(['error' => 'Failed to suspend pharmacy'], 500);
+            return response()->json(['error' => 'Failed to suspend store'], 500);
         }
     }
 
-    public function unsuspendPharmacy(Request $request, $id)
+    public function unsuspendStore(Request $request, $id)
     {
         if ($request->user()->role !== 'super_admin') {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
         try {
-            $this->adminService->unsuspendPharmacy($id);
-            return response()->json(['message' => 'Pharmacy re-activated successfully']);
+            $this->adminService->unsuspendStore($id);
+            return response()->json(['message' => 'Store re-activated successfully']);
         } catch (\Exception $e) {
             Log::error("Admin Unsuspend Error: " . $e->getMessage());
-            return response()->json(['error' => 'Failed to unsuspend pharmacy'], 500);
+            return response()->json(['error' => 'Failed to unsuspend store'], 500);
         }
     }
 
@@ -314,14 +314,14 @@ class AdminController extends Controller
         }
     }
 
-    public function impersonatePharmacy(Request $request, $id)
+    public function impersonateStore(Request $request, $id)
     {
         if ($request->user()->role !== 'super_admin') {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
         try {
-            $data = $this->adminService->impersonatePharmacy($id);
+            $data = $this->adminService->impersonateStore($id);
             
             $response = response()->json($data);
             

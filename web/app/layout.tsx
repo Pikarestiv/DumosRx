@@ -13,9 +13,9 @@ const montserrat = Montserrat({
 });
 
 export const metadata: Metadata = {
-  title: "DumosRx - NextGen Retail & Pharmacy OS",
+  title: "DumosRx - NextGen Retail & Store OS",
   description:
-    "Professional business management system for retail stores and pharmacies",
+    "Professional business management system for retail stores and stores",
   icons: {
     icon: [
       { url: "/favicon-96x96.png", sizes: "96x96", type: "image/png" },

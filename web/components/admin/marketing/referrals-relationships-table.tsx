@@ -39,7 +39,7 @@ export function ReferralsRelationshipsTable({
             <TableHeader>
               <TableRow className="hover:bg-transparent border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
                 <TableHead className="font-bold text-[10px] uppercase text-slate-400 h-12 pl-4">
-                  Referred Pharmacy
+                  Referred Store
                 </TableHead>
                 <TableHead className="font-bold text-[10px] uppercase text-slate-400 h-12">
                   Referred User

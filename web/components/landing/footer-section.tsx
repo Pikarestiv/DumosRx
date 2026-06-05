@@ -36,7 +36,7 @@ export function FooterSection() {
               />
             </Link>
             <p className="text-muted-foreground max-w-xs mb-6">
-              The most reliable pharmacy management system for the Nigerian
+              The most reliable store management system for the Nigerian
               market. Offline-first, cloud-synced, and built for growth.
             </p>
           </div>

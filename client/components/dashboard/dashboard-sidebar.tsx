@@ -58,10 +58,10 @@ export function DashboardSidebar({
     {
       name: `Inventory & ${t("products")}`,
       href: "/inventory",
-      icon: storeType === "pharmacy" ? Pill : ShoppingBasket,
+      icon: storeType === "store" ? Pill : ShoppingBasket,
     },
     { name: "Point of Sale", href: "/pos", icon: ShoppingCart },
-    ...(storeType === "pharmacy"
+    ...(storeType === "store"
       ? [{ name: "Prescriptions", href: "/prescriptions", icon: FileText }]
       : []),
     { name: "Customers", href: "/customers", icon: Users },

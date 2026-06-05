@@ -77,7 +77,7 @@ export function StoreInformationCard({
             <Input
               id="store-slug"
               className="rounded-l-none"
-              placeholder="my-pharmacy"
+              placeholder="my-store"
               value={localStoreSlug || ""}
               onChange={(e) => setLocalStoreSlug?.(e.target.value)}
             />
@@ -115,7 +115,7 @@ export function StoreInformationCard({
             />
           </div>
         </div>
-        {storeType === "pharmacy" && (
+        {storeType === "store" && (
           <>
             <div className="grid gap-2">
               <Label htmlFor="pcn">PCN License Number</Label>

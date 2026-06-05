@@ -263,7 +263,7 @@ export function PricingSection() {
           <div className="text-center space-y-2 max-w-2xl mx-auto">
             <h3 className="text-2xl font-bold tracking-tight">Understanding Hybrid-Offline Operations</h3>
             <p className="text-sm text-muted-foreground">
-              DumosRx operates as a hybrid app: a secure local engine allows full retail and pharmacy operations to function 100% without internet, while syncing transactions when online.
+              DumosRx operates as a hybrid app: a secure local engine allows full retail and store operations to function 100% without internet, while syncing transactions when online.
             </p>
           </div>
 
@@ -326,7 +326,7 @@ export function PricingSection() {
                     <strong>Pros:</strong> Instant real-time replication. Monitor multiple branches live from one centralized HQ login. Priority SMS notifications.
                   </div>
                   <div className="bg-rose-500/10 text-rose-700 dark:text-rose-300 p-2.5 rounded-lg text-xs">
-                    <strong>Cons:</strong> Enterprise integration setup required. Best suited for pharmacies with multiple physical branches.
+                    <strong>Cons:</strong> Enterprise integration setup required. Best suited for stores with multiple physical branches.
                   </div>
                 </div>
               </div>
@@ -397,7 +397,7 @@ export function PricingSection() {
                   </tr>
 
                   {/* Category: Advanced Features */}
-                  <tr className="bg-muted/10 font-semibold"><td colSpan={5} className="p-3 text-xs uppercase tracking-wider text-muted-foreground">Advanced Pharmacy Modules</td></tr>
+                  <tr className="bg-muted/10 font-semibold"><td colSpan={5} className="p-3 text-xs uppercase tracking-wider text-muted-foreground">Advanced Store Modules</td></tr>
                   <tr>
                     <td className="p-4 font-medium text-foreground">Prescriptions & Expenses</td>
                     <td className="p-4 text-center text-muted-foreground">❌ Grayed Out (Locked)</td>

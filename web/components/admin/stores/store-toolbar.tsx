@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 
-interface PharmacyToolbarProps {
+interface StoreToolbarProps {
   search: string;
   onSearchChange: (value: string) => void;
   statusFilter: string;
@@ -23,7 +23,7 @@ interface PharmacyToolbarProps {
   totalCount: number;
 }
 
-export function PharmacyToolbar({
+export function StoreToolbar({
   search,
   onSearchChange,
   statusFilter,
@@ -33,7 +33,7 @@ export function PharmacyToolbar({
   isLoading,
   totalShown,
   totalCount,
-}: PharmacyToolbarProps) {
+}: StoreToolbarProps) {
   const hasActiveFilters = statusFilter !== "all" || planFilter !== "all";
 
   return (
@@ -142,7 +142,7 @@ export function PharmacyToolbar({
         <div className="h-8 w-px bg-slate-200 dark:bg-slate-800 mx-1 hidden md:block" />
         <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
           Showing {totalShown} of {totalCount}{" "}
-          pharmacies
+          stores
         </p>
       </div>
     </div>

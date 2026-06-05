@@ -49,7 +49,7 @@ export default function PrivacyPolicyPage() {
             </p>
             <ul className="list-disc pl-6 space-y-1">
               <li><strong>Account Credentials:</strong> Full name, business email, username, and hashed PIN/password.</li>
-              <li><strong>Business Information:</strong> Store/pharmacy name, location (city/state), phone number, and licensing credentials.</li>
+              <li><strong>Business Information:</strong> Store/store name, location (city/state), phone number, and licensing credentials.</li>
               <li><strong>Payment Information:</strong> Billing records, transaction identifiers, and subscription history.</li>
             </ul>
           </section>

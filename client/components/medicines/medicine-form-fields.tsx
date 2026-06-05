@@ -8,7 +8,7 @@ import { Medicine } from "./types";
 interface MedicineFormFieldsProps {
   formData: Medicine;
   onInputChange: (field: keyof Medicine, value: any) => void;
-  isPharmacy: boolean;
+  isStore: boolean;
   suggestions: {
     names: string[];
     generics?: string[];
@@ -26,7 +26,7 @@ interface MedicineFormFieldsProps {
 export function MedicineFormFields({
   formData,
   onInputChange,
-  isPharmacy,
+  isStore,
   suggestions,
   commonSuggestions,
   t,
@@ -41,12 +41,12 @@ export function MedicineFormFields({
             value={formData.name}
             onValueChange={(val) => onInputChange("name", val)}
             options={suggestions.names}
-            placeholder={`e.g., ${isPharmacy ? "Paracetamol" : "Product Name"}`}
+            placeholder={`e.g., ${isStore ? "Paracetamol" : "Product Name"}`}
             required
           />
         </div>
 
-        {isPharmacy && (
+        {isStore && (
           <div className="space-y-2">
             <Label htmlFor="genericName">Generic Name *</Label>
             <SearchableInput
@@ -67,7 +67,7 @@ export function MedicineFormFields({
             value={formData.brand}
             onValueChange={(val) => onInputChange("brand", val)}
             options={suggestions.names}
-            placeholder={`e.g., ${isPharmacy ? "Panadol" : "Brand Name"}`}
+            placeholder={`e.g., ${isStore ? "Panadol" : "Brand Name"}`}
           />
         </div>
 
@@ -83,14 +83,14 @@ export function MedicineFormFields({
 
         <div className="space-y-2">
           <Label htmlFor="nafdacNumber">
-            {t("registration_number")} {isPharmacy ? "*" : ""}
+            {t("registration_number")} {isStore ? "*" : ""}
           </Label>
           <Input
             id="nafdacNumber"
             value={formData.nafdacNumber}
             onChange={(e) => onInputChange("nafdacNumber", e.target.value)}
             placeholder="e.g., 04-1234"
-            required={isPharmacy}
+            required={isStore}
           />
         </div>
 
@@ -101,7 +101,7 @@ export function MedicineFormFields({
             value={formData.strength}
             onValueChange={(val) => onInputChange("strength", val)}
             options={
-              isPharmacy
+              isStore
                 ? suggestions.strengths
                 : ["Small", "Medium", "Large", "1kg", "500g", "1L", "500ml"]
             }
@@ -109,7 +109,7 @@ export function MedicineFormFields({
           />
         </div>
 
-        {isPharmacy && (
+        {isStore && (
           <div className="space-y-2">
             <Label htmlFor="dosageForm">Dosage Form</Label>
             <SearchableInput

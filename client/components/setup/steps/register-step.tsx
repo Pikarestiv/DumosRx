@@ -84,11 +84,11 @@ export function RegisterStep({ onRegister, isLoading, isCloudLinked, existingSto
 
             <div className="space-y-2">
               <Label htmlFor="store-name">
-                {selectedStoreId === "new" ? "New Pharmacy / Store Name" : "Shop Name (Selected)"}
+                {selectedStoreId === "new" ? "New Store / Store Name" : "Shop Name (Selected)"}
               </Label>
               <Input
                 id="store-name"
-                placeholder="e.g. Dumos Health Pharmacy"
+                placeholder="e.g. Dumos Health Store"
                 className="bg-background/50 font-bold border-primary/20 focus:border-primary disabled:opacity-80"
                 value={storeName}
                 onChange={(e) => setStoreName(e.target.value)}

@@ -46,7 +46,7 @@ export function AddSupplierDialog({
   onAddSupplier,
 }: AddSupplierDialogProps) {
   const { storeType } = useStore();
-  const isPharmacy = storeType === 'pharmacy';
+  const isStore = storeType === 'store';
   const [formData, setFormData] = useState<Supplier>({
     name: "",
     contactPerson: "",
@@ -129,8 +129,8 @@ export function AddSupplierDialog({
               id="name"
               value={formData.name}
               onValueChange={(val) => handleInputChange("name", val)}
-              options={isPharmacy ? FORM_SUGGESTIONS.pharmacy.manufacturers : FORM_SUGGESTIONS.retail.manufacturers}
-              placeholder={isPharmacy ? "e.g., Emzor Pharmaceuticals" : "e.g., Global Distributors"}
+              options={isStore ? FORM_SUGGESTIONS.store.manufacturers : FORM_SUGGESTIONS.retail.manufacturers}
+              placeholder={isStore ? "e.g., Emzor Pharmaceuticals" : "e.g., Global Distributors"}
               required
             />
           </div>

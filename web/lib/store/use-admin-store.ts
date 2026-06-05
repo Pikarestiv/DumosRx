@@ -4,8 +4,8 @@ import { webApiClient } from "@/lib/api/client";
 
 interface AdminState {
   summary: any | null;
-  pharmacies: any[] | null;
-  pharmacyMeta: any | null;
+  stores: any[] | null;
+  storeMeta: any | null;
   products: any[] | null;
   productMeta: any | null;
   productMetrics: any | null;
@@ -19,7 +19,7 @@ interface AdminState {
   latency: number;
 
   fetchSummary: (force?: boolean) => Promise<void>;
-  fetchPharmacies: (page?: number, search?: string) => Promise<void>;
+  fetchStores: (page?: number, search?: string) => Promise<void>;
   fetchProducts: (page?: number, search?: string, category?: string) => Promise<void>;
   standardizeProducts: () => Promise<any>;
   fetchUsers: (page?: number, search?: string) => Promise<void>;
@@ -30,8 +30,8 @@ export const useAdminStore = create<AdminState>()(
   persist(
     (set, get) => ({
       summary: null,
-      pharmacies: null,
-      pharmacyMeta: null,
+      stores: null,
+      storeMeta: null,
       products: null,
       productMeta: null,
       productMetrics: null,
@@ -75,21 +75,21 @@ export const useAdminStore = create<AdminState>()(
         }
       },
 
-      fetchPharmacies: async (page = 1, search = "") => {
+      fetchStores: async (page = 1, search = "") => {
         set({ loading: true, error: null });
 
         try {
-          const query = `admin/pharmacies?page=${page}${search ? `&search=${search}` : ""}`;
+          const query = `admin/stores?page=${page}${search ? `&search=${search}` : ""}`;
           const response = await webApiClient.request<any>(query);
           set({
-            pharmacies: response.data,
-            pharmacyMeta: response.meta,
+            stores: response.data,
+            storeMeta: response.meta,
             loading: false,
             error: null,
           });
         } catch (err: any) {
           set({
-            error: err.message || "Failed to fetch pharmacies",
+            error: err.message || "Failed to fetch stores",
             loading: false,
           });
         }

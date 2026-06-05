@@ -359,7 +359,7 @@ export function MedicineDetailsDialog({
             ) : batches.length === 0 ? (
               <p className="text-center py-4 text-muted-foreground italic">
                 No batch records found for this{" "}
-                {storeProfile?.store_type === "pharmacy"
+                {storeProfile?.store_type === "store"
                   ? "medicine"
                   : "product"}
                 .

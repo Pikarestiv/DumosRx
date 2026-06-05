@@ -142,7 +142,7 @@ export class BaseApiClient {
               "UPDATE store_profile SET status = 'Suspended', suspension_reason = ?",
               [
                 errorData.reason ||
-                  "Your pharmacy account has been suspended for violating our terms of usage. Please contact administrative support.",
+                  "Your store account has been suspended for violating our terms of usage. Please contact administrative support.",
               ],
             );
             if (typeof window !== "undefined") {

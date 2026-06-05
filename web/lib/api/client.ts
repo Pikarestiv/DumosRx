@@ -173,8 +173,8 @@ class WebApiClient {
     return data;
   }
 
-  async impersonatePharmacy(id: string) {
-    const { data } = await apiClient.post(`/admin/pharmacies/${id}/impersonate`);
+  async impersonateStore(id: string) {
+    const { data } = await apiClient.post(`/admin/stores/${id}/impersonate`);
     return data;
   }
 

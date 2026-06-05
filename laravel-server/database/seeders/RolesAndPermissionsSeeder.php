@@ -43,8 +43,8 @@ class RolesAndPermissionsSeeder extends Seeder
                 'description' => 'Store owner or high-level manager',
                 'permissions' => array_keys($permissions) // Gets all
             ],
-            'pharmacy_owner' => [
-                'name' => 'Pharmacy Owner',
+            'store_owner' => [
+                'name' => 'Store Owner',
                 'description' => 'Store owner with full permissions',
                 'permissions' => array_keys($permissions) // Gets all
             ],
@@ -85,9 +85,9 @@ class RolesAndPermissionsSeeder extends Seeder
                 ->whereNull('role_id')
                 ->update(['role_id' => $role->id]);
 
-            // Also map legacy pharmacy_owner users to the admin role ID
+            // Also map legacy store_owner users to the admin role ID
             if ($slug === 'admin') {
-                \App\Models\User::where('role', 'pharmacy_owner')
+                \App\Models\User::where('role', 'store_owner')
                     ->whereNull('role_id')
                     ->update(['role_id' => $role->id]);
             }

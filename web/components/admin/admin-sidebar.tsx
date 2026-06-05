@@ -23,10 +23,10 @@ import { cn } from "@/lib/utils";
 const sidebarItems = [
   { id: "dashboard", name: "Overview", icon: LayoutDashboard, href: "/admin" },
   {
-    id: "pharmacies",
-    name: "Pharmacies",
+    id: "stores",
+    name: "Stores",
     icon: Store,
-    href: "/admin/pharmacies",
+    href: "/admin/stores",
   },
   { id: "users", name: "Platform Users", icon: Users, href: "/admin/users" },
   {

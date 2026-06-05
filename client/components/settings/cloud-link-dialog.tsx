@@ -83,7 +83,7 @@ export function CloudLinkDialog({ open, onOpenChange, onSuccess }: CloudLinkDial
               <Input
                 id="cloud-email"
                 type="email"
-                placeholder="admin@pharmacy.com"
+                placeholder="admin@store.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={isLoading}

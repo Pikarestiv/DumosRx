@@ -31,9 +31,9 @@ const montserrat = Montserrat({
 });
 
 export const metadata: Metadata = {
-  title: `${APP_NAME} - NextGen Retail & Pharmacy OS`,
+  title: `${APP_NAME} - NextGen Retail & Store OS`,
   description:
-    "Professional business management system for retail stores and pharmacies",
+    "Professional business management system for retail stores and stores",
   generator: "v0.app",
   icons: {
     icon: [

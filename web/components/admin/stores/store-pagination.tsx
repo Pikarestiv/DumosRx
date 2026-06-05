@@ -9,12 +9,12 @@ interface PaginationMeta {
   total: number;
 }
 
-interface PharmacyPaginationProps {
+interface StorePaginationProps {
   meta: PaginationMeta;
   onPageChange: (page: number) => void;
 }
 
-export function PharmacyPagination({ meta, onPageChange }: PharmacyPaginationProps) {
+export function StorePagination({ meta, onPageChange }: StorePaginationProps) {
   if (meta.last_page <= 1) return null;
 
   return (

@@ -62,7 +62,7 @@ export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
   const [items, setItems] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const ProductIcon = storeType === 'pharmacy' ? Pill : Package;
+  const ProductIcon = storeType === 'store' ? Pill : Package;
 
   // New item state
   const [currentMedicineId, setCurrentMedicineId] = useState("");

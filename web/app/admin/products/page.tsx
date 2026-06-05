@@ -225,7 +225,7 @@ export default function GlobalProductsManagement() {
                   <TableRow className="hover:bg-transparent border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
                     <TableHead className="font-bold text-[10px] uppercase text-slate-400 pl-6 h-12">Product Details</TableHead>
                     <TableHead className="font-bold text-[10px] uppercase text-slate-400 h-12">Global Category</TableHead>
-                    <TableHead className="font-bold text-[10px] uppercase text-slate-400 text-center h-12">Pharmacy Instances</TableHead>
+                    <TableHead className="font-bold text-[10px] uppercase text-slate-400 text-center h-12">Store Instances</TableHead>
                     <TableHead className="font-bold text-[10px] uppercase text-slate-400 text-center h-12">Avg. Cloud Price</TableHead>
                     <TableHead className="font-bold text-[10px] uppercase text-slate-400 text-center h-12">Stock Health</TableHead>
                     <TableHead className="font-bold text-[10px] uppercase text-slate-400 text-center h-12">Verification</TableHead>

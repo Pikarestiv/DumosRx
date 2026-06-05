@@ -7,7 +7,7 @@ export interface SuggestionRule {
 
 export const SMART_SUGGESTIONS_RULES: SuggestionRule[] = [
   // ==========================================
-  // CLINICAL PHARMACY RULES
+  // CLINICAL STORE RULES
   // ==========================================
   {
     triggerCategory: "Antimalarials",

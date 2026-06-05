@@ -10,10 +10,10 @@ export const useAdminSummary = (options?: { enabled?: boolean }) => {
   });
 };
 
-export const useAdminPharmacies = (page = 1, search = "", status = "", plan = "") => {
+export const useAdminStores = (page = 1, search = "", status = "", plan = "") => {
   return useQuery({
-    queryKey: ["admin-pharmacies", page, search, status, plan],
-    queryFn: () => webApiClient.request<any>(`admin/pharmacies?page=${page}${search ? `&search=${search}` : ""}${status ? `&status=${status}` : ""}${plan ? `&plan=${plan}` : ""}`),
+    queryKey: ["admin-stores", page, search, status, plan],
+    queryFn: () => webApiClient.request<any>(`admin/stores?page=${page}${search ? `&search=${search}` : ""}${status ? `&status=${status}` : ""}${plan ? `&plan=${plan}` : ""}`),
   });
 };
 
@@ -50,28 +50,28 @@ export const useStandardizeProductsMutation = () => {
   });
 };
 
-export const useSuspendPharmacyMutation = () => {
+export const useSuspendStoreMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) => 
-      webApiClient.request<any>(`admin/pharmacies/${id}/suspend`, { 
+      webApiClient.request<any>(`admin/stores/${id}/suspend`, { 
         method: "POST", 
         body: { reason } 
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-pharmacies"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-stores"] });
       queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
     },
   });
 };
 
-export const useUnsuspendPharmacyMutation = () => {
+export const useUnsuspendStoreMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => 
-      webApiClient.request<any>(`admin/pharmacies/${id}/unsuspend`, { method: "POST" }),
+      webApiClient.request<any>(`admin/stores/${id}/unsuspend`, { method: "POST" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-pharmacies"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-stores"] });
       queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
     },
   });
@@ -81,12 +81,12 @@ export const useGrantTrialMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, plan, duration }: { id: string; plan: string; duration: string }) => 
-      webApiClient.request<any>(`admin/pharmacies/${id}/grant-trial`, { 
+      webApiClient.request<any>(`admin/stores/${id}/grant-trial`, { 
         method: "POST", 
         body: { plan, duration } 
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-pharmacies"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-stores"] });
       queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
     },
   });
@@ -126,9 +126,9 @@ export const useNotifyUserMutation = () => {
   });
 };
 
-export const useImpersonatePharmacyMutation = () => {
+export const useImpersonateStoreMutation = () => {
   return useMutation({
-    mutationFn: (id: string) => webApiClient.impersonatePharmacy(id),
+    mutationFn: (id: string) => webApiClient.impersonateStore(id),
   });
 };
 
@@ -290,17 +290,17 @@ export const useUpdateAdminEmailTemplateMutation = () => {
   });
 };
 
-// Pharmacy Hooks
-export const useCreatePharmacyMutation = () => {
+// Store Hooks
+export const useCreateStoreMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload: any) =>
-      webApiClient.request<any>("admin/pharmacies", {
+      webApiClient.request<any>("admin/stores", {
         method: "POST",
         body: payload,
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-pharmacies"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-stores"] });
       queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
     },
   });

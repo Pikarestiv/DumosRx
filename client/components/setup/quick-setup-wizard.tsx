@@ -32,7 +32,7 @@ export function QuickSetupWizard() {
   );
 
   const [step, setStep] = useState(1);
-  const [storeType, setStoreType] = useState<StoreType>("pharmacy");
+  const [storeType, setStoreType] = useState<StoreType>("store");
   const [storeName, setStoreName] = useState("");
   const [location, setLocation] = useState("");
   const [showRetailSuggestions, setShowRetailSuggestions] = useState(false);
@@ -80,12 +80,12 @@ export function QuickSetupWizard() {
               <Label className="text-center block mb-4">Choose your business type</Label>
               <div className="grid grid-cols-2 gap-4">
                 <Card 
-                  className={`cursor-pointer transition-all border-2 ${storeType === 'pharmacy' ? 'border-primary bg-primary/5' : 'hover:border-primary/50'}`}
-                  onClick={() => setStoreType('pharmacy')}
+                  className={`cursor-pointer transition-all border-2 ${storeType === 'store' ? 'border-primary bg-primary/5' : 'hover:border-primary/50'}`}
+                  onClick={() => setStoreType('store')}
                 >
                   <CardContent className="p-4 flex flex-col items-center text-center gap-2">
                     <Pill className="h-8 w-8 text-primary" />
-                    <span className="font-semibold">Pharmacy</span>
+                    <span className="font-semibold">Store</span>
                   </CardContent>
                 </Card>
 
@@ -128,7 +128,7 @@ export function QuickSetupWizard() {
                 <Label htmlFor="store-name">Store Name</Label>
                 <Input 
                   id="store-name" 
-                  placeholder={storeType === 'pharmacy' ? "e.g. HealthFirst Pharmacy" : "e.g. Green Groceries"} 
+                  placeholder={storeType === 'store' ? "e.g. HealthFirst Store" : "e.g. Green Groceries"} 
                   value={storeName}
                   onChange={(e) => setStoreName(e.target.value)}
                 />
@@ -142,7 +142,7 @@ export function QuickSetupWizard() {
                   onChange={(e) => setLocation(e.target.value)}
                 />
               </div>
-              {storeType === "pharmacy" && (
+              {storeType === "store" && (
                 <div className="flex items-center justify-between rounded-lg border p-4 mt-2">
                   <div className="space-y-0.5">
                     <Label className="text-sm font-semibold">Include Retail Suggestions</Label>

@@ -70,7 +70,7 @@ export function UserTable({
         <TableRow className="hover:bg-transparent border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
           <TableHead className="font-bold text-[10px] uppercase text-slate-400 pl-6 h-12">User Profile</TableHead>
           <TableHead className="font-bold text-[10px] uppercase text-slate-400 h-12">System Role</TableHead>
-          <TableHead className="font-bold text-[10px] uppercase text-slate-400 h-12">Parent Pharmacy</TableHead>
+          <TableHead className="font-bold text-[10px] uppercase text-slate-400 h-12">Parent Store</TableHead>
           <TableHead className="font-bold text-[10px] uppercase text-slate-400 text-center h-12">Last Active</TableHead>
           <TableHead className="font-bold text-[10px] uppercase text-slate-400 text-center h-12">Status</TableHead>
           <TableHead className="w-[80px] h-12"></TableHead>
@@ -101,7 +101,7 @@ export function UserTable({
             <TableCell>
               <Badge variant="outline" className={
                 user.role === 'Super Admin' ? 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20 font-black' :
-                user.role === 'Pharmacy Admin' ? 'bg-blue-500/10 text-blue-500 border-blue-500/20 font-black' :
+                user.role === 'Store Admin' ? 'bg-blue-500/10 text-blue-500 border-blue-500/20 font-black' :
                 'bg-slate-500/10 text-slate-500 border-slate-500/20 font-bold'
               }>
                 <Shield className="h-3 w-3 mr-1.5" />
@@ -111,7 +111,7 @@ export function UserTable({
             <TableCell>
               <div className="flex items-center gap-2">
                 <Store className="h-3 w-3 text-slate-400" />
-                <span className="font-bold text-sm text-slate-600 dark:text-slate-300">{user.pharmacy}</span>
+                <span className="font-bold text-sm text-slate-600 dark:text-slate-300">{user.store}</span>
               </div>
             </TableCell>
             <TableCell className="text-center">

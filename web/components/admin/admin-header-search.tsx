@@ -79,7 +79,7 @@ export function AdminHeaderSearch() {
     <div className="relative group w-full max-w-md hidden md:block">
       <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
       <Input
-        placeholder="Search pharmacies, users, or products..."
+        placeholder="Search stores, users, or products..."
         className="pl-11 pr-10 bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 rounded-2xl h-11 focus-visible:ring-indigo-500 font-bold transition-all"
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
@@ -137,7 +137,7 @@ export function AdminHeaderSearch() {
                             {(() => {
                               const iconName =
                                 item.icon ||
-                                (item.type === "Pharmacy"
+                                (item.type === "Store"
                                   ? "Store"
                                   : item.type === "User"
                                     ? "Users"
@@ -187,7 +187,7 @@ export function AdminHeaderSearch() {
 
                               let colors = "text-slate-500";
                               switch (item.type) {
-                                case "Pharmacy":
+                                case "Store":
                                   colors = "text-indigo-500";
                                   break;
                                 case "User":

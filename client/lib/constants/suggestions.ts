@@ -1,6 +1,6 @@
 /* eslint-disable max-lines */
 export const FORM_SUGGESTIONS = {
-  "pharmacy": {
+  "store": {
     "names": [
       "Advil",
       "Albenda",
@@ -345,7 +345,7 @@ export const FORM_SUGGESTIONS = {
       "Swiss Pharma (Swipha)",
       "Triveni",
       "Unique Pharma",
-      "Vanguard Pharmacy",
+      "Vanguard Store",
       "Zolon Healthcare"
     ]
   },

@@ -10,7 +10,7 @@ export function FeaturesSection() {
             Features
           </h2>
           <h3 className="text-4xl font-black mb-6">
-            Everything you need to run a modern pharmacy
+            Everything you need to run a modern store
           </h3>
           <p className="text-lg text-muted-foreground leading-relaxed">
             We&apos;ve built DumosRx specifically for the Nigerian market,
@@ -53,7 +53,7 @@ export function FeaturesSection() {
             {
               title: "Secure Backups",
               description:
-                "Your pharmacy data is encrypted and backed up daily. Never lose a record to system failure or theft.",
+                "Your store data is encrypted and backed up daily. Never lose a record to system failure or theft.",
               icon: Database,
             },
           ].map((feature, i) => (

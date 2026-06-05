@@ -176,7 +176,7 @@ export function ReceiptView({ transaction }: ReceiptProps) {
         <p>Thank you for your patronage!</p>
         <p>
           {APP_NAME} - NextGen{" "}
-          {storeProfile?.store_type === "pharmacy" ? "Pharmacy" : "Retail"} POS
+          {storeProfile?.store_type === "store" ? "Store" : "Retail"} POS
         </p>
       </div>
 

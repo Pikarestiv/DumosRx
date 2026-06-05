@@ -154,7 +154,7 @@ function PrintReportContent() {
           </p>
         </div>
         <div className="text-right">
-          <p className="font-bold text-lg">DumosRx Pharmacy</p>
+          <p className="font-bold text-lg">DumosRx Store</p>
         </div>
       </div>
 

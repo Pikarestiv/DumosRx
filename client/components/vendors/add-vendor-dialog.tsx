@@ -77,7 +77,7 @@ export function AddVendorDialog({ open, onOpenChange }: AddVendorDialogProps) {
                 id="name"
                 value={formData.name}
                 onValueChange={(val) => setFormData((prev) => ({ ...prev, name: val }))}
-                options={[...FORM_SUGGESTIONS.pharmacy.manufacturers, ...FORM_SUGGESTIONS.retail.manufacturers]}
+                options={[...FORM_SUGGESTIONS.store.manufacturers, ...FORM_SUGGESTIONS.retail.manufacturers]}
                 placeholder="e.g. Pfizer Nigeria"
                 required
               />

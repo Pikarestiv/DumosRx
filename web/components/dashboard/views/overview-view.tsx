@@ -142,7 +142,7 @@ export function OverviewView({ stats, user, stores, onReset }: OverviewViewProps
         <div>
           <h1 className="text-2xl sm:text-3xl font-black tracking-tight">Cloud Overview</h1>
           <p className="text-muted-foreground">
-            Unified insights for <span className="font-bold text-foreground">{user.pharmacy_name}</span>
+            Unified insights for <span className="font-bold text-foreground">{user.store_name}</span>
           </p>
         </div>
         <Button className="font-bold w-full sm:w-auto">

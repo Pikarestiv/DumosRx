@@ -104,8 +104,8 @@ export function EmailTemplatesTab() {
     // Mock variable values
     const mocks: Record<string, string> = {
       "\\$user->first_name": "Dr. Aminu",
-      "\\$user->email": "owner@examplepharmacy.com",
-      "\\$storeName": "Apex Care Pharmacy",
+      "\\$user->email": "owner@examplestore.com",
+      "\\$storeName": "Apex Care Store",
       "\\$loginUrl": "#",
       "\\$resetUrl": "#",
       "\\$messageText":

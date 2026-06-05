@@ -112,9 +112,9 @@ export function AddMedicineDialog({
     }
   }, [editingMedicine, open]);
 
-  const isPharmacy = storeType === "pharmacy";
+  const isStore = storeType === "store";
 
-  const [suggestions, setSuggestions] = useState<any>(isPharmacy ? FORM_SUGGESTIONS.pharmacy : FORM_SUGGESTIONS.retail);
+  const [suggestions, setSuggestions] = useState<any>(isStore ? FORM_SUGGESTIONS.store : FORM_SUGGESTIONS.retail);
 
   useEffect(() => {
     let baseSuggestions = FORM_SUGGESTIONS;
@@ -127,10 +127,10 @@ export function AddMedicineDialog({
       console.error("Failed to parse cached suggestions", e);
     }
 
-    const pharmList = baseSuggestions.pharmacy || FORM_SUGGESTIONS.pharmacy;
+    const pharmList = baseSuggestions.store || FORM_SUGGESTIONS.store;
     const retailList = baseSuggestions.retail || FORM_SUGGESTIONS.retail;
 
-    if (isPharmacy) {
+    if (isStore) {
       const showRetail = storeProfile?.show_retail_suggestions === 1;
       if (showRetail) {
         const mergeAndUnique = (arr1: string[] = [], arr2: string[] = []) => {
@@ -150,7 +150,7 @@ export function AddMedicineDialog({
     } else {
       setSuggestions(retailList);
     }
-  }, [isPharmacy, storeProfile?.show_retail_suggestions]);
+  }, [isStore, storeProfile?.show_retail_suggestions]);
 
   const commonSuggestions = FORM_SUGGESTIONS.common;
 
@@ -163,7 +163,7 @@ export function AddMedicineDialog({
       return;
     }
 
-    if (isPharmacy && (!formData.genericName || !formData.nafdacNumber)) {
+    if (isStore && (!formData.genericName || !formData.nafdacNumber)) {
       setAlertMessage(
         `Generic Name and ${t("registration_number")} are required for ${t("store").toLowerCase()}s`,
       );
@@ -256,7 +256,7 @@ export function AddMedicineDialog({
           <MedicineFormFields
             formData={formData}
             onInputChange={handleInputChange}
-            isPharmacy={isPharmacy}
+            isStore={isStore}
             suggestions={suggestions as any}
             commonSuggestions={commonSuggestions}
             t={t}

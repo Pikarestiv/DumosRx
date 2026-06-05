@@ -124,7 +124,7 @@ export function SystemSettings({
         </CardHeader>
         <CardContent className="text-sm text-muted-foreground">
           <p>
-            DumosRx is a professional retail and pharmacy management system
+            DumosRx is a professional retail and store management system
             designed to streamline operations, track inventory, and
             manage sales with ease.
           </p>

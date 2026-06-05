@@ -4,7 +4,7 @@ import React, { createContext, useContext, ReactNode } from "react";
 import { update, insert } from "@/lib/db/local-database";
 import { useLocalData } from "@/lib/db/hooks/useLocalData";
 
-export type StoreType = "pharmacy" | "grocery" | "supermarket" | "general";
+export type StoreType = "store" | "grocery" | "supermarket" | "general";
 
 interface StoreProfile {
   id: string;
@@ -53,7 +53,7 @@ interface StoreContextType {
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
 const terminology: Record<StoreType, Record<string, string>> = {
-  pharmacy: {
+  store: {
     product: "Medicine",
     products: "Medicines",
     registration_number: "NAFDAC Number",
@@ -89,7 +89,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   );
 
   const storeProfile = profiles[0] || null;
-  const storeType = storeProfile?.store_type || "pharmacy";
+  const storeType = storeProfile?.store_type || "store";
   const theme = storeProfile?.theme || "default";
   const isInitialized = storeProfile?.is_initialized === 1;
   const vatPercentage = storeProfile?.vat_percentage ?? 7.5;
@@ -146,7 +146,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       await insert("store_profile", {
         id: "default",
         name: "My Store",
-        store_type: "pharmacy",
+        store_type: "store",
         is_initialized: 0,
         vat_percentage: 7.5,
         currency: "NGN",

@@ -27,7 +27,7 @@ import { useReferralStats } from "@/lib/api/hooks";
 interface ReferredUser {
   id: string;
   name: string;
-  pharmacy_name: string;
+  store_name: string;
   created_at: string;
   status: "active" | "pending";
 }
@@ -155,7 +155,7 @@ export function ReferralTab() {
                   {stats?.referrals.map((ref: ReferredUser) => (
                     <TableRow key={ref.id}>
                       <TableCell className="font-semibold">
-                        {ref.pharmacy_name}
+                        {ref.store_name}
                       </TableCell>
                       <TableCell>{ref.name}</TableCell>
                       <TableCell className="text-muted-foreground text-sm">

@@ -21,7 +21,7 @@ import { Label } from "@/components/ui/label";
 interface GrantTrialDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  pharmacy: any;
+  store: any;
   onConfirm: (plan: string, duration: string) => void;
   isPending: boolean;
 }
@@ -29,7 +29,7 @@ interface GrantTrialDialogProps {
 export function GrantTrialDialog({
   open,
   onOpenChange,
-  pharmacy,
+  store,
   onConfirm,
   isPending,
 }: GrantTrialDialogProps) {
@@ -55,7 +55,7 @@ export function GrantTrialDialog({
           <DialogDescription>
             Grant a free trial to{" "}
             <span className="font-bold text-slate-900 dark:text-white">
-              {pharmacy?.name}
+              {store?.name}
             </span>
             . They will have access to the selected plan features for the specified duration.
           </DialogDescription>

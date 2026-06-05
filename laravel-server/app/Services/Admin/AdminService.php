@@ -25,9 +25,9 @@ class AdminService
         $prev7Days = now()->subDays(14);
 
         // 1. Global Stats
-        $totalPharmacies = Store::count();
-        $prevPharmacies = Store::where('created_at', '<', $last7Days)->count();
-        $pharmacyChange = $this->calculateChange($totalPharmacies, $prevPharmacies);
+        $totalStores = Store::count();
+        $prevStores = Store::where('created_at', '<', $last7Days)->count();
+        $storeChange = $this->calculateChange($totalStores, $prevStores);
 
         $activeUsers = User::where('is_active', true)
             ->where('role', '!=', 'super_admin')
@@ -46,8 +46,8 @@ class AdminService
         $prevInventory = Medicine::where('created_at', '<', $last7Days)->count();
         $inventoryChange = $this->calculateChange($globalInventory, $prevInventory);
 
-        // 2. Recent Pharmacies
-        $recentPharmacies = Store::with('user')
+        // 2. Recent Stores
+        $recentStores = Store::with('user')
             ->latest()
             ->limit(10)
             ->get()
@@ -95,7 +95,7 @@ class AdminService
             ->map(function ($log) {
                 return [
                     'title' => $this->getAlertTitle($log->action),
-                    'source' => $log->user ? $log->user->first_name . "'s Pharmacy" : 'System',
+                    'source' => $log->user ? $log->user->first_name . "'s Store" : 'System',
                     'time' => $log->created_at->diffForHumans()
                 ];
             });
@@ -103,10 +103,10 @@ class AdminService
         return [
             'stats' => [
                 [
-                    'name' => 'Total Pharmacies',
-                    'value' => number_format($totalPharmacies),
-                    'change' => ($pharmacyChange >= 0 ? '+' : '') . number_format($pharmacyChange, 1) . '%',
-                    'trend' => $pharmacyChange >= 0 ? 'up' : 'down',
+                    'name' => 'Total Stores',
+                    'value' => number_format($totalStores),
+                    'change' => ($storeChange >= 0 ? '+' : '') . number_format($storeChange, 1) . '%',
+                    'trend' => $storeChange >= 0 ? 'up' : 'down',
                     'icon' => 'Store',
                     'color' => 'indigo'
                 ],
@@ -135,13 +135,13 @@ class AdminService
                     'color' => 'amber'
                 ]
             ],
-            'recent_pharmacies' => $recentPharmacies,
+            'recent_stores' => $recentStores,
             'live_operations' => $liveOperations,
             'security_alerts' => $securityAlerts
         ];
     }
 
-    public function getPharmacies($page = 1, $search = null, $status = null, $plan = null)
+    public function getStores($page = 1, $search = null, $status = null, $plan = null)
     {
         $query = Store::with(['user.subscriptions'])
             ->withSum(['sales as total_revenue' => function ($q) {
@@ -425,11 +425,11 @@ class AdminService
 
     public function globalSearch($query)
     {
-        $pharmacies = Store::where('name', 'like', "%{$query}%")
+        $stores = Store::where('name', 'like', "%{$query}%")
             ->orWhere('id', 'like', "%{$query}%")
             ->limit(5)
             ->get()
-            ->map(fn($s) => ['id' => $s->id, 'title' => $s->name, 'type' => 'Pharmacy', 'href' => "/admin/pharmacies?search={$s->id}"]);
+            ->map(fn($s) => ['id' => $s->id, 'title' => $s->name, 'type' => 'Store', 'href' => "/admin/stores?search={$s->id}"]);
 
         $users = User::where('first_name', 'like', "%{$query}%")
             ->orWhere('last_name', 'like', "%{$query}%")
@@ -445,7 +445,7 @@ class AdminService
             ->map(fn($m) => ['id' => $m->id, 'title' => $m->name, 'type' => 'Product', 'href' => "/admin/products?search={$m->name}"]);
 
         return [
-            'pharmacies' => $pharmacies,
+            'stores' => $stores,
             'users' => $users,
             'products' => $products
         ];
@@ -473,7 +473,7 @@ class AdminService
                     'name' => $user->first_name . ' ' . $user->last_name,
                     'email' => $user->email,
                     'role' => ucwords(str_replace('_', ' ', $user->role)),
-                    'pharmacy' => $user->store ? $user->store->name : 'Platform Admin',
+                    'store' => $user->store ? $user->store->name : 'Platform Admin',
                     'lastActive' => $user->last_login_at ? $user->last_login_at->diffForHumans() : 'Never',
                     'status' => $user->is_active ? 'Active' : 'Inactive',
                     'joinedAt' => $user->created_at->format('M d, Y'),
@@ -508,7 +508,7 @@ class AdminService
         return $map[$action] ?? 'Security Alert';
     }
 
-    public function registerPharmacy($data)
+    public function registerStore($data)
     {
         return DB::transaction(function () use ($data) {
             // Create the owner user
@@ -526,7 +526,7 @@ class AdminService
             // Create the store
             $store = Store::create([
                 'user_id' => $user->id,
-                'name' => $data['pharmacy_name'],
+                'name' => $data['store_name'],
                 'device_id' => 'WEB-' . strtoupper(Str::random(8)),
                 'status' => 'Active',
             ]);
@@ -538,12 +538,12 @@ class AdminService
         });
     }
 
-    public function suspendPharmacy($id, $reason = null)
+    public function suspendStore($id, $reason = null)
     {
         return DB::transaction(function () use ($id, $reason) {
             $store = Store::findOrFail($id);
             $store->status = 'Suspended';
-            $store->suspension_reason = $reason ?: 'Your pharmacy account has been suspended for violating our terms of usage. Please contact administrative support.';
+            $store->suspension_reason = $reason ?: 'Your store account has been suspended for violating our terms of usage. Please contact administrative support.';
             $store->save();
 
             // Also suspend the owner account
@@ -556,7 +556,7 @@ class AdminService
             ActivityLog::create([
                 'user_id' => Auth::id(),
                 'action' => 'ACCOUNT_SUSPENSION',
-                'description' => "Suspended pharmacy account: {$store->name} ({$store->id}). Reason: " . ($reason ?: 'N/A'),
+                'description' => "Suspended store account: {$store->name} ({$store->id}). Reason: " . ($reason ?: 'N/A'),
                 'status' => 'success'
             ]);
 
@@ -564,7 +564,7 @@ class AdminService
         });
     }
 
-    public function unsuspendPharmacy($id)
+    public function unsuspendStore($id)
     {
         return DB::transaction(function () use ($id) {
             $store = Store::findOrFail($id);
@@ -582,7 +582,7 @@ class AdminService
             ActivityLog::create([
                 'user_id' => Auth::id(),
                 'action' => 'ACCOUNT_UNSUSPENSION',
-                'description' => "Unsuspended pharmacy account: {$store->name} ({$store->id})",
+                'description' => "Unsuspended store account: {$store->name} ({$store->id})",
                 'status' => 'success'
             ]);
 
@@ -597,7 +597,7 @@ class AdminService
             $user = $store->user;
 
             if (!$user) {
-                throw new \Exception("Pharmacy has no owner.");
+                throw new \Exception("Store has no owner.");
             }
 
             // Parse duration string into days
@@ -791,13 +791,13 @@ class AdminService
         return $count;
     }
 
-    public function impersonatePharmacy($id)
+    public function impersonateStore($id)
     {
         $store = Store::findOrFail($id);
         $user = $store->user;
 
         if (!$user) {
-            throw new \Exception("Pharmacy owner not found.");
+            throw new \Exception("Store owner not found.");
         }
 
         // Generate impersonation token

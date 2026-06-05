@@ -48,7 +48,7 @@ export default function HomePage() {
             >
               The Future of <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">
-                Retail & Pharmacy
+                Retail & Store
               </span>
             </motion.h1>
             <motion.p
@@ -117,7 +117,7 @@ export default function HomePage() {
               </CardTitle>
               <CardDescription className="text-center text-muted-foreground px-6 pt-2">
                 Experience the next generation of business intelligence and
-                pharmacy management.
+                store management.
               </CardDescription>
             </CardHeader>
             <CardContent className="relative pb-10 pt-6 flex flex-col space-y-4">

@@ -10,18 +10,18 @@ import { toast } from "sonner";
 import { useSystemConfig, useUpdateSystemConfigMutation } from "@/lib/api/hooks";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-type SuggestionType = "pharmacy_names" | "pharmacy_generics" | "pharmacy_categories" | "pharmacy_manufacturers" | "retail_names" | "retail_categories" | "retail_manufacturers";
+type SuggestionType = "store_names" | "store_generics" | "store_categories" | "store_manufacturers" | "retail_names" | "retail_categories" | "retail_manufacturers";
 
 export function SuggestionsConfigTab() {
   const { data: serverConfig, isLoading, isError: _isError } = useSystemConfig("global_suggestions");
   const updateMutation = useUpdateSystemConfigMutation();
 
-  const [activeList, setActiveList] = useState<SuggestionType>("pharmacy_names");
+  const [activeList, setActiveList] = useState<SuggestionType>("store_names");
   const [searchQuery, setSearchQuery] = useState("");
   const [newItem, setNewItem] = useState("");
 
   const [config, setConfig] = useState<any>({
-    pharmacy: {
+    store: {
       names: [],
       generics: [],
       categories: [],
@@ -39,13 +39,13 @@ export function SuggestionsConfigTab() {
   useEffect(() => {
     if (serverConfig) {
       setConfig({
-        pharmacy: {
-          names: serverConfig.pharmacy?.names || [],
-          generics: serverConfig.pharmacy?.generics || [],
-          categories: serverConfig.pharmacy?.categories || [],
-          manufacturers: serverConfig.pharmacy?.manufacturers || [],
-          strengths: serverConfig.pharmacy?.strengths || [],
-          dosageForms: serverConfig.pharmacy?.dosageForms || []
+        store: {
+          names: serverConfig.store?.names || [],
+          generics: serverConfig.store?.generics || [],
+          categories: serverConfig.store?.categories || [],
+          manufacturers: serverConfig.store?.manufacturers || [],
+          strengths: serverConfig.store?.strengths || [],
+          dosageForms: serverConfig.store?.dosageForms || []
         },
         retail: {
           names: serverConfig.retail?.names || [],
@@ -58,14 +58,14 @@ export function SuggestionsConfigTab() {
 
   const getActiveArray = (): string[] => {
     switch (activeList) {
-      case "pharmacy_names":
-        return config.pharmacy.names;
-      case "pharmacy_generics":
-        return config.pharmacy.generics;
-      case "pharmacy_categories":
-        return config.pharmacy.categories;
-      case "pharmacy_manufacturers":
-        return config.pharmacy.manufacturers;
+      case "store_names":
+        return config.store.names;
+      case "store_generics":
+        return config.store.generics;
+      case "store_categories":
+        return config.store.categories;
+      case "store_manufacturers":
+        return config.store.manufacturers;
       case "retail_names":
         return config.retail.names;
       case "retail_categories":
@@ -80,17 +80,17 @@ export function SuggestionsConfigTab() {
   const updateActiveArray = (newArr: string[]) => {
     const updated = { ...config };
     switch (activeList) {
-      case "pharmacy_names":
-        updated.pharmacy.names = newArr;
+      case "store_names":
+        updated.store.names = newArr;
         break;
-      case "pharmacy_generics":
-        updated.pharmacy.generics = newArr;
+      case "store_generics":
+        updated.store.generics = newArr;
         break;
-      case "pharmacy_categories":
-        updated.pharmacy.categories = newArr;
+      case "store_categories":
+        updated.store.categories = newArr;
         break;
-      case "pharmacy_manufacturers":
-        updated.pharmacy.manufacturers = newArr;
+      case "store_manufacturers":
+        updated.store.manufacturers = newArr;
         break;
       case "retail_names":
         updated.retail.names = newArr;
@@ -175,10 +175,10 @@ export function SuggestionsConfigTab() {
               className="w-full"
             >
               <TabsList className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 h-auto p-1 bg-slate-100 dark:bg-slate-800 gap-1 rounded-xl">
-                <TabsTrigger value="pharmacy_names" className="text-xs py-2 rounded-lg">Pharm Names</TabsTrigger>
-                <TabsTrigger value="pharmacy_generics" className="text-xs py-2 rounded-lg">Generics</TabsTrigger>
-                <TabsTrigger value="pharmacy_categories" className="text-xs py-2 rounded-lg">Pharm Cats</TabsTrigger>
-                <TabsTrigger value="pharmacy_manufacturers" className="text-xs py-2 rounded-lg">Pharm Mfrs</TabsTrigger>
+                <TabsTrigger value="store_names" className="text-xs py-2 rounded-lg">Pharm Names</TabsTrigger>
+                <TabsTrigger value="store_generics" className="text-xs py-2 rounded-lg">Generics</TabsTrigger>
+                <TabsTrigger value="store_categories" className="text-xs py-2 rounded-lg">Pharm Cats</TabsTrigger>
+                <TabsTrigger value="store_manufacturers" className="text-xs py-2 rounded-lg">Pharm Mfrs</TabsTrigger>
                 <TabsTrigger value="retail_names" className="text-xs py-2 rounded-lg">Retail Names</TabsTrigger>
                 <TabsTrigger value="retail_categories" className="text-xs py-2 rounded-lg">Retail Cats</TabsTrigger>
                 <TabsTrigger value="retail_manufacturers" className="text-xs py-2 rounded-lg">Retail Mfrs</TabsTrigger>

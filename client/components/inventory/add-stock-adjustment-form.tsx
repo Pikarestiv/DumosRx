@@ -51,7 +51,7 @@ export function AddStockAdjustmentForm({
                 id="medicine"
                 value={newAdjustment.medicine}
                 onValueChange={(val) => setNewAdjustment((prev) => ({ ...prev, medicine: val }))}
-                options={FORM_SUGGESTIONS.pharmacy.names}
+                options={FORM_SUGGESTIONS.store.names}
                 placeholder="Enter medicine name"
                 required
               />

@@ -23,7 +23,7 @@ class EmailTemplateSeeder extends Seeder
 
 @section('content')
     <h2>Welcome to DumosRx, {{ \$user->first_name }}!</h2>
-    <p>We are thrilled to have you on board. Your pharmacy account (<strong>{{ \$storeName }}</strong>) has been successfully created and your license key is active.</p>
+    <p>We are thrilled to have you on board. Your store account (<strong>{{ \$storeName }}</strong>) has been successfully created and your license key is active.</p>
     
     <div style="background-color: #f8fafc; padding: 20px; border-radius: 6px; margin: 20px 0; border: 1px solid #e2e8f0;">
         <h3 style="margin-top: 0; color: #1e293b; font-size: 16px;">Your Login Details:</h3>
@@ -46,7 +46,7 @@ HTML
                 'variables' => [
                     ['name' => '$user->first_name', 'description' => "Owner's first name"],
                     ['name' => '$user->email', 'description' => "Owner's email address"],
-                    ['name' => '$storeName', 'description' => 'The registered pharmacy name'],
+                    ['name' => '$storeName', 'description' => 'The registered store name'],
                     ['name' => '$loginUrl', 'description' => 'The direct web login URL']
                 ]
             ],

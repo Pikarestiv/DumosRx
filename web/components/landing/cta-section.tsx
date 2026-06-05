@@ -7,10 +7,10 @@ export function CTASection() {
       <div className="absolute top-0 right-0 w-[50%] h-full bg-white/5 skew-x-[-20deg] translate-x-1/2" />
       <div className="container px-4 mx-auto relative text-center">
         <h2 className="text-4xl md:text-5xl font-black mb-6">
-          Ready to modernize your pharmacy?
+          Ready to modernize your store?
         </h2>
         <p className="text-xl text-primary-foreground/80 mb-10 max-w-2xl mx-auto">
-          Join hundreds of pharmacies across Nigeria using DumosRx to
+          Join hundreds of stores across Nigeria using DumosRx to
           increase profits and improve patient care.
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">

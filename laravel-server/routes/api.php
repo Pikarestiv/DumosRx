@@ -123,11 +123,11 @@ Route::prefix('v1')->group(function () {
 
         Route::middleware(['permission:manage_platform', 'subscription'])->prefix('admin')->group(function () {
             Route::get('/summary', [AdminController::class, 'summary']);
-            Route::get('/pharmacies', [AdminController::class, 'pharmacies']);
-            Route::post('/pharmacies', [AdminController::class, 'registerPharmacy']);
-            Route::post('/pharmacies/{id}/suspend', [AdminController::class, 'suspendPharmacy']);
-            Route::post('/pharmacies/{id}/unsuspend', [AdminController::class, 'unsuspendPharmacy']);
-            Route::post('/pharmacies/{id}/grant-trial', [AdminController::class, 'grantTrial']);
+            Route::get('/stores', [AdminController::class, 'stores']);
+            Route::post('/stores', [AdminController::class, 'registerStore']);
+            Route::post('/stores/{id}/suspend', [AdminController::class, 'suspendStore']);
+            Route::post('/stores/{id}/unsuspend', [AdminController::class, 'unsuspendStore']);
+            Route::post('/stores/{id}/grant-trial', [AdminController::class, 'grantTrial']);
             Route::get('/products', [AdminController::class, 'products']);
             Route::post('/products/standardize', [AdminController::class, 'standardize']);
             Route::get('/users', [AdminController::class, 'users']);
@@ -138,7 +138,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/users/{id}/notify', [AdminController::class, 'notifyUser']);
             Route::post('/users/bulk-notify', [AdminController::class, 'bulkNotify']);
             Route::get('/search', [AdminController::class, 'search']);
-            Route::post('/pharmacies/{id}/impersonate', [AdminController::class, 'impersonatePharmacy']);
+            Route::post('/stores/{id}/impersonate', [AdminController::class, 'impersonateStore']);
 
             // Email Templates
             Route::apiResource('email-templates', \App\Http\Controllers\Api\Admin\EmailTemplateController::class)->only(['index', 'show', 'update']);

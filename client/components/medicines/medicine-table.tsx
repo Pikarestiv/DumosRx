@@ -15,7 +15,7 @@ interface MedicineTableProps {
   filteredMedicines: Medicine[];
   totalCount: number;
   isFuzzyFallback: boolean;
-  isPharmacy: boolean;
+  isStore: boolean;
   formatCurrency: (amount: number) => string;
   getStatusBadge: (status: Medicine["status"]) => React.ReactNode;
   onViewDetails: (medicine: Medicine) => void;
@@ -31,7 +31,7 @@ export function MedicineTable({
   filteredMedicines,
   totalCount,
   isFuzzyFallback,
-  isPharmacy,
+  isStore,
   formatCurrency,
   getStatusBadge,
   onViewDetails,
@@ -85,7 +85,7 @@ export function MedicineTable({
                 <TableCell>
                   <div>
                     <div className="font-medium">{medicine.name}</div>
-                    {isPharmacy && medicine.genericName && (
+                    {isStore && medicine.genericName && (
                       <div className="text-sm text-muted-foreground">
                         {medicine.genericName}
                       </div>

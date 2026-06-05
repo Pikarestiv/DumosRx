@@ -249,7 +249,7 @@ CREATE TABLE IF NOT EXISTS store_profile (
   id TEXT PRIMARY KEY,
   name TEXT,
   store_slug TEXT UNIQUE,
-  store_type TEXT DEFAULT 'pharmacy',
+  store_type TEXT DEFAULT 'store',
   address TEXT,
   phone TEXT,
   email TEXT,

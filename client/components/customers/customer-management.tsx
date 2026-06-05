@@ -16,7 +16,7 @@ import { CustomerAnalyticsTab } from "./customer-analytics-tab";
 
 export function CustomerManagement() {
   const { storeType, storeProfile } = useStore();
-  const isPharmacy = storeType === "pharmacy";
+  const isStore = storeType === "store";
 
   const { customers, addCustomer } = useCustomerData();
 
@@ -55,7 +55,7 @@ export function CustomerManagement() {
         "VIP rewards",
         "Birthday discount 20%",
         "Free delivery",
-        isPharmacy ? "Personal pharmacist" : "Shopping assistant",
+        isStore ? "Personal pharmacist" : "Shopping assistant",
         "Early access",
       ],
       color: "bg-purple-600",

@@ -45,7 +45,7 @@ export default function TermsOfServicePage() {
               1. Acceptance of Terms
             </h2>
             <p>
-              By installing the DumosRx client application or subscribing to our cloud backup database services, you agree to comply with and be bound by these Terms of Service. If you are entering into these terms on behalf of a pharmacy, clinic, or business entity, you warrant that you possess full administrative authority to bind the store profile.
+              By installing the DumosRx client application or subscribing to our cloud backup database services, you agree to comply with and be bound by these Terms of Service. If you are entering into these terms on behalf of a store, clinic, or business entity, you warrant that you possess full administrative authority to bind the store profile.
             </p>
           </section>
 

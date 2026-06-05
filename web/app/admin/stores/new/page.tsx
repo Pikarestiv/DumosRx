@@ -17,7 +17,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCreatePharmacyMutation } from "@/lib/api/admin-hooks";
+import { useCreateStoreMutation } from "@/lib/api/admin-hooks";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -34,9 +34,9 @@ import { useAdminStore } from "@/lib/store/use-admin-store";
 
 const registerSchema = z
   .object({
-    pharmacy_name: z
+    store_name: z
       .string()
-      .min(2, { message: "Pharmacy name must be at least 2 characters" }),
+      .min(2, { message: "Store name must be at least 2 characters" }),
     first_name: z
       .string()
       .min(2, { message: "First name must be at least 2 characters" }),
@@ -62,7 +62,7 @@ const registerSchema = z
     path: ["password_confirmation"],
   });
 
-export default function AdminNewPharmacyPage() {
+export default function AdminNewStorePage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const { fetchSummary } = useAdminStore();
@@ -70,7 +70,7 @@ export default function AdminNewPharmacyPage() {
   const form = useForm<z.infer<typeof registerSchema>>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
-      pharmacy_name: "",
+      store_name: "",
       first_name: "",
       last_name: "",
       email: "",
@@ -82,15 +82,15 @@ export default function AdminNewPharmacyPage() {
     },
   });
 
-  const createPharmacyMutation = useCreatePharmacyMutation();
-  const loading = createPharmacyMutation.isPending;
+  const createStoreMutation = useCreateStoreMutation();
+  const loading = createStoreMutation.isPending;
 
   function onSubmit(values: z.infer<typeof registerSchema>) {
     setError(null);
-    createPharmacyMutation.mutate(values, {
+    createStoreMutation.mutate(values, {
       onSuccess: () => {
         fetchSummary(true);
-        router.push("/admin/pharmacies");
+        router.push("/admin/stores");
       },
       onError: (err: any) => {
         setError(err.message || "Registration failed. Please try again.");
@@ -111,7 +111,7 @@ export default function AdminNewPharmacyPage() {
         </Button>
         <div>
           <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-            Register New Pharmacy
+            Register New Store
           </h1>
           <p className="text-slate-500 font-medium">
             Create a new partner store on the platform
@@ -136,17 +136,17 @@ export default function AdminNewPharmacyPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <FormField
                 control={form.control}
-                name="pharmacy_name"
+                name="store_name"
                 render={({ field }) => (
                   <FormItem className="md:col-span-2">
                     <FormLabel className="text-slate-600 dark:text-slate-400 font-bold uppercase text-[10px] tracking-widest">
-                      Pharmacy / Store Name
+                      Store / Store Name
                     </FormLabel>
                     <FormControl>
                       <div className="relative">
                         <Building className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                         <Input
-                          placeholder="Dumos Pharmacy"
+                          placeholder="Dumos Store"
                           className="pl-11 bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-800 rounded-2xl h-12 font-bold focus-visible:ring-indigo-500"
                           {...field}
                         />
@@ -209,7 +209,7 @@ export default function AdminNewPharmacyPage() {
                       <div className="relative">
                         <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                         <Input
-                          placeholder="owner@pharmacy.com"
+                          placeholder="owner@store.com"
                           type="email"
                           className="pl-11 bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-800 rounded-2xl h-12 font-bold focus-visible:ring-indigo-500"
                           {...field}
@@ -233,7 +233,7 @@ export default function AdminNewPharmacyPage() {
                       <div className="relative">
                         <User className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                         <Input
-                          placeholder="pharmacy_owner"
+                          placeholder="store_owner"
                           className="pl-11 bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-800 rounded-2xl h-12 font-bold focus-visible:ring-indigo-500"
                           {...field}
                         />

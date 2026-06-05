@@ -232,8 +232,8 @@ export function UserProfileDialog({
             <div className="flex items-center gap-3 text-slate-500">
               <Store className="h-4 w-4" />
               <div>
-                <p className="text-[10px] uppercase font-bold tracking-widest opacity-50">Affiliated Pharmacy</p>
-                <p className="text-sm font-black text-slate-900 dark:text-white">{selectedUser?.pharmacy}</p>
+                <p className="text-[10px] uppercase font-bold tracking-widest opacity-50">Affiliated Store</p>
+                <p className="text-sm font-black text-slate-900 dark:text-white">{selectedUser?.store}</p>
               </div>
             </div>
             <div className="flex items-center gap-3 text-slate-500">

@@ -8,16 +8,16 @@ import { useRouter } from "next/navigation";
 import { AdminSkeleton } from "@/components/admin/admin-skeleton";
 
 import { StatsGrid } from "@/components/admin/dashboard/stats-grid";
-import { RecentPharmacies } from "@/components/admin/dashboard/recent-pharmacies";
+import { RecentStores } from "@/components/admin/dashboard/recent-stores";
 import { SystemHealth } from "@/components/admin/dashboard/system-health";
-import { PharmacyDialog } from "@/components/admin/dashboard/pharmacy-dialog";
+import { StoreDialog } from "@/components/admin/dashboard/store-dialog";
 
 import { LiveClock } from "@/components/admin/dashboard/live-clock";
 
 export default function AdminDashboard() {
   const { data: summary, isLoading, error, refetch } = useAdminSummary();
   const router = useRouter();
-  const [selectedPharmacy, setSelectedPharmacy] = useState<any>(null);
+  const [selectedStore, setSelectedStore] = useState<any>(null);
 
   if (isLoading && !summary) {
     return <AdminSkeleton />;
@@ -42,7 +42,7 @@ export default function AdminDashboard() {
   }
 
   const globalStats = summary?.stats || [];
-  const recentPharmacies = summary?.recent_pharmacies || [];
+  const recentStores = summary?.recent_stores || [];
   const liveOperations = summary?.live_operations || {};
   const securityAlerts = summary?.security_alerts || [];
 
@@ -74,10 +74,10 @@ export default function AdminDashboard() {
           </Button>
           <Button
             className="bg-indigo-600 hover:bg-indigo-700 font-bold shadow-lg shadow-indigo-600/20"
-            onClick={() => router.push("/admin/pharmacies/new")}
+            onClick={() => router.push("/admin/stores/new")}
           >
             <Plus className="h-4 w-4 mr-2" />
-            Register Pharmacy
+            Register Store
           </Button>
         </div>
       </div>
@@ -85,9 +85,9 @@ export default function AdminDashboard() {
       <StatsGrid globalStats={globalStats} />
 
       <div className="grid lg:grid-cols-3 gap-8">
-        <RecentPharmacies
-          recentPharmacies={recentPharmacies}
-          setSelectedPharmacy={setSelectedPharmacy}
+        <RecentStores
+          recentStores={recentStores}
+          setSelectedStore={setSelectedStore}
         />
         <SystemHealth
           liveOperations={liveOperations}
@@ -95,9 +95,9 @@ export default function AdminDashboard() {
         />
       </div>
 
-      <PharmacyDialog
-        selectedPharmacy={selectedPharmacy}
-        setSelectedPharmacy={setSelectedPharmacy}
+      <StoreDialog
+        selectedStore={selectedStore}
+        setSelectedStore={setSelectedStore}
       />
     </div>
   );

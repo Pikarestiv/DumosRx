@@ -55,7 +55,7 @@ export function MedicineDatabase() {
     }
   }, [searchParams, router]);
 
-  const isPharmacy = storeType === "pharmacy";
+  const isStore = storeType === "store";
 
   const {
     data: medicines,
@@ -71,7 +71,7 @@ export function MedicineDatabase() {
     { transform: transformMedicine },
   );
 
-  const categories = isPharmacy 
+  const categories = isStore 
     ? ["all", "Analgesics", "Antibiotics", "Antimalarials", "Vitamins", "Antacids"]
     : ["all", "Groceries", "Beverages", "Personal Care", "Household", "Snacks", "Dairy"];
     
@@ -312,7 +312,7 @@ export function MedicineDatabase() {
             filteredMedicines={filteredMedicines}
             totalCount={medicines.length}
             isFuzzyFallback={isFuzzyFallback}
-            isPharmacy={isPharmacy}
+            isStore={isStore}
             formatCurrency={formatCurrency}
             getStatusBadge={getStatusBadge}
             onViewDetails={handleViewDetails}

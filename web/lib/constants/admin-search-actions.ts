@@ -11,10 +11,10 @@ export const ADMIN_SEARCH_ACTIONS: AdminSearchAction[] = [
   // Dashboard
   { id: 'dashboard', title: 'Admin Overview', type: 'Page', href: '/admin', icon: 'LayoutDashboard', description: 'Main platform metrics and operations' },
   
-  // Pharmacies
-  { id: 'view-pharma', title: 'View All Pharmacies', type: 'Page', href: '/admin/pharmacies', icon: 'Store', description: 'List and manage partner pharmacies' },
-  { id: 'reg-pharma', title: 'Register New Pharmacy', type: 'Action', href: '/admin/pharmacies/new', icon: 'Plus', description: 'Onboard a new store to the platform' },
-  { id: 'pharma-reports', title: 'Pharmacy Revenue Reports', type: 'Page', href: '/admin/pharmacies/reports', icon: 'TrendingUp', description: 'Aggregated financial performance' },
+  // Stores
+  { id: 'view-pharma', title: 'View All Stores', type: 'Page', href: '/admin/stores', icon: 'Store', description: 'List and manage partner stores' },
+  { id: 'reg-pharma', title: 'Register New Store', type: 'Action', href: '/admin/stores/new', icon: 'Plus', description: 'Onboard a new store to the platform' },
+  { id: 'pharma-reports', title: 'Store Revenue Reports', type: 'Page', href: '/admin/stores/reports', icon: 'TrendingUp', description: 'Aggregated financial performance' },
   
   // Users
   { id: 'view-users', title: 'Manage Platform Users', type: 'Page', href: '/admin/users', icon: 'Users', description: 'User accounts and access control' },

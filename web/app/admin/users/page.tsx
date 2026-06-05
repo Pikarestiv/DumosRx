@@ -88,9 +88,9 @@ function GlobalUsersDirectoryContent() {
 
   const handleExportCSV = () => {
     if (userList.length === 0) return;
-    const headers = ["ID", "Name", "Email", "Role", "Pharmacy", "Status"];
+    const headers = ["ID", "Name", "Email", "Role", "Store", "Status"];
     const csvData = userList.map((u: any) => 
-      [u.id, u.name, u.email, u.role, u.pharmacy, u.status].join(",")
+      [u.id, u.name, u.email, u.role, u.store, u.status].join(",")
     );
     const blob = new Blob([[headers.join(","), ...csvData].join("\n")], { type: "text/csv" });
     const url = window.URL.createObjectURL(blob);
@@ -146,7 +146,7 @@ function GlobalUsersDirectoryContent() {
             <div className="relative w-full max-w-sm group">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
               <Input
-                placeholder="Search by name, email or pharmacy..."
+                placeholder="Search by name, email or store..."
                 className="pl-10 bg-slate-50 dark:bg-slate-800 border-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -165,7 +165,7 @@ function GlobalUsersDirectoryContent() {
                     <DropdownMenuLabel className="text-[10px] uppercase tracking-widest text-slate-400 px-3 py-2">System Role</DropdownMenuLabel>
                     <DropdownMenuItem className="rounded-xl px-3 py-2 cursor-pointer font-bold" onClick={() => setRoleFilter(null)}>All Roles</DropdownMenuItem>
                     <DropdownMenuItem className="rounded-xl px-3 py-2 cursor-pointer font-bold" onClick={() => setRoleFilter('Super Admin')}>Super Admin</DropdownMenuItem>
-                    <DropdownMenuItem className="rounded-xl px-3 py-2 cursor-pointer font-bold" onClick={() => setRoleFilter('Pharmacy Owner')}>Pharmacy Owner</DropdownMenuItem>
+                    <DropdownMenuItem className="rounded-xl px-3 py-2 cursor-pointer font-bold" onClick={() => setRoleFilter('Store Owner')}>Store Owner</DropdownMenuItem>
                     <DropdownMenuItem className="rounded-xl px-3 py-2 cursor-pointer font-bold" onClick={() => setRoleFilter('Pharmacist')}>Pharmacist</DropdownMenuItem>
                     <DropdownMenuSeparator className="my-2" />
                     <DropdownMenuLabel className="text-[10px] uppercase tracking-widest text-slate-400 px-3 py-2">Billing Plan</DropdownMenuLabel>

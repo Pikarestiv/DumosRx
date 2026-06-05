@@ -32,17 +32,6 @@ class CheckSubscription
         $subscriptionService = app(SubscriptionService::class);
         $owner = $subscriptionService->getSubscriptionOwner($user);
 
-        // Mobile access check
-        $token = $request->user()->currentAccessToken();
-        if ($token && \Illuminate\Support\Str::contains(strtolower($token->name), ['android', 'ios', 'mobile'])) {
-            if (!$subscriptionService->hasFeature($user, 'mobile_access')) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Mobile App access is a premium feature available on Pro and Enterprise plans. Please upgrade.',
-                    'code' => 'UPGRADE_REQUIRED'
-                ], 403);
-            }
-        }
 
         // If a specific feature is requested
         if ($feature) {

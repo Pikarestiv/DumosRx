@@ -309,7 +309,8 @@ class SyncController extends Controller
                 }
             }
 
-            if ($lastSynced) {
+            // Ignore last_synced for store_profile so subscription changes are always fetched
+            if ($lastSynced && $table !== 'store_profile') {
                 $query->where(function ($q) use ($lastSynced) {
                     $q->where('updated_at', '>', $lastSynced)
                         ->orWhere('_synced_at', '>', $lastSynced);

@@ -28,6 +28,7 @@ class SubscriptionService
             'end_date' => now()->addDays($trialDays),
             'status' => 'active',
             'license_key' => 'DRX-TRIAL-' . strtoupper(Str::random(12)),
+            'is_trial' => true,
         ]);
     }
 

@@ -11,12 +11,13 @@ class Subscription extends Model
     use HasFactory, HasUuids;
 
     protected $fillable = [
-        'user_id', 'plan_name', 'start_date', 'end_date', 'status', 'license_key'
+        'user_id', 'plan_name', 'start_date', 'end_date', 'status', 'license_key', 'is_trial'
     ];
 
     protected $casts = [
         'start_date' => 'datetime',
         'end_date' => 'datetime',
+        'is_trial' => 'boolean',
     ];
     
     public function user()

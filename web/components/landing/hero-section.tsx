@@ -17,7 +17,8 @@ export function HeroSection({ isLoggedIn }: { isLoggedIn: boolean }) {
         </div> */}
         <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight mb-6 bg-clip-text text-transparent bg-linear-to-b from-foreground to-foreground/70">
           The Intelligent Way to <br className="hidden md:block" />
-          Manage Your <span className="text-primary">Store</span>
+          <span className="leading-[84px]">Manage</span> Your{" "}
+          <span className="text-primary">Store</span>
         </h1>
         <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-10 leading-relaxed">
           DumosRx is Nigeria&apos;s #1 offline-first store management system.

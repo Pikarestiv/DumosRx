@@ -71,7 +71,7 @@ export function SubscriptionCard() {
           </Badge>
         </div>
         <CardDescription>
-          {isPro ? `${subscription.plan || PRICING.PRO.NAME} Plan` : "DumosRx Free Trial"}
+          {isPro ? `${String(subscription.plan || PRICING.PRO.NAME).charAt(0).toUpperCase() + String(subscription.plan || PRICING.PRO.NAME).slice(1)} Plan` : "DumosRx Free Trial"}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -94,11 +94,11 @@ export function SubscriptionCard() {
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Current Plan</span>
-            <span className="font-medium">{subscription?.plan || PRICING.FREE.NAME}</span>
+            <span className="font-medium capitalize">{subscription?.plan || PRICING.FREE.NAME}</span>
           </div>
           {subscription?.expires_at && (
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Renews on</span>
+              <span className="text-muted-foreground">Expires on</span>
               <span className="font-medium">{new Date(subscription.expires_at).toLocaleDateString()}</span>
             </div>
           )}

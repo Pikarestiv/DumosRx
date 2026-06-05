@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { Menu } from "lucide-react";
-import { Sheet, SheetContent, SheetTrigger, SheetClose } from "@/components/ui/sheet";
+import { Menu, Zap, Shield, CreditCard, LayoutDashboard, UserPlus, LogIn } from "lucide-react";
+import { Sheet, SheetContent, SheetTrigger, SheetClose, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Separator } from "@/components/ui/separator";
 
@@ -92,47 +92,73 @@ export function HeaderSection() {
                 <Menu className="h-6 w-6" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="w-[300px] sm:w-[400px]">
-              <div className="flex flex-col gap-8 mt-12 px-2">
-                <div className="flex flex-col gap-6">
-                  <SheetClose asChild>
-                    <Link href="#features" className="text-2xl font-bold tracking-tight hover:text-primary transition-colors">
-                      Features
-                    </Link>
-                  </SheetClose>
-                  <SheetClose asChild>
-                    <Link href="#benefits" className="text-2xl font-bold tracking-tight hover:text-primary transition-colors">
-                      Benefits
-                    </Link>
-                  </SheetClose>
-                  <SheetClose asChild>
-                    <Link href="#pricing" className="text-2xl font-bold tracking-tight hover:text-primary transition-colors">
-                      Pricing
-                    </Link>
-                  </SheetClose>
-                </div>
-                <Separator className="bg-border/60" />
-                <div className="flex flex-col gap-4">
-                  {isLoggedIn ? (
+            <SheetContent side="right" className="w-[300px] sm:w-[400px] border-l-border/40 bg-background/95 backdrop-blur-xl p-0">
+              <div className="flex flex-col h-full">
+                <SheetHeader className="p-6 border-b border-border/40 text-left">
+                  <SheetTitle className="text-xl font-black tracking-tight text-primary">
+                    DumosRx
+                  </SheetTitle>
+                </SheetHeader>
+                <div className="flex-1 overflow-y-auto py-6 px-6">
+                  <div className="flex flex-col gap-4">
                     <SheetClose asChild>
-                      <Button size="lg" className="w-full h-14 text-lg font-bold shadow-lg" asChild>
-                        <Link href="/dashboard">Go to Dashboard</Link>
-                      </Button>
+                      <Link href="#features" className="flex items-center gap-3 py-2 text-lg font-medium text-muted-foreground hover:text-foreground transition-colors">
+                        <div className="p-2 rounded-md bg-primary/10 text-primary">
+                          <Zap className="h-4 w-4" />
+                        </div>
+                        Features
+                      </Link>
                     </SheetClose>
-                  ) : (
-                    <>
+                    <SheetClose asChild>
+                      <Link href="#benefits" className="flex items-center gap-3 py-2 text-lg font-medium text-muted-foreground hover:text-foreground transition-colors">
+                        <div className="p-2 rounded-md bg-emerald-500/10 text-emerald-500">
+                          <Shield className="h-4 w-4" />
+                        </div>
+                        Benefits
+                      </Link>
+                    </SheetClose>
+                    <SheetClose asChild>
+                      <Link href="#pricing" className="flex items-center gap-3 py-2 text-lg font-medium text-muted-foreground hover:text-foreground transition-colors">
+                        <div className="p-2 rounded-md bg-amber-500/10 text-amber-500">
+                          <CreditCard className="h-4 w-4" />
+                        </div>
+                        Pricing
+                      </Link>
+                    </SheetClose>
+                  </div>
+                </div>
+                <div className="p-6 border-t border-border/40 bg-muted/20">
+                  <div className="flex flex-col gap-3">
+                    {isLoggedIn ? (
                       <SheetClose asChild>
-                        <Button size="lg" className="w-full h-14 text-lg font-bold shadow-lg shadow-primary/20" asChild>
-                          <Link href="/register">Start Free Trial</Link>
+                        <Button className="w-full font-bold shadow-lg shadow-primary/20 h-12" asChild>
+                          <Link href="/dashboard">
+                            <LayoutDashboard className="h-4 w-4 mr-2" />
+                            Dashboard
+                          </Link>
                         </Button>
                       </SheetClose>
-                      <SheetClose asChild>
-                        <Button size="lg" variant="outline" className="w-full h-14 text-lg font-bold border-2" asChild>
-                          <Link href="/login">Log in</Link>
-                        </Button>
-                      </SheetClose>
-                    </>
-                  )}
+                    ) : (
+                      <>
+                        <SheetClose asChild>
+                          <Button className="w-full font-bold shadow-lg shadow-primary/20 h-12" asChild>
+                            <Link href="/register">
+                              <UserPlus className="h-4 w-4 mr-2" />
+                              Start Free Trial
+                            </Link>
+                          </Button>
+                        </SheetClose>
+                        <SheetClose asChild>
+                          <Button variant="outline" className="w-full font-bold h-12 border-border/40 hover:bg-muted" asChild>
+                            <Link href="/login">
+                              <LogIn className="h-4 w-4 mr-2" />
+                              Log in
+                            </Link>
+                          </Button>
+                        </SheetClose>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
             </SheetContent>

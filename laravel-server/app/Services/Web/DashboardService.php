@@ -147,7 +147,7 @@ class DashboardService
                 'last_name' => $user->last_name,
                 'email' => $user->email,
                 'phone' => $user->phone,
-                'store_name' => $user->store_name ?? 'DumosRx Store',
+                'store_name' => $user->store ? $user->store->name : ($user->stores()->first()->name ?? 'DumosRx Store'),
                 'deletion_requested_at' => $user->deletion_requested_at,
             ]
         ];

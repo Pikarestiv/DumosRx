@@ -32,7 +32,7 @@ class AuthController extends Controller
             'username' => 'nullable|string|max:255|unique:users',
             'pin' => 'nullable|string|size:4',
             'password' => 'required|string|min:8',
-            'pharmacy_name' => 'nullable|string|max:255',
+            'store_name' => 'nullable|string|max:255',
             'ref' => 'nullable|string',
             'referrer' => 'nullable|string',
         ]);
@@ -48,7 +48,7 @@ class AuthController extends Controller
             }
         }
 
-        $roleSlug = $request->filled('pharmacy_name') ? 'admin' : ($request->role ?? 'specialist');
+        $roleSlug = $request->filled('store_name') ? 'store_owner' : ($request->role ?? 'specialist');
         $roleObj = Role::where('slug', $roleSlug)->first();
 
         $user = User::create([
@@ -64,10 +64,10 @@ class AuthController extends Controller
             'referred_by_id' => $referredById,
         ]);
 
-        if ($request->filled('pharmacy_name')) {
+        if ($request->filled('store_name')) {
             Store::create([
                 'user_id' => $user->id,
-                'name' => $request->pharmacy_name,
+                'name' => $request->store_name,
                 'device_id' => 'WEB-' . strtoupper(Str::random(8)),
             ]);
 
@@ -76,7 +76,7 @@ class AuthController extends Controller
 
             // Send Welcome Email
             try {
-                Mail::to($user->email)->send(new WelcomeEmail($user, $request->pharmacy_name));
+                Mail::to($user->email)->send(new WelcomeEmail($user, $request->store_name));
             } catch (Exception $e) {
                 Log::error("Failed to send welcome email: " . $e->getMessage());
             }

@@ -165,7 +165,7 @@ export function OverviewView({ stats, user, stores, onReset }: OverviewViewProps
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {statCards.map((stat, i) => (
-          <Card key={i} className="border-none shadow-sm hover:shadow-md transition-shadow">
+          <Card key={i} className="border border-border/50 shadow-[0_0_24px_rgba(0,0,0,0.06)] hover:shadow-[0_0_32px_rgba(0,0,0,0.1)] transition-shadow dark:shadow-none">
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className={`${stat.bg} p-3 rounded-2xl`}>

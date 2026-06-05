@@ -119,11 +119,11 @@ export function Header({ onSetActiveTab, onMenuClick }: HeaderProps) {
           </div>
         )}
       </div>
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-1 sm:gap-4">
         <ModeToggle />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="relative">
+            <Button variant="ghost" size="icon" className="relative h-9 w-9 sm:h-10 sm:w-10">
               <Bell className="h-5 w-5" />
               {unreadCount > 0 && (
                 <span className="absolute top-2 right-2 w-2 h-2 bg-destructive rounded-full animate-pulse" />
@@ -199,7 +199,7 @@ export function Header({ onSetActiveTab, onMenuClick }: HeaderProps) {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        <Button className="lg:hidden" variant="ghost" size="icon" onClick={onMenuClick}>
+        <Button className="lg:hidden h-9 w-9 sm:h-10 sm:w-10" variant="ghost" size="icon" onClick={onMenuClick}>
           <Menu className="h-6 w-6" />
         </Button>
       </div>

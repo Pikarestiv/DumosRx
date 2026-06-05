@@ -97,8 +97,8 @@ class User extends Authenticatable
     public function hasRole($role)
     {
         if (is_string($role)) {
-            $actualRole = $this->role === 'pharmacy_owner' ? 'admin' : $this->role;
-            return ($this->userRole !== null && ($this->userRole->slug === $role || ($this->userRole->slug === 'pharmacy_owner' && $role === 'admin')))
+            $actualRole = in_array($this->role, ['pharmacy_owner', 'store_owner']) ? 'admin' : $this->role;
+            return ($this->userRole !== null && ($this->userRole->slug === $role || (in_array($this->userRole->slug, ['pharmacy_owner', 'store_owner']) && $role === 'admin')))
                 || $this->role === $role 
                 || $actualRole === $role;
         }
@@ -129,7 +129,7 @@ class User extends Authenticatable
             if ($this->userRole->permissions()->where('slug', $permissionSlug)->exists()) {
                 return true;
             }
-            if ($this->userRole->slug === 'pharmacy_owner') {
+            if (in_array($this->userRole->slug, ['pharmacy_owner', 'store_owner'])) {
                 $adminRole = Role::where('slug', 'admin')->first();
                 if ($adminRole && $adminRole->permissions()->where('slug', $permissionSlug)->exists()) {
                     return true;
@@ -139,7 +139,7 @@ class User extends Authenticatable
 
         // Fallback to role string column
         if ($this->role) {
-            $roleSlug = $this->role === 'pharmacy_owner' ? 'admin' : $this->role;
+            $roleSlug = in_array($this->role, ['pharmacy_owner', 'store_owner']) ? 'admin' : $this->role;
             $role = Role::where('slug', $roleSlug)->first();
             if ($role) {
                 return $role->permissions()->where('slug', $permissionSlug)->exists();

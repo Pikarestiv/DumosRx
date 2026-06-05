@@ -8,6 +8,7 @@ import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
 import { Sidebar } from "@/components/dashboard/sidebar";
 import { Header } from "@/components/dashboard/header";
 import { BroadcastBanner } from "@/components/dashboard/broadcast-banner";
+import { BottomNav } from "@/components/dashboard/bottom-nav";
 
 // View Components
 import { OverviewView } from "@/components/dashboard/views/overview-view";
@@ -21,7 +22,6 @@ import { ProfileView } from "@/components/dashboard/views/profile-view";
 import { webApiClient } from "@/lib/api/client";
 
 export function DashboardClient({ view }: { view: string }) {
-  const [mobileOpen, setMobileOpen] = useState(false);
   const {
     activeTab: _activeTab,
     setActiveTab,
@@ -83,18 +83,17 @@ export function DashboardClient({ view }: { view: string }) {
         setActiveTab={setActiveTab} 
         user={user} 
         onLogout={logout} 
-        mobileOpen={mobileOpen}
-        setMobileOpen={setMobileOpen}
       />
       <div className="flex-1 flex flex-col min-w-0">
         <BroadcastBanner />
-        <Header onSetActiveTab={setActiveTab} onMenuClick={() => setMobileOpen(true)} />
-        <main className="flex-1 overflow-y-auto p-4 md:p-8 scrollbar-hide">
+        <Header onSetActiveTab={setActiveTab} />
+        <main className="flex-1 overflow-y-auto p-4 md:p-8 scrollbar-hide pb-24 md:pb-8">
           <div className="max-w-7xl mx-auto">
             {renderView()}
           </div>
         </main>
       </div>
+      <BottomNav activeTab={view} setActiveTab={setActiveTab} user={user} onLogout={logout} />
     </div>
   );
 }

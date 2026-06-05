@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import {
   Bell,
   Search,
-  Menu,
   Clock,
   ShieldAlert,
   LogOut,
@@ -28,7 +27,6 @@ import {
 
 interface HeaderProps {
   onSetActiveTab: (tab: string) => void;
-  onMenuClick?: () => void;
 }
 
 interface AppNotification {
@@ -40,7 +38,7 @@ interface AppNotification {
   isRead?: boolean;
 }
 
-export function Header({ onSetActiveTab, onMenuClick }: HeaderProps) {
+export function Header({ onSetActiveTab }: HeaderProps) {
   const { data: notifications = [] } = useNotifications({ refetchInterval: 60000 });
   const unreadCount = notifications.filter((n: AppNotification) => !n.isRead).length;
   const [isImpersonating, setIsImpersonating] = useState(false);
@@ -199,9 +197,6 @@ export function Header({ onSetActiveTab, onMenuClick }: HeaderProps) {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        <Button className="lg:hidden h-9 w-9 sm:h-10 sm:w-10" variant="ghost" size="icon" onClick={onMenuClick}>
-          <Menu className="h-6 w-6" />
-        </Button>
       </div>
     </header>
   );

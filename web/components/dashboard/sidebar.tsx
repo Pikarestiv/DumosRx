@@ -19,8 +19,6 @@ interface SidebarProps {
   setActiveTab: (tab: string) => void;
   user: any;
   onLogout: () => void;
-  mobileOpen?: boolean;
-  setMobileOpen?: (open: boolean) => void;
 }
 
 export function Sidebar({
@@ -28,8 +26,6 @@ export function Sidebar({
   setActiveTab,
   user,
   onLogout,
-  mobileOpen,
-  setMobileOpen,
 }: SidebarProps) {
   const sidebarItems = [
     { id: "overview", name: "Overview", icon: LayoutDashboard },
@@ -56,16 +52,6 @@ export function Sidebar({
             priority
           />
         </Link>
-        {isMobile && setMobileOpen && (
-          <button
-            onClick={() => setMobileOpen(false)}
-            className="lg:hidden p-2 hover:bg-muted rounded-xl text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        )}
       </div>
 
       <nav className="flex-1 px-4 py-4 space-y-1">
@@ -74,7 +60,6 @@ export function Sidebar({
             key={item.id}
             onClick={() => {
               setActiveTab(item.id);
-              if (isMobile && setMobileOpen) setMobileOpen(false);
             }}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
               activeTab === item.id
@@ -112,22 +97,9 @@ export function Sidebar({
 
   return (
     <>
-      {/* Desktop Sidebar */}
       <aside className="hidden lg:flex w-72 flex-col bg-background border-r h-full">
         {renderSidebar(false)}
       </aside>
-
-      {/* Mobile Sidebar Drawer */}
-      {mobileOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden flex">
-          {/* Backdrop */}
-          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm transition-opacity" onClick={() => setMobileOpen && setMobileOpen(false)} />
-          {/* Drawer content */}
-          <aside className="relative flex w-72 max-w-xs flex-col bg-background border-r h-full shadow-2xl animate-in slide-in-from-left duration-300">
-            {renderSidebar(true)}
-          </aside>
-        </div>
-      )}
     </>
   );
 }

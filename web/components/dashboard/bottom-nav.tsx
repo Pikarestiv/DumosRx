@@ -43,6 +43,8 @@ export function BottomNav({ activeTab, setActiveTab, user, onLogout }: BottomNav
     { id: "profile", name: "Account Security", icon: Shield },
   ];
 
+  const isMoreActive = moreMenuItems.some((item) => item.id === activeTab);
+
   return (
     <>
       <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-xl border-t border-border/50 lg:hidden shadow-[0_-8px_30px_rgba(0,0,0,0.04)] pb-[env(safe-area-inset-bottom)]">
@@ -79,10 +81,18 @@ export function BottomNav({ activeTab, setActiveTab, user, onLogout }: BottomNav
           <Sheet open={isMoreOpen} onOpenChange={setIsMoreOpen}>
             <SheetTrigger asChild>
               <button className="flex flex-col items-center justify-center p-1 min-w-[64px] transition-all">
-                <div className="flex items-center justify-center h-8 w-14 rounded-full text-muted-foreground hover:bg-muted transition-colors duration-200">
-                  <Menu className="h-5 w-5 opacity-80" />
+                <div
+                  className={`flex items-center justify-center h-8 w-14 rounded-full transition-colors duration-200 ${
+                    isMoreActive ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" : "text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  <Menu className={`h-5 w-5 ${isMoreActive ? "" : "opacity-80"}`} />
                 </div>
-                <span className="text-[10px] mt-1 font-bold tracking-tight text-muted-foreground transition-colors duration-200">
+                <span
+                  className={`text-[10px] mt-1 font-bold tracking-tight transition-colors duration-200 ${
+                    isMoreActive ? "text-primary" : "text-muted-foreground"
+                  }`}
+                >
                   More
                 </span>
               </button>

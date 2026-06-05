@@ -15,7 +15,7 @@ interface NotificationsViewProps {
 }
 
 export function NotificationsView({ onBack }: NotificationsViewProps) {
-  const { data: notifications, isLoading, refetch } = useNotifications();
+  const { data: notifications, isLoading, refetch } = useNotifications({ hideLogs: true });
   const readNotificationMutation = useReadNotificationMutation();
 
   const markAsRead = (id: string, category: string) => {

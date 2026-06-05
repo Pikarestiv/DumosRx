@@ -22,10 +22,13 @@ export const useStaff = (storeId?: string) => {
   });
 };
 
-export const useNotifications = (options?: { refetchInterval?: number }) => {
+export const useNotifications = (options?: { refetchInterval?: number; hideLogs?: boolean }) => {
   return useQuery({
-    queryKey: ["notifications"],
-    queryFn: () => webApiClient.getNotifications(),
+    queryKey: ["notifications", options?.hideLogs],
+    queryFn: () => webApiClient.getNotifications().then(data => {
+      if (!Array.isArray(data)) return data;
+      return options?.hideLogs ? data.filter((n: any) => n.category !== "log") : data;
+    }),
     refetchInterval: options?.refetchInterval,
   });
 };

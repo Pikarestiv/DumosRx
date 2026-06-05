@@ -39,7 +39,7 @@ interface AppNotification {
 }
 
 export function Header({ onSetActiveTab }: HeaderProps) {
-  const { data: notifications = [] } = useNotifications({ refetchInterval: 60000 });
+  const { data: notifications = [] } = useNotifications({ refetchInterval: 60000, hideLogs: true });
   const unreadCount = notifications.filter((n: AppNotification) => !n.isRead).length;
   const [isImpersonating, setIsImpersonating] = useState(false);
 

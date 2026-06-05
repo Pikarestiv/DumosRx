@@ -193,9 +193,8 @@ export function OverviewView({ stats, user, stores, onReset }: OverviewViewProps
             </div>
             <Button variant="ghost" size="sm" className="font-bold">View All</Button>
           </CardHeader>
-          <CardContent className="p-0 sm:p-6 overflow-x-auto">
-            <div className="min-w-[600px] w-full">
-              <Table>
+          <CardContent className="p-0 sm:p-6">
+            <Table className="min-w-[600px]">
                 <TableHeader>
                   <TableRow className="hover:bg-transparent border-muted text-xs font-bold uppercase">
                     <TableHead className="pl-6">Store Name</TableHead>
@@ -225,7 +224,6 @@ export function OverviewView({ stats, user, stores, onReset }: OverviewViewProps
                   ))}
                 </TableBody>
               </Table>
-            </div>
           </CardContent>
         </Card>
 

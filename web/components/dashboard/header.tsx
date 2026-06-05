@@ -9,6 +9,7 @@ import {
   ShieldAlert,
   LogOut,
 } from "lucide-react";
+import Image from "next/image";
 import { webApiClient } from "@/lib/api/client";
 import { useNotifications } from "@/lib/api/hooks";
 import { Button } from "@/components/ui/button";
@@ -79,6 +80,18 @@ export function Header({ onSetActiveTab, onMenuClick }: HeaderProps) {
         <div className="fixed top-0 left-0 right-0 h-1 bg-primary z-60" />
       )}
       <div className="flex items-center gap-4 flex-1">
+        {/* Mobile Logo */}
+        <div className="lg:hidden flex items-center">
+          <Image
+            src="/logo.png"
+            alt="DumosRx Logo"
+            width={100}
+            height={32}
+            className="h-8 w-auto object-contain"
+            style={{ filter: "var(--logo-filter)" }}
+            priority
+          />
+        </div>
         {isImpersonating ? (
           <div className="flex items-center gap-3 bg-primary/10 px-4 py-2 rounded-2xl border border-primary/20 animate-in fade-in slide-in-from-top-4">
             <ShieldAlert className="h-4 w-4 text-primary" />

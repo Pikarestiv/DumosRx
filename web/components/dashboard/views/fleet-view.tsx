@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Circle, MoreVertical, Settings, Users, Trash2 } from "lucide-react";
+import { Plus, Circle, MoreVertical, Settings, Users, Trash2, Store } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -93,14 +93,28 @@ export function FleetView({ stores: initialStores }: FleetViewProps) {
         </Button>
       </div>
 
-      <Card className="border-none shadow-sm">
+      <Card className="border-none shadow-sm min-w-0 overflow-hidden">
         <CardHeader>
           <CardTitle>Connected Store Instances</CardTitle>
           <CardDescription>Live status and sales performance across your entire network.</CardDescription>
         </CardHeader>
-        <CardContent className="p-0 sm:p-6 overflow-x-auto">
-          <div className="min-w-[700px] w-full">
-            <Table>
+        <CardContent className="p-0 sm:p-6">
+          {!storesToDisplay || storesToDisplay.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+              <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                <Store className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <h3 className="text-xl font-bold tracking-tight">No connected stores</h3>
+              <p className="text-sm text-muted-foreground mt-2 mb-6 max-w-sm">
+                Get started by registering your first store to sync data, track performance, and manage your fleet.
+              </p>
+              <Button className="font-bold" onClick={handleCreate}>
+                <Plus className="h-4 w-4 mr-2" />
+                Register First Store
+              </Button>
+            </div>
+          ) : (
+            <Table className="min-w-[700px]">
               <TableHeader>
                 <TableRow className="hover:bg-transparent border-muted text-xs font-bold uppercase">
                   <TableHead className="pl-6">Store Name</TableHead>
@@ -162,7 +176,7 @@ export function FleetView({ stores: initialStores }: FleetViewProps) {
                 ))}
               </TableBody>
             </Table>
-          </div>
+          )}
         </CardContent>
       </Card>
 

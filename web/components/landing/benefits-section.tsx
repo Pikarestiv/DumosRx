@@ -56,7 +56,7 @@ export function BenefitsSection() {
             <div className="relative aspect-square rounded-[32px] overflow-hidden shadow-2xl border-8 border-background">
               <Image
                 src="https://images.unsplash.com/photo-1576091160550-2173dba999ef?q=80&w=2070&auto=format&fit=crop"
-                alt="Pharmacist working"
+                alt="Store specialist working"
                 fill
                 className="object-cover"
               />

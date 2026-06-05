@@ -14,7 +14,7 @@ import { motion } from "framer-motion";
 type UserRole =
   | "super_admin"
   | "manager"
-  | "pharmacist"
+  | "specialist"
   | "sales_staff"
   | "auditor";
 

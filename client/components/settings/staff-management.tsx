@@ -37,7 +37,7 @@ import { UserPlus, Trash2, Shield, Loader2 } from "lucide-react";
 import { getUsers, createUser, deleteUser } from "@/lib/db/local-database";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { checkIsAdmin, checkIsPharmacist } from "@/lib/context/auth-context";
+import { checkIsAdmin, checkCanManageInventory } from "@/lib/context/auth-context";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 
 export function StaffManagement() {
@@ -235,8 +235,8 @@ export function StaffManagement() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="cashier">Cashier (Sales Only)</SelectItem>
-                    <SelectItem value="pharmacist">
-                      Pharmacist (Inventory & Sales)
+                    <SelectItem value="specialist">
+                      Specialist (Inventory & Sales)
                     </SelectItem>
                     <SelectItem value="admin">
                       Admin (Full Access)
@@ -311,7 +311,7 @@ export function StaffManagement() {
                         variant={
                           checkIsAdmin(user.role)
                             ? "default"
-                            : checkIsPharmacist(user.role)
+                            : checkCanManageInventory(user.role)
                               ? "secondary"
                               : "outline"
                         }

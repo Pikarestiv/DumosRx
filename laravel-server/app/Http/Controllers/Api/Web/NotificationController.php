@@ -71,8 +71,9 @@ class NotificationController extends Controller
                         ];
                     });
             } else {
-                // Regular users only see their own activities
+                // Regular users only see their own non-technical activities
                 $activityLogs = ActivityLog::where('user_id', $userId)
+                    ->whereNotIn('action', ['CLIENT_API_ERROR', 'FRONTEND_ERROR', 'UNAUTHORIZED_ACCESS', 'LOGIN_FAILURE'])
                     ->latest()
                     ->limit(10)
                     ->get()

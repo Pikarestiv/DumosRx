@@ -55,7 +55,7 @@ export function CustomerManagement() {
         "VIP rewards",
         "Birthday discount 20%",
         "Free delivery",
-        isStore ? "Personal pharmacist" : "Shopping assistant",
+        isStore ? "Personal specialist" : "Shopping assistant",
         "Early access",
       ],
       color: "bg-purple-600",

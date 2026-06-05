@@ -48,7 +48,7 @@ class AuthController extends Controller
             }
         }
 
-        $roleSlug = $request->filled('pharmacy_name') ? 'admin' : ($request->role ?? 'pharmacist');
+        $roleSlug = $request->filled('pharmacy_name') ? 'admin' : ($request->role ?? 'specialist');
         $roleObj = Role::where('slug', $roleSlug)->first();
 
         $user = User::create([

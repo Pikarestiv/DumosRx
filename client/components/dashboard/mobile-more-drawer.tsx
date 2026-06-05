@@ -33,14 +33,14 @@ export function MobileMoreDrawer({
 }: MobileMoreDrawerProps) {
   const pathname = usePathname();
   const { storeType } = useStore();
-  const { logout, isAdmin, isPharmacist } = useAuth();
+  const { logout, isAdmin, canManageInventory } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
 
   const allModules = [
     ...(storeType === "store"
       ? [{ name: "Prescriptions", href: "/prescriptions", icon: FileText }]
       : []),
-    ...(isAdmin || isPharmacist
+    ...(isAdmin || canManageInventory
       ? [
           { name: "Procurement & Vendors", href: "/procurement", icon: ClipboardList },
           { name: "Expenses", href: "/expenses", icon: Wallet },
@@ -119,7 +119,7 @@ export function MobileMoreDrawer({
                 onOpenChange(false);
                 logout();
               }}
-              className="w-full flex items-center gap-4 px-4 py-4 rounded-xl font-medium text-destructive hover:bg-destructive/10 transition-colors"
+              className="w-full flex items-center gap-4 px-4 py-4 rounded-xl font-medium text-destructive hover:bg-destructive hover:text-white transition-colors"
             >
               <LogOut className="h-5 w-5 opacity-90" />
               <span>Sign Out</span>

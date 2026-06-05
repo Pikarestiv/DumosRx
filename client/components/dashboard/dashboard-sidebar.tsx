@@ -45,7 +45,7 @@ export function DashboardSidebar({
 }: DashboardSidebarProps) {
   const pathname = usePathname();
   const { storeType, t } = useStore();
-  const { logout, isAdmin, isPharmacist } = useAuth();
+  const { logout, isAdmin, canManageInventory } = useAuth();
   const { currentTier } = useFeatureGate();
 
   const isLocked = (href: string) => {
@@ -65,7 +65,7 @@ export function DashboardSidebar({
       ? [{ name: "Prescriptions", href: "/prescriptions", icon: FileText }]
       : []),
     { name: "Customers", href: "/customers", icon: Users },
-    ...(isAdmin || isPharmacist
+    ...(isAdmin || canManageInventory
       ? [
           {
             name: "Procurement & Vendors",
@@ -80,7 +80,7 @@ export function DashboardSidebar({
 
   const allItems = [
     ...navigationItems,
-    ...(isAdmin || isPharmacist
+    ...(isAdmin || canManageInventory
       ? [{ name: "Settings", href: "/settings", icon: Settings }]
       : []),
   ];

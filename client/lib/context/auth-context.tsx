@@ -8,7 +8,7 @@ interface User {
   id: string;
   name: string;
   username: string;
-  role: "super_admin" | "admin" | "manager" | "pharmacist" | "sales_staff" | "auditor";
+  role: "super_admin" | "admin" | "manager" | "specialist" | "sales_staff" | "auditor";
 }
 
 interface AuthContextType {
@@ -17,7 +17,8 @@ interface AuthContextType {
   logout: () => void;
   isAuthenticated: boolean;
   isAdmin: boolean;
-  isPharmacist: boolean;
+  canManageInventory: boolean;
+  canProcessSales: boolean;
   changePin: (currentPin: string, newPin: string) => Promise<{ success: boolean; message: string }>;
   linkCloudAccount: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
   isCloudLinked: boolean;
@@ -29,10 +30,16 @@ export const checkIsAdmin = (role?: string) => {
   return normalizedRole.includes("admin") || normalizedRole.includes("manager");
 };
 
-export const checkIsPharmacist = (role?: string) => {
+export const checkCanManageInventory = (role?: string) => {
   if (!role) return false;
-  const normalizedRole = role.toLowerCase().replace(/[^a-z]/g, "");
-  return normalizedRole.includes("pharmacist") || normalizedRole.includes("admin") || normalizedRole.includes("manager");
+  const normalizedRole = role.toLowerCase().replace(/[^a-z_]/g, "");
+  return ["admin", "manager", "specialist"].includes(normalizedRole);
+};
+
+export const checkCanProcessSales = (role?: string) => {
+  if (!role) return false;
+  const normalizedRole = role.toLowerCase().replace(/[^a-z_]/g, "");
+  return ["admin", "manager", "specialist", "sales_staff"].includes(normalizedRole);
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -158,7 +165,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const isAdmin = user ? checkIsAdmin(user.role) : false;
-  const isPharmacist = user ? checkIsPharmacist(user.role) : false;
+  const canManageInventory = user ? checkCanManageInventory(user.role) : false;
+  const canProcessSales = user ? checkCanProcessSales(user.role) : false;
 
   return (
     <AuthContext.Provider
@@ -168,7 +176,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         logout,
         isAuthenticated: !!user,
         isAdmin,
-        isPharmacist,
+        canManageInventory,
+        canProcessSales,
         changePin,
         linkCloudAccount,
         isCloudLinked,

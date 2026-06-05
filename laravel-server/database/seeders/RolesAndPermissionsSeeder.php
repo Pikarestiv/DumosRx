@@ -53,9 +53,9 @@ class RolesAndPermissionsSeeder extends Seeder
                 'description' => 'Store manager with high access',
                 'permissions' => ['manage_staff', 'view_reports', 'manage_inventory', 'process_sales', 'dispense_prescriptions', 'view_own_sales']
             ],
-            'pharmacist' => [
-                'name' => 'Pharmacist',
-                'description' => 'Clinical staff',
+            'specialist' => [
+                'name' => 'Specialist / Senior Staff',
+                'description' => 'Specialist staff or clinician',
                 'permissions' => ['manage_inventory', 'process_sales', 'dispense_prescriptions', 'view_own_sales']
             ],
             'sales_staff' => [

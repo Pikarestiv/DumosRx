@@ -31,14 +31,14 @@ export function NotificationsView({ onBack }: NotificationsViewProps) {
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-black tracking-tight">Notifications Center</h1>
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight">Notifications Center</h1>
           <p className="text-muted-foreground font-medium">Stay updated with your store fleet's activity and administrative messages</p>
         </div>
-        <div className="flex gap-2 self-start sm:self-auto">
-          <Button variant="outline" size="sm" className="rounded-xl font-bold" onClick={() => refetch()}>Refresh</Button>
-          <Button variant="outline" size="sm" className="rounded-xl font-bold" onClick={onBack}>Back to Overview</Button>
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          <Button variant="outline" className="w-full sm:w-auto rounded-xl font-bold" onClick={() => refetch()}>Refresh</Button>
+          <Button variant="outline" className="w-full sm:w-auto rounded-xl font-bold" onClick={onBack}>Back to Overview</Button>
         </div>
       </div>
 

@@ -21,7 +21,7 @@ interface PrescriptionHistory {
   status: "dispensed" | "partially_dispensed" | "cancelled"
   medicationCount: number
   totalCost: number
-  pharmacist: string
+  specialist: string
   paymentMethod: string
 }
 
@@ -37,7 +37,7 @@ const historyData: PrescriptionHistory[] = [
     status: "dispensed",
     medicationCount: 2,
     totalCost: 5380,
-    pharmacist: "Mary Pharmacist",
+    specialist: "Mary Specialist",
     paymentMethod: "Cash",
   },
   {
@@ -51,7 +51,7 @@ const historyData: PrescriptionHistory[] = [
     status: "partially_dispensed",
     medicationCount: 1,
     totalCost: 4250,
-    pharmacist: "John Pharmacist",
+    specialist: "John Specialist",
     paymentMethod: "Card",
   },
   {
@@ -65,7 +65,7 @@ const historyData: PrescriptionHistory[] = [
     status: "dispensed",
     medicationCount: 1,
     totalCost: 2400,
-    pharmacist: "Sarah Pharmacist",
+    specialist: "Sarah Specialist",
     paymentMethod: "Mobile",
   },
   {
@@ -79,7 +79,7 @@ const historyData: PrescriptionHistory[] = [
     status: "cancelled",
     medicationCount: 3,
     totalCost: 0,
-    pharmacist: "",
+    specialist: "",
     paymentMethod: "",
   },
   {
@@ -93,7 +93,7 @@ const historyData: PrescriptionHistory[] = [
     status: "dispensed",
     medicationCount: 4,
     totalCost: 7850,
-    pharmacist: "Peter Pharmacist",
+    specialist: "Peter Specialist",
     paymentMethod: "Insurance",
   },
 ]
@@ -309,7 +309,7 @@ export function PrescriptionHistory() {
                   <TableHead>Status</TableHead>
                   <TableHead>Medications</TableHead>
                   <TableHead>Total Cost</TableHead>
-                  <TableHead>Pharmacist</TableHead>
+                  <TableHead>Specialist</TableHead>
                   <TableHead>Payment</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
@@ -338,7 +338,7 @@ export function PrescriptionHistory() {
                     <TableCell>
                       <div className="font-medium">{record.totalCost > 0 ? formatCurrency(record.totalCost) : "—"}</div>
                     </TableCell>
-                    <TableCell>{record.pharmacist || "—"}</TableCell>
+                    <TableCell>{record.specialist || "—"}</TableCell>
                     <TableCell>{record.paymentMethod || "—"}</TableCell>
                     <TableCell>
                       <Button variant="ghost" size="sm">

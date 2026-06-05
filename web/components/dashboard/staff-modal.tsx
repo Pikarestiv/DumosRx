@@ -33,7 +33,7 @@ export function StaffModal({ isOpen, onClose, onSuccess, stores, staffMember }: 
     last_name: "",
     email: "",
     username: "",
-    role: "pharmacist",
+    role: "specialist",
     store_id: "",
     password: "",
     pin: "1234",
@@ -47,7 +47,7 @@ export function StaffModal({ isOpen, onClose, onSuccess, stores, staffMember }: 
         last_name: staffMember?.last_name || "",
         email: staffMember?.email || "",
         username: staffMember?.username || "",
-        role: staffMember?.role || "pharmacist",
+        role: staffMember?.role || "specialist",
         store_id: staffMember?.store_id || (stores.length > 0 ? stores[0].id : ""),
         password: "",
         pin: staffMember?.pin || "1234",
@@ -182,7 +182,7 @@ export function StaffModal({ isOpen, onClose, onSuccess, stores, staffMember }: 
                 >
                   <option value="admin">Admin (Local Master)</option>
                   <option value="manager">Manager (Admin)</option>
-                  <option value="pharmacist">Pharmacist (Sub-account)</option>
+                  <option value="specialist">Specialist (Sub-account)</option>
                   <option value="sales_staff">Sales Staff / Cashier</option>
                   <option value="auditor">Auditor (Read-only)</option>
                 </select>

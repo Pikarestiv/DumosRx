@@ -121,7 +121,7 @@ export function useOnboarding() {
       const result = await linkCloudAccount(email, pass);
       if (result.success) {
         setStep("syncing");
-        startSyncProcess();
+        startSyncProcess(email);
       } else {
         toast.error(result.message);
       }
@@ -132,7 +132,7 @@ export function useOnboarding() {
     }
   };
 
-  const startSyncProcess = async () => {
+  const startSyncProcess = async (email?: string) => {
     try {
       setSyncProgress(10);
       setSyncStatus("Connecting to cloud storage...");
@@ -168,8 +168,14 @@ export function useOnboarding() {
 
         setSyncProgress(100);
         setSyncStatus("Sync complete!");
-        toast.success(`Sync complete! ${userCount} accounts recovered. Please log in.`);
-        setTimeout(() => router.push("/login"), 1500);
+        if (email) {
+          toast.success(`Sync complete! Logging you into the local dashboard...`);
+          await login(email);
+          setTimeout(() => router.push("/dashboard"), 1500);
+        } else {
+          toast.success(`Sync complete! ${userCount} accounts recovered. Please log in.`);
+          setTimeout(() => router.push("/login"), 1500);
+        }
       } else {
         setSyncStatus("Synchronization failed");
         toast.error(`Sync failed: ${result.error || "Unknown error"}`);

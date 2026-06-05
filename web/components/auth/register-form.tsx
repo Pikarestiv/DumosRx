@@ -188,31 +188,6 @@ export function RegisterForm() {
               <motion.div variants={item}>
                 <FormField
                   control={form.control}
-                  name="username"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-gray-300">Username (Terminal Login)</FormLabel>
-                      <FormControl>
-                        <div className="relative group">
-                          <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 group-focus-within:text-accent transition-colors" />
-                          <Input
-                            placeholder="jdoe_rx"
-                            className="pl-10 bg-white/5 border-white/10 text-white focus:border-accent/50 focus:ring-accent/20 h-11"
-                            {...field}
-                          />
-                        </div>
-                      </FormControl>
-                      <FormMessage className="text-xs text-red-400" />
-                    </FormItem>
-                  )}
-                />
-              </motion.div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <motion.div variants={item}>
-                <FormField
-                  control={form.control}
                   name="phone"
                   render={({ field }) => (
                     <FormItem>
@@ -221,31 +196,6 @@ export function RegisterForm() {
                         <div className="relative group">
                           <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 group-focus-within:text-accent transition-colors" />
                           <Input placeholder="08012345678" type="tel" className="pl-10 bg-white/5 border-white/10 text-white focus:border-accent/50 focus:ring-accent/20 h-11" {...field} />
-                        </div>
-                      </FormControl>
-                      <FormMessage className="text-xs text-red-400" />
-                    </FormItem>
-                  )}
-                />
-              </motion.div>
-
-              <motion.div variants={item}>
-                <FormField
-                  control={form.control}
-                  name="pin"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-gray-300">Terminal PIN (4 Digits)</FormLabel>
-                      <FormControl>
-                        <div className="relative group">
-                          <ShieldCheck className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 group-focus-within:text-accent transition-colors" />
-                          <Input 
-                            placeholder="1234" 
-                            maxLength={4}
-                            className="pl-10 bg-white/5 border-white/10 text-white focus:border-accent/50 focus:ring-accent/20 h-11 font-mono tracking-widest" 
-                            {...field} 
-                            onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ""))}
-                          />
                         </div>
                       </FormControl>
                       <FormMessage className="text-xs text-red-400" />
@@ -294,6 +244,62 @@ export function RegisterForm() {
                 />
               </motion.div>
             </div>
+
+            <motion.div variants={item} className="my-6">
+              <div className="bg-primary/5 border border-primary/20 rounded-xl p-4">
+                <h4 className="text-sm font-semibold text-primary mb-1">Local POS Access</h4>
+                <p className="text-xs text-gray-400 mb-4">
+                  These credentials are used by you and your staff to quickly log into the local desktop terminal, separately from your cloud web account.
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="username"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-gray-300">Username</FormLabel>
+                        <FormControl>
+                          <div className="relative group">
+                            <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 group-focus-within:text-primary transition-colors" />
+                            <Input
+                              placeholder="jdoe_rx"
+                              className="pl-10 bg-white/5 border-white/10 text-white focus:border-primary/50 focus:ring-primary/20 h-11"
+                              {...field}
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage className="text-xs text-red-400" />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="pin"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-gray-300">Terminal PIN (4 Digits)</FormLabel>
+                        <FormControl>
+                          <div className="relative group">
+                            <ShieldCheck className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 group-focus-within:text-primary transition-colors" />
+                            <Input 
+                              placeholder="1234" 
+                              maxLength={4}
+                              className="pl-10 bg-white/5 border-white/10 text-white focus:border-primary/50 focus:ring-primary/20 h-11 font-mono tracking-widest" 
+                              {...field} 
+                              onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ""))}
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage className="text-xs text-red-400" />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+            </motion.div>
+
+
 
             <motion.div variants={item} className="pt-4">
               <Button type="submit" className="w-full h-12 text-lg font-bold bg-accent hover:bg-accent/90 text-accent-foreground shadow-lg shadow-accent/10 transition-all active:scale-[0.98]" disabled={loading}>

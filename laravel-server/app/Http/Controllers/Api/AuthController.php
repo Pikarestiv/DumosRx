@@ -33,6 +33,7 @@ class AuthController extends Controller
             'pin' => 'nullable|string|size:4',
             'password' => 'required|string|min:8',
             'store_name' => 'nullable|string|max:255',
+            'phone' => 'nullable|string|max:20',
             'ref' => 'nullable|string',
             'referrer' => 'nullable|string',
         ]);
@@ -55,6 +56,7 @@ class AuthController extends Controller
             'first_name' => $request->first_name,
             'last_name' => $request->last_name,
             'email' => $request->email,
+            'phone' => $request->phone,
             'username' => $request->username,
             'pin' => $request->pin,
             'password' => Hash::make($request->password),

@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, CreditCard, CheckCircle, AlertCircle } from "lucide-react";
+import { capitalizeFirstLetter } from "@/lib/utils";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { PRICING } from "@/lib/constants/pricing";
@@ -80,8 +81,8 @@ export function SubscriptionCard() {
             {isPro ? "Active" : "Trial"}
           </Badge>
         </div>
-        <CardDescription>
-          {isPro ? `${String(subscription.plan || PRICING.PRO.NAME).charAt(0).toUpperCase() + String(subscription.plan || PRICING.PRO.NAME).slice(1)} Plan` : "No Active Subscription"}
+        <CardDescription className="text-muted-foreground flex items-center gap-1.5 mt-1.5">
+          {isPro ? `${capitalizeFirstLetter(subscription.plan || PRICING.PRO.NAME)} Plan` : "No Active Subscription"}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

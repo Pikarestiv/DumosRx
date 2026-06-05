@@ -11,7 +11,7 @@ import { useInitiatePaymentMutation, useSystemConfig, useReferralStats, useSubsc
 import { webApiClient } from "@/lib/api/client";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { calculateDiscountPercent } from "@/lib/utils";
+import { calculateDiscountPercent, capitalizeFirstLetter } from "@/lib/utils";
 import { getSubscriptionPlans } from "@/lib/constants/subscription-plans";
 
 export function SubscriptionPlans() {
@@ -174,8 +174,8 @@ export function SubscriptionPlans() {
                 <div className="space-y-1">
                   <p className="font-medium">
                     {isTrial 
-                      ? `You are on the ${String(subStatus.plan || 'Free').charAt(0).toUpperCase() + String(subStatus.plan || '').slice(1)} Trial (${daysLeft} Days Remaining)` 
-                      : `You are on the ${String(subStatus.plan || '').charAt(0).toUpperCase() + String(subStatus.plan || '').slice(1)} Plan (${daysLeft} Days Remaining)`
+                      ? `You are on the ${capitalizeFirstLetter(subStatus.plan || 'Free')} Trial (${daysLeft} Days Remaining)` 
+                      : `You are on the ${capitalizeFirstLetter(subStatus.plan)} Plan (${daysLeft} Days Remaining)`
                     }
                   </p>
                   <p className="text-sm">
@@ -193,7 +193,7 @@ export function SubscriptionPlans() {
             <div className="bg-green-50 border border-green-200 text-green-800 p-4 rounded-lg flex items-start gap-3">
               <Check className="h-5 w-5 mt-0.5 shrink-0 text-green-600" />
               <div className="space-y-1">
-                <p className="font-medium">You are on the {String(subStatus.plan || '').charAt(0).toUpperCase() + String(subStatus.plan || '').slice(1)} Plan ({daysLeft} Days Remaining)</p>
+                <p className="font-medium">You are on the {capitalizeFirstLetter(subStatus.plan)} Plan ({daysLeft} Days Remaining)</p>
                 <p className="text-sm">Your subscription is active. Thank you for protecting your cloud data with DumosRx.</p>
               </div>
             </div>

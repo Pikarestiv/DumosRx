@@ -80,12 +80,12 @@ export function QuickSetupWizard() {
               <Label className="text-center block mb-4">Choose your business type</Label>
               <div className="grid grid-cols-2 gap-4">
                 <Card 
-                  className={`cursor-pointer transition-all border-2 ${storeType === 'store' ? 'border-primary bg-primary/5' : 'hover:border-primary/50'}`}
-                  onClick={() => setStoreType('store')}
+                  className={`cursor-pointer transition-all border-2 ${storeType === 'pharmacy' ? 'border-primary bg-primary/5' : 'hover:border-primary/50'}`}
+                  onClick={() => setStoreType('pharmacy')}
                 >
                   <CardContent className="p-4 flex flex-col items-center text-center gap-2">
                     <Pill className="h-8 w-8 text-primary" />
-                    <span className="font-semibold">Store</span>
+                    <span className="font-semibold">Pharmacy</span>
                   </CardContent>
                 </Card>
 
@@ -128,7 +128,7 @@ export function QuickSetupWizard() {
                 <Label htmlFor="store-name">Store Name</Label>
                 <Input 
                   id="store-name" 
-                  placeholder={storeType === 'store' ? "e.g. HealthFirst Store" : "e.g. Green Groceries"} 
+                  placeholder={storeType === 'pharmacy' ? "e.g. HealthFirst Pharmacy" : "e.g. Green Groceries"} 
                   value={storeName}
                   onChange={(e) => setStoreName(e.target.value)}
                 />

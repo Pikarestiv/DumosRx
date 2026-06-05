@@ -53,7 +53,7 @@ interface StoreContextType {
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
 const terminology: Record<StoreType, Record<string, string>> = {
-  store: {
+  pharmacy: {
     product: "Medicine",
     products: "Medicines",
     registration_number: "NAFDAC Number",

@@ -9,7 +9,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
 
 interface StoreToolbarProps {
   search: string;
@@ -51,7 +50,7 @@ export function StoreToolbar({
         {isLoading && (
           <Loader2 className="h-4 w-4 animate-spin text-indigo-500 mr-2" />
         )}
-        
+
         {hasActiveFilters && (
           <Button
             variant="ghost"
@@ -77,60 +76,70 @@ export function StoreToolbar({
               Filters
               {hasActiveFilters && (
                 <span className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-indigo-600 text-[10px] text-white flex items-center justify-center font-bold">
-                  {(statusFilter !== "all" ? 1 : 0) + (planFilter !== "all" ? 1 : 0)}
+                  {(statusFilter !== "all" ? 1 : 0) +
+                    (planFilter !== "all" ? 1 : 0)}
                 </span>
               )}
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48 p-2 rounded-2xl shadow-xl border-slate-200 dark:border-slate-800">
-            <DropdownMenuLabel className="text-[10px] uppercase tracking-widest text-slate-400 px-3 py-1.5">Status</DropdownMenuLabel>
-            <DropdownMenuItem 
+          <DropdownMenuContent
+            align="end"
+            className="w-48 p-2 rounded-2xl shadow-xl border-slate-200 dark:border-slate-800"
+          >
+            <DropdownMenuLabel className="text-[10px] uppercase tracking-widest text-slate-400 px-3 py-1.5">
+              Status
+            </DropdownMenuLabel>
+            <DropdownMenuItem
               className={`rounded-xl px-3 py-2 cursor-pointer font-bold flex items-center justify-between ${statusFilter === "all" ? "text-indigo-600 bg-indigo-50/50 dark:text-indigo-400 dark:bg-indigo-500/10" : ""}`}
               onClick={() => onStatusFilterChange("all")}
             >
               <span>All Statuses</span>
               {statusFilter === "all" && <Check className="h-3.5 w-3.5" />}
             </DropdownMenuItem>
-            <DropdownMenuItem 
+            <DropdownMenuItem
               className={`rounded-xl px-3 py-2 cursor-pointer font-bold flex items-center justify-between ${statusFilter === "active" ? "text-indigo-600 bg-indigo-50/50 dark:text-indigo-400 dark:bg-indigo-500/10" : ""}`}
               onClick={() => onStatusFilterChange("active")}
             >
               <span>Active Only</span>
               {statusFilter === "active" && <Check className="h-3.5 w-3.5" />}
             </DropdownMenuItem>
-            <DropdownMenuItem 
+            <DropdownMenuItem
               className={`rounded-xl px-3 py-2 cursor-pointer font-bold flex items-center justify-between ${statusFilter === "suspended" ? "text-indigo-600 bg-indigo-50/50 dark:text-indigo-400 dark:bg-indigo-500/10" : ""}`}
               onClick={() => onStatusFilterChange("suspended")}
             >
               <span>Suspended</span>
-              {statusFilter === "suspended" && <Check className="h-3.5 w-3.5" />}
+              {statusFilter === "suspended" && (
+                <Check className="h-3.5 w-3.5" />
+              )}
             </DropdownMenuItem>
-            
+
             <DropdownMenuSeparator className="my-1.5 bg-slate-100 dark:bg-slate-800" />
-            
-            <DropdownMenuLabel className="text-[10px] uppercase tracking-widest text-slate-400 px-3 py-1.5">Subscription</DropdownMenuLabel>
-            <DropdownMenuItem 
+
+            <DropdownMenuLabel className="text-[10px] uppercase tracking-widest text-slate-400 px-3 py-1.5">
+              Subscription
+            </DropdownMenuLabel>
+            <DropdownMenuItem
               className={`rounded-xl px-3 py-2 cursor-pointer font-bold flex items-center justify-between ${planFilter === "all" ? "text-indigo-600 bg-indigo-50/50 dark:text-indigo-400 dark:bg-indigo-500/10" : ""}`}
               onClick={() => onPlanFilterChange("all")}
             >
               <span>All Plans</span>
               {planFilter === "all" && <Check className="h-3.5 w-3.5" />}
             </DropdownMenuItem>
-            <DropdownMenuItem 
+            <DropdownMenuItem
               className={`rounded-xl px-3 py-2 cursor-pointer font-bold flex items-center justify-between ${planFilter === "starter" ? "text-indigo-600 bg-indigo-50/50 dark:text-indigo-400 dark:bg-indigo-500/10" : ""}`}
               onClick={() => onPlanFilterChange("starter")}
             >
               <span>Starter</span>
               {planFilter === "starter" && <Check className="h-3.5 w-3.5" />}
             </DropdownMenuItem>
-            <DropdownMenuItem 
+            <DropdownMenuItem
               className={`rounded-xl px-3 py-2 cursor-pointer font-bold flex items-center justify-between ${planFilter === "pro" ? "text-indigo-600 bg-indigo-50/50 dark:text-indigo-400 dark:bg-indigo-500/10" : ""}`}
               onClick={() => onPlanFilterChange("pro")}
             >
               <span>Professional</span>
               {planFilter === "pro" && <Check className="h-3.5 w-3.5" />}
             </DropdownMenuItem>
-            <DropdownMenuItem 
+            <DropdownMenuItem
               className={`rounded-xl px-3 py-2 cursor-pointer font-bold flex items-center justify-between ${planFilter === "enterprise" ? "text-indigo-600 bg-indigo-50/50 dark:text-indigo-400 dark:bg-indigo-500/10" : ""}`}
               onClick={() => onPlanFilterChange("enterprise")}
             >
@@ -141,8 +150,7 @@ export function StoreToolbar({
         </DropdownMenu>
         <div className="h-8 w-px bg-slate-200 dark:bg-slate-800 mx-1 hidden md:block" />
         <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-          Showing {totalShown} of {totalCount}{" "}
-          stores
+          Showing {totalShown} of {totalCount} stores
         </p>
       </div>
     </div>

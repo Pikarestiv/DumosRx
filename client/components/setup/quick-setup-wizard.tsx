@@ -32,7 +32,7 @@ export function QuickSetupWizard() {
   );
 
   const [step, setStep] = useState(1);
-  const [storeType, setStoreType] = useState<StoreType>("store");
+  const [storeType, setStoreType] = useState<StoreType>("pharmacy");
   const [storeName, setStoreName] = useState("");
   const [location, setLocation] = useState("");
   const [showRetailSuggestions, setShowRetailSuggestions] = useState(false);
@@ -142,7 +142,7 @@ export function QuickSetupWizard() {
                   onChange={(e) => setLocation(e.target.value)}
                 />
               </div>
-              {storeType === "store" && (
+              {storeType === "pharmacy" && (
                 <div className="flex items-center justify-between rounded-lg border p-4 mt-2">
                   <div className="space-y-0.5">
                     <Label className="text-sm font-semibold">Include Retail Suggestions</Label>

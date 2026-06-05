@@ -38,7 +38,7 @@ export function useFeatureGate() {
     minimumSyncIntervalMinutes: isEnterprise ? 0 : isPro ? 15 : 360,
 
     // Gated modules & features
-    canUsePrescriptions: !isFree,
+    canUsePrescriptions: storeProfile?.store_type === 'pharmacy',
     canUseProcurement: !isFree,
     canUseExpenses: !isFree,
     canUseAuditMode: !isFree,

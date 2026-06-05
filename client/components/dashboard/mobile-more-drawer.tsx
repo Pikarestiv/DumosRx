@@ -37,7 +37,7 @@ export function MobileMoreDrawer({
   const [searchQuery, setSearchQuery] = useState("");
 
   const allModules = [
-    ...(storeType === "store"
+    ...(storeType === "pharmacy"
       ? [{ name: "Prescriptions", href: "/prescriptions", icon: FileText }]
       : []),
     ...(isAdmin || canManageInventory

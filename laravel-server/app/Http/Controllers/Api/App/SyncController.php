@@ -325,6 +325,7 @@ class SyncController extends Controller
                 // Map subscription_tier for store_profile
                 if ($table === 'store_profile') {
                     $plan = 'free';
+                    $expiry = null;
                     if ($item->user && $item->user->subscriptions->isNotEmpty()) {
                         $sub = $item->user->subscriptions()
                             ->where('status', 'active')
@@ -333,9 +334,19 @@ class SyncController extends Controller
                             ->first();
                         if ($sub) {
                             $plan = $sub->plan_name;
+                            $expiry = $sub->end_date;
                         }
                     }
                     $array['subscription_tier'] = $plan;
+                    // Generate license token for offline validation
+                    if ($plan !== 'free' && $expiry) {
+                        $array['license_token'] = json_encode([
+                            'tier' => $plan,
+                            'expiry' => \Carbon\Carbon::parse($expiry)->toIso8601String()
+                        ]);
+                    } else {
+                        $array['license_token'] = null;
+                    }
                 }
 
                 // SQLite on desktop has a NOT NULL constraint on username

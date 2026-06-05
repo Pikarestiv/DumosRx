@@ -55,7 +55,7 @@ export function MedicineDatabase() {
     }
   }, [searchParams, router]);
 
-  const isStore = storeType === "store";
+  const isStore = storeType === "pharmacy";
 
   const {
     data: medicines,

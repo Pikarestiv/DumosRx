@@ -30,7 +30,7 @@ export function MobileBottomNav({ onOpenFeedback }: MobileBottomNavProps) {
     {
       name: "Inventory",
       href: "/inventory",
-      icon: storeType === "store" ? Pill : ShoppingBasket,
+      icon: storeType === "pharmacy" ? Pill : ShoppingBasket,
     },
     { name: "Customers", href: "/customers", icon: Users },
   ];

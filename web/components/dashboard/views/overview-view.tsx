@@ -42,7 +42,7 @@ interface OverviewViewProps {
   onNavigate?: (tab: string) => void;
 }
 
-export function OverviewView({ stats, user, stores, onReset, onNavigate }: OverviewViewProps) {
+export function OverviewView({ stats, user, stores, onReset, onNavigate: _onNavigate }: OverviewViewProps) {
   const { data: subscription } = useSubscriptionStatus();
   const isStarter = subscription?.plan?.toLowerCase() === "starter";
   const [isStoreModalOpen, setIsStoreModalOpen] = useState(false);

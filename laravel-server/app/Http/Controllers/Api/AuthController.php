@@ -33,6 +33,7 @@ class AuthController extends Controller
             'pin' => 'nullable|string|size:4',
             'password' => 'required|string|min:8',
             'store_name' => 'nullable|string|max:255',
+            'store_type' => 'nullable|string|in:pharmacy,supermarket,grocery,general',
             'phone' => 'nullable|string|max:20',
             'ref' => 'nullable|string',
             'referrer' => 'nullable|string',
@@ -70,6 +71,7 @@ class AuthController extends Controller
             Store::create([
                 'user_id' => $user->id,
                 'name' => $request->store_name,
+                'store_type' => $request->store_type ?? 'pharmacy',
                 'device_id' => 'WEB-' . strtoupper(Str::random(8)),
             ]);
 

@@ -16,7 +16,7 @@ import { CustomerAnalyticsTab } from "./customer-analytics-tab";
 
 export function CustomerManagement() {
   const { storeType, storeProfile } = useStore();
-  const isStore = storeType === "store";
+  const isStore = storeType === "pharmacy";
 
   const { customers, addCustomer } = useCustomerData();
 

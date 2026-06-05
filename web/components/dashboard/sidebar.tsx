@@ -38,7 +38,7 @@ export function Sidebar({
     { id: "profile", name: "Account Security", icon: Shield },
   ];
 
-  const renderSidebar = (isMobile: boolean) => (
+  const renderSidebar = (_isMobile: boolean) => (
     <>
       <div className="p-5 flex items-center justify-between">
         <Link href="/" className="flex items-center">

@@ -115,7 +115,7 @@ export function StoreInformationCard({
             />
           </div>
         </div>
-        {storeType === "store" && (
+        {storeType === "pharmacy" && (
           <>
             <div className="grid gap-2">
               <Label htmlFor="pcn">PCN License Number</Label>

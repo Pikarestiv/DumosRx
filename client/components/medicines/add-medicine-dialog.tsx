@@ -112,7 +112,7 @@ export function AddMedicineDialog({
     }
   }, [editingMedicine, open]);
 
-  const isStore = storeType === "store";
+  const isStore = storeType === "pharmacy";
 
   const [suggestions, setSuggestions] = useState<any>(isStore ? FORM_SUGGESTIONS.store : FORM_SUGGESTIONS.retail);
 

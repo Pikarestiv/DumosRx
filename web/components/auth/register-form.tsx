@@ -27,6 +27,7 @@ const registerSchema = z
     store_name: z
       .string()
       .min(2, { message: "Store name must be at least 2 characters" }),
+    store_type: z.enum(["pharmacy", "supermarket", "grocery", "general"]),
     first_name: z.string().min(2, { message: "First name must be at least 2 characters" }),
     last_name: z.string().min(2, { message: "Last name must be at least 2 characters" }),
     email: z.string().email({ message: "Invalid email address" }),
@@ -50,6 +51,7 @@ export function RegisterForm() {
     resolver: zodResolver(registerSchema),
     defaultValues: {
       store_name: "",
+      store_type: "pharmacy",
       first_name: "",
       last_name: "",
       email: "",
@@ -119,6 +121,30 @@ export function RegisterForm() {
                         <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 group-focus-within:text-accent transition-colors" />
                         <Input placeholder="Dumos Store" className="pl-10 bg-white/5 border-white/10 text-white focus:border-accent/50 focus:ring-accent/20 h-11" {...field} />
                       </div>
+                    </FormControl>
+                    <FormMessage className="text-xs text-red-400" />
+                  </FormItem>
+                )}
+              />
+            </motion.div>
+
+            <motion.div variants={item}>
+              <FormField
+                control={form.control}
+                name="store_type"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-gray-300">Store Type</FormLabel>
+                    <FormControl>
+                      <select
+                        className="flex h-11 w-full rounded-md bg-white/5 border border-white/10 px-3 py-2 text-sm text-white focus:border-accent/50 focus:ring-accent/20 focus:outline-none transition-colors"
+                        {...field}
+                      >
+                        <option value="pharmacy" className="text-gray-900">Pharmacy</option>
+                        <option value="supermarket" className="text-gray-900">Supermarket</option>
+                        <option value="grocery" className="text-gray-900">Grocery</option>
+                        <option value="general" className="text-gray-900">General Store</option>
+                      </select>
                     </FormControl>
                     <FormMessage className="text-xs text-red-400" />
                   </FormItem>

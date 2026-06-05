@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense } from "react";
 import { useDashboard } from "./use-dashboard";
 import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
 

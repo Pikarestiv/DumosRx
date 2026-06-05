@@ -137,31 +137,60 @@ export function SubscriptionPlans() {
   return (
     <div className="space-y-8">
       {/* Current Plan Alert */}
-      {subStatus?.status === "active" && (subStatus.plan === "Starter" || subStatus.plan === "Trial" || subStatus.plan?.toLowerCase()?.includes("trial")) ? (
-        <div className="bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-lg flex items-start gap-3">
-          <ShieldAlert className="h-5 w-5 mt-0.5 shrink-0" />
-          <div className="space-y-1">
-            <p className="font-medium">You are on the Free Trial ({subStatus.days_remaining ?? config?.trial_days ?? 14} Days Remaining)</p>
-            <p className="text-sm">Upgrade to a paid plan below to ensure your cloud data remains protected.</p>
-          </div>
-        </div>
-      ) : subStatus?.status === "active" ? (
-        <div className="bg-green-50 border border-green-200 text-green-800 p-4 rounded-lg flex items-start gap-3">
-          <Check className="h-5 w-5 mt-0.5 shrink-0 text-green-600" />
-          <div className="space-y-1">
-            <p className="font-medium">You are on the {subStatus.plan} Plan ({subStatus.days_remaining ?? 0} Days Remaining)</p>
-            <p className="text-sm">Your subscription is active. Thank you for protecting your cloud data with DumosRx.</p>
-          </div>
-        </div>
-      ) : subStatus?.status === "inactive" ? (
-        <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-lg flex items-start gap-3">
-          <ShieldAlert className="h-5 w-5 mt-0.5 shrink-0 text-red-600" />
-          <div className="space-y-1">
-            <p className="font-medium">No Active Subscription / Expired</p>
-            <p className="text-sm">Upgrade or renew your plan below to ensure your cloud data remains protected.</p>
-          </div>
-        </div>
-      ) : null}
+      {(() => {
+        if (subStatus?.status === "inactive") {
+          return (
+            <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-lg flex items-start gap-3">
+              <ShieldAlert className="h-5 w-5 mt-0.5 shrink-0 text-red-600" />
+              <div className="space-y-1">
+                <p className="font-medium">No Active Subscription / Expired</p>
+                <p className="text-sm">Upgrade or renew your plan below to ensure your cloud data remains protected.</p>
+              </div>
+            </div>
+          );
+        }
+
+        if (subStatus?.status === "active") {
+          const daysLeft = Math.floor(Number(subStatus.days_remaining ?? 0));
+          const isTrial = subStatus.is_trial === true;
+          const isExpiringSoon = daysLeft < 7;
+          
+          if (isTrial || isExpiringSoon) {
+            return (
+              <div className="bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-lg flex items-start gap-3">
+                <ShieldAlert className="h-5 w-5 mt-0.5 shrink-0" />
+                <div className="space-y-1">
+                  <p className="font-medium">
+                    {isTrial 
+                      ? `You are on the Free Trial (${daysLeft} Days Remaining)` 
+                      : `You are on the ${String(subStatus.plan || '').charAt(0).toUpperCase() + String(subStatus.plan || '').slice(1)} Plan (${daysLeft} Days Remaining)`
+                    }
+                  </p>
+                  <p className="text-sm">
+                    {isTrial 
+                      ? "Upgrade to a paid plan below to ensure your cloud data remains protected." 
+                      : "Your subscription is expiring soon. Please renew to ensure your cloud data remains protected."
+                    }
+                  </p>
+                </div>
+              </div>
+            );
+          }
+
+          return (
+            <div className="bg-green-50 border border-green-200 text-green-800 p-4 rounded-lg flex items-start gap-3">
+              <Check className="h-5 w-5 mt-0.5 shrink-0 text-green-600" />
+              <div className="space-y-1">
+                <p className="font-medium">You are on the {String(subStatus.plan || '').charAt(0).toUpperCase() + String(subStatus.plan || '').slice(1)} Plan ({daysLeft} Days Remaining)</p>
+                <p className="text-sm">Your subscription is active. Thank you for protecting your cloud data with DumosRx.</p>
+              </div>
+            </div>
+          );
+        }
+
+        return null;
+      })()}
+
 
       <div className="flex justify-center my-8">
         <Tabs

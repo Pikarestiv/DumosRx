@@ -12,12 +12,14 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Loader2, CreditCard, CheckCircle, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 import { PRICING } from "@/lib/constants/pricing";
 import { useSubscriptionStatus, useInitiatePaymentMutation } from "@/lib/api/hooks";
 
 export function SubscriptionCard() {
   const { data: subscription, isLoading, error } = useSubscriptionStatus();
   const initiatePayment = useInitiatePaymentMutation();
+  const router = useRouter();
 
   const handleUpgrade = async () => {
     try {
@@ -59,6 +61,14 @@ export function SubscriptionCard() {
 
   const isPro = subscription?.status === "active";
   const daysLeft = subscription?.days_remaining || 0;
+  const isTrial = subscription?.is_trial === true;
+  const isExpiringSoon = daysLeft < 7;
+  const useYellowTheme = isTrial || isExpiringSoon;
+  
+  const formatDate = (dateString: string) => {
+    const d = new Date(dateString);
+    return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+  };
 
   return (
     <Card className="w-full max-w-sm border-none shadow-lg overflow-hidden group">
@@ -66,12 +76,12 @@ export function SubscriptionCard() {
       <CardHeader>
         <div className="flex justify-between items-center">
           <CardTitle className="text-lg">Subscription</CardTitle>
-          <Badge variant={isPro ? "default" : "secondary"} className={isPro ? "bg-emerald-500 hover:bg-emerald-600" : ""}>
+          <Badge variant={isPro ? "default" : "secondary"} className={isPro ? (useYellowTheme ? "bg-amber-500 hover:bg-amber-600" : "bg-emerald-500 hover:bg-emerald-600") : ""}>
             {isPro ? "Active" : "Trial"}
           </Badge>
         </div>
         <CardDescription>
-          {isPro ? `${String(subscription.plan || PRICING.PRO.NAME).charAt(0).toUpperCase() + String(subscription.plan || PRICING.PRO.NAME).slice(1)} Plan` : "DumosRx Free Trial"}
+          {isPro ? `${String(subscription.plan || PRICING.PRO.NAME).charAt(0).toUpperCase() + String(subscription.plan || PRICING.PRO.NAME).slice(1)} Plan` : "No Active Subscription"}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -99,7 +109,7 @@ export function SubscriptionCard() {
           {subscription?.expires_at && (
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Expires on</span>
-              <span className="font-medium">{new Date(subscription.expires_at).toLocaleDateString()}</span>
+              <span className="font-medium">{formatDate(subscription.expires_at)}</span>
             </div>
           )}
         </div>
@@ -121,8 +131,8 @@ export function SubscriptionCard() {
         ) : (
           <Button 
             variant="outline" 
-            className="w-full h-12 font-bold border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/5"
-            onClick={() => toast.info("Subscription management (cancellation/upgrades) coming soon!")}
+            className={`w-full h-12 font-bold ${useYellowTheme ? "border-amber-500/20 text-amber-600 hover:bg-amber-500/5" : "border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/5"}`}
+            onClick={() => router.push("/dashboard/billing")}
           >
             <CheckCircle className="h-4 w-4 mr-2" />
             Manage Subscription

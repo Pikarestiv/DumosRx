@@ -37,6 +37,7 @@ class SubscriptionController extends Controller
             'plan' => $sub->plan_name,
             'expires_at' => $sub->end_date,
             'days_remaining' => now()->diffInDays($sub->end_date),
+            'is_trial' => !\App\Models\PaymentTransaction::where('subscription_id', $sub->id)->exists(),
             'license_key' => $sub->license_key,
         ]);
     }

@@ -98,7 +98,7 @@
                 <td class="footer">
                     <p>&copy; {{ date('Y') }} DumosRx Platform. All rights reserved.</p>
                     <div class="footer-links">
-                        <a href="#">Support</a> | <a href="#">Privacy Policy</a>
+                        <a href="https://dumosrx.com/support">Support</a> | <a href="https://dumosrx.com/privacy">Privacy Policy</a>
                     </div>
                 </td>
             </tr>

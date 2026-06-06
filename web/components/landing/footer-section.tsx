@@ -78,18 +78,10 @@ export function FooterSection() {
             <ul className="space-y-2">
               <li>
                 <Link
-                  href="/about"
+                  href="/support"
                   className="text-sm text-muted-foreground hover:text-primary"
                 >
-                  About
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/contact"
-                  className="text-sm text-muted-foreground hover:text-primary"
-                >
-                  Contact
+                  Support
                 </Link>
               </li>
               <li>

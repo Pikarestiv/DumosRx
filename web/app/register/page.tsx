@@ -95,14 +95,14 @@ export default function RegisterPage() {
         <div className="mt-8 text-center text-xs text-gray-500">
           By joining, you agree to our{" "}
           <Link
-            href="#"
+            href="/terms"
             className="text-gray-400 underline hover:text-white transition-colors"
           >
             Terms
           </Link>{" "}
           and{" "}
           <Link
-            href="#"
+            href="/privacy"
             className="text-gray-400 underline hover:text-white transition-colors"
           >
             Privacy Policy

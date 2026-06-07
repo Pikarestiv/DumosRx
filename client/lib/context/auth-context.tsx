@@ -27,19 +27,19 @@ interface AuthContextType {
 export const checkIsAdmin = (role?: string) => {
   if (!role) return false;
   const normalizedRole = role.toLowerCase().replace(/[^a-z]/g, "");
-  return normalizedRole.includes("admin") || normalizedRole.includes("manager");
+  return normalizedRole.includes("admin") || normalizedRole.includes("manager") || normalizedRole.includes("storeowner");
 };
 
 export const checkCanManageInventory = (role?: string) => {
   if (!role) return false;
   const normalizedRole = role.toLowerCase().replace(/[^a-z_]/g, "");
-  return ["admin", "manager", "specialist"].includes(normalizedRole);
+  return ["admin", "manager", "specialist", "store_owner"].includes(normalizedRole);
 };
 
 export const checkCanProcessSales = (role?: string) => {
   if (!role) return false;
   const normalizedRole = role.toLowerCase().replace(/[^a-z_]/g, "");
-  return ["admin", "manager", "specialist", "sales_staff"].includes(normalizedRole);
+  return ["admin", "manager", "specialist", "sales_staff", "store_owner"].includes(normalizedRole);
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);

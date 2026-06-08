@@ -33,8 +33,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { UserPlus, Trash2, Shield, Loader2 } from "lucide-react";
-import { getUsers, createUser, deleteUser } from "@/lib/db/local-database";
+import { UserPlus, Trash2, Shield, Loader2, Edit2 } from "lucide-react";
+import { getUsers, createUser, deleteUser, updateUser } from "@/lib/db/local-database";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { checkIsAdmin, checkCanManageInventory } from "@/lib/context/auth-context";
@@ -45,8 +45,10 @@ export function StaffManagement() {
   const [users, setUsers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [editTargetId, setEditTargetId] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -104,6 +106,65 @@ export function StaffManagement() {
         toast.error("Username already exists");
       } else {
         toast.error("Failed to create staff account");
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleEditUserClick = (user: any) => {
+    if (user.id === "default-admin" || user.username === "admin") {
+      toast.error("Default admin cannot be edited");
+      return;
+    }
+    setEditTargetId(user.id);
+    setFormData({
+      name: user.name || "",
+      username: user.username || "",
+      email: user.email || "",
+      pin: "", // Leave empty unless modifying
+      role: user.role || "cashier",
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleUpdateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editTargetId) return;
+    if (!formData.name || !formData.username) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+
+    if (formData.pin && formData.pin.length < 4) {
+      toast.error("PIN must be at least 4 digits");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const updateData: any = {
+        name: formData.name,
+        username: formData.username,
+        email: formData.email,
+        role: formData.role,
+      };
+      if (formData.pin) {
+        updateData.pin = formData.pin;
+      }
+      
+      await updateUser(editTargetId, updateData);
+      toast.success("Staff account updated successfully");
+      setIsEditDialogOpen(false);
+      setEditTargetId(null);
+      setFormData({ name: "", username: "", email: "", pin: "", role: "cashier" });
+      loadUsers();
+    } catch (error: any) {
+      console.error("Failed to update user:", error);
+      if (error.message?.includes("UNIQUE")) {
+        toast.error("Username already exists");
+      } else {
+        toast.error("Failed to update staff account");
       }
     } finally {
       setIsSubmitting(false);
@@ -330,6 +391,15 @@ export function StaffManagement() {
                       <Button
                         variant="ghost"
                         size="icon"
+                        className="text-muted-foreground hover:text-foreground mr-2"
+                        onClick={() => handleEditUserClick(user)}
+                        disabled={user.id === "default-admin" || user.username === "admin"}
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         className="text-destructive hover:text-destructive hover:bg-destructive/10"
                         onClick={() => handleDeleteUser(user.id, user.name)}
                         disabled={user.id === "default-admin" || user.username === "admin"}
@@ -353,6 +423,80 @@ export function StaffManagement() {
         confirmLabel="Delete Account"
         onConfirm={confirmDeleteUser}
       />
+
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Staff Member</DialogTitle>
+            <DialogDescription>
+              Update account details and permissions.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleUpdateUser} className="space-y-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="edit-name">Full Name *</Label>
+              <Input
+                id="edit-name"
+                value={formData.name}
+                onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
+                required
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="edit-username">Username *</Label>
+                <Input
+                  id="edit-username"
+                  value={formData.username}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, username: e.target.value.toLowerCase() }))}
+                  required
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-pin">Login PIN</Label>
+                <Input
+                  id="edit-pin"
+                  type="password"
+                  placeholder="Leave blank to keep"
+                  maxLength={4}
+                  value={formData.pin}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, pin: e.target.value.replace(/\D/g, "") }))}
+                />
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-email">Email (Optional)</Label>
+              <Input
+                id="edit-email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-role">System Role</Label>
+              <Select value={formData.role} onValueChange={(val) => setFormData((prev) => ({ ...prev, role: val }))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cashier">Cashier (Sales Only)</SelectItem>
+                  <SelectItem value="specialist">Specialist (Inventory & Sales)</SelectItem>
+                  <SelectItem value="admin">Admin (Full Access)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <DialogFooter className="pt-4">
+              <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)} disabled={isSubmitting}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : "Save Changes"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

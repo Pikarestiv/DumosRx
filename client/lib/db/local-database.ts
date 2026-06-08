@@ -11,7 +11,7 @@ export * from "./procurement";
 export * from "./schema";
 
 import { query, execute } from "./core";
-import { insert } from "./base-helpers";
+import { insert, update, softDelete } from "./base-helpers";
 
 // --- Specialized Domain Helpers ---
 
@@ -156,13 +156,11 @@ export async function createUser(data: any) {
 }
 
 export async function updateUser(id: string, data: any) {
-  const sets = Object.keys(data).map(key => `${key} = ?`).join(", ");
-  const params = [...Object.values(data), new Date().toISOString(), id] as (string | number | null | Uint8Array)[];
-  return await execute(`UPDATE users SET ${sets}, updated_at = ? WHERE id = ?`, params);
+  return await update("users", id, data);
 }
 
 export async function deleteUser(id: string) {
-  return await execute("UPDATE users SET _deleted = 1, updated_at = ? WHERE id = ?", [new Date().toISOString(), id]);
+  return await softDelete("users", id);
 }
 
 /**

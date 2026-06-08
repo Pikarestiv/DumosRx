@@ -73,23 +73,25 @@ export function AppearanceSettings({
                 <Sun className="h-6 w-6 mb-2" />
                 <span className="text-sm font-medium">Light</span>
               </button>
+
               <button
                 onClick={() => setTheme("dark")}
                 className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all cursor-pointer ${
                   theme === "dark"
                     ? "border-primary bg-primary/5"
-                    : "border-muted hover:border-primary/50"
+                    : "border-border hover:border-primary/50"
                 }`}
               >
                 <Moon className="h-6 w-6 mb-2" />
                 <span className="text-sm font-medium">Dark</span>
               </button>
+
               <button
                 onClick={() => setTheme("system")}
                 className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all cursor-pointer ${
                   theme === "system"
                     ? "border-primary bg-primary/5"
-                    : "border-muted hover:border-primary/50"
+                    : "border-border hover:border-primary/50"
                 }`}
               >
                 <Globe className="h-6 w-6 mb-2" />
@@ -136,9 +138,7 @@ export function AppearanceSettings({
               <Input
                 id="currency"
                 value={localCurrency}
-                onChange={(e) =>
-                  setLocalCurrency(e.target.value.toUpperCase())
-                }
+                onChange={(e) => setLocalCurrency(e.target.value.toUpperCase())}
                 placeholder="e.g. NGN, USD, GHS"
               />
             </div>

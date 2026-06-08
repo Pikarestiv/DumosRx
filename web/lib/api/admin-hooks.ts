@@ -114,6 +114,17 @@ export const useDeleteUserMutation = () => {
   });
 };
 
+export const useCreatePlatformAdminMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: any) => webApiClient.request<any>("admin/users", { method: "POST", body: payload }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
+    },
+  });
+};
+
 export const useResetUserPasswordMutation = () => {
   return useMutation({
     mutationFn: (id: string) => webApiClient.request<any>(`admin/users/${id}/reset-password`, { method: "POST" }),

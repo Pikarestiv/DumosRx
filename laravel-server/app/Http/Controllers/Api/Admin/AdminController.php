@@ -222,6 +222,32 @@ class AdminController extends Controller
         }
     }
 
+    public function createPlatformAdmin(Request $request)
+    {
+        if ($request->user()->role !== 'super_admin') {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        $validated = $request->validate([
+            'first_name' => 'required|string|min:2',
+            'last_name' => 'required|string|min:2',
+            'email' => 'required|email|unique:users,email',
+            'phone' => 'nullable|string',
+            'password' => 'required|string|min:8',
+        ]);
+
+        try {
+            $user = $this->adminService->createPlatformAdmin($validated);
+            return response()->json([
+                'message' => 'Platform admin created successfully',
+                'user' => $user
+            ], 201);
+        } catch (\Exception $e) {
+            Log::error("Admin Create Platform Admin Error: " . $e->getMessage());
+            return response()->json(['error' => 'Failed to create platform admin'], 500);
+        }
+    }
+
     public function deactivateUser(Request $request, $id)
     {
         if ($request->user()->role !== 'super_admin') {

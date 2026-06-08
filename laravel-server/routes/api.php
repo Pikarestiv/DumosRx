@@ -131,6 +131,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/products', [AdminController::class, 'products']);
             Route::post('/products/standardize', [AdminController::class, 'standardize']);
             Route::get('/users', [AdminController::class, 'users']);
+            Route::post('/users', [AdminController::class, 'createPlatformAdmin']);
             Route::get('/health', [AdminController::class, 'health']);
             Route::delete('/users/{id}', [AdminController::class, 'deleteUser']);
             Route::post('/users/{id}/deactivate', [AdminController::class, 'deactivateUser']);

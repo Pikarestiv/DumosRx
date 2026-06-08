@@ -640,6 +640,33 @@ class AdminService
         });
     }
 
+    public function createPlatformAdmin($data)
+    {
+        return DB::transaction(function () use ($data) {
+            $roleObj = Role::where('slug', 'super_admin')->first();
+            
+            $user = User::create([
+                'first_name' => $data['first_name'],
+                'last_name' => $data['last_name'],
+                'email' => $data['email'],
+                'phone' => $data['phone'] ?? null,
+                'password' => Hash::make($data['password']),
+                'role' => 'super_admin',
+                'role_id' => $roleObj ? $roleObj->id : null,
+                'is_active' => true,
+            ]);
+
+            ActivityLog::create([
+                'user_id' => Auth::id(),
+                'action' => 'PLATFORM_ADMIN_CREATED',
+                'description' => "Created new platform admin: {$user->email} ({$user->id})",
+                'status' => 'success'
+            ]);
+
+            return $user;
+        });
+    }
+
     public function deactivateUser($id)
     {
         $user = User::findOrFail($id);

@@ -51,11 +51,12 @@ export function StaffManagement() {
   const [editTargetId, setEditTargetId] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
-    name: "",
+    first_name: "",
+    last_name: "",
     username: "",
     email: "",
     pin: "",
-    role: "cashier",
+    role: "sales_staff",
   });
 
   const loadUsers = async () => {
@@ -77,7 +78,7 @@ export function StaffManagement() {
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.username || !formData.pin) {
+    if (!formData.first_name || !formData.last_name || !formData.username || !formData.pin) {
       toast.error("Please fill in all required fields");
       return;
     }
@@ -89,15 +90,25 @@ export function StaffManagement() {
 
     setIsSubmitting(true);
     try {
-      await createUser(formData);
+      const dataToSave = {
+        first_name: formData.first_name.trim(),
+        last_name: formData.last_name.trim(),
+        username: formData.username,
+        email: formData.email,
+        pin: formData.pin,
+        role: formData.role,
+      };
+      
+      await createUser(dataToSave);
       toast.success("Staff account created successfully");
       setIsDialogOpen(false);
       setFormData({
-        name: "",
+        first_name: "",
+        last_name: "",
         username: "",
         email: "",
         pin: "",
-        role: "cashier",
+        role: "sales_staff",
       });
       loadUsers();
     } catch (error: any) {
@@ -118,12 +129,14 @@ export function StaffManagement() {
       return;
     }
     setEditTargetId(user.id);
+    
     setFormData({
-      name: user.name || "",
+      first_name: user.first_name || "",
+      last_name: user.last_name || "",
       username: user.username || "",
       email: user.email || "",
       pin: "", // Leave empty unless modifying
-      role: user.role || "cashier",
+      role: user.role || "sales_staff",
     });
     setIsEditDialogOpen(true);
   };
@@ -131,7 +144,7 @@ export function StaffManagement() {
   const handleUpdateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editTargetId) return;
-    if (!formData.name || !formData.username) {
+    if (!formData.first_name || !formData.last_name || !formData.username) {
       toast.error("Please fill in all required fields");
       return;
     }
@@ -144,7 +157,8 @@ export function StaffManagement() {
     setIsSubmitting(true);
     try {
       const updateData: any = {
-        name: formData.name,
+        first_name: formData.first_name.trim(),
+        last_name: formData.last_name.trim(),
         username: formData.username,
         email: formData.email,
         role: formData.role,
@@ -157,7 +171,7 @@ export function StaffManagement() {
       toast.success("Staff account updated successfully");
       setIsEditDialogOpen(false);
       setEditTargetId(null);
-      setFormData({ name: "", username: "", email: "", pin: "", role: "cashier" });
+      setFormData({ first_name: "", last_name: "", username: "", email: "", pin: "", role: "sales_staff" });
       loadUsers();
     } catch (error: any) {
       console.error("Failed to update user:", error);
@@ -225,17 +239,31 @@ export function StaffManagement() {
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleCreateUser} className="space-y-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="name">Full Name *</Label>
-                <Input
-                  id="name"
-                  placeholder="e.g. John Doe"
-                  value={formData.name}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, name: e.target.value }))
-                  }
-                  required
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="first_name">First Name *</Label>
+                  <Input
+                    id="first_name"
+                    placeholder="e.g. John"
+                    value={formData.first_name}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, first_name: e.target.value }))
+                    }
+                    required
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="last_name">Last Name *</Label>
+                  <Input
+                    id="last_name"
+                    placeholder="e.g. Doe"
+                    value={formData.last_name}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, last_name: e.target.value }))
+                    }
+                    required
+                  />
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
@@ -295,13 +323,11 @@ export function StaffManagement() {
                     <SelectValue placeholder="Select role" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="cashier">Cashier (Sales Only)</SelectItem>
-                    <SelectItem value="specialist">
-                      Specialist (Inventory & Sales)
-                    </SelectItem>
-                    <SelectItem value="admin">
-                      Admin (Full Access)
-                    </SelectItem>
+                    <SelectItem value="admin">Admin (Local Master)</SelectItem>
+                    <SelectItem value="manager">Manager (Admin)</SelectItem>
+                    <SelectItem value="specialist">Specialist (Sub-account)</SelectItem>
+                    <SelectItem value="sales_staff">Sales Staff / Cashier</SelectItem>
+                    <SelectItem value="auditor">Auditor (Read-only)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -361,9 +387,13 @@ export function StaffManagement() {
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
-                          {user.name.charAt(0).toUpperCase()}
+                          {user.first_name?.charAt(0).toUpperCase() || (user.name && user.name.charAt(0).toUpperCase()) || "U"}
                         </div>
-                        <span className="font-medium">{user.name}</span>
+                        <span className="font-medium">
+                          {user.first_name || user.last_name 
+                            ? `${user.first_name || ""} ${user.last_name || ""}`.trim()
+                            : user.name}
+                        </span>
                       </div>
                     </TableCell>
                     <TableCell className="font-mono text-xs">{user.username}</TableCell>
@@ -433,14 +463,25 @@ export function StaffManagement() {
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleUpdateUser} className="space-y-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="edit-name">Full Name *</Label>
-              <Input
-                id="edit-name"
-                value={formData.name}
-                onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
-                required
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="edit-first-name">First Name *</Label>
+                <Input
+                  id="edit-first-name"
+                  value={formData.first_name}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, first_name: e.target.value }))}
+                  required
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-last-name">Last Name *</Label>
+                <Input
+                  id="edit-last-name"
+                  value={formData.last_name}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, last_name: e.target.value }))}
+                  required
+                />
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
@@ -480,9 +521,11 @@ export function StaffManagement() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="cashier">Cashier (Sales Only)</SelectItem>
-                  <SelectItem value="specialist">Specialist (Inventory & Sales)</SelectItem>
-                  <SelectItem value="admin">Admin (Full Access)</SelectItem>
+                  <SelectItem value="admin">Admin (Local Master)</SelectItem>
+                  <SelectItem value="manager">Manager (Admin)</SelectItem>
+                  <SelectItem value="specialist">Specialist (Sub-account)</SelectItem>
+                  <SelectItem value="sales_staff">Sales Staff / Cashier</SelectItem>
+                  <SelectItem value="auditor">Auditor (Read-only)</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -395,7 +395,7 @@ export function POSSystem() {
             <div className="flex items-center gap-2 px-3 py-1 bg-muted rounded-full border shrink-0">
               <User className="h-3 w-3 text-muted-foreground" />
               <span className="text-xs font-medium max-w-[80px] truncate">
-                {user?.name}
+                {user?.first_name || user?.username}
               </span>
               <Button
                 variant="ghost"

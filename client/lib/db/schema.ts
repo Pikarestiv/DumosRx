@@ -303,7 +303,8 @@ CREATE TABLE IF NOT EXISTS expenses (
 
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
+  first_name TEXT,
+  last_name TEXT,
   username TEXT UNIQUE,
   email TEXT UNIQUE,
   pin TEXT,

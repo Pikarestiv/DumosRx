@@ -16,14 +16,15 @@ import { UserPlus, Loader2 } from "lucide-react";
 import { useState } from "react";
 
 interface RegisterStepProps {
-  onRegister: (name: string, username: string, pin: string, storeName: string, existingStoreId?: string) => Promise<void>;
+  onRegister: (firstName: string, lastName: string, username: string, pin: string, storeName: string, existingStoreId?: string) => Promise<void>;
   isLoading: boolean;
   isCloudLinked?: boolean;
   existingStores?: any[];
 }
 
 export function RegisterStep({ onRegister, isLoading, isCloudLinked, existingStores = [] }: RegisterStepProps) {
-  const [name, setName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [username, setUsername] = useState("");
   const [pin, setPin] = useState("");
   const [storeName, setStoreName] = useState("");
@@ -31,7 +32,7 @@ export function RegisterStep({ onRegister, isLoading, isCloudLinked, existingSto
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onRegister(name, username, pin, storeName, selectedStoreId === "new" ? undefined : selectedStoreId);
+    onRegister(firstName, lastName, username, pin, storeName, selectedStoreId === "new" ? undefined : selectedStoreId);
   };
 
   return (
@@ -96,16 +97,29 @@ export function RegisterStep({ onRegister, isLoading, isCloudLinked, existingSto
                 disabled={selectedStoreId !== "new"}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="name">Administrator Full Name</Label>
-              <Input
-                id="name"
-                placeholder="e.g. John Doe"
-                className="bg-background/50"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="first_name">First Name</Label>
+                <Input
+                  id="first_name"
+                  placeholder="e.g. John"
+                  className="bg-background/50"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="last_name">Last Name</Label>
+                <Input
+                  id="last_name"
+                  placeholder="e.g. Doe"
+                  className="bg-background/50"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  required
+                />
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="reg-username">Username</Label>

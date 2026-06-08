@@ -6,7 +6,8 @@ import { apiClient } from "@/lib/api/client";
 
 interface User {
   id: string;
-  name: string;
+  first_name: string;
+  last_name: string;
   username: string;
   role: "super_admin" | "admin" | "manager" | "specialist" | "sales_staff" | "auditor";
 }
@@ -77,7 +78,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const userProfile: User = {
         id: dbUser.id,
-        name: dbUser.name,
+        first_name: dbUser.first_name,
+        last_name: dbUser.last_name,
         username: dbUser.username,
         role: dbUser.role as any,
       };
@@ -92,7 +94,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (cleanIdentifier.toLowerCase() === "admin") {
       const defaultAdmin: User = {
         id: "default-admin",
-        name: "Default Admin",
+        first_name: "Default",
+        last_name: "Admin",
         username: "admin",
         role: "admin",
       };
@@ -100,8 +103,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Attempt to persist the default admin to DB
       try {
         await query(
-          "INSERT OR IGNORE INTO users (id, name, username, pin, role, is_active) VALUES (?, ?, ?, ?, ?, ?)",
-          [defaultAdmin.id, defaultAdmin.name, defaultAdmin.username, "1234", defaultAdmin.role, 1]
+          "INSERT OR IGNORE INTO users (id, first_name, last_name, username, pin, role, is_active) VALUES (?, ?, ?, ?, ?, ?, ?)",
+          [defaultAdmin.id, defaultAdmin.first_name, defaultAdmin.last_name, defaultAdmin.username, "1234", defaultAdmin.role, 1]
         );
       } catch (e) {
         console.error("Failed to persist default admin", e);

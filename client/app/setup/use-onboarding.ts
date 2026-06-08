@@ -68,7 +68,7 @@ export function useOnboarding() {
     router.push(`?${params.toString()}`);
   };
 
-  const handleRegister = async (name: string, username: string, pin: string, storeName: string, existingStoreId?: string) => {
+  const handleRegister = async (firstName: string, lastName: string, username: string, pin: string, storeName: string, existingStoreId?: string) => {
     setIsLoading(true);
     try {
       const userId = generateId();
@@ -90,8 +90,8 @@ export function useOnboarding() {
 
       // 2. Create the administrator account
       await execute(
-        "INSERT INTO users (id, name, username, pin, role, store_id, is_active, created_at, updated_at, _synced) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        [userId, name, username, pin, "admin", storeId, 1, now, now, 0],
+        "INSERT INTO users (id, first_name, last_name, username, pin, role, store_id, is_active, created_at, updated_at, _synced) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        [userId, firstName, lastName, username, pin, "admin", storeId, 1, now, now, 0],
       );
 
       toast.success(`${storeName} configured and administrator created!`);

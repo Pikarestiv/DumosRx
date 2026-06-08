@@ -240,7 +240,8 @@ export async function seedUsers() {
   await execute("DELETE FROM users WHERE id = 'u1' OR username = 'admin'");
   await insert("users", {
     id: "u1",
-    name: "Default Admin",
+    first_name: "Default",
+    last_name: "Admin",
     username: "admin",
     email: "admin@dumosrx.com",
     pin: "1234",

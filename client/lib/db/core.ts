@@ -8,9 +8,9 @@ import { SCHEMA_SQL } from "./schema";
 
 let SQL: SqlJsStatic | null = null;
 let db: any = null;
-let currentUser: { id: string; name: string; role: string } | null = null;
+let currentUser: { id: string; first_name: string; last_name: string; role: string } | null = null;
 
-export function setCurrentUser(user: { id: string; name: string; role: string } | null) {
+export function setCurrentUser(user: { id: string; first_name: string; last_name: string; role: string } | null) {
   currentUser = user;
 }
 
@@ -40,7 +40,7 @@ export async function initDatabase(): Promise<any> {
     { table: 'sale_items', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
     { table: 'prescriptions', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
     { table: 'expenses', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
-    { table: 'users', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0', 'store_id TEXT'] },
+    { table: 'users', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0', 'store_id TEXT', 'first_name TEXT', 'last_name TEXT'] },
     { table: 'audit_logs', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
     { table: 'returns', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
     { table: 'purchase_orders', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0', 'ordered_by TEXT', 'order_date TEXT', 'order_number TEXT'] },

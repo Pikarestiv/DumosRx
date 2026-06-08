@@ -122,7 +122,7 @@ export default function SettingsPage() {
           {user && (
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-sm">
               <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-              <span className="font-medium text-foreground">{user.name || user.username}</span>
+              <span className="font-medium text-foreground">{user.first_name || user.username}</span>
               <span className="text-muted-foreground bg-background/50 px-2 py-0.5 rounded-md text-xs border">
                 {user.role.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())}
               </span>

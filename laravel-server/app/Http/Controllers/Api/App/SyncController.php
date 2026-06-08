@@ -362,9 +362,14 @@ class SyncController extends Controller
                     }
                 }
 
-                // SQLite on desktop has a NOT NULL constraint on username
-                if ($table === 'users' && empty($array['username'])) {
-                    $array['username'] = $array['email'] ?: 'user_' . substr($array['id'], 0, 8);
+                // Map users fields for SQLite
+                if ($table === 'users') {
+                    if (empty($array['username'])) {
+                        $array['username'] = $array['email'] ?: 'user_' . substr($array['id'], 0, 8);
+                    }
+                    if (!isset($array['name']) && isset($array['first_name'])) {
+                        $array['name'] = trim(($array['first_name'] ?? '') . ' ' . ($array['last_name'] ?? ''));
+                    }
                 }
 
                 // Map cashier_id back to user_id for client SQLite sales table

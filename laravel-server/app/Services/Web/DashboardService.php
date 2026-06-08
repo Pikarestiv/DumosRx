@@ -122,6 +122,29 @@ class DashboardService
             ];
         });
 
+        $staff = collect([]);
+        try {
+            if (Schema::hasTable('users')) {
+                // Fetch staff belonging to the user's stores or created by them
+                $staff = User::whereIn('store_id', $storeIds)
+                             ->orWhere('referred_by_id', $userId)
+                             ->get()
+                             ->map(function($u) {
+                                 return [
+                                     'id' => $u->id,
+                                     'name' => $u->name ?? trim($u->first_name . ' ' . $u->last_name),
+                                     'email' => $u->email,
+                                     'role' => $u->role,
+                                     'store_id' => $u->store_id,
+                                     'created_at' => $u->created_at,
+                                     'last_login_at' => $u->last_login_at,
+                                 ];
+                             });
+            }
+        } catch (\Exception $e) {
+            Log::error("DashboardService [Staff]: " . $e->getMessage());
+        }
+
         return [
             'stats' => [
                 'total_sales' => [
@@ -141,6 +164,7 @@ class DashboardService
             ],
             'stores' => $stores,
             'recent_sales' => $recentSales,
+            'staff' => $staff,
             'user' => [
                 'name' => $user->name,
                 'first_name' => $user->first_name,

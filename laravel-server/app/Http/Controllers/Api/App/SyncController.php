@@ -52,6 +52,11 @@ class SyncController extends Controller
         DB::beginTransaction();
 
         $hasSyncedAtCache = [];
+        $currentUser = $request->user();
+        $currentStoreId = null;
+        if ($currentUser) {
+            $currentStoreId = $currentUser->store_id ?? \App\Models\Store::where('user_id', $currentUser->id)->value('id');
+        }
 
         try {
             foreach ($changes as $change) {
@@ -64,6 +69,13 @@ class SyncController extends Controller
 
                 $payload = is_array($change['payload']) ? $change['payload'] : json_decode($change['payload'], true);
                 $now = now();
+
+                // Ensure staff users get associated with the store
+                if ($change['table_name'] === 'users' && $currentStoreId) {
+                    if (($payload['role'] ?? null) !== 'store_owner' && ($payload['role'] ?? null) !== 'admin') {
+                        $payload['store_id'] = $payload['store_id'] ?? $currentStoreId;
+                    }
+                }
 
                 // Map user_id to cashier_id for sales table coming from client
                 if ($change['table_name'] === 'sales' && isset($payload['user_id'])) {

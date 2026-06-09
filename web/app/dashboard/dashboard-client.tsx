@@ -9,6 +9,7 @@ import { Sidebar } from "@/components/dashboard/sidebar";
 import { Header } from "@/components/dashboard/header";
 import { BroadcastBanner } from "@/components/dashboard/broadcast-banner";
 import { BottomNav } from "@/components/dashboard/bottom-nav";
+import { VerificationBanner } from "@/components/dashboard/verification-banner";
 
 // View Components
 import { OverviewView } from "@/components/dashboard/views/overview-view";
@@ -50,6 +51,8 @@ export function DashboardClient({ view }: { view: string }) {
   const renderView = () => {
     if (loading && !data) return <DashboardSkeleton />;
 
+    const requiresVerification = user?.require_email_verification && !user?.email_verified_at;
+
     switch (view) {
       case "overview":
         return <OverviewView stats={stats} user={user} stores={stores} onReset={resetAccountData} onNavigate={setActiveTab} />;
@@ -66,7 +69,7 @@ export function DashboardClient({ view }: { view: string }) {
       case "billing":
         return <BillingView />;
       case "downloads":
-        return <DownloadsView releaseLinks={releaseLinks} />;
+        return <DownloadsView releaseLinks={releaseLinks} requiresVerification={requiresVerification} />;
       case "notifications":
         return <NotificationsView onBack={() => setActiveTab("overview")} />;
       case "profile":
@@ -86,6 +89,9 @@ export function DashboardClient({ view }: { view: string }) {
       />
       <div className="flex-1 flex flex-col min-w-0">
         <BroadcastBanner />
+        {user?.require_email_verification && !user?.email_verified_at && (
+          <VerificationBanner email={user.email} />
+        )}
         <Header onSetActiveTab={setActiveTab} />
         <main className="flex-1 overflow-y-auto p-4 md:p-8 scrollbar-hide pb-24 md:pb-8">
           <div className="max-w-7xl mx-auto">

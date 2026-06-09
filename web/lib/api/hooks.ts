@@ -211,3 +211,12 @@ export const useUpdateSystemConfigMutation = () => {
     },
   });
 };
+
+export const useResendVerificationMutation = () => {
+  return useMutation({
+    mutationFn: (email: string) => webApiClient.request("resend-verification", {
+      method: "POST",
+      body: JSON.stringify({ email })
+    })
+  });
+};

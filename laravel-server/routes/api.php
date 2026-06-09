@@ -39,6 +39,8 @@ Route::prefix('v1')->group(function () {
         Route::post('/register', [AuthController::class, 'register']);
         Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
         Route::post('/reset-password', [AuthController::class, 'resetPassword']);
+        Route::post('/verify-email', [AuthController::class, 'verifyEmail']);
+        Route::post('/resend-verification', [AuthController::class, 'resendVerification']);
     });
     Route::get('/health', function () {
         return response()->json(['status' => 'ok', 'timestamp' => now()]);
@@ -62,7 +64,7 @@ Route::prefix('v1')->group(function () {
 
 
     // Protected Routes
-    Route::middleware(['auth:sanctum', 'account_status', 'throttle:60,1'])->group(function () {
+    Route::middleware(['auth:sanctum', 'account_status', \App\Http\Middleware\EnsureEmailIsVerified::class, 'throttle:60,1'])->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::get('/user', [AuthController::class, 'user']);
         Route::post('/refresh', [AuthController::class, 'refresh']);

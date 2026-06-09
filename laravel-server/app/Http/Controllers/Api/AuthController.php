@@ -86,6 +86,24 @@ class AuthController extends Controller
             }
         }
 
+        $requireVerification = \App\Models\SystemConfig::getVal('require_email_verification', false) === true || \App\Models\SystemConfig::getVal('require_email_verification', false) === 'true';
+        if ($requireVerification) {
+            $verifyToken = Str::random(64);
+            DB::table('email_verification_tokens')->updateOrInsert(
+                ['email' => $user->email],
+                ['token' => Hash::make($verifyToken), 'created_at' => now()]
+            );
+            $verificationUrl = config('app.frontend_url', 'http://localhost:3002') . "/verify-email?token=$verifyToken&email=" . urlencode($user->email);
+            try {
+                Mail::to($user->email)->send(new \App\Mail\EmailVerificationMail($user, $verificationUrl));
+            } catch (Exception $e) {
+                Log::error("Failed to send verification email: " . $e->getMessage());
+            }
+        } else {
+            $user->email_verified_at = now();
+            $user->save();
+        }
+
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
@@ -163,6 +181,7 @@ class AuthController extends Controller
             'user' => $user,
             'token' => $token,
             'role' => $user->role,
+            'require_email_verification' => \App\Models\SystemConfig::getVal('require_email_verification', false) === true || \App\Models\SystemConfig::getVal('require_email_verification', false) === 'true'
         ]);
 
         if ($request->device_name === 'web' || $user->role === 'super_admin') {
@@ -191,6 +210,65 @@ class AuthController extends Controller
         return response()->json([
             'message' => 'Logged out successfully',
         ]);
+    }
+
+    public function verifyEmail(Request $request)
+    {
+        $request->validate([
+            'token' => 'required',
+            'email' => 'required|email',
+        ]);
+
+        $record = DB::table('email_verification_tokens')->where('email', $request->email)->first();
+
+        if (!$record || !Hash::check($request->token, $record->token)) {
+            return response()->json(['message' => 'Invalid or expired verification link.'], 400);
+        }
+
+        $user = clone $request->user();
+        if (!$user) {
+            $user = User::where('email', $request->email)->first();
+        }
+
+        if ($user) {
+            $user->email_verified_at = now();
+            $user->save();
+            DB::table('email_verification_tokens')->where('email', $request->email)->delete();
+            return response()->json(['message' => 'Email verified successfully.', 'user' => $user]);
+        }
+
+        return response()->json(['message' => 'User not found.'], 404);
+    }
+
+    public function resendVerification(Request $request)
+    {
+        $user = clone $request->user();
+        if (!$user) {
+            $request->validate(['email' => 'required|email']);
+            $user = User::where('email', $request->email)->first();
+        }
+
+        if (!$user) {
+            return response()->json(['message' => 'User not found.'], 404);
+        }
+
+        if ($user->email_verified_at) {
+            return response()->json(['message' => 'Email is already verified.'], 400);
+        }
+
+        $verifyToken = Str::random(64);
+        DB::table('email_verification_tokens')->updateOrInsert(
+            ['email' => $user->email],
+            ['token' => Hash::make($verifyToken), 'created_at' => now()]
+        );
+        $verificationUrl = config('app.frontend_url', 'http://localhost:3002') . "/verify-email?token=$verifyToken&email=" . urlencode($user->email);
+        try {
+            Mail::to($user->email)->send(new \App\Mail\EmailVerificationMail($user, $verificationUrl));
+            return response()->json(['message' => 'Verification email sent.']);
+        } catch (Exception $e) {
+            Log::error("Failed to send verification email: " . $e->getMessage());
+            return response()->json(['message' => 'Failed to send verification email.'], 500);
+        }
     }
     public function refresh(Request $request)
     {

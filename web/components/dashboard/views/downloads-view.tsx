@@ -10,9 +10,10 @@ import { Badge } from "@/components/ui/badge";
 
 interface DownloadsViewProps {
   releaseLinks: any;
+  requiresVerification?: boolean;
 }
 
-export function DownloadsView({ releaseLinks }: DownloadsViewProps) {
+export function DownloadsView({ releaseLinks, requiresVerification }: DownloadsViewProps) {
   const downloadCards = [
     {
       os: "Windows",
@@ -71,12 +72,16 @@ export function DownloadsView({ releaseLinks }: DownloadsViewProps) {
               </p>
               <Button 
                 className="w-full font-bold h-12" 
-                variant={app.link ? "default" : "outline"}
-                disabled={!app.link}
-                asChild={!!app.link}
+                variant={app.link && !requiresVerification ? "default" : "outline"}
+                disabled={!app.link || requiresVerification}
+                asChild={!!app.link && !requiresVerification}
               >
                 {app.link ? (
-                  <a href={app.link} target="_blank" rel="noopener noreferrer">Download for {app.os}</a>
+                  requiresVerification ? (
+                    <span>Verify Email to Download</span>
+                  ) : (
+                    <a href={app.link} target="_blank" rel="noopener noreferrer">Download for {app.os}</a>
+                  )
                 ) : (
                   <span>Unavailable</span>
                 )}
@@ -91,8 +96,12 @@ export function DownloadsView({ releaseLinks }: DownloadsViewProps) {
         <p className="text-muted-foreground mb-6">
           Access all historical versions, beta releases, and source code on our official repository.
         </p>
-        <Button variant="outline" className="font-bold" asChild>
-          <a href={`https://github.com/DumosRx/client/releases`} target="_blank">Browse All Releases</a>
+        <Button variant="outline" className="font-bold" disabled={requiresVerification} asChild={!requiresVerification}>
+          {requiresVerification ? (
+            <span>Verify Email to Browse</span>
+          ) : (
+            <a href={`https://github.com/DumosRx/client/releases`} target="_blank">Browse All Releases</a>
+          )}
         </Button>
       </div>
     </div>

@@ -93,7 +93,7 @@ class AuthController extends Controller
                 ['email' => $user->email],
                 ['token' => Hash::make($verifyToken), 'created_at' => now()]
             );
-            $verificationUrl = config('app.frontend_url', 'http://localhost:3002') . "/verify-email?token=$verifyToken&email=" . urlencode($user->email);
+            $verificationUrl = config('app.frontend_url', 'https://dumosrx.com') . "/verify-email?token=$verifyToken&email=" . urlencode($user->email);
             try {
                 Mail::to($user->email)->send(new \App\Mail\EmailVerificationMail($user, $verificationUrl));
             } catch (Exception $e) {
@@ -225,7 +225,7 @@ class AuthController extends Controller
             return response()->json(['message' => 'Invalid or expired verification link.'], 400);
         }
 
-        $user = clone $request->user();
+        $user = $request->user();
         if (!$user) {
             $user = User::where('email', $request->email)->first();
         }
@@ -242,7 +242,7 @@ class AuthController extends Controller
 
     public function resendVerification(Request $request)
     {
-        $user = clone $request->user();
+        $user = $request->user();
         if (!$user) {
             $request->validate(['email' => 'required|email']);
             $user = User::where('email', $request->email)->first();
@@ -261,7 +261,7 @@ class AuthController extends Controller
             ['email' => $user->email],
             ['token' => Hash::make($verifyToken), 'created_at' => now()]
         );
-        $verificationUrl = config('app.frontend_url', 'http://localhost:3002') . "/verify-email?token=$verifyToken&email=" . urlencode($user->email);
+        $verificationUrl = config('app.frontend_url', 'https://dumosrx.com') . "/verify-email?token=$verifyToken&email=" . urlencode($user->email);
         try {
             Mail::to($user->email)->send(new \App\Mail\EmailVerificationMail($user, $verificationUrl));
             return response()->json(['message' => 'Verification email sent.']);

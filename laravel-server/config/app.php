@@ -15,6 +15,8 @@ return [
 
     'asset_url' => env('ASSET_URL'),
 
+    'frontend_url' => env('FRONTEND_URL', 'https://dumosrx.com'),
+
     'timezone' => 'UTC',
 
     'locale' => 'en',

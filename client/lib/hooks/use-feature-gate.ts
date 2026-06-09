@@ -6,12 +6,12 @@ export type SubscriptionTier = "free" | "starter" | "local" | "pro" | "enterpris
 
 export function useFeatureGate() {
   const { storeProfile } = useStore();
-  const currentTier: SubscriptionTier =
-    (storeProfile?.subscription_tier as SubscriptionTier) || "free";
+  const currentTierRaw = (storeProfile?.subscription_tier as string) || "free";
+  const currentTier = currentTierRaw.toLowerCase() as SubscriptionTier;
 
   const isFree = currentTier === "free";
   const isStarter = currentTier === "starter" || currentTier === "local";
-  const isPro = currentTier === "pro";
+  const isPro = currentTier === "pro" || currentTier === "pro trial";
   const isEnterprise = currentTier === "enterprise";
 
   return {

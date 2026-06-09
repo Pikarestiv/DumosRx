@@ -3,6 +3,7 @@
 import React, { createContext, useContext, ReactNode } from "react";
 import { update, insert } from "@/lib/db/local-database";
 import { useLocalData } from "@/lib/db/hooks/useLocalData";
+import { useAuth } from "@/lib/context/auth-context";
 
 export type StoreType = "pharmacy" | "grocery" | "supermarket" | "general";
 
@@ -84,8 +85,17 @@ const terminology: Record<StoreType, Record<string, string>> = {
 };
 
 export function StoreProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+  
+  // If user has a specific store_id (like a cashier), fetch that store.
+  // Otherwise, if they are the owner (store_id might be null/undefined initially on their own local install), fallback to the first store found.
+  const sql = user?.store_id 
+    ? "SELECT * FROM store_profile WHERE id = ?" 
+    : "SELECT * FROM store_profile LIMIT 1";
+  const params = user?.store_id ? [user.store_id] : [];
+
   const { data: profiles, loading, refetch } = useLocalData<StoreProfile>(
-    "SELECT * FROM store_profile LIMIT 1"
+    sql, params
   );
 
   const storeProfile = profiles[0] || null;

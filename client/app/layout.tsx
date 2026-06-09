@@ -88,14 +88,14 @@ export default function RootLayout({
             <GlobalErrorListener>
               <ThemeProvider defaultTheme="light" storageKey="dumosrx-ui-theme">
                 <DatabaseProvider>
-                  <StoreProvider>
-                    <AuthProvider>
+                  <AuthProvider>
+                    <StoreProvider>
                       <AuthListener />
                       <QuickSetupWizard />
                       <LicenseGuard>{children}</LicenseGuard>
                       <Toaster />
-                    </AuthProvider>
-                  </StoreProvider>
+                    </StoreProvider>
+                  </AuthProvider>
                 </DatabaseProvider>
               </ThemeProvider>
             </GlobalErrorListener>

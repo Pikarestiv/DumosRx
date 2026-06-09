@@ -141,7 +141,7 @@ export async function createPrescription(data: any, items: any[]) {
  * Staff & Users
  */
 export async function getUsers() {
-  return await query<any>("SELECT * FROM users WHERE _deleted = 0 ORDER BY name ASC");
+  return await query<any>("SELECT * FROM users WHERE _deleted = 0 ORDER BY first_name ASC");
 }
 
 export async function createUser(data: any) {

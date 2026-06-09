@@ -10,6 +10,7 @@ interface User {
   last_name: string;
   username: string;
   role: "super_admin" | "admin" | "manager" | "specialist" | "sales_staff" | "auditor";
+  store_id?: string;
 }
 
 interface AuthContextType {
@@ -82,6 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         last_name: dbUser.last_name,
         username: dbUser.username,
         role: dbUser.role as any,
+        store_id: dbUser.store_id,
       };
 
       setUser(userProfile);

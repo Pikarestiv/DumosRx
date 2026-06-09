@@ -288,36 +288,36 @@ class SyncController extends Controller
             // Multi-tenant filtering
             $user = $request->user();
             if ($user->role !== 'super_admin') {
+                $ownerId = $user->store_id 
+                    ? Store::where('id', $user->store_id)->value('user_id') 
+                    : $user->id;
+                
+                $storeIds = $user->store_id 
+                    ? [$user->store_id] 
+                    : Store::where('user_id', $ownerId)->pluck('id')->toArray();
+                    
+                $userIds = User::whereIn('store_id', $storeIds)->pluck('id')->push($ownerId)->toArray();
+
                 if ($table === 'users') {
-                    // Only sync themselves and users in their stores
-                    $storeIds = Store::where('user_id', $user->id)->pluck('id')->toArray();
-                    $query->where(function ($q) use ($user, $storeIds) {
-                        $q->where('id', $user->id)
-                            ->orWhereIn('store_id', $storeIds);
-                    });
+                    $query->whereIn('id', $userIds);
                 } elseif ($table === 'store_profile') {
-                    $query->where('user_id', $user->id)->with(['user.subscriptions']);
+                    if ($user->store_id) {
+                        $query->where('id', $user->store_id)->with(['user.subscriptions']);
+                    } else {
+                        $query->where('user_id', $ownerId)->with(['user.subscriptions']);
+                    }
                 } elseif ($table === 'sales') {
-                    // For sales, we pull all sales from the stores owned by the user
-                    $storeIds = Store::where('user_id', $user->id)->pluck('id')->toArray();
-                    $userIds = User::whereIn('store_id', $storeIds)->pluck('id')->push($user->id)->toArray();
                     $query->whereIn('cashier_id', $userIds);
                 } elseif ($table === 'purchase_orders') {
-                    $storeIds = Store::where('user_id', $user->id)->pluck('id')->toArray();
-                    $userIds = User::whereIn('store_id', $storeIds)->pluck('id')->push($user->id)->toArray();
                     $query->whereIn('ordered_by', $userIds);
                 } elseif ($table === 'purchase_order_items') {
-                    $storeIds = Store::where('user_id', $user->id)->pluck('id')->toArray();
-                    $userIds = User::whereIn('store_id', $storeIds)->pluck('id')->push($user->id)->toArray();
                     $poIds = PurchaseOrder::whereIn('ordered_by', $userIds)->pluck('id')->toArray();
                     $query->whereIn('purchase_order_id', $poIds);
                 } elseif ($table === 'stock_movements') {
-                    $storeIds = Store::where('user_id', $user->id)->pluck('id')->toArray();
-                    $userIds = User::whereIn('store_id', $storeIds)->pluck('id')->push($user->id)->toArray();
                     $query->whereIn('performed_by', $userIds);
                 } else {
-                    // Default to filtering by user_id for medicines, customers, suppliers
-                    $query->where('user_id', $user->id);
+                    // Default to filtering by owner_id for medicines, customers, suppliers
+                    $query->where('user_id', $ownerId);
                 }
             }
 

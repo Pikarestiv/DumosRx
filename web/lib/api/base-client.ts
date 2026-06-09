@@ -87,6 +87,11 @@ apiClient.interceptors.response.use(
     const status = error.response?.status;
     const method = originalRequest?.method?.toUpperCase();
     const url = originalRequest?.url;
+    const serverMessage = error.response?.data?.message;
+    if (serverMessage && typeof serverMessage === 'string') {
+      error.message = serverMessage;
+    }
+
     const errorMessage = error.message || "Unknown error";
     const errorDetails = error.response?.data || error.stack;
 

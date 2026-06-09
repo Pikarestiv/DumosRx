@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/context/auth-context";
 import { query, execute, generateId } from "@/lib/db/local-database";
 import { sync } from "@/lib/db/sync-engine";
+import { restoreDatabase } from "@/lib/db/core";
 import { toast } from "sonner";
 
 export type OnboardingStep = "welcome" | "register" | "cloud" | "backup" | "syncing";
@@ -198,6 +199,22 @@ export function useOnboarding() {
     }
   };
 
+  const handleLocalRestore = async (file: File) => {
+    setIsLoading(true);
+    try {
+      const buffer = await file.arrayBuffer();
+      await restoreDatabase(new Uint8Array(buffer));
+      toast.success("Database restored successfully!");
+      // Send the user to the login screen after restoring a local backup
+      setTimeout(() => router.push("/login"), 1000);
+    } catch (err) {
+      console.error("Local restore failed:", err);
+      toast.error("Failed to restore from backup file. Ensure it is a valid .drx file.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return {
     onboardingStep,
     isLoading,
@@ -207,6 +224,7 @@ export function useOnboarding() {
     setStep,
     handleRegister,
     handleCloudRestore,
+    handleLocalRestore,
     goBack, isCloudLinked,
     existingStores,
     searchParams,

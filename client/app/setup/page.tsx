@@ -24,6 +24,7 @@ export default function SetupPage() {
     setStep,
     handleRegister,
     handleCloudRestore,
+    handleLocalRestore,
     goBack,
     isCloudLinked,
     existingStores,
@@ -108,7 +109,11 @@ export default function SetupPage() {
           )}
 
           {onboardingStep === "backup" && (
-            <BackupStep onCancel={() => setStep("welcome")} />
+            <BackupStep 
+              onCancel={() => setStep("welcome")} 
+              onRestore={handleLocalRestore}
+              isLoading={isLoading}
+            />
           )}
 
           {onboardingStep === "syncing" && (

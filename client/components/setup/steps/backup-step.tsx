@@ -10,13 +10,25 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { FileUp } from "lucide-react";
+import { useRef } from "react";
+import { FileUp, Loader2 } from "lucide-react";
 
 interface BackupStepProps {
   onCancel: () => void;
+  onRestore: (file: File) => void;
+  isLoading: boolean;
 }
 
-export function BackupStep({ onCancel }: BackupStepProps) {
+export function BackupStep({ onCancel, onRestore, isLoading }: BackupStepProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      onRestore(file);
+    }
+  };
+
   return (
     <motion.div
       key="backup"
@@ -35,18 +47,44 @@ export function BackupStep({ onCancel }: BackupStepProps) {
           </CardDescription>
         </CardHeader>
         <CardContent className="py-8 pt-6">
-          <div className="flex flex-col items-center justify-center border-2 border-dashed border-border rounded-xl p-8 bg-background/30 hover:bg-background/50 transition-colors cursor-pointer group">
-            <FileUp className="h-10 w-10 text-muted-foreground group-hover:text-primary transition-colors mb-4" />
-            <p className="text-sm font-medium text-foreground">
-              Click to select backup file
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              .drx backup files supported
-            </p>
+          <div 
+            className={`flex flex-col items-center justify-center border-2 border-dashed border-border rounded-xl p-8 transition-colors ${isLoading ? 'bg-background/10 cursor-not-allowed opacity-70' : 'bg-background/30 hover:bg-background/50 cursor-pointer group'}`}
+            onClick={() => {
+              if (!isLoading) fileInputRef.current?.click();
+            }}
+          >
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              className="hidden" 
+              accept=".drx" 
+              onChange={handleFileChange}
+            />
+            {isLoading ? (
+              <>
+                <Loader2 className="h-10 w-10 text-primary animate-spin mb-4" />
+                <p className="text-sm font-medium text-foreground">
+                  Restoring database...
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Please do not close the app
+                </p>
+              </>
+            ) : (
+              <>
+                <FileUp className="h-10 w-10 text-muted-foreground group-hover:text-primary transition-colors mb-4" />
+                <p className="text-sm font-medium text-foreground">
+                  Click to select backup file
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  .drx backup files supported
+                </p>
+              </>
+            )}
           </div>
         </CardContent>
         <CardFooter className="pb-8">
-          <Button variant="outline" className="w-full" onClick={onCancel}>
+          <Button variant="outline" className="w-full" onClick={onCancel} disabled={isLoading}>
             Cancel
           </Button>
         </CardFooter>

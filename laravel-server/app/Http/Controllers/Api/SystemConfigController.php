@@ -13,18 +13,11 @@ class SystemConfigController extends Controller
      */
     public function show($key)
     {
-        $config = SystemConfig::where('key', $key)->first();
-
-        if (!$config) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Configuration not found'
-            ], 404);
-        }
+        $value = SystemConfig::getVal($key, null);
 
         return response()->json([
             'success' => true,
-            'data' => $config->value
+            'data' => $value
         ]);
     }
 

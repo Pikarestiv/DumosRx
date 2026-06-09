@@ -191,7 +191,7 @@ export function StaffView({ staff, stores }: StaffViewProps) {
                       </TableCell>
                       <TableCell className="text-center">
                         <Badge variant="secondary" className="font-bold capitalize px-3">
-                          {s.role}
+                          {s.role?.replace(/_/g, ' ')}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-center text-sm font-bold text-slate-500">

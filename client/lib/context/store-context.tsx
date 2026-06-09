@@ -49,6 +49,9 @@ interface StoreContextType {
   updateStoreProfile: (data: Partial<StoreProfile>) => void;
   setTheme: (theme: string) => void;
   t: (key: string) => string;
+  activeStoreId: string | null;
+  availableStores: StoreProfile[];
+  switchStore: (storeId: string) => void;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -86,19 +89,52 @@ const terminology: Record<StoreType, Record<string, string>> = {
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  
+  const [activeStoreId, setActiveStoreId] = React.useState<string | null>(null);
+
+  // Load from localStorage on mount
+  React.useEffect(() => {
+    if (typeof window !== "undefined" && user && !user.store_id) {
+      const saved = localStorage.getItem("dumos_active_store_id");
+      if (saved) setActiveStoreId(saved);
+    }
+  }, [user]);
+
   // If user has a specific store_id (like a cashier), fetch that store.
-  // Otherwise, if they are the owner (store_id might be null/undefined initially on their own local install), fallback to the first store found.
-  const sql = user?.store_id 
+  // Otherwise, use activeStoreId if set, else fallback to LIMIT 1
+  const targetId = user?.store_id || activeStoreId;
+
+  const sql = targetId 
     ? "SELECT * FROM store_profile WHERE id = ?" 
     : "SELECT * FROM store_profile LIMIT 1";
-  const params = user?.store_id ? [user.store_id] : [];
+  const params = targetId ? [targetId] : [];
 
   const { data: profiles, loading, refetch } = useLocalData<StoreProfile>(
     sql, params
   );
 
+  // Fetch all available stores for the switcher (only needed if owner)
+  const { data: allStores } = useLocalData<StoreProfile>(
+    user && !user.store_id ? "SELECT * FROM store_profile" : "SELECT * FROM store_profile WHERE 1=0"
+  );
+
   const storeProfile = profiles[0] || null;
+
+  // Sync activeStoreId back if we fell back to LIMIT 1
+  React.useEffect(() => {
+    if (storeProfile && !targetId && (!user || !user.store_id)) {
+       setActiveStoreId(storeProfile.id);
+       if (typeof window !== "undefined") {
+         localStorage.setItem("dumos_active_store_id", storeProfile.id);
+       }
+    }
+  }, [storeProfile, targetId, user]);
+
+  const switchStore = (storeId: string) => {
+    setActiveStoreId(storeId);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("dumos_active_store_id", storeId);
+    }
+  };
   const storeType = storeProfile?.store_type || "pharmacy";
   const theme = storeProfile?.theme || "default";
   const isInitialized = storeProfile?.is_initialized === 1;
@@ -189,6 +225,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         updateStoreProfile,
         setTheme,
         t,
+        activeStoreId: user?.store_id || activeStoreId,
+        availableStores: allStores || [],
+        switchStore,
       }}
     >
       {children}

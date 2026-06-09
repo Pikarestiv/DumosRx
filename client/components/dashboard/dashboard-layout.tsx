@@ -11,6 +11,13 @@ import { useAuth } from "@/lib/context/auth-context";
 import { useStore } from "@/lib/context/store-context";
 import { APP_NAME } from "@/lib/constants";
 import { FeedbackForm } from "@/components/feedback/feedback-form";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ChevronDown, Store as StoreIcon } from "lucide-react";
 import { BroadcastBanner } from "./broadcast-banner";
 import { DashboardSidebar } from "./dashboard-sidebar";
 import { MobileBottomNav } from "./mobile-bottom-nav";
@@ -27,7 +34,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
-  const { storeProfile } = useStore();
+  const { storeProfile, availableStores, switchStore, activeStoreId } = useStore();
   const { user } = useAuth();
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
@@ -142,9 +149,35 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           style={{ top: "var(--tauri-top, 0px)" }}
         >
           <div className="flex items-center gap-4">
-            <h1 className="font-serif font-black text-xl text-foreground truncate">
-              {storeProfile?.name || APP_NAME}
-            </h1>
+            {(!user?.store_id && availableStores.length > 1) ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger className="flex items-center gap-2 outline-none hover:opacity-80 transition-opacity">
+                  <h1 className="font-serif font-black text-xl text-foreground truncate max-w-[200px] sm:max-w-xs">
+                    {storeProfile?.name || APP_NAME}
+                  </h1>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-[240px]">
+                  {availableStores.map((store) => (
+                    <DropdownMenuItem 
+                      key={store.id} 
+                      onClick={() => switchStore(store.id)}
+                      className={cn(
+                        "flex items-center gap-2 py-2 cursor-pointer",
+                        store.id === activeStoreId && "bg-primary/10 text-primary font-medium focus:bg-primary/20"
+                      )}
+                    >
+                      <StoreIcon className="h-4 w-4" />
+                      <span className="truncate">{store.name}</span>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <h1 className="font-serif font-black text-xl text-foreground truncate max-w-[200px] sm:max-w-xs">
+                {storeProfile?.name || APP_NAME}
+              </h1>
+            )}
             <LiveClock />
           </div>
 

@@ -2,7 +2,7 @@
 
 import { useStore } from "@/lib/context/store-context";
 
-export type SubscriptionTier = "free" | "starter" | "local" | "pro" | "enterprise";
+export type SubscriptionTier = "free" | "starter" | "local" | "pro" | "pro trial" | "enterprise";
 
 export function useFeatureGate() {
   const { storeProfile } = useStore();

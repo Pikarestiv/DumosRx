@@ -39,8 +39,10 @@ import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { checkIsAdmin, checkCanManageInventory } from "@/lib/context/auth-context";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
+import { useStore } from "@/lib/context/store-context";
 
 export function StaffManagement() {
+  const { activeStoreId } = useStore();
   const { maxStaffAccounts } = useFeatureGate();
   const [users, setUsers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -62,7 +64,7 @@ export function StaffManagement() {
   const loadUsers = async () => {
     setIsLoading(true);
     try {
-      const data = await getUsers();
+      const data = await getUsers(activeStoreId);
       setUsers(data);
     } catch (error) {
       console.error("Failed to load users:", error);
@@ -74,7 +76,7 @@ export function StaffManagement() {
 
   useEffect(() => {
     loadUsers();
-  }, []);
+  }, [activeStoreId]);
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,6 +99,7 @@ export function StaffManagement() {
         email: formData.email,
         pin: formData.pin,
         role: formData.role,
+        store_id: activeStoreId,
       };
       
       await createUser(dataToSave);

@@ -140,7 +140,13 @@ export async function createPrescription(data: any, items: any[]) {
 /**
  * Staff & Users
  */
-export async function getUsers() {
+export async function getUsers(storeId?: string | null) {
+  if (storeId) {
+    return await query<any>(
+      "SELECT * FROM users WHERE _deleted = 0 AND (store_id = ? OR store_id IS NULL OR role = 'admin' OR role = 'store_owner') ORDER BY first_name ASC", 
+      [storeId]
+    );
+  }
   return await query<any>("SELECT * FROM users WHERE _deleted = 0 ORDER BY first_name ASC");
 }
 

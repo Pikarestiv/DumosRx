@@ -2,20 +2,21 @@
 
 import { useStore } from "@/lib/context/store-context";
 
-export type SubscriptionTier = "free" | "starter" | "local" | "pro" | "pro trial" | "enterprise";
+export type SubscriptionTier = "free" | "starter" | "local" | "pro" | "enterprise";
 
 export function useFeatureGate() {
   const { storeProfile } = useStore();
   const currentTierRaw = (storeProfile?.subscription_tier as string) || "free";
-  const currentTier = currentTierRaw.toLowerCase() as SubscriptionTier;
+  // Normalize by stripping " trial" to grant the features of the underlying tier
+  const normalizedTier = currentTierRaw.toLowerCase().replace(" trial", "") as SubscriptionTier;
 
-  const isFree = currentTier === "free";
-  const isStarter = currentTier === "starter" || currentTier === "local";
-  const isPro = currentTier === "pro" || currentTier === "pro trial";
-  const isEnterprise = currentTier === "enterprise";
+  const isFree = normalizedTier === "free";
+  const isStarter = normalizedTier === "starter" || normalizedTier === "local";
+  const isPro = normalizedTier === "pro";
+  const isEnterprise = normalizedTier === "enterprise";
 
   return {
-    currentTier,
+    currentTier: normalizedTier,
     // Max staff accounts allowed
     maxStaffAccounts: isEnterprise ? Infinity : isPro ? 10 : isStarter ? 3 : 0,
 

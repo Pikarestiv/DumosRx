@@ -9,6 +9,7 @@ import { Loader2, AlertCircle, Building, Mail, Phone, Lock, User, ShieldCheck } 
 import { useRouter } from "next/navigation";
 import { webApiClient } from "@/lib/api/client";
 import { motion } from "framer-motion";
+import React from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -46,6 +47,7 @@ export function RegisterForm() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isSubmittingRef = React.useRef(false);
 
   const form = useForm<z.infer<typeof registerSchema>>({
     resolver: zodResolver(registerSchema),
@@ -64,6 +66,9 @@ export function RegisterForm() {
   });
 
   async function onSubmit(values: z.infer<typeof registerSchema>) {
+    if (isSubmittingRef.current) return;
+    
+    isSubmittingRef.current = true;
     setLoading(true);
     setError(null);
 
@@ -75,6 +80,7 @@ export function RegisterForm() {
       setError(err.message || "Registration failed. Please try again.");
     } finally {
       setLoading(false);
+      isSubmittingRef.current = false;
     }
   }
 

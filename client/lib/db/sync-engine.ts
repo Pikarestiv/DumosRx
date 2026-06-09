@@ -309,6 +309,10 @@ export async function sync(): Promise<SyncResult> {
 
     localStorage.setItem("last_sync_time", new Date().toISOString());
 
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("dumos_sync_completed"));
+    }
+
     return {
       success: true,
       pushed: pushResult.pushed,

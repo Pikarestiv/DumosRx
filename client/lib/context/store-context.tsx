@@ -181,9 +181,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       triggerSync();
     };
 
+    const handleSyncCompleted = () => {
+      console.log("[StoreContext] Received sync completed event, refetching local store profile");
+      refetch();
+    };
+
     window.addEventListener("online", handleOnline);
+    window.addEventListener("dumos_sync_completed", handleSyncCompleted);
     return () => {
       window.removeEventListener("online", handleOnline);
+      window.removeEventListener("dumos_sync_completed", handleSyncCompleted);
     };
   }, [refetch]);
 

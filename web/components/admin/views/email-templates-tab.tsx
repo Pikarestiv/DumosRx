@@ -2,7 +2,10 @@
 
 import { useEffect, useState, useRef } from "react";
 import { webApiClient } from "@/lib/api/client";
-import { useAdminEmailTemplates, useUpdateAdminEmailTemplateMutation } from "@/lib/api/admin-hooks";
+import {
+  useAdminEmailTemplates,
+  useUpdateAdminEmailTemplateMutation,
+} from "@/lib/api/admin-hooks";
 import { Mail, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { TemplateList } from "@/components/admin/email-templates/template-list";
@@ -64,7 +67,7 @@ export function EmailTemplatesTab() {
           console.error("Error saving template:", error);
           toast.error("Failed to save email template");
         },
-      }
+      },
     );
   };
 
@@ -235,11 +238,11 @@ export function EmailTemplatesTab() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-black tracking-tight bg-linear-to-r from-white via-indigo-200 to-indigo-400 bg-clip-text text-transparent flex items-center gap-2">
-          <Mail className="h-8 w-8 text-indigo-500" />
+        <h1 className="text-4xl font-black tracking-tight text-slate-900 dark:text-white">
           System Email Templates
         </h1>
-        <p className="text-slate-400 font-bold mt-1">
+        <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium italic flex items-center gap-2">
+          <Mail className="h-4 w-4 text-indigo-500" />
           Customize responsive system emails, transactional logs, and
           notification alerts on the fly.
         </p>
@@ -247,7 +250,7 @@ export function EmailTemplatesTab() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left pane: Template List */}
-        <TemplateList 
+        <TemplateList
           templates={templates}
           selectedTemplate={selectedTemplate}
           loadTemplateDetails={loadTemplateDetails}

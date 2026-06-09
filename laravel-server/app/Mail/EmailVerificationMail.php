@@ -32,14 +32,15 @@ class EmailVerificationMail extends Mailable
                         ->html('<p>Please verify your email using this link: <a href="' . $this->verificationUrl . '">' . $this->verificationUrl . '</a></p>');
         }
 
-        return $this->subject($this->template->subject)
-                    ->view('emails.dynamic')
-                    ->with([
-                        'templateContent' => $this->template->content,
-                        'templateVariables' => [
-                            '$user->first_name' => $this->user->first_name,
-                            '$verificationUrl' => $this->verificationUrl,
-                        ]
-                    ]);
+        if ($this->template && $this->template->content) {
+            $html = \Illuminate\Support\Facades\Blade::render($this->template->content, [
+                'user' => $this->user,
+                'verificationUrl' => $this->verificationUrl,
+            ]);
+            return $this->subject($this->template->subject)->html($html);
+        }
+
+        return $this->subject('Verify Your DumosRx Account')
+                    ->html('<p>Please verify your email using this link: <a href="' . $this->verificationUrl . '">' . $this->verificationUrl . '</a></p>');
     }
 }

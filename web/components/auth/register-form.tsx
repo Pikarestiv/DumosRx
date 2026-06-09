@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import { webApiClient } from "@/lib/api/client";
 import { motion } from "framer-motion";
 import React from "react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -75,6 +76,7 @@ export function RegisterForm() {
     try {
       const response = await webApiClient.register(values);
       localStorage.setItem("drx_token", response.token);
+      toast.success("Account created successfully! Please check your email inbox and spam folder for the verification link.");
       router.push("/dashboard");
     } catch (err: any) {
       setError(err.message || "Registration failed. Please try again.");

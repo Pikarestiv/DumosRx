@@ -24,8 +24,10 @@ class SystemConfig extends Model
      */
     public static function getVal(string $key, $default = null)
     {
-        $config = self::where('key', $key)->first();
-        return $config ? $config->value : $default;
+        return \Illuminate\Support\Facades\Cache::remember("system_config_{$key}", 3600, function () use ($key, $default) {
+            $config = self::where('key', $key)->first();
+            return $config !== null ? $config->value : $default;
+        });
     }
 
     /**

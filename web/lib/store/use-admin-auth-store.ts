@@ -8,6 +8,8 @@ interface User {
   first_name: string;
   last_name: string;
   role: string;
+  email_verified_at?: string | null;
+  require_email_verification?: boolean;
 }
 
 interface AdminAuthState {

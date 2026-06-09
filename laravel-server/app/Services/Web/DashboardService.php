@@ -173,6 +173,8 @@ class DashboardService
                 'phone' => $user->phone,
                 'store_name' => $user->store ? $user->store->name : ($user->stores()->first()->name ?? 'DumosRx Store'),
                 'deletion_requested_at' => $user->deletion_requested_at,
+                'email_verified_at' => $user->email_verified_at ? $user->email_verified_at->toIso8601String() : null,
+                'require_email_verification' => \App\Models\SystemConfig::getVal('require_email_verification', false) === true || \App\Models\SystemConfig::getVal('require_email_verification', false) === 'true',
             ]
         ];
     }

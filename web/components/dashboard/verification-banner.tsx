@@ -29,9 +29,9 @@ export function VerificationBanner({ email }: VerificationBannerProps) {
             <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
           </div>
           <div>
-            <p className="font-medium">Please verify your email address</p>
+            <p className="font-medium">Verify Your Email Address</p>
             <p className="text-sm opacity-90 mt-0.5">
-              We sent a verification link to <strong>{email}</strong>. Some features (like downloading the POS app) are restricted until you verify.
+              We sent a verification link to <strong>{email}</strong>. Please check your <strong>inbox and spam/junk folder</strong>. Some features (like downloading the POS app) are restricted until you verify.
             </p>
           </div>
         </div>

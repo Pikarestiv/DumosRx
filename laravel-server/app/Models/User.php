@@ -41,7 +41,7 @@ class User extends Authenticatable
      *
      * @var array
      */
-    protected $appends = ['name'];
+    protected $appends = ['name', 'require_email_verification'];
 
     /**
      * The attributes that should be hidden for serialization.
@@ -73,6 +73,11 @@ class User extends Authenticatable
     public function getNameAttribute()
     {
         return "{$this->first_name} {$this->last_name}";
+    }
+
+    public function getRequireEmailVerificationAttribute()
+    {
+        return \App\Models\SystemConfig::getVal('require_email_verification', false) === true || \App\Models\SystemConfig::getVal('require_email_verification', false) === 'true';
     }
 
     public function store()

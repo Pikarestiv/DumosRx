@@ -1,0 +1,290 @@
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { createUser, updateUser } from "@/lib/db/local-database";
+
+interface StaffFormDialogProps {
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+  userToEdit?: any | null; // null if creating
+  activeStoreId: string | null;
+  onSuccess: () => void;
+}
+
+export function StaffFormDialog({
+  isOpen,
+  onOpenChange,
+  userToEdit,
+  activeStoreId,
+  onSuccess,
+}: StaffFormDialogProps) {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formData, setFormData] = useState({
+    first_name: "",
+    last_name: "",
+    username: "",
+    email: "",
+    pin: "",
+    role: "sales_staff",
+  });
+
+  const isEditing = !!userToEdit;
+
+  useEffect(() => {
+    if (isOpen) {
+      if (userToEdit) {
+        setFormData({
+          first_name: userToEdit.first_name || "",
+          last_name: userToEdit.last_name || "",
+          username: userToEdit.username || "",
+          email: userToEdit.email || "",
+          pin: "", // Leave empty unless modifying
+          role: userToEdit.role || "sales_staff",
+        });
+      } else {
+        setFormData({
+          first_name: "",
+          last_name: "",
+          username: "",
+          email: "",
+          pin: "",
+          role: "sales_staff",
+        });
+      }
+    }
+  }, [isOpen, userToEdit]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!formData.first_name || !formData.last_name || !formData.username) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+
+    if (!isEditing && (!formData.pin || formData.pin.length < 4)) {
+      toast.error("PIN must be at least 4 digits");
+      return;
+    }
+
+    if (isEditing && formData.pin && formData.pin.length < 4) {
+      toast.error("PIN must be at least 4 digits");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      if (isEditing) {
+        const updateData: any = {
+          first_name: formData.first_name.trim(),
+          last_name: formData.last_name.trim(),
+          username: formData.username,
+          email: formData.email,
+          role: formData.role,
+        };
+        if (formData.pin) {
+          updateData.pin = formData.pin;
+        }
+
+        await updateUser(userToEdit.id, updateData);
+        toast.success("Staff account updated successfully");
+      } else {
+        const dataToSave = {
+          first_name: formData.first_name.trim(),
+          last_name: formData.last_name.trim(),
+          username: formData.username,
+          email: formData.email,
+          pin: formData.pin,
+          role: formData.role,
+          store_id: activeStoreId || "",
+        };
+
+        await createUser(dataToSave);
+        toast.success("Staff account created successfully");
+      }
+      onOpenChange(false);
+      onSuccess();
+    } catch (error: any) {
+      console.error("Failed to save user:", error);
+      if (error.message?.includes("UNIQUE")) {
+        toast.error("Username already exists");
+      } else {
+        toast.error(
+          isEditing
+            ? "Failed to update staff account"
+            : "Failed to create staff account"
+        );
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>
+            {isEditing ? "Edit Staff Member" : "Add New Staff Member"}
+          </DialogTitle>
+          <DialogDescription>
+            {isEditing
+              ? "Update sub-account details and permissions."
+              : "Create a sub-account with specific permissions."}
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4 py-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="first_name">First Name *</Label>
+              <Input
+                id="first_name"
+                placeholder="e.g. John"
+                value={formData.first_name}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    first_name: e.target.value,
+                  }))
+                }
+                required
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="last_name">Last Name *</Label>
+              <Input
+                id="last_name"
+                placeholder="e.g. Doe"
+                value={formData.last_name}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    last_name: e.target.value,
+                  }))
+                }
+                required
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="username">Username *</Label>
+              <Input
+                id="username"
+                placeholder="johndoe"
+                value={formData.username}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    username: e.target.value.toLowerCase(),
+                  }))
+                }
+                required
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="pin">
+                {isEditing ? "New Login PIN" : "Login PIN *"}
+              </Label>
+              <Input
+                id="pin"
+                type="password"
+                placeholder="4-digit PIN"
+                maxLength={4}
+                value={formData.pin}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    pin: e.target.value.replace(/\D/g, ""),
+                  }))
+                }
+                required={!isEditing}
+              />
+              {isEditing && (
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Leave blank to keep existing PIN
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="email">Email (Optional)</Label>
+            <Input
+              id="email"
+              type="email"
+              placeholder="john@example.com"
+              value={formData.email}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, email: e.target.value }))
+              }
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="role">System Role</Label>
+            <Select
+              value={formData.role}
+              onValueChange={(val) =>
+                setFormData((prev) => ({ ...prev, role: val }))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select role" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="admin">Admin (Local Master)</SelectItem>
+                <SelectItem value="manager">Manager (Admin)</SelectItem>
+                <SelectItem value="specialist">
+                  Specialist (Sub-account)
+                </SelectItem>
+                <SelectItem value="sales_staff">
+                  Sales Staff / Cashier
+                </SelectItem>
+                <SelectItem value="auditor">Auditor (Read-only)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter className="pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {isEditing ? "Saving..." : "Creating..."}
+                </>
+              ) : isEditing ? (
+                "Save Changes"
+              ) : (
+                "Create Account"
+              )}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}

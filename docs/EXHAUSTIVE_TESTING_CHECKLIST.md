@@ -221,7 +221,7 @@ This document contains a structured, grain-by-grain testing checklist divided in
 - [ ] **Step 1: Introduction** (explains local SQLite database format).
 - [ ] **Step 2: Database Initialization:**
   - [ ] Option A: Create new local database from scratch.
-  - [ ] Option B: Restore from local SQLite database file upload (`dumosrx.db`).
+  - [ ] Option B: Restore from local SQLite database file upload (`dumosrx.drx`).
 - [ ] **Step 3: Account Linking Setup:**
   - [ ] Option A: Standalone Mode (disables sync, locks app parameters to Free standalone tier).
   - [ ] Option B: Link Cloud Account (login credentials verification or pasting JWT License Token).
@@ -322,7 +322,7 @@ This document contains a structured, grain-by-grain testing checklist divided in
 - [ ] Save and export EOD Shift Close PDF.
 
 ### 4.9 Local Data Control
-- [ ] Export SQLite database file (`dumosrx.db`).
+- [ ] Export SQLite database file (`*.drx`).
 - [ ] Import SQLite database file (restores offline state).
 - [ ] Clear database (secure purge utility).
 - [ ] **QuickBooks 2013 CSV Importer:**

@@ -77,7 +77,7 @@ The Web Dashboard allows store owners (Retailers) to manage their business opera
 The Local Client is a hybrid web/native desktop app (packaged via Tauri/Electron) built to run offline. It uses a local SQLite database as its primary data store.
 
 ### 4.1 Component Features
-*   **Quick Setup Wizard:** Guides first-time setup (restores from a `.db` backup file, links to cloud APIs via JWT, or defaults to offline-only Free mode).
+*   **Quick Setup Wizard:** Guides first-time setup (restores from a `.drx` backup file, links to cloud APIs via JWT, or defaults to offline-only Free mode).
 *   **Terminal PIN Login:** Cashiers select their profile and input their 4-digit login PIN. Validates offline.
 *   **POS Module:**
     *   Fast catalog search, barcode camera/hardware scanner.
@@ -94,7 +94,7 @@ The Local Client is a hybrid web/native desktop app (packaged via Tauri/Electron
 *   **Clinical Prescriptions Registry:** Creates prescription records and refills queues. Chronic patient refill reminders alert cashiers during checkouts.
 *   **Expenses Ledger:** Category tracking.
 *   **EOD Shift Closure:** Cashiers must count drawer cash, card receipts, and bank transfers, contrast with computed POS totals, explain variances, and close the shift registry.
-*   **Local Backups:** Export/Import full `.db` files and run QuickBooks 2013 CSV catalog imports.
+*   **Local Backups:** Export/Import full `.drx` files and run QuickBooks 2013 CSV catalog imports.
 
 ### 🔗 Integration Points
 *   **Ties to Retailer Web Dashboard (Sync Engine):**

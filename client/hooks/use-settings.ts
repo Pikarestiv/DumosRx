@@ -296,7 +296,10 @@ export function useSettings() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `${APP_NAME.toLowerCase()}_backup_${new Date().toISOString().split("T")[0]}.drx`;
+    const now = new Date();
+    const dateStr = now.toISOString().split("T")[0];
+    const timeStr = now.toISOString().split("T")[1].slice(0, 8).replace(/:/g, "-");
+    link.download = `${APP_NAME.toLowerCase()}_backup_${dateStr}_${timeStr}.drx`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

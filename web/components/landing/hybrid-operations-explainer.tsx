@@ -74,7 +74,7 @@ export function HybridOperationsExplainer() {
             </p>
             <div className="mt-3 space-y-2">
               <div className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 p-2.5 rounded-lg text-xs">
-                <strong>Pros:</strong> Fast automatic syncing (15 mins).
+                <strong>Pros:</strong> Fast automatic syncing (30 mins).
                 Check your store sales on the go from your phone. Receive
                 smart cross-selling suggestions.
               </div>

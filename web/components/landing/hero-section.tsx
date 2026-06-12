@@ -1,9 +1,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 import { useSystemConfig } from "@/lib/api/hooks";
+
 export function HeroSection({ isLoggedIn }: { isLoggedIn: boolean }) {
-  const { data: config } = useSystemConfig("subscription_plans");
+  const { data: config, isLoading } = useSystemConfig("subscription_plans");
   return (
     <section className="relative pt-20 pb-32 overflow-hidden">
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full -z-10 opacity-10 dark:opacity-20 pointer-events-none">
@@ -43,7 +45,15 @@ export function HeroSection({ isLoggedIn }: { isLoggedIn: boolean }) {
                 asChild
               >
                 <Link href="/register">
-                  {config?.trial_days ? `Start ${config.trial_days}-Day Free Trial` : "Start 14-Day Free Trial"}
+                  {isLoading ? (
+                    <span className="flex items-center gap-2">
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    </span>
+                  ) : config?.trial_days ? (
+                    `Start ${config.trial_days}-Day Free Trial`
+                  ) : (
+                    "Start 7-Day Free Trial"
+                  )}
                 </Link>
               </Button>
               <Button

@@ -18,7 +18,7 @@ class SubscriptionService
     public function createTrial(User $user)
     {
         $config = SystemConfig::getVal('subscription_plans', []);
-        $trialDays = $config['trial_days'] ?? 14;
+        $trialDays = $config['trial_days'] ?? 7;
         $trialPlan = $config['trial_plan'] ?? 'pro';
         
         return Subscription::create([

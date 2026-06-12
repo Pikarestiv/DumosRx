@@ -8,8 +8,8 @@ This document outlines the commercial rollout, penetration pricing model, testin
 
 To win early trust and rapidly capture market share, DumosRx will deploy a **Penetration Pricing Campaign** targeted at selected early adopters.
 
-### Launch Campaign: The 14-Day Free Trial
-* **The Offer**: Selected early adopters receive **14 days of Dumos Pro features for free**.
+### Launch Campaign: The 7-Day Free Trial
+* **The Offer**: Selected early adopters receive **7 days of Dumos Pro features for free**.
 * **Objective**: Establish DumosRx as their primary operating system, making it indispensable before any payment conversation.
 * **Onboarding Friction Reduction**: No card setup required for the trial. Activation is automated upon initial local sync.
 
@@ -18,10 +18,10 @@ After the trial period expires, users are presented with three paths:
 
 ```mermaid
 graph TD
-    A[End of 14 Day Free Trial] --> B{Choose Path}
+    A[End of 7 Day Free Trial] --> B{Choose Path}
     B -->|Subscribe| C[Enterprise - ₦15,000/mo]
     B -->|Subscribe| D[Dumos Pro - ₦8,000/mo]
-    B -->|Subscribe| E[Starter - ₦3,000/mo]
+    B -->|Subscribe| E[Starter - ₦5,000/mo]
     B -->|Downgrade| F[Dumos Free - ₦0/mo]
     
     C -->|Feature| C1[Real-time Sync / Multi-Store / Emails]
@@ -33,7 +33,7 @@ graph TD
 1. **Option A: Subscribe to a Paid Tier**
    * **Enterprise (₦15,000/mo)**: Unlimited multi-device access. Real-time/instant cloud sync and backups. Includes priority email alerts.
    * **Dumos Pro (₦8,000/mo)**: Desktop + Mobile App + Full Web Dashboard (sync every 30 minutes). Max 10 staff accounts.
-   * **Starter (₦3,000/mo)**: Desktop host + up to 2 local network clients. Cloud sync limited to once every 6 hours. Max 3 staff accounts.
+   * **Starter (₦5,000/mo or ₦50,000/yr)**: Desktop host + up to 2 local network clients. Cloud sync limited to once every 6 hours. Max 3 staff accounts.
 2. **Option B: Downgrade to Free Tier (₦0/mo)**
    * Heavily restricted: No cloud synchronization, no backup/restore support, max 1 staff account, and limited reports. This keeps their database accessible (they don't lose their data), but cuts off the advanced ERP value.
 

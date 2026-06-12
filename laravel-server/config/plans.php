@@ -1,13 +1,14 @@
 <?php
 
 return [
-    'trial_days' => 14,
+    'trial_days' => 7,
     'grace_period_days' => 3,
     
     'tiers' => [
         'starter' => [
             'name' => 'Starter',
-            'price_monthly' => 0,
+            'price_monthly' => 5000,
+            'price_yearly' => 50000,
             'limits' => [
                 'stores' => 1,
                 'staff' => 2,
@@ -22,8 +23,8 @@ return [
         ],
         'pro' => [
             'name' => 'Professional',
-            'price_monthly' => 15000,
-            'price_yearly' => 144000,
+            'price_monthly' => 8000,
+            'price_yearly' => 96000,
             'limits' => [
                 'stores' => 3,
                 'staff' => -1, // unlimited
@@ -39,7 +40,7 @@ return [
         ],
         'enterprise' => [
             'name' => 'Enterprise',
-            'price_monthly' => 45000, // or custom
+            'price_monthly' => 15000, // or custom
             'limits' => [
                 'stores' => -1,
                 'staff' => -1,

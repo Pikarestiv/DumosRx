@@ -17,7 +17,7 @@ graph TD
     E -->|5. Bidirectional Sync Queue| C
 ```
 
-1. **Local Client POS (Offline-First):** The operational core. Runs POS, stock catalogs, audits, customer profiles, and prescriptions on a local SQLite database. It continues to process sales and manage inventory even if the store loses internet connectivity.
+1. **Local Client POS (Independent Node):** The operational core. Runs POS, stock catalogs, audits, customer profiles, and prescriptions on a local SQLite database. It continues to process sales and manage inventory independently even if the store loses internet connectivity.
 2. **Retailer Web Dashboard (Store HQ):** The management and billing control center. Allows store owners to purchase subscriptions, generate licenses, configure multiple outlets (fleet), and manage staff credentials.
 3. **Platform Super Admin (Governance Hub):** The central management portal for platform owners to control pricing, monitor system health, impersonate accounts for support, edit transaction emails, and configure global toggles.
 4. **Public Gateway (Landing & Auth):** The entry point. Handles pricing transparency, downloads distribution, registration, and email verification.
@@ -55,7 +55,7 @@ The Web Dashboard allows store owners (Retailers) to manage their business opera
     *   Tracks live synchronization status (logs when each local client last checked in).
 *   **Staff Registry (`/dashboard/staff`):**
     *   Central directory for all store cashiers, pharmacists, and managers.
-    *   Assigns granular roles and sets the **4-digit login PINs** for the local terminal app.
+    *   Assigns granular roles and sets the **4-digit login PINs** for the local terminal apps.
 *   **Billing & Subscriptions (`/dashboard/billing`):**
     *   Paystack payment integration for subscription packages.
     *   Coupon validation module for discounts.
@@ -74,7 +74,7 @@ The Web Dashboard allows store owners (Retailers) to manage their business opera
 
 ## 💻 4. Local Client Desktop Application (Offline POS)
 
-The Local Client is a hybrid web/native desktop app (packaged via Tauri/Electron) built to run offline. It uses a local SQLite database as its primary data store.
+The Local Client is a hybrid web/native desktop app (packaged via Tauri/Electron) built to run offline. Each client acts as an independent node with its own local SQLite database, removing the need for complex local networks (LAN).
 
 ### 4.1 Component Features
 *   **Quick Setup Wizard:** Guides first-time setup (restores from a `.drx` backup file, links to cloud APIs via JWT, or defaults to offline-only Free mode).
@@ -98,8 +98,8 @@ The Local Client is a hybrid web/native desktop app (packaged via Tauri/Electron
 
 ### 🔗 Integration Points
 *   **Ties to Retailer Web Dashboard (Sync Engine):**
-    *   **Push:** Any local change (new sales, return records, stock adjustments, shift closures) is written to a `_sync_queue` table and transmitted via `/sync/push` to merge into the MySQL database.
-    *   **Pull:** Every sync interval, the client requests data updates from `/sync/pull` since the last timestamp, pulling down new catalog items, staff profiles, and modified PIN configurations.
+    *   **Push:** Any local change (new sales, return records, stock adjustments, shift closures) is written to a `_sync_queue` table and transmitted via `/sync/push` to merge into the central MySQL database.
+    *   **Pull:** Every sync interval, each independent client requests data updates from `/sync/pull` since the last timestamp, pulling down new catalog items, staff profiles, and modified PIN configurations.
 *   **Ties to Public Gateway:** The app downloads are served via the public portal, which locks downloads if the account is unverified.
 *   **Ties to Super Admin Dashboard:** Broadcast messages created by the Admin are saved on the server and pulled down by the client, displaying alert banners immediately on the POS interface.
 

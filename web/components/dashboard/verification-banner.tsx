@@ -1,7 +1,7 @@
 "use client";
 
 import { useResendVerificationMutation } from "@/lib/api/hooks";
-import { AlertCircle, Mail, Loader2, RefreshCw } from "lucide-react";
+import { AlertCircle, Mail, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 
@@ -31,12 +31,15 @@ export function VerificationBanner({ email }: VerificationBannerProps) {
           <div>
             <p className="font-medium">Verify Your Email Address</p>
             <p className="text-sm opacity-90 mt-0.5">
-              We sent a verification link to <strong>{email}</strong>. Please check your <strong>inbox and spam/junk folder</strong>. Some features (like downloading the POS app) are restricted until you verify.
+              We sent a verification link to <strong>{email}</strong>. Please
+              check your <strong>inbox and spam/junk folder</strong>. Some
+              features (like downloading the POS app) are restricted until you
+              verify.
             </p>
           </div>
         </div>
-        <Button 
-          variant="outline" 
+        <Button
+          variant="outline"
           size="sm"
           onClick={handleResend}
           disabled={resendMutation.isPending}

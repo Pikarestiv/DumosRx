@@ -173,17 +173,17 @@ export function PricingSection() {
   return (
     <section
       id="pricing"
-      className="py-24 bg-gradient-to-b from-background via-muted/20 to-background"
+      className="py-24 bg-linear-to-b from-background via-muted/20 to-background"
     >
       <div className="container mx-auto px-4 space-y-20">
         {/* Title and Billing Toggle */}
         <div className="text-center space-y-4 max-w-3xl mx-auto">
-          <h2 className="text-3xl md:text-5xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary to-violet-600">
+          <h2 className="text-3xl md:text-5xl font-black tracking-tight bg-clip-text text-transparent bg-linear-to-r from-primary to-violet-600">
             Simple, Transparent Pricing
           </h2>
           <p className="text-muted-foreground text-lg md:text-xl">
-            Start with a 14-day free trial on cloud plans. Switch or cancel
-            anytime.
+            Start with a {config?.trial_days || 14}-day free trial on cloud
+            plans. Switch or cancel anytime.
           </p>
 
           <div className="flex justify-center mt-8">
@@ -274,7 +274,7 @@ export function PricingSection() {
                   </div>
                 </CardHeader>
 
-                <CardContent className="flex-grow space-y-5 pt-0">
+                <CardContent className="grow space-y-5 pt-0">
                   <div className="border-t border-muted my-2" />
                   <ul className="space-y-3 text-xs md:text-sm">
                     {plan.features.map((feature, i) => (

@@ -1,8 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-
+import { useSystemConfig } from "@/lib/api/hooks";
 export function HeroSection({ isLoggedIn }: { isLoggedIn: boolean }) {
+  const { data: config } = useSystemConfig("subscription_plans");
   return (
     <section className="relative pt-20 pb-32 overflow-hidden">
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full -z-10 opacity-10 dark:opacity-20 pointer-events-none">
@@ -41,7 +42,9 @@ export function HeroSection({ isLoggedIn }: { isLoggedIn: boolean }) {
                 className="h-14 px-8 text-lg font-bold shadow-xl shadow-primary/20"
                 asChild
               >
-                <Link href="/register">Start 14-Day Free Trial</Link>
+                <Link href="/register">
+                  {config?.trial_days ? `Start ${config.trial_days}-Day Free Trial` : "Start 14-Day Free Trial"}
+                </Link>
               </Button>
               <Button
                 size="lg"

@@ -135,7 +135,7 @@ export function PricingSection() {
         "15-Minute Automated Cloud Sync",
         "Central HQ Dashboard & Management",
         "White-labeling & Custom Branding",
-        "Priority SMS/Email Notifications",
+        "Priority Email Notifications",
         "24/7 Priority Dedicated Support",
       ],
       exclusions: [],

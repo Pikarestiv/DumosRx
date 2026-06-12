@@ -99,7 +99,7 @@ export function HybridOperationsExplainer() {
               <div className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 p-2.5 rounded-lg text-xs">
                 <strong>Pros:</strong> 15-minute automated cloud replication.
                 Monitor multiple branches live from one centralized HQ
-                login. Priority SMS notifications.
+                login. Priority Email notifications.
               </div>
               <div className="bg-rose-500/10 text-rose-700 dark:text-rose-300 p-2.5 rounded-lg text-xs">
                 <strong>Cons:</strong> Enterprise integration setup

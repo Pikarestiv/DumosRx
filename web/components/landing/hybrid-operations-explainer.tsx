@@ -46,12 +46,12 @@ export function HybridOperationsExplainer() {
               Starter Cloud
             </span>
             <p className="text-sm font-semibold mt-1">
-              LAN Local network + Delay Backup
+              Independent Devices + Delay Backup
             </p>
             <div className="mt-3 space-y-2">
               <div className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 p-2.5 rounded-lg text-xs">
-                <strong>Pros:</strong> Multi-terminal LAN setup (1 Host + 2
-                Clients) for in-store checkout. Nightly/6-hourly automated
+                <strong>Pros:</strong> Multi-device store setup (up to 3
+                devices) for in-store checkout. Nightly/6-hourly automated
                 cloud backup.
               </div>
               <div className="bg-rose-500/10 text-rose-700 dark:text-rose-300 p-2.5 rounded-lg text-xs">

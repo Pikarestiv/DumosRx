@@ -85,7 +85,6 @@ export function PricingSection() {
       priceYearly: starterTier.price_yearly,
       description: "Cloud-connected for small growing retail teams.",
       features: [
-        "1 Local Host + 2 LAN Cashier Clients",
         "Up to 3 Staff Accounts",
         "Cloud Database Backup",
         "6-Hour Scheduled Cloud Sync",
@@ -110,9 +109,8 @@ export function PricingSection() {
       priceYearly: proTier.price_yearly,
       description: "Remote tracking and mobile-connected stores.",
       features: [
-        "Desktop Host + Unlimited LAN Clients",
         "Up to 10 Staff Accounts",
-        "15-Minute Automated Cloud Sync",
+        "30-Minute Automated Cloud Sync",
         "Full Web Dashboard Analytics",
         "Mobile App Companion access",
         "Smart POS Suggestions & Receipts",

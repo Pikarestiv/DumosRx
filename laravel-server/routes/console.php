@@ -9,3 +9,4 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('funnel:remind')->daily();
+Schedule::command('summary:end-of-day')->dailyAt('21:00')->timezone('Africa/Lagos');

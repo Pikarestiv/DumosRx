@@ -46,6 +46,11 @@ class WebApiClient {
     return data;
   }
 
+  async sendEndOfDaySummary() {
+    const { data } = await apiClient.post("/dashboard/send-summary");
+    return data;
+  }
+
   async getStaff(storeId?: string) {
     const endpoint = storeId && storeId !== 'all' ? `/staff?store_id=${storeId}` : "/staff";
     const { data } = await apiClient.get(endpoint);

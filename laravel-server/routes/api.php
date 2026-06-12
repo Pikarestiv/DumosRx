@@ -86,6 +86,7 @@ Route::prefix('v1')->group(function () {
         Route::prefix('dashboard')->middleware('subscription:remote_dashboard')->group(function () {
             Route::get('/summary', [DashboardController::class, 'summary']);
             Route::post('/reset', [DashboardController::class, 'resetData']);
+            Route::post('/send-summary', [\App\Http\Controllers\API\StoreSummaryController::class, 'sendSummary']);
         });
         Route::get('/alerts', [NotificationController::class, 'index']);
         Route::post('/alerts/{id}/read', [NotificationController::class, 'markAsRead']);

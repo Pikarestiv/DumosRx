@@ -21,8 +21,9 @@ export function HeroSection({ isLoggedIn }: { isLoggedIn: boolean }) {
           <span className="text-primary">Store</span>
         </h1>
         <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-10 leading-relaxed">
-          DumosRx is Nigeria&apos;s #1 offline-first store management system.
-          Designed for reliability even during power outages and poor internet.
+          DumosRx is a leading offline-first store management system built for
+          Nigerian businesses. Reliable even during power outages and poor
+          internet connectivity
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-20">
           {isLoggedIn ? (

@@ -74,6 +74,22 @@ class PaymentController extends Controller
                 ]);
                 $txn->update(['subscription_id' => $sub->id]);
             }
+
+            try {
+                $user = \App\Models\User::find($txn->metadata['user_id']);
+                \App\Services\AdminAlertService::send(
+                    'Payment Successful: ' . ($txn->metadata['plan_name'] ?? 'Unknown Plan'),
+                    [
+                        "A successful payment has been processed.",
+                        "User: " . ($user ? "{$user->first_name} {$user->last_name} ({$user->email})" : "Unknown (ID: {$txn->metadata['user_id']})"),
+                        "Amount: ₦" . number_format(($txn->amount ?? 0) / 100, 2),
+                        "Provider: {$provider}",
+                        "Reference: {$reference}"
+                    ]
+                );
+            } catch (\Exception $e) {
+                Log::error("Failed to send super admin alert for payment: " . $e->getMessage());
+            }
         }
     }
 }

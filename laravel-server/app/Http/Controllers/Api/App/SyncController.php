@@ -237,10 +237,32 @@ class SyncController extends Controller
             // Update the last sync time for the user's store
             if ($request->user()) {
                 $user = $request->user();
+                $store = null;
                 if ($user->store_id) {
-                    Store::where('id', $user->store_id)->update(['last_sync_at' => now()]);
+                    $store = Store::where('id', $user->store_id)->first();
                 } else {
-                    Store::where('user_id', $user->id)->update(['last_sync_at' => now()]);
+                    $store = Store::where('user_id', $user->id)->first();
+                }
+
+                if ($store) {
+                    $isFirstSync = is_null($store->last_sync_at);
+                    $store->last_sync_at = now();
+                    $store->save();
+
+                    if ($isFirstSync) {
+                        try {
+                            \App\Services\AdminAlertService::send(
+                                'First-Time Sync Completed: ' . $store->name,
+                                [
+                                    "A user has just successfully completed their first local sync with the DumosRx Cloud.",
+                                    "Store: {$store->name}",
+                                    "User: {$user->first_name} {$user->last_name} ({$user->email})"
+                                ]
+                            );
+                        } catch (\Exception $e) {
+                            Log::error("Failed to send super admin alert for sync: " . $e->getMessage());
+                        }
+                    }
                 }
             }
 

@@ -84,6 +84,23 @@ class AuthController extends Controller
             } catch (Exception $e) {
                 Log::error("Failed to send welcome email: " . $e->getMessage());
             }
+
+            // Send Super Admin Alert
+            try {
+                \App\Services\AdminAlertService::send(
+                    'New Registration: ' . $request->store_name,
+                    [
+                        "A new user has just registered on DumosRx.",
+                        "Name: {$user->first_name} {$user->last_name}",
+                        "Email: {$user->email}",
+                        "Phone: {$user->phone}",
+                        "Store Name: {$request->store_name}",
+                        "Referred By: " . ($refCode ?? 'None')
+                    ]
+                );
+            } catch (Exception $e) {
+                Log::error("Failed to send super admin alert: " . $e->getMessage());
+            }
         }
 
         $requireVerification = \App\Models\SystemConfig::getVal('require_email_verification', false) === true || \App\Models\SystemConfig::getVal('require_email_verification', false) === 'true';

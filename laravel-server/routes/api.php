@@ -46,6 +46,9 @@ Route::prefix('v1')->group(function () {
         return response()->json(['status' => 'ok', 'timestamp' => now()]);
     });
 
+    // Tracking Routes
+    Route::post('/track/download', [\App\Http\Controllers\Api\TrackController::class, 'download']);
+
     // Public Storefront
     Route::get('/storefront/{store_slug}', [\App\Http\Controllers\Api\Public\StorefrontController::class, 'show']);
 
@@ -162,6 +165,8 @@ Route::prefix('v1')->group(function () {
 
             // Emails
             Route::post('/mail/send', [MailController::class, 'send']);
+
+
 
             // System Configs
             Route::put('/system-configs/{key}', [SystemConfigController::class, 'update']);

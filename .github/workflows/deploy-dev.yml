@@ -1,0 +1,94 @@
+name: Deploy Dev Environment
+
+on:
+  push:
+    branches:
+      - dev
+  workflow_dispatch:
+
+jobs:
+  deploy-web:
+    name: Build & Deploy Frontend (Dev)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./web
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8 # v4.0.2
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install Dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Build Static Site
+        run: npm run build
+        env:
+          # Dev API URL
+          NEXT_PUBLIC_API_URL: https://api.dev.dumosrx.com/api/v1
+
+      - name: Sync Frontend files to FTP
+        uses: SamKirkland/FTP-Deploy-Action@8e83cea8672e3fbcbb9fdafff34debf6ae4c5f65 # v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          # The directory on the server for dev
+          server-dir: /dev.dumosrx.com/
+          local-dir: ./web/out/
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+
+  deploy-backend:
+    name: Build & Deploy Backend (Dev)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@a4e22b60bbb9c1021113f2860347b0759f66fe5d # v2.30.0
+        with:
+          php-version: "8.2"
+          extensions: mbstring, intl, pdo, pdo_mysql
+
+      - name: Setup Directory Structure
+        run: |
+          cd laravel-server
+          mkdir -p bootstrap/cache
+          mkdir -p storage/framework/sessions
+          mkdir -p storage/framework/views
+          mkdir -p storage/framework/cache
+          chmod -R 777 storage bootstrap/cache
+
+      - name: Install Dependencies
+        run: |
+          cd laravel-server
+          composer install --no-dev --optimize-autoloader
+
+      - name: Sync Backend files to FTP
+        uses: SamKirkland/FTP-Deploy-Action@8e83cea8672e3fbcbb9fdafff34debf6ae4c5f65 # v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          # The directory on the server for api dev
+          server-dir: /api.dev.dumosrx.com/
+          local-dir: ./laravel-server/
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            **/tests/**
+            **/storage/*.key
+            .env.example
+            .env

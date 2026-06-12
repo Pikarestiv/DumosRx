@@ -50,7 +50,7 @@ export function PricingCard({ plan, isYearly }: PricingCardProps) {
 
   return (
     <Card
-      className={`gap-4 flex flex-col relative overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 ${
+      className={`gap-4 py-8 flex flex-col relative overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 ${
         plan.popular
           ? "border-primary ring-2 ring-primary/20 shadow-lg"
           : "border-muted"

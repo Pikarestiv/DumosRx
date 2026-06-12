@@ -48,7 +48,7 @@ export function BenefitsSection() {
               className="rounded-full px-8 h-12 font-bold shadow-lg shadow-primary/20"
               asChild
             >
-              <Link href="/register">Join the Community</Link>
+              <Link href="/register">Get Started</Link>
             </Button>
           </div>
           <div className="flex-1 relative">

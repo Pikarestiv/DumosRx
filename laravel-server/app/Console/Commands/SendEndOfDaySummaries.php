@@ -44,10 +44,7 @@ class SendEndOfDaySummaries extends Command
                 continue;
             }
 
-            // In a real scenario, we calculate metrics per user or per store
-            // Let's pass the user to the mailable to calculate their own metrics, or calculate here
-            
-            // For now, let's dispatch the mail
+            // The EndOfDaySummaryMail constructor aggregates the metrics per-tenant
             Mail::to($user->email)->send(new EndOfDaySummaryMail($user, $subscription));
             
             $this->info("Sent summary to {$user->email}.");

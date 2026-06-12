@@ -18,7 +18,7 @@ export function CustomerManagement() {
   const { storeType, storeProfile } = useStore();
   const isStore = storeType === "pharmacy";
 
-  const { customers, addCustomer } = useCustomerData();
+  const { customers, addCustomer, fetchCustomers } = useCustomerData();
 
   const loyaltyTiers = [
     {
@@ -132,6 +132,7 @@ export function CustomerManagement() {
         selectedCustomer={selectedCustomer}
         setSelectedCustomer={setSelectedCustomer}
         getTierColor={getTierColor}
+        onRefresh={fetchCustomers}
       />
     </div>
   );

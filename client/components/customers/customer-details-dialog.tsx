@@ -20,12 +20,14 @@ interface CustomerDetailsDialogProps {
   selectedCustomer: Customer | null;
   setSelectedCustomer: (customer: Customer | null) => void;
   getTierColor: (tier: string) => string;
+  onRefresh?: () => void;
 }
 
 export function CustomerDetailsDialog({
   selectedCustomer,
   setSelectedCustomer,
   getTierColor,
+  onRefresh,
 }: CustomerDetailsDialogProps) {
   const { storeProfile } = useStore();
   const [isRepaymentOpen, setIsRepaymentOpen] = useState(false);
@@ -139,12 +141,8 @@ export function CustomerDetailsDialog({
           onOpenChange={setIsRepaymentOpen}
           customer={selectedCustomer}
           onSuccess={() => {
-            // In a real app we might want to refresh the customer data here
-            // but for now the user can close and re-open
-            setSelectedCustomer({
-              ...selectedCustomer,
-              outstanding_balance: 0 // This is a placeholder, the actual data is in DB
-            });
+            setSelectedCustomer(null);
+            if (onRefresh) onRefresh();
           }}
           currencyCode={storeProfile?.currency}
         />

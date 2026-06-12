@@ -11,7 +11,8 @@ import {
   Plus, 
   Circle,
   Trash2,
-  AlertTriangle 
+  AlertTriangle,
+  Mail
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,6 +34,7 @@ import {
 import { SubscriptionWrapper } from "@/components/dashboard/subscription-wrapper";
 import { toast } from "sonner";
 import { useSubscriptionStatus } from "@/lib/api/hooks";
+import { webApiClient } from "@/lib/api/client";
 
 interface OverviewViewProps {
   stats: any;
@@ -46,6 +48,19 @@ export function OverviewView({ stats, user, stores, onReset, onNavigate: _onNavi
   const { data: subscription } = useSubscriptionStatus();
   const isStarter = subscription?.plan?.toLowerCase() === "starter";
   const [isStoreModalOpen, setIsStoreModalOpen] = useState(false);
+  const [isSendingSummary, setIsSendingSummary] = useState(false);
+
+  const handleSendSummary = async () => {
+    try {
+      setIsSendingSummary(true);
+      const res = await webApiClient.sendEndOfDaySummary();
+      toast.success(res.message || "Summary sent successfully!");
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to send summary");
+    } finally {
+      setIsSendingSummary(false);
+    }
+  };
 
   const [resetConfig, setResetConfig] = useState<{
     isOpen: boolean;
@@ -153,10 +168,23 @@ export function OverviewView({ stats, user, stores, onReset, onNavigate: _onNavi
             Unified insights for <span className="font-bold text-foreground">{user.store_name}</span>
           </p>
         </div>
-        <Button className="font-bold w-full sm:w-auto" onClick={() => setIsStoreModalOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add New Store
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          {!isStarter && (
+            <Button 
+              variant="outline" 
+              className="font-bold w-full sm:w-auto" 
+              onClick={handleSendSummary} 
+              disabled={isSendingSummary}
+            >
+              <Mail className="h-4 w-4 mr-2" />
+              {isSendingSummary ? "Sending..." : "Send Daily Summary"}
+            </Button>
+          )}
+          <Button className="font-bold w-full sm:w-auto" onClick={() => setIsStoreModalOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add New Store
+          </Button>
+        </div>
       </div>
 
       {isStarter && (

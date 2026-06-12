@@ -11,49 +11,6 @@ This document tracks the proposed features for the DumosRx system, grouped by st
 - **WhatsApp Architecture Rule:** WhatsApp must operate on read-only queries (safe) or queued write actions (confirmed in-app or via admin approval).
 - **Internal Observability Requirement:** All systems must log user actions, system failures, sync events, and AI decisions. Critical for debugging offline-first sync issues and AI auditing.
 
----
-
-## ✅ SHIPPED — v1.0 Launch Features
-
-These features have been successfully built and shipped for the v1.0 launch.
-
----
-
-### ✅ Mixed Payment (Split Payment) *(COMPLETED)*
-
-- **Description:** Add "Mixed" as a 5th payment method in POS. When selected, the cashier can split payment across multiple methods (e.g., ₦3,000 transfer + ₦500 cash + ₦1,500 on credit).
-- **Source:** Real-world feedback from POS users at competing systems.
-- **Storage:** New `payment_details` JSON column on `sales` table. Existing `payment_method` column stores `"mixed"` for split sales.
-- **Impact:** Eliminates manual tracking of split payments, reduces end-of-day reconciliation errors.
-- **Effort:** ~1 day
-
----
-
-### ✅ Payment Accounts (Transfer Destinations) *(COMPLETED)*
-
-- **Description:** Store owners set up named payment accounts (e.g., "Zenith Bank", "Moniepoint POS 1", "OPay") in Store Settings. When a cashier selects Transfer or Card at checkout, they pick which account received the payment.
-- **Source:** Real-world feedback — Nigerian retail stores typically have 3–5 payment destinations and need to reconcile each at end-of-day.
-- **Storage:** New `payment_accounts` table. Account reference stored in `payment_details` JSON on each sale.
-- **Impact:** Enables per-account reconciliation reports ("Moniepoint 1: ₦45,000 across 12 transactions today").
-- **Effort:** ~1 day
-
----
-
-### ✅ Smart Suggestions Engine *(COMPLETED)*
-
-- **Description:** A local clinical and commercial upsell recommendation system.
-- **Implementation:**
-  - Developed [useSmartSuggestions.ts](file:///Users/admin/Documents/Projects/DumosRx/client/hooks/use-smart-suggestions.ts) hook matching cart items against category triggers.
-  - Checks SQLite inventory (`stock_quantity > 0` and `is_active = 1` and `_deleted = 0`) so recommended products are always in stock.
-  - Excludes products already present in the cart.
-  - Renders a premium, non-intrusive, dashed recommendation widget [POSSuggestions](file:///Users/admin/Documents/Projects/DumosRx/client/components/pos/pos-suggestions.tsx) in the POS sidebar checkout layout with a one-click "Add" button.
-- **Rules Integrated:**
-  - `Antimalarials` triggers `Vitamins` and `Analgesics` (e.g. Vitamin C, Paracetamol).
-  - `Antibiotics` triggers `Vitamins` (e.g. Probiotics / Vitamin B-complex).
-  - `Cough & Cold` triggers `Vitamins`.
-  - `Analgesics` triggers `Antacids` (gastric protection for NSAIDs).
-
----
 
 ## 🚀 CURRENT FOCUS — v1.1 Targets
 
@@ -190,21 +147,6 @@ These change the core business model. Hold until core ERP/POS is dominant.
 - **Cost:** Sentry free tier: 5k errors/mo. PostHog free tier: 1M events/mo.
 - **Effort:** ~half a day
 
----
-
-## ✅ COMPLETED FEATURES
-
-- [x] **Mobile Navigation Change** — 5-tab bottom nav (`mobile-bottom-nav.tsx`) with searchable "More" hub drawer (`mobile-more-drawer.tsx`), fully wired into `dashboard-layout.tsx`. Sidebar retained for desktop (lg+).
-
-- [x] **Public Access Policy Change** — Downloads page gates all platform buttons (Windows/macOS/Linux) behind `/register?redirect=downloads`. Direct downloads are not publicly accessible.
-
-- [x] **Referral & Growth System** — Full system: DB migration, `ReferralCreditTransaction` model, `ReferralController` (admin endpoints), referral stats on subscription API, credit adjustment dialog in admin UI, referral settings management.
-
-- [x] **Support System Enhancement** — Three-layer support: (1) In-app `FeedbackForm` with bug/feature/general types → syncs to backend `feedback` table, (2) Admin feedback dashboard with status filters (Pending/Resolved/Dismissed), (3) Smartsupp live chat widget — admin-configurable key via Platform Settings → Integrations tab, auto-identifies logged-in users by name/email/role. Formal ticket system deferred to post-launch.
-
-- [x] **Bug Tracking & Logging System** — Custom `error-logger.ts` + `GlobalErrorListener` captures all uncaught errors and unhandled promise rejections. Crashes are written to local SQLite `feedback` table (with platform, stack trace, user context) and sync to backend. Admin views crash logs in the Feedback dashboard. Sentry/PostHog deferred to post-launch polish.
-
----
 
 **Strategic Outcome Goal:**
 A store operating system that doesn't just record operations, but actively runs and optimizes them.

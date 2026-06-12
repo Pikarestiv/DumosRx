@@ -191,4 +191,23 @@ Hardening the platform against vulnerabilities.
 
 ---
 
-*This document was last updated on 2026-06-01. Move forward with precision and elegance.*
+## ✅ Completed Features Archive
+
+### v1.0 Launch Features
+
+- **Mixed Payment (Split Payment)**: Added "Mixed" as a 5th payment method in POS allowing split payments (Cash, Transfer, Card) per transaction, removing end-of-day reconciliation errors.
+- **Payment Accounts (Transfer Destinations)**: Set up named payment accounts (e.g., Zenith Bank, OPay) in Store Settings for per-account reconciliation reports.
+- **Smart Suggestions Engine**: Local clinical and commercial upsell recommendation system utilizing local SQLite database for category triggers without network lag.
+
+### Post-Launch & Maintenance
+
+- **Mobile Navigation Change**: 5-tab bottom nav with searchable "More" hub drawer (`mobile-more-drawer.tsx`) for mobile screens.
+- **Public Access Policy Change**: Downloads page gates all platform buttons behind registration.
+- **Referral & Growth System**: Full DB migration and admin endpoints for Referral Credits.
+- **Support System Enhancement**: In-app FeedbackForm syncs to backend `feedback` table + Smartsupp live chat widget integration.
+- **Bug Tracking & Logging System**: Custom `error-logger.ts` capturing uncaught errors directly to local SQLite `feedback` table for async sync. Sentry/PostHog deferred.
+- **Email Alerts System**: Daily summaries configured via server scheduled jobs (v1 vWAT timezone) sent via PHPMailer to owners on Pro/Enterprise plans.
+
+---
+
+*This document was last updated on 2026-06-12. Move forward with precision and elegance.*

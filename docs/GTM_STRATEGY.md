@@ -8,8 +8,8 @@ This document outlines the commercial rollout, penetration pricing model, testin
 
 To win early trust and rapidly capture market share, DumosRx will deploy a **Penetration Pricing Campaign** targeted at selected early adopters.
 
-### Launch Campaign: The 3-6 Month Free Trial
-* **The Offer**: Selected early adopters receive **3 to 6 months of Dumos Pro or Enterprise features for free**.
+### Launch Campaign: The 14-Day Free Trial
+* **The Offer**: Selected early adopters receive **14 days of Dumos Pro features for free**.
 * **Objective**: Establish DumosRx as their primary operating system, making it indispensable before any payment conversation.
 * **Onboarding Friction Reduction**: No card setup required for the trial. Activation is automated upon initial local sync.
 
@@ -18,28 +18,29 @@ After the trial period expires, users are presented with three paths:
 
 ```mermaid
 graph TD
-    A[End of 3-6 Month Free Trial] --> B{Choose Path}
-    B -->|Subscribe| C[Dumos Pro - ₦30k/yr]
-    B -->|Subscribe| D[Enterprise - ₦80k/yr]
-    B -->|Buy Once| E[Dumos Local - ₦50k one-time]
-    B -->|Downgrade| F[Dumos Free - Limited]
+    A[End of 14 Day Free Trial] --> B{Choose Path}
+    B -->|Subscribe| C[Enterprise - ₦15,000/mo]
+    B -->|Subscribe| D[Dumos Pro - ₦8,000/mo]
+    B -->|Subscribe| E[Starter - ₦3,000/mo]
+    B -->|Downgrade| F[Dumos Free - ₦0/mo]
     
-    E -->|Restriction| E1[Offline-Only / 1 PC / 3 Staff]
-    F -->|Restriction| F1[No Sync / No Cloud Backup / Limited Staff]
+    C -->|Feature| C1[Real-time Sync / Multi-Store / Emails]
+    D -->|Feature| D1[Sync every 30m / Mobile App]
+    E -->|Feature| E1[Sync every 6h / 3 Staff Limit]
+    F -->|Restriction| F1[No Sync / 1 Staff Limit]
 ```
 
-1. **Option A: Subscribe to Dumos Pro (₦30,000/year)**
-   * Retains full cloud capabilities: Auto cloud backups, remote web dashboard access, and mobile/multi-device sync.
-2. **Option B: Downgrade to Dumos Local (₦50,000 one-time fee)**
-   * For shops that refuse subscriptions. 
-   * **Technical limitation**: We lock the app to **offline-only**, 1 PC installation, and max 3 staff accounts. They must perform exactly one online sync to register the offline license token, after which they can run offline indefinitely.
-3. **Option C: Downgrade to Free Tier**
+1. **Option A: Subscribe to a Paid Tier**
+   * **Enterprise (₦15,000/mo)**: Unlimited multi-device access. Real-time/instant cloud sync and backups. Includes priority email alerts.
+   * **Dumos Pro (₦8,000/mo)**: Desktop + Mobile App + Full Web Dashboard (sync every 30 minutes). Max 10 staff accounts.
+   * **Starter (₦3,000/mo)**: Desktop host + up to 2 local network clients. Cloud sync limited to once every 6 hours. Max 3 staff accounts.
+2. **Option B: Downgrade to Free Tier (₦0/mo)**
    * Heavily restricted: No cloud synchronization, no backup/restore support, max 1 staff account, and limited reports. This keeps their database accessible (they don't lose their data), but cuts off the advanced ERP value.
 
 ### UX of Subscription Transitions
-* **Countdown Banners**: A non-intrusive alert banner appears in the top navigation panel starting **30 days before trial expiry** (e.g., *"Your Dumos Pro trial expires in 12 days. Subscribe now to keep cloud sync active."*).
+* **Countdown Banners**: A non-intrusive alert banner appears in the top navigation panel starting **3 days before trial expiry** (e.g., *"Your Dumos Pro trial expires in 3 days. Subscribe now to keep cloud sync active."*).
 * **Grace Period**: Give a **7-day soft grace period** after expiry where sync still runs but warnings become prominent.
-* **Downgrade Notice**: If they choose the Free or Local tier, show a clear confirmation modal explaining what data will remain locally and what features (like cloud sync and remote dashboards) will be disabled.
+* **Downgrade Notice**: If they fall to the Free tier, show a clear confirmation modal explaining what data will remain locally and what features (like cloud sync and remote dashboards) are disabled.
 
 ---
 

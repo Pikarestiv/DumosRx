@@ -1,16 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { ConfirmationModal } from "@/components/dashboard/confirmation-modal";
 import { StoreModal } from "@/components/dashboard/store-modal";
 import { 
-  TrendingUp, 
-  Store, 
-  Package, 
-  Users, 
-  Plus, 
+  Plus,
+  Store,
   Circle,
-  Trash2,
   AlertTriangle,
   Mail
 } from "lucide-react";
@@ -22,7 +17,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -35,6 +29,8 @@ import { SubscriptionWrapper } from "@/components/dashboard/subscription-wrapper
 import { toast } from "sonner";
 import { useSubscriptionStatus } from "@/lib/api/hooks";
 import { webApiClient } from "@/lib/api/client";
+import { OverviewStats } from "./overview-stats";
+import { OverviewDangerZone } from "./overview-danger-zone";
 
 interface OverviewViewProps {
   stats: any;
@@ -62,97 +58,7 @@ export function OverviewView({ stats, user, stores, onReset, onNavigate: _onNavi
     }
   };
 
-  const [resetConfig, setResetConfig] = useState<{
-    isOpen: boolean;
-    type: string;
-    title: string;
-    description: string;
-  }>({
-    isOpen: false,
-    type: "all",
-    title: "",
-    description: "",
-  });
 
-  const handleResetClick = (type: string) => {
-    const configs: Record<string, { title: string; description: string }> = {
-      sales: {
-        title: "Clear Sales Records",
-        description: "Are you sure you want to delete all sales history? This action cannot be undone.",
-      },
-      logs: {
-        title: "Clear Activity Logs",
-        description: "This will permanently delete all activity and system logs for your account.",
-      },
-      inventory: {
-        title: "Clear Inventory",
-        description: "Are you sure you want to wipe your online inventory stock? You will need to re-sync from your terminals.",
-      },
-      customers: {
-        title: "Clear Customers",
-        description: "This will delete all customer records from the cloud database.",
-      },
-      stores: {
-        title: "Clear Terminals",
-        description: "Are you sure you want to delete all connected terminals? They will need to re-register to sync data.",
-      },
-      all: {
-        title: "Full Account Reset",
-        description: "WARNING: This will delete ALL data (Sales, Logs, Inventory, Customers). This is irreversible.",
-      },
-    };
-
-    setResetConfig({
-      isOpen: true,
-      type,
-      ...configs[type],
-    });
-  };
-
-  const confirmReset = async () => {
-    const res = await onReset(resetConfig.type);
-    setResetConfig((prev) => ({ ...prev, isOpen: false }));
-    if (res.success) {
-      toast.success(res.message || "Data reset successfully");
-    } else {
-      toast.error(res.error || "Reset failed. Please try again.");
-    }
-  };
-
-  const statCards = [
-    {
-      name: "Total Fleet Sales",
-      value: `₦${(stats?.total_sales?.value || 0).toLocaleString()}`,
-      change: stats?.total_sales?.growth,
-      icon: TrendingUp,
-      color: "text-green-600",
-      bg: "bg-green-100 dark:bg-green-900/20",
-    },
-    {
-      name: "Active Stores",
-      value: `${stats?.stores_count || 0}`,
-      change: stats?.last_sync === "Never" ? "Offline" : "Online",
-      icon: Store,
-      color: "text-blue-600",
-      bg: "bg-blue-100 dark:bg-blue-900/20",
-    },
-    {
-      name: "Inventory Value",
-      value: `₦${(stats?.inventory_value?.value || 0).toLocaleString()}`,
-      change: "Live Stock",
-      icon: Package,
-      color: "text-purple-600",
-      bg: "bg-purple-100 dark:bg-purple-900/20",
-    },
-    {
-      name: "Fleet Customers",
-      value: `${(stats?.customers?.value || 0).toLocaleString()}`,
-      change: stats?.customers?.growth,
-      icon: Users,
-      color: "text-indigo-600",
-      bg: "bg-indigo-100 dark:bg-indigo-900/20",
-    },
-  ];
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -199,26 +105,7 @@ export function OverviewView({ stats, user, stores, onReset, onNavigate: _onNavi
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {statCards.map((stat, i) => (
-          <Card key={i} className="border border-border/50 shadow-[0_0_24px_rgba(0,0,0,0.06)] hover:shadow-[0_0_32px_rgba(0,0,0,0.1)] transition-shadow dark:shadow-none">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className={`${stat.bg} p-3 rounded-2xl`}>
-                  <stat.icon className={`h-6 w-6 ${stat.color}`} />
-                </div>
-                <Badge variant="secondary" className="bg-muted font-bold">
-                  {stat.change}
-                </Badge>
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">{stat.name}</p>
-                <h3 className="text-xl sm:text-2xl font-black mt-1">{stat.value}</h3>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      <OverviewStats stats={stats} />
 
       <div className="grid lg:grid-cols-3 gap-8">
         <Card className="lg:col-span-2 border-none shadow-sm min-w-0 overflow-hidden">
@@ -299,80 +186,9 @@ export function OverviewView({ stats, user, stores, onReset, onNavigate: _onNavi
             </CardContent>
           </Card>
 
-          <Card className="border-2 border-destructive/20 shadow-sm bg-destructive/5">
-            <CardHeader>
-              <CardTitle className="text-xl text-destructive flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5" />
-                Danger Zone
-              </CardTitle>
-              <CardDescription>Actions here cannot be undone.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-2">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  className="text-xs font-bold border-destructive/20 hover:bg-destructive hover:text-white"
-                  onClick={() => handleResetClick("sales")}
-                >
-                  Clear Sales
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  className="text-xs font-bold border-destructive/20 hover:bg-destructive hover:text-white"
-                  onClick={() => handleResetClick("logs")}
-                >
-                  Clear Logs
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  className="text-xs font-bold border-destructive/20 hover:bg-destructive hover:text-white"
-                  onClick={() => handleResetClick("inventory")}
-                >
-                  Clear Inventory
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  className="text-xs font-bold border-destructive/20 hover:bg-destructive hover:text-white"
-                  onClick={() => handleResetClick("customers")}
-                >
-                  Clear Customers
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  className="text-xs font-bold border-destructive/20 hover:bg-destructive hover:text-white"
-                  onClick={() => handleResetClick("stores")}
-                >
-                  Clear Terminals
-                </Button>
-              </div>
-
-              <Button 
-                variant="destructive" 
-                className="w-full font-bold gap-2"
-                onClick={() => handleResetClick("all")}
-              >
-                <Trash2 className="h-4 w-4" />
-                Nuke Everything (Full Reset)
-              </Button>
-            </CardContent>
-          </Card>
+          <OverviewDangerZone onReset={onReset} />
         </div>
       </div>
-
-      <ConfirmationModal
-        isOpen={resetConfig.isOpen}
-        onClose={() => setResetConfig((prev) => ({ ...prev, isOpen: false }))}
-        onConfirm={confirmReset}
-        title={resetConfig.title}
-        description={resetConfig.description}
-        variant="destructive"
-        confirmText={resetConfig.type === "all" ? "Nuke Everything" : "Confirm Reset"}
-      />
     </div>
   );
 }

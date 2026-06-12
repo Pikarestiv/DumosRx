@@ -79,7 +79,7 @@ export function useOnboarding() {
       // 1. Create or update the store profile
       if (!existingStoreId) {
         await execute(
-          "INSERT INTO store_profile (id, name, is_initialized, created_at, updated_at, _synced, auto_sync_enabled, auto_sync_interval) VALUES (?, ?, ?, ?, ?, ?, 1, 15)",
+          "INSERT INTO store_profile (id, name, is_initialized, created_at, updated_at, _synced, auto_sync_enabled, auto_sync_interval) VALUES (?, ?, ?, ?, ?, ?, 1, 30)",
           [storeId, storeName, 1, now, now, 0],
         );
       } else {

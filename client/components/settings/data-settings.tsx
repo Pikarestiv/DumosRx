@@ -183,7 +183,10 @@ export function DataSettings({
                       {minimumSyncIntervalMinutes <= 30 && (
                         <SelectItem value="30">Every 30 Minutes</SelectItem>
                       )}
-                      <SelectItem value="60">Every 1 Hour</SelectItem>
+                      {minimumSyncIntervalMinutes <= 60 && (
+                        <SelectItem value="60">Every 1 Hour</SelectItem>
+                      )}
+                      <SelectItem value="360">Every 6 Hours</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

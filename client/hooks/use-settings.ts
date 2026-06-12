@@ -65,8 +65,8 @@ export function useSettings() {
   const [expiryAlert, setExpiryAlert] = useState(storeProfile?.expiry_warning === 1);
   const [expiryDays, setExpiryDays] = useState(storeProfile?.expiry_warning_days?.toString() || "90");
   const [localLogo, setLocalLogo] = useState(storeProfile?.logo_url || "");
-  const [autoSyncEnabled, setAutoSyncEnabled] = useState(storeProfile?.auto_sync_enabled === 1);
-  const [autoSyncInterval, setAutoSyncInterval] = useState(storeProfile?.auto_sync_interval?.toString() || "15");
+  const [autoSyncEnabled, setAutoSyncEnabled] = useState(storeProfile?.auto_sync_enabled !== 0);
+  const [autoSyncInterval, setAutoSyncInterval] = useState(storeProfile?.auto_sync_interval?.toString() || minimumSyncIntervalMinutes.toString());
   const [showRetailSuggestions, setShowRetailSuggestions] = useState(storeProfile?.show_retail_suggestions === 1);
   const [requirePaymentAccount, setRequirePaymentAccount] = useState(storeProfile?.require_payment_account === 1);
   const [enabledPaymentMethods, setEnabledPaymentMethods] = useState<string[]>(
@@ -100,7 +100,7 @@ export function useSettings() {
       setExpiryAlert(storeProfile.expiry_warning === 1);
       setExpiryDays(storeProfile.expiry_warning_days?.toString() || "90");
       setLocalLogo(storeProfile.logo_url || "");
-      setAutoSyncEnabled(storeProfile.auto_sync_enabled === 1);
+      setAutoSyncEnabled(storeProfile.auto_sync_enabled !== 0);
       setShowRetailSuggestions(storeProfile.show_retail_suggestions === 1);
       setRequirePaymentAccount(storeProfile.require_payment_account === 1);
       try {
@@ -109,7 +109,7 @@ export function useSettings() {
         setEnabledPaymentMethods(["cash", "card", "transfer", "credit", "mixed"]);
       }
       
-      let interval = storeProfile.auto_sync_interval || 15;
+      let interval = storeProfile.auto_sync_interval || minimumSyncIntervalMinutes;
       if (interval < minimumSyncIntervalMinutes) {
         interval = minimumSyncIntervalMinutes;
       }

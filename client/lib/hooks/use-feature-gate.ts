@@ -36,7 +36,7 @@ export function useFeatureGate() {
     canAutoBackup: isPro || isEnterprise,
 
     // Minimum sync interval in minutes
-    minimumSyncIntervalMinutes: isEnterprise ? 0 : isPro ? 15 : 360,
+    minimumSyncIntervalMinutes: isEnterprise ? 15 : isPro ? 30 : 360,
 
     // Gated modules & features
     canUsePrescriptions: storeProfile?.store_type === 'pharmacy',

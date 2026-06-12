@@ -99,7 +99,7 @@ The Local Client is a hybrid web/native desktop app (packaged via Tauri/Electron
 ### 🔗 Integration Points
 *   **Ties to Retailer Web Dashboard (Sync Engine):**
     *   **Push:** Any local change (new sales, return records, stock adjustments, shift closures) is written to a `_sync_queue` table and transmitted via `/sync/push` to merge into the central MySQL database.
-    *   **Pull:** Every sync interval, each independent client requests data updates from `/sync/pull` since the last timestamp, pulling down new catalog items, staff profiles, and modified PIN configurations.
+    *   **Pull:** Based on the subscription tier's sync interval (6 hours for Starter, 30 minutes for Pro, 15 minutes for Enterprise), each independent client requests data updates from `/sync/pull` since the last timestamp, pulling down new catalog items, staff profiles, and modified PIN configurations. Note that users can also trigger a manual sync at any time regardless of their tier's auto-sync restrictions.
 *   **Ties to Public Gateway:** The app downloads are served via the public portal, which locks downloads if the account is unverified.
 *   **Ties to Super Admin Dashboard:** Broadcast messages created by the Admin are saved on the server and pulled down by the client, displaying alert banners immediately on the POS interface.
 

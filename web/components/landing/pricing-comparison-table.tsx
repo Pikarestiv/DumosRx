@@ -103,7 +103,7 @@ export function PricingComparisonTable() {
                   Automated (Every 30 mins)
                 </td>
                 <td className="p-4 text-center text-muted-foreground">
-                  Real-time (Instant)
+                  Automated (Every 15 mins)
                 </td>
               </tr>
               <tr>
@@ -121,7 +121,7 @@ export function PricingComparisonTable() {
                   Full Analytics (30-min Delay)
                 </td>
                 <td className="p-4 text-center text-muted-foreground">
-                  Real-time HQ Console
+                  Full Analytics (15-min Delay)
                 </td>
               </tr>
               <tr>

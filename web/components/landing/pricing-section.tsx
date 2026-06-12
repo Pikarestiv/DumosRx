@@ -132,7 +132,7 @@ export function PricingSection() {
       features: [
         "Unlimited Multi-Store Operations",
         "Unlimited Terminals & Users",
-        "Real-time Instant Cloud Sync",
+        "15-Minute Automated Cloud Sync",
         "Central HQ Dashboard & Management",
         "White-labeling & Custom Branding",
         "Priority SMS/Email Notifications",

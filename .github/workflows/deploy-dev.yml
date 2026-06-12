@@ -33,6 +33,8 @@ jobs:
         env:
           # Dev API URL
           NEXT_PUBLIC_API_URL: https://api.dev.dumosrx.com/api/v1
+          # Ignore SSL errors during build (since new subdomains might still be provisioning AutoSSL)
+          NODE_TLS_REJECT_UNAUTHORIZED: "0"
 
       - name: Sync Frontend files to FTP
         uses: SamKirkland/FTP-Deploy-Action@8e83cea8672e3fbcbb9fdafff34debf6ae4c5f65 # v4.3.5

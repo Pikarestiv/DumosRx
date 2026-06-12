@@ -21,7 +21,13 @@ export type PlanConfig = {
   badge?: string;
   buttonText: string;
   buttonHref: string;
-  buttonVariant: "default" | "outline" | "secondary" | "ghost" | "link" | "destructive";
+  buttonVariant:
+    | "default"
+    | "outline"
+    | "secondary"
+    | "ghost"
+    | "link"
+    | "destructive";
   popular: boolean;
 };
 
@@ -44,7 +50,7 @@ export function PricingCard({ plan, isYearly }: PricingCardProps) {
 
   return (
     <Card
-      className={`flex flex-col relative overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 ${
+      className={`gap-4 flex flex-col relative overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 ${
         plan.popular
           ? "border-primary ring-2 ring-primary/20 shadow-lg"
           : "border-muted"
@@ -66,7 +72,7 @@ export function PricingCard({ plan, isYearly }: PricingCardProps) {
         </div>
       )}
 
-      <CardHeader className="pb-4">
+      <CardHeader className="">
         <CardTitle className="text-xl font-bold">{plan.name}</CardTitle>
         <CardDescription className="line-clamp-2 min-h-[40px] text-sm mt-1">
           {plan.description}

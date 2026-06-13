@@ -304,7 +304,7 @@ class AdminService
     public function getSystemHealth()
     {
         // CPU Load
-        $cpuUtil = 15.4; // Fallback if restricted
+        $cpuUtil = 0; // Default to 0 if we can't read it
         if (function_exists('sys_getloadavg')) {
             try {
                 $load = @sys_getloadavg();
@@ -318,9 +318,9 @@ class AdminService
         
         // Memory
         $memory = [
-            'used' => '4.2GB',
-            'total' => '16GB',
-            'percent' => 32
+            'used' => 'Unknown',
+            'total' => 'Unknown',
+            'percent' => 0
         ];
         if (function_exists('shell_exec')) {
             try {
@@ -345,14 +345,14 @@ class AdminService
         }
 
         // Disk
-        $diskTotal = 100 * 1024 * 1024 * 1024; // 100GB fallback
-        $diskFree = 70 * 1024 * 1024 * 1024; // 70GB fallback
+        $diskTotal = 0;
+        $diskFree = 0;
         try {
             if (function_exists('disk_total_space')) {
-                $diskTotal = @disk_total_space("/") ?: $diskTotal;
+                $diskTotal = @disk_total_space("/") ?: 0;
             }
             if (function_exists('disk_free_space')) {
-                $diskFree = @disk_free_space("/") ?: $diskFree;
+                $diskFree = @disk_free_space("/") ?: 0;
             }
         } catch (\Throwable $e) {
             // Ignore
@@ -374,9 +374,9 @@ class AdminService
         $recentActivity = ActivityLog::where('created_at', '>', now()->subMinute())->count();
         $dbLoad = min(100, max(5, $recentActivity * 2));
 
-        // Uptime
+        // Uptime based on first recorded activity log
         $firstLog = ActivityLog::oldest()->first();
-        $uptime = $firstLog ? $firstLog->created_at->diffForHumans(null, true) : '14d 6h';
+        $uptime = $firstLog ? $firstLog->created_at->diffForHumans(null, true) : 'No data';
 
         return [
             'overallStatus' => $dbStatus === 'Operational' ? 'Healthy' : 'Degraded',
@@ -386,9 +386,9 @@ class AdminService
                 'cpu' => $cpuUtil,
                 'memory' => $memory,
                 'disk' => [
-                    'used' => round($diskUsed / (1024 * 1024 * 1024), 1) . 'GB',
-                    'total' => round($diskTotal / (1024 * 1024 * 1024), 1) . 'GB',
-                    'percent' => round(($diskUsed / $diskTotal) * 100, 1)
+                    'used' => $diskTotal > 0 ? round($diskUsed / (1024 * 1024 * 1024), 1) . 'GB' : 'Unknown',
+                    'total' => $diskTotal > 0 ? round($diskTotal / (1024 * 1024 * 1024), 1) . 'GB' : 'Unknown',
+                    'percent' => $diskTotal > 0 ? round(($diskUsed / $diskTotal) * 100, 1) : 0
                 ],
                 'database' => [
                     'load' => $dbLoad,
@@ -396,8 +396,7 @@ class AdminService
                 ]
             ],
             'nodes' => [
-                ['name' => 'API Gateway', 'location' => 'Lagos, NG', 'status' => 'Operational', 'latency' => '12ms'],
-                ['name' => 'Web Cluster', 'location' => 'Global (Anycast)', 'status' => 'Operational', 'latency' => '8ms'],
+                ['name' => 'Primary Server', 'location' => 'Main Hosting Node', 'status' => 'Operational', 'latency' => $latency],
                 ['name' => 'Database Primary', 'location' => 'Local Cluster', 'status' => $dbStatus, 'latency' => '1ms'],
             ]
         ];

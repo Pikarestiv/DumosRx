@@ -40,7 +40,7 @@ export function SystemHealthTab() {
           <h1 className="text-4xl font-black tracking-tight text-slate-900 dark:text-white">System Health</h1>
           <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium italic flex items-center gap-2">
             <Globe className="h-4 w-4 text-indigo-500" />
-            Global Infrastructure Monitoring • Cluster: US-EAST-1
+            Global Infrastructure Monitoring • Primary Node
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -211,40 +211,6 @@ export function SystemHealthTab() {
           </Card>
       </div>
 
-      {/* Recent Activity / Incidents */}
-      <Card className="border-none shadow-sm bg-white dark:bg-slate-900">
-          <CardHeader>
-              <CardTitle className="text-xl font-black flex items-center gap-2">
-                  <Activity className="h-5 w-5 text-indigo-500" />
-                  Recent System Events
-              </CardTitle>
-              <CardDescription>Log of automated diagnostics and system state changes</CardDescription>
-          </CardHeader>
-          <CardContent>
-              <div className="space-y-4">
-                  {[
-                      { event: "Automated Backup", time: "2 hours ago", status: "Success", detail: "Global database snapshot completed." },
-                      { event: "Node Synchronizer", time: "5 hours ago", status: "Success", detail: "All edge gateways synchronized with primary cluster." },
-                      { event: "Security Scan", time: "12 hours ago", status: "Success", detail: "No vulnerabilities detected in latest patch." },
-                      { event: "Resource Optimization", time: "1 day ago", status: "Neutral", detail: "Re-allocated NVMe cache for better read performance." },
-                  ].map((item, i) => (
-                      <div key={i} className="flex items-start justify-between p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800/50">
-                          <div className="flex gap-4">
-                              <div className={cn(
-                                  "mt-1 h-2 w-2 rounded-full",
-                                  item.status === 'Success' ? "bg-emerald-500" : "bg-amber-500"
-                                  )} />
-                                  <div>
-                                      <p className="text-sm font-bold text-slate-900 dark:text-white">{item.event}</p>
-                                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{item.detail}</p>
-                                  </div>
-                              </div>
-                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{item.time}</span>
-                          </div>
-                      ))}
-                  </div>
-              </CardContent>
-          </Card>
         </div>
       );
     }

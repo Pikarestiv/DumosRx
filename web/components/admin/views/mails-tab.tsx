@@ -2,7 +2,14 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  CardFooter,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,7 +26,8 @@ export function MailsTab() {
   const [selectedUsers, setSelectedUsers] = useState<any[]>([]);
 
   const sendMailMutation = useMutation({
-    mutationFn: (data: any) => webApiClient.request("admin/mail/send", { method: "POST", data }),
+    mutationFn: (data: any) =>
+      webApiClient.request("admin/mail/send", { method: "POST", data }),
     onSuccess: () => {
       toast.success("Email(s) dispatched successfully!");
       setSubject("");
@@ -58,18 +66,19 @@ export function MailsTab() {
           Send Email Campaign
         </CardTitle>
         <CardDescription>
-          Compose and send emails to specific users or broadcast to your entire user base.
+          Compose and send emails to specific users or broadcast to your entire
+          user base.
         </CardDescription>
       </CardHeader>
       <form onSubmit={handleSendMail}>
         <CardContent className="space-y-6">
-          <UserSelector 
-            selectedUsers={selectedUsers} 
+          <UserSelector
+            selectedUsers={selectedUsers}
             onUsersChange={setSelectedUsers}
             targetType={targetType}
             onTargetTypeChange={setTargetType}
           />
-          
+
           <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
             <div className="space-y-2">
               <Label htmlFor="subject">Email Subject</Label>
@@ -95,8 +104,8 @@ export function MailsTab() {
           </div>
         </CardContent>
         <CardFooter className="flex justify-end border-t border-slate-100 dark:border-slate-800 pt-6">
-          <Button 
-            type="submit" 
+          <Button
+            type="submit"
             className="bg-indigo-600 hover:bg-indigo-700 font-bold px-8 shadow-lg shadow-indigo-600/20"
             disabled={sendMailMutation.isPending}
           >

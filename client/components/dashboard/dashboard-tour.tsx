@@ -75,7 +75,7 @@ export function DashboardTour() {
           textAlign: "left",
         },
         buttonPrimary: {
-          backgroundColor: "#4f46e5",
+          backgroundColor: "var(--color-primary)",
           borderRadius: "8px",
         },
         buttonBack: {
@@ -86,7 +86,7 @@ export function DashboardTour() {
         }
       }}
       options={{
-        primaryColor: "#4f46e5", // indigo-600
+        primaryColor: "var(--color-primary)", // primary theme color
         zIndex: 1000,
         showProgress: true,
         buttons: ['back', 'close', 'primary', 'skip']

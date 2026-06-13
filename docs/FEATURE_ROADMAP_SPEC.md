@@ -109,6 +109,15 @@ These features are our active development targets for the next major release.
 
 ---
 
+### 🪄 Interactive Onboarding & Guided Tours
+
+- **Description:** An interactive onboarding flow for new users that highlights key parts of the platform and explains what each section does (e.g., pointing out where to manage inventory, view reports, or adjust settings).
+- **Features:** Step-by-step UI highlighting, tooltip-driven tours, completion progress tracking, and contextual help tooltips. Can be built using lightweight libraries like `driver.js` or `intro.js`.
+- **Effort:** ~2–3 days
+- **Cost:** None (Client-side logic)
+
+---
+
 ## 🛑 FUTURE ROADMAP — v2.0+
 
 These change the core business model. Hold until core ERP/POS is dominant.

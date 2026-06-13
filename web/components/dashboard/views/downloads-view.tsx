@@ -91,7 +91,7 @@ export function DownloadsView({
             className={`overflow-hidden border-2 border-transparent bg-background/60 backdrop-blur-xl shadow-lg transition-all duration-300 ${app.border} relative group`}
           >
             <div
-              className={`absolute inset-0 bg-gradient-to-br ${app.gradient} opacity-50 group-hover:opacity-100 transition-opacity`}
+              className={`absolute inset-0 bg-linear-to-br ${app.gradient} opacity-50 group-hover:opacity-100 transition-opacity`}
             />
             <CardContent className="p-8 relative z-10 flex flex-col h-full">
               <div className="flex justify-between items-start mb-8">
@@ -196,7 +196,7 @@ export function DownloadsView({
         ))}
       </div>
 
-      <div className="bg-linear-to-r from-muted/30 to-muted/10 border border-muted rounded-[2rem] p-10 text-center max-w-3xl mx-auto mt-16 backdrop-blur-sm">
+      <div className="bg-linear-to-r from-muted/60 to-muted/40 border border-muted rounded-[2rem] p-10 text-center max-w-3xl mx-auto mt-16 backdrop-blur-sm">
         <h3 className="text-xl font-black mb-3 text-foreground">
           Need a different version?
         </h3>

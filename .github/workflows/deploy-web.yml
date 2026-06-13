@@ -35,6 +35,7 @@ jobs:
         env:
           # Production API URL
           NEXT_PUBLIC_API_URL: https://api.dumosrx.com/api/v1
+          NEXT_PUBLIC_APP_ENV: "production"
 
       - name: Sync files to FTP
         uses: SamKirkland/FTP-Deploy-Action@8e83cea8672e3fbcbb9fdafff34debf6ae4c5f65 # v4.3.5

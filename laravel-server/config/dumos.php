@@ -10,5 +10,5 @@ return [
     | alerts such as new registrations, first-time syncs, and payments.
     |
     */
-    'admin_emails' => explode(',', env('ADMIN_EMAILS', 'admin@dumosrx.com')),
+    'admin_emails' => explode(',', env('ADMIN_EMAILS', 'admin@dumosrx.com, josh@dumostech.com')),
 ];

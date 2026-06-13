@@ -140,12 +140,25 @@ export function DashboardSidebar({
       </Link>
     );
 
-    if (collapsed) {
+    const unTouredTooltips: Record<string, string> = {
+      "/prescriptions": "Manage prescription queues and fulfillments",
+      "/procurement": "Manage purchase orders and vendor relations",
+      "/expenses": "Track store expenses and cash flow",
+      "/reports": "View detailed analytics and performance reports",
+    };
+
+    const extraTooltip = !collapsed && unTouredTooltips[href];
+
+    if (collapsed || extraTooltip) {
       return (
-        <Tooltip delayDuration={100}>
+        <Tooltip delayDuration={collapsed ? 100 : 300}>
           <TooltipTrigger asChild>{link}</TooltipTrigger>
-          <TooltipContent side="right" className="font-medium text-xs">
-            {name} {locked ? "🔒" : ""}
+          <TooltipContent side="right" className={collapsed ? "font-medium text-xs" : "font-semibold text-xs ml-2"}>
+            {collapsed ? (
+              <>{name} {locked ? "🔒" : ""}</>
+            ) : (
+              extraTooltip
+            )}
           </TooltipContent>
         </Tooltip>
       );

@@ -78,11 +78,15 @@ class AuthController extends Controller
             // Create trial subscription
             app(SubscriptionService::class)->createTrial($user);
 
-            // Send Welcome Email
-            try {
-                Mail::to($user->email)->send(new WelcomeEmail($user, $request->store_name));
-            } catch (Exception $e) {
-                Log::error("Failed to send welcome email: " . $e->getMessage());
+            $requireVerification = \App\Models\SystemConfig::getVal('require_email_verification', false) === true || \App\Models\SystemConfig::getVal('require_email_verification', false) === 'true';
+
+            // Send Welcome Email if verification is NOT required
+            if (!$requireVerification) {
+                try {
+                    Mail::to($user->email)->send(new WelcomeEmail($user, $request->store_name));
+                } catch (Exception $e) {
+                    Log::error("Failed to send welcome email: " . $e->getMessage());
+                }
             }
 
             // Send Super Admin Alert
@@ -103,7 +107,6 @@ class AuthController extends Controller
             }
         }
 
-        $requireVerification = \App\Models\SystemConfig::getVal('require_email_verification', false) === true || \App\Models\SystemConfig::getVal('require_email_verification', false) === 'true';
         if ($requireVerification) {
             $verifyToken = Str::random(64);
             DB::table('email_verification_tokens')->updateOrInsert(
@@ -251,6 +254,15 @@ class AuthController extends Controller
             $user->email_verified_at = now();
             $user->save();
             DB::table('email_verification_tokens')->where('email', $request->email)->delete();
+
+            // Send Welcome Email upon successful verification
+            try {
+                $storeName = $user->store ? $user->store->name : 'DumosRx';
+                Mail::to($user->email)->send(new \App\Mail\WelcomeEmail($user, $storeName));
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error("Failed to send welcome email after verification: " . $e->getMessage());
+            }
+
             return response()->json(['message' => 'Email verified successfully.', 'user' => $user]);
         }
 

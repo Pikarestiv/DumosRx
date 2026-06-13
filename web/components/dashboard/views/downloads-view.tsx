@@ -75,10 +75,10 @@ export function DownloadsView({
                   </Badge>
                 )}
               </h3>
-              <p className="text-sm text-muted-foreground mb-6">
-                {app.version.startsWith("v") ? app.version : `v${app.version}`}{" "}
-                • {app.size}
+              <p className="text-sm text-muted-foreground mb-2">
+                {app.version.startsWith("v") ? app.version : `v${app.version}`}
               </p>
+              <p className="text-sm text-muted-foreground mb-6">{app.size}</p>
               <Button
                 className="w-full font-bold h-12"
                 variant={
@@ -96,7 +96,7 @@ export function DownloadsView({
                       target="_blank"
                       rel="noopener noreferrer"
                     >
-                      Download for {app.os}
+                      Download
                     </a>
                   )
                 ) : (

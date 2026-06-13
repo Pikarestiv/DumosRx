@@ -24,6 +24,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface HeaderProps {
   onSetActiveTab: (tab: string) => void;
@@ -109,25 +110,41 @@ export function Header({ onSetActiveTab }: HeaderProps) {
           </div>
         ) : (
           <div id="tour-header-search" className="relative w-full max-w-md hidden md:block">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search records, stores or medicines..."
-              className="pl-10 bg-muted/50 border-none focus-visible:ring-primary"
-            />
+            <Tooltip delayDuration={300}>
+              <TooltipTrigger asChild>
+                <div className="relative w-full">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search records, stores or medicines..."
+                    className="pl-10 bg-muted/50 border-none focus-visible:ring-primary w-full"
+                  />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="font-semibold text-xs mt-1">
+                Search across stores, products, or transactions
+              </TooltipContent>
+            </Tooltip>
           </div>
         )}
       </div>
       <div id="tour-header-actions" className="flex items-center gap-1 sm:gap-4">
         <ModeToggle />
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="relative h-9 w-9 sm:h-10 sm:w-10">
-              <Bell className="h-5 w-5" />
-              {unreadCount > 0 && (
-                <span className="absolute top-2 right-2 w-2 h-2 bg-destructive rounded-full animate-pulse" />
-              )}
-            </Button>
-          </DropdownMenuTrigger>
+          <Tooltip delayDuration={300}>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="relative h-9 w-9 sm:h-10 sm:w-10">
+                  <Bell className="h-5 w-5" />
+                  {unreadCount > 0 && (
+                    <span className="absolute top-2 right-2 w-2 h-2 bg-destructive rounded-full animate-pulse" />
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="font-semibold text-xs mt-1">
+              View real-time system notifications
+            </TooltipContent>
+          </Tooltip>
           <DropdownMenuContent
             align="end"
             className="w-80 rounded-2xl p-2 shadow-2xl border-none"

@@ -10,6 +10,32 @@ use Illuminate\Http\JsonResponse;
 class FeedbackController extends Controller
 {
     /**
+     * Store a public support request.
+     */
+    public function store(Request $request): JsonResponse
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|max:255',
+            'subject' => 'required|string|max:255',
+            'message' => 'required|string'
+        ]);
+
+        $feedback = new Feedback();
+        $feedback->id = (string) \Illuminate\Support\Str::uuid();
+        $feedback->type = 'support_ticket';
+        $feedback->contact_email = $request->input('email');
+        $feedback->content = "Name: " . $request->input('name') . "\nSubject: " . $request->input('subject') . "\n\n" . $request->input('message');
+        $feedback->status = 'pending';
+        $feedback->save();
+
+        return response()->json([
+            'message' => 'Support request submitted successfully',
+            'success' => true
+        ]);
+    }
+
+    /**
      * Display a listing of the feedback.
      */
     public function index(Request $request): JsonResponse

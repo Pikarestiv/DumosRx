@@ -29,6 +29,25 @@ class FeedbackController extends Controller
         $feedback->status = 'pending';
         $feedback->save();
 
+        try {
+            \App\Services\AdminAlertService::send(
+                'New Support Request: ' . $request->input('subject'),
+                [
+                    'A new support request has been submitted.',
+                    '',
+                    'Name: ' . $request->input('name'),
+                    'Email: ' . $request->input('email'),
+                    'Subject: ' . $request->input('subject'),
+                    '',
+                    'Message:',
+                    nl2br(e($request->input('message'))),
+                ]
+            );
+        } catch (\Exception $e) {
+            // Log but don't fail the request
+            \Illuminate\Support\Facades\Log::error('Failed to send admin alert for feedback: ' . $e->getMessage());
+        }
+
         return response()->json([
             'message' => 'Support request submitted successfully',
             'success' => true

@@ -29,6 +29,7 @@ export function DashboardTour() {
       content: "This is your main overview, showing daily sales and vital store metrics.",
       placement: "right",
     },
+    /*
     {
       target: "#tour-header-search",
       content: "Instantly search across your stores, products, or transactions from anywhere.",
@@ -39,6 +40,7 @@ export function DashboardTour() {
       content: "Toggle dark mode or view your real-time system notifications here.",
       placement: "bottom",
     },
+    */
     {
       target: "#tour-overview-stats",
       content: "Get an instant snapshot of your sales, active staff, and inventory counts.",
@@ -49,6 +51,7 @@ export function DashboardTour() {
       content: "Quickly provision and add a new physical or digital store to your network.",
       placement: "bottom",
     },
+    /*
     {
       target: "#tour-overview-stores",
       content: "Monitor the real-time sync status and performance of all your connected branches.",
@@ -59,6 +62,7 @@ export function DashboardTour() {
       content: "Stay updated with important system alerts and staff notifications.",
       placement: "right",
     },
+    */
     {
       target: "#tour-nav-fleet",
       content: "Manage your physical store locations and staff assignments here.",
@@ -69,6 +73,7 @@ export function DashboardTour() {
       content: "Add staff, assign roles, and control their access to the system.",
       placement: "right",
     },
+    /*
     {
       target: "#tour-nav-activities",
       content: "Track staff activities, sales records, and inventory changes.",
@@ -89,6 +94,7 @@ export function DashboardTour() {
       content: "Access your account security settings and profile details.",
       placement: "right",
     },
+    */
     {
       target: "#tour-profile",
       content: "Quickly view your user info and securely log out here.",

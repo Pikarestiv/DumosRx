@@ -74,6 +74,7 @@ To maintain the "Premium" feel:
 - **Foundations**: Use `Geist` or `Inter` for body, and a Serif font (e.g., `Playfair Display`) for headings.
 - **Accents**: Primary color is a deep, professional emerald or navy, with gold/muted-yellow accents for "Alerts" and "Ratings".
 - **Glassmorphism**: Subtle use of backdrop-blur for dialogs and secondary cards.
+- **Tooltips & Tours**: Use `Radix UI` tooltips for secondary actions (with a subtle 1000ms delay to prevent flickering) and `react-joyride` for interactive dashboard tours. Tooltips should follow the glassmorphism aesthetic (`bg-background/95 backdrop-blur-sm border shadow-sm`).
 
 ---
 
@@ -125,6 +126,18 @@ DumosRx targets the Nigerian market against competitors like VirtualRx and crack
 - The local app silently downloads this token during an internet sync.
 - **Offline Integrity**: The local app (`licensing-manager.ts`) mathematically verifies the JWT signature and expiration.
 - **Anti-Backdating**: `LicenseGuard` blocks the UI if it detects monotonic clock tampering (e.g., rolling back computer time). We do **not** support manual offline keys to prevent cracking.
+
+---
+
+## 🎯 Recently Completed Capabilities (v1.x)
+
+- **Interactive Onboarding & Guided Tours**: Step-by-step UI highlighting using `react-joyride` and subtle glassmorphism tooltips using `Radix UI` for both web and local client dashboards.
+- **Support & FAQ System**: Integrated a public support request submission form with a Laravel API endpoint, alongside an accordion-based FAQ page.
+- **End-of-Day (EOD) Performance Summaries**: Automated and manual triggers for EOD store performance summary emails.
+- **Mandatory Email Verification**: Enforced email verification flow across the web application.
+- **Data Safety Guardrails**: Added logout confirmation dialogs for unsynced changes to prevent data loss in the local app.
+- **Sync & Analytics Enhancements**: Configurable auto-sync intervals based on subscription tiers, and robust local-app download tracking for analytics.
+- **CI/CD Automation**: GitHub Actions workflow established to automatically deploy frontend and backend changes to the development environment.
 
 ---
 

@@ -58,6 +58,7 @@ export function Sidebar({
         {sidebarItems.map((item) => (
           <button
             key={item.id}
+            id={`tour-nav-${item.id}`}
             onClick={() => {
               setActiveTab(item.id);
             }}
@@ -74,7 +75,7 @@ export function Sidebar({
       </nav>
 
       <div className="p-4 border-t">
-        <div className="bg-muted/50 rounded-2xl p-4 flex items-center gap-3">
+        <div id="tour-profile" className="bg-muted/50 rounded-2xl p-4 flex items-center gap-3">
           <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary animate-pulse">
             {user?.name?.charAt(0) || "U"}
           </div>

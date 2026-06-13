@@ -10,6 +10,7 @@ import { Header } from "@/components/dashboard/header";
 import { BroadcastBanner } from "@/components/dashboard/broadcast-banner";
 import { BottomNav } from "@/components/dashboard/bottom-nav";
 import { VerificationBanner } from "@/components/dashboard/verification-banner";
+import { DashboardTour } from "@/components/dashboard/dashboard-tour";
 
 // View Components
 import { OverviewView } from "@/components/dashboard/views/overview-view";
@@ -99,6 +100,7 @@ export function DashboardClient({ view }: { view: string }) {
           </div>
         </main>
       </div>
+      <DashboardTour />
       <BottomNav activeTab={view} setActiveTab={setActiveTab} user={user} onLogout={logout} />
     </div>
   );

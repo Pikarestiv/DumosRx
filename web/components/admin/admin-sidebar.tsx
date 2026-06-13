@@ -79,6 +79,7 @@ export function AdminSidebar() {
       <div className="p-8">
         <Link
           href="/admin"
+          id="tour-brand"
           className="flex flex-col items-center gap-2 group transition-transform hover:scale-105"
         >
           <Image
@@ -101,7 +102,7 @@ export function AdminSidebar() {
       </div>
 
       <div className="px-4 mb-4">
-        <div className="bg-slate-900/50 rounded-2xl p-4 border border-slate-800/50 flex items-center gap-3">
+        <div id="tour-status" className="bg-slate-900/50 rounded-2xl p-4 border border-slate-800/50 flex items-center gap-3">
           <div
             className={`h-3 w-3 rounded-full ${error ? "bg-rose-500" : isLoading ? "bg-amber-500 animate-pulse" : "bg-green-500 animate-pulse"}`}
           />
@@ -134,6 +135,7 @@ export function AdminSidebar() {
             <Link
               key={item.id}
               href={item.href}
+              id={`tour-nav-${item.id}`}
               className={cn(
                 "group flex items-center justify-between px-4 py-3.5 rounded-xl text-sm font-semibold transition-all duration-200",
                 isActive
@@ -159,7 +161,7 @@ export function AdminSidebar() {
       </nav>
 
       <div className="p-4 border-t border-slate-800">
-        <div className="bg-slate-900 rounded-2xl p-4 flex items-center gap-3 border border-slate-800/50">
+        <div id="tour-profile" className="bg-slate-900 rounded-2xl p-4 flex items-center gap-3 border border-slate-800/50">
           <div className="h-10 w-10 rounded-xl bg-indigo-600/10 flex items-center justify-center font-bold text-indigo-400 border border-indigo-600/20 uppercase">
             {userInitials}
           </div>

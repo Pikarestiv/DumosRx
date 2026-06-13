@@ -1,6 +1,13 @@
 "use client";
 
-import { Smartphone, Monitor, Globe } from "lucide-react";
+import {
+  Smartphone,
+  Monitor,
+  Globe,
+  Download,
+  ArrowRight,
+  Laptop,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,111 +21,192 @@ export function DownloadsView({
   releaseLinks,
   requiresVerification,
 }: DownloadsViewProps) {
-  const downloadCards = [
+  const primaryApps = [
     {
       os: "Windows",
+      description: "For Windows 10/11",
       icon: Monitor,
       version: releaseLinks.version,
       size: releaseLinks.winSize,
       link: releaseLinks.windows,
+      gradient: "from-blue-500/20 to-cyan-500/5",
+      border: "hover:border-blue-500/50",
+      iconColor: "text-blue-500",
+      bg: "bg-blue-500/10",
     },
     {
       os: "macOS",
-      icon: Monitor,
+      description: "For Apple Silicon & Intel",
+      icon: Laptop,
       version: releaseLinks.version,
       size: releaseLinks.macSize,
       link: releaseLinks.macos,
+      gradient: "from-purple-500/20 to-pink-500/5",
+      border: "hover:border-purple-500/50",
+      iconColor: "text-purple-500",
+      bg: "bg-purple-500/10",
     },
+  ];
+
+  const secondaryApps = [
     {
       os: "Linux",
+      description: "AppImage (x86_64)",
       icon: Globe,
-      version: releaseLinks.version + " (AppImage)",
+      version: releaseLinks.version,
       size: releaseLinks.linuxSize,
       link: releaseLinks.linux,
     },
     {
       os: "Android",
+      description: "APK for Android 8.0+",
       icon: Smartphone,
-      version: releaseLinks.version + " (APK)",
+      version: releaseLinks.version,
       size: releaseLinks.androidSize,
       link: releaseLinks.android,
     },
   ];
 
+  const formatVersion = (v: string) => (v?.startsWith("v") ? v : `v${v}`);
+
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div>
-        <h1 className="text-3xl font-black tracking-tight">App Downloads</h1>
-        <p className="text-muted-foreground">
-          Download the DumosRx Local Client for your store devices
+    <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-6xl mx-auto">
+      <div className="text-center max-w-2xl mx-auto space-y-4 pt-8">
+        <div className="inline-flex items-center justify-center p-2 bg-primary/10 rounded-full mb-2">
+          <Download className="h-6 w-6 text-primary" />
+        </div>
+        <h1 className="text-4xl md:text-5xl font-black tracking-tight">
+          Get DumosRx Local
+        </h1>
+        <p className="text-lg text-muted-foreground">
+          Download the ultra-fast offline client for your store devices. Enjoy
+          seamless background sync and unmatched performance.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {downloadCards.map((app, i) => (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-12">
+        {primaryApps.map((app, i) => (
           <Card
             key={i}
-            className="border-none shadow-sm hover:border-primary/50 transition-colors border-2 border-transparent"
+            className={`overflow-hidden border-2 border-transparent bg-background/60 backdrop-blur-xl shadow-lg transition-all duration-300 ${app.border} relative group`}
           >
-            <CardContent className="p-8 text-center flex flex-col items-center">
-              <div className="w-16 h-16 bg-primary/10 rounded-3xl flex items-center justify-center text-primary mb-6">
-                <app.icon className="h-8 w-8" />
-              </div>
-              <h3 className="text-xl font-black mb-1">
-                {app.os}
+            <div
+              className={`absolute inset-0 bg-gradient-to-br ${app.gradient} opacity-50 group-hover:opacity-100 transition-opacity`}
+            />
+            <CardContent className="p-8 relative z-10 flex flex-col h-full">
+              <div className="flex justify-between items-start mb-8">
+                <div
+                  className={`w-16 h-16 ${app.bg} rounded-2xl flex items-center justify-center ${app.iconColor} shadow-inner`}
+                >
+                  <app.icon className="h-8 w-8" />
+                </div>
                 {!app.link && (
                   <Badge
                     variant="secondary"
-                    className="ml-2 text-[10px] bg-amber-100 text-amber-700 border-amber-200"
+                    className="bg-amber-100 text-amber-700 border-amber-200"
                   >
                     Coming Soon
                   </Badge>
                 )}
-              </h3>
-              <p className="text-sm text-muted-foreground mb-2">
-                {app.version.startsWith("v") ? app.version : `v${app.version}`}
-              </p>
-              <p className="text-sm text-muted-foreground mb-6">{app.size}</p>
-              <Button
-                className="w-full font-bold h-12"
-                variant={
-                  app.link && !requiresVerification ? "default" : "outline"
-                }
-                disabled={!app.link || requiresVerification}
-                asChild={!!app.link && !requiresVerification}
-              >
-                {app.link ? (
-                  requiresVerification ? (
-                    <span className="text-xs">Verify Email to Download</span>
+              </div>
+
+              <div className="mt-auto">
+                <h3 className="text-3xl font-black mb-1">{app.os}</h3>
+                <p className="text-muted-foreground font-medium mb-6">
+                  {app.description}
+                </p>
+
+                <div className="flex items-center justify-between mb-8 text-sm font-medium bg-muted/50 p-3 rounded-xl">
+                  <span className="text-foreground/80">
+                    Version {formatVersion(app.version)}
+                  </span>
+                  <span className="text-muted-foreground">{app.size}</span>
+                </div>
+
+                <Button
+                  size="lg"
+                  className="w-full font-bold h-14 text-lg shadow-xl"
+                  variant={
+                    app.link && !requiresVerification ? "default" : "secondary"
+                  }
+                  disabled={!app.link || requiresVerification}
+                  asChild={!!app.link && !requiresVerification}
+                >
+                  {app.link ? (
+                    requiresVerification ? (
+                      <span>Verify Email to Download</span>
+                    ) : (
+                      <a
+                        href={app.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Download for {app.os}
+                        <ArrowRight className="ml-2 h-5 w-5" />
+                      </a>
+                    )
                   ) : (
-                    <a
-                      href={app.link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      Download
-                    </a>
-                  )
-                ) : (
-                  <span>Unavailable</span>
-                )}
-              </Button>
+                    <span>Unavailable</span>
+                  )}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      <div className="bg-muted/30 border border-dashed border-muted rounded-3xl p-10 text-center max-w-2xl mx-auto mt-12">
-        <h3 className="text-xl font-black mb-2 text-foreground">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-dashed border-border/50">
+        {secondaryApps.map((app, i) => (
+          <div
+            key={i}
+            className="flex items-center p-6 bg-muted/60 rounded-3xl border border-transparent hover:border-border transition-colors"
+          >
+            <div className="w-12 h-12 bg-background rounded-xl flex items-center justify-center text-foreground shadow-sm mr-5">
+              <app.icon className="h-6 w-6" />
+            </div>
+            <div className="flex-1">
+              <h4 className="text-lg font-bold">{app.os}</h4>
+              <p className="text-sm text-muted-foreground">{app.description}</p>
+            </div>
+            <div className="text-right mr-5 hidden sm:block">
+              <p className="text-sm font-medium">
+                {formatVersion(app.version)}
+              </p>
+              <p className="text-xs text-muted-foreground">{app.size}</p>
+            </div>
+            <Button
+              variant={app.link && !requiresVerification ? "outline" : "ghost"}
+              className="font-bold rounded-full px-6"
+              disabled={!app.link || requiresVerification}
+              asChild={!!app.link && !requiresVerification}
+            >
+              {app.link ? (
+                requiresVerification ? (
+                  <span>Verify</span>
+                ) : (
+                  <a href={app.link} target="_blank" rel="noopener noreferrer">
+                    Get
+                  </a>
+                )
+              ) : (
+                <span>Wait</span>
+              )}
+            </Button>
+          </div>
+        ))}
+      </div>
+
+      <div className="bg-linear-to-r from-muted/30 to-muted/10 border border-muted rounded-[2rem] p-10 text-center max-w-3xl mx-auto mt-16 backdrop-blur-sm">
+        <h3 className="text-xl font-black mb-3 text-foreground">
           Need a different version?
         </h3>
-        <p className="text-muted-foreground mb-6">
-          Access all historical versions, beta releases, and source code on our
-          official repository.
+        <p className="text-muted-foreground mb-8 max-w-lg mx-auto">
+          Access all historical versions, beta releases, and view the changelog
+          on our official GitHub repository.
         </p>
         <Button
-          variant="outline"
-          className="font-bold"
+          variant="default"
+          className="font-bold rounded-full px-8 h-12 shadow-md"
           disabled={requiresVerification}
           asChild={!requiresVerification}
         >
@@ -126,8 +214,9 @@ export function DownloadsView({
             <span>Verify Email to Browse</span>
           ) : (
             <a
-              href={`https://github.com/DumosRx/client/releases`}
+              href="https://github.com/Pikarestiv/DumosRx/releases"
               target="_blank"
+              rel="noopener noreferrer"
             >
               Browse All Releases
             </a>

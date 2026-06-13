@@ -86,7 +86,7 @@ export function Sidebar({
           if (!tooltipContent[item.id]) return button;
 
           return (
-            <Tooltip key={item.id} delayDuration={300}>
+            <Tooltip key={item.id}>
               <TooltipTrigger asChild>
                 {button}
               </TooltipTrigger>

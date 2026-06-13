@@ -151,7 +151,7 @@ export function DashboardSidebar({
 
     if (collapsed || extraTooltip) {
       return (
-        <Tooltip delayDuration={collapsed ? 100 : 300}>
+        <Tooltip>
           <TooltipTrigger asChild>{link}</TooltipTrigger>
           <TooltipContent side="right" className={collapsed ? "font-medium text-xs" : "font-semibold text-xs ml-2"}>
             {collapsed ? (

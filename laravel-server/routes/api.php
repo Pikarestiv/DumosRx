@@ -34,6 +34,7 @@ use App\Http\Controllers\Api\SystemConfigController;
 Route::prefix('v1')->group(function () {
     // Public Routes
     Route::get('/system-configs/{key}', [SystemConfigController::class, 'show']);
+    Route::post('/support', [\App\Http\Controllers\Api\Web\FeedbackController::class, 'store']);
     Route::middleware('throttle:auth')->group(function () {
         Route::post('/login', [AuthController::class, 'login']);
         Route::post('/register', [AuthController::class, 'register']);

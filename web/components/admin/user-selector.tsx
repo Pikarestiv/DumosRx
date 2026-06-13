@@ -123,7 +123,7 @@ export function UserSelector({
                           className="flex justify-between items-center"
                         >
                           <div>
-                            <p className="font-medium">{user.first_name} {user.last_name}</p>
+                            <p className="font-medium">{user.name}</p>
                             <p className="text-xs text-muted-foreground">{user.email}</p>
                           </div>
                           <div className={cn(
@@ -147,7 +147,7 @@ export function UserSelector({
             <div className="flex flex-wrap gap-2 p-3 bg-muted/30 rounded-md border border-border/50">
               {selectedUsers.map((user) => (
                 <Badge key={user.id} variant="secondary" className="pl-3 pr-1 py-1 gap-1">
-                  {user.first_name} {user.last_name}
+                  {user.name}
                   <Button
                     variant="ghost"
                     size="sm"

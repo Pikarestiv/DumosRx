@@ -22,6 +22,7 @@ import { BroadcastBanner } from "./broadcast-banner";
 import { DashboardSidebar } from "./dashboard-sidebar";
 import { MobileBottomNav } from "./mobile-bottom-nav";
 import { LiveClock } from "./live-clock";
+import { DashboardTour } from "./dashboard-tour";
 import { cn } from "@/lib/utils";
 
 interface DashboardLayoutProps {
@@ -205,6 +206,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </AnimatePresence>
         </div>
       </div>
+      <DashboardTour />
     </div>
   );
 }

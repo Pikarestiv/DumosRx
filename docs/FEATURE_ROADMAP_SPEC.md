@@ -109,6 +109,8 @@ These features are our active development targets for the next major release.
 
 ---
 
+
+
 ## 🛑 FUTURE ROADMAP — v2.0+
 
 These change the core business model. Hold until core ERP/POS is dominant.

@@ -11,6 +11,7 @@ import { AuthProvider } from "@/lib/context/auth-context";
 import { QuickSetupWizard } from "@/components/setup/quick-setup-wizard";
 import { LicenseGuard } from "@/components/auth/license-guard";
 import { APP_NAME } from "@/lib/constants";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { TauriTitleBar } from "@/components/tauri/tauri-title-bar";
 
 import { ErrorBoundary } from "@/components/tauri/error-boundary";
@@ -87,16 +88,18 @@ export default function RootLayout({
           <ErrorBoundary>
             <GlobalErrorListener>
               <ThemeProvider defaultTheme="light" storageKey="dumosrx-ui-theme">
-                <DatabaseProvider>
-                  <AuthProvider>
-                    <StoreProvider>
-                      <AuthListener />
-                      <QuickSetupWizard />
-                      <LicenseGuard>{children}</LicenseGuard>
-                      <Toaster />
-                    </StoreProvider>
-                  </AuthProvider>
-                </DatabaseProvider>
+                <TooltipProvider delayDuration={1000}>
+                  <DatabaseProvider>
+                    <AuthProvider>
+                      <StoreProvider>
+                        <AuthListener />
+                        <QuickSetupWizard />
+                        <LicenseGuard>{children}</LicenseGuard>
+                        <Toaster />
+                      </StoreProvider>
+                    </AuthProvider>
+                  </DatabaseProvider>
+                </TooltipProvider>
               </ThemeProvider>
             </GlobalErrorListener>
           </ErrorBoundary>

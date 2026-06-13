@@ -1,4 +1,9 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
+import { toast } from "sonner";
+import { webApiClient } from "@/lib/api/client";
 import {
   ArrowLeft,
   Headphones,
@@ -8,6 +13,31 @@ import {
 } from "lucide-react";
 
 export default function SupportPage() {
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    subject: "",
+    message: "",
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      await webApiClient.request("support", {
+        method: "POST",
+        data: formData,
+      });
+      toast.success("Message sent successfully! We'll get back to you soon.");
+      setFormData({ name: "", email: "", subject: "", message: "" });
+    } catch (_error) {
+      toast.error("Failed to send message. Please try again later.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 py-16 px-4 sm:px-6 lg:px-8">
       {/* Background patterns */}
@@ -33,6 +63,8 @@ export default function SupportPage() {
           <p className="text-lg text-muted-foreground">
             We're here to help you get the most out of DumosRx. How can we
             assist you today?
+            <br /> You can also click the live chat button at the bottom right
+            to chat with an agent.
           </p>
         </div>
 
@@ -58,7 +90,7 @@ export default function SupportPage() {
           </div>
 
           <div className="p-6 border rounded-2xl bg-white dark:bg-slate-900 shadow-sm flex flex-col items-start gap-4">
-            <div className="p-3 bg-accent/10 rounded-lg text-accent">
+            <div className="p-3 bg-primary/10 rounded-lg text-primary">
               <Phone className="h-6 w-6" />
             </div>
             <div>
@@ -70,8 +102,8 @@ export default function SupportPage() {
                 Enterprise plans.
               </p>
               <a
-                href="tel:+1234567890"
-                className="font-semibold text-accent hover:underline"
+                href="tel:+2348141230877"
+                className="font-semibold text-primary hover:underline"
               >
                 +234 (814) 123-0877
               </a>
@@ -87,7 +119,7 @@ export default function SupportPage() {
             </h2>
           </div>
 
-          <form className="space-y-4">
+          <form className="space-y-4" onSubmit={handleSubmit}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label htmlFor="name" className="text-sm font-medium">
@@ -96,6 +128,11 @@ export default function SupportPage() {
                 <input
                   type="text"
                   id="name"
+                  value={formData.name}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
+                  required
                   className="w-full px-4 py-2 border rounded-lg bg-transparent focus:ring-2 focus:ring-primary focus:border-primary outline-none"
                   placeholder="Your name"
                 />
@@ -107,6 +144,11 @@ export default function SupportPage() {
                 <input
                   type="email"
                   id="email"
+                  value={formData.email}
+                  onChange={(e) =>
+                    setFormData({ ...formData, email: e.target.value })
+                  }
+                  required
                   className="w-full px-4 py-2 border rounded-lg bg-transparent focus:ring-2 focus:ring-primary focus:border-primary outline-none"
                   placeholder="you@store.com"
                 />
@@ -119,6 +161,11 @@ export default function SupportPage() {
               <input
                 type="text"
                 id="subject"
+                value={formData.subject}
+                onChange={(e) =>
+                  setFormData({ ...formData, subject: e.target.value })
+                }
+                required
                 className="w-full px-4 py-2 border rounded-lg bg-transparent focus:ring-2 focus:ring-primary focus:border-primary outline-none"
                 placeholder="How can we help?"
               />
@@ -130,15 +177,21 @@ export default function SupportPage() {
               <textarea
                 id="message"
                 rows={5}
+                value={formData.message}
+                onChange={(e) =>
+                  setFormData({ ...formData, message: e.target.value })
+                }
+                required
                 className="w-full px-4 py-2 border rounded-lg bg-transparent focus:ring-2 focus:ring-primary focus:border-primary outline-none resize-none"
                 placeholder="Describe your issue or question..."
               ></textarea>
             </div>
             <button
-              type="button"
-              className="w-full py-3 px-4 bg-primary hover:bg-primary/90 text-white font-medium rounded-lg transition-colors"
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full py-3 px-4 bg-primary hover:bg-primary/90 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
             >
-              Send Message
+              {isSubmitting ? "Sending..." : "Send Message"}
             </button>
           </form>
         </div>

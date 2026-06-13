@@ -46,7 +46,10 @@ export function ReferralsSettingsForm({
       <CardContent className="space-y-6">
         <div className="flex items-center justify-between">
           <div className="space-y-0.5">
-            <Label htmlFor="enabled" className="font-bold text-slate-800 dark:text-slate-200">
+            <Label
+              htmlFor="enabled"
+              className="font-bold text-slate-800 dark:text-slate-200"
+            >
               Enable Referral Program
             </Label>
             <p className="text-xs text-muted-foreground">
@@ -62,7 +65,10 @@ export function ReferralsSettingsForm({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="reward" className="font-bold text-slate-800 dark:text-slate-200">
+            <Label
+              htmlFor="reward"
+              className="font-bold text-slate-800 dark:text-slate-200"
+            >
               Reward Percentage (%)
             </Label>
             <Input
@@ -85,7 +91,10 @@ export function ReferralsSettingsForm({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="trigger" className="font-bold text-slate-800 dark:text-slate-200">
+            <Label
+              htmlFor="trigger"
+              className="font-bold text-slate-800 dark:text-slate-200"
+            >
               Reward Trigger Policy
             </Label>
             <Select
@@ -94,14 +103,15 @@ export function ReferralsSettingsForm({
                 onChange({ ...settings, reward_trigger: v })
               }
             >
-              <SelectTrigger id="trigger" className="border-slate-200 dark:border-slate-800">
+              <SelectTrigger
+                id="trigger"
+                className="border-slate-200 dark:border-slate-800"
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="first">First Payout Only</SelectItem>
-                <SelectItem value="recurring">
-                  Recurring (Every Subscription Payment)
-                </SelectItem>
+                <SelectItem value="recurring">Recurring</SelectItem>
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">
@@ -112,7 +122,10 @@ export function ReferralsSettingsForm({
 
         <div className="flex items-center justify-between">
           <div className="space-y-0.5">
-            <Label htmlFor="full_payment" className="font-bold text-slate-800 dark:text-slate-200">
+            <Label
+              htmlFor="full_payment"
+              className="font-bold text-slate-800 dark:text-slate-200"
+            >
               Allow 100% Credit Checkouts
             </Label>
             <p className="text-xs text-muted-foreground">
@@ -128,9 +141,9 @@ export function ReferralsSettingsForm({
           />
         </div>
 
-        <Button 
-          onClick={onSave} 
-          disabled={saving} 
+        <Button
+          onClick={onSave}
+          disabled={saving}
           className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
         >
           {saving ? "Saving..." : "Save Settings"}

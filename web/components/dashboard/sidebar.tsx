@@ -13,6 +13,7 @@ import {
   Shield,
   Activity,
 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface SidebarProps {
   activeTab: string;
@@ -55,26 +56,50 @@ export function Sidebar({
       </div>
 
       <nav className="flex-1 px-4 py-4 space-y-1">
-        {sidebarItems.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => {
-              setActiveTab(item.id);
-            }}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-              activeTab === item.id
-                ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
-                : "text-muted-foreground hover:bg-primary/10 hover:text-primary"
-            }`}
-          >
-            <item.icon className="h-5 w-5" />
-            {item.name}
-          </button>
-        ))}
+        {sidebarItems.map((item) => {
+          const tooltipContent: Record<string, string> = {
+            notifications: "Stay updated with important system alerts",
+            activities: "Track staff activities and inventory changes",
+            billing: "Manage your subscription and billing details",
+            downloads: "Download the mobile or desktop apps",
+            profile: "Access your account security settings"
+          };
+
+          const button = (
+            <button
+              key={item.id}
+              id={`tour-nav-${item.id}`}
+              onClick={() => {
+                setActiveTab(item.id);
+              }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+                activeTab === item.id
+                  ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+                  : "text-muted-foreground hover:bg-primary/10 hover:text-primary"
+              }`}
+            >
+              <item.icon className="h-5 w-5" />
+              {item.name}
+            </button>
+          );
+
+          if (!tooltipContent[item.id]) return button;
+
+          return (
+            <Tooltip key={item.id}>
+              <TooltipTrigger asChild>
+                {button}
+              </TooltipTrigger>
+              <TooltipContent side="right" className="font-semibold text-xs ml-2">
+                {tooltipContent[item.id]}
+              </TooltipContent>
+            </Tooltip>
+          );
+        })}
       </nav>
 
       <div className="p-4 border-t">
-        <div className="bg-muted/50 rounded-2xl p-4 flex items-center gap-3">
+        <div id="tour-profile" className="bg-muted/50 rounded-2xl p-4 flex items-center gap-3">
           <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary animate-pulse">
             {user?.name?.charAt(0) || "U"}
           </div>

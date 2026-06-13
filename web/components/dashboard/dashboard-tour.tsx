@@ -30,6 +30,11 @@ export function DashboardTour() {
       placement: "right",
     },
     {
+      target: "#tour-nav-notifications",
+      content: "Stay updated with important system alerts and staff notifications.",
+      placement: "right",
+    },
+    {
       target: "#tour-nav-fleet",
       content: "Manage your physical store locations and staff assignments here.",
       placement: "right",
@@ -50,8 +55,18 @@ export function DashboardTour() {
       placement: "right",
     },
     {
-      target: "#tour-profile",
+      target: "#tour-nav-downloads",
+      content: "Download the DumosRx mobile or desktop apps for your devices.",
+      placement: "right",
+    },
+    {
+      target: "#tour-nav-profile",
       content: "Access your account security settings and profile details.",
+      placement: "right",
+    },
+    {
+      target: "#tour-profile",
+      content: "Quickly view your user info and securely log out here.",
       placement: "top",
     },
   ];

@@ -33,6 +33,8 @@ export default function SupportPage() {
           <p className="text-lg text-muted-foreground">
             We're here to help you get the most out of DumosRx. How can we
             assist you today?
+            <br /> You can also click the live chat button at the bottom right
+            to chat with an agent.
           </p>
         </div>
 
@@ -58,7 +60,7 @@ export default function SupportPage() {
           </div>
 
           <div className="p-6 border rounded-2xl bg-white dark:bg-slate-900 shadow-sm flex flex-col items-start gap-4">
-            <div className="p-3 bg-accent/10 rounded-lg text-accent">
+            <div className="p-3 bg-primary/10 rounded-lg text-primary">
               <Phone className="h-6 w-6" />
             </div>
             <div>
@@ -70,8 +72,8 @@ export default function SupportPage() {
                 Enterprise plans.
               </p>
               <a
-                href="tel:+1234567890"
-                className="font-semibold text-accent hover:underline"
+                href="tel:+2348141230877"
+                className="font-semibold text-primary hover:underline"
               >
                 +234 (814) 123-0877
               </a>

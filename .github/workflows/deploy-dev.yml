@@ -33,6 +33,7 @@ jobs:
         env:
           # Dev API URL
           NEXT_PUBLIC_API_URL: https://api.dev.dumosrx.com/api/v1
+          NEXT_PUBLIC_APP_ENV: "development"
           # Ignore SSL errors during build (since new subdomains might still be provisioning AutoSSL)
           NODE_TLS_REJECT_UNAUTHORIZED: "0"
 

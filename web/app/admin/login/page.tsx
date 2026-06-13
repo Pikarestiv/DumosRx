@@ -112,7 +112,7 @@ export default function AdminLoginPage() {
         <div className="mt-8 flex items-center justify-center gap-4 text-xs text-slate-500 uppercase tracking-widest font-bold">
             <span className="flex items-center gap-1"><ShieldCheck className="h-3 w-3 text-indigo-500" /> End-to-End Encrypted</span>
             <span className="w-1 h-1 bg-slate-700 rounded-full" />
-            <span>{APP_VERSION}-{process.env.NODE_ENV === 'development' ? 'DEV' : 'PROD'}</span>
+            <span>{APP_VERSION}-{process.env.NEXT_PUBLIC_APP_ENV === 'development' ? 'DEV' : 'PROD'}</span>
         </div>
       </motion.div>
     </div>

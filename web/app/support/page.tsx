@@ -17,7 +17,7 @@ export default function SupportPage() {
     name: "",
     email: "",
     subject: "",
-    message: ""
+    message: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -27,11 +27,11 @@ export default function SupportPage() {
     try {
       await webApiClient.request("support", {
         method: "POST",
-        data: formData
+        data: formData,
       });
       toast.success("Message sent successfully! We'll get back to you soon.");
       setFormData({ name: "", email: "", subject: "", message: "" });
-    } catch (error) {
+    } catch (_error) {
       toast.error("Failed to send message. Please try again later.");
     } finally {
       setIsSubmitting(false);
@@ -129,7 +129,9 @@ export default function SupportPage() {
                   type="text"
                   id="name"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
                   required
                   className="w-full px-4 py-2 border rounded-lg bg-transparent focus:ring-2 focus:ring-primary focus:border-primary outline-none"
                   placeholder="Your name"
@@ -143,7 +145,9 @@ export default function SupportPage() {
                   type="email"
                   id="email"
                   value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, email: e.target.value })
+                  }
                   required
                   className="w-full px-4 py-2 border rounded-lg bg-transparent focus:ring-2 focus:ring-primary focus:border-primary outline-none"
                   placeholder="you@store.com"
@@ -158,7 +162,9 @@ export default function SupportPage() {
                 type="text"
                 id="subject"
                 value={formData.subject}
-                onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, subject: e.target.value })
+                }
                 required
                 className="w-full px-4 py-2 border rounded-lg bg-transparent focus:ring-2 focus:ring-primary focus:border-primary outline-none"
                 placeholder="How can we help?"
@@ -172,7 +178,9 @@ export default function SupportPage() {
                 id="message"
                 rows={5}
                 value={formData.message}
-                onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, message: e.target.value })
+                }
                 required
                 className="w-full px-4 py-2 border rounded-lg bg-transparent focus:ring-2 focus:ring-primary focus:border-primary outline-none resize-none"
                 placeholder="Describe your issue or question..."

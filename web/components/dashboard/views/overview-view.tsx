@@ -86,7 +86,7 @@ export function OverviewView({ stats, user, stores, onReset, onNavigate: _onNavi
               {isSendingSummary ? "Sending..." : "Send Daily Summary"}
             </Button>
           )}
-          <Button className="font-bold w-full sm:w-auto" onClick={() => setIsStoreModalOpen(true)}>
+          <Button id="tour-overview-add-store" className="font-bold w-full sm:w-auto" onClick={() => setIsStoreModalOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Add New Store
           </Button>
@@ -105,10 +105,12 @@ export function OverviewView({ stats, user, stores, onReset, onNavigate: _onNavi
         </div>
       )}
 
-      <OverviewStats stats={stats} />
+      <div id="tour-overview-stats">
+        <OverviewStats stats={stats} />
+      </div>
 
       <div className="grid lg:grid-cols-3 gap-8">
-        <Card className="lg:col-span-2 border-none shadow-sm min-w-0 overflow-hidden">
+        <Card id="tour-overview-stores" className="lg:col-span-2 border-none shadow-sm min-w-0 overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle>Connected Stores</CardTitle>

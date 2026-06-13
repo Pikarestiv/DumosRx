@@ -108,7 +108,7 @@ export function Header({ onSetActiveTab }: HeaderProps) {
             </Button>
           </div>
         ) : (
-          <div className="relative w-full max-w-md hidden md:block">
+          <div id="tour-header-search" className="relative w-full max-w-md hidden md:block">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search records, stores or medicines..."
@@ -117,7 +117,7 @@ export function Header({ onSetActiveTab }: HeaderProps) {
           </div>
         )}
       </div>
-      <div className="flex items-center gap-1 sm:gap-4">
+      <div id="tour-header-actions" className="flex items-center gap-1 sm:gap-4">
         <ModeToggle />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

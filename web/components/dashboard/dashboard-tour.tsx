@@ -30,6 +30,31 @@ export function DashboardTour() {
       placement: "right",
     },
     {
+      target: "#tour-header-search",
+      content: "Instantly search across your stores, products, or transactions from anywhere.",
+      placement: "bottom",
+    },
+    {
+      target: "#tour-header-actions",
+      content: "Toggle dark mode or view your real-time system notifications here.",
+      placement: "bottom",
+    },
+    {
+      target: "#tour-overview-stats",
+      content: "Get an instant snapshot of your sales, active staff, and inventory counts.",
+      placement: "top",
+    },
+    {
+      target: "#tour-overview-add-store",
+      content: "Quickly provision and add a new physical or digital store to your network.",
+      placement: "bottom",
+    },
+    {
+      target: "#tour-overview-stores",
+      content: "Monitor the real-time sync status and performance of all your connected branches.",
+      placement: "top",
+    },
+    {
       target: "#tour-nav-notifications",
       content: "Stay updated with important system alerts and staff notifications.",
       placement: "right",

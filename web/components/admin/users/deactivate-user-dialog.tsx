@@ -1,21 +1,5 @@
-import { useState } from "react";
-import {
-  Send,
-  Shield,
-  Lock,
-  Store,
-  Ban,
-  Loader2,
-  Calendar,
-  Activity,
-  History,
-  Briefcase,
-  Trash2
-} from "lucide-react";
+import { Ban, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -39,14 +23,16 @@ export function DeactivateUserDialog({
     deactivateMutation.mutate(selectedUser.id, {
       onSuccess: () => {
         toast.success("Account Deactivated", {
-          description: `${selectedUser.name}'s account has been disabled.`
+          description: `${selectedUser.name}'s account has been disabled.`,
         });
         onOpenChange(false);
         setSelectedUser(null);
       },
       onError: (err: any) => {
-        toast.error("Action Failed", { description: err.message || "Failed to deactivate user" });
-      }
+        toast.error("Action Failed", {
+          description: err.message || "Failed to deactivate user",
+        });
+      },
     });
   };
 
@@ -61,18 +47,30 @@ export function DeactivateUserDialog({
             Deactivate User Account?
           </DialogTitle>
           <DialogDescription className="text-slate-500 dark:text-slate-400 font-medium pt-2">
-            Are you sure you want to deactivate <span className="font-bold text-slate-900 dark:text-white">{selectedUser?.name}</span>?
-            They will be immediately logged out and unable to access the platform until reactivated.
+            Are you sure you want to deactivate{" "}
+            <span className="font-bold text-slate-900 dark:text-white">
+              {selectedUser?.name}
+            </span>
+            ? They will be immediately logged out and unable to access the
+            platform until reactivated.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="gap-2 pt-4">
-          <Button variant="outline" onClick={() => onOpenChange(false)} className="rounded-xl border-2 font-bold h-12">Cancel</Button>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            className="rounded-xl border-2 font-bold h-12"
+          >
+            Cancel
+          </Button>
           <Button
             onClick={handleDeactivate}
             className="rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-bold h-12 shadow-lg shadow-rose-500/20"
             disabled={deactivateMutation.isPending}
           >
-            {deactivateMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+            {deactivateMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : null}
             Deactivate Account
           </Button>
         </DialogFooter>

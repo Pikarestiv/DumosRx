@@ -24,7 +24,7 @@ class CouponController extends Controller
     {
         $validated = $request->validate([
             'code' => 'required|string|unique:coupons,code',
-            'type' => 'required|in:discount_percent,trial_extension',
+            'type' => 'required|in:discount_percent,discount_amount,trial_extension',
             'value' => 'required|integer|min:0',
             'max_uses' => 'nullable|integer|min:1',
             'max_uses_per_user' => 'nullable|integer|min:1',
@@ -42,6 +42,32 @@ class CouponController extends Controller
         $coupon = Coupon::create($validated);
 
         return response()->json($coupon, 201);
+    }
+
+    /**
+     * Update the specified coupon in storage.
+     */
+    public function update(Request $request, Coupon $coupon)
+    {
+        $validated = $request->validate([
+            'code' => 'required|string|unique:coupons,code,' . $coupon->id,
+            'type' => 'required|in:discount_percent,discount_amount,trial_extension',
+            'value' => 'required|integer|min:0',
+            'max_uses' => 'nullable|integer|min:1',
+            'max_uses_per_user' => 'nullable|integer|min:1',
+            'assigned_to_user_id' => 'nullable|uuid|exists:users,id',
+            'target_plan' => 'nullable|string',
+            'target_interval' => 'nullable|in:monthly,yearly',
+            'expires_at' => 'nullable|date',
+        ]);
+
+        if (!isset($validated['max_uses_per_user'])) {
+            $validated['max_uses_per_user'] = 1;
+        }
+
+        $coupon->update($validated);
+
+        return response()->json($coupon);
     }
 
     /**

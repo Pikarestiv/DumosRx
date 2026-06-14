@@ -34,13 +34,14 @@ import {
   useGenerateCouponMutation,
   useToggleCouponMutation,
   useDeleteCouponMutation,
+  useUpdateCouponMutation,
 } from "@/lib/api/admin-hooks";
 import { toast } from "sonner";
 
 interface Coupon {
   id: string;
   code: string;
-  type: "discount_percent" | "trial_extension";
+  type: "discount_percent" | "discount_amount" | "trial_extension";
   value: number;
   max_uses: number | null;
   max_uses_per_user: number;
@@ -59,14 +60,36 @@ export function CouponsManager() {
   const toggleMutation = useToggleCouponMutation();
   const deleteMutation = useDeleteCouponMutation();
 
+  const updateMutation = useUpdateCouponMutation();
+
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [newCoupon, setNewCoupon] = useState<Partial<Coupon>>({
     type: "discount_percent",
     max_uses_per_user: 1,
     is_active: true,
   });
 
-  const handleGenerate = async () => {
+  const openEditDialog = (coupon: Coupon) => {
+    setEditingId(coupon.id);
+    setNewCoupon({
+      ...coupon,
+      expires_at: coupon.expires_at ? new Date(coupon.expires_at).toISOString().split('T')[0] : null,
+    });
+    setIsDialogOpen(true);
+  };
+
+  const openCreateDialog = () => {
+    setEditingId(null);
+    setNewCoupon({
+      type: "discount_percent",
+      max_uses_per_user: 1,
+      is_active: true,
+    });
+    setIsDialogOpen(true);
+  };
+
+  const handleSave = async () => {
     try {
       const payload = {
         ...newCoupon,
@@ -74,18 +97,25 @@ export function CouponsManager() {
         value: Number(newCoupon.value),
         max_uses: newCoupon.max_uses ? Number(newCoupon.max_uses) : null,
         max_uses_per_user: Number(newCoupon.max_uses_per_user) || 1,
+        expires_at: newCoupon.expires_at || null,
       };
 
-      await generateMutation.mutateAsync(payload);
-      toast.success("Coupon generated successfully");
+      if (editingId) {
+        await updateMutation.mutateAsync({ id: editingId, payload });
+        toast.success("Coupon updated successfully");
+      } else {
+        await generateMutation.mutateAsync(payload);
+        toast.success("Coupon generated successfully");
+      }
       setIsDialogOpen(false);
       setNewCoupon({
         type: "discount_percent",
         max_uses_per_user: 1,
         is_active: true,
       });
+      setEditingId(null);
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Failed to generate coupon");
+      toast.error(error.response?.data?.message || `Failed to ${editingId ? 'update' : 'generate'} coupon`);
     }
   };
 
@@ -121,7 +151,7 @@ export function CouponsManager() {
             Manage marketing discounts and trial extensions
           </p>
         </div>
-        <Button onClick={() => setIsDialogOpen(true)} className="w-full sm:w-auto">
+        <Button onClick={openCreateDialog} className="w-full sm:w-auto">
           <Plus className="mr-2 h-4 w-4" /> Generate Coupon
         </Button>
       </div>
@@ -134,7 +164,7 @@ export function CouponsManager() {
               <TableHead>Type</TableHead>
               <TableHead>Value</TableHead>
               <TableHead>Scope</TableHead>
-              <TableHead>Usage</TableHead>
+              <TableHead>Usage & Expiry</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
@@ -150,17 +180,23 @@ export function CouponsManager() {
                     variant={
                       coupon.type === "discount_percent"
                         ? "default"
+                        : coupon.type === "discount_amount"
+                        ? "destructive"
                         : "secondary"
                     }
                   >
                     {coupon.type === "discount_percent"
-                      ? "Discount"
+                      ? "Discount %"
+                      : coupon.type === "discount_amount"
+                      ? "Discount ₦"
                       : "Trial Ext."}
                   </Badge>
                 </TableCell>
                 <TableCell>
                   {coupon.type === "discount_percent"
                     ? `${coupon.value}% off`
+                    : coupon.type === "discount_amount"
+                    ? `₦${coupon.value.toLocaleString()} off`
                     : `+${coupon.value} days`}
                 </TableCell>
                 <TableCell>
@@ -175,10 +211,15 @@ export function CouponsManager() {
                   </div>
                 </TableCell>
                 <TableCell>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm">
-                      {coupon.usages_count} / {coupon.max_uses || "∞"}
+                  <div className="flex flex-col space-y-1">
+                    <span className="text-sm font-medium">
+                      Uses: {coupon.usages_count} / {coupon.max_uses || "∞"}
                     </span>
+                    {coupon.expires_at && (
+                      <span className="text-xs text-muted-foreground">
+                        Exp: {new Date(coupon.expires_at).toLocaleDateString()}
+                      </span>
+                    )}
                   </div>
                 </TableCell>
                 <TableCell>
@@ -188,6 +229,14 @@ export function CouponsManager() {
                   />
                 </TableCell>
                 <TableCell className="text-right">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="mr-2"
+                    onClick={() => openEditDialog(coupon)}
+                  >
+                    Edit
+                  </Button>
                   <Button
                     variant="ghost"
                     size="icon"
@@ -215,7 +264,7 @@ export function CouponsManager() {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Generate New Coupon</DialogTitle>
+            <DialogTitle>{editingId ? "Edit Coupon" : "Generate New Coupon"}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
@@ -245,6 +294,9 @@ export function CouponsManager() {
                   <SelectItem value="discount_percent">
                     Percentage Discount
                   </SelectItem>
+                  <SelectItem value="discount_amount">
+                    Fixed Amount Discount
+                  </SelectItem>
                   <SelectItem value="trial_extension">
                     Free Trial Extension
                   </SelectItem>
@@ -256,6 +308,8 @@ export function CouponsManager() {
               <Label>
                 {newCoupon.type === "discount_percent"
                   ? "Discount Percentage (0-100)"
+                  : newCoupon.type === "discount_amount"
+                  ? "Discount Amount (₦)"
                   : "Extra Days (e.g. 14, 30)"}
               </Label>
               <Input
@@ -302,6 +356,17 @@ export function CouponsManager() {
               </div>
             </div>
 
+            <div className="grid gap-2">
+              <Label>Expiry Date (Optional)</Label>
+              <Input
+                type="date"
+                value={newCoupon.expires_at || ""}
+                onChange={(e) =>
+                  setNewCoupon({ ...newCoupon, expires_at: e.target.value })
+                }
+              />
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label>Max Total Uses</Label>
@@ -337,7 +402,7 @@ export function CouponsManager() {
             <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleGenerate}>Generate</Button>
+            <Button onClick={handleSave}>{editingId ? "Save Changes" : "Generate"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

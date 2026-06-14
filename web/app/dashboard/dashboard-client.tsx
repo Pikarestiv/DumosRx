@@ -121,11 +121,11 @@ export function DashboardClient({ view }: { view: string }) {
       />
       <div className="flex-1 flex flex-col min-w-0">
         <BroadcastBanner />
-        {isMounted && user?.require_email_verification && !user?.email_verified_at && (
-          <VerificationBanner email={user.email} />
-        )}
+        {isMounted &&
+          user?.require_email_verification &&
+          !user?.email_verified_at && <VerificationBanner email={user.email} />}
         <Header onSetActiveTab={setActiveTab} />
-        <main className="flex-1 overflow-y-auto p-4 md:p-8 pb-24 md:pb-24 lg:pb-8 scrollbar-hide">
+        <main className="flex-1 overflow-y-auto p-4 md:p-8 pb-24! lg:pb-8! scrollbar-hide">
           <div className="max-w-7xl mx-auto">{renderView()}</div>
         </main>
       </div>

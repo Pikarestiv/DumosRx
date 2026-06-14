@@ -264,6 +264,20 @@ export const useGenerateCouponMutation = () => {
   });
 };
 
+export const useUpdateCouponMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: any }) =>
+      webApiClient.request<any>(`admin/coupons/${id}`, {
+        method: "PUT",
+        body: payload,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-coupons"] });
+    },
+  });
+};
+
 export const useToggleCouponMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({

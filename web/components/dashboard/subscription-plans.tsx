@@ -44,7 +44,7 @@ export function SubscriptionPlans() {
       const response = await webApiClient.validateCoupon({ code: couponCode });
       if (response.valid) {
         setAppliedCoupon(response.coupon);
-        toast.success(`Coupon applied: ${response.coupon.type === 'discount_percent' ? response.coupon.value + '% off' : '+' + response.coupon.value + ' days'}`);
+        toast.success(`Coupon applied: ${response.coupon.type === 'discount_percent' ? response.coupon.value + '% off' : response.coupon.type === 'discount_amount' ? '₦' + response.coupon.value.toLocaleString() + ' off' : '+' + response.coupon.value + ' days'}`);
       } else {
         toast.error(response.message || 'Invalid coupon code');
         setAppliedCoupon(null);
@@ -63,6 +63,8 @@ export function SubscriptionPlans() {
     let amountAfterCoupon = baseAmount;
     if (appliedCoupon?.type === 'discount_percent') {
       amountAfterCoupon = baseAmount - (baseAmount * (appliedCoupon.value / 100));
+    } else if (appliedCoupon?.type === 'discount_amount') {
+      amountAfterCoupon = baseAmount - appliedCoupon.value;
     }
 
     if (amountAfterCoupon < 0) amountAfterCoupon = 0;
@@ -106,6 +108,10 @@ export function SubscriptionPlans() {
        (!appliedCoupon.target_plan || appliedCoupon.target_plan.toLowerCase() === plan.name.toLowerCase()) && 
        (!appliedCoupon.target_interval || appliedCoupon.target_interval === billingPeriod)) {
       price = price - (price * (appliedCoupon.value / 100));
+    } else if (appliedCoupon?.type === 'discount_amount' && 
+       (!appliedCoupon.target_plan || appliedCoupon.target_plan.toLowerCase() === plan.name.toLowerCase()) && 
+       (!appliedCoupon.target_interval || appliedCoupon.target_interval === billingPeriod)) {
+      price = price - appliedCoupon.value;
     }
 
     // Apply credits
@@ -118,7 +124,7 @@ export function SubscriptionPlans() {
   };
 
   const isDiscounted = (plan: any) => {
-    const hasCoupon = appliedCoupon?.type === 'discount_percent' && 
+    const hasCoupon = (appliedCoupon?.type === 'discount_percent' || appliedCoupon?.type === 'discount_amount') && 
        (!appliedCoupon.target_plan || appliedCoupon.target_plan.toLowerCase() === plan.name.toLowerCase()) && 
        (!appliedCoupon.target_interval || appliedCoupon.target_interval === billingPeriod);
 

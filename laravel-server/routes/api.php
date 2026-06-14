@@ -90,7 +90,7 @@ Route::prefix('v1')->group(function () {
         Route::prefix('dashboard')->middleware('subscription:web_dashboard')->group(function () {
             Route::get('/summary', [DashboardController::class, 'summary']);
             Route::post('/reset', [DashboardController::class, 'resetData']);
-            Route::post('/send-summary', [\App\Http\Controllers\API\StoreSummaryController::class, 'sendSummary']);
+            Route::post('/send-summary', [\App\Http\Controllers\Api\StoreSummaryController::class, 'sendSummary']);
         });
         Route::get('/alerts', [NotificationController::class, 'index']);
         Route::post('/alerts/{id}/read', [NotificationController::class, 'markAsRead']);

@@ -15,12 +15,14 @@ import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/co
 import { sidebarItems } from "./admin-sidebar";
 import { cn } from "@/lib/utils";
 import { useAdminAuthStore } from "@/lib/store/use-admin-auth-store";
+import { useState } from "react";
 
 export function AdminHeader() {
   const { latency } = useAdminStore();
   const { isLoading: summaryLoading } = useAdminSummary();
   const pathname = usePathname();
   const { logout } = useAdminAuthStore();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   return (
     <header className="h-20 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 lg:px-8 z-10 shadow-sm">
@@ -68,7 +70,7 @@ export function AdminHeader() {
         <ModeToggle />
         <AdminHeaderNotifications />
 
-        <Sheet>
+        <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
           <SheetTrigger asChild>
             <Button className="lg:hidden" variant="ghost" size="icon">
               <Menu className="h-6 w-6 text-slate-500 dark:text-slate-400" />
@@ -95,6 +97,7 @@ export function AdminHeader() {
                   <Link
                     key={item.id}
                     href={item.href}
+                    onClick={() => setIsMobileMenuOpen(false)}
                     className={cn(
                       "flex items-center gap-3 px-3 py-3 rounded-xl transition-all font-bold text-sm",
                       isActive

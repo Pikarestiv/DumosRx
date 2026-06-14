@@ -206,6 +206,9 @@ class SubscriptionController extends Controller
                 $subscriptionService->recordCouponUsage($coupon, $user, $sub);
             }
 
+            // Immediately enforce limits since the plan has changed
+            $subscriptionService->enforceStaffLimits($user);
+
             return response()->json([
                 'success' => true,
                 'message' => 'Subscription activated successfully.',

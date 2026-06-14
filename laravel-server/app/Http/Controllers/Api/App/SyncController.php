@@ -494,6 +494,23 @@ class SyncController extends Controller
             
             // Enforce staff limits
             $subscriptionService->enforceStaffLimits($owner);
+
+            // Enforce store limits for syncing
+            $storeLimit = \App\Models\SystemConfig::getVal('subscription_plans')['tiers'][$plan]['limits']['stores'] ?? 0;
+            if ($storeLimit !== -1) {
+                $allowedStoreIds = Store::where('user_id', $owner->id)->orderBy('created_at', 'asc')->limit($storeLimit)->pluck('id')->toArray();
+                
+                $syncStoreId = $user->store_id ?? Store::where('user_id', $user->id)->value('id');
+                
+                if ($syncStoreId && !in_array($syncStoreId, $allowedStoreIds)) {
+                    return [
+                        'valid' => false,
+                        'message' => "Sync rejected. Your " . ucfirst($plan) . " plan limits you to {$storeLimit} store(s). This store exceeds your limit and has been temporarily paused from cloud syncing.",
+                        'code' => 'STORE_LIMIT_EXCEEDED',
+                        'status' => 403
+                    ];
+                }
+            }
         }
         
         return ['valid' => true];

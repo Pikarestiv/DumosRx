@@ -73,6 +73,11 @@ class PaymentController extends Controller
                     'license_key' => 'DRX-' . strtoupper(bin2hex(random_bytes(8))),
                 ]);
                 $txn->update(['subscription_id' => $sub->id]);
+
+                $subUser = \App\Models\User::find($txn->metadata['user_id']);
+                if ($subUser) {
+                    app(\App\Services\SubscriptionService::class)->enforceStaffLimits($subUser);
+                }
             }
 
             try {

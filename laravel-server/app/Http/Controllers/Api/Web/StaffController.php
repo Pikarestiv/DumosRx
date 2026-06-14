@@ -102,6 +102,13 @@ class StaffController extends Controller
 
         $data = $request->only(['first_name', 'last_name', 'email', 'username', 'role', 'pin', 'store_id', 'is_active']);
         
+        if (isset($data['is_active']) && $data['is_active'] == true && !$staff->is_active) {
+            if (!app(\App\Services\SubscriptionService::class)->checkLimit($request->user(), 'staff')) {
+                return response()->json([
+                    'message' => 'Staff limit reached for your current plan. Please upgrade your plan to reactivate staff.'
+                ], 422);
+            }
+        }
         if ($request->has('password') && !empty($request->password)) {
             $data['password'] = Hash::make($request->password);
         }

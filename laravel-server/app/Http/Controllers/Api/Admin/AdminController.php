@@ -222,6 +222,26 @@ class AdminController extends Controller
         }
     }
 
+    public function grantUserTrial(Request $request, $id)
+    {
+        if ($request->user()->role !== 'super_admin') {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        $validated = $request->validate([
+            'plan' => 'required|string|in:starter,pro,enterprise',
+            'duration' => 'required|string',
+        ]);
+
+        try {
+            $this->adminService->grantUserTrial($id, $validated['plan'], $validated['duration']);
+            return response()->json(['message' => 'Trial granted successfully']);
+        } catch (\Exception $e) {
+            Log::error("Admin Grant User Trial Error: " . $e->getMessage());
+            return response()->json(['error' => 'Failed to grant trial: ' . $e->getMessage()], 500);
+        }
+    }
+
     public function createPlatformAdmin(Request $request)
     {
         if ($request->user()->role !== 'super_admin') {

@@ -19,6 +19,7 @@ import { useAdminAuthStore } from "@/lib/store/use-admin-auth-store";
 import { useAdminSummary } from "@/lib/api/admin-hooks";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { APP_VERSION } from "@/lib/constants";
 
 export const sidebarItems = [
   { id: "dashboard", name: "Overview", icon: LayoutDashboard, href: "/admin" },
@@ -181,7 +182,7 @@ export function AdminSidebar() {
 
         <div className="mt-4 flex items-center justify-center">
           <p className="text-[10px] text-slate-600 font-medium">
-            DumosRx v2.4.0-Cloud
+            DumosRx {APP_VERSION}-Cloud
           </p>
         </div>
       </div>

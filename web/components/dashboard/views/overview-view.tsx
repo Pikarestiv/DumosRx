@@ -178,11 +178,11 @@ export function OverviewView({ stats, user, stores, onReset, onNavigate: _onNavi
             <CardContent>
               <div className="space-y-2">
                 <div className="flex justify-between text-sm font-bold">
-                  <span>2.4 GB / 10 GB</span>
-                  <span>24%</span>
+                  <span>{stats?.cloud_storage?.used_gb || 0} GB / {stats?.cloud_storage?.limit_gb || 10} GB</span>
+                  <span>{stats?.cloud_storage?.percentage || 0}%</span>
                 </div>
                 <div className="h-2 bg-white/20 rounded-full overflow-hidden">
-                  <div className="h-full bg-white w-[24%]" />
+                  <div className="h-full bg-white" style={{ width: `${stats?.cloud_storage?.percentage || 0}%` }} />
                 </div>
               </div>
             </CardContent>

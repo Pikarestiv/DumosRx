@@ -29,7 +29,7 @@ export function AdminHeader() {
           <Image 
             src="/logo.png" 
             alt="DumosRx" 
-            width={32} 
+            width={120} 
             height={32} 
             className="h-8 w-auto" 
             style={{ filter: "brightness(0) saturate(100%) invert(32%) sepia(94%) saturate(2975%) hue-rotate(227deg) brightness(96%) contrast(92%)" }}
@@ -80,12 +80,11 @@ export function AdminHeader() {
                 <Image 
                   src="/logo.png" 
                   alt="DumosRx" 
-                  width={32} 
+                  width={120} 
                   height={32} 
                   className="h-8 w-auto"
                   style={{ filter: "brightness(0) saturate(100%) invert(32%) sepia(94%) saturate(2975%) hue-rotate(227deg) brightness(96%) contrast(92%)" }}
                 />
-                <span className="font-black text-xl text-slate-900 dark:text-white">DumosRx</span>
               </SheetTitle>
             </SheetHeader>
             <div className="flex-1 overflow-y-auto py-6 px-4 space-y-1">

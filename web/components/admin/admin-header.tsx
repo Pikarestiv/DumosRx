@@ -26,7 +26,14 @@ export function AdminHeader() {
     <header className="h-20 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 lg:px-8 z-10 shadow-sm">
       <div className="flex items-center gap-4 flex-1">
         <div className="lg:hidden flex items-center mr-2">
-          <Image src="/logo.png" alt="DumosRx" width={32} height={32} className="h-8 w-auto hue-rotate-[80deg]" />
+          <Image 
+            src="/logo.png" 
+            alt="DumosRx" 
+            width={32} 
+            height={32} 
+            className="h-8 w-auto" 
+            style={{ filter: "brightness(0) saturate(100%) invert(32%) sepia(94%) saturate(2975%) hue-rotate(227deg) brightness(96%) contrast(92%)" }}
+          />
         </div>
         
         <div className="hidden md:block">
@@ -70,7 +77,14 @@ export function AdminHeader() {
           <SheetContent side="left" className="w-[280px] sm:w-[300px] p-0 bg-slate-50 dark:bg-slate-950 border-r-slate-200 dark:border-r-slate-800 flex flex-col h-full">
             <SheetHeader className="p-6 border-b border-slate-200 dark:border-slate-800 text-left">
               <SheetTitle className="flex items-center gap-3">
-                <Image src="/logo.png" alt="DumosRx" width={32} height={32} className="h-8 w-auto hue-rotate-[80deg]" />
+                <Image 
+                  src="/logo.png" 
+                  alt="DumosRx" 
+                  width={32} 
+                  height={32} 
+                  className="h-8 w-auto"
+                  style={{ filter: "brightness(0) saturate(100%) invert(32%) sepia(94%) saturate(2975%) hue-rotate(227deg) brightness(96%) contrast(92%)" }}
+                />
                 <span className="font-black text-xl text-slate-900 dark:text-white">DumosRx</span>
               </SheetTitle>
             </SheetHeader>

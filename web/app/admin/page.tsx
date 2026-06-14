@@ -54,9 +54,16 @@ export default function AdminDashboard() {
           <h1 className="text-4xl font-black tracking-tight text-slate-900 dark:text-white">
             Global Control
           </h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium italic">
-            Connected to Production Cluster • <LiveClock />
-          </p>
+          <div className="text-slate-500 dark:text-slate-400 mt-1 font-medium italic flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+            <span>
+              Connected to{" "}
+              {process.env.NODE_ENV === "development"
+                ? "Dev Cluster"
+                : "Production Cluster"}
+            </span>
+            <span className="hidden sm:inline">•</span>
+            <LiveClock />
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <Button

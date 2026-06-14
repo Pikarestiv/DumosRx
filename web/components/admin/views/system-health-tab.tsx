@@ -46,10 +46,14 @@ export function SystemHealthTab() {
           <h1 className="text-4xl font-black tracking-tight text-slate-900 dark:text-white">
             System Health
           </h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium italic flex items-center gap-2">
-            <Globe className="h-4 w-4 text-indigo-500" />
-            Global Infrastructure Monitoring • Primary Node
-          </p>
+          <div className="text-slate-500 dark:text-slate-400 mt-1 font-medium italic flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+            <div className="flex items-center gap-2">
+              <Globe className="h-4 w-4 text-indigo-500 shrink-0" />
+              <span>Global Infrastructure Monitoring</span>
+            </div>
+            <span className="hidden sm:inline">•</span>
+            <span>{process.env.NODE_ENV === "development" ? "Local Node" : "Primary Node"}</span>
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <Button

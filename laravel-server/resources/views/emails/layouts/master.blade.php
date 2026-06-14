@@ -46,8 +46,8 @@
             margin: 0 auto;
             border: none;
             /* Temporary hack: shift greenish logo towards indigo (#4f46e5) */
-            filter: hue-rotate(130deg);
-            -webkit-filter: hue-rotate(130deg);
+            filter: hue-rotate(80deg);
+            -webkit-filter: hue-rotate(80deg);
             /* Styling for the alt text as fallback when image is blocked */
             color: #4f46e5;
             font-size: 24px;

@@ -20,7 +20,7 @@ import { useAdminSummary } from "@/lib/api/admin-hooks";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
-const sidebarItems = [
+export const sidebarItems = [
   { id: "dashboard", name: "Overview", icon: LayoutDashboard, href: "/admin" },
   {
     id: "stores",

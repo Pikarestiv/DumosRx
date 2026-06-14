@@ -446,6 +446,9 @@ class AuthController extends Controller
 
         DB::table('password_reset_tokens')->where('email', $request->email)->delete();
 
+        // Send confirmation email
+        \Illuminate\Support\Facades\Mail::to($user->email)->send(new \App\Mail\PasswordChangedEmail($user));
+
         return response()->json(['message' => 'Password has been reset successfully.']);
     }
 

@@ -172,7 +172,7 @@ export function UserTable({
                   </DropdownMenuItem>
                   <DropdownMenuSeparator className="my-2 bg-slate-100 dark:bg-slate-800" />
                   
-                  {user.status === 'Suspended' ? (
+                  {user.status === 'Inactive' || user.status === 'Suspended' ? (
                     <DropdownMenuItem 
                       className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors"
                       onClick={() => {

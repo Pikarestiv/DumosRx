@@ -86,7 +86,7 @@ export function OverviewDangerZone({ onReset }: OverviewDangerZoneProps) {
           <CardDescription>Actions here cannot be undone.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-2">
             <Button 
               variant="outline" 
               size="sm"
@@ -135,7 +135,8 @@ export function OverviewDangerZone({ onReset }: OverviewDangerZoneProps) {
             onClick={() => handleResetClick("all")}
           >
             <Trash2 className="h-4 w-4" />
-            Nuke Everything (Full Reset)
+            <span className="lg:hidden xl:inline">Nuke Everything (Full Reset)</span>
+            <span className="hidden lg:inline xl:hidden">Nuke Everything</span>
           </Button>
         </CardContent>
       </Card>

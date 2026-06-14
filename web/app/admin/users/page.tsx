@@ -29,6 +29,7 @@ import {
   useResetUserPasswordMutation,
   useNotifyUserMutation,
   useDeleteUserMutation,
+  useReactivateUserMutation,
 } from "@/lib/api/admin-hooks";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -37,6 +38,7 @@ import { toast } from "sonner";
 import { AdminSkeleton } from "@/components/admin/admin-skeleton";
 import {
   DeactivateUserDialog,
+  ReactivateUserDialog,
   ResetPasswordDialog,
   UserProfileDialog,
   SendNotificationDialog,
@@ -61,6 +63,7 @@ function GlobalUsersDirectoryContent() {
   }, [initialSearch]);
 
   const [isDeactivateDialogOpen, setIsDeactivateDialogOpen] = useState(false);
+  const [isReactivateDialogOpen, setIsReactivateDialogOpen] = useState(false);
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const [isNotifyDialogOpen, setIsNotifyDialogOpen] = useState(false);
@@ -76,6 +79,7 @@ function GlobalUsersDirectoryContent() {
     refetch,
   } = useAdminUsers(page, debouncedSearch);
   const deactivateMutation = useDeactivateUserMutation();
+  const reactivateMutation = useReactivateUserMutation();
   const resetPasswordMutation = useResetUserPasswordMutation();
   const notifyMutation = useNotifyUserMutation();
   const deleteMutation = useDeleteUserMutation();
@@ -230,7 +234,7 @@ function GlobalUsersDirectoryContent() {
           </div>
 
           <div className="overflow-x-auto min-h-[400px]">
-            <UserTable
+            <UserTable 
               userList={userList}
               isLoading={isLoading}
               error={error}
@@ -240,6 +244,7 @@ function GlobalUsersDirectoryContent() {
               setIsNotifyDialogOpen={setIsNotifyDialogOpen}
               setIsResetDialogOpen={setIsResetDialogOpen}
               setIsDeactivateDialogOpen={setIsDeactivateDialogOpen}
+              setIsReactivateDialogOpen={setIsReactivateDialogOpen}
               setIsDeleteDialogOpen={setIsDeleteDialogOpen}
             />
           </div>
@@ -308,6 +313,14 @@ function GlobalUsersDirectoryContent() {
         selectedUser={selectedUser}
         setSelectedUser={setSelectedUser}
         deactivateMutation={deactivateMutation}
+      />
+
+      <ReactivateUserDialog
+        isOpen={isReactivateDialogOpen}
+        onOpenChange={setIsReactivateDialogOpen}
+        selectedUser={selectedUser}
+        setSelectedUser={setSelectedUser}
+        reactivateMutation={reactivateMutation}
       />
 
       <ResetPasswordDialog

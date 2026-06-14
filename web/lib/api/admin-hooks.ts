@@ -103,6 +103,17 @@ export const useDeactivateUserMutation = () => {
   });
 };
 
+export const useReactivateUserMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => webApiClient.request<any>(`admin/users/${id}/reactivate`, { method: "POST" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
+    },
+  });
+};
+
 export const useDeleteUserMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({

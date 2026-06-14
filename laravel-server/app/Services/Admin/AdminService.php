@@ -682,6 +682,22 @@ class AdminService
         return true;
     }
 
+    public function reactivateUser($id)
+    {
+        $user = User::findOrFail($id);
+        $user->is_active = true;
+        $user->save();
+
+        ActivityLog::create([
+            'user_id' => Auth::id(),
+            'action' => 'USER_REACTIVATION',
+            'description' => "Reactivated user account: {$user->email} ({$user->id})",
+            'status' => 'success'
+        ]);
+
+        return true;
+    }
+
     public function deleteUser($id)
     {
         return DB::transaction(function () use ($id) {

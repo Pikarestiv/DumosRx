@@ -84,3 +84,70 @@ export function SuspendStoreDialog({
     </Dialog>
   );
 }
+
+interface ViewStoreDialogProps {
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+  selectedStore: any;
+}
+
+export function ViewStoreDialog({
+  isOpen,
+  onOpenChange,
+  selectedStore,
+}: ViewStoreDialogProps) {
+  if (!selectedStore) return null;
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogContent className="rounded-3xl border-slate-200 dark:border-slate-800 shadow-2xl">
+        <DialogHeader>
+          <DialogTitle className="text-2xl font-black">Store Details</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-xs font-bold uppercase text-slate-500">Store Name</p>
+              <p className="font-bold text-slate-900 dark:text-slate-100">{selectedStore.name}</p>
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase text-slate-500">Store ID</p>
+              <p className="font-mono text-sm">{selectedStore.id}</p>
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase text-slate-500">Owner</p>
+              <p className="font-bold">{selectedStore.owner}</p>
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase text-slate-500">Email</p>
+              <p className="font-medium">{selectedStore.email}</p>
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase text-slate-500">Subscription</p>
+              <p className="font-medium text-indigo-600 capitalize">{selectedStore.plan}</p>
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase text-slate-500">Status</p>
+              <p className="font-medium">{selectedStore.status}</p>
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase text-slate-500">Fleet Size</p>
+              <p className="font-medium">{selectedStore.stores} locations</p>
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase text-slate-500">Total Revenue</p>
+              <p className="font-black">{selectedStore.revenue}</p>
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase text-slate-500">Created At</p>
+              <p className="font-medium">{selectedStore.date}</p>
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button onClick={() => onOpenChange(false)} className="rounded-xl font-bold h-12 w-full">Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}

@@ -14,7 +14,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { StoreTable } from "@/components/admin/stores/store-table";
 import { StoreToolbar } from "@/components/admin/stores/store-toolbar";
 import { StorePagination } from "@/components/admin/stores/store-pagination";
-import { SuspendStoreDialog } from "@/components/admin/stores/store-dialogs";
+import { SuspendStoreDialog, ViewStoreDialog } from "@/components/admin/stores/store-dialogs";
 import { GrantTrialDialog } from "@/components/admin/stores/grant-trial-dialog";
 import { toast } from "sonner";
 import { AdminSkeleton } from "@/components/admin/admin-skeleton";
@@ -31,6 +31,7 @@ export default function StoresManagement() {
   const [selectedStore, setSelectedStore] = useState<any>(null);
   const [isSuspendDialogOpen, setIsSuspendDialogOpen] = useState(false);
   const [isTrialDialogOpen, setIsTrialDialogOpen] = useState(false);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   
   const debouncedSearch = useDebounce(search, 500);
 
@@ -237,6 +238,7 @@ export default function StoresManagement() {
               setSelectedStore={setSelectedStore}
               setIsSuspendDialogOpen={setIsSuspendDialogOpen}
               setIsTrialDialogOpen={setIsTrialDialogOpen}
+              setIsViewDialogOpen={setIsViewDialogOpen}
               handleUnsuspend={handleUnsuspend}
               router={router}
             />
@@ -266,6 +268,12 @@ export default function StoresManagement() {
         store={selectedStore}
         onConfirm={handleGrantTrial}
         isPending={grantTrialMutation.isPending}
+      />
+
+      <ViewStoreDialog
+        isOpen={isViewDialogOpen}
+        onOpenChange={setIsViewDialogOpen}
+        selectedStore={selectedStore}
       />
     </div>
   );

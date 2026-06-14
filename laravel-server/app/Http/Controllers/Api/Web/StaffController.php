@@ -81,13 +81,13 @@ class StaffController extends Controller
         return response()->json($user, 201);
     }
 
-    public function update(Request $request, User $user)
+    public function update(Request $request, User $staff)
     {
         $request->validate([
             'first_name' => 'string',
             'last_name' => 'string',
-            'email' => 'nullable|email|unique:users,email,' . $user->id,
-            'username' => 'string|unique:users,username,' . $user->id,
+            'email' => 'nullable|email|unique:users,email,' . $staff->id,
+            'username' => 'string|unique:users,username,' . $staff->id,
             'role' => 'string|in:admin,manager,specialist,sales_staff,auditor',
             'pin' => 'string|size:4',
             'store_id' => 'exists:stores,id',
@@ -105,18 +105,18 @@ class StaffController extends Controller
         }
 
         if ($request->has('email') && empty($request->email)) {
-            $username = $request->username ?? $user->username;
+            $username = $request->username ?? $staff->username;
             $data['email'] = $username . '@local.dumosrx.com';
         }
 
-        $user->update($data);
+        $staff->update($data);
 
-        return response()->json($user);
+        return response()->json($staff);
     }
 
-    public function destroy(User $user)
+    public function destroy(User $staff)
     {
-        $user->update(['is_active' => false]);
+        $staff->update(['is_active' => false]);
         return response()->json(['message' => 'Staff deactivated']);
     }
 }

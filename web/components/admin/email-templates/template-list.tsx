@@ -16,12 +16,12 @@ interface TemplateListProps {
 export function TemplateList({ templates, selectedTemplate, loadTemplateDetails }: TemplateListProps) {
   return (
     <div className="lg:col-span-1 space-y-4">
-      <Card className="bg-slate-900/50 border-slate-800 backdrop-blur-xl">
+      <Card className="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 shadow-sm">
         <CardHeader>
-          <CardTitle className="text-lg font-black text-white">
+          <CardTitle className="text-lg font-black text-slate-900 dark:text-white">
             System Templates
           </CardTitle>
-          <CardDescription className="text-slate-400 font-bold">
+          <CardDescription className="text-slate-500 dark:text-slate-400 font-bold">
             Select a template to configure
           </CardDescription>
         </CardHeader>
@@ -34,12 +34,12 @@ export function TemplateList({ templates, selectedTemplate, loadTemplateDetails 
                 onClick={() => loadTemplateDetails(t.id)}
                 className={`w-full flex items-center gap-4 p-4 rounded-2xl border text-left transition-all ${
                   isSelected
-                    ? "bg-indigo-600/10 border-indigo-500 text-white"
-                    : "bg-slate-950/40 border-slate-800 hover:border-slate-700 text-slate-400 hover:text-slate-200"
+                    ? "bg-indigo-50 dark:bg-indigo-600/10 border-indigo-200 dark:border-indigo-500 text-indigo-900 dark:text-white"
+                    : "bg-slate-50 dark:bg-slate-950/40 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
                 }`}
               >
                 <div
-                  className={`p-2.5 rounded-xl ${isSelected ? "bg-indigo-500 text-white" : "bg-slate-900 text-slate-400"}`}
+                  className={`p-2.5 rounded-xl ${isSelected ? "bg-indigo-500 text-white shadow-sm" : "bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-400"}`}
                 >
                   <Mail className="h-5 w-5" />
                 </div>
@@ -50,7 +50,7 @@ export function TemplateList({ templates, selectedTemplate, loadTemplateDetails 
                   </p>
                 </div>
                 <ArrowRight
-                  className={`h-4 w-4 shrink-0 transition-transform ${isSelected ? "translate-x-1 text-indigo-400" : "text-slate-600"}`}
+                  className={`h-4 w-4 shrink-0 transition-transform ${isSelected ? "translate-x-1 text-indigo-500 dark:text-indigo-400" : "text-slate-400 dark:text-slate-600"}`}
                 />
               </button>
             );
@@ -58,14 +58,14 @@ export function TemplateList({ templates, selectedTemplate, loadTemplateDetails 
         </CardContent>
       </Card>
 
-      <Card className="bg-amber-500/5 border-amber-500/15 backdrop-blur-xl">
+      <Card className="bg-amber-50 dark:bg-amber-500/5 border border-amber-200 dark:border-amber-500/15">
         <CardContent className="p-5 flex items-start gap-4">
           <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
           <div>
-            <h4 className="text-sm font-black text-amber-200">
+            <h4 className="text-sm font-black text-amber-900 dark:text-amber-200">
               Safe Sandbox Fallback
             </h4>
-            <p className="text-xs text-amber-400/80 font-bold mt-1 leading-relaxed">
+            <p className="text-xs text-amber-700 dark:text-amber-400/80 font-bold mt-1 leading-relaxed">
               These templates utilize dynamic parsing. If you make a
               rendering syntax error, the system will fall back
               automatically to the secure local Blade views.

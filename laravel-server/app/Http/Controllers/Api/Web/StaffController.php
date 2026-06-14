@@ -45,6 +45,12 @@ class StaffController extends Controller
 
     public function store(Request $request)
     {
+        if (!app(\App\Services\SubscriptionService::class)->checkLimit($request->user(), 'staff')) {
+            return response()->json([
+                'message' => 'Staff limit reached for your current plan. Please upgrade your plan to add more staff.'
+            ], 422);
+        }
+
         $request->validate([
             'first_name' => 'required|string',
             'last_name' => 'required|string',

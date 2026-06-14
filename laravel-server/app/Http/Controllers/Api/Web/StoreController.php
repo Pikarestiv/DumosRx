@@ -17,6 +17,12 @@ class StoreController extends Controller
 
     public function store(Request $request)
     {
+        if (!app(\App\Services\SubscriptionService::class)->checkLimit($request->user(), 'stores')) {
+            return response()->json([
+                'message' => 'Store/Device limit reached for your current plan. Please upgrade your plan to add more locations or devices.'
+            ], 422);
+        }
+
         $request->validate([
             'name' => 'required|string|max:255',
             'location' => 'nullable|string|max:255',

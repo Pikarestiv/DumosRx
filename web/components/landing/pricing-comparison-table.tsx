@@ -1,7 +1,9 @@
 import React from "react";
 import { CheckCircle2, XCircle } from "lucide-react";
+import { useSystemConfig } from "@/lib/api/hooks";
 
 export function PricingComparisonTable() {
+  const { data: config } = useSystemConfig("subscription_plans");
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       <div className="text-center space-y-2">
@@ -49,16 +51,16 @@ export function PricingComparisonTable() {
                   Supported Devices
                 </td>
                 <td className="p-4 text-center text-muted-foreground">
-                  1 Device (Standalone)
+                  {config?.tiers?.free?.limits?.stores === -1 ? "Unlimited" : (config?.tiers?.free?.limits?.stores || 1)} Device{config?.tiers?.free?.limits?.stores !== 1 ? "s" : ""}
                 </td>
                 <td className="p-4 text-center text-muted-foreground">
-                  Up to 3 Connected Devices
+                  {config?.tiers?.starter?.limits?.stores === -1 ? "Unlimited" : (config?.tiers?.starter?.limits?.stores || 1)} Device{config?.tiers?.starter?.limits?.stores !== 1 ? "s" : ""}
                 </td>
                 <td className="p-4 text-center text-muted-foreground font-medium text-foreground bg-primary/5">
-                  Up to 10 Connected Devices
+                  {config?.tiers?.pro?.limits?.stores === -1 ? "Unlimited" : (config?.tiers?.pro?.limits?.stores || 3)} Device{config?.tiers?.pro?.limits?.stores !== 1 ? "s" : ""}
                 </td>
                 <td className="p-4 text-center text-muted-foreground">
-                  Unlimited / Multi-Store
+                  {config?.tiers?.enterprise?.limits?.stores === -1 ? "Unlimited / Multi-Store" : ((config?.tiers?.enterprise?.limits?.stores || 10) + " Devices")}
                 </td>
               </tr>
               <tr>
@@ -66,16 +68,16 @@ export function PricingComparisonTable() {
                   Max Staff Accounts
                 </td>
                 <td className="p-4 text-center text-muted-foreground">
-                  1 User (Owner)
+                  {config?.tiers?.free?.limits?.staff === -1 ? "Unlimited" : (config?.tiers?.free?.limits?.staff || 1)} User
                 </td>
                 <td className="p-4 text-center text-muted-foreground">
-                  3 Staff Users
+                  {config?.tiers?.starter?.limits?.staff === -1 ? "Unlimited" : (config?.tiers?.starter?.limits?.staff || 3)} Users
                 </td>
                 <td className="p-4 text-center text-muted-foreground font-medium text-foreground bg-primary/5">
-                  10 Staff Users
+                  {config?.tiers?.pro?.limits?.staff === -1 ? "Unlimited" : (config?.tiers?.pro?.limits?.staff || 10)} Users
                 </td>
                 <td className="p-4 text-center text-muted-foreground">
-                  Unlimited
+                  {config?.tiers?.enterprise?.limits?.staff === -1 ? "Unlimited" : (config?.tiers?.enterprise?.limits?.staff || 100)} Users
                 </td>
               </tr>
 

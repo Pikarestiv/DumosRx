@@ -40,6 +40,27 @@
             font-size: 24px;
             font-weight: 700;
         }
+        .header img {
+            max-height: 45px;
+            display: block;
+            margin: 0 auto;
+            border: none;
+            /* Temporary hack: shift greenish logo towards indigo (#4f46e5) */
+            filter: hue-rotate(80deg);
+            -webkit-filter: hue-rotate(80deg);
+
+             /* Precise hack to force the logo to match indigo (#4f46e5) */
+            /* filter: brightness(0) saturate(100%) invert(32%) sepia(94%) saturate(2975%) hue-rotate(227deg) brightness(96%) contrast(92%);
+            -webkit-filter: brightness(0) saturate(100%) invert(32%) sepia(94%) saturate(2975%) hue-rotate(227deg) brightness(96%) contrast(92%); */
+           
+
+            /* Styling for the alt text as fallback when image is blocked */
+            color: #4f46e5;
+            font-size: 24px;
+            font-weight: 700;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            text-decoration: none;
+        }
         .content {
             padding: 40px 30px;
             color: #374151;
@@ -86,7 +107,9 @@
         <table class="main" width="100%" cellpadding="0" cellspacing="0" role="presentation">
             <tr>
                 <td class="header">
-                    <h1>DumosRx</h1>
+                    <a href="https://dumosrx.com" style="text-decoration: none;">
+                        <img src="https://dumosrx.com/logo.png" alt="DumosRx">
+                    </a>
                 </td>
             </tr>
             <tr>

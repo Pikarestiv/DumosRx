@@ -4,6 +4,17 @@ This document outlines the commercial rollout, penetration pricing model, testin
 
 ---
 
+## Competitive Landscape
+
+To effectively penetrate the market, DumosRx must position itself against the following established players and alternatives:
+* **Shop Kite (https://shopkite.com.ng/)**: A modern Nigerian retail and pharmacy POS competitor.
+* **Monepay (Unconfirmed exact name)**: A newer POS system reportedly being adopted by larger stores (like Makhillz).
+* **VirtualRx**: A legacy local pharmacy POS competitor with an established footprint.
+* **Barsoft**: Another legacy pharmacy POS previously used by stores like Right Health before migrating to VirtualRx.
+* **Cracked QuickBooks 2013**: Highly prevalent among local retail stores; users avoid subscription fees but suffer from lack of cloud sync and dedicated pharmacy modules.
+
+---
+
 ## 1. Penetration Pricing & Lifecycle Model
 
 To win early trust and rapidly capture market share, DumosRx will deploy a **Penetration Pricing Campaign** targeted at selected early adopters.

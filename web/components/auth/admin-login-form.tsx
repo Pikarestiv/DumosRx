@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Loader2, AlertCircle, Mail, Lock } from "lucide-react";
+import { Loader2, AlertCircle, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { webApiClient } from "@/lib/api/client";
 import { motion } from "framer-motion";
@@ -30,6 +30,7 @@ export function AdminLoginForm() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
   const { setToken, setUser } = useAdminAuthStore();
 
   const form = useForm<z.infer<typeof loginSchema>>({
@@ -123,15 +124,27 @@ export function AdminLoginForm() {
                   <FormItem>
                     <FormLabel className="text-slate-300">Security Clearance Key</FormLabel>
                     <FormControl>
-                      <div className="relative group">
-                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 group-focus-within:text-indigo-500 transition-colors" />
-                        <Input
-                          type="password"
-                          placeholder="••••••••"
-                          className="pl-10 bg-white/5 border-white/10 text-white focus:border-indigo-500/50 focus:ring-indigo-500/20 h-12"
-                          {...field}
-                        />
-                      </div>
+                        <div className="relative group">
+                          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 group-focus-within:text-indigo-500 transition-colors" />
+                          <Input
+                            type={showPassword ? "text" : "password"}
+                            placeholder="••••••••"
+                            className="pl-10 pr-10 bg-white/5 border-white/10 text-white focus:border-indigo-500/50 focus:ring-indigo-500/20 h-12"
+                            {...field}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors focus:outline-hidden"
+                            aria-label={showPassword ? "Hide password" : "Show password"}
+                          >
+                            {showPassword ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                          </button>
+                        </div>
                     </FormControl>
                     <FormMessage className="text-xs text-red-400" />
                   </FormItem>

@@ -80,7 +80,7 @@ export default function AdminLayout({
 
         {/* Admin Main Area */}
         <main className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-950">
-          <div className="p-8 max-w-[1600px] mx-auto">{children}</div>
+          <div className="p-4 lg:p-8 max-w-[1600px] mx-auto">{children}</div>
         </main>
       </div>
     </div>

@@ -106,12 +106,12 @@ export function SessionsView() {
                         {getDeviceIcon(session.user_agent)}
                       </div>
                       <div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <p className="font-medium text-sm text-foreground">
                             {parseDeviceName(session.user_agent)}
                           </p>
                           {session.is_current && (
-                            <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
+                            <span className="inline-flex items-center whitespace-nowrap rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] sm:text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
                               Current Device
                             </span>
                           )}

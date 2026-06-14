@@ -104,17 +104,17 @@ export default function GlobalProductsManagement() {
           <h1 className="text-4xl font-black tracking-tight text-slate-900 dark:text-white">Global Products</h1>
           <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium">Monitor product catalog and inventory trends platform-wide</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto mt-4 md:mt-0">
             <Button 
                 variant="outline" 
-                className="border-2 font-bold dark:bg-slate-900 dark:border-slate-800"
+                className="border-2 font-bold dark:bg-slate-900 dark:border-slate-800 w-full sm:w-auto"
                 onClick={handleExportMetrics}
             >
                 <Download className="h-4 w-4 mr-2" />
                 Export Metrics
             </Button>
             <Button 
-                className="bg-indigo-600 hover:bg-indigo-700 font-bold shadow-lg shadow-indigo-600/20"
+                className="bg-indigo-600 hover:bg-indigo-700 font-bold shadow-lg shadow-indigo-600/20 w-full sm:w-auto"
                 onClick={handleStandardize}
                 disabled={standardizeMutation.isPending}
             >
@@ -131,10 +131,10 @@ export default function GlobalProductsManagement() {
               </div>
               <CardContent className="p-6 relative z-10">
                   <p className="text-xs font-bold text-indigo-100 uppercase tracking-widest mb-1">Most Stocked Category</p>
-                  <h3 className="text-2xl font-black">{productMetrics?.mostStockedCategory?.name || "Analgesics"}</h3>
+                  <h3 className="text-2xl font-black">{productMetrics?.mostStockedCategory?.name ?? "N/A"}</h3>
                   <div className="mt-4 flex items-center gap-2">
                       <TrendingUp className="h-4 w-4 text-emerald-300" />
-                      <span className="text-xs font-bold">{productMetrics?.mostStockedCategory?.growth || "14.2%"} Growth</span>
+                      <span className="text-xs font-bold">{productMetrics?.mostStockedCategory?.growth ?? "0%"} Growth</span>
                   </div>
               </CardContent>
           </Card>
@@ -145,10 +145,10 @@ export default function GlobalProductsManagement() {
               </div>
               <CardContent className="p-6 relative z-10">
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Stock Flag Rate</p>
-                  <h3 className="text-2xl font-black">{productMetrics?.stockAlerts?.rate || "2.4%"}</h3>
+                  <h3 className="text-2xl font-black">{productMetrics?.stockAlerts?.rate ?? "0%"}</h3>
                   <div className="mt-4 flex items-center gap-2 text-rose-400">
                       <AlertTriangle className="h-4 w-4" />
-                      <span className="text-xs font-bold">{productMetrics?.stockAlerts?.count || "81"} Critical Alerts</span>
+                      <span className="text-xs font-bold">{productMetrics?.stockAlerts?.count ?? "0"} Critical Alerts</span>
                   </div>
               </CardContent>
           </Card>
@@ -156,9 +156,9 @@ export default function GlobalProductsManagement() {
           <Card className="border-none bg-white dark:bg-slate-900 shadow-sm border border-slate-100 dark:border-slate-800">
               <CardContent className="p-6">
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">PCN Compliance</p>
-                  <h3 className="text-2xl font-black text-slate-900 dark:text-white">Verified {productMetrics?.compliance?.rate || "98%"}</h3>
+                  <h3 className="text-2xl font-black text-slate-900 dark:text-white">Verified {productMetrics?.compliance?.rate ?? "0%"}</h3>
                   <div className="mt-4 w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                      <div className="h-full bg-indigo-500" style={{ width: productMetrics?.compliance?.rate || "98%" }} />
+                      <div className="h-full bg-indigo-500" style={{ width: productMetrics?.compliance?.rate ?? "0%" }} />
                   </div>
               </CardContent>
           </Card>

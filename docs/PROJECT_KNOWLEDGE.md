@@ -112,7 +112,14 @@ To maintain the "Premium" feel:
 
 ## 📈 Commercial & Pricing Strategy (Nigeria)
 
-DumosRx targets the Nigerian market against competitors like VirtualRx and cracked QuickBooks 2013 installations. We utilize a **4-Tier Subscription Pricing Strategy**:
+DumosRx utilizes a **4-Tier Subscription Pricing Strategy** to compete against the following landscape:
+
+### Competitive Landscape
+- **VirtualRx**: An established local pharmacy POS competitor.
+- **Barsoft**: Another legacy pharmacy POS previously used by stores like Right Health before migrating to VirtualRx.
+- **Cracked QuickBooks 2013**: Highly prevalent among local retail stores; users avoid subscription fees but lack cloud sync and pharmacy-specific modules.
+- **Shop Kite (https://shopkite.com.ng/)**: A modern Nigerian retail and pharmacy POS competitor.
+- **Monepay (Unconfirmed exact name)**: A newer POS system reportedly being adopted by larger stores like Makhillz.
 
 1. **Free (₦0/mo)**: Standalone desktop app (no cashier connections). Max 1 staff (owner only). No cloud sync, no web dashboard, no mobile app. Locked to default Dumos Blue theme and light mode only. Restricted to End-of-Day (EOD) reports. Prescriptions, Procurement, Expenses, and Audit modules are locked/grayed out. Reminders (stock/expiry) are enabled as standard read-only alerts.
 2. **Starter (₦5,000/mo or ₦50,000/yr)**: Desktop host + up to 2 local cashier network clients. Max 3 staff accounts. Cloud sync limited to once every 6 hours (twice daily). Includes a restricted web dashboard (shows a delayed data warning). Prescriptions, Procurement, Expenses, and active Audit modules are fully unlocked.

@@ -76,7 +76,7 @@ function VerifyEmailContent() {
           </h2>
           <p className="text-muted-foreground">
             {status === "loading" && "Please wait while we confirm your email address."}
-            {status === "success" && "Your email has been successfully verified. Redirecting you to your dashboard..."}
+            {status === "success" && "Your email has been successfully verified. A welcome email has been sent to your inbox. Redirecting you to your dashboard..."}
             {status === "error" && errorMessage}
           </p>
         </div>

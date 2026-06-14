@@ -27,6 +27,11 @@ function ResetPasswordForm() {
     e.preventDefault();
     if (!password || !confirmPassword) return;
     
+    if (password.length < 8) {
+      toast.error("Password must be at least 8 characters");
+      return;
+    }
+
     if (password !== confirmPassword) {
       toast.error("Passwords do not match");
       return;
@@ -81,6 +86,7 @@ function ResetPasswordForm() {
                 placeholder="******"
                 type="password"
                 required
+                minLength={8}
                 className="pl-10 bg-white/5 border-white/10 text-white focus:border-primary/50 focus:ring-primary/20 transition-all h-11"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -96,6 +102,7 @@ function ResetPasswordForm() {
                 placeholder="******"
                 type="password"
                 required
+                minLength={8}
                 className="pl-10 bg-white/5 border-white/10 text-white focus:border-primary/50 focus:ring-primary/20 transition-all h-11"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}

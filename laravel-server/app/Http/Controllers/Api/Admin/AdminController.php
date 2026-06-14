@@ -263,6 +263,21 @@ class AdminController extends Controller
         }
     }
 
+    public function reactivateUser(Request $request, $id)
+    {
+        if ($request->user()->role !== 'super_admin') {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        try {
+            $this->adminService->reactivateUser($id);
+            return response()->json(['message' => 'User reactivated successfully']);
+        } catch (\Exception $e) {
+            Log::error("Admin Reactivate User Error: " . $e->getMessage());
+            return response()->json(['error' => 'Failed to reactivate user'], 500);
+        }
+    }
+
     public function deleteUser(Request $request, $id)
     {
         if ($request->user()->role !== 'super_admin') {

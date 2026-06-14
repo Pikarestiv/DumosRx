@@ -39,28 +39,28 @@ export default function PlatformSettingsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-        <TabsList className="mb-4 bg-slate-100 dark:bg-slate-900">
-          <TabsTrigger value="health" className="flex items-center gap-2">
+        <TabsList className="mb-4 bg-slate-100 dark:bg-slate-900 w-full flex overflow-x-auto whitespace-nowrap no-scrollbar justify-start p-1 h-12 gap-1">
+          <TabsTrigger value="health" className="flex items-center gap-2 px-4 shrink-0">
             <Activity className="h-4 w-4" />
             System Health
           </TabsTrigger>
-          <TabsTrigger value="billing" className="flex items-center gap-2">
+          <TabsTrigger value="billing" className="flex items-center gap-2 px-4 shrink-0">
             <CreditCard className="h-4 w-4" />
             Billing & Plans
           </TabsTrigger>
-          <TabsTrigger value="suggestions" className="flex items-center gap-2">
+          <TabsTrigger value="suggestions" className="flex items-center gap-2 px-4 shrink-0">
             <Sparkles className="h-4 w-4" />
             Dynamic Suggestions
           </TabsTrigger>
-          <TabsTrigger value="templates" className="flex items-center gap-2">
+          <TabsTrigger value="templates" className="flex items-center gap-2 px-4 shrink-0">
             <Mail className="h-4 w-4" />
             Email Templates
           </TabsTrigger>
-          <TabsTrigger value="integrations" className="flex items-center gap-2">
+          <TabsTrigger value="integrations" className="flex items-center gap-2 px-4 shrink-0">
             <Plug className="h-4 w-4" />
             Integrations
           </TabsTrigger>
-          <TabsTrigger value="security" className="flex items-center gap-2">
+          <TabsTrigger value="security" className="flex items-center gap-2 px-4 shrink-0">
             <ShieldCheck className="h-4 w-4" />
             Security
           </TabsTrigger>

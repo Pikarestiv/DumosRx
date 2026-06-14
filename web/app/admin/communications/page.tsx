@@ -22,7 +22,7 @@ export default function CommunicationsPage() {
       </div>
 
       <Tabs defaultValue="broadcasts" className="w-full">
-        <TabsList className="mb-4 bg-slate-100 dark:bg-slate-900">
+        <TabsList className="mb-4 bg-slate-100 dark:bg-slate-900 w-full justify-start overflow-x-auto overflow-y-hidden flex-nowrap scrollbar-hide p-1 h-auto">
           <TabsTrigger value="broadcasts" className="flex items-center gap-2">
             <Radio className="h-4 w-4" />
             In-App Broadcasts

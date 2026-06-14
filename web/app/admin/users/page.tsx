@@ -1,19 +1,18 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { 
-  Search, 
-  Filter, 
+import {
+  Search,
+  Filter,
   Download,
   Bell,
-  UserPlus, 
-  ChevronLeft, 
-  ChevronRight, 
-  Loader2
+  UserPlus,
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-
 
 import {
   DropdownMenu,
@@ -24,32 +23,31 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Card, CardContent } from "@/components/ui/card";
-import { 
-  useAdminUsers, 
-  useDeactivateUserMutation, 
-  useResetUserPasswordMutation, 
+import {
+  useAdminUsers,
+  useDeactivateUserMutation,
+  useResetUserPasswordMutation,
   useNotifyUserMutation,
-  useDeleteUserMutation
+  useDeleteUserMutation,
+  useReactivateUserMutation,
 } from "@/lib/api/admin-hooks";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
-
 import { AdminSkeleton } from "@/components/admin/admin-skeleton";
-import {
-  DeactivateUserDialog,
-  ResetPasswordDialog,
-  UserProfileDialog,
-  SendNotificationDialog,
-  DeleteUserDialog,
-} from "@/components/admin/users/user-dialogs";
+import { DeactivateUserDialog } from "@/components/admin/users/deactivate-user-dialog";
+import { ReactivateUserDialog } from "@/components/admin/users/reactivate-user-dialog";
+import { ResetPasswordDialog } from "@/components/admin/users/reset-password-dialog";
+import { UserProfileDialog } from "@/components/admin/users/user-profile-dialog";
+import { SendNotificationDialog } from "@/components/admin/users/send-notification-dialog";
+import { DeleteUserDialog } from "@/components/admin/users/delete-user-dialog";
 import { UserTable } from "@/components/admin/users/user-table";
 
 function GlobalUsersDirectoryContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const initialSearch = searchParams ? (searchParams.get("search") || "") : "";
+  const initialSearch = searchParams ? searchParams.get("search") || "" : "";
 
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState(initialSearch);
@@ -61,18 +59,25 @@ function GlobalUsersDirectoryContent() {
       setSearch(initialSearch);
     }
   }, [initialSearch]);
-  
+
   const [isDeactivateDialogOpen, setIsDeactivateDialogOpen] = useState(false);
+  const [isReactivateDialogOpen, setIsReactivateDialogOpen] = useState(false);
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const [isNotifyDialogOpen, setIsNotifyDialogOpen] = useState(false);
   const [_isBulkNotifyDialogOpen, setIsBulkNotifyDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  
+
   const debouncedSearch = useDebounce(search, 500);
 
-  const { data: response, isLoading, error, refetch } = useAdminUsers(page, debouncedSearch);
+  const {
+    data: response,
+    isLoading,
+    error,
+    refetch,
+  } = useAdminUsers(page, debouncedSearch);
   const deactivateMutation = useDeactivateUserMutation();
+  const reactivateMutation = useReactivateUserMutation();
   const resetPasswordMutation = useResetUserPasswordMutation();
   const notifyMutation = useNotifyUserMutation();
   const deleteMutation = useDeleteUserMutation();
@@ -89,19 +94,19 @@ function GlobalUsersDirectoryContent() {
   const handleExportCSV = () => {
     if (userList.length === 0) return;
     const headers = ["ID", "Name", "Email", "Role", "Store", "Status"];
-    const csvData = userList.map((u: any) => 
-      [u.id, u.name, u.email, u.role, u.store, u.status].join(",")
+    const csvData = userList.map((u: any) =>
+      [u.id, u.name, u.email, u.role, u.store, u.status].join(","),
     );
-    const blob = new Blob([[headers.join(","), ...csvData].join("\n")], { type: "text/csv" });
+    const blob = new Blob([[headers.join(","), ...csvData].join("\n")], {
+      type: "text/csv",
+    });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `users-export-${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `users-export-${new Date().toISOString().split("T")[0]}.csv`;
     a.click();
     toast.success("User list exported successfully");
   };
-
-
 
   if (isLoading && !response) {
     return <AdminSkeleton />;
@@ -111,32 +116,41 @@ function GlobalUsersDirectoryContent() {
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-black tracking-tight text-slate-900 dark:text-white">Platform Users</h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium">Monitor and manage all users across the platform ecosystem</p>
+          <h1 className="text-4xl font-black tracking-tight text-slate-900 dark:text-white">
+            Platform Users
+          </h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium">
+            Monitor and manage all users across the platform ecosystem
+          </p>
         </div>
-        <div className="flex items-center gap-3">
-          <Button 
-            className="rounded-xl font-bold bg-indigo-600 hover:bg-indigo-700 text-white"
-            onClick={() => setIsBulkNotifyDialogOpen(true)}
-          >
-            <Bell className="h-4 w-4 mr-2" />
-            Notify All Filtered
-          </Button>
-          <Button 
-            variant="outline" 
-            className="rounded-xl font-bold"
-            onClick={handleExportCSV}
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Export User List
-          </Button>
-            <Button 
-              className="bg-indigo-600 hover:bg-indigo-700 font-bold shadow-lg shadow-indigo-600/20"
-              onClick={() => router.push("/admin/users/new")}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto mt-2 sm:mt-0">
+          <div className="flex gap-3 w-full sm:w-auto">
+            <Button
+              variant="secondary"
+              className="rounded-xl font-bold flex-1 sm:flex-none bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400 dark:hover:bg-indigo-500/20"
+              onClick={() => setIsBulkNotifyDialogOpen(true)}
+              title="Notify All Filtered"
             >
-                <UserPlus className="h-4 w-4 mr-2" />
-                Add Platform Admin
+              <Bell className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Notify All</span>
             </Button>
+            <Button
+              variant="outline"
+              className="rounded-xl font-bold flex-1 sm:flex-none border-2"
+              onClick={handleExportCSV}
+              title="Export User List"
+            >
+              <Download className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Export CSV</span>
+            </Button>
+          </div>
+          <Button
+            className="bg-indigo-600 hover:bg-indigo-700 font-bold shadow-lg shadow-indigo-600/20 w-full sm:w-auto"
+            onClick={() => router.push("/admin/users/new")}
+          >
+            <UserPlus className="h-4 w-4 mr-2" />
+            Add Platform Admin
+          </Button>
         </div>
       </div>
 
@@ -153,28 +167,67 @@ function GlobalUsersDirectoryContent() {
               />
             </div>
             <div className="flex items-center gap-3">
-                {isLoading && <Loader2 className="h-4 w-4 animate-spin text-indigo-500 mr-2" />}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="font-bold border-2">
-                        <Filter className="h-4 w-4 mr-2" />
-                        {roleFilter || 'Roles'}
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48 p-2 rounded-2xl shadow-xl">
-                    <DropdownMenuLabel className="text-[10px] uppercase tracking-widest text-slate-400 px-3 py-2">System Role</DropdownMenuLabel>
-                    <DropdownMenuItem className="rounded-xl px-3 py-2 cursor-pointer font-bold" onClick={() => setRoleFilter(null)}>All Roles</DropdownMenuItem>
-                    <DropdownMenuItem className="rounded-xl px-3 py-2 cursor-pointer font-bold" onClick={() => setRoleFilter('Super Admin')}>Super Admin</DropdownMenuItem>
-                    <DropdownMenuItem className="rounded-xl px-3 py-2 cursor-pointer font-bold" onClick={() => setRoleFilter('Store Owner')}>Store Owner</DropdownMenuItem>
-                    <DropdownMenuItem className="rounded-xl px-3 py-2 cursor-pointer font-bold" onClick={() => setRoleFilter('Specialist')}>Specialist</DropdownMenuItem>
-                    <DropdownMenuSeparator className="my-2" />
-                    <DropdownMenuLabel className="text-[10px] uppercase tracking-widest text-slate-400 px-3 py-2">Billing Plan</DropdownMenuLabel>
-                    <DropdownMenuItem className="rounded-xl px-3 py-2 cursor-pointer font-bold">Starter</DropdownMenuItem>
-                    <DropdownMenuItem className="rounded-xl px-3 py-2 cursor-pointer font-bold">Enterprise</DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                <div className="h-8 w-px bg-slate-200 dark:bg-slate-800 mx-1 hidden md:block" />
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Global Directory: {userMeta?.total || 0} Users</p>
+              {isLoading && (
+                <Loader2 className="h-4 w-4 animate-spin text-indigo-500 mr-2" />
+              )}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="font-bold border-2"
+                  >
+                    <Filter className="h-4 w-4 mr-2" />
+                    {roleFilter || "Roles"}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  className="w-48 p-2 rounded-2xl shadow-xl"
+                >
+                  <DropdownMenuLabel className="text-[10px] uppercase tracking-widest text-slate-400 px-3 py-2">
+                    System Role
+                  </DropdownMenuLabel>
+                  <DropdownMenuItem
+                    className="rounded-xl px-3 py-2 cursor-pointer font-bold"
+                    onClick={() => setRoleFilter(null)}
+                  >
+                    All Roles
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="rounded-xl px-3 py-2 cursor-pointer font-bold"
+                    onClick={() => setRoleFilter("Super Admin")}
+                  >
+                    Super Admin
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="rounded-xl px-3 py-2 cursor-pointer font-bold"
+                    onClick={() => setRoleFilter("Store Owner")}
+                  >
+                    Store Owner
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="rounded-xl px-3 py-2 cursor-pointer font-bold"
+                    onClick={() => setRoleFilter("Specialist")}
+                  >
+                    Specialist
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator className="my-2" />
+                  <DropdownMenuLabel className="text-[10px] uppercase tracking-widest text-slate-400 px-3 py-2">
+                    Billing Plan
+                  </DropdownMenuLabel>
+                  <DropdownMenuItem className="rounded-xl px-3 py-2 cursor-pointer font-bold">
+                    Starter
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="rounded-xl px-3 py-2 cursor-pointer font-bold">
+                    Enterprise
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <div className="h-8 w-px bg-slate-200 dark:bg-slate-800 mx-1 hidden md:block" />
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                Global Directory: {userMeta?.total || 0} Users
+              </p>
             </div>
           </div>
 
@@ -189,51 +242,63 @@ function GlobalUsersDirectoryContent() {
               setIsNotifyDialogOpen={setIsNotifyDialogOpen}
               setIsResetDialogOpen={setIsResetDialogOpen}
               setIsDeactivateDialogOpen={setIsDeactivateDialogOpen}
+              setIsReactivateDialogOpen={setIsReactivateDialogOpen}
               setIsDeleteDialogOpen={setIsDeleteDialogOpen}
             />
           </div>
 
           {userMeta && userMeta.last_page > 1 && (
             <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/30">
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Page {userMeta.current_page} of {userMeta.last_page}</p>
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                Page {userMeta.current_page} of {userMeta.last_page}
+              </p>
               <div className="flex items-center gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    disabled={userMeta.current_page === 1}
-                    onClick={() => handlePageChange(userMeta.current_page - 1)}
-                    className="h-8 border-2 font-black text-xs uppercase tracking-tighter"
-                  >
-                      <ChevronLeft className="h-4 w-4 mr-1" />
-                      Prev
-                  </Button>
-                  <div className="flex gap-1">
-                      {Array.from({ length: Math.min(5, userMeta.last_page) }, (_, i) => {
-                          const pageNum = i + 1;
-                          return (
-                            <Button 
-                                key={i} 
-                                variant={pageNum === userMeta.current_page ? "default" : "ghost"} 
-                                size="sm" 
-                                onClick={() => handlePageChange(pageNum)}
-                                className={`h-8 w-8 p-0 font-bold ${pageNum === userMeta.current_page ? 'bg-indigo-600' : ''}`}
-                            >
-                                {pageNum}
-                            </Button>
-                          );
-                      })}
-                      {userMeta.last_page > 5 && <span className="px-2 text-slate-400">...</span>}
-                  </div>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    disabled={userMeta.current_page === userMeta.last_page}
-                    onClick={() => handlePageChange(userMeta.current_page + 1)}
-                    className="h-8 border-2 font-black text-xs uppercase tracking-tighter"
-                  >
-                      Next
-                      <ChevronRight className="h-4 w-4 ml-1" />
-                  </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={userMeta.current_page === 1}
+                  onClick={() => handlePageChange(userMeta.current_page - 1)}
+                  className="h-8 border-2 font-black text-xs uppercase tracking-tighter"
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Prev
+                </Button>
+                <div className="flex gap-1">
+                  {Array.from(
+                    { length: Math.min(5, userMeta.last_page) },
+                    (_, i) => {
+                      const pageNum = i + 1;
+                      return (
+                        <Button
+                          key={i}
+                          variant={
+                            pageNum === userMeta.current_page
+                              ? "default"
+                              : "ghost"
+                          }
+                          size="sm"
+                          onClick={() => handlePageChange(pageNum)}
+                          className={`h-8 w-8 p-0 font-bold ${pageNum === userMeta.current_page ? "bg-indigo-600" : ""}`}
+                        >
+                          {pageNum}
+                        </Button>
+                      );
+                    },
+                  )}
+                  {userMeta.last_page > 5 && (
+                    <span className="px-2 text-slate-400">...</span>
+                  )}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={userMeta.current_page === userMeta.last_page}
+                  onClick={() => handlePageChange(userMeta.current_page + 1)}
+                  className="h-8 border-2 font-black text-xs uppercase tracking-tighter"
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
               </div>
             </div>
           )}
@@ -246,6 +311,14 @@ function GlobalUsersDirectoryContent() {
         selectedUser={selectedUser}
         setSelectedUser={setSelectedUser}
         deactivateMutation={deactivateMutation}
+      />
+
+      <ReactivateUserDialog
+        isOpen={isReactivateDialogOpen}
+        onOpenChange={setIsReactivateDialogOpen}
+        selectedUser={selectedUser}
+        setSelectedUser={setSelectedUser}
+        reactivateMutation={reactivateMutation}
       />
 
       <ResetPasswordDialog

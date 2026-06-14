@@ -12,6 +12,12 @@
 
     <p>With DumosRx, you can seamlessly manage your inventory, sales, and clinical records.</p>
     
+    @if(isset($trialDuration) && $trialDuration > 0)
+    <div style="background-color: #e0e7ff; padding: 15px; border-radius: 6px; margin: 20px 0; border: 1px solid #c7d2fe;">
+        <p style="margin-bottom: 0; color: #3730a3;"><strong>🎁 Your {{ $trialDuration }}-Day Free Trial is Active!</strong> You have full, unrestricted access to all features until <strong>{{ $trialEndDate }}</strong>. We highly encourage you to explore everything DumosRx has to offer.</p>
+    </div>
+    @endif
+    
     <div style="text-align: center;">
         <a href="{{ $loginUrl }}" class="button">Log In to Your Dashboard</a>
     </div>

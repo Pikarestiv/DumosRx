@@ -24,10 +24,10 @@ export function SubscriptionConfigTab() {
     grace_period_days: 3,
     enable_paystack: true,
     tiers: {
-      free: { price_monthly: 0, price_yearly: 0, active: true },
-      starter: { price_monthly: 3000, price_yearly: 30000, active: true },
-      pro: { price_monthly: 8000, price_yearly: 80000, active: true },
-      enterprise: { price_monthly: 15000, price_yearly: 150000, active: true },
+      free: { price_monthly: 0, price_yearly: 0, active: true, limits: { staff: 1, stores: 1 } },
+      starter: { price_monthly: 3000, price_yearly: 30000, active: true, limits: { staff: 3, stores: 1 } },
+      pro: { price_monthly: 8000, price_yearly: 80000, active: true, limits: { staff: 10, stores: 1 } },
+      enterprise: { price_monthly: 15000, price_yearly: 150000, active: true, limits: { staff: -1, stores: -1 } },
     }
   });
 
@@ -56,21 +56,25 @@ export function SubscriptionConfigTab() {
             price_monthly: serverConfig.tiers?.free?.price_monthly ?? 0,
             price_yearly: serverConfig.tiers?.free?.price_yearly ?? 0,
             active: serverConfig.tiers?.free?.active ?? true,
+            limits: serverConfig.tiers?.free?.limits ?? { staff: 1, stores: 1 },
           },
           starter: {
             price_monthly: serverConfig.tiers?.starter?.price_monthly ?? 3000,
             price_yearly: serverConfig.tiers?.starter?.price_yearly ?? 30000,
             active: serverConfig.tiers?.starter?.active ?? true,
+            limits: serverConfig.tiers?.starter?.limits ?? { staff: 3, stores: 1 },
           },
           pro: {
             price_monthly: serverConfig.tiers?.pro?.price_monthly ?? 8000,
             price_yearly: serverConfig.tiers?.pro?.price_yearly ?? 80000,
             active: serverConfig.tiers?.pro?.active ?? true,
+            limits: serverConfig.tiers?.pro?.limits ?? { staff: 10, stores: 1 },
           },
           enterprise: {
             price_monthly: serverConfig.tiers?.enterprise?.price_monthly ?? 15000,
             price_yearly: serverConfig.tiers?.enterprise?.price_yearly ?? 150000,
             active: serverConfig.tiers?.enterprise?.active ?? true,
+            limits: serverConfig.tiers?.enterprise?.limits ?? { staff: -1, stores: -1 },
           },
         }
       });
@@ -173,6 +177,15 @@ export function SubscriptionConfigTab() {
                     disabled={!config.tiers.starter.active}
                   />
                 </div>
+                <div className="space-y-2 pt-2 border-t col-span-2">
+                  <Label className="text-xs text-muted-foreground">Max Staff (-1 for ∞)</Label>
+                  <Input 
+                    type="number" 
+                    value={config.tiers.starter.limits.staff} 
+                    onChange={(e) => setConfig({ ...config, tiers: { ...config.tiers, starter: { ...config.tiers.starter, limits: { ...config.tiers.starter.limits, staff: Number(e.target.value) } } } })}
+                    disabled={!config.tiers.starter.active}
+                  />
+                </div>
               </div>
             </div>
 
@@ -206,6 +219,16 @@ export function SubscriptionConfigTab() {
                     disabled={!config.tiers.pro.active}
                   />
                 </div>
+                <div className="space-y-2 pt-2 border-t border-indigo-200/50 dark:border-indigo-800/50 col-span-2">
+                  <Label className="text-xs text-indigo-600/70 dark:text-indigo-400/70">Max Staff (-1 for ∞)</Label>
+                  <Input 
+                    type="number" 
+                    className="border-indigo-200 dark:border-indigo-800 focus-visible:ring-indigo-500"
+                    value={config.tiers.pro.limits.staff} 
+                    onChange={(e) => setConfig({ ...config, tiers: { ...config.tiers, pro: { ...config.tiers.pro, limits: { ...config.tiers.pro.limits, staff: Number(e.target.value) } } } })}
+                    disabled={!config.tiers.pro.active}
+                  />
+                </div>
               </div>
             </div>
 
@@ -234,6 +257,15 @@ export function SubscriptionConfigTab() {
                     type="number" 
                     value={config.tiers.enterprise.price_yearly} 
                     onChange={(e) => setConfig({ ...config, tiers: { ...config.tiers, enterprise: { ...config.tiers.enterprise, price_yearly: Number(e.target.value) } } })}
+                    disabled={!config.tiers.enterprise.active}
+                  />
+                </div>
+                <div className="space-y-2 pt-2 border-t col-span-2">
+                  <Label className="text-xs text-muted-foreground">Max Staff (-1 for ∞)</Label>
+                  <Input 
+                    type="number" 
+                    value={config.tiers.enterprise.limits.staff} 
+                    onChange={(e) => setConfig({ ...config, tiers: { ...config.tiers, enterprise: { ...config.tiers.enterprise, limits: { ...config.tiers.enterprise.limits, staff: Number(e.target.value) } } } })}
                     disabled={!config.tiers.enterprise.active}
                   />
                 </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -399,10 +399,13 @@ export function CouponsManager() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={generateMutation.isPending || updateMutation.isPending}>
               Cancel
             </Button>
-            <Button onClick={handleSave}>{editingId ? "Save Changes" : "Generate"}</Button>
+            <Button onClick={handleSave} disabled={generateMutation.isPending || updateMutation.isPending}>
+              {(generateMutation.isPending || updateMutation.isPending) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {editingId ? "Save Changes" : "Generate"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -31,7 +31,7 @@ import {
 import { StaffModal } from "../staff-modal";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { toast } from "sonner";
-import { useStaff, useDeleteStaffMutation } from "@/lib/api/hooks";
+import { useStaff, useDeleteStaffMutation, useSubscriptionStatus } from "@/lib/api/hooks";
 
 interface StaffViewProps {
   staff: any[];
@@ -56,6 +56,7 @@ export function StaffView({ staff, stores }: StaffViewProps) {
   }, [storeIdParam]);
 
   const { data: staffData, isLoading: _isLoading } = useStaff(selectedStore);
+  const { data: subStatus } = useSubscriptionStatus();
   const deleteMutation = useDeleteStaffMutation();
   
   const staffToDisplay = staffData || staff;
@@ -119,7 +120,18 @@ export function StaffView({ staff, stores }: StaffViewProps) {
         <Card className="border-none shadow-sm">
           <CardContent className="p-6">
             <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Total Staff</p>
-            <h3 className="text-3xl font-black mt-2">{filteredStaff?.length || 0}</h3>
+            <h3 className="text-3xl font-black mt-2">
+              {filteredStaff?.length || 0}
+              {(() => {
+                let maxStaff: string | number = subStatus?.limits?.staff ?? 1;
+                
+                return maxStaff === -1 || maxStaff === "Unlimited" ? (
+                  <span className="text-lg text-muted-foreground font-medium ml-2">/ ∞</span>
+                ) : (
+                  <span className="text-lg text-muted-foreground font-medium ml-2">/ {maxStaff} max</span>
+                );
+              })()}
+            </h3>
           </CardContent>
         </Card>
         <Card className="border-none shadow-sm">

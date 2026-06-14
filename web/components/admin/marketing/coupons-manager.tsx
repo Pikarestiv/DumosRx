@@ -112,7 +112,7 @@ export function CouponsManager() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">
             Coupons & Trials
@@ -121,7 +121,7 @@ export function CouponsManager() {
             Manage marketing discounts and trial extensions
           </p>
         </div>
-        <Button onClick={() => setIsDialogOpen(true)}>
+        <Button onClick={() => setIsDialogOpen(true)} className="w-full sm:w-auto">
           <Plus className="mr-2 h-4 w-4" /> Generate Coupon
         </Button>
       </div>

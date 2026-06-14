@@ -22,8 +22,14 @@ import { DownloadsView } from "@/components/dashboard/views/downloads-view";
 import { NotificationsView } from "@/components/dashboard/views/notifications-view";
 import { ProfileView } from "@/components/dashboard/views/profile-view";
 import { webApiClient } from "@/lib/api/client";
+import { useState, useEffect } from "react";
 
 export function DashboardClient({ view }: { view: string }) {
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   const {
     activeTab: _activeTab,
     setActiveTab,
@@ -115,7 +121,7 @@ export function DashboardClient({ view }: { view: string }) {
       />
       <div className="flex-1 flex flex-col min-w-0">
         <BroadcastBanner />
-        {user?.require_email_verification && !user?.email_verified_at && (
+        {isMounted && user?.require_email_verification && !user?.email_verified_at && (
           <VerificationBanner email={user.email} />
         )}
         <Header onSetActiveTab={setActiveTab} />

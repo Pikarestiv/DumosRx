@@ -610,8 +610,8 @@ class AdminService
             elseif (str_contains($durationString, '3 months')) $days = 90;
             elseif (str_contains($durationString, '6 months')) $days = 180;
 
-            // Optional: Mark previous active subscriptions as superseded or just leave them
-            $user->subscriptions()->where('status', 'active')->update(['status' => 'superseded']);
+            // Optional: Mark previous active subscriptions as expired or just leave them
+            $user->subscriptions()->where('status', 'active')->update(['status' => 'expired']);
 
             // Create new trial subscription
             \App\Models\Subscription::create([

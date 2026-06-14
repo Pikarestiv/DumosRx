@@ -104,17 +104,17 @@ export default function GlobalProductsManagement() {
           <h1 className="text-4xl font-black tracking-tight text-slate-900 dark:text-white">Global Products</h1>
           <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium">Monitor product catalog and inventory trends platform-wide</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto mt-4 md:mt-0">
             <Button 
                 variant="outline" 
-                className="border-2 font-bold dark:bg-slate-900 dark:border-slate-800"
+                className="border-2 font-bold dark:bg-slate-900 dark:border-slate-800 w-full sm:w-auto"
                 onClick={handleExportMetrics}
             >
                 <Download className="h-4 w-4 mr-2" />
                 Export Metrics
             </Button>
             <Button 
-                className="bg-indigo-600 hover:bg-indigo-700 font-bold shadow-lg shadow-indigo-600/20"
+                className="bg-indigo-600 hover:bg-indigo-700 font-bold shadow-lg shadow-indigo-600/20 w-full sm:w-auto"
                 onClick={handleStandardize}
                 disabled={standardizeMutation.isPending}
             >

@@ -23,6 +23,7 @@ export function SubscriptionConfigTab() {
     trial_plan: "pro",
     grace_period_days: 3,
     enable_paystack: true,
+    enable_flutterwave: true,
     tiers: {
       free: { price_monthly: 0, price_yearly: 0, active: true, limits: { staff: 1, stores: 1 }, features: { web_dashboard: false, mobile_app: false, ecommerce: false, smart_pos: false, custom_branding: false, broadcast_create: false } },
       starter: { price_monthly: 3000, price_yearly: 30000, active: true, limits: { staff: 3, stores: 1 }, features: { web_dashboard: true, mobile_app: false, ecommerce: false, smart_pos: false, custom_branding: false, broadcast_create: false } },
@@ -50,6 +51,7 @@ export function SubscriptionConfigTab() {
     if (serverConfig) {
       setConfig({
         ...serverConfig,
+        enable_flutterwave: serverConfig.enable_flutterwave ?? true,
         trial_plan: serverConfig.trial_plan ?? "pro",
         tiers: {
           free: {
@@ -408,15 +410,27 @@ export function SubscriptionConfigTab() {
               </div>
             </div>
             
-            <div className="space-y-3 p-4 border rounded-lg bg-white dark:bg-slate-900">
-               <div className="flex items-center justify-between">
-                 <Label className="font-bold">Enable Paystack Gateway</Label>
-                 <Switch 
-                   checked={config.enable_paystack} 
-                   onCheckedChange={(c) => setConfig({ ...config, enable_paystack: c })}
-                 />
-               </div>
-               <p className="text-xs text-muted-foreground">If disabled, the user dashboard will hide the checkout buttons.</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-3 p-4 border rounded-lg bg-white dark:bg-slate-900">
+                 <div className="flex items-center justify-between">
+                   <Label className="font-bold">Enable Paystack</Label>
+                   <Switch 
+                     checked={config.enable_paystack} 
+                     onCheckedChange={(c) => setConfig({ ...config, enable_paystack: c })}
+                   />
+                 </div>
+                 <p className="text-xs text-muted-foreground">If disabled, checkout buttons will be hidden.</p>
+              </div>
+              <div className="space-y-3 p-4 border rounded-lg bg-white dark:bg-slate-900">
+                 <div className="flex items-center justify-between">
+                   <Label className="font-bold">Enable Flutterwave</Label>
+                   <Switch 
+                     checked={config.enable_flutterwave} 
+                     onCheckedChange={(c) => setConfig({ ...config, enable_flutterwave: c })}
+                   />
+                 </div>
+                 <p className="text-xs text-muted-foreground">If disabled, checkout buttons will be hidden.</p>
+              </div>
             </div>
           </div>
         </CardContent>

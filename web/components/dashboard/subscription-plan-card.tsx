@@ -117,7 +117,7 @@ export function SubscriptionPlanCard({
           </ul>
         </CardContent>
 
-        {config?.enable_paystack !== false && (
+        {(config?.enable_paystack !== false || config?.enable_flutterwave === true) && (
           <CardFooter className="pb-8 pt-4">
             {(() => {
               let buttonText =

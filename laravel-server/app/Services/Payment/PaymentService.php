@@ -22,7 +22,25 @@ class PaymentService
      */
     public function initializeTransaction($amount, $email, $metadata = [])
     {
-        // Try Paystack first
+        $systemConfig = \App\Models\SystemConfig::getVal('subscription_plans', []);
+        $paystackEnabled = $systemConfig['enable_paystack'] ?? true;
+        $flutterwaveEnabled = $systemConfig['enable_flutterwave'] ?? true;
+
+        if (!$paystackEnabled && !$flutterwaveEnabled) {
+            throw new \Exception("No payment gateways are currently enabled by the administrator.");
+        }
+
+        if ($paystackEnabled && !$flutterwaveEnabled) {
+            // Only Paystack is enabled
+            return $this->initializePaystack($amount, $email, $metadata);
+        }
+
+        if (!$paystackEnabled && $flutterwaveEnabled) {
+            // Only Flutterwave is enabled
+            return $this->initializeFlutterwave($amount, $email, $metadata);
+        }
+
+        // Both are enabled: Try Paystack first
         try {
             return $this->initializePaystack($amount, $email, $metadata);
         } catch (\Exception $e) {

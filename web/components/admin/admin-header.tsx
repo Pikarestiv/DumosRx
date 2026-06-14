@@ -33,8 +33,7 @@ export function AdminHeader() {
             alt="DumosRx" 
             width={120} 
             height={32} 
-            className="h-8 w-auto" 
-            style={{ filter: "brightness(0) saturate(100%) invert(32%) sepia(94%) saturate(2975%) hue-rotate(227deg) brightness(96%) contrast(92%)" }}
+            className="h-8 w-auto [filter:brightness(0)_saturate(100%)_invert(32%)_sepia(94%)_saturate(2975%)_hue-rotate(227deg)_brightness(96%)_contrast(92%)] dark:[filter:brightness(0)_invert(1)]" 
           />
         </div>
         

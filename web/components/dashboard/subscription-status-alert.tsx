@@ -24,7 +24,8 @@ export function SubscriptionStatusAlert({ subStatus }: { subStatus: any }) {
   if (subStatus.status === "active") {
     const daysLeft = Math.floor(Number(subStatus.days_remaining ?? 0));
     const isTrial = subStatus.is_trial === true;
-    const isExpiringSoon = daysLeft < 7;
+    const isFreePlan = subStatus.plan?.toLowerCase().includes("free");
+    const isExpiringSoon = daysLeft < 7 && !isFreePlan;
 
     if (isTrial || isExpiringSoon) {
       return (
@@ -34,7 +35,7 @@ export function SubscriptionStatusAlert({ subStatus }: { subStatus: any }) {
             <p className="font-medium">
               {isTrial
                 ? `You are on the ${capitalizeFirstLetter(subStatus.plan || "Free")} Trial (${daysLeft} Days Remaining)`
-                : `You are on the ${capitalizeFirstLetter(subStatus.plan)} Plan (${daysLeft} Days Remaining)`}
+                : `You are on the ${capitalizeFirstLetter(subStatus.plan)} Plan${isExpiringSoon ? ` (${daysLeft} Days Remaining)` : ""}`}
             </p>
             <p className="text-sm">
               {isTrial
@@ -51,12 +52,12 @@ export function SubscriptionStatusAlert({ subStatus }: { subStatus: any }) {
         <Check className="h-5 w-5 mt-0.5 shrink-0 text-green-600" />
         <div className="space-y-1">
           <p className="font-medium">
-            You are on the {capitalizeFirstLetter(subStatus.plan)} Plan (
-            {daysLeft} Days Remaining)
+            You are on the {capitalizeFirstLetter(subStatus.plan)} Plan
           </p>
           <p className="text-sm">
-            Your subscription is active. Thank you for protecting your
-            cloud data with DumosRx.
+            {isFreePlan
+              ? "Your local standalone workspace is active and ready."
+              : "Your subscription is active. Thank you for protecting your cloud data with DumosRx."}
           </p>
         </div>
       </div>

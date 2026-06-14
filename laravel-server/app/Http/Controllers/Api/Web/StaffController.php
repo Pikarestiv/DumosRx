@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 
 class StaffController extends Controller
 {
@@ -86,8 +87,8 @@ class StaffController extends Controller
         $request->validate([
             'first_name' => 'string',
             'last_name' => 'string',
-            'email' => 'nullable|email|unique:users,email,' . $staff->id,
-            'username' => 'string|unique:users,username,' . $staff->id,
+            'email' => ['nullable', 'email', Rule::unique('users', 'email')->ignore($staff->id)],
+            'username' => ['string', Rule::unique('users', 'username')->ignore($staff->id)],
             'role' => 'string|in:admin,manager,specialist,sales_staff,auditor',
             'pin' => 'string|size:4',
             'store_id' => 'exists:stores,id',

@@ -1,6 +1,8 @@
 import React from "react";
+import { useSystemConfig } from "@/lib/api/hooks";
 
 export function HybridOperationsExplainer() {
+  const { data: config } = useSystemConfig("subscription_plans");
   return (
     <div className="max-w-6xl mx-auto space-y-8 bg-muted/30 dark:bg-muted/10 p-8 rounded-3xl border border-muted/50">
       <div className="text-center space-y-2 max-w-2xl mx-auto">
@@ -47,8 +49,7 @@ export function HybridOperationsExplainer() {
             </p>
             <div className="mt-3 space-y-2">
               <div className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 p-2.5 rounded-lg text-xs">
-                <strong>Pros:</strong> Multi-device store setup (up to 3
-                devices) for in-store checkout. Nightly/6-hourly automated cloud
+                <strong>Pros:</strong> Multi-device store setup (up to {config?.tiers?.starter?.limits?.stores === -1 ? 'Unlimited' : (config?.tiers?.starter?.limits?.stores || 3)} devices) for in-store checkout. Nightly/6-hourly automated cloud
                 backup.
               </div>
               <div className="bg-rose-500/10 text-rose-700 dark:text-rose-300 p-2.5 rounded-lg text-xs">

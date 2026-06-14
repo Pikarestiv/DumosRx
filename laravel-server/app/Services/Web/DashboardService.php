@@ -119,6 +119,7 @@ class DashboardService
                 'location' => $store->location,
                 'address' => $store->address,
                 'phone' => $store->phone,
+                'store_type' => $store->store_type,
                 'status' => $store->last_sync_at && Carbon::parse($store->last_sync_at)->gt(now()->subMinutes(30)) ? 'online' : 'offline',
                 'lastSync' => $store->last_sync_at ? Carbon::parse($store->last_sync_at)->diffForHumans() : 'Never',
                 'sales' => '₦' . number_format($totalSales / ($storesCount ?: 1), 2)

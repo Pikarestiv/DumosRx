@@ -251,6 +251,10 @@ function FleetStoreDetailsDialog({
               <p className="text-xs font-bold uppercase text-slate-500">Contact Phone</p>
               <p className="font-medium">{store.phone || "N/A"}</p>
             </div>
+            <div>
+              <p className="text-xs font-bold uppercase text-slate-500">Store Type</p>
+              <p className="font-medium capitalize">{store.store_type || "Retail"}</p>
+            </div>
             <div className="col-span-2">
               <p className="text-xs font-bold uppercase text-slate-500">Physical Address</p>
               <p className="font-medium">{store.address || "N/A"}</p>

@@ -22,6 +22,7 @@ class StoreController extends Controller
             'location' => 'nullable|string|max:255',
             'address' => 'nullable|string',
             'phone' => 'nullable|string',
+            'store_type' => 'nullable|string|in:pharmacy,supermarket,grocery,general,retail',
         ]);
 
         $user = $request->user();
@@ -33,7 +34,7 @@ class StoreController extends Controller
             'address' => $request->address,
             'phone' => $request->phone,
             'device_id' => 'WEB-' . strtoupper(Str::random(8)),
-            'store_type' => 'retail',
+            'store_type' => $request->store_type ?? 'pharmacy',
         ]);
 
         // Auto-create a trial subscription if the user doesn't have one
@@ -56,9 +57,10 @@ class StoreController extends Controller
             'location' => 'nullable|string|max:255',
             'address' => 'nullable|string',
             'phone' => 'nullable|string',
+            'store_type' => 'nullable|string|in:pharmacy,supermarket,grocery,general,retail',
         ]);
 
-        $store->update($request->only(['name', 'location', 'address', 'phone']));
+        $store->update($request->only(['name', 'location', 'address', 'phone', 'store_type']));
 
         return response()->json([
             'message' => 'Store updated successfully',

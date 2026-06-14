@@ -36,14 +36,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
 import { AdminSkeleton } from "@/components/admin/admin-skeleton";
-import {
-  DeactivateUserDialog,
-  ReactivateUserDialog,
-  ResetPasswordDialog,
-  UserProfileDialog,
-  SendNotificationDialog,
-  DeleteUserDialog,
-} from "@/components/admin/users/user-dialogs";
+import { DeactivateUserDialog } from "@/components/admin/users/deactivate-user-dialog";
+import { ReactivateUserDialog } from "@/components/admin/users/reactivate-user-dialog";
+import { ResetPasswordDialog } from "@/components/admin/users/reset-password-dialog";
+import { UserProfileDialog } from "@/components/admin/users/user-profile-dialog";
+import { SendNotificationDialog } from "@/components/admin/users/send-notification-dialog";
+import { DeleteUserDialog } from "@/components/admin/users/delete-user-dialog";
 import { UserTable } from "@/components/admin/users/user-table";
 
 function GlobalUsersDirectoryContent() {

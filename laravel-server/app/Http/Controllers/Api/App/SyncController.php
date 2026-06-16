@@ -28,7 +28,7 @@ class SyncController extends Controller
      */
     public function push(Request $request)
     {
-        $validation = $this->validateSync($request);
+        $validation = $this->validateSync($request, true);
         if (!$validation['valid']) {
             return response()->json([
                 'success' => false,
@@ -281,7 +281,7 @@ class SyncController extends Controller
      */
     public function pull(Request $request)
     {
-        $validation = $this->validateSync($request);
+        $validation = $this->validateSync($request, false);
         if (!$validation['valid']) {
             return response()->json([
                 'success' => false,
@@ -459,7 +459,7 @@ class SyncController extends Controller
         return $map[$tableName] ?? null;
     }
 
-    private function validateSync(Request $request)
+    private function validateSync(Request $request, $isPush = true)
     {
         $user = $request->user();
         if ($user && $user->role !== 'super_admin') {
@@ -468,7 +468,7 @@ class SyncController extends Controller
             
             // Check active subscription
             $sub = $owner->subscriptions()->where('status', 'active')->where('end_date', '>', now())->latest()->first();
-            $plan = $sub ? $sub->plan_name : 'free';
+            $plan = $sub ? strtolower($sub->plan_name) : 'free';
             
             if ($plan === 'starter') {
                 $store = Store::where('user_id', $owner->id)->first() ?? Store::where('id', $user->store_id)->first();
@@ -484,12 +484,25 @@ class SyncController extends Controller
                     }
                 }
             } elseif ($plan === 'free') {
-                return [
-                    'valid' => false,
-                    'message' => 'Cloud sync is disabled on the Free plan. Please upgrade to a paid plan to backup your data.',
-                    'code' => 'SYNC_DISABLED',
-                    'status' => 403
-                ];
+                if ($isPush) {
+                    return [
+                        'valid' => false,
+                        'message' => 'Cloud sync is disabled on the Free plan. Please upgrade to a paid plan to backup your data.',
+                        'code' => 'SYNC_DISABLED',
+                        'status' => 403
+                    ];
+                } else {
+                    $lastSyncedMap = $request->input('last_synced', []);
+                    // Allow pull only if it is the initial setup (last_synced is empty)
+                    if (!empty($lastSyncedMap)) {
+                        return [
+                            'valid' => false,
+                            'message' => 'Cloud sync is disabled on the Free plan. Please upgrade to a paid plan to backup your data.',
+                            'code' => 'SYNC_DISABLED',
+                            'status' => 403
+                        ];
+                    }
+                }
             }
             
             // Enforce staff limits

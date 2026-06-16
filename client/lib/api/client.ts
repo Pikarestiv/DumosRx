@@ -187,7 +187,8 @@ class ApiClient extends BaseApiClient {
 
   // System Configurations
   async getSystemConfig(key: string) {
-    return this.request<any>(`/system-configs/${key}`);
+    const response = await this.request<any>(`/system-configs/${key}`);
+    return response.data;
   }
 }
 

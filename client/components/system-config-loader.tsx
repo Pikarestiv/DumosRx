@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { getSystemConfig, setSystemConfig } from "@/lib/db/core";
 import { useSystemConfigStore } from "@/lib/store/system-config-store";
-import { apiClient } from "@/lib/api";
+import { apiClient } from "@/lib/api/client";
 
 export function SystemConfigLoader() {
   const { setSubscriptionPlans, setLoadedFromDB } = useSystemConfigStore();

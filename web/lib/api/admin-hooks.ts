@@ -92,6 +92,21 @@ export const useGrantTrialMutation = () => {
   });
 };
 
+export const useGrantUserTrialMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, plan, duration }: { id: string; plan: string; duration: string }) => 
+      webApiClient.request<any>(`admin/users/${id}/grant-trial`, { 
+        method: "POST", 
+        body: { plan, duration } 
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
+    },
+  });
+};
+
 export const useDeactivateUserMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
@@ -256,6 +271,20 @@ export const useGenerateCouponMutation = () => {
     mutationFn: (payload: any) =>
       webApiClient.request<any>("admin/coupons", {
         method: "POST",
+        body: payload,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-coupons"] });
+    },
+  });
+};
+
+export const useUpdateCouponMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: any }) =>
+      webApiClient.request<any>(`admin/coupons/${id}`, {
+        method: "PUT",
         body: payload,
       }),
     onSuccess: () => {

@@ -159,7 +159,7 @@ export function SyncIndicator({ collapsed = false }: { collapsed?: boolean }) {
 
   if (collapsed) {
     return (
-      <div className="px-2 py-3 flex flex-col items-center gap-2">
+      <div id="tour-sync-indicator" className="px-2 py-3 flex flex-col items-center gap-2">
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -191,7 +191,7 @@ export function SyncIndicator({ collapsed = false }: { collapsed?: boolean }) {
   }
 
   return (
-    <div className="px-4 py-4 border-t border-sidebar-border bg-sidebar-accent/5">
+    <div id="tour-sync-indicator" className="px-4 py-4 border-t border-sidebar-border bg-sidebar-accent/5">
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -204,19 +204,25 @@ export function SyncIndicator({ collapsed = false }: { collapsed?: boolean }) {
                   </span>
                 </div>
 
-                <button
-                  onClick={handleManualSync}
-                  disabled={isSyncInProgress || status === "offline"}
-                  className="p-1.5 bg-sidebar-accent rounded-lg transition-colors disabled:opacity-30 cursor-pointer border border-transparent hover:border-sidebar-border"
-                  title="Sync Now"
-                >
-                  <RefreshCw
-                    className={cn(
-                      "h-3 w-3 text-sidebar-foreground/60 !flex",
-                      isSyncInProgress && "animate-spin",
-                    )}
-                  />
-                </button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={handleManualSync}
+                      disabled={isSyncInProgress || status === "offline"}
+                      className="p-1.5 bg-sidebar-accent rounded-lg transition-colors disabled:opacity-30 cursor-pointer border border-transparent hover:border-sidebar-border relative z-10"
+                    >
+                      <RefreshCw
+                        className={cn(
+                          "h-3 w-3 text-sidebar-foreground/60 !flex",
+                          isSyncInProgress && "animate-spin",
+                        )}
+                      />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="font-semibold text-xs mb-1 bg-card border-accent/10">
+                    Sync Now
+                  </TooltipContent>
+                </Tooltip>
               </div>
 
               <div className="flex flex-col gap-1">

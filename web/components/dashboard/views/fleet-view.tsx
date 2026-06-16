@@ -26,6 +26,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -44,6 +51,8 @@ export function FleetView({ stores: initialStores }: FleetViewProps) {
   const [editingStore, setEditingStore] = useState<any>(null);
   const deleteMutation = useDeleteStoreMutation();
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [viewingStore, setViewingStore] = useState<any>(null);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
 
   const { data: storesData } = useStores();
   const storesToDisplay = storesData || initialStores;
@@ -60,6 +69,11 @@ export function FleetView({ stores: initialStores }: FleetViewProps) {
   const handleEdit = (store: any) => {
     setEditingStore(store);
     setIsModalOpen(true);
+  };
+
+  const handleView = (store: any) => {
+    setViewingStore(store);
+    setIsViewModalOpen(true);
   };
 
   const handleDeleteStore = async (storeId: string) => {
@@ -156,8 +170,12 @@ export function FleetView({ stores: initialStores }: FleetViewProps) {
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Store Actions</DropdownMenuLabel>
                           <DropdownMenuSeparator />
+                          <DropdownMenuItem className="cursor-pointer" onClick={() => handleView(store)}>
+                            <Store className="h-4 w-4 mr-2 text-slate-500" />
+                            View Details
+                          </DropdownMenuItem>
                           <DropdownMenuItem className="cursor-pointer" onClick={() => handleEdit(store)}>
-                            <Settings className="h-4 w-4 mr-2" />
+                            <Settings className="h-4 w-4 mr-2 text-indigo-500" />
                             Edit Store
                           </DropdownMenuItem>
                           <DropdownMenuItem className="cursor-pointer" onClick={() => handleManageStaff(store.id)}>
@@ -188,6 +206,77 @@ export function FleetView({ stores: initialStores }: FleetViewProps) {
         confirmLabel="Remove Store"
         onConfirm={() => deleteTargetId && confirmDeleteStore(deleteTargetId)}
       />
+
+      <FleetStoreDetailsDialog 
+        isOpen={isViewModalOpen}
+        onOpenChange={setIsViewModalOpen}
+        store={viewingStore}
+      />
     </div>
+  );
+}
+
+function FleetStoreDetailsDialog({
+  isOpen,
+  onOpenChange,
+  store,
+}: {
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+  store: any;
+}) {
+  if (!store) return null;
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogContent className="rounded-3xl border-slate-200 dark:border-slate-800 shadow-2xl">
+        <DialogHeader>
+          <DialogTitle className="text-2xl font-black">Store Details</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-xs font-bold uppercase text-slate-500">Store Name</p>
+              <p className="font-bold text-slate-900 dark:text-slate-100">{store.name}</p>
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase text-slate-500">Store ID</p>
+              <p className="font-mono text-sm">{store.id}</p>
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase text-slate-500">City / State</p>
+              <p className="font-medium">{store.location || "N/A"}</p>
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase text-slate-500">Contact Phone</p>
+              <p className="font-medium">{store.phone || "N/A"}</p>
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase text-slate-500">Store Type</p>
+              <p className="font-medium capitalize">{store.store_type || "Retail"}</p>
+            </div>
+            <div className="col-span-2">
+              <p className="text-xs font-bold uppercase text-slate-500">Physical Address</p>
+              <p className="font-medium">{store.address || "N/A"}</p>
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase text-slate-500">Status</p>
+              <p className="font-medium capitalize">{store.status}</p>
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase text-slate-500">Last Sync</p>
+              <p className="font-medium">{store.lastSync}</p>
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase text-slate-500">Daily Sales</p>
+              <p className="font-black">{store.sales}</p>
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button onClick={() => onOpenChange(false)} className="rounded-xl font-bold h-12 w-full">Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

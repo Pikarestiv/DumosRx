@@ -87,10 +87,10 @@ Route::prefix('v1')->group(function () {
         });
 
         // --- WEB DASHBOARD ROUTES ---
-        Route::prefix('dashboard')->middleware('subscription:remote_dashboard')->group(function () {
+        Route::prefix('dashboard')->middleware('subscription:web_dashboard')->group(function () {
             Route::get('/summary', [DashboardController::class, 'summary']);
             Route::post('/reset', [DashboardController::class, 'resetData']);
-            Route::post('/send-summary', [\App\Http\Controllers\API\StoreSummaryController::class, 'sendSummary']);
+            Route::post('/send-summary', [\App\Http\Controllers\Api\StoreSummaryController::class, 'sendSummary']);
         });
         Route::get('/alerts', [NotificationController::class, 'index']);
         Route::post('/alerts/{id}/read', [NotificationController::class, 'markAsRead']);
@@ -135,6 +135,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/stores/{id}/suspend', [AdminController::class, 'suspendStore']);
             Route::post('/stores/{id}/unsuspend', [AdminController::class, 'unsuspendStore']);
             Route::post('/stores/{id}/grant-trial', [AdminController::class, 'grantTrial']);
+            Route::post('/users/{id}/grant-trial', [AdminController::class, 'grantUserTrial']);
             Route::get('/products', [AdminController::class, 'products']);
             Route::post('/products/standardize', [AdminController::class, 'standardize']);
             Route::get('/users', [AdminController::class, 'users']);

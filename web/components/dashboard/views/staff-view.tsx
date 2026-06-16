@@ -31,7 +31,7 @@ import {
 import { StaffModal } from "../staff-modal";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { toast } from "sonner";
-import { useStaff, useDeleteStaffMutation } from "@/lib/api/hooks";
+import { useStaff, useDeleteStaffMutation, useUpdateStaffMutation, useSubscriptionStatus } from "@/lib/api/hooks";
 
 interface StaffViewProps {
   staff: any[];
@@ -56,7 +56,9 @@ export function StaffView({ staff, stores }: StaffViewProps) {
   }, [storeIdParam]);
 
   const { data: staffData, isLoading: _isLoading } = useStaff(selectedStore);
+  const { data: subStatus } = useSubscriptionStatus();
   const deleteMutation = useDeleteStaffMutation();
+  const updateMutation = useUpdateStaffMutation();
   
   const staffToDisplay = staffData || staff;
 
@@ -80,6 +82,13 @@ export function StaffView({ staff, stores }: StaffViewProps) {
       onError: (err: any) => toast.error(err.message || "Failed to deactivate staff"),
     });
     setDeleteTargetId(null);
+  };
+
+  const handleReactivate = (id: string) => {
+    updateMutation.mutate({ id, payload: { is_active: true } }, {
+      onSuccess: () => toast.success("Staff account reactivated"),
+      onError: (err: any) => toast.error(err.message || "Failed to reactivate staff"),
+    });
   };
 
   // Filter staff based on selected store
@@ -119,7 +128,18 @@ export function StaffView({ staff, stores }: StaffViewProps) {
         <Card className="border-none shadow-sm">
           <CardContent className="p-6">
             <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Total Staff</p>
-            <h3 className="text-3xl font-black mt-2">{filteredStaff?.length || 0}</h3>
+            <h3 className="text-3xl font-black mt-2">
+              {filteredStaff?.length || 0}
+              {(() => {
+                let maxStaff: string | number = subStatus?.limits?.staff ?? 1;
+                
+                return maxStaff === -1 || maxStaff === "Unlimited" ? (
+                  <span className="text-lg text-muted-foreground font-medium ml-2">/ ∞</span>
+                ) : (
+                  <span className="text-lg text-muted-foreground font-medium ml-2">/ {maxStaff} max</span>
+                );
+              })()}
+            </h3>
           </CardContent>
         </Card>
         <Card className="border-none shadow-sm">
@@ -229,7 +249,11 @@ export function StaffView({ staff, stores }: StaffViewProps) {
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={() => handleEdit(s)}>Edit Details</DropdownMenuItem>
-                            <DropdownMenuItem className="text-rose-600 focus:text-rose-600" onClick={() => handleDelete(s.id)}>Deactivate</DropdownMenuItem>
+                            {s.is_active ? (
+                              <DropdownMenuItem className="text-rose-600 focus:text-rose-600" onClick={() => handleDelete(s.id)}>Deactivate</DropdownMenuItem>
+                            ) : (
+                              <DropdownMenuItem className="text-emerald-600 focus:text-emerald-600" onClick={() => handleReactivate(s.id)}>Reactivate</DropdownMenuItem>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>

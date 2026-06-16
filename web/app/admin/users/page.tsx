@@ -30,6 +30,7 @@ import {
   useNotifyUserMutation,
   useDeleteUserMutation,
   useReactivateUserMutation,
+  useGrantUserTrialMutation,
 } from "@/lib/api/admin-hooks";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -43,6 +44,7 @@ import { UserProfileDialog } from "@/components/admin/users/user-profile-dialog"
 import { SendNotificationDialog } from "@/components/admin/users/send-notification-dialog";
 import { DeleteUserDialog } from "@/components/admin/users/delete-user-dialog";
 import { UserTable } from "@/components/admin/users/user-table";
+import { GrantUserTrialDialog } from "@/components/admin/users/grant-user-trial-dialog";
 
 function GlobalUsersDirectoryContent() {
   const router = useRouter();
@@ -67,6 +69,7 @@ function GlobalUsersDirectoryContent() {
   const [isNotifyDialogOpen, setIsNotifyDialogOpen] = useState(false);
   const [_isBulkNotifyDialogOpen, setIsBulkNotifyDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isTrialDialogOpen, setIsTrialDialogOpen] = useState(false);
 
   const debouncedSearch = useDebounce(search, 500);
 
@@ -81,6 +84,7 @@ function GlobalUsersDirectoryContent() {
   const resetPasswordMutation = useResetUserPasswordMutation();
   const notifyMutation = useNotifyUserMutation();
   const deleteMutation = useDeleteUserMutation();
+  const grantTrialMutation = useGrantUserTrialMutation();
 
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= (response?.meta?.last_page || 1)) {
@@ -106,6 +110,26 @@ function GlobalUsersDirectoryContent() {
     a.download = `users-export-${new Date().toISOString().split("T")[0]}.csv`;
     a.click();
     toast.success("User list exported successfully");
+  };
+
+  const handleGrantTrial = async (plan: string, duration: string) => {
+    if (!selectedUser) return;
+
+    grantTrialMutation.mutate({ id: selectedUser.id, plan, duration }, {
+      onSuccess: () => {
+        toast.success("Trial Granted", {
+          description: `Granted ${duration} ${plan} trial to ${selectedUser.name}.`,
+        });
+        setIsTrialDialogOpen(false);
+        setSelectedUser(null);
+        refetch();
+      },
+      onError: (err: any) => {
+        toast.error("Action Failed", {
+          description: err.message || "Failed to grant trial.",
+        });
+      }
+    });
   };
 
   if (isLoading && !response) {
@@ -244,6 +268,7 @@ function GlobalUsersDirectoryContent() {
               setIsDeactivateDialogOpen={setIsDeactivateDialogOpen}
               setIsReactivateDialogOpen={setIsReactivateDialogOpen}
               setIsDeleteDialogOpen={setIsDeleteDialogOpen}
+              setIsTrialDialogOpen={setIsTrialDialogOpen}
             />
           </div>
 
@@ -349,6 +374,14 @@ function GlobalUsersDirectoryContent() {
         selectedUser={selectedUser}
         setSelectedUser={setSelectedUser}
         deleteMutation={deleteMutation}
+      />
+
+      <GrantUserTrialDialog
+        open={isTrialDialogOpen}
+        onOpenChange={setIsTrialDialogOpen}
+        user={selectedUser}
+        onConfirm={handleGrantTrial}
+        isPending={grantTrialMutation.isPending}
       />
     </div>
   );

@@ -12,6 +12,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Loader2, Store, MapPin, Phone, Home } from "lucide-react";
 import { toast } from "sonner";
 import { useCreateStoreMutation, useUpdateStoreMutation } from "@/lib/api/hooks";
@@ -32,6 +39,7 @@ export function StoreModal({ isOpen, onClose, onSuccess, store }: StoreModalProp
     location: "",
     address: "",
     phone: "",
+    store_type: "pharmacy",
   });
 
   useEffect(() => {
@@ -42,6 +50,7 @@ export function StoreModal({ isOpen, onClose, onSuccess, store }: StoreModalProp
         location: store?.location || "",
         address: store?.address || "",
         phone: store?.phone || "",
+        store_type: store?.store_type || "pharmacy",
       });
     }
   }, [store, isOpen]);
@@ -102,6 +111,24 @@ export function StoreModal({ isOpen, onClose, onSuccess, store }: StoreModalProp
                   required 
                 />
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="store_type" className="text-xs font-bold uppercase tracking-wider opacity-60">Store Type</Label>
+              <Select 
+                value={formData.store_type} 
+                onValueChange={(value) => setFormData({...formData, store_type: value})}
+              >
+                <SelectTrigger id="store_type" className="font-bold">
+                  <SelectValue placeholder="Select store type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pharmacy" className="font-medium">Pharmacy / Chemist</SelectItem>
+                  <SelectItem value="supermarket" className="font-medium">Supermarket</SelectItem>
+                  <SelectItem value="grocery" className="font-medium">Grocery Store</SelectItem>
+                  <SelectItem value="retail" className="font-medium">General Retail</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="grid grid-cols-2 gap-4">

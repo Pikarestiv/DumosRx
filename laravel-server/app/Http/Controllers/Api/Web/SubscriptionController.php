@@ -32,6 +32,9 @@ class SubscriptionController extends Controller
             return response()->json(['status' => 'inactive', 'message' => 'No active subscription found.']);
         }
 
+        $systemConfig = SystemConfig::getVal('subscription_plans', []);
+        $limits = $systemConfig['tiers'][$sub->plan_name]['limits'] ?? null;
+
         return response()->json([
             'status' => 'active',
             'plan' => $sub->plan_name,
@@ -39,6 +42,7 @@ class SubscriptionController extends Controller
             'days_remaining' => now()->diffInDays($sub->end_date),
             'is_trial' => $sub->is_trial,
             'license_key' => $sub->license_key,
+            'limits' => $limits,
         ]);
     }
 
@@ -201,6 +205,9 @@ class SubscriptionController extends Controller
             if ($coupon) {
                 $subscriptionService->recordCouponUsage($coupon, $user, $sub);
             }
+
+            // Immediately enforce limits since the plan has changed
+            $subscriptionService->enforceStaffLimits($user);
 
             return response()->json([
                 'success' => true,

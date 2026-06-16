@@ -250,6 +250,7 @@ CREATE TABLE IF NOT EXISTS store_profile (
   name TEXT,
   store_slug TEXT UNIQUE,
   store_type TEXT DEFAULT 'store',
+  location TEXT,
   address TEXT,
   phone TEXT,
   email TEXT,

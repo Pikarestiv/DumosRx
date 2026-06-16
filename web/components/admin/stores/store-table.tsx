@@ -36,6 +36,7 @@ interface StoreTableProps {
   setSelectedStore: (store: any) => void;
   setIsSuspendDialogOpen: (open: boolean) => void;
   setIsTrialDialogOpen: (open: boolean) => void;
+  setIsViewDialogOpen: (open: boolean) => void;
   handleUnsuspend: (store: any) => void;
   router: any;
 }
@@ -48,6 +49,7 @@ export function StoreTable({
   setSelectedStore,
   setIsSuspendDialogOpen,
   setIsTrialDialogOpen,
+  setIsViewDialogOpen,
   handleUnsuspend,
   router,
 }: StoreTableProps) {
@@ -112,7 +114,7 @@ export function StoreTable({
               <div className="flex flex-col items-center">
                 <Badge
                   variant="outline"
-                  className="bg-indigo-50 text-indigo-600 border-indigo-100 dark:bg-indigo-500/10 dark:border-indigo-500/20 font-bold text-[10px] py-0.5"
+                  className="bg-indigo-50 text-indigo-600 border-indigo-100 dark:bg-indigo-500/10 dark:border-indigo-500/20 font-bold text-[10px] py-0.5 capitalize"
                 >
                   {store.plan}
                 </Badge>
@@ -158,6 +160,16 @@ export function StoreTable({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56 p-2 rounded-2xl shadow-xl border-slate-200 dark:border-slate-800">
                   <DropdownMenuLabel className="text-[10px] uppercase tracking-widest text-slate-400 px-3 py-2">Actions</DropdownMenuLabel>
+                  <DropdownMenuItem 
+                    className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold"
+                    onClick={() => {
+                      setSelectedStore(store);
+                      setIsViewDialogOpen(true);
+                    }}
+                  >
+                    <StoreIcon className="h-4 w-4 text-slate-500" />
+                    View Store Details
+                  </DropdownMenuItem>
                   <DropdownMenuItem 
                     className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold"
                     onClick={() => handleImpersonate(store)}

@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -13,34 +12,25 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+
+
+
+
 import { Switch } from "@/components/ui/switch";
 import {
   useAdminCoupons,
   useGenerateCouponMutation,
   useToggleCouponMutation,
   useDeleteCouponMutation,
+  useUpdateCouponMutation,
 } from "@/lib/api/admin-hooks";
 import { toast } from "sonner";
+import { CouponDialog } from "./coupon-dialog";
 
 interface Coupon {
   id: string;
   code: string;
-  type: "discount_percent" | "trial_extension";
+  type: "discount_percent" | "discount_amount" | "trial_extension";
   value: number;
   max_uses: number | null;
   max_uses_per_user: number;
@@ -59,14 +49,36 @@ export function CouponsManager() {
   const toggleMutation = useToggleCouponMutation();
   const deleteMutation = useDeleteCouponMutation();
 
+  const updateMutation = useUpdateCouponMutation();
+
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [newCoupon, setNewCoupon] = useState<Partial<Coupon>>({
     type: "discount_percent",
     max_uses_per_user: 1,
     is_active: true,
   });
 
-  const handleGenerate = async () => {
+  const openEditDialog = (coupon: Coupon) => {
+    setEditingId(coupon.id);
+    setNewCoupon({
+      ...coupon,
+      expires_at: coupon.expires_at ? new Date(coupon.expires_at).toISOString().split('T')[0] : null,
+    });
+    setIsDialogOpen(true);
+  };
+
+  const openCreateDialog = () => {
+    setEditingId(null);
+    setNewCoupon({
+      type: "discount_percent",
+      max_uses_per_user: 1,
+      is_active: true,
+    });
+    setIsDialogOpen(true);
+  };
+
+  const handleSave = async () => {
     try {
       const payload = {
         ...newCoupon,
@@ -74,18 +86,25 @@ export function CouponsManager() {
         value: Number(newCoupon.value),
         max_uses: newCoupon.max_uses ? Number(newCoupon.max_uses) : null,
         max_uses_per_user: Number(newCoupon.max_uses_per_user) || 1,
+        expires_at: newCoupon.expires_at || null,
       };
 
-      await generateMutation.mutateAsync(payload);
-      toast.success("Coupon generated successfully");
+      if (editingId) {
+        await updateMutation.mutateAsync({ id: editingId, payload });
+        toast.success("Coupon updated successfully");
+      } else {
+        await generateMutation.mutateAsync(payload);
+        toast.success("Coupon generated successfully");
+      }
       setIsDialogOpen(false);
       setNewCoupon({
         type: "discount_percent",
         max_uses_per_user: 1,
         is_active: true,
       });
+      setEditingId(null);
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Failed to generate coupon");
+      toast.error(error.response?.data?.message || `Failed to ${editingId ? 'update' : 'generate'} coupon`);
     }
   };
 
@@ -121,7 +140,7 @@ export function CouponsManager() {
             Manage marketing discounts and trial extensions
           </p>
         </div>
-        <Button onClick={() => setIsDialogOpen(true)} className="w-full sm:w-auto">
+        <Button onClick={openCreateDialog} className="w-full sm:w-auto">
           <Plus className="mr-2 h-4 w-4" /> Generate Coupon
         </Button>
       </div>
@@ -134,7 +153,7 @@ export function CouponsManager() {
               <TableHead>Type</TableHead>
               <TableHead>Value</TableHead>
               <TableHead>Scope</TableHead>
-              <TableHead>Usage</TableHead>
+              <TableHead>Usage & Expiry</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
@@ -150,17 +169,23 @@ export function CouponsManager() {
                     variant={
                       coupon.type === "discount_percent"
                         ? "default"
+                        : coupon.type === "discount_amount"
+                        ? "destructive"
                         : "secondary"
                     }
                   >
                     {coupon.type === "discount_percent"
-                      ? "Discount"
+                      ? "Discount %"
+                      : coupon.type === "discount_amount"
+                      ? "Discount ₦"
                       : "Trial Ext."}
                   </Badge>
                 </TableCell>
                 <TableCell>
                   {coupon.type === "discount_percent"
                     ? `${coupon.value}% off`
+                    : coupon.type === "discount_amount"
+                    ? `₦${coupon.value.toLocaleString()} off`
                     : `+${coupon.value} days`}
                 </TableCell>
                 <TableCell>
@@ -175,10 +200,15 @@ export function CouponsManager() {
                   </div>
                 </TableCell>
                 <TableCell>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm">
-                      {coupon.usages_count} / {coupon.max_uses || "∞"}
+                  <div className="flex flex-col space-y-1">
+                    <span className="text-sm font-medium">
+                      Uses: {coupon.usages_count} / {coupon.max_uses || "∞"}
                     </span>
+                    {coupon.expires_at && (
+                      <span className="text-xs text-muted-foreground">
+                        Exp: {new Date(coupon.expires_at).toLocaleDateString()}
+                      </span>
+                    )}
                   </div>
                 </TableCell>
                 <TableCell>
@@ -188,6 +218,14 @@ export function CouponsManager() {
                   />
                 </TableCell>
                 <TableCell className="text-right">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="mr-2"
+                    onClick={() => openEditDialog(coupon)}
+                  >
+                    Edit
+                  </Button>
                   <Button
                     variant="ghost"
                     size="icon"
@@ -212,135 +250,16 @@ export function CouponsManager() {
         </Table>
       </div>
 
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Generate New Coupon</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label>Coupon Code</Label>
-              <Input
-                placeholder="e.g. SUMMER50"
-                value={newCoupon.code || ""}
-                onChange={(e) =>
-                  setNewCoupon({ ...newCoupon, code: e.target.value })
-                }
-                className="uppercase"
-              />
-            </div>
-
-            <div className="grid gap-2">
-              <Label>Type</Label>
-              <Select
-                value={newCoupon.type}
-                onValueChange={(v: any) =>
-                  setNewCoupon({ ...newCoupon, type: v })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="discount_percent">
-                    Percentage Discount
-                  </SelectItem>
-                  <SelectItem value="trial_extension">
-                    Free Trial Extension
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid gap-2">
-              <Label>
-                {newCoupon.type === "discount_percent"
-                  ? "Discount Percentage (0-100)"
-                  : "Extra Days (e.g. 14, 30)"}
-              </Label>
-              <Input
-                type="number"
-                min={0}
-                value={newCoupon.value || ""}
-                onChange={(e) =>
-                  setNewCoupon({ ...newCoupon, value: Number(e.target.value) })
-                }
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label>Target Plan (Optional)</Label>
-                <Input
-                  placeholder="e.g. Starter"
-                  value={newCoupon.target_plan || ""}
-                  onChange={(e) =>
-                    setNewCoupon({ ...newCoupon, target_plan: e.target.value })
-                  }
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label>Interval (Optional)</Label>
-                <Select
-                  value={newCoupon.target_interval || "any"}
-                  onValueChange={(v) =>
-                    setNewCoupon({
-                      ...newCoupon,
-                      target_interval: v === "any" ? null : v,
-                    })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Any" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="any">Any</SelectItem>
-                    <SelectItem value="monthly">Monthly</SelectItem>
-                    <SelectItem value="yearly">Yearly</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label>Max Total Uses</Label>
-                <Input
-                  type="number"
-                  placeholder="Unlimited"
-                  value={newCoupon.max_uses || ""}
-                  onChange={(e) =>
-                    setNewCoupon({
-                      ...newCoupon,
-                      max_uses: Number(e.target.value),
-                    })
-                  }
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label>Max Uses Per User</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  value={newCoupon.max_uses_per_user || 1}
-                  onChange={(e) =>
-                    setNewCoupon({
-                      ...newCoupon,
-                      max_uses_per_user: Number(e.target.value),
-                    })
-                  }
-                />
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleGenerate}>Generate</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <CouponDialog
+        isDialogOpen={isDialogOpen}
+        setIsDialogOpen={setIsDialogOpen}
+        editingId={editingId}
+        newCoupon={newCoupon}
+        setNewCoupon={setNewCoupon}
+        handleSave={handleSave}
+        generateMutation={generateMutation}
+        updateMutation={updateMutation}
+      />
     </div>
   );
 }

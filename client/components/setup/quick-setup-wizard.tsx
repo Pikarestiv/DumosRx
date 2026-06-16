@@ -35,6 +35,8 @@ export function QuickSetupWizard() {
   const [storeType, setStoreType] = useState<StoreType>("pharmacy");
   const [storeName, setStoreName] = useState("");
   const [location, setLocation] = useState("");
+  const [address, setAddress] = useState("");
+  const [phone, setPhone] = useState("");
   const [showRetailSuggestions, setShowRetailSuggestions] = useState(false);
   const [open, setOpen] = useState(true);
 
@@ -47,7 +49,9 @@ export function QuickSetupWizard() {
     updateStoreProfile({
       store_type: storeType,
       name: storeName,
-      address: location,
+      location,
+      address,
+      phone,
       show_retail_suggestions: showRetailSuggestions ? 1 : 0,
       is_initialized: 1,
       updated_at: new Date().toISOString(),
@@ -110,12 +114,12 @@ export function QuickSetupWizard() {
                 </Card>
 
                 <Card 
-                  className={`cursor-pointer transition-all border-2 ${storeType === 'general' ? 'border-primary bg-primary/5' : 'hover:border-primary/50'}`}
-                  onClick={() => setStoreType('general')}
+                  className={`cursor-pointer transition-all border-2 ${storeType === 'retail' ? 'border-primary bg-primary/5' : 'hover:border-primary/50'}`}
+                  onClick={() => setStoreType('retail')}
                 >
                   <CardContent className="p-4 flex flex-col items-center text-center gap-2">
                     <Check className="h-8 w-8 text-primary" />
-                    <span className="font-semibold">General Store</span>
+                    <span className="font-semibold">General Retail</span>
                   </CardContent>
                 </Card>
               </div>
@@ -133,13 +137,33 @@ export function QuickSetupWizard() {
                   onChange={(e) => setStoreName(e.target.value)}
                 />
               </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="location">City / State</Label>
+                  <Input 
+                    id="location" 
+                    placeholder="e.g. Ikeja, Lagos" 
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Contact Phone</Label>
+                  <Input 
+                    id="phone" 
+                    placeholder="+234..." 
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                  />
+                </div>
+              </div>
               <div className="space-y-2">
-                <Label htmlFor="location">Location (City/State)</Label>
+                <Label htmlFor="address">Physical Address</Label>
                 <Input 
-                  id="location" 
-                  placeholder="e.g. Ikeja, Lagos" 
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
+                  id="address" 
+                  placeholder="123 Main Street..." 
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
                 />
               </div>
               {storeType === "pharmacy" && (

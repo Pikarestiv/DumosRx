@@ -137,7 +137,7 @@ export function BottomNav({ activeTab, setActiveTab, user, onLogout }: BottomNav
                     setIsMoreOpen(false);
                     onLogout();
                   }}
-                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-destructive bg-destructive/10 hover:bg-destructive hover:text-destructive-foreground transition-colors"
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-destructive bg-destructive/10 hover:bg-destructive hover:text-white transition-colors"
                 >
                   <LogOut className="h-4 w-4" />
                   Sign Out

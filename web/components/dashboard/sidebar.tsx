@@ -8,17 +8,22 @@ import {
   Users,
   CreditCard,
   Download,
-  LogOut,
   Bell,
   Shield,
   Activity,
 } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { UserProfileButton } from "@/components/dashboard/user-profile-button";
 
 interface SidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
   user: any;
+  isLoading?: boolean;
   onLogout: () => void;
 }
 
@@ -26,6 +31,7 @@ export function Sidebar({
   activeTab,
   setActiveTab,
   user,
+  isLoading,
   onLogout,
 }: SidebarProps) {
   const sidebarItems = [
@@ -62,7 +68,7 @@ export function Sidebar({
             activities: "Track staff activities and inventory changes",
             billing: "Manage your subscription and billing details",
             downloads: "Download the mobile or desktop apps",
-            profile: "Access your account security settings"
+            profile: "Access your account security settings",
           };
 
           const button = (
@@ -87,10 +93,11 @@ export function Sidebar({
 
           return (
             <Tooltip key={item.id}>
-              <TooltipTrigger asChild>
-                {button}
-              </TooltipTrigger>
-              <TooltipContent side="right" className="font-semibold text-xs ml-2">
+              <TooltipTrigger asChild>{button}</TooltipTrigger>
+              <TooltipContent
+                side="right"
+                className="font-semibold text-xs ml-2"
+              >
                 {tooltipContent[item.id]}
               </TooltipContent>
             </Tooltip>
@@ -98,25 +105,11 @@ export function Sidebar({
         })}
       </nav>
 
-      <div className="p-4 border-t">
-        <div id="tour-profile" className="bg-muted/50 rounded-2xl p-4 flex items-center gap-3">
-          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary animate-pulse">
-            {user?.name?.charAt(0) || "U"}
-          </div>
-          <div className="flex-1 overflow-hidden">
-            <p className="text-sm font-bold truncate">{user?.name || "User"}</p>
-            <p className="text-xs text-muted-foreground truncate">
-              {user?.email}
-            </p>
-          </div>
-          <button
-            onClick={onLogout}
-            className="p-2 hover:bg-destructive/10 rounded-lg transition-colors group"
-          >
-            <LogOut className="h-4 w-4 text-muted-foreground group-hover:text-destructive transition-colors" />
-          </button>
-        </div>
-      </div>
+      <UserProfileButton
+        user={user}
+        isLoading={isLoading || !user || !user.name || user.name === "User" || user.name.trim() === ""}
+        onLogout={onLogout}
+      />
     </>
   );
 

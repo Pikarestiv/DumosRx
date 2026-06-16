@@ -17,6 +17,7 @@ import { TauriTitleBar } from "@/components/tauri/tauri-title-bar";
 import { ErrorBoundary } from "@/components/tauri/error-boundary";
 import { GlobalErrorListener } from "@/components/tauri/global-error-listener";
 import { PwaRegistrar } from "@/components/pwa-registrar";
+import { AutoUpdater } from "@/components/tauri/auto-updater";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -104,6 +105,7 @@ export default function RootLayout({
             </GlobalErrorListener>
           </ErrorBoundary>
         </div>
+        <AutoUpdater />
         <PwaRegistrar />
       </body>
     </html>

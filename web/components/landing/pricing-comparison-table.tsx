@@ -1,7 +1,9 @@
 import React from "react";
 import { CheckCircle2, XCircle } from "lucide-react";
+import { useSystemConfig } from "@/lib/api/hooks";
 
 export function PricingComparisonTable() {
+  const { data: config } = useSystemConfig("subscription_plans");
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       <div className="text-center space-y-2">
@@ -26,7 +28,7 @@ export function PricingComparisonTable() {
                 <th className="p-4 font-bold text-foreground text-center">
                   Starter Cloud
                 </th>
-                <th className="p-4 font-bold text-foreground text-center bg-primary/5 text-primary">
+                <th className="p-4 font-bold text-center bg-primary/5 text-primary">
                   Pro Connect
                 </th>
                 <th className="p-4 font-bold text-foreground text-center">
@@ -49,16 +51,29 @@ export function PricingComparisonTable() {
                   Supported Devices
                 </td>
                 <td className="p-4 text-center text-muted-foreground">
-                  1 Device (Standalone)
+                  {config?.tiers?.free?.limits?.stores === -1
+                    ? "Unlimited"
+                    : config?.tiers?.free?.limits?.stores || 1}{" "}
+                  Device{config?.tiers?.free?.limits?.stores !== 1 ? "s" : ""}
                 </td>
                 <td className="p-4 text-center text-muted-foreground">
-                  Up to 3 Connected Devices
+                  {config?.tiers?.starter?.limits?.stores === -1
+                    ? "Unlimited"
+                    : config?.tiers?.starter?.limits?.stores || 1}{" "}
+                  Device
+                  {config?.tiers?.starter?.limits?.stores !== 1 ? "s" : ""}
                 </td>
-                <td className="p-4 text-center text-muted-foreground font-medium text-foreground bg-primary/5">
-                  Up to 10 Connected Devices
+                <td className="p-4 text-center font-medium text-foreground bg-primary/5">
+                  {config?.tiers?.pro?.limits?.stores === -1
+                    ? "Unlimited"
+                    : config?.tiers?.pro?.limits?.stores || 3}{" "}
+                  Device{config?.tiers?.pro?.limits?.stores !== 1 ? "s" : ""}
                 </td>
                 <td className="p-4 text-center text-muted-foreground">
-                  Unlimited / Multi-Store
+                  {config?.tiers?.enterprise?.limits?.stores === -1
+                    ? "Unlimited / Multi-Store"
+                    : (config?.tiers?.enterprise?.limits?.stores || 10) +
+                      " Devices"}
                 </td>
               </tr>
               <tr>
@@ -66,16 +81,28 @@ export function PricingComparisonTable() {
                   Max Staff Accounts
                 </td>
                 <td className="p-4 text-center text-muted-foreground">
-                  1 User (Owner)
+                  {config?.tiers?.free?.limits?.staff === -1
+                    ? "Unlimited"
+                    : config?.tiers?.free?.limits?.staff || 1}{" "}
+                  User
                 </td>
                 <td className="p-4 text-center text-muted-foreground">
-                  3 Staff Users
+                  {config?.tiers?.starter?.limits?.staff === -1
+                    ? "Unlimited"
+                    : config?.tiers?.starter?.limits?.staff || 3}{" "}
+                  Users
                 </td>
-                <td className="p-4 text-center text-muted-foreground font-medium text-foreground bg-primary/5">
-                  10 Staff Users
+                <td className="p-4 text-center font-medium text-foreground bg-primary/5">
+                  {config?.tiers?.pro?.limits?.staff === -1
+                    ? "Unlimited"
+                    : config?.tiers?.pro?.limits?.staff || 10}{" "}
+                  Users
                 </td>
                 <td className="p-4 text-center text-muted-foreground">
-                  Unlimited
+                  {config?.tiers?.enterprise?.limits?.staff === -1
+                    ? "Unlimited"
+                    : config?.tiers?.enterprise?.limits?.staff || 100}{" "}
+                  Users
                 </td>
               </tr>
 
@@ -99,7 +126,7 @@ export function PricingComparisonTable() {
                 <td className="p-4 text-center text-muted-foreground">
                   Scheduled (Every 6 Hours)
                 </td>
-                <td className="p-4 text-center text-muted-foreground font-medium text-foreground bg-primary/5">
+                <td className="p-4 text-center font-medium text-foreground bg-primary/5">
                   Automated (Every 30 mins)
                 </td>
                 <td className="p-4 text-center text-muted-foreground">
@@ -117,7 +144,7 @@ export function PricingComparisonTable() {
                 <td className="p-4 text-center text-muted-foreground">
                   Restricted (6-Hour Delay)
                 </td>
-                <td className="p-4 text-center text-muted-foreground font-medium text-foreground bg-primary/5">
+                <td className="p-4 text-center font-medium text-foreground bg-primary/5">
                   Full Analytics (30-min Delay)
                 </td>
                 <td className="p-4 text-center text-muted-foreground">
@@ -136,7 +163,7 @@ export function PricingComparisonTable() {
                   <XCircle className="inline-block h-4 w-4 text-muted-foreground/60 mr-1.5 -mt-0.5" />{" "}
                   No Access
                 </td>
-                <td className="p-4 text-center text-muted-foreground font-medium text-foreground bg-primary/5">
+                <td className="p-4 text-center font-medium text-foreground bg-primary/5">
                   <CheckCircle2 className="inline-block h-4 w-4 text-emerald-500 mr-1.5 -mt-0.5" />{" "}
                   Fully Enabled
                 </td>
@@ -167,7 +194,7 @@ export function PricingComparisonTable() {
                   <CheckCircle2 className="inline-block h-4 w-4 text-emerald-500 mr-1.5 -mt-0.5" />{" "}
                   Included
                 </td>
-                <td className="p-4 text-center text-muted-foreground font-medium text-foreground bg-primary/5">
+                <td className="p-4 text-center font-medium text-foreground bg-primary/5">
                   <CheckCircle2 className="inline-block h-4 w-4 text-emerald-500 mr-1.5 -mt-0.5" />{" "}
                   Included
                 </td>
@@ -188,7 +215,7 @@ export function PricingComparisonTable() {
                   <XCircle className="inline-block h-4 w-4 text-muted-foreground/60 mr-1.5 -mt-0.5" />{" "}
                   Locked
                 </td>
-                <td className="p-4 text-center text-muted-foreground font-medium text-foreground bg-primary/5">
+                <td className="p-4 text-center font-medium text-foreground bg-primary/5">
                   <CheckCircle2 className="inline-block h-4 w-4 text-emerald-500 mr-1.5 -mt-0.5" />{" "}
                   AI Cross-sell Engine
                 </td>
@@ -208,7 +235,7 @@ export function PricingComparisonTable() {
                   <CheckCircle2 className="inline-block h-4 w-4 text-emerald-500 mr-1.5 -mt-0.5" />{" "}
                   All Themes & Dark Mode
                 </td>
-                <td className="p-4 text-center text-muted-foreground font-medium text-foreground bg-primary/5">
+                <td className="p-4 text-center font-medium text-foreground bg-primary/5">
                   <CheckCircle2 className="inline-block h-4 w-4 text-emerald-500 mr-1.5 -mt-0.5" />{" "}
                   All Themes & Dark Mode
                 </td>
@@ -229,7 +256,7 @@ export function PricingComparisonTable() {
                   <XCircle className="inline-block h-4 w-4 text-muted-foreground/60 mr-1.5 -mt-0.5" />{" "}
                   Locked
                 </td>
-                <td className="p-4 text-center text-muted-foreground font-medium text-foreground bg-primary/5">
+                <td className="p-4 text-center font-medium text-foreground bg-primary/5">
                   <CheckCircle2 className="inline-block h-4 w-4 text-emerald-500 mr-1.5 -mt-0.5" />{" "}
                   Custom Online URL
                 </td>

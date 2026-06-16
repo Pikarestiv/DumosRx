@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 
 class StaffController extends Controller
 {
@@ -44,6 +45,12 @@ class StaffController extends Controller
 
     public function store(Request $request)
     {
+        if (!app(\App\Services\SubscriptionService::class)->checkLimit($request->user(), 'staff')) {
+            return response()->json([
+                'message' => 'Staff limit reached for your current plan. Please upgrade your plan to add more staff.'
+            ], 422);
+        }
+
         $request->validate([
             'first_name' => 'required|string',
             'last_name' => 'required|string',
@@ -81,13 +88,13 @@ class StaffController extends Controller
         return response()->json($user, 201);
     }
 
-    public function update(Request $request, User $user)
+    public function update(Request $request, User $staff)
     {
         $request->validate([
             'first_name' => 'string',
             'last_name' => 'string',
-            'email' => 'nullable|email|unique:users,email,' . $user->id,
-            'username' => 'string|unique:users,username,' . $user->id,
+            'email' => ['nullable', 'email', Rule::unique('users', 'email')->ignore($staff->id)],
+            'username' => ['string', Rule::unique('users', 'username')->ignore($staff->id)],
             'role' => 'string|in:admin,manager,specialist,sales_staff,auditor',
             'pin' => 'string|size:4',
             'store_id' => 'exists:stores,id',
@@ -95,6 +102,13 @@ class StaffController extends Controller
 
         $data = $request->only(['first_name', 'last_name', 'email', 'username', 'role', 'pin', 'store_id', 'is_active']);
         
+        if (isset($data['is_active']) && $data['is_active'] == true && !$staff->is_active) {
+            if (!app(\App\Services\SubscriptionService::class)->checkLimit($request->user(), 'staff')) {
+                return response()->json([
+                    'message' => 'Staff limit reached for your current plan. Please upgrade your plan to reactivate staff.'
+                ], 422);
+            }
+        }
         if ($request->has('password') && !empty($request->password)) {
             $data['password'] = Hash::make($request->password);
         }
@@ -105,18 +119,18 @@ class StaffController extends Controller
         }
 
         if ($request->has('email') && empty($request->email)) {
-            $username = $request->username ?? $user->username;
+            $username = $request->username ?? $staff->username;
             $data['email'] = $username . '@local.dumosrx.com';
         }
 
-        $user->update($data);
+        $staff->update($data);
 
-        return response()->json($user);
+        return response()->json($staff);
     }
 
-    public function destroy(User $user)
+    public function destroy(User $staff)
     {
-        $user->update(['is_active' => false]);
+        $staff->update(['is_active' => false]);
         return response()->json(['message' => 'Staff deactivated']);
     }
 }

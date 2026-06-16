@@ -23,11 +23,12 @@ export function SubscriptionConfigTab() {
     trial_plan: "pro",
     grace_period_days: 3,
     enable_paystack: true,
+    enable_flutterwave: true,
     tiers: {
-      free: { price_monthly: 0, price_yearly: 0, active: true },
-      starter: { price_monthly: 3000, price_yearly: 30000, active: true },
-      pro: { price_monthly: 8000, price_yearly: 80000, active: true },
-      enterprise: { price_monthly: 15000, price_yearly: 150000, active: true },
+      free: { price_monthly: 0, price_yearly: 0, active: true, limits: { staff: 1, stores: 1 }, features: { web_dashboard: false, mobile_app: false, ecommerce: false, smart_pos: false, custom_branding: false, broadcast_create: false } },
+      starter: { price_monthly: 3000, price_yearly: 30000, active: true, limits: { staff: 3, stores: 1 }, features: { web_dashboard: true, mobile_app: false, ecommerce: false, smart_pos: false, custom_branding: false, broadcast_create: false } },
+      pro: { price_monthly: 8000, price_yearly: 80000, active: true, limits: { staff: 10, stores: 3 }, features: { web_dashboard: true, mobile_app: true, ecommerce: true, smart_pos: true, custom_branding: false, broadcast_create: true } },
+      enterprise: { price_monthly: 15000, price_yearly: 150000, active: true, limits: { staff: -1, stores: -1 }, features: { web_dashboard: true, mobile_app: true, ecommerce: true, smart_pos: true, custom_branding: true, broadcast_create: true } },
     }
   });
 
@@ -50,27 +51,36 @@ export function SubscriptionConfigTab() {
     if (serverConfig) {
       setConfig({
         ...serverConfig,
+        enable_flutterwave: serverConfig.enable_flutterwave ?? true,
         trial_plan: serverConfig.trial_plan ?? "pro",
         tiers: {
           free: {
             price_monthly: serverConfig.tiers?.free?.price_monthly ?? 0,
             price_yearly: serverConfig.tiers?.free?.price_yearly ?? 0,
             active: serverConfig.tiers?.free?.active ?? true,
+            limits: serverConfig.tiers?.free?.limits ?? { staff: 1, stores: 1 },
+            features: serverConfig.tiers?.free?.features ?? { web_dashboard: false, mobile_app: false, ecommerce: false, smart_pos: false, custom_branding: false, broadcast_create: false },
           },
           starter: {
             price_monthly: serverConfig.tiers?.starter?.price_monthly ?? 3000,
             price_yearly: serverConfig.tiers?.starter?.price_yearly ?? 30000,
             active: serverConfig.tiers?.starter?.active ?? true,
+            limits: serverConfig.tiers?.starter?.limits ?? { staff: 3, stores: 1 },
+            features: serverConfig.tiers?.starter?.features ?? { web_dashboard: true, mobile_app: false, ecommerce: false, smart_pos: false, custom_branding: false, broadcast_create: false },
           },
           pro: {
             price_monthly: serverConfig.tiers?.pro?.price_monthly ?? 8000,
             price_yearly: serverConfig.tiers?.pro?.price_yearly ?? 80000,
             active: serverConfig.tiers?.pro?.active ?? true,
+            limits: serverConfig.tiers?.pro?.limits ?? { staff: 10, stores: 3 },
+            features: serverConfig.tiers?.pro?.features ?? { web_dashboard: true, mobile_app: true, ecommerce: true, smart_pos: true, custom_branding: false, broadcast_create: true },
           },
           enterprise: {
             price_monthly: serverConfig.tiers?.enterprise?.price_monthly ?? 15000,
             price_yearly: serverConfig.tiers?.enterprise?.price_yearly ?? 150000,
             active: serverConfig.tiers?.enterprise?.active ?? true,
+            limits: serverConfig.tiers?.enterprise?.limits ?? { staff: -1, stores: -1 },
+            features: serverConfig.tiers?.enterprise?.features ?? { web_dashboard: true, mobile_app: true, ecommerce: true, smart_pos: true, custom_branding: true, broadcast_create: true },
           },
         }
       });
@@ -173,6 +183,48 @@ export function SubscriptionConfigTab() {
                     disabled={!config.tiers.starter.active}
                   />
                 </div>
+                <div className="space-y-2 pt-2 border-t col-span-2">
+                  <Label className="text-xs text-muted-foreground">Max Staff (-1 for ∞)</Label>
+                  <Input 
+                    type="number" 
+                    value={config.tiers.starter.limits.staff} 
+                    onChange={(e) => setConfig({ ...config, tiers: { ...config.tiers, starter: { ...config.tiers.starter, limits: { ...config.tiers.starter.limits, staff: Number(e.target.value) } } } })}
+                    disabled={!config.tiers.starter.active}
+                  />
+                </div>
+                <div className="space-y-2 pt-2 border-t ">
+                  <Label className="text-xs text-muted-foreground">Max Stores (-1 for ∞)</Label>
+                  <Input 
+                    type="number" 
+                    value={config.tiers.starter.limits.stores} 
+                    onChange={(e) => setConfig({ ...config, tiers: { ...config.tiers, starter: { ...config.tiers.starter, limits: { ...config.tiers.starter.limits, stores: Number(e.target.value) } } } })}
+                    disabled={!config.tiers.starter.active}
+                  />
+                </div>
+                
+                {/* Feature Toggles */}
+                <div className="col-span-2 space-y-3 pt-3 border-t ">
+                  <Label className="text-xs text-muted-foreground block mb-2 font-bold">Feature Gates</Label>
+                  
+                  {[
+                    { key: 'web_dashboard', label: 'Web Dashboard' },
+                    { key: 'mobile_app', label: 'Mobile App' },
+                    { key: 'ecommerce', label: 'E-commerce URL' },
+                    { key: 'smart_pos', label: 'Smart POS' },
+                    { key: 'broadcast_create', label: 'Broadcasting' },
+                    { key: 'custom_branding', label: 'Custom Branding' },
+                  ].map((feat) => (
+                    <div key={feat.key} className="flex items-center justify-between">
+                      <Label className="text-xs text-muted-foreground">{feat.label}</Label>
+                      <Switch 
+                        checked={config.tiers.starter.features[feat.key as keyof typeof config.tiers.starter.features]} 
+                        onCheckedChange={(c) => setConfig({ ...config, tiers: { ...config.tiers, starter: { ...config.tiers.starter, features: { ...config.tiers.starter.features, [feat.key]: c } } } })}
+                        disabled={!config.tiers.starter.active}
+                        className="scale-75 origin-right"
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -206,6 +258,50 @@ export function SubscriptionConfigTab() {
                     disabled={!config.tiers.pro.active}
                   />
                 </div>
+                <div className="space-y-2 pt-2 border-t border-indigo-200/50 dark:border-indigo-800/50 col-span-2">
+                  <Label className="text-xs text-indigo-600/70 dark:text-indigo-400/70">Max Staff (-1 for ∞)</Label>
+                  <Input 
+                    type="number" 
+                    className="border-indigo-200 dark:border-indigo-800 focus-visible:ring-indigo-500"
+                    value={config.tiers.pro.limits.staff} 
+                    onChange={(e) => setConfig({ ...config, tiers: { ...config.tiers, pro: { ...config.tiers.pro, limits: { ...config.tiers.pro.limits, staff: Number(e.target.value) } } } })}
+                    disabled={!config.tiers.pro.active}
+                  />
+                </div>
+                <div className="space-y-2 pt-2 border-t border-indigo-200/50 dark:border-indigo-800/50 ">
+                  <Label className="text-xs text-indigo-600/70 dark:text-indigo-400/70">Max Stores (-1 for ∞)</Label>
+                  <Input 
+                    type="number" 
+                    className="border-indigo-200 dark:border-indigo-800 focus-visible:ring-indigo-500"
+                    value={config.tiers.pro.limits.stores} 
+                    onChange={(e) => setConfig({ ...config, tiers: { ...config.tiers, pro: { ...config.tiers.pro, limits: { ...config.tiers.pro.limits, stores: Number(e.target.value) } } } })}
+                    disabled={!config.tiers.pro.active}
+                  />
+                </div>
+                
+                {/* Feature Toggles */}
+                <div className="col-span-2 space-y-3 pt-3 border-t border-indigo-200/50 dark:border-indigo-800/50">
+                  <Label className="text-xs text-indigo-600/70 dark:text-indigo-400/70 block mb-2 font-bold">Feature Gates</Label>
+                  
+                  {[
+                    { key: 'web_dashboard', label: 'Web Dashboard' },
+                    { key: 'mobile_app', label: 'Mobile App' },
+                    { key: 'ecommerce', label: 'E-commerce URL' },
+                    { key: 'smart_pos', label: 'Smart POS' },
+                    { key: 'broadcast_create', label: 'Broadcasting' },
+                    { key: 'custom_branding', label: 'Custom Branding' },
+                  ].map((feat) => (
+                    <div key={feat.key} className="flex items-center justify-between">
+                      <Label className="text-xs text-muted-foreground">{feat.label}</Label>
+                      <Switch 
+                        checked={config.tiers.pro.features[feat.key as keyof typeof config.tiers.pro.features]} 
+                        onCheckedChange={(c) => setConfig({ ...config, tiers: { ...config.tiers, pro: { ...config.tiers.pro, features: { ...config.tiers.pro.features, [feat.key]: c } } } })}
+                        disabled={!config.tiers.pro.active}
+                        className="scale-75 origin-right"
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -236,6 +332,48 @@ export function SubscriptionConfigTab() {
                     onChange={(e) => setConfig({ ...config, tiers: { ...config.tiers, enterprise: { ...config.tiers.enterprise, price_yearly: Number(e.target.value) } } })}
                     disabled={!config.tiers.enterprise.active}
                   />
+                </div>
+                <div className="space-y-2 pt-2 border-t col-span-2">
+                  <Label className="text-xs text-muted-foreground">Max Staff (-1 for ∞)</Label>
+                  <Input 
+                    type="number" 
+                    value={config.tiers.enterprise.limits.staff} 
+                    onChange={(e) => setConfig({ ...config, tiers: { ...config.tiers, enterprise: { ...config.tiers.enterprise, limits: { ...config.tiers.enterprise.limits, staff: Number(e.target.value) } } } })}
+                    disabled={!config.tiers.enterprise.active}
+                  />
+                </div>
+                <div className="space-y-2 pt-2 border-t ">
+                  <Label className="text-xs text-muted-foreground">Max Stores (-1 for ∞)</Label>
+                  <Input 
+                    type="number" 
+                    value={config.tiers.enterprise.limits.stores} 
+                    onChange={(e) => setConfig({ ...config, tiers: { ...config.tiers, enterprise: { ...config.tiers.enterprise, limits: { ...config.tiers.enterprise.limits, stores: Number(e.target.value) } } } })}
+                    disabled={!config.tiers.enterprise.active}
+                  />
+                </div>
+                
+                {/* Feature Toggles */}
+                <div className="col-span-2 space-y-3 pt-3 border-t ">
+                  <Label className="text-xs text-muted-foreground block mb-2 font-bold">Feature Gates</Label>
+                  
+                  {[
+                    { key: 'web_dashboard', label: 'Web Dashboard' },
+                    { key: 'mobile_app', label: 'Mobile App' },
+                    { key: 'ecommerce', label: 'E-commerce URL' },
+                    { key: 'smart_pos', label: 'Smart POS' },
+                    { key: 'broadcast_create', label: 'Broadcasting' },
+                    { key: 'custom_branding', label: 'Custom Branding' },
+                  ].map((feat) => (
+                    <div key={feat.key} className="flex items-center justify-between">
+                      <Label className="text-xs text-muted-foreground">{feat.label}</Label>
+                      <Switch 
+                        checked={config.tiers.enterprise.features[feat.key as keyof typeof config.tiers.enterprise.features]} 
+                        onCheckedChange={(c) => setConfig({ ...config, tiers: { ...config.tiers, enterprise: { ...config.tiers.enterprise, features: { ...config.tiers.enterprise.features, [feat.key]: c } } } })}
+                        disabled={!config.tiers.enterprise.active}
+                        className="scale-75 origin-right"
+                      />
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -272,15 +410,27 @@ export function SubscriptionConfigTab() {
               </div>
             </div>
             
-            <div className="space-y-3 p-4 border rounded-lg bg-white dark:bg-slate-900">
-               <div className="flex items-center justify-between">
-                 <Label className="font-bold">Enable Paystack Gateway</Label>
-                 <Switch 
-                   checked={config.enable_paystack} 
-                   onCheckedChange={(c) => setConfig({ ...config, enable_paystack: c })}
-                 />
-               </div>
-               <p className="text-xs text-muted-foreground">If disabled, the user dashboard will hide the checkout buttons.</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-3 p-4 border rounded-lg bg-white dark:bg-slate-900">
+                 <div className="flex items-center justify-between">
+                   <Label className="font-bold">Enable Paystack</Label>
+                   <Switch 
+                     checked={config.enable_paystack} 
+                     onCheckedChange={(c) => setConfig({ ...config, enable_paystack: c })}
+                   />
+                 </div>
+                 <p className="text-xs text-muted-foreground">If disabled, checkout buttons will be hidden.</p>
+              </div>
+              <div className="space-y-3 p-4 border rounded-lg bg-white dark:bg-slate-900">
+                 <div className="flex items-center justify-between">
+                   <Label className="font-bold">Enable Flutterwave</Label>
+                   <Switch 
+                     checked={config.enable_flutterwave} 
+                     onCheckedChange={(c) => setConfig({ ...config, enable_flutterwave: c })}
+                   />
+                 </div>
+                 <p className="text-xs text-muted-foreground">If disabled, checkout buttons will be hidden.</p>
+              </div>
             </div>
           </div>
         </CardContent>

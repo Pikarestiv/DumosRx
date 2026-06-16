@@ -49,6 +49,26 @@ export function DashboardTour() {
       content: "Configure your store settings, receipt printing, and synchronization.",
       placement: "right",
     },
+    {
+      target: "#tour-nav-collapse",
+      content: "Expand or shrink the sidebar to give yourself more screen space.",
+      placement: "right",
+    },
+    {
+      target: "#tour-sync-indicator",
+      content: "Ensure your data is securely backed up and synced across all your devices.",
+      placement: "right",
+    },
+    {
+      target: "#tour-theme-customizer",
+      content: "Personalize your dashboard with custom colors and shapes.",
+      placement: "left",
+    },
+    {
+      target: "#tour-theme-toggle",
+      content: "Customize your visual experience by switching between light and dark themes.",
+      placement: "left",
+    },
   ];
 
   const handleJoyrideEvent = (data: EventData) => {
@@ -70,6 +90,7 @@ export function DashboardTour() {
       run={run}
       scrollToFirstStep
       steps={steps}
+      locale={{ last: "Finish" }}
       styles={{
         tooltipContainer: {
           textAlign: "left",

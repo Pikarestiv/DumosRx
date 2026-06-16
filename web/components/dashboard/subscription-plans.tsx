@@ -1,31 +1,68 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Check, ShieldAlert, CreditCard, Loader2 } from "lucide-react";
+
+
+import {
+  Loader2,
+} from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 
-import { useInitiatePaymentMutation, useSystemConfig, useReferralStats, useSubscriptionStatus } from "@/lib/api/hooks";
+import {
+  useInitiatePaymentMutation,
+  useSystemConfig,
+  useReferralStats,
+  useSubscriptionStatus,
+} from "@/lib/api/hooks";
 import { webApiClient } from "@/lib/api/client";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { calculateDiscountPercent, capitalizeFirstLetter } from "@/lib/utils";
+import { calculateDiscountPercent } from "@/lib/utils";
 import { getSubscriptionPlans } from "@/lib/constants/subscription-plans";
+import { motion } from "framer-motion";
+import { SubscriptionPlanCard } from "./subscription-plan-card";
+import { CouponInput } from "./coupon-input";
+import { SubscriptionStatusAlert } from "./subscription-status-alert";
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: { staggerChildren: 0.1 },
+  },
+};
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 30 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" as const } },
+};
 
 export function SubscriptionPlans() {
   const [loading, setLoading] = useState<string | null>(null);
-  const [billingPeriod, setBillingPeriod] = useState<"monthly" | "yearly">("monthly");
+  const [billingPeriod, setBillingPeriod] = useState<"monthly" | "yearly">(
+    "monthly",
+  );
   const [couponCode, setCouponCode] = useState("");
   const [validatingCoupon, setValidatingCoupon] = useState(false);
-  const [appliedCoupon, setAppliedCoupon] = useState<{code: string, type: string, value: number, target_plan: string | null, target_interval: string | null} | null>(null);
+  const [appliedCoupon, setAppliedCoupon] = useState<{
+    code: string;
+    type: string;
+    value: number;
+    target_plan: string | null;
+    target_interval: string | null;
+  } | null>(null);
   const [useCredits, setUseCredits] = useState(false);
-  const [downgradePlan, setDowngradePlan] = useState<{id: string, amount: number, name: string} | null>(null);
-  
+  const [downgradePlan, setDowngradePlan] = useState<{
+    id: string;
+    amount: number;
+    name: string;
+  } | null>(null);
+
   const initiatePayment = useInitiatePaymentMutation();
   const { data: subStatus } = useSubscriptionStatus();
-  const { data: config, isLoading: isConfigLoading } = useSystemConfig("subscription_plans");
+  const { data: config, isLoading: isConfigLoading } =
+    useSystemConfig("subscription_plans");
   const { data: referralStats } = useReferralStats();
 
   const userCredits = referralStats?.referral_credits || 0;
@@ -44,25 +81,33 @@ export function SubscriptionPlans() {
       const response = await webApiClient.validateCoupon({ code: couponCode });
       if (response.valid) {
         setAppliedCoupon(response.coupon);
-        toast.success(`Coupon applied: ${response.coupon.type === 'discount_percent' ? response.coupon.value + '% off' : '+' + response.coupon.value + ' days'}`);
+        toast.success(
+          `Coupon applied: ${response.coupon.type === "discount_percent" ? response.coupon.value + "% off" : response.coupon.type === "discount_amount" ? "₦" + response.coupon.value.toLocaleString() + " off" : "+" + response.coupon.value + " days"}`,
+        );
       } else {
-        toast.error(response.message || 'Invalid coupon code');
+        toast.error(response.message || "Invalid coupon code");
         setAppliedCoupon(null);
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to validate coupon');
+      toast.error(error.response?.data?.message || "Failed to validate coupon");
       setAppliedCoupon(null);
     } finally {
       setValidatingCoupon(false);
     }
   };
 
-  const handleSubscribe = async (tier: string, baseAmount: number, planName: string) => {
+  const handleSubscribe = async (
+    tier: string,
+    baseAmount: number,
+    planName: string,
+  ) => {
     setLoading(tier);
-    
+
     let amountAfterCoupon = baseAmount;
-    if (appliedCoupon?.type === 'discount_percent') {
-      amountAfterCoupon = baseAmount - (baseAmount * (appliedCoupon.value / 100));
+    if (appliedCoupon?.type === "discount_percent") {
+      amountAfterCoupon = baseAmount - baseAmount * (appliedCoupon.value / 100);
+    } else if (appliedCoupon?.type === "discount_amount") {
+      amountAfterCoupon = baseAmount - appliedCoupon.value;
     }
 
     if (amountAfterCoupon < 0) amountAfterCoupon = 0;
@@ -73,7 +118,7 @@ export function SubscriptionPlans() {
         plan_name: planName,
         coupon_code: appliedCoupon?.code,
         interval: billingPeriod,
-        use_credits: useCredits
+        use_credits: useCredits,
       });
 
       if (response.success) {
@@ -95,32 +140,54 @@ export function SubscriptionPlans() {
   };
 
   const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', minimumFractionDigits: 0 }).format(price);
+    return new Intl.NumberFormat("en-NG", {
+      style: "currency",
+      currency: "NGN",
+      minimumFractionDigits: 0,
+    }).format(price);
   };
 
   const getDiscountedPrice = (plan: any) => {
+    if (plan.numericPrice === 0) return 0;
+
     let price = plan.numericPrice;
-    
-    // Apply coupon
-    if (appliedCoupon?.type === 'discount_percent' && 
-       (!appliedCoupon.target_plan || appliedCoupon.target_plan.toLowerCase() === plan.name.toLowerCase()) && 
-       (!appliedCoupon.target_interval || appliedCoupon.target_interval === billingPeriod)) {
-      price = price - (price * (appliedCoupon.value / 100));
+
+    if (
+      appliedCoupon?.type === "discount_percent" &&
+      (!appliedCoupon.target_plan ||
+        appliedCoupon.target_plan.toLowerCase() === plan.name.toLowerCase()) &&
+      (!appliedCoupon.target_interval ||
+        appliedCoupon.target_interval === billingPeriod)
+    ) {
+      price = price - price * (appliedCoupon.value / 100);
+    } else if (
+      appliedCoupon?.type === "discount_amount" &&
+      (!appliedCoupon.target_plan ||
+        appliedCoupon.target_plan.toLowerCase() === plan.name.toLowerCase()) &&
+      (!appliedCoupon.target_interval ||
+        appliedCoupon.target_interval === billingPeriod)
+    ) {
+      price = price - appliedCoupon.value;
     }
 
-    // Apply credits
     if (useCredits && userCredits > 0) {
-      const creditsApplied = Math.min(userCredits, price);
+      const creditsApplied = Math.min(userCredits, Math.max(0, price));
       price = price - creditsApplied;
     }
 
-    return price;
+    return Math.max(0, price);
   };
 
   const isDiscounted = (plan: any) => {
-    const hasCoupon = appliedCoupon?.type === 'discount_percent' && 
-       (!appliedCoupon.target_plan || appliedCoupon.target_plan.toLowerCase() === plan.name.toLowerCase()) && 
-       (!appliedCoupon.target_interval || appliedCoupon.target_interval === billingPeriod);
+    if (plan.numericPrice === 0) return false;
+
+    const hasCoupon =
+      (appliedCoupon?.type === "discount_percent" ||
+        appliedCoupon?.type === "discount_amount") &&
+      (!appliedCoupon.target_plan ||
+        appliedCoupon.target_plan.toLowerCase() === plan.name.toLowerCase()) &&
+      (!appliedCoupon.target_interval ||
+        appliedCoupon.target_interval === billingPeriod);
 
     const hasCredits = useCredits && userCredits > 0;
     return hasCoupon || hasCredits;
@@ -149,60 +216,7 @@ export function SubscriptionPlans() {
   return (
     <div className="space-y-8">
       {/* Current Plan Alert */}
-      {(() => {
-        if (subStatus?.status === "inactive") {
-          return (
-            <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-lg flex items-start gap-3">
-              <ShieldAlert className="h-5 w-5 mt-0.5 shrink-0 text-red-600" />
-              <div className="space-y-1">
-                <p className="font-medium">No Active Subscription / Expired</p>
-                <p className="text-sm">Upgrade or renew your plan below to ensure your cloud data remains protected.</p>
-              </div>
-            </div>
-          );
-        }
-
-        if (subStatus?.status === "active") {
-          const daysLeft = Math.floor(Number(subStatus.days_remaining ?? 0));
-          const isTrial = subStatus.is_trial === true;
-          const isExpiringSoon = daysLeft < 7;
-          
-          if (isTrial || isExpiringSoon) {
-            return (
-              <div className="bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-lg flex items-start gap-3">
-                <ShieldAlert className="h-5 w-5 mt-0.5 shrink-0" />
-                <div className="space-y-1">
-                  <p className="font-medium">
-                    {isTrial 
-                      ? `You are on the ${capitalizeFirstLetter(subStatus.plan || 'Free')} Trial (${daysLeft} Days Remaining)` 
-                      : `You are on the ${capitalizeFirstLetter(subStatus.plan)} Plan (${daysLeft} Days Remaining)`
-                    }
-                  </p>
-                  <p className="text-sm">
-                    {isTrial 
-                      ? "Upgrade or subscribe to a paid plan below to ensure your cloud data remains protected." 
-                      : "Your subscription is expiring soon. Please renew to ensure your cloud data remains protected."
-                    }
-                  </p>
-                </div>
-              </div>
-            );
-          }
-
-          return (
-            <div className="bg-green-50 border border-green-200 text-green-800 p-4 rounded-lg flex items-start gap-3">
-              <Check className="h-5 w-5 mt-0.5 shrink-0 text-green-600" />
-              <div className="space-y-1">
-                <p className="font-medium">You are on the {capitalizeFirstLetter(subStatus.plan)} Plan ({daysLeft} Days Remaining)</p>
-                <p className="text-sm">Your subscription is active. Thank you for protecting your cloud data with DumosRx.</p>
-              </div>
-            </div>
-          );
-        }
-
-        return null;
-      })()}
-
+      <SubscriptionStatusAlert subStatus={subStatus} />
 
       <div className="flex justify-center my-8">
         <Tabs
@@ -227,33 +241,24 @@ export function SubscriptionPlans() {
         </Tabs>
       </div>
 
-      <div className="max-w-md mx-auto mb-8 bg-muted/30 p-4 rounded-lg flex items-center gap-3 border border-muted">
-        <div className="flex-1 relative">
-          <input
-            type="text"
-            placeholder="Have a coupon code?"
-            value={couponCode}
-            onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-            disabled={validatingCoupon || appliedCoupon !== null}
-            className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-          />
-        </div>
-        {appliedCoupon ? (
-          <Button variant="outline" size="sm" onClick={() => { setAppliedCoupon(null); setCouponCode(""); }}>
-            Remove
-          </Button>
-        ) : (
-          <Button size="sm" onClick={handleValidateCoupon} disabled={!couponCode || validatingCoupon}>
-            {validatingCoupon ? <Loader2 className="h-4 w-4 animate-spin" /> : "Apply"}
-          </Button>
-        )}
-      </div>
+      <CouponInput
+        couponCode={couponCode}
+        setCouponCode={setCouponCode}
+        appliedCoupon={appliedCoupon}
+        setAppliedCoupon={setAppliedCoupon}
+        validatingCoupon={validatingCoupon}
+        handleValidateCoupon={handleValidateCoupon}
+      />
 
       {userCredits > 0 && (
         <div className="max-w-md mx-auto mb-8 bg-primary/5 p-4 rounded-lg flex items-center justify-between border border-primary/20">
           <div className="space-y-0.5">
-            <span className="text-sm font-semibold">Apply Referral Credits</span>
-            <p className="text-xs text-muted-foreground">Available balance: ₦{userCredits.toLocaleString()}</p>
+            <span className="text-sm font-semibold">
+              Apply Referral Credits
+            </span>
+            <p className="text-xs text-muted-foreground">
+              Available balance: ₦{userCredits.toLocaleString()}
+            </p>
           </div>
           <input
             type="checkbox"
@@ -264,111 +269,31 @@ export function SubscriptionPlans() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <motion.div
+        variants={containerVariants}
+        initial="hidden"
+        animate="show"
+        className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4"
+      >
         {plans.map((plan) => (
-          <Card key={plan.id} className={`flex flex-col relative ${plan.popular ? 'border-primary shadow-md' : ''}`}>
-            {plan.popular && (
-              <div className="absolute top-0 right-0 transform translate-x-2 -translate-y-2">
-                <span className="bg-primary text-primary-foreground text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
-                  Recommended
-                </span>
-              </div>
-            )}
-            <CardHeader>
-              <CardTitle className="text-xl">{plan.name}</CardTitle>
-              <CardDescription>{plan.description}</CardDescription>
-            </CardHeader>
-            <CardContent className="flex-1 space-y-6">
-              <div className="flex items-baseline gap-1">
-                {isDiscounted(plan) ? (
-                  <>
-                    <span className="text-xl font-bold line-through text-muted-foreground mr-2">{plan.price}</span>
-                    <span className="text-3xl font-bold text-green-600">
-                      {formatPrice(getDiscountedPrice(plan))}
-                    </span>
-                  </>
-                ) : (
-                  <span className="text-3xl font-bold">{plan.price}</span>
-                )}
-                <span className="text-muted-foreground font-medium">{plan.period}</span>
-              </div>
-              {appliedCoupon?.type === 'trial_extension' && 
-               (!appliedCoupon.target_plan || appliedCoupon.target_plan.toLowerCase() === plan.name.toLowerCase()) && 
-               (!appliedCoupon.target_interval || appliedCoupon.target_interval === billingPeriod) && (
-                 <div className="text-sm font-medium text-green-600 bg-green-50 p-2 rounded-md">
-                   Includes +{appliedCoupon.value} Days Free Trial
-                 </div>
-              )}
-              
-              <ul className="space-y-3 text-sm">
-                {plan.features.map((f, i) => (
-                  <li key={i} className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-green-500 shrink-0" />
-                    <span>{f}</span>
-                  </li>
-                ))}
-                {plan.missing?.map((m, i) => (
-                  <li key={`m-${i}`} className="flex items-center gap-2 text-muted-foreground opacity-70">
-                    <div className="h-4 w-4 border border-muted-foreground rounded-full shrink-0 flex items-center justify-center">
-                       <div className="w-2 h-px bg-muted-foreground" />
-                    </div>
-                    <span>{m}</span>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-            {config?.enable_paystack !== false && (
-              <CardFooter>
-                {(() => {
-                  let buttonText = plan.period === "One-Time" ? "Buy Now" : "Subscribe";
-                  let buttonAction = "subscribe";
-                  
-                  if (subStatus?.status === "active") {
-                    const currentWeight = getPlanWeight(subStatus.plan || "");
-                    const targetWeight = getPlanWeight(plan.name);
-                    
-                    if (currentWeight === targetWeight && !subStatus.is_trial) {
-                      buttonText = "Current Plan";
-                      buttonAction = "current";
-                    } else if (currentWeight < targetWeight) {
-                      buttonText = "Upgrade";
-                      buttonAction = "upgrade";
-                    } else if (currentWeight > targetWeight) {
-                      buttonText = "Downgrade";
-                      buttonAction = "downgrade";
-                    } else if (subStatus.is_trial && currentWeight === targetWeight) {
-                      buttonText = "Subscribe";
-                      buttonAction = "subscribe";
-                    }
-                  }
-
-                  return (
-                    <Button 
-                      className="w-full" 
-                      variant={plan.popular ? "default" : "outline"}
-                      onClick={() => {
-                        if (buttonAction === "downgrade") {
-                          setDowngradePlan({ id: plan.id, amount: plan.numericPrice, name: plan.name });
-                        } else {
-                          handleSubscribe(plan.id, plan.numericPrice, plan.name);
-                        }
-                      }}
-                      disabled={loading !== null || buttonAction === "current"}
-                    >
-                      {loading === plan.id ? "Processing..." : (
-                        <>
-                          {buttonAction !== "current" && <CreditCard className="w-4 h-4 mr-2" />}
-                          {buttonText}
-                        </>
-                      )}
-                    </Button>
-                  );
-                })()}
-              </CardFooter>
-            )}
-          </Card>
+          <SubscriptionPlanCard
+            key={plan.id}
+            plan={plan}
+            isDiscounted={isDiscounted(plan)}
+            formatPrice={formatPrice}
+            getDiscountedPrice={getDiscountedPrice(plan)}
+            appliedCoupon={appliedCoupon}
+            billingPeriod={billingPeriod}
+            config={config}
+            subStatus={subStatus}
+            getPlanWeight={getPlanWeight}
+            handleSubscribe={handleSubscribe}
+            setDowngradePlan={setDowngradePlan}
+            loading={loading}
+            cardVariants={cardVariants}
+          />
         ))}
-      </div>
+      </motion.div>
 
       <ConfirmDialog
         open={downgradePlan !== null}
@@ -379,7 +304,11 @@ export function SubscriptionPlans() {
         variant="destructive"
         onConfirm={() => {
           if (downgradePlan) {
-            handleSubscribe(downgradePlan.id, downgradePlan.amount, downgradePlan.name);
+            handleSubscribe(
+              downgradePlan.id,
+              downgradePlan.amount,
+              downgradePlan.name,
+            );
           }
         }}
       />

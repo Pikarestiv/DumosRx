@@ -8,7 +8,8 @@ import {
   Lock, 
   Ban,
   Trash2,
-  AlertTriangle
+  AlertTriangle,
+  Gift
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -41,6 +42,7 @@ interface UserTableProps {
   setIsDeactivateDialogOpen: (val: boolean) => void;
   setIsReactivateDialogOpen: (val: boolean) => void;
   setIsDeleteDialogOpen: (val: boolean) => void;
+  setIsTrialDialogOpen: (val: boolean) => void;
 }
 
 export function UserTable({
@@ -54,7 +56,8 @@ export function UserTable({
   setIsResetDialogOpen,
   setIsDeactivateDialogOpen,
   setIsReactivateDialogOpen,
-  setIsDeleteDialogOpen
+  setIsDeleteDialogOpen,
+  setIsTrialDialogOpen
 }: UserTableProps) {
   if (error) {
     return (
@@ -170,6 +173,20 @@ export function UserTable({
                     <Lock className="h-4 w-4 text-amber-500" />
                     Force Password Reset
                   </DropdownMenuItem>
+                  
+                  {(user.role === 'Store Owner' || user.role === 'Store Admin') && (
+                    <DropdownMenuItem 
+                      className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold"
+                      onClick={() => {
+                        setSelectedUser(user);
+                        setIsTrialDialogOpen(true);
+                      }}
+                    >
+                      <Gift className="h-4 w-4 text-emerald-500" />
+                      Grant Free Trial
+                    </DropdownMenuItem>
+                  )}
+
                   <DropdownMenuSeparator className="my-2 bg-slate-100 dark:bg-slate-800" />
                   
                   {user.status === 'Inactive' || user.status === 'Suspended' ? (

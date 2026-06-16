@@ -5,7 +5,7 @@ import { update, insert } from "@/lib/db/local-database";
 import { useLocalData } from "@/lib/db/hooks/useLocalData";
 import { useAuth } from "@/lib/context/auth-context";
 
-export type StoreType = "pharmacy" | "grocery" | "supermarket" | "general";
+export type StoreType = "pharmacy" | "grocery" | "supermarket" | "retail";
 
 interface StoreProfile {
   id: string;
@@ -15,6 +15,7 @@ interface StoreProfile {
   currency: string;
   vat_percentage: number;
   theme: string;
+  location?: string;
   address?: string;
   phone?: string;
   email?: string;
@@ -78,7 +79,7 @@ const terminology: Record<StoreType, Record<string, string>> = {
     category: "Aisle/Category",
     stock: "Stock",
   },
-  general: {
+  retail: {
     product: "Product",
     products: "Products",
     registration_number: "Reg. No",
@@ -217,7 +218,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   };
 
   const t = (key: string): string => {
-    return terminology[storeType]?.[key] || terminology["general"][key] || key;
+    return terminology[storeType]?.[key] || terminology["retail"][key] || key;
   };
 
   return (

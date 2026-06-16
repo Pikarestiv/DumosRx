@@ -41,6 +41,8 @@ class SystemConfigSeeder extends Seeder
                         'auto_lock' => false,
                         'audit_mode' => false,
                         'smart_suggestions' => false,
+                        'auto_backup' => false,
+                        'multi_store' => false,
                     ]
                 ],
                 'starter' => [
@@ -52,6 +54,7 @@ class SystemConfigSeeder extends Seeder
                         'stores' => 1,
                         'staff' => 3,
                         'inventory' => -1,
+                        'sync_interval' => 180,
                     ],
                     'features' => [
                         'basic_inventory' => true,
@@ -67,6 +70,8 @@ class SystemConfigSeeder extends Seeder
                         'auto_lock' => true,
                         'audit_mode' => true,
                         'smart_suggestions' => false,
+                        'auto_backup' => false,
+                        'multi_store' => false,
                     ]
                 ],
                 'pro' => [
@@ -78,6 +83,7 @@ class SystemConfigSeeder extends Seeder
                         'stores' => 3,
                         'staff' => 10,
                         'inventory' => -1,
+                        'sync_interval' => 30,
                     ],
                     'features' => [
                         'basic_inventory' => true,
@@ -93,6 +99,8 @@ class SystemConfigSeeder extends Seeder
                         'auto_lock' => true,
                         'audit_mode' => true,
                         'smart_suggestions' => true,
+                        'auto_backup' => true,
+                        'multi_store' => false,
                     ]
                 ],
                 'enterprise' => [
@@ -104,6 +112,7 @@ class SystemConfigSeeder extends Seeder
                         'stores' => -1,
                         'staff' => -1,
                         'inventory' => -1,
+                        'sync_interval' => 15,
                     ],
                     'features' => [
                         'basic_inventory' => true,
@@ -122,6 +131,7 @@ class SystemConfigSeeder extends Seeder
                         'multi_store' => true,
                         'custom_branding' => true,
                         'data_export' => true,
+                        'auto_backup' => true,
                     ]
                 ]
             ]

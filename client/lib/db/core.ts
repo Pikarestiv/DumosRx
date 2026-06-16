@@ -278,3 +278,28 @@ export async function logAction(action: string, table: string, recordId: string,
 export function getDatabase(): Database | null {
   return db;
 }
+
+export async function getSystemConfig(key: string): Promise<any | null> {
+  const result = await query<{ value: string }>("SELECT value FROM system_configs WHERE key = ?", [key]);
+  if (result.length > 0) {
+    try {
+      return JSON.parse(result[0].value);
+    } catch (e) {
+      return null;
+    }
+  }
+  return null;
+}
+
+export async function setSystemConfig(key: string, value: any): Promise<void> {
+  const now = new Date().toISOString();
+  const valueStr = JSON.stringify(value);
+  
+  const existing = await query("SELECT key FROM system_configs WHERE key = ?", [key]);
+  if (existing.length > 0) {
+    await execute("UPDATE system_configs SET value = ?, updated_at = ? WHERE key = ?", [valueStr, now, key]);
+  } else {
+    await execute("INSERT INTO system_configs (key, value, updated_at) VALUES (?, ?, ?)", [key, valueStr, now]);
+  }
+}
+

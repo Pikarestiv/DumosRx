@@ -495,4 +495,11 @@ CREATE TABLE IF NOT EXISTS payment_accounts (
   _synced_at TEXT,
   _deleted INTEGER DEFAULT 0
 );
+
+CREATE TABLE IF NOT EXISTS system_configs (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at TEXT
+);
 `;
+

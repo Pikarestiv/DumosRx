@@ -22,7 +22,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { query } from "@/lib/db/local-database";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 export default function LoginPage() {
   const [username, setUsername] = useState("");
@@ -77,7 +76,6 @@ export default function LoginPage() {
       setIsLoading(false);
     }
   };
-
 
   if (isCheckingStatus) {
     return (
@@ -250,8 +248,6 @@ export default function LoginPage() {
           )}
         </Card>
       </motion.div>
-
-
     </div>
   );
 }

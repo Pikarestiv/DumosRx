@@ -12,7 +12,35 @@ export class BaseApiClient {
   protected baseURL: string;
 
   constructor() {
-    this.baseURL = process.env.NEXT_PUBLIC_API_URL || API_BASE_URL;
+    let storedUrl = null;
+    if (typeof window !== "undefined") {
+      storedUrl = localStorage.getItem("dumos_api_url");
+    }
+    
+    if (storedUrl) {
+      this.baseURL = storedUrl;
+    } else {
+      if (process.env.NODE_ENV === "development") {
+        this.baseURL = "https://api.dev.dumosrx.com/api/v1";
+      } else {
+        this.baseURL = process.env.NEXT_PUBLIC_API_URL || "https://api.dumosrx.com/api/v1";
+      }
+    }
+  }
+
+  setBaseURL(url: string) {
+    this.baseURL = url;
+    if (typeof window !== "undefined") {
+      if (url) {
+        localStorage.setItem("dumos_api_url", url);
+      } else {
+        localStorage.removeItem("dumos_api_url");
+      }
+    }
+  }
+
+  getBaseURL() {
+    return this.baseURL;
   }
 
   setToken(token: string) {

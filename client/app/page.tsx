@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { ServerSelector } from "@/components/ui/server-selector";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
@@ -25,9 +26,10 @@ export default function HomePage() {
       </div>
 
       <div
-        className="absolute z-30 right-6"
+        className="absolute z-20 flex items-center gap-4 right-14 md:right-6"
         style={{ top: "calc(var(--tauri-top, 0px) + 1.5rem)" }}
       >
+        <ServerSelector />
         <ThemeToggle />
       </div>
 

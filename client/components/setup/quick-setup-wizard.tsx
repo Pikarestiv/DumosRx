@@ -1,7 +1,8 @@
 "use client";
 
 import { useLocalData } from "@/lib/db/hooks/useLocalData";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -25,11 +26,12 @@ import { toast } from "sonner";
 import { APP_NAME } from "@/lib/constants";
 
 export function QuickSetupWizard() {
-  const { isInitialized, updateStoreProfile, loading: storeLoading } = useStore();
+  const { isInitialized, updateStoreProfile, loading: storeLoading, storeProfile } = useStore();
   const { isAuthenticated, isAdmin, isCloudLinked } = useAuth();
   const { data: recordCounts, loading: dataLoading } = useLocalData<{ total: number }>(
     "SELECT (SELECT COUNT(*) FROM medicines) + (SELECT COUNT(*) FROM sales) as total"
   );
+  const pathname = usePathname();
 
   const [step, setStep] = useState(1);
   const [storeType, setStoreType] = useState<StoreType>("pharmacy");
@@ -39,6 +41,19 @@ export function QuickSetupWizard() {
   const [phone, setPhone] = useState("");
   const [showRetailSuggestions, setShowRetailSuggestions] = useState(false);
   const [open, setOpen] = useState(true);
+
+  useEffect(() => {
+    if (storeProfile) {
+      if (storeProfile.store_type) setStoreType(storeProfile.store_type);
+      if (storeProfile.name) setStoreName(storeProfile.name);
+      if (storeProfile.location) setLocation(storeProfile.location);
+      if (storeProfile.address) setAddress(storeProfile.address);
+      if (storeProfile.phone) setPhone(storeProfile.phone);
+      if (storeProfile.show_retail_suggestions !== undefined) {
+        setShowRetailSuggestions(storeProfile.show_retail_suggestions === 1);
+      }
+    }
+  }, [storeProfile]);
 
   const handleComplete = () => {
     if (!storeName) {
@@ -64,7 +79,15 @@ export function QuickSetupWizard() {
 
   const totalRecords = recordCounts[0]?.total || 0;
   
-  if (isInitialized || !isAuthenticated || !isAdmin || isCloudLinked || totalRecords > 0) return null;
+  const publicRoutes = ["/", "/login", "/setup", "/register"];
+  if (
+    publicRoutes.includes(pathname) ||
+    isInitialized || 
+    !isAuthenticated || 
+    !isAdmin || 
+    isCloudLinked || 
+    totalRecords > 0
+  ) return null;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

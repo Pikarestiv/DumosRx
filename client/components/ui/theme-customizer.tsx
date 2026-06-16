@@ -4,6 +4,7 @@ import * as React from "react"
 import { Palette, Settings, Lock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Label } from "@/components/ui/label"
 import { Slider } from "@/components/ui/slider"
 import { useStore } from "@/lib/context/store-context"
@@ -44,12 +45,21 @@ export function ThemeCustomizer() {
 
   return (
     <Sheet>
-      <SheetTrigger asChild>
-        <Button variant="outline" size="icon" className="h-9 w-9 bg-transparent">
-          <Palette className="h-4 w-4" />
-          <span className="sr-only">Customize theme</span>
-        </Button>
-      </SheetTrigger>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <SheetTrigger asChild>
+              <Button id="tour-theme-customizer" variant="outline" size="icon" className="h-9 w-9 bg-transparent">
+                <Palette className="h-4 w-4" />
+                <span className="sr-only">Customize theme</span>
+              </Button>
+            </SheetTrigger>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="font-semibold text-xs mt-1">
+            Customize theme
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
       <SheetContent className="w-80">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">

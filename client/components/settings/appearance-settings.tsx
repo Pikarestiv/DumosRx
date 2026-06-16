@@ -1,6 +1,6 @@
 "use client";
 
-import { Sun, Moon, Globe, Save } from "lucide-react";
+import { Sun, Moon, Globe, Save, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +14,8 @@ import {
 } from "@/components/ui/card";
 import { APP_NAME } from "@/lib/constants";
 import { Theme } from "@/components/theme-provider";
+import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
+import { toast } from "sonner";
 
 interface AppearanceSettingsProps {
   theme: string | undefined;
@@ -49,6 +51,16 @@ export function AppearanceSettings({
   handleSaveRegional,
   isAdmin,
 }: AppearanceSettingsProps) {
+  const { canCustomizeTheme } = useFeatureGate();
+
+  const handleApplyTheme = (themeId: string) => {
+    if (themeId !== "default" && !canCustomizeTheme) {
+      toast.error("Theme customization is a premium feature available on the Starter plan and above.");
+      return;
+    }
+    setAppTheme(themeId);
+  };
+
   return (
     <div className="space-y-6">
       <Card>
@@ -103,22 +115,30 @@ export function AppearanceSettings({
           <div className="space-y-3">
             <Label>Color Themes</Label>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              {colorThemes.map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => setAppTheme(t.id)}
-                  className={`flex items-center gap-3 p-4 rounded-lg border-2 transition-all cursor-pointer ${
-                    activeTheme === t.id
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:bg-muted"
-                  }`}
-                >
-                  <div
-                    className={`w-6 h-6 rounded-full ${t.color} border shadow-sm`}
-                  />
-                  <span className="text-sm font-medium">{t.name}</span>
-                </button>
-              ))}
+              {colorThemes.map((t) => {
+                const isLocked = t.id !== "default" && !canCustomizeTheme;
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => handleApplyTheme(t.id)}
+                    className={`flex items-center justify-between p-4 rounded-lg border-2 transition-all cursor-pointer ${
+                      activeTheme === t.id
+                        ? "border-primary bg-primary/5"
+                        : isLocked
+                        ? "border-border opacity-60 cursor-not-allowed hover:bg-transparent"
+                        : "border-border hover:bg-muted"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`w-6 h-6 rounded-full ${t.color} border shadow-sm`}
+                      />
+                      <span className="text-sm font-medium">{t.name}</span>
+                    </div>
+                    {isLocked && <Lock className="h-4 w-4 text-muted-foreground" />}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </CardContent>

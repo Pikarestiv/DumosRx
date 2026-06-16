@@ -47,6 +47,22 @@ export function SubscriptionStatusAlert({ subStatus }: { subStatus: any }) {
       );
     }
 
+    if (isFreePlan) {
+      return (
+        <div className="bg-slate-50 border border-slate-200 text-slate-800 p-4 rounded-lg flex items-start gap-3">
+          <Check className="h-5 w-5 mt-0.5 shrink-0 text-slate-600" />
+          <div className="space-y-1">
+            <p className="font-medium">
+              You are on the {capitalizeFirstLetter(subStatus.plan)} Plan
+            </p>
+            <p className="text-sm">
+              Your local standalone workspace is active and ready. Upgrade to sync your data to the cloud.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="bg-green-50 border border-green-200 text-green-800 p-4 rounded-lg flex items-start gap-3">
         <Check className="h-5 w-5 mt-0.5 shrink-0 text-green-600" />
@@ -55,9 +71,7 @@ export function SubscriptionStatusAlert({ subStatus }: { subStatus: any }) {
             You are on the {capitalizeFirstLetter(subStatus.plan)} Plan
           </p>
           <p className="text-sm">
-            {isFreePlan
-              ? "Your local standalone workspace is active and ready."
-              : "Your subscription is active. Thank you for protecting your cloud data with DumosRx."}
+            Your subscription is active. Thank you for protecting your cloud data with DumosRx.
           </p>
         </div>
       </div>

@@ -13,6 +13,7 @@ import { LicenseGuard } from "@/components/auth/license-guard";
 import { APP_NAME } from "@/lib/constants";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { TauriTitleBar } from "@/components/tauri/tauri-title-bar";
+import { SystemConfigLoader } from "@/components/system-config-loader";
 
 import { ErrorBoundary } from "@/components/tauri/error-boundary";
 import { GlobalErrorListener } from "@/components/tauri/global-error-listener";
@@ -93,6 +94,7 @@ export default function RootLayout({
                   <DatabaseProvider>
                     <AuthProvider>
                       <StoreProvider>
+                        <SystemConfigLoader />
                         <AuthListener />
                         <QuickSetupWizard />
                         <LicenseGuard>{children}</LicenseGuard>

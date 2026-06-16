@@ -43,9 +43,6 @@ export default function SettingsPage() {
     setNewPin,
     confirmPin,
     setConfirmPin,
-    updateAvailable,
-    isCheckingUpdate,
-    isUpdating,
     localName,
     setLocalName,
     localAddress,
@@ -98,8 +95,6 @@ export default function SettingsPage() {
     handleUpdateSecurity,
     handleSync,
     handleDownloadBackup,
-    handleCheckForUpdates,
-    handleInstallUpdate,
     handleRestoreBackup,
     handleResetDatabase,
     stickyTop,
@@ -310,13 +305,7 @@ export default function SettingsPage() {
 
             {isAdmin && (
               <TabsContent value="system">
-                <SystemSettings
-                  updateAvailable={updateAvailable}
-                  isCheckingUpdate={isCheckingUpdate}
-                  isUpdating={isUpdating}
-                  handleCheckForUpdates={handleCheckForUpdates}
-                  handleInstallUpdate={handleInstallUpdate}
-                />
+                <SystemSettings />
               </TabsContent>
             )}
           </div>

@@ -29,9 +29,7 @@ export default function LoginPage() {
   const [pin, setPin] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isCheckingStatus, setIsCheckingStatus] = useState(true);
-  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   const [userCount, setUserCount] = useState(0);
-  const [pendingUpdate, setPendingUpdate] = useState<any>(null);
 
   const { login } = useAuth();
   const router = useRouter();
@@ -80,31 +78,6 @@ export default function LoginPage() {
     }
   };
 
-  const handleCheckForUpdates = async () => {
-    try {
-      const { isTauri } = await import("@/lib/db/core");
-      if (!isTauri()) {
-        toast.info("Updates only available in desktop app");
-        return;
-      }
-
-      setIsCheckingUpdate(true);
-      const { check } = await import("@tauri-apps/plugin-updater");
-      const update = await check();
-
-      if (update) {
-        toast.success(`Update available: ${update.version}`);
-        setPendingUpdate(update);
-      } else {
-        toast.info("You are on the latest version");
-      }
-    } catch (err) {
-      console.error("Update check failed", err);
-      toast.error("Failed to check for updates");
-    } finally {
-      setIsCheckingUpdate(false);
-    }
-  };
 
   if (isCheckingStatus) {
     return (
@@ -267,21 +240,10 @@ export default function LoginPage() {
                   <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
                   System Online • Encrypted Session
                 </div>
-                <div className="flex items-center justify-between w-full mt-4 border-t border-border pt-4">
+                <div className="flex justify-center w-full mt-4 border-t border-border pt-4">
                   <span className="text-[10px] text-muted-foreground font-medium">
                     v{APP_VERSION}
                   </span>
-                  <button
-                    type="button"
-                    onClick={handleCheckForUpdates}
-                    disabled={isCheckingUpdate}
-                    className="text-[10px] text-muted-foreground hover:text-primary flex items-center gap-1 transition-colors disabled:opacity-50"
-                  >
-                    <RefreshCw
-                      className={`h-3 w-3 ${isCheckingUpdate ? "animate-spin" : ""}`}
-                    />
-                    {isCheckingUpdate ? "Checking..." : "Check for Updates"}
-                  </button>
                 </div>
               </CardFooter>
             </form>
@@ -289,22 +251,7 @@ export default function LoginPage() {
         </Card>
       </motion.div>
 
-      <ConfirmDialog
-        open={!!pendingUpdate}
-        onOpenChange={(open) => {
-          if (!open) setPendingUpdate(null);
-        }}
-        title="Update Available"
-        description={`Version ${pendingUpdate?.version} is ready to install. The app will restart after installation.`}
-        confirmLabel="Install & Restart"
-        variant="default"
-        onConfirm={async () => {
-          if (!pendingUpdate) return;
-          const { relaunch } = await import("@tauri-apps/plugin-process");
-          await pendingUpdate.downloadAndInstall();
-          await relaunch();
-        }}
-      />
+
     </div>
   );
 }

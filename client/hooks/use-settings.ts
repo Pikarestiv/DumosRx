@@ -43,11 +43,6 @@ export function useSettings() {
   const [newPin, setNewPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
 
-  // Update State
-  const [updateAvailable, setUpdateAvailable] = useState<any>(null);
-  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
-  const [isUpdating, setIsUpdating] = useState(false);
-
   // Form States
   const [localName, setLocalName] = useState(storeProfile?.name || "");
   const [localAddress, setLocalAddress] = useState(storeProfile?.address || "");
@@ -307,46 +302,6 @@ export function useSettings() {
     toast.success("Backup downloaded successfully");
   };
 
-  const handleCheckForUpdates = async () => {
-    if (!isTauri()) {
-      toast.info("Updates are only available in the desktop application");
-      return;
-    }
-    setIsCheckingUpdate(true);
-    try {
-      const { check } = await import("@tauri-apps/plugin-updater");
-      const update = await check();
-      if (update) {
-        setUpdateAvailable(update);
-        toast.success(`New version available: ${update.version}`);
-      } else {
-        setUpdateAvailable(null);
-        toast.info("You are on the latest version");
-      }
-    } catch (err) {
-      console.error("Failed to check for updates:", err);
-      toast.error("Failed to check for updates");
-    } finally {
-      setIsCheckingUpdate(false);
-    }
-  };
-
-  const handleInstallUpdate = async () => {
-    if (!updateAvailable) return;
-    setIsUpdating(true);
-    try {
-      const { relaunch } = await import("@tauri-apps/plugin-process");
-      toast.info("Downloading and installing update...");
-      await updateAvailable.downloadAndInstall();
-      toast.success("Update installed! Restarting...");
-      await relaunch();
-    } catch (err) {
-      console.error("Failed to install update:", err);
-      toast.error("Failed to install update");
-      setIsUpdating(false);
-    }
-  };
-
   const handleRestoreBackup = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -395,9 +350,6 @@ export function useSettings() {
     setNewPin,
     confirmPin,
     setConfirmPin,
-    updateAvailable,
-    isCheckingUpdate,
-    isUpdating,
     localName,
     setLocalName,
     localAddress,
@@ -450,8 +402,6 @@ export function useSettings() {
     handleUpdateSecurity,
     handleSync,
     handleDownloadBackup,
-    handleCheckForUpdates,
-    handleInstallUpdate,
     handleRestoreBackup,
     handleResetDatabase,
     stickyTop,

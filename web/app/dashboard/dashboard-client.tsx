@@ -117,6 +117,7 @@ export function DashboardClient({ view }: { view: string }) {
         activeTab={view}
         setActiveTab={setActiveTab}
         user={user}
+        isLoading={loading}
         onLogout={logout}
       />
       <div className="flex-1 flex flex-col min-w-0">

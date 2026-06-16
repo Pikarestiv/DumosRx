@@ -23,6 +23,7 @@ interface SidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
   user: any;
+  isLoading?: boolean;
   onLogout: () => void;
 }
 
@@ -30,6 +31,7 @@ export function Sidebar({
   activeTab,
   setActiveTab,
   user,
+  isLoading,
   onLogout,
 }: SidebarProps) {
   const sidebarItems = [
@@ -105,7 +107,7 @@ export function Sidebar({
 
       <UserProfileButton
         user={user}
-        isLoading={!user || Object.keys(user).length === 0}
+        isLoading={isLoading || !user || !user.name || user.name === "User" || user.name.trim() === ""}
         onLogout={onLogout}
       />
     </>

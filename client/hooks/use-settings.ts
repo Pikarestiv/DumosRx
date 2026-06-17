@@ -270,11 +270,11 @@ export function useSettings() {
   const handleUpdateSecurity = async () => {
     if (!currentPin || !newPin || !confirmPin) {
       toast.error("All fields are required");
-      return;
+      return false;
     }
     if (newPin !== confirmPin) {
       toast.error("New PINs do not match");
-      return;
+      return false;
     }
     const result = await changePin(currentPin, newPin);
     if (result.success) {
@@ -282,8 +282,10 @@ export function useSettings() {
       setCurrentPin("");
       setNewPin("");
       setConfirmPin("");
+      return true;
     } else {
       toast.error(result.message);
+      return false;
     }
   };
 

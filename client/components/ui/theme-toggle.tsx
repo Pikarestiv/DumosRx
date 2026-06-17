@@ -13,8 +13,8 @@ export function ThemeToggle() {
 
   const handleSetTheme = (newTheme: "light" | "dark" | "system") => {
     if (newTheme !== "light" && !canUseDarkMode) {
-      toast.error("Dark Mode is a premium feature available on the Starter plan and above.")
-      return
+      toast.error("Dark Mode is a premium feature. Please upgrade your plan to access it.")
+      return;
     }
     setTheme(newTheme)
   }

@@ -39,7 +39,7 @@ export function InventoryManagement() {
         <Button 
           onClick={() => {
             if (!canUseAuditMode) {
-              toast.error("Audit Mode is a premium feature available on the Starter plan and above.")
+              toast.error("Audit Mode is a premium feature. Please upgrade your plan to access it.")
               return
             }
             setIsAuditOpen(true)

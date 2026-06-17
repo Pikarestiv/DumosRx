@@ -56,7 +56,7 @@ export function AppearanceSettings({
 
   const handleApplyTheme = (themeId: string) => {
     if (themeId !== "default" && !canCustomizeTheme) {
-      toast.error("Theme customization is a premium feature available on the Starter plan and above.");
+      toast.error("Theme customization is a premium feature. Please upgrade your plan to access it.");
       return;
     }
     setAppTheme(themeId);
@@ -64,7 +64,7 @@ export function AppearanceSettings({
 
   const handleSetTheme = (mode: Theme) => {
     if (mode !== "light" && !canUseDarkMode) {
-      toast.error("Dark Mode is a premium feature available on the Starter plan and above.");
+      toast.error("Dark Mode is a premium feature. Please upgrade your plan to access it.");
       return;
     }
     setTheme(mode);

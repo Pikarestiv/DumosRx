@@ -23,9 +23,17 @@ class StoreSummaryController extends Controller
             ->where('status', 'active')
             ->first();
 
-        if (!$subscription || !in_array($subscription->plan_name, ['pro', 'enterprise'])) {
+        $systemConfig = \App\Models\SystemConfig::getVal('subscription_plans', []);
+        $plan = $subscription ? $subscription->plan_name : 'free';
+        
+        // We link end-of-day summary to auto_backup / smart_suggestions feature tiers
+        $hasFeature = isset($systemConfig['tiers'][$plan]['features']['auto_backup']) 
+            ? $systemConfig['tiers'][$plan]['features']['auto_backup'] 
+            : in_array($plan, ['pro', 'enterprise']);
+
+        if (!$hasFeature) {
             return response()->json([
-                'message' => 'This feature is only available on Pro and Enterprise plans.'
+                'message' => 'This is a premium feature. Please upgrade your plan to access it.'
             ], 403);
         }
 

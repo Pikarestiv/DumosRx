@@ -17,9 +17,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { Loader2, Info } from "lucide-react";
 import { toast } from "sonner";
 import { createUser, updateUser } from "@/lib/db/local-database";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface StaffFormDialogProps {
   isOpen: boolean;
@@ -238,7 +239,19 @@ export function StaffFormDialog({
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="role">System Role</Label>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="role">System Role</Label>
+              <TooltipProvider delayDuration={0}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Determines what the staff member can access. Cashiers can only make sales, Managers can view inventory, and Admins have full access.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
             <Select
               value={formData.role}
               onValueChange={(val) =>

@@ -40,7 +40,23 @@ export function useFeatureGate() {
     return fallback;
   };
 
+  // Helper to dynamically calculate the lowest plan that has a feature
+  const getUpgradeMessage = (featureKey: string, fallbackMessage = "This is a premium feature. Please upgrade your plan to access it.") => {
+    if (!subscriptionPlans?.tiers) return fallbackMessage;
+
+    const planHierarchy = ["starter", "pro", "enterprise"];
+    for (const plan of planHierarchy) {
+      const planFeatures = subscriptionPlans.tiers[plan]?.features || {};
+      if (planFeatures[featureKey]) {
+        const planName = subscriptionPlans.tiers[plan]?.name || plan.charAt(0).toUpperCase() + plan.slice(1);
+        return `This feature is available on the ${planName} plan and above.`;
+      }
+    }
+    return fallbackMessage;
+  };
+
   return {
+    getUpgradeMessage,
     currentTier: normalizedTier,
     // Max staff accounts allowed
     maxStaffAccounts: getLimit('staff', isEnterprise ? Infinity : isPro ? 10 : isStarter ? 3 : 0),

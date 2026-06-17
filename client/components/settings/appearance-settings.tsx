@@ -52,11 +52,11 @@ export function AppearanceSettings({
   handleSaveRegional,
   isAdmin,
 }: AppearanceSettingsProps) {
-  const { canCustomizeTheme, canUseDarkMode } = useFeatureGate();
+  const { canCustomizeTheme, canUseDarkMode, getUpgradeMessage } = useFeatureGate();
 
   const handleApplyTheme = (themeId: string) => {
     if (themeId !== "default" && !canCustomizeTheme) {
-      toast.error("Theme customization is a premium feature. Please upgrade your plan to access it.");
+      toast.error(getUpgradeMessage('theme_customizer', "Theme customization is a premium feature. Please upgrade your plan to access it."));
       return;
     }
     setAppTheme(themeId);
@@ -64,7 +64,7 @@ export function AppearanceSettings({
 
   const handleSetTheme = (mode: Theme) => {
     if (mode !== "light" && !canUseDarkMode) {
-      toast.error("Dark Mode is a premium feature. Please upgrade your plan to access it.");
+      toast.error(getUpgradeMessage('dark_mode', "Dark Mode is a premium feature. Please upgrade your plan to access it."));
       return;
     }
     setTheme(mode);

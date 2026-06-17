@@ -14,7 +14,8 @@ export function LockedModuleOverlay({ featureName, featureKey }: LockedModuleOve
     canUsePrescriptions, 
     canUseProcurement, 
     canUseExpenses, 
-    canUseAuditMode 
+    canUseAuditMode,
+    getUpgradeMessage
   } = useFeatureGate();
 
   let isLocked = false;
@@ -34,7 +35,7 @@ export function LockedModuleOverlay({ featureName, featureKey }: LockedModuleOve
         <div className="space-y-2">
           <h3 className="text-xl font-bold font-serif tracking-tight">Unlock Premium Feature</h3>
           <p className="text-sm text-muted-foreground leading-relaxed px-2">
-            The <span className="font-semibold text-foreground">{featureName}</span> module is a premium feature. Upgrade now to keep your store organized.
+            The <span className="font-semibold text-foreground">{featureName}</span> module is locked. {getUpgradeMessage(featureKey, "Upgrade now to keep your store organized.")}
           </p>
         </div>
         <Button 

@@ -54,7 +54,7 @@ export function StoreInformationCard({
   setShowRetailSuggestions,
   handleSaveProfile,
 }: StoreInformationCardProps) {
-  const { canUseEcommerce } = useFeatureGate();
+  const { canUseEcommerce, getUpgradeMessage } = useFeatureGate();
   const [isEditingSlug, setIsEditingSlug] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -67,7 +67,7 @@ export function StoreInformationCard({
 
   const handleEditClick = () => {
     if (!canUseEcommerce) {
-      toast.error("Upgrade to a premium plan to customize your storefront URL.");
+      toast.error(getUpgradeMessage('store_url', "Upgrade to a premium plan to customize your storefront URL."));
       return;
     }
     setIsEditingSlug(true);

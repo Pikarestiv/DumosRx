@@ -53,7 +53,7 @@ export function DataSettings({
   setAutoSyncInterval,
   handleSaveAutoSyncSettings,
 }: DataSettingsProps) {
-  const { canCloudSync, minimumSyncIntervalMinutes } = useFeatureGate();
+  const { canCloudSync, minimumSyncIntervalMinutes, getUpgradeMessage } = useFeatureGate();
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showQBImport, setShowQBImport] = useState(false);
   const [iifContent, setIifContent] = useState<string | null>(null);
@@ -87,9 +87,8 @@ export function DataSettings({
               <div className="space-y-1">
                 <p className="font-medium text-sm">Cloud Sync is Disabled</p>
                 <p className="text-sm">
-                  Your current "Dumos Local" plan does not support cloud backups
-                  or multi-device sync. Upgrade to Dumos Pro to protect your
-                  data in the cloud.
+                  Your current plan does not support cloud backups
+                  or multi-device sync. {getUpgradeMessage('cloud_sync', "Upgrade your plan to protect your data in the cloud.")}
                 </p>
               </div>
             </div>

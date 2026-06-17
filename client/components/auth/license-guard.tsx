@@ -45,7 +45,7 @@ function ThemeRestrictor() {
 }
 
 function MobileRestrictionGuard() {
-  const { canUseMobileApp } = useFeatureGate();
+  const { canUseMobileApp, getUpgradeMessage } = useFeatureGate();
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -74,8 +74,7 @@ function MobileRestrictionGuard() {
               📱 Mobile App Access Locked
             </CardTitle>
             <CardDescription className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              Mobile access is a premium feature. Please upgrade your plan to access your dashboard on the
-              go.
+              {getUpgradeMessage('mobile_access', "Mobile access is a premium feature. Please upgrade your plan to access your dashboard on the go.")}
             </CardDescription>
           </CardHeader>
           <CardFooter className="flex flex-col gap-3 pt-2">

@@ -19,7 +19,7 @@ export function InventoryManagement() {
   const [isAuditOpen, setIsAuditOpen] = useState(false)
   const { t } = useStore()
   const searchParams = useSearchParams()
-  const { canUseAuditMode } = useFeatureGate()
+  const { canUseAuditMode, getUpgradeMessage } = useFeatureGate()
 
   // If navigated here with ?action=add or ?status=low_stock, land on the products tab
   const hasProductsParam = searchParams.get("action") === "add" || !!searchParams.get("status")
@@ -39,7 +39,7 @@ export function InventoryManagement() {
         <Button 
           onClick={() => {
             if (!canUseAuditMode) {
-              toast.error("Audit Mode is a premium feature. Please upgrade your plan to access it.")
+              toast.error(getUpgradeMessage('audit_mode', "Audit Mode is a premium feature. Please upgrade your plan to access it."))
               return
             }
             setIsAuditOpen(true)

@@ -42,7 +42,13 @@ interface OverviewViewProps {
 
 export function OverviewView({ stats, user, stores, onReset, onNavigate: _onNavigate }: OverviewViewProps) {
   const { data: subscription } = useSubscriptionStatus();
-  const isStarter = subscription?.plan?.toLowerCase() === "starter";
+  
+  const syncInterval = subscription?.limits?.sync_interval ?? 0;
+  const isDelayedSync = syncInterval > 0;
+  
+  // We link the daily summary to the auto_backup / smart_suggestions tier
+  const canSendSummary = subscription?.features?.auto_backup ?? (subscription?.plan !== 'starter' && subscription?.plan !== 'free');
+  
   const [isStoreModalOpen, setIsStoreModalOpen] = useState(false);
   const [isSendingSummary, setIsSendingSummary] = useState(false);
 
@@ -75,7 +81,7 @@ export function OverviewView({ stats, user, stores, onReset, onNavigate: _onNavi
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-          {!isStarter && (
+          {canSendSummary && (
             <Button 
               variant="outline" 
               className="font-bold w-full sm:w-auto" 
@@ -93,13 +99,13 @@ export function OverviewView({ stats, user, stores, onReset, onNavigate: _onNavi
         </div>
       </div>
 
-      {isStarter && (
+      {isDelayedSync && (
         <div className="bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-200 p-4 rounded-xl flex items-start gap-3">
           <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0 text-amber-500" />
           <div className="space-y-1">
             <p className="font-semibold text-amber-800 dark:text-amber-300">Delayed Dashboard Data</p>
             <p className="text-sm opacity-90 text-amber-700 dark:text-amber-200">
-              You are on the <strong>Starter</strong> plan. Cloud dashboard metrics sync every 6 hours. Upgrade to Pro or Enterprise for real-time reporting.
+              Your current plan synchronizes cloud dashboard metrics every {syncInterval >= 60 ? Math.floor(syncInterval / 60) + ' hours' : syncInterval + ' minutes'}. Upgrade your plan for real-time reporting.
             </p>
           </div>
         </div>

@@ -470,37 +470,37 @@ class SyncController extends Controller
             $sub = $owner->subscriptions()->where('status', 'active')->where('end_date', '>', now())->latest()->first();
             $plan = $sub ? strtolower($sub->plan_name) : 'free';
             
-            if ($plan === 'starter') {
-                $store = Store::where('user_id', $owner->id)->first() ?? Store::where('id', $user->store_id)->first();
-                if ($store && $store->last_sync_at) {
-                    $hoursSinceLastSync = now()->diffInHours($store->last_sync_at);
-                    if ($hoursSinceLastSync < 6) {
-                        return [
-                            'valid' => false,
-                            'message' => 'Sync limit reached. Starter plan synchronizes once every 6 hours. Last sync: ' . $store->last_sync_at->diffForHumans() . '. Please upgrade to Pro for real-time sync.',
-                            'code' => 'SYNC_THROTTLED',
-                            'status' => 429
-                        ];
-                    }
-                }
-            } elseif ($plan === 'free') {
-                if ($isPush) {
+            $systemConfig = \App\Models\SystemConfig::getVal('subscription_plans', []);
+            $canSync = $systemConfig['tiers'][$plan]['features']['cloud_sync'] ?? false;
+            
+            if (!$canSync) {
+                if ($isPush || !empty($request->input('last_synced', []))) {
                     return [
                         'valid' => false,
-                        'message' => 'Cloud sync is disabled on the Free plan. Please upgrade to a paid plan to backup your data.',
+                        'message' => 'Cloud sync is disabled on your current plan. Please upgrade to a premium plan to backup your data.',
                         'code' => 'SYNC_DISABLED',
                         'status' => 403
                     ];
-                } else {
-                    $lastSyncedMap = $request->input('last_synced', []);
-                    // Allow pull only if it is the initial setup (last_synced is empty)
-                    if (!empty($lastSyncedMap)) {
-                        return [
-                            'valid' => false,
-                            'message' => 'Cloud sync is disabled on the Free plan. Please upgrade to a paid plan to backup your data.',
-                            'code' => 'SYNC_DISABLED',
-                            'status' => 403
-                        ];
+                }
+            } else {
+                $syncIntervalMinutes = $systemConfig['tiers'][$plan]['limits']['sync_interval'] ?? 0;
+                
+                if ($syncIntervalMinutes > 0) {
+                    $store = Store::where('user_id', $owner->id)->first() ?? Store::where('id', $user->store_id)->first();
+                    if ($store && $store->last_sync_at) {
+                        $minutesSinceLastSync = now()->diffInMinutes($store->last_sync_at);
+                        if ($minutesSinceLastSync < $syncIntervalMinutes) {
+                            $intervalText = $syncIntervalMinutes >= 60 
+                                ? floor($syncIntervalMinutes / 60) . ' hours' 
+                                : $syncIntervalMinutes . ' minutes';
+                                
+                            return [
+                                'valid' => false,
+                                'message' => "Sync limit reached. Your current plan synchronizes once every {$intervalText}. Last sync: " . $store->last_sync_at->diffForHumans() . '. Please upgrade your plan for faster sync.',
+                                'code' => 'SYNC_THROTTLED',
+                                'status' => 429
+                            ];
+                        }
                     }
                 }
             }

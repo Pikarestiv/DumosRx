@@ -9,11 +9,11 @@ import { toast } from "sonner"
 
 export function ThemeToggle() {
   const { setTheme, theme } = useTheme()
-  const { canUseDarkMode } = useFeatureGate()
+  const { canUseDarkMode, getUpgradeMessage } = useFeatureGate()
 
   const handleSetTheme = (newTheme: "light" | "dark" | "system") => {
     if (newTheme !== "light" && !canUseDarkMode) {
-      toast.error("Dark Mode is a premium feature. Please upgrade your plan to access it.")
+      toast.error(getUpgradeMessage('dark_mode', "Dark Mode is a premium feature. Please upgrade your plan to access it."))
       return;
     }
     setTheme(newTheme)

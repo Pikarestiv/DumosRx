@@ -1,4 +1,4 @@
-import { Save, Edit2, Copy, Check } from "lucide-react";
+import { Save, Edit2, Copy, Check, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +15,7 @@ import { StoreType } from "@/lib/context/store-context";
 import { useState } from "react";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { toast } from "sonner";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface StoreInformationCardProps {
   storeType: StoreType;
@@ -91,7 +92,19 @@ export function StoreInformationCard({
           />
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="store-slug">Store URL Slug</Label>
+          <div className="flex items-center gap-2">
+            <Label htmlFor="store-slug">Store URL Slug</Label>
+            <TooltipProvider delayDuration={0}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Your unique web address where customers can browse your products online.</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
           {isEditingSlug ? (
             <div className="flex rounded-md shadow-sm">
               <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-input bg-muted text-muted-foreground text-sm">
@@ -165,7 +178,19 @@ export function StoreInformationCard({
             {setShowRetailSuggestions && (
               <div className="flex items-center justify-between rounded-lg border p-4 mt-4">
                 <div className="space-y-0.5">
-                  <Label className="text-base">Include Retail Items in Suggestions</Label>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-base">Include Retail Items in Suggestions</Label>
+                    <TooltipProvider delayDuration={0}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>When enabled, general retail products (like provisions) will appear alongside medicines in search suggestions during sales.</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
                   <p className="text-sm text-muted-foreground">
                     Show retail items (provisions, cosmetics, etc.) in product suggestions
                   </p>

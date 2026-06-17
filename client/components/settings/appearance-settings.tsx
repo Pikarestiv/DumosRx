@@ -52,7 +52,7 @@ export function AppearanceSettings({
   handleSaveRegional,
   isAdmin,
 }: AppearanceSettingsProps) {
-  const { canCustomizeTheme } = useFeatureGate();
+  const { canCustomizeTheme, canUseDarkMode } = useFeatureGate();
 
   const handleApplyTheme = (themeId: string) => {
     if (themeId !== "default" && !canCustomizeTheme) {
@@ -60,6 +60,14 @@ export function AppearanceSettings({
       return;
     }
     setAppTheme(themeId);
+  };
+
+  const handleSetTheme = (mode: Theme) => {
+    if (mode !== "light" && !canUseDarkMode) {
+      toast.error("Dark Mode is a premium feature available on the Starter plan and above.");
+      return;
+    }
+    setTheme(mode);
   };
 
   return (
@@ -76,7 +84,7 @@ export function AppearanceSettings({
             <Label>Theme Mode</Label>
             <div className="grid grid-cols-3 gap-4">
               <button
-                onClick={() => setTheme("light")}
+                onClick={() => handleSetTheme("light")}
                 className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all cursor-pointer ${
                   theme === "light"
                     ? "border-primary bg-primary/5"
@@ -88,7 +96,7 @@ export function AppearanceSettings({
               </button>
 
               <button
-                onClick={() => setTheme("dark")}
+                onClick={() => handleSetTheme("dark")}
                 className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all cursor-pointer ${
                   theme === "dark"
                     ? "border-primary bg-primary/5"
@@ -100,7 +108,7 @@ export function AppearanceSettings({
               </button>
 
               <button
-                onClick={() => setTheme("system")}
+                onClick={() => handleSetTheme("system")}
                 className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all cursor-pointer ${
                   theme === "system"
                     ? "border-primary bg-primary/5"

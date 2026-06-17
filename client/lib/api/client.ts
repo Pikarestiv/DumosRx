@@ -190,6 +190,12 @@ class ApiClient extends BaseApiClient {
     const response = await this.request<any>(`/system-configs/${key}`);
     return response.data;
   }
+
+  // Stores
+  async checkStoreSlug(slug: string, ignoreId?: string) {
+    const url = `/stores/check-slug?slug=${encodeURIComponent(slug)}${ignoreId ? `&ignore_id=${ignoreId}` : ''}`;
+    return this.request<{ available: boolean, slug: string }>(url);
+  }
 }
 
 export const apiClient = new ApiClient();

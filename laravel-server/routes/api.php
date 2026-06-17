@@ -102,6 +102,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/purchase-orders', [\App\Http\Controllers\Api\App\PurchaseOrderController::class, 'index']);
 
         Route::apiResource('staff', StaffController::class)->middleware(['permission:manage_staff', 'subscription']);
+        Route::get('stores/check-slug', [StoreController::class, 'checkSlug']);
         Route::apiResource('stores', StoreController::class);
 
         Route::prefix('subscription')->group(function () {

@@ -1,4 +1,4 @@
-import { Save } from "lucide-react";
+import { Save, Edit2, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +12,9 @@ import {
 } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { StoreType } from "@/lib/context/store-context";
+import { useState } from "react";
+import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
+import { toast } from "sonner";
 
 interface StoreInformationCardProps {
   storeType: StoreType;
@@ -50,6 +53,25 @@ export function StoreInformationCard({
   setShowRetailSuggestions,
   handleSaveProfile,
 }: StoreInformationCardProps) {
+  const { canUseEcommerce } = useFeatureGate();
+  const [isEditingSlug, setIsEditingSlug] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(`dumosrx.com/s/${localStoreSlug}`);
+    setCopied(true);
+    toast.success("Store link copied!");
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleEditClick = () => {
+    if (!canUseEcommerce) {
+      toast.error("Upgrade to a premium plan to customize your storefront URL.");
+      return;
+    }
+    setIsEditingSlug(true);
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -70,18 +92,32 @@ export function StoreInformationCard({
         </div>
         <div className="grid gap-2">
           <Label htmlFor="store-slug">Store URL Slug</Label>
-          <div className="flex rounded-md shadow-sm">
-            <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-input bg-muted text-muted-foreground text-sm">
-              dumosrx.com/store/
-            </span>
-            <Input
-              id="store-slug"
-              className="rounded-l-none"
-              placeholder="my-store"
-              value={localStoreSlug || ""}
-              onChange={(e) => setLocalStoreSlug?.(e.target.value)}
-            />
-          </div>
+          {isEditingSlug ? (
+            <div className="flex rounded-md shadow-sm">
+              <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-input bg-muted text-muted-foreground text-sm">
+                dumosrx.com/s/
+              </span>
+              <Input
+                id="store-slug"
+                className="rounded-l-none"
+                placeholder="my-store"
+                value={localStoreSlug || ""}
+                onChange={(e) => setLocalStoreSlug?.(e.target.value)}
+              />
+            </div>
+          ) : (
+            <div className="flex items-center justify-between border rounded-md px-3 py-2 bg-muted/30">
+              <span className="text-sm font-medium">dumosrx.com/s/{localStoreSlug}</span>
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleCopy} type="button">
+                  {copied ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
+                </Button>
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleEditClick} type="button">
+                  <Edit2 className="h-3 w-3" />
+                </Button>
+              </div>
+            </div>
+          )}
           <p className="text-[0.8rem] text-muted-foreground">
             This will be your unique public storefront link.
           </p>

@@ -15,6 +15,7 @@ import {
 } from "@/lib/db/core";
 import { sync } from "@/lib/db/sync-engine";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
+import { apiClient } from "@/lib/api/client";
 
 export function useSettings() {
   const { theme, setTheme } = useTheme();
@@ -164,13 +165,30 @@ export function useSettings() {
   };
 
   // Handlers
-  const handleSaveProfile = () => {
+  const handleSaveProfile = async () => {
+    // Check slug uniqueness if it changed
+    let finalSlug = localStoreSlug;
+    if (localStoreSlug && localStoreSlug !== storeProfile?.store_slug) {
+      try {
+        const result = await apiClient.checkStoreSlug(localStoreSlug, storeProfile?.id);
+        if (!result.available) {
+          toast.error("That Store URL Slug is already taken. Please choose another.");
+          return;
+        }
+        finalSlug = result.slug;
+        setLocalStoreSlug(result.slug);
+      } catch (err) {
+        toast.error("Failed to verify store URL. Please check your internet connection.");
+        return;
+      }
+    }
+
     updateStoreProfile({
       name: localName,
       address: localAddress,
       phone: localPhone,
       email: localEmail,
-      store_slug: localStoreSlug,
+      store_slug: finalSlug,
       pcn_license: localPcn,
       show_retail_suggestions: showRetailSuggestions ? 1 : 0,
       require_payment_account: requirePaymentAccount ? 1 : 0,

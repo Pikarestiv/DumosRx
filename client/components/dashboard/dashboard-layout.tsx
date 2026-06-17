@@ -189,7 +189,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         </header>
 
         {/* Page content */}
-        <div className="flex-1 relative overflow-hidden">
+        <div className="flex-1 relative overflow-x-clip">
           <AnimatePresence mode="wait" initial={false} custom={direction}>
             <motion.div
               key={currentIndex !== -1 ? currentIndex : pathname}

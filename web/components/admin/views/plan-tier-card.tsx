@@ -3,7 +3,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 
 interface PlanTierCardProps {
-  tierKey: "starter" | "pro" | "enterprise";
+  tierKey: "free" | "starter" | "pro" | "enterprise";
   title: string;
   config: any;
   setConfig: (config: any) => void;
@@ -67,26 +67,30 @@ export function PlanTierCard({
         />
       </div>
       <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label className={labelClass}>Price (₦) / Month</Label>
-          <Input
-            type="number"
-            className={inputClass}
-            value={tier.price_monthly}
-            onChange={(e) => updateTier({ price_monthly: Number(e.target.value) })}
-            disabled={!tier.active}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label className={labelClass}>Price (₦) / Year</Label>
-          <Input
-            type="number"
-            className={inputClass}
-            value={tier.price_yearly}
-            onChange={(e) => updateTier({ price_yearly: Number(e.target.value) })}
-            disabled={!tier.active}
-          />
-        </div>
+        {tierKey !== "free" && (
+          <>
+            <div className="space-y-2">
+              <Label className={labelClass}>Price (₦) / Month</Label>
+              <Input
+                type="number"
+                className={inputClass}
+                value={tier.price_monthly}
+                onChange={(e) => updateTier({ price_monthly: Number(e.target.value) })}
+                disabled={!tier.active}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className={labelClass}>Price (₦) / Year</Label>
+              <Input
+                type="number"
+                className={inputClass}
+                value={tier.price_yearly}
+                onChange={(e) => updateTier({ price_yearly: Number(e.target.value) })}
+                disabled={!tier.active}
+              />
+            </div>
+          </>
+        )}
         <div className={`space-y-2 pt-2 border-t col-span-2 ${dividerClass}`}>
           <Label className={labelClass}>Max Staff (-1 for ∞)</Label>
           <Input
@@ -129,12 +133,19 @@ export function PlanTierCard({
             { key: "mobile_app", label: "Mobile App" },
             { key: "ecommerce", label: "E-commerce URL" },
             { key: "smart_pos", label: "Smart POS" },
-            { key: "broadcast_create", label: "Broadcasting" },
+            { key: "broadcast_create", label: "Email Broadcasting" },
             { key: "custom_branding", label: "Custom Branding" },
             { key: "auto_backup", label: "Auto Backups" },
             { key: "multi_store", label: "Multi-Store Mgmt" },
             { key: "procurement", label: "Procurement" },
             { key: "prescriptions", label: "Prescriptions" },
+            { key: "expenses", label: "Expense Tracking" },
+            { key: "audit_mode", label: "Stock Audits" },
+            { key: "dark_mode", label: "Dark Mode" },
+            { key: "smart_suggestions", label: "Smart Suggestions" },
+            { key: "auto_lock", label: "Auto-Lock" },
+            { key: "barcode_generation", label: "Barcode Generation" },
+            { key: "loyalty_program", label: "Loyalty Program" },
           ].map((feat) => (
             <div key={feat.key} className="flex items-center justify-between">
               <Label className="text-xs text-muted-foreground">{feat.label}</Label>

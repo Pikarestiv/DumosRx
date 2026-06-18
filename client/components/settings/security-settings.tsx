@@ -7,7 +7,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -21,7 +20,6 @@ interface SecuritySettingsProps {
   newPin: string;
   setNewPin: (val: string) => void;
   confirmPin: string;
-  setConfirmPin: (val: string) => void;
   setConfirmPin: (val: string) => void;
   handleUpdateSecurity: () => Promise<boolean | void> | void;
 }
@@ -48,9 +46,7 @@ export function SecuritySettings({
     <Card>
       <CardHeader>
         <CardTitle>Security Settings</CardTitle>
-        <CardDescription>
-          Protect your account and session.
-        </CardDescription>
+        <CardDescription>Protect your account and session.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {!isEditingPin ? (
@@ -69,7 +65,11 @@ export function SecuritySettings({
           <div className="space-y-4 border rounded-lg p-4 bg-muted/30">
             <div className="flex items-center justify-between mb-2">
               <h3 className="font-semibold text-sm">Update Login PIN</h3>
-              <Button variant="ghost" size="sm" onClick={() => setIsEditingPin(false)}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsEditingPin(false)}
+              >
                 Cancel
               </Button>
             </div>
@@ -79,7 +79,9 @@ export function SecuritySettings({
                 type="password"
                 maxLength={4}
                 value={currentPin}
-                onChange={(e) => setCurrentPin(e.target.value.replace(/\D/g, ""))}
+                onChange={(e) =>
+                  setCurrentPin(e.target.value.replace(/\D/g, ""))
+                }
               />
             </div>
             <div className="grid gap-2">
@@ -97,7 +99,9 @@ export function SecuritySettings({
                 type="password"
                 maxLength={4}
                 value={confirmPin}
-                onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ""))}
+                onChange={(e) =>
+                  setConfirmPin(e.target.value.replace(/\D/g, ""))
+                }
               />
             </div>
             <div className="pt-2">

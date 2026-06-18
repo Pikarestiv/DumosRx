@@ -14,7 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Lock, User, Loader2, ArrowLeft, RefreshCw } from "lucide-react";
+import { Lock, User, Loader2, ArrowLeft } from "lucide-react";
 import { APP_VERSION } from "@/lib/constants";
 import { toast } from "sonner";
 import { motion } from "framer-motion";

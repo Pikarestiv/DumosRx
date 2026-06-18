@@ -1,7 +1,5 @@
 "use client";
 
-import { RefreshCw, Download, Info } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
   Card,
@@ -14,11 +12,9 @@ import { Separator } from "@/components/ui/separator";
 import { APP_NAME, APP_VERSION } from "@/lib/constants";
 import { isTauri } from "@/lib/db/core";
 
-interface SystemSettingsProps {
-}
+interface SystemSettingsProps {}
 
-export function SystemSettings({
-}: SystemSettingsProps) {
+export function SystemSettings({}: SystemSettingsProps) {
   return (
     <div className="space-y-6">
       <Card>
@@ -67,19 +63,16 @@ export function SystemSettings({
       <Card>
         <CardHeader>
           <CardTitle>About {APP_NAME}</CardTitle>
-          <CardDescription>
-            Software information and licensing
-          </CardDescription>
+          <CardDescription>Software information and licensing</CardDescription>
         </CardHeader>
         <CardContent className="text-sm text-muted-foreground">
           <p>
             DumosRx is a professional retail and store management system
-            designed to streamline operations, track inventory, and
-            manage sales with ease.
+            designed to streamline operations, track inventory, and manage sales
+            with ease.
           </p>
           <p className="mt-4">
-            © 2019 - {new Date().getFullYear()} {APP_NAME}. All rights
-            reserved.
+            © 2019 - {new Date().getFullYear()} {APP_NAME}. All rights reserved.
           </p>
         </CardContent>
       </Card>

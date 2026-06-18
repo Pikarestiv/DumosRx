@@ -8,6 +8,7 @@ interface ReceiptProps {
   transaction: {
     id: string;
     date: string;
+    cashier?: string;
     items: any[];
     customer: any;
     subtotal: number;
@@ -69,6 +70,12 @@ export function ReceiptView({ transaction }: ReceiptProps) {
           <span className="font-bold">Date:</span>
           <span>{new Date(transaction.date).toLocaleString("en-GB")}</span>
         </div>
+        {transaction.cashier && (
+          <div className="flex justify-between">
+            <span className="font-bold">Cashier:</span>
+            <span className="uppercase">{transaction.cashier}</span>
+          </div>
+        )}
       </div>
 
       {/* Items Table */}

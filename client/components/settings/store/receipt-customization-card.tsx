@@ -105,7 +105,7 @@ export function ReceiptCustomizationCard({
 
             <div className="grid gap-2">
               <div className="flex items-center gap-2">
-                <Label htmlFor="receipt-header">Receipt Header (Optional)</Label>
+                <Label htmlFor="receipt-header">Footer Message 1 (Optional)</Label>
                 <TooltipProvider delayDuration={0}>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -126,7 +126,7 @@ export function ReceiptCustomizationCard({
             </div>
             <div className="grid gap-2">
               <div className="flex items-center gap-2">
-                <Label htmlFor="receipt-footer">Receipt Footer</Label>
+                <Label htmlFor="receipt-footer">Footer Message 2</Label>
                 <TooltipProvider delayDuration={0}>
                   <Tooltip>
                     <TooltipTrigger asChild>

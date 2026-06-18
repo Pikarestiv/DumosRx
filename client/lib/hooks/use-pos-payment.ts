@@ -173,6 +173,7 @@ export function usePOSPayment({
         id: saleId,
         date: new Date().toISOString(),
         customer: selectedCustomer,
+        cashier: user?.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : (user?.username || "Cashier"),
         items: [...cart],
         subtotal,
         tax,

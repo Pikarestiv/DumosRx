@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { useSystemConfig, useUpdateSystemConfigMutation } from "@/lib/api/hooks";
 import { useEffect } from "react";
+import { PlanTierCard } from "./plan-tier-card";
 
 export function SubscriptionConfigTab() {
 
@@ -155,274 +156,27 @@ export function SubscriptionConfigTab() {
         <CardContent className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             
-            {/* Starter */}
-            <div className="p-4 border rounded-xl bg-slate-50 dark:bg-slate-900/50 space-y-4">
-              <div className="flex items-center justify-between">
-                <Label className="font-bold text-base">Starter Plan</Label>
-                <Switch 
-                  checked={config.tiers.starter.active} 
-                  onCheckedChange={(c) => setConfig({ ...config, tiers: { ...config.tiers, starter: { ...config.tiers.starter, active: c } } })}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">Price (₦) / Month</Label>
-                  <Input 
-                    type="number" 
-                    value={config.tiers.starter.price_monthly} 
-                    onChange={(e) => setConfig({ ...config, tiers: { ...config.tiers, starter: { ...config.tiers.starter, price_monthly: Number(e.target.value) } } })}
-                    disabled={!config.tiers.starter.active}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">Price (₦) / Year</Label>
-                  <Input 
-                    type="number" 
-                    value={config.tiers.starter.price_yearly} 
-                    onChange={(e) => setConfig({ ...config, tiers: { ...config.tiers, starter: { ...config.tiers.starter, price_yearly: Number(e.target.value) } } })}
-                    disabled={!config.tiers.starter.active}
-                  />
-                </div>
-                <div className="space-y-2 pt-2 border-t col-span-2">
-                  <Label className="text-xs text-muted-foreground">Max Staff (-1 for ∞)</Label>
-                  <Input 
-                    type="number" 
-                    value={config.tiers.starter.limits.staff} 
-                    onChange={(e) => setConfig({ ...config, tiers: { ...config.tiers, starter: { ...config.tiers.starter, limits: { ...config.tiers.starter.limits, staff: Number(e.target.value) } } } })}
-                    disabled={!config.tiers.starter.active}
-                  />
-                </div>
-                <div className="space-y-2 pt-2 border-t ">
-                  <Label className="text-xs text-muted-foreground">Max Stores (-1 for ∞)</Label>
-                  <Input 
-                    type="number" 
-                    value={config.tiers.starter.limits.stores} 
-                    onChange={(e) => setConfig({ ...config, tiers: { ...config.tiers, starter: { ...config.tiers.starter, limits: { ...config.tiers.starter.limits, stores: Number(e.target.value) } } } })}
-                    disabled={!config.tiers.starter.active}
-                  />
-                </div>
-                {/* Limits continued */}
-                <div className="space-y-2 pt-2 border-t col-span-2">
-                  <Label className="text-xs text-muted-foreground">Sync Interval (Mins)</Label>
-                  <Input 
-                    type="number" 
-                    value={config.tiers.starter.limits.sync_interval} 
-                    onChange={(e) => setConfig({ ...config, tiers: { ...config.tiers, starter: { ...config.tiers.starter, limits: { ...config.tiers.starter.limits, sync_interval: Number(e.target.value) } } } })}
-                    disabled={!config.tiers.starter.active}
-                  />
-                </div>
+            <PlanTierCard
+              tierKey="starter"
+              title="Starter Plan"
+              config={config}
+              setConfig={setConfig}
+            />
 
-                {/* Feature Toggles */}
-                <div className="col-span-2 space-y-3 pt-3 border-t ">
-                  <Label className="text-xs text-muted-foreground block mb-2 font-bold">Feature Gates</Label>
-                  
-                  {[
-                    { key: 'cloud_sync', label: 'Cloud Sync' },
-                    { key: 'web_dashboard', label: 'Web Dashboard' },
-                    { key: 'mobile_app', label: 'Mobile App' },
-                    { key: 'ecommerce', label: 'E-commerce URL' },
-                    { key: 'smart_pos', label: 'Smart POS' },
-                    { key: 'broadcast_create', label: 'Broadcasting' },
-                    { key: 'custom_branding', label: 'Custom Branding' },
-                    { key: 'auto_backup', label: 'Auto Backups' },
-                    { key: 'multi_store', label: 'Multi-Store Mgmt' },
-                    { key: 'procurement', label: 'Procurement' },
-                    { key: 'prescriptions', label: 'Prescriptions' },
-                  ].map((feat) => (
-                    <div key={feat.key} className="flex items-center justify-between">
-                      <Label className="text-xs text-muted-foreground">{feat.label}</Label>
-                      <Switch 
-                        checked={config.tiers.starter.features[feat.key as keyof typeof config.tiers.starter.features]} 
-                        onCheckedChange={(c) => setConfig({ ...config, tiers: { ...config.tiers, starter: { ...config.tiers.starter, features: { ...config.tiers.starter.features, [feat.key]: c } } } })}
-                        disabled={!config.tiers.starter.active}
-                        className="scale-75 origin-right"
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+            <PlanTierCard
+              tierKey="pro"
+              title="Dumos Pro"
+              config={config}
+              setConfig={setConfig}
+              isFeatured={true}
+            />
 
-            {/* Dumos Pro */}
-            <div className="p-4 border rounded-xl bg-indigo-50/50 border-indigo-100 dark:bg-indigo-900/10 dark:border-indigo-900/30 space-y-4">
-              <div className="flex items-center justify-between">
-                <Label className="font-bold text-base text-indigo-700 dark:text-indigo-400">Dumos Pro</Label>
-                <Switch 
-                  checked={config.tiers.pro.active} 
-                  onCheckedChange={(c) => setConfig({ ...config, tiers: { ...config.tiers, pro: { ...config.tiers.pro, active: c } } })}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-xs text-indigo-600/70 dark:text-indigo-400/70">Price (₦) / Month</Label>
-                  <Input 
-                    type="number" 
-                    className="border-indigo-200 dark:border-indigo-800 focus-visible:ring-indigo-500"
-                    value={config.tiers.pro.price_monthly} 
-                    onChange={(e) => setConfig({ ...config, tiers: { ...config.tiers, pro: { ...config.tiers.pro, price_monthly: Number(e.target.value) } } })}
-                    disabled={!config.tiers.pro.active}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs text-indigo-600/70 dark:text-indigo-400/70">Price (₦) / Year</Label>
-                  <Input 
-                    type="number" 
-                    className="border-indigo-200 dark:border-indigo-800 focus-visible:ring-indigo-500"
-                    value={config.tiers.pro.price_yearly} 
-                    onChange={(e) => setConfig({ ...config, tiers: { ...config.tiers, pro: { ...config.tiers.pro, price_yearly: Number(e.target.value) } } })}
-                    disabled={!config.tiers.pro.active}
-                  />
-                </div>
-                <div className="space-y-2 pt-2 border-t border-indigo-200/50 dark:border-indigo-800/50 col-span-2">
-                  <Label className="text-xs text-indigo-600/70 dark:text-indigo-400/70">Max Staff (-1 for ∞)</Label>
-                  <Input 
-                    type="number" 
-                    className="border-indigo-200 dark:border-indigo-800 focus-visible:ring-indigo-500"
-                    value={config.tiers.pro.limits.staff} 
-                    onChange={(e) => setConfig({ ...config, tiers: { ...config.tiers, pro: { ...config.tiers.pro, limits: { ...config.tiers.pro.limits, staff: Number(e.target.value) } } } })}
-                    disabled={!config.tiers.pro.active}
-                  />
-                </div>
-                <div className="space-y-2 pt-2 border-t border-indigo-200/50 dark:border-indigo-800/50 ">
-                  <Label className="text-xs text-indigo-600/70 dark:text-indigo-400/70">Max Stores (-1 for ∞)</Label>
-                  <Input 
-                    type="number" 
-                    className="border-indigo-200 dark:border-indigo-800 focus-visible:ring-indigo-500"
-                    value={config.tiers.pro.limits.stores} 
-                    onChange={(e) => setConfig({ ...config, tiers: { ...config.tiers, pro: { ...config.tiers.pro, limits: { ...config.tiers.pro.limits, stores: Number(e.target.value) } } } })}
-                    disabled={!config.tiers.pro.active}
-                  />
-                </div>
-                {/* Limits continued */}
-                <div className="space-y-2 pt-2 border-t border-indigo-200/50 dark:border-indigo-800/50 col-span-2">
-                  <Label className="text-xs text-indigo-600/70 dark:text-indigo-400/70">Sync Interval (Mins)</Label>
-                  <Input 
-                    type="number" 
-                    className="border-indigo-200 dark:border-indigo-800 focus-visible:ring-indigo-500"
-                    value={config.tiers.pro.limits.sync_interval} 
-                    onChange={(e) => setConfig({ ...config, tiers: { ...config.tiers, pro: { ...config.tiers.pro, limits: { ...config.tiers.pro.limits, sync_interval: Number(e.target.value) } } } })}
-                    disabled={!config.tiers.pro.active}
-                  />
-                </div>
-
-                {/* Feature Toggles */}
-                <div className="col-span-2 space-y-3 pt-3 border-t border-indigo-200/50 dark:border-indigo-800/50">
-                  <Label className="text-xs text-indigo-600/70 dark:text-indigo-400/70 block mb-2 font-bold">Feature Gates</Label>
-                  
-                  {[
-                    { key: 'cloud_sync', label: 'Cloud Sync' },
-                    { key: 'web_dashboard', label: 'Web Dashboard' },
-                    { key: 'mobile_app', label: 'Mobile App' },
-                    { key: 'ecommerce', label: 'E-commerce URL' },
-                    { key: 'smart_pos', label: 'Smart POS' },
-                    { key: 'broadcast_create', label: 'Broadcasting' },
-                    { key: 'custom_branding', label: 'Custom Branding' },
-                    { key: 'auto_backup', label: 'Auto Backups' },
-                    { key: 'multi_store', label: 'Multi-Store Mgmt' },
-                    { key: 'procurement', label: 'Procurement' },
-                    { key: 'prescriptions', label: 'Prescriptions' },
-                  ].map((feat) => (
-                    <div key={feat.key} className="flex items-center justify-between">
-                      <Label className="text-xs text-muted-foreground">{feat.label}</Label>
-                      <Switch 
-                        checked={config.tiers.pro.features[feat.key as keyof typeof config.tiers.pro.features]} 
-                        onCheckedChange={(c) => setConfig({ ...config, tiers: { ...config.tiers, pro: { ...config.tiers.pro, features: { ...config.tiers.pro.features, [feat.key]: c } } } })}
-                        disabled={!config.tiers.pro.active}
-                        className="scale-75 origin-right"
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Enterprise */}
-            <div className="p-4 border rounded-xl bg-slate-50 dark:bg-slate-900/50 space-y-4">
-              <div className="flex items-center justify-between">
-                <Label className="font-bold text-base">Enterprise</Label>
-                <Switch 
-                  checked={config.tiers.enterprise.active} 
-                  onCheckedChange={(c) => setConfig({ ...config, tiers: { ...config.tiers, enterprise: { ...config.tiers.enterprise, active: c } } })}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">Price (₦) / Month</Label>
-                  <Input 
-                    type="number" 
-                    value={config.tiers.enterprise.price_monthly} 
-                    onChange={(e) => setConfig({ ...config, tiers: { ...config.tiers, enterprise: { ...config.tiers.enterprise, price_monthly: Number(e.target.value) } } })}
-                    disabled={!config.tiers.enterprise.active}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">Price (₦) / Year</Label>
-                  <Input 
-                    type="number" 
-                    value={config.tiers.enterprise.price_yearly} 
-                    onChange={(e) => setConfig({ ...config, tiers: { ...config.tiers, enterprise: { ...config.tiers.enterprise, price_yearly: Number(e.target.value) } } })}
-                    disabled={!config.tiers.enterprise.active}
-                  />
-                </div>
-                <div className="space-y-2 pt-2 border-t col-span-2">
-                  <Label className="text-xs text-muted-foreground">Max Staff (-1 for ∞)</Label>
-                  <Input 
-                    type="number" 
-                    value={config.tiers.enterprise.limits.staff} 
-                    onChange={(e) => setConfig({ ...config, tiers: { ...config.tiers, enterprise: { ...config.tiers.enterprise, limits: { ...config.tiers.enterprise.limits, staff: Number(e.target.value) } } } })}
-                    disabled={!config.tiers.enterprise.active}
-                  />
-                </div>
-                <div className="space-y-2 pt-2 border-t ">
-                  <Label className="text-xs text-muted-foreground">Max Stores (-1 for ∞)</Label>
-                  <Input 
-                    type="number" 
-                    value={config.tiers.enterprise.limits.stores} 
-                    onChange={(e) => setConfig({ ...config, tiers: { ...config.tiers, enterprise: { ...config.tiers.enterprise, limits: { ...config.tiers.enterprise.limits, stores: Number(e.target.value) } } } })}
-                    disabled={!config.tiers.enterprise.active}
-                  />
-                </div>
-                {/* Limits continued */}
-                <div className="space-y-2 pt-2 border-t col-span-2">
-                  <Label className="text-xs text-muted-foreground">Sync Interval (Mins)</Label>
-                  <Input 
-                    type="number" 
-                    value={config.tiers.enterprise.limits.sync_interval} 
-                    onChange={(e) => setConfig({ ...config, tiers: { ...config.tiers, enterprise: { ...config.tiers.enterprise, limits: { ...config.tiers.enterprise.limits, sync_interval: Number(e.target.value) } } } })}
-                    disabled={!config.tiers.enterprise.active}
-                  />
-                </div>
-
-                {/* Feature Toggles */}
-                <div className="col-span-2 space-y-3 pt-3 border-t ">
-                  <Label className="text-xs text-muted-foreground block mb-2 font-bold">Feature Gates</Label>
-                  
-                  {[
-                    { key: 'cloud_sync', label: 'Cloud Sync' },
-                    { key: 'web_dashboard', label: 'Web Dashboard' },
-                    { key: 'mobile_app', label: 'Mobile App' },
-                    { key: 'ecommerce', label: 'E-commerce URL' },
-                    { key: 'smart_pos', label: 'Smart POS' },
-                    { key: 'broadcast_create', label: 'Broadcasting' },
-                    { key: 'custom_branding', label: 'Custom Branding' },
-                    { key: 'auto_backup', label: 'Auto Backups' },
-                    { key: 'multi_store', label: 'Multi-Store Mgmt' },
-                    { key: 'procurement', label: 'Procurement' },
-                    { key: 'prescriptions', label: 'Prescriptions' },
-                  ].map((feat) => (
-                    <div key={feat.key} className="flex items-center justify-between">
-                      <Label className="text-xs text-muted-foreground">{feat.label}</Label>
-                      <Switch 
-                        checked={config.tiers.enterprise.features[feat.key as keyof typeof config.tiers.enterprise.features]} 
-                        onCheckedChange={(c) => setConfig({ ...config, tiers: { ...config.tiers, enterprise: { ...config.tiers.enterprise, features: { ...config.tiers.enterprise.features, [feat.key]: c } } } })}
-                        disabled={!config.tiers.enterprise.active}
-                        className="scale-75 origin-right"
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+            <PlanTierCard
+              tierKey="enterprise"
+              title="Enterprise"
+              config={config}
+              setConfig={setConfig}
+            />
 
           </div>
 

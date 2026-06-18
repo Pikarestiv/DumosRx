@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Database, CloudOff, Save, Upload } from "lucide-react";
+import { Database, CloudOff, Save, Upload, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -24,6 +24,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { QuickBooksImportDialog } from "./quickbooks-import-dialog";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface DataSettingsProps {
   isCloudLinked: boolean;
@@ -52,7 +53,7 @@ export function DataSettings({
   setAutoSyncInterval,
   handleSaveAutoSyncSettings,
 }: DataSettingsProps) {
-  const { canCloudSync, minimumSyncIntervalMinutes } = useFeatureGate();
+  const { canCloudSync, minimumSyncIntervalMinutes, getUpgradeMessage } = useFeatureGate();
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showQBImport, setShowQBImport] = useState(false);
   const [iifContent, setIifContent] = useState<string | null>(null);
@@ -86,9 +87,8 @@ export function DataSettings({
               <div className="space-y-1">
                 <p className="font-medium text-sm">Cloud Sync is Disabled</p>
                 <p className="text-sm">
-                  Your current "Dumos Local" plan does not support cloud backups
-                  or multi-device sync. Upgrade to Dumos Pro to protect your
-                  data in the cloud.
+                  Your current plan does not support cloud backups
+                  or multi-device sync. {getUpgradeMessage('cloud_sync', "Upgrade your plan to protect your data in the cloud.")}
                 </p>
               </div>
             </div>
@@ -152,7 +152,19 @@ export function DataSettings({
             <div className="space-y-4 border rounded-lg p-4 bg-card">
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <Label className="text-base">Auto-Sync Changes</Label>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-base">Auto-Sync Changes</Label>
+                    <TooltipProvider delayDuration={0}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Automatically pushes your local sales and data to the cloud, and pulls any new changes made by other devices.</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
                   <p className="text-sm text-muted-foreground">
                     Automatically push and pull data when online.
                   </p>
@@ -165,7 +177,19 @@ export function DataSettings({
               </div>
               {autoSyncEnabled && (
                 <div className="flex items-center justify-between pt-2">
-                  <Label>Sync Interval</Label>
+                  <div className="flex items-center gap-2">
+                    <Label>Sync Interval</Label>
+                    <TooltipProvider delayDuration={0}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>How often (in minutes) the app should attempt to sync data with the cloud in the background.</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
                   <Select
                     value={autoSyncInterval}
                     onValueChange={setAutoSyncInterval}

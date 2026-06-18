@@ -1,4 +1,4 @@
-import { Save } from "lucide-react";
+import { Save, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface PaymentSettingsCardProps {
   requirePaymentAccount: boolean;
@@ -53,7 +54,19 @@ export function PaymentSettingsCard({
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="space-y-4">
-          <Label className="text-base font-semibold">Enabled Payment Methods</Label>
+          <div className="flex items-center gap-2">
+            <Label className="text-base font-semibold">Enabled Payment Methods</Label>
+            <TooltipProvider delayDuration={0}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Toggle which payment methods appear as options on the POS checkout screen.</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border rounded-lg p-4">
             {PAYMENT_METHODS.map((method) => (
               <div key={method.id} className="flex items-center space-x-2">
@@ -75,7 +88,19 @@ export function PaymentSettingsCard({
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between rounded-lg border p-4 gap-4">
           <div className="space-y-0.5">
-            <Label className="text-base">Require Payment Destination Account</Label>
+            <div className="flex items-center gap-2">
+              <Label className="text-base">Require Payment Destination Account</Label>
+              <TooltipProvider delayDuration={0}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>When enabled, cashiers must specify exactly which bank account or till the money was paid into during checkout.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
             <p className="text-sm text-muted-foreground">
               Force cashiers to select which bank/terminal received Transfers or Card payments.
             </p>

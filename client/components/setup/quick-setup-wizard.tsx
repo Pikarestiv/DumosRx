@@ -67,6 +67,7 @@ export function QuickSetupWizard() {
       location,
       address,
       phone,
+      store_slug: storeName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)+/g, "") + "-" + Math.random().toString(36).substring(2, 6),
       show_retail_suggestions: showRetailSuggestions ? 1 : 0,
       is_initialized: 1,
       updated_at: new Date().toISOString(),

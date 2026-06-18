@@ -85,12 +85,17 @@ export function DashboardActionCenter({
 
       if (storeProfile) {
         const fieldsToCheck = [
+          "name",
           "address",
           "phone",
           "email",
-          "pcn_license",
           "logo_url",
         ];
+        
+        if (storeProfile.store_type === "pharmacy") {
+          fieldsToCheck.push("pcn_license");
+        }
+
         const filledFields = fieldsToCheck.filter(
           (field) => !!(storeProfile as any)[field],
         );

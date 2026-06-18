@@ -4,18 +4,35 @@
 
 import initSqlJs, { Database, SqlJsStatic } from "sql.js";
 import { APP_NAME } from "@/lib/constants";
+/* eslint-disable max-lines */
 import { SCHEMA_SQL } from "./schema";
 
 let SQL: SqlJsStatic | null = null;
 let db: any = null;
-let currentUser: { id: string; first_name: string; last_name: string; role: string } | null = null;
+let currentUser: {
+  id: string;
+  first_name: string;
+  last_name: string;
+  role: string;
+} | null = null;
 
-export function setCurrentUser(user: { id: string; first_name: string; last_name: string; role: string } | null) {
+export function setCurrentUser(
+  user: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    role: string;
+  } | null,
+) {
   currentUser = user;
 }
 
 export function isTauri(): boolean {
-  return typeof window !== "undefined" && ((window as any).__TAURI__ !== undefined || (window as any).__TAURI_INTERNALS__ !== undefined);
+  return (
+    typeof window !== "undefined" &&
+    ((window as any).__TAURI__ !== undefined ||
+      (window as any).__TAURI_INTERNALS__ !== undefined)
+  );
 }
 
 export function generateId(): string {
@@ -31,28 +48,243 @@ export async function initDatabase(): Promise<any> {
 
   // ---- Migration: ensure sync tracking and missing columns exist ----
   const syncColumns = [
-    { table: 'medicines', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
-    { table: 'inventory', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
-    { table: 'categories', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
-    { table: 'customers', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
-    { table: 'vendors', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0', 'contact_person TEXT', 'email TEXT', 'phone TEXT', 'address TEXT', 'tax_id TEXT', 'payment_terms TEXT', 'rating REAL DEFAULT 0', 'is_active INTEGER DEFAULT 1', 'deleted_at TEXT'] },
-    { table: 'sales', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0', 'amount_paid REAL DEFAULT 0', 'change_given REAL DEFAULT 0', 'tax_percentage REAL DEFAULT 0', 'discount_percentage REAL DEFAULT 0', 'points_earned REAL DEFAULT 0', 'points_redeemed REAL DEFAULT 0', 'cashier_id TEXT', 'payment_details TEXT'] },
-    { table: 'sale_items', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
-    { table: 'prescriptions', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
-    { table: 'expenses', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
-    { table: 'users', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0', 'store_id TEXT', 'first_name TEXT', 'last_name TEXT'] },
-    { table: 'audit_logs', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
-    { table: 'returns', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
-    { table: 'purchase_orders', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0', 'ordered_by TEXT', 'order_date TEXT', 'order_number TEXT'] },
-    { table: 'purchase_order_items', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
-    { table: 'suppliers', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0', 'contact_person TEXT', 'email TEXT', 'phone TEXT', 'address TEXT', 'payment_terms TEXT', 'is_active INTEGER DEFAULT 1'] },
-    { table: 'stock_audits', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
-    { table: 'held_transactions', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
-    { table: 'loyalty_transactions', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
-    { table: 'store_profile', columns: ['location TEXT', 'created_at TEXT', 'pcn_license TEXT', 'receipt_header TEXT', 'receipt_footer TEXT', 'show_logo_on_receipt INTEGER DEFAULT 1', 'show_contact_on_receipt INTEGER DEFAULT 1', 'low_stock_warning INTEGER DEFAULT 1', 'expiry_warning INTEGER DEFAULT 1', 'expiry_warning_days INTEGER DEFAULT 90', '_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0', 'auto_sync_enabled INTEGER DEFAULT 1', 'auto_sync_interval INTEGER DEFAULT 30', 'status TEXT DEFAULT \'Active\'', 'suspension_reason TEXT', 'show_retail_suggestions INTEGER DEFAULT 0', 'require_payment_account INTEGER DEFAULT 0', 'enabled_payment_methods TEXT DEFAULT \'["cash","card","transfer","credit","mixed"]\''] },
-    { table: 'feedback', columns: ['updated_at TEXT', '_version INTEGER DEFAULT 1', '_deleted INTEGER DEFAULT 0', '_synced INTEGER DEFAULT 0', '_synced_at TEXT'] },
-    { table: 'stock_movements', columns: ['_version INTEGER DEFAULT 1', '_synced INTEGER DEFAULT 0', '_synced_at TEXT', '_deleted INTEGER DEFAULT 0'] },
-    { table: 'payment_accounts', columns: ['user_id TEXT', 'store_id TEXT'] },
+    {
+      table: "medicines",
+      columns: [
+        "_version INTEGER DEFAULT 1",
+        "_synced INTEGER DEFAULT 0",
+        "_synced_at TEXT",
+        "_deleted INTEGER DEFAULT 0",
+      ],
+    },
+    {
+      table: "inventory",
+      columns: [
+        "_version INTEGER DEFAULT 1",
+        "_synced INTEGER DEFAULT 0",
+        "_synced_at TEXT",
+        "_deleted INTEGER DEFAULT 0",
+      ],
+    },
+    {
+      table: "categories",
+      columns: [
+        "_version INTEGER DEFAULT 1",
+        "_synced INTEGER DEFAULT 0",
+        "_synced_at TEXT",
+        "_deleted INTEGER DEFAULT 0",
+      ],
+    },
+    {
+      table: "customers",
+      columns: [
+        "_version INTEGER DEFAULT 1",
+        "_synced INTEGER DEFAULT 0",
+        "_synced_at TEXT",
+        "_deleted INTEGER DEFAULT 0",
+      ],
+    },
+    {
+      table: "vendors",
+      columns: [
+        "_version INTEGER DEFAULT 1",
+        "_synced INTEGER DEFAULT 0",
+        "_synced_at TEXT",
+        "_deleted INTEGER DEFAULT 0",
+        "contact_person TEXT",
+        "email TEXT",
+        "phone TEXT",
+        "address TEXT",
+        "tax_id TEXT",
+        "payment_terms TEXT",
+        "rating REAL DEFAULT 0",
+        "is_active INTEGER DEFAULT 1",
+        "deleted_at TEXT",
+      ],
+    },
+    {
+      table: "sales",
+      columns: [
+        "_version INTEGER DEFAULT 1",
+        "_synced INTEGER DEFAULT 0",
+        "_synced_at TEXT",
+        "_deleted INTEGER DEFAULT 0",
+        "amount_paid REAL DEFAULT 0",
+        "change_given REAL DEFAULT 0",
+        "tax_percentage REAL DEFAULT 0",
+        "discount_percentage REAL DEFAULT 0",
+        "points_earned REAL DEFAULT 0",
+        "points_redeemed REAL DEFAULT 0",
+        "cashier_id TEXT",
+        "payment_details TEXT",
+      ],
+    },
+    {
+      table: "sale_items",
+      columns: [
+        "_version INTEGER DEFAULT 1",
+        "_synced INTEGER DEFAULT 0",
+        "_synced_at TEXT",
+        "_deleted INTEGER DEFAULT 0",
+      ],
+    },
+    {
+      table: "prescriptions",
+      columns: [
+        "_version INTEGER DEFAULT 1",
+        "_synced INTEGER DEFAULT 0",
+        "_synced_at TEXT",
+        "_deleted INTEGER DEFAULT 0",
+      ],
+    },
+    {
+      table: "expenses",
+      columns: [
+        "_version INTEGER DEFAULT 1",
+        "_synced INTEGER DEFAULT 0",
+        "_synced_at TEXT",
+        "_deleted INTEGER DEFAULT 0",
+      ],
+    },
+    {
+      table: "users",
+      columns: [
+        "_version INTEGER DEFAULT 1",
+        "_synced INTEGER DEFAULT 0",
+        "_synced_at TEXT",
+        "_deleted INTEGER DEFAULT 0",
+        "store_id TEXT",
+        "first_name TEXT",
+        "last_name TEXT",
+      ],
+    },
+    {
+      table: "audit_logs",
+      columns: [
+        "_version INTEGER DEFAULT 1",
+        "_synced INTEGER DEFAULT 0",
+        "_synced_at TEXT",
+        "_deleted INTEGER DEFAULT 0",
+      ],
+    },
+    {
+      table: "returns",
+      columns: [
+        "_version INTEGER DEFAULT 1",
+        "_synced INTEGER DEFAULT 0",
+        "_synced_at TEXT",
+        "_deleted INTEGER DEFAULT 0",
+      ],
+    },
+    {
+      table: "purchase_orders",
+      columns: [
+        "_version INTEGER DEFAULT 1",
+        "_synced INTEGER DEFAULT 0",
+        "_synced_at TEXT",
+        "_deleted INTEGER DEFAULT 0",
+        "ordered_by TEXT",
+        "order_date TEXT",
+        "order_number TEXT",
+      ],
+    },
+    {
+      table: "purchase_order_items",
+      columns: [
+        "_version INTEGER DEFAULT 1",
+        "_synced INTEGER DEFAULT 0",
+        "_synced_at TEXT",
+        "_deleted INTEGER DEFAULT 0",
+      ],
+    },
+    {
+      table: "suppliers",
+      columns: [
+        "_version INTEGER DEFAULT 1",
+        "_synced INTEGER DEFAULT 0",
+        "_synced_at TEXT",
+        "_deleted INTEGER DEFAULT 0",
+        "contact_person TEXT",
+        "email TEXT",
+        "phone TEXT",
+        "address TEXT",
+        "payment_terms TEXT",
+        "is_active INTEGER DEFAULT 1",
+      ],
+    },
+    {
+      table: "stock_audits",
+      columns: [
+        "_version INTEGER DEFAULT 1",
+        "_synced INTEGER DEFAULT 0",
+        "_synced_at TEXT",
+        "_deleted INTEGER DEFAULT 0",
+      ],
+    },
+    {
+      table: "held_transactions",
+      columns: [
+        "_version INTEGER DEFAULT 1",
+        "_synced INTEGER DEFAULT 0",
+        "_synced_at TEXT",
+        "_deleted INTEGER DEFAULT 0",
+      ],
+    },
+    {
+      table: "loyalty_transactions",
+      columns: [
+        "_version INTEGER DEFAULT 1",
+        "_synced INTEGER DEFAULT 0",
+        "_synced_at TEXT",
+        "_deleted INTEGER DEFAULT 0",
+      ],
+    },
+    {
+      table: "store_profile",
+      columns: [
+        "location TEXT",
+        "created_at TEXT",
+        "pcn_license TEXT",
+        "receipt_header TEXT",
+        "receipt_footer TEXT",
+        "show_logo_on_receipt INTEGER DEFAULT 1",
+        "show_contact_on_receipt INTEGER DEFAULT 1",
+        "low_stock_warning INTEGER DEFAULT 1",
+        "expiry_warning INTEGER DEFAULT 1",
+        "expiry_warning_days INTEGER DEFAULT 90",
+        "_version INTEGER DEFAULT 1",
+        "_synced INTEGER DEFAULT 0",
+        "_synced_at TEXT",
+        "_deleted INTEGER DEFAULT 0",
+        "auto_sync_enabled INTEGER DEFAULT 1",
+        "auto_sync_interval INTEGER DEFAULT 30",
+        "status TEXT DEFAULT 'Active'",
+        "suspension_reason TEXT",
+        "show_retail_suggestions INTEGER DEFAULT 0",
+        "require_payment_account INTEGER DEFAULT 0",
+        'enabled_payment_methods TEXT DEFAULT \'["cash","card","transfer","credit","mixed"]\'',
+      ],
+    },
+    {
+      table: "feedback",
+      columns: [
+        "updated_at TEXT",
+        "_version INTEGER DEFAULT 1",
+        "_deleted INTEGER DEFAULT 0",
+        "_synced INTEGER DEFAULT 0",
+        "_synced_at TEXT",
+      ],
+    },
+    {
+      table: "stock_movements",
+      columns: [
+        "_version INTEGER DEFAULT 1",
+        "_synced INTEGER DEFAULT 0",
+        "_synced_at TEXT",
+        "_deleted INTEGER DEFAULT 0",
+      ],
+    },
+    { table: "payment_accounts", columns: ["user_id TEXT", "store_id TEXT"] },
   ];
 
   if (isTauri()) {
@@ -62,7 +294,7 @@ export async function initDatabase(): Promise<any> {
 
       db = await Database.load("sqlite:dumosrx.db");
 
-      const statements = SCHEMA_SQL.split(';').filter(s => s.trim());
+      const statements = SCHEMA_SQL.split(";").filter((s) => s.trim());
       for (const statement of statements) {
         await db.execute(statement);
       }
@@ -224,10 +456,25 @@ export async function resetDatabase(): Promise<void> {
   if (!db) await initDatabase();
 
   const tablesToClear = [
-    'medicines', 'inventory', 'sales', 'sale_items', 'customers',
-    'expenses', 'vendors', 'categories', 'prescriptions', 'audit_logs',
-    'returns', 'purchase_orders', 'purchase_order_items', 'suppliers',
-    'stock_audits', 'held_transactions', 'loyalty_transactions', '_sync_state', '_sync_queue'
+    "medicines",
+    "inventory",
+    "sales",
+    "sale_items",
+    "customers",
+    "expenses",
+    "vendors",
+    "categories",
+    "prescriptions",
+    "audit_logs",
+    "returns",
+    "purchase_orders",
+    "purchase_order_items",
+    "suppliers",
+    "stock_audits",
+    "held_transactions",
+    "loyalty_transactions",
+    "_sync_state",
+    "_sync_queue",
   ];
 
   for (const table of tablesToClear) {
@@ -245,7 +492,12 @@ export async function resetDatabase(): Promise<void> {
   }
 }
 
-export async function logAction(action: string, table: string, recordId: string, details?: any) {
+export async function logAction(
+  action: string,
+  table: string,
+  recordId: string,
+  details?: any,
+) {
   if (!db) return;
   const id = generateId();
   const now = new Date().toISOString();
@@ -253,7 +505,15 @@ export async function logAction(action: string, table: string, recordId: string,
   await execute(
     `INSERT INTO audit_logs (id, user_id, action, table_name, record_id, details, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [id, currentUser?.id || null, action, table, recordId, details ? JSON.stringify(details) : null, now]
+    [
+      id,
+      currentUser?.id || null,
+      action,
+      table,
+      recordId,
+      details ? JSON.stringify(details) : null,
+      now,
+    ],
   );
 
   // Enqueue log action into the sync queue so it gets synced to the server
@@ -265,13 +525,13 @@ export async function logAction(action: string, table: string, recordId: string,
     record_id: recordId,
     details: details ? JSON.stringify(details) : null,
     created_at: now,
-    updated_at: now
+    updated_at: now,
   };
 
   await execute(
     `INSERT INTO _sync_queue (table_name, record_id, operation, payload, created_at)
      VALUES (?, ?, ?, ?, ?)`,
-    ["audit_logs", id, "INSERT", JSON.stringify(record), now]
+    ["audit_logs", id, "INSERT", JSON.stringify(record), now],
   );
 }
 
@@ -280,11 +540,14 @@ export function getDatabase(): Database | null {
 }
 
 export async function getSystemConfig(key: string): Promise<any | null> {
-  const result = await query<{ value: string }>("SELECT value FROM system_configs WHERE key = ?", [key]);
+  const result = await query<{ value: string }>(
+    "SELECT value FROM system_configs WHERE key = ?",
+    [key],
+  );
   if (result.length > 0) {
     try {
       return JSON.parse(result[0].value);
-    } catch (e) {
+    } catch (_e) {
       return null;
     }
   }
@@ -294,12 +557,19 @@ export async function getSystemConfig(key: string): Promise<any | null> {
 export async function setSystemConfig(key: string, value: any): Promise<void> {
   const now = new Date().toISOString();
   const valueStr = JSON.stringify(value);
-  
-  const existing = await query("SELECT key FROM system_configs WHERE key = ?", [key]);
+
+  const existing = await query("SELECT key FROM system_configs WHERE key = ?", [
+    key,
+  ]);
   if (existing.length > 0) {
-    await execute("UPDATE system_configs SET value = ?, updated_at = ? WHERE key = ?", [valueStr, now, key]);
+    await execute(
+      "UPDATE system_configs SET value = ?, updated_at = ? WHERE key = ?",
+      [valueStr, now, key],
+    );
   } else {
-    await execute("INSERT INTO system_configs (key, value, updated_at) VALUES (?, ?, ?)", [key, valueStr, now]);
+    await execute(
+      "INSERT INTO system_configs (key, value, updated_at) VALUES (?, ?, ?)",
+      [key, valueStr, now],
+    );
   }
 }
-

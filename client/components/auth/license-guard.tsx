@@ -45,7 +45,7 @@ function ThemeRestrictor() {
 }
 
 function MobileRestrictionGuard() {
-  const { currentTier } = useFeatureGate();
+  const { canUseMobileApp, getUpgradeMessage } = useFeatureGate();
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -62,7 +62,7 @@ function MobileRestrictionGuard() {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  if (isMobile && (currentTier === "free" || currentTier === "starter")) {
+  if (isMobile && !canUseMobileApp) {
     return (
       <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/85 backdrop-blur-xl p-6">
         <Card className="max-w-md w-full border-border/40 shadow-2xl bg-card text-card-foreground">
@@ -74,9 +74,7 @@ function MobileRestrictionGuard() {
               📱 Mobile App Access Locked
             </CardTitle>
             <CardDescription className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              Mobile access is a premium feature available on Pro and Enterprise
-              plans. Please upgrade your plan to access your dashboard on the
-              go.
+              {getUpgradeMessage('mobile_access', "Mobile access is a premium feature. Please upgrade your plan to access your dashboard on the go.")}
             </CardDescription>
           </CardHeader>
           <CardFooter className="flex flex-col gap-3 pt-2">
@@ -90,7 +88,7 @@ function MobileRestrictionGuard() {
                 );
               }}
             >
-              Upgrade to Pro Plan
+              Upgrade Plan
             </Button>
           </CardFooter>
         </Card>

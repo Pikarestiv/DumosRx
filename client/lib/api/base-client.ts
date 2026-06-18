@@ -1,4 +1,3 @@
-import { API_BASE_URL } from "../constants";
 import { addLogToBuffer, sanitizePayload, reportClientError } from "./logger";
 import {
   getToken,
@@ -16,14 +15,15 @@ export class BaseApiClient {
     if (typeof window !== "undefined") {
       storedUrl = localStorage.getItem("dumos_api_url");
     }
-    
+
     if (storedUrl) {
       this.baseURL = storedUrl;
     } else {
       if (process.env.NODE_ENV === "development") {
         this.baseURL = "https://api.dev.dumosrx.com/api/v1";
       } else {
-        this.baseURL = process.env.NEXT_PUBLIC_API_URL || "https://api.dumosrx.com/api/v1";
+        this.baseURL =
+          process.env.NEXT_PUBLIC_API_URL || "https://api.dumosrx.com/api/v1";
       }
     }
   }

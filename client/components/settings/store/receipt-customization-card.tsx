@@ -1,4 +1,4 @@
-import { Save, Upload, X } from "lucide-react";
+import { Save, Upload, X, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { ReceiptPreview } from "./receipt-preview";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface ReceiptCustomizationCardProps {
   localName: string;
@@ -103,7 +104,19 @@ export function ReceiptCustomizationCard({
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="receipt-header">Receipt Header (Optional)</Label>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="receipt-header">Receipt Header (Optional)</Label>
+                <TooltipProvider delayDuration={0}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Add custom text like your Tax Identification Number, return policy, or a 'Thank You' message to print on all receipts.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
               <Input
                 id="receipt-header"
                 placeholder="e.g. Thanks for your patronage!"
@@ -112,7 +125,19 @@ export function ReceiptCustomizationCard({
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="receipt-footer">Receipt Footer</Label>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="receipt-footer">Receipt Footer</Label>
+                <TooltipProvider delayDuration={0}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Add a footer message to print at the bottom of all receipts.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
               <Input
                 id="receipt-footer"
                 placeholder="e.g. No refund after 24 hours"

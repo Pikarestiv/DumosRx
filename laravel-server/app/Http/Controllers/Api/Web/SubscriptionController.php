@@ -34,6 +34,7 @@ class SubscriptionController extends Controller
 
         $systemConfig = SystemConfig::getVal('subscription_plans', []);
         $limits = $systemConfig['tiers'][$sub->plan_name]['limits'] ?? null;
+        $features = $systemConfig['tiers'][$sub->plan_name]['features'] ?? null;
 
         return response()->json([
             'status' => 'active',
@@ -43,6 +44,7 @@ class SubscriptionController extends Controller
             'is_trial' => $sub->is_trial,
             'license_key' => $sub->license_key,
             'limits' => $limits,
+            'features' => $features,
         ]);
     }
 

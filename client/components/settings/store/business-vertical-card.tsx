@@ -43,7 +43,7 @@ export function BusinessVerticalCard({
               className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all cursor-pointer ${
                 storeType === vertical.id
                   ? "border-primary bg-primary/5"
-                  : "border-muted hover:border-primary/50"
+                  : "border-muted-foreground/10 hover:border-primary/50"
               }`}
             >
               <vertical.icon className="h-6 w-6 mb-2 text-primary" />

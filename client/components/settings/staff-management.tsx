@@ -15,7 +15,7 @@ import { StaffDeleteDialog } from "./staff/staff-delete-dialog";
 
 export function StaffManagement() {
   const { activeStoreId } = useStore();
-  const { maxStaffAccounts } = useFeatureGate();
+  const { maxStaffAccounts, getUpgradeMessage } = useFeatureGate();
   
   const [users, setUsers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -65,7 +65,7 @@ export function StaffManagement() {
             Create and manage sub-accounts for your team members.
             {users.length >= maxStaffAccounts && (
               <span className="block mt-1 text-amber-600 font-medium">
-                You have reached your limit of {maxStaffAccounts} staff accounts on your current plan. Upgrade to Dumos Pro or Enterprise to add more.
+                You have reached your limit of {maxStaffAccounts} staff accounts on your current plan. {getUpgradeMessage('staff', "Upgrade your plan to add more.")}
               </span>
             )}
           </p>

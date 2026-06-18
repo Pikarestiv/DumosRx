@@ -15,6 +15,28 @@ class StoreController extends Controller
         return $request->user()->stores;
     }
 
+    public function checkSlug(Request $request)
+    {
+        $request->validate([
+            'slug' => 'required|string|max:255'
+        ]);
+
+        $slug = Str::slug($request->slug);
+        
+        // Exclude the current store if ID is provided
+        $query = Store::where('store_slug', $slug);
+        if ($request->has('ignore_id')) {
+            $query->where('id', '!=', $request->ignore_id);
+        }
+
+        $exists = $query->exists();
+
+        return response()->json([
+            'available' => !$exists,
+            'slug' => $slug
+        ]);
+    }
+
     public function store(Request $request)
     {
         if (!app(\App\Services\SubscriptionService::class)->checkLimit($request->user(), 'stores')) {

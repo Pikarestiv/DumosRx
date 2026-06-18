@@ -1,6 +1,6 @@
 "use client";
 
-import { Sun, Moon, Globe, Save, Lock } from "lucide-react";
+import { Sun, Moon, Globe, Save, Lock, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,6 +16,7 @@ import { APP_NAME } from "@/lib/constants";
 import { Theme } from "@/components/theme-provider";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { toast } from "sonner";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface AppearanceSettingsProps {
   theme: string | undefined;
@@ -51,14 +52,22 @@ export function AppearanceSettings({
   handleSaveRegional,
   isAdmin,
 }: AppearanceSettingsProps) {
-  const { canCustomizeTheme } = useFeatureGate();
+  const { canCustomizeTheme, canUseDarkMode, getUpgradeMessage } = useFeatureGate();
 
   const handleApplyTheme = (themeId: string) => {
     if (themeId !== "default" && !canCustomizeTheme) {
-      toast.error("Theme customization is a premium feature available on the Starter plan and above.");
+      toast.error(getUpgradeMessage('theme_customizer', "Theme customization is a premium feature. Please upgrade your plan to access it."));
       return;
     }
     setAppTheme(themeId);
+  };
+
+  const handleSetTheme = (mode: Theme) => {
+    if (mode !== "light" && !canUseDarkMode) {
+      toast.error(getUpgradeMessage('dark_mode', "Dark Mode is a premium feature. Please upgrade your plan to access it."));
+      return;
+    }
+    setTheme(mode);
   };
 
   return (
@@ -75,7 +84,7 @@ export function AppearanceSettings({
             <Label>Theme Mode</Label>
             <div className="grid grid-cols-3 gap-4">
               <button
-                onClick={() => setTheme("light")}
+                onClick={() => handleSetTheme("light")}
                 className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all cursor-pointer ${
                   theme === "light"
                     ? "border-primary bg-primary/5"
@@ -87,7 +96,7 @@ export function AppearanceSettings({
               </button>
 
               <button
-                onClick={() => setTheme("dark")}
+                onClick={() => handleSetTheme("dark")}
                 className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all cursor-pointer ${
                   theme === "dark"
                     ? "border-primary bg-primary/5"
@@ -99,7 +108,7 @@ export function AppearanceSettings({
               </button>
 
               <button
-                onClick={() => setTheme("system")}
+                onClick={() => handleSetTheme("system")}
                 className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all cursor-pointer ${
                   theme === "system"
                     ? "border-primary bg-primary/5"
@@ -154,7 +163,19 @@ export function AppearanceSettings({
           </CardHeader>
           <CardContent className="grid gap-6">
             <div className="grid gap-2">
-              <Label htmlFor="currency">Currency Code (ISO)</Label>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="currency">Currency Code (ISO)</Label>
+                <TooltipProvider delayDuration={0}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Enter a standard 3-letter currency code (e.g., NGN, USD, GBP). This changes the currency symbol across the app.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
               <Input
                 id="currency"
                 value={localCurrency}
@@ -163,7 +184,19 @@ export function AppearanceSettings({
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="vat">VAT Percentage (%)</Label>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="vat">VAT Percentage (%)</Label>
+                <TooltipProvider delayDuration={0}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>The default Value Added Tax applied to transactions. Leave as 0 if your prices are already tax-inclusive.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
               <Input
                 id="vat"
                 type="number"

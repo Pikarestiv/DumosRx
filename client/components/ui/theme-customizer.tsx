@@ -23,11 +23,11 @@ const colorThemes = [
 export function ThemeCustomizer() {
   const { t, theme: activeThemeId, setTheme } = useStore()
   const [borderRadius, setBorderRadius] = React.useState([8])
-  const { canCustomizeTheme } = useFeatureGate()
+  const { canCustomizeTheme, getUpgradeMessage } = useFeatureGate()
 
   const applyTheme = (themeId: string) => {
     if (themeId !== "default" && !canCustomizeTheme) {
-      toast.error("Theme customization is a premium feature available on the Starter plan and above.")
+      toast.error(getUpgradeMessage('theme_customizer', "Theme customization is a premium feature. Please upgrade your plan to access it."))
       return
     }
     setTheme(themeId)
@@ -35,7 +35,7 @@ export function ThemeCustomizer() {
 
   const applyBorderRadius = (value: number[]) => {
     if (!canCustomizeTheme) {
-      toast.error("Border radius customization is a premium feature available on the Starter plan and above.")
+      toast.error(getUpgradeMessage('custom_branding', "Border radius customization is a premium feature. Please upgrade your plan to access it."))
       return
     }
     const root = document.documentElement

@@ -1,4 +1,4 @@
-import { Save, Upload, X, Info } from "lucide-react";
+import { Save, Upload, X, Info, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,7 +12,14 @@ import {
 } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { ReceiptPreview } from "./receipt-preview";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
+import { toast } from "sonner";
 
 interface ReceiptCustomizationCardProps {
   localName: string;
@@ -49,6 +56,22 @@ export function ReceiptCustomizationCard({
   setShowContact,
   handleSaveReceiptSettings,
 }: ReceiptCustomizationCardProps) {
+  const { canCustomizeTheme, getUpgradeMessage } = useFeatureGate();
+
+  const handleToggleLogo = (checked: boolean) => {
+    if (checked) {
+      if (!canCustomizeTheme) {
+        toast.error(getUpgradeMessage("custom_branding"));
+        return;
+      }
+
+      if (!localLogo) {
+        toast.info("Please upload a store logo first.");
+      }
+    }
+    setShowLogo(checked);
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -83,17 +106,37 @@ export function ReceiptCustomizationCard({
                   </div>
                 )}
                 <div className="flex-1">
-                  <Label
-                    htmlFor="logo-upload"
-                    className="cursor-pointer inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3"
-                  >
-                    {localLogo ? "Change Logo" : "Upload Logo"}
-                  </Label>
+                  <TooltipProvider delayDuration={0}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="inline-block">
+                          <Label
+                            htmlFor={
+                              canCustomizeTheme ? "logo-upload" : undefined
+                            }
+                            className={`cursor-pointer inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3 ${!canCustomizeTheme ? "opacity-50 cursor-not-allowed" : ""}`}
+                          >
+                            {!canCustomizeTheme && (
+                              <Lock className="h-3 w-3 mr-2" />
+                            )}
+                            {localLogo ? "Change Logo" : "Upload Logo"}
+                          </Label>
+                        </div>
+                      </TooltipTrigger>
+                      {!canCustomizeTheme && (
+                        <TooltipContent>
+                          <p>{getUpgradeMessage("custom_branding")}</p>
+                        </TooltipContent>
+                      )}
+                    </Tooltip>
+                  </TooltipProvider>
+
                   <input
                     id="logo-upload"
                     type="file"
                     accept="image/*"
                     className="hidden"
+                    disabled={!canCustomizeTheme}
                     onChange={handleLogoUpload}
                   />
                   <p className="text-[10px] text-muted-foreground mt-1">
@@ -105,14 +148,20 @@ export function ReceiptCustomizationCard({
 
             <div className="grid gap-2">
               <div className="flex items-center gap-2">
-                <Label htmlFor="receipt-header">Footer Message 1 (Optional)</Label>
+                <Label htmlFor="receipt-header">
+                  Footer Message 1 (Optional)
+                </Label>
                 <TooltipProvider delayDuration={0}>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Info className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>Add custom text like your Tax Identification Number, return policy, or a 'Thank You' message to print on all receipts.</p>
+                      <p>
+                        Add custom text like your Tax Identification Number,
+                        return policy, or a 'Thank You' message to print on all
+                        receipts.
+                      </p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -133,7 +182,10 @@ export function ReceiptCustomizationCard({
                       <Info className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>Add a footer message to print at the bottom of all receipts.</p>
+                      <p>
+                        Add a footer message to print at the bottom of all
+                        receipts.
+                      </p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -152,7 +204,10 @@ export function ReceiptCustomizationCard({
                   Display store logo at the top
                 </p>
               </div>
-              <Switch checked={showLogo} onCheckedChange={setShowLogo} />
+              <Switch
+                checked={showLogo && canCustomizeTheme}
+                onCheckedChange={handleToggleLogo}
+              />
             </div>
             <div className="flex items-center justify-between rounded-lg border p-4">
               <div className="space-y-0.5">
@@ -172,7 +227,7 @@ export function ReceiptCustomizationCard({
             localLogo={localLogo}
             localReceiptHeader={localReceiptHeader}
             localReceiptFooter={localReceiptFooter}
-            showLogo={showLogo}
+            showLogo={showLogo && canCustomizeTheme}
             showContact={showContact}
           />
         </div>

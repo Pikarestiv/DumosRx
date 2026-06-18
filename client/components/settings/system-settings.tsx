@@ -12,9 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { APP_NAME, APP_VERSION } from "@/lib/constants";
 import { isTauri } from "@/lib/db/core";
 
-interface SystemSettingsProps {}
-
-export function SystemSettings({}: SystemSettingsProps) {
+export function SystemSettings() {
   return (
     <div className="space-y-6">
       <Card>

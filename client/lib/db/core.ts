@@ -4,6 +4,7 @@
 
 import initSqlJs, { Database, SqlJsStatic } from "sql.js";
 import { APP_NAME } from "@/lib/constants";
+/* eslint-disable max-lines */
 import { SCHEMA_SQL } from "./schema";
 
 let SQL: SqlJsStatic | null = null;

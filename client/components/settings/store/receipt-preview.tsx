@@ -64,6 +64,10 @@ export function ReceiptPreview({
             <span className="font-bold">Date:</span>
             <span>{new Date().toLocaleDateString("en-GB")}</span>
           </div>
+          <div className="flex justify-between">
+            <span className="font-bold">Cashier:</span>
+            <span className="uppercase">ADMIN USER</span>
+          </div>
         </div>
 
         <div className="border-b border-black pb-1 mb-1 text-[8px]">

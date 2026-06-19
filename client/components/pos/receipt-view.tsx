@@ -3,11 +3,13 @@
 import { useStore } from "@/lib/context/store-context";
 import { APP_NAME } from "@/lib/constants";
 import Barcode from "react-barcode";
+import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 
 interface ReceiptProps {
   transaction: {
     id: string;
     date: string;
+    cashier?: string;
     items: any[];
     customer: any;
     subtotal: number;
@@ -23,6 +25,7 @@ interface ReceiptProps {
 
 export function ReceiptView({ transaction }: ReceiptProps) {
   const { storeProfile, vatPercentage } = useStore();
+  const { canCustomizeTheme } = useFeatureGate();
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-NG", {
@@ -39,6 +42,13 @@ export function ReceiptView({ transaction }: ReceiptProps) {
     <div className="bg-white p-8 max-w-[400px] mx-auto text-black font-mono text-sm leading-tight printable-receipt">
       {/* Header */}
       <div className="text-center border-b border-black pb-4 mb-4">
+        {canCustomizeTheme && storeProfile?.show_logo_on_receipt === 1 && storeProfile?.logo_url && (
+          <img
+            src={storeProfile.logo_url}
+            alt="Store logo"
+            className="h-12 w-12 mx-auto object-contain mb-2 filter grayscale"
+          />
+        )}
         <h2 className="text-xl font-bold uppercase">{storeProfile?.name}</h2>
         {storeProfile?.address && <p>{storeProfile?.address}</p>}
         {storeProfile?.phone && <p>{storeProfile?.phone}</p>}
@@ -69,6 +79,12 @@ export function ReceiptView({ transaction }: ReceiptProps) {
           <span className="font-bold">Date:</span>
           <span>{new Date(transaction.date).toLocaleString("en-GB")}</span>
         </div>
+        {transaction.cashier && (
+          <div className="flex justify-between">
+            <span className="font-bold">Cashier:</span>
+            <span className="uppercase">{transaction.cashier}</span>
+          </div>
+        )}
       </div>
 
       {/* Items Table */}

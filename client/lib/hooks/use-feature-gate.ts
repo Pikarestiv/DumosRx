@@ -89,5 +89,10 @@ export function useFeatureGate() {
     canUseSmartSuggestions: getFeature('smart_suggestions', 'smart_suggestions', isPro || isEnterprise),
     canUseStoreUrl: getFeature('ecommerce', 'store_url', isPro || isEnterprise),
     canAutoLock: getFeature('auto_lock', 'auto_lock', !isFree),
+    
+    // New Features
+    canUseBarcodeGeneration: getFeature('barcode_generation', 'barcode_generation', !isFree),
+    canUseLoyaltyProgram: getFeature('loyalty_program', 'loyalty_program', isPro || isEnterprise),
+    canBroadcastCreate: getFeature('broadcast_create', 'broadcast_create', isPro || isEnterprise),
   };
 }

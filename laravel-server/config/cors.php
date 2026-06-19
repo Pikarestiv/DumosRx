@@ -27,14 +27,15 @@ return [
         'http://127.0.0.1:3000', 
         'http://127.0.0.1:8000', 
         'https://dumosrx.com', 
-        'https://*.dumosrx.com', 
+        'https://www.dumosrx.com', 
         'https://app.dumosrx.com',
+        'https://admin.dumosrx.com',
         'http://tauri.localhost',
         'https://tauri.localhost',
         'tauri://localhost'
     ],
 
-    'allowed_origins_patterns' => [],
+    'allowed_origins_patterns' => ['#^https?://.*\.dumosrx\.com$#'],
 
     'allowed_headers' => ['*'],
 

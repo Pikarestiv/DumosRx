@@ -35,7 +35,7 @@ return [
         'tauri://localhost'
     ],
 
-    'allowed_origins_patterns' => ['#^https?://.*\.dumosrx\.com$#'],
+    'allowed_origins_patterns' => [],
 
     'allowed_headers' => ['*'],
 

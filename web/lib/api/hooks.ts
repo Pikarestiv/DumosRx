@@ -199,6 +199,8 @@ export const useSystemConfig = (key: string) => {
   return useQuery({
     queryKey: ["system-config", key],
     queryFn: () => webApiClient.getSystemConfig(key),
+    retry: false, // Disable retries to prevent request spam on 500 errors
+    refetchOnMount: false, // Prevent child components from refetching immediately if parent already failed
   });
 };
 

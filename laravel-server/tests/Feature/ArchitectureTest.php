@@ -30,7 +30,7 @@ class ArchitectureTest extends TestCase
         $this->assertTrue(Schema::hasTable('categories'));
         $this->assertTrue(Schema::hasTable('suppliers'));
         $this->assertTrue(Schema::hasTable('medicines'));
-        $this->assertTrue(Schema::hasTable('inventory'));
+        $this->assertTrue(Schema::hasTable('inventories'));
     }
 
     /**

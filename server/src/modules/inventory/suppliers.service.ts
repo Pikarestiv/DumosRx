@@ -91,7 +91,7 @@ export class SuppliersService {
   async remove(id: string) {
     // Check if supplier has inventory items
     const { data: inventory } = await this.supabaseService.db
-      .from("inventory")
+      .from("inventories")
       .select("id")
       .eq("supplier_id", id)
       .limit(1)

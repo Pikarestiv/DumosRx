@@ -47,7 +47,7 @@ class InventoryController extends Controller
 
     public function value(Request $request)
     {
-        $totalValue = DB::table('inventory')
+        $totalValue = DB::table('inventories')
             ->where('user_id', $request->user()->id)
             ->select(DB::raw('SUM(quantity_in_stock * cost_price) as total_value'))
             ->value('total_value');

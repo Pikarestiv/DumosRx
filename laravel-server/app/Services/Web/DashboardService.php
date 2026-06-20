@@ -56,8 +56,8 @@ class DashboardService
         // 2. Inventory Stats
         $inventoryValue = 0;
         try {
-            if (Schema::hasTable('inventory')) {
-                $inventoryStats = DB::table('inventory')
+            if (Schema::hasTable('inventories')) {
+                $inventoryStats = DB::table('inventories')
                     ->where('user_id', $userId)
                     ->select(DB::raw('SUM(quantity_in_stock * cost_price) as total_value'))
                     ->first();
@@ -254,10 +254,10 @@ class DashboardService
                 }
             }
 
-            if ($type === 'all' || $type === 'inventory') {
-                if (Schema::hasTable('inventory')) {
+            if ($type === 'all' || $type === 'inventories') {
+                if (Schema::hasTable('inventories')) {
                     $query = Inventory::query();
-                    if (Schema::hasColumn('inventory', 'user_id')) {
+                    if (Schema::hasColumn('inventories', 'user_id')) {
                         $query->where('user_id', $userId);
                         Log::info("Clearing inventory for user: {$userId}");
                         $query->delete(); 

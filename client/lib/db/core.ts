@@ -58,7 +58,7 @@ export async function initDatabase(): Promise<any> {
       ],
     },
     {
-      table: "inventory",
+      table: "inventories",
       columns: [
         "_version INTEGER DEFAULT 1",
         "_synced INTEGER DEFAULT 0",
@@ -457,7 +457,7 @@ export async function resetDatabase(): Promise<void> {
 
   const tablesToClear = [
     "medicines",
-    "inventory",
+    "inventories",
     "sales",
     "sale_items",
     "customers",

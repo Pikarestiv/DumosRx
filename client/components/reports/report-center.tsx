@@ -89,7 +89,7 @@ export function ReportCenter() {
         case "sales":
           await exportSalesReport(from, to);
           break;
-        case "inventory":
+        case "inventories":
           await exportInventoryReport();
           break;
         case "profit-loss":
@@ -141,7 +141,7 @@ export function ReportCenter() {
       category: "Financial",
     },
     {
-      id: "inventory",
+      id: "inventories",
       title: "Inventory Valuation",
       description: "Current stock levels, cost value, and potential selling value.",
       icon: ClipboardList,

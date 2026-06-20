@@ -77,7 +77,7 @@ export class SalesService {
   private async updateInventoryAfterSale(inventoryId: string, quantity: number, saleId: string, userId: string) {
     // Get current inventory
     const { data: inventory, error: invError } = await this.supabaseService.db
-      .from("inventory")
+      .from("inventories")
       .select("*")
       .eq("id", inventoryId)
       .single()
@@ -92,7 +92,7 @@ export class SalesService {
 
     // Update inventory quantity
     const { error: updateError } = await this.supabaseService.db
-      .from("inventory")
+      .from("inventories")
       .update({
         quantity_in_stock: inventory.quantity_in_stock - quantity,
         updated_at: new Date().toISOString(),
@@ -413,7 +413,7 @@ export class SalesService {
   private async restoreInventoryAfterRefund(inventoryId: string, quantity: number, saleId: string, userId: string) {
     // Get current inventory
     const { data: inventory } = await this.supabaseService.db
-      .from("inventory")
+      .from("inventories")
       .select("*")
       .eq("id", inventoryId)
       .single()
@@ -422,7 +422,7 @@ export class SalesService {
 
     // Update inventory quantity
     await this.supabaseService.db
-      .from("inventory")
+      .from("inventories")
       .update({
         quantity_in_stock: inventory.quantity_in_stock + quantity,
         updated_at: new Date().toISOString(),

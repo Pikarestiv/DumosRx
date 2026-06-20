@@ -12,7 +12,7 @@ return [
             'limits' => [
                 'stores' => 1,
                 'staff' => 2,
-                'inventory' => 500, // max items
+                'inventories' => 500, // max items
             ],
             'features' => [
                 'basic_inventory' => true,
@@ -28,7 +28,7 @@ return [
             'limits' => [
                 'stores' => 3,
                 'staff' => -1, // unlimited
-                'inventory' => -1,
+                'inventories' => -1,
             ],
             'features' => [
                 'basic_inventory' => true,
@@ -44,7 +44,7 @@ return [
             'limits' => [
                 'stores' => -1,
                 'staff' => -1,
-                'inventory' => -1,
+                'inventories' => -1,
             ],
             'features' => [
                 'basic_inventory' => true,

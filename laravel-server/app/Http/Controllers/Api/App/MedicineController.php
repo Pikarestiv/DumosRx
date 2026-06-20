@@ -39,7 +39,7 @@ class MedicineController extends Controller
 
     public function show($id)
     {
-        $medicine = Medicine::with('category', 'supplier', 'inventory')->findOrFail($id);
+        $medicine = Medicine::with('category', 'supplier', 'inventories')->findOrFail($id);
         return response()->json($medicine);
     }
 

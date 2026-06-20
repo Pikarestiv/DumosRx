@@ -40,7 +40,7 @@ export function OverviewDangerZone({ onReset }: OverviewDangerZoneProps) {
         title: "Clear Activity Logs",
         description: "This will permanently delete all activity and system logs for your account.",
       },
-      inventory: {
+      inventories: {
         title: "Clear Inventory",
         description: "Are you sure you want to wipe your online inventory stock? You will need to re-sync from your terminals.",
       },
@@ -107,7 +107,7 @@ export function OverviewDangerZone({ onReset }: OverviewDangerZoneProps) {
               variant="outline" 
               size="sm"
               className="text-xs font-bold border-destructive/20 hover:bg-destructive hover:text-white"
-              onClick={() => handleResetClick("inventory")}
+              onClick={() => handleResetClick("inventories")}
             >
               Clear Inventory
             </Button>

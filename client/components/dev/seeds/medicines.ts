@@ -46,7 +46,7 @@ export async function seedMedicines() {
       _synced: 0,
     });
     for (const b of batches) {
-      await insert("inventory", {
+      await insert("inventories", {
         ...b,
         medicine_id: med.id,
         created_at: nowString,

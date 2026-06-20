@@ -79,7 +79,7 @@ export function BusinessIntelligenceDashboard() {
           <TabsList className="w-max bg-muted/50 p-1 flex">
             <TabsTrigger value="sales" className="px-6 shrink-0">Sales Analytics</TabsTrigger>
             <TabsTrigger value="profit-loss" className="px-6 shrink-0">Profit & Loss</TabsTrigger>
-            <TabsTrigger value="inventory" className="px-6 shrink-0">Inventory Insights</TabsTrigger>
+            <TabsTrigger value="inventories" className="px-6 shrink-0">Inventory Insights</TabsTrigger>
             <TabsTrigger value="customers" className="px-6 shrink-0">Customer Behavior</TabsTrigger>
           </TabsList>
         </div>
@@ -103,7 +103,7 @@ export function BusinessIntelligenceDashboard() {
           />
         </TabsContent>
 
-        <TabsContent value="inventory" className="space-y-6">
+        <TabsContent value="inventories" className="space-y-6">
           <InventoryInsightsTab 
             inventoryAlerts={inventoryAlerts}
             salesByCategory={salesByCategory}

@@ -25,7 +25,7 @@ class SystemConfigSeeder extends Seeder
                     'limits' => [
                         'stores' => 1,
                         'staff' => 0, // Owner only, so 0 staff
-                        'inventory' => -1,
+                        'inventories' => -1,
                     ],
                     'features' => [
                         'basic_inventory' => true,
@@ -53,7 +53,7 @@ class SystemConfigSeeder extends Seeder
                     'limits' => [
                         'stores' => 1,
                         'staff' => 3,
-                        'inventory' => -1,
+                        'inventories' => -1,
                         'sync_interval' => 180,
                     ],
                     'features' => [
@@ -82,7 +82,7 @@ class SystemConfigSeeder extends Seeder
                     'limits' => [
                         'stores' => 3,
                         'staff' => 10,
-                        'inventory' => -1,
+                        'inventories' => -1,
                         'sync_interval' => 30,
                     ],
                     'features' => [
@@ -111,7 +111,7 @@ class SystemConfigSeeder extends Seeder
                     'limits' => [
                         'stores' => -1,
                         'staff' => -1,
-                        'inventory' => -1,
+                        'inventories' => -1,
                         'sync_interval' => 15,
                     ],
                     'features' => [

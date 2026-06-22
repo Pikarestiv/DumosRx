@@ -41,7 +41,7 @@ export function isSyncing(): boolean {
 /**
  * Push local changes to server
  */
-export async function pushChanges(): Promise<{ pushed: number }> {
+export async function pushChanges(isManual: boolean = false): Promise<{ pushed: number }> {
   const pending = await getPendingSyncItems();
 
   if (pending.length === 0) return { pushed: 0 };
@@ -100,7 +100,7 @@ export async function pushChanges(): Promise<{ pushed: number }> {
 
       const response = (await apiClient.pushChanges({
         changes,
-      })) as PushResponse;
+      }, isManual)) as PushResponse;
 
       // If successful, mark as synced
       if (response.success) {
@@ -121,7 +121,7 @@ export async function pushChanges(): Promise<{ pushed: number }> {
 /**
  * Pull changes from server
  */
-export async function pullChanges(): Promise<{
+export async function pullChanges(isManual: boolean = false): Promise<{
   pulled: number;
   error?: unknown;
 }> {
@@ -143,7 +143,7 @@ export async function pullChanges(): Promise<{
     // Fetch changes from server
     const response = (await apiClient.pullChanges({
       last_synced: lastSyncedMap,
-    })) as PullResponse;
+    }, isManual)) as PullResponse;
     const { changes, server_timestamp } = response;
 
     if (!changes || Object.keys(changes).length === 0) {
@@ -268,7 +268,7 @@ export async function pullChanges(): Promise<{
 /**
  * Main Sync Function
  */
-export async function sync(): Promise<SyncResult> {
+export async function sync(isManual: boolean = false): Promise<SyncResult> {
   if (isSyncInProgress) {
     return { success: false, pushed: 0, pulled: 0, error: "Sync already in progress" };
   }
@@ -285,8 +285,8 @@ export async function sync(): Promise<SyncResult> {
 
   try {
     isSyncInProgress = true;
-    const pushResult = await pushChanges();
-    const pullResult = await pullChanges();
+    const pushResult = await pushChanges(isManual);
+    const pullResult = await pullChanges(isManual);
 
     if (pushResult.pushed > 0 || pullResult.pulled > 0) {
       console.log(`Sync completed: Pushed ${pushResult.pushed}, Pulled ${pullResult.pulled}`);

@@ -166,15 +166,15 @@ class ApiClient extends BaseApiClient {
   }
 
   // Sync Endpoints
-  async pushChanges(payload: { changes: any[] }) {
-    return this.request("/sync/push", {
+  async pushChanges(payload: { changes: any[] }, isManual: boolean = false) {
+    return this.request(`/sync/push${isManual ? "?manual=1" : ""}`, {
       method: "POST",
       body: JSON.stringify(payload),
     });
   }
 
-  async pullChanges(payload: { last_synced: Record<string, string> }) {
-    return this.request("/sync/pull", {
+  async pullChanges(payload: { last_synced: Record<string, string> }, isManual: boolean = false) {
+    return this.request(`/sync/pull${isManual ? "?manual=1" : ""}`, {
       method: "POST",
       body: JSON.stringify(payload),
     });

@@ -62,6 +62,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(parsedUser);
       setDbUser(parsedUser);
     }
+
+    const handleTokenSet = () => setIsCloudLinked(true);
+    const handleTokenCleared = () => setIsCloudLinked(false);
+
+    window.addEventListener("auth_token_set", handleTokenSet);
+    window.addEventListener("auth_token_cleared", handleTokenCleared);
+
+    return () => {
+      window.removeEventListener("auth_token_set", handleTokenSet);
+      window.removeEventListener("auth_token_cleared", handleTokenCleared);
+    };
   }, []);
 
   const login = async (identifier: string, pin?: string) => {

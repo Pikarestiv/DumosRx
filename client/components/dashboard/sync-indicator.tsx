@@ -43,6 +43,8 @@ export function SyncIndicator({ collapsed = false }: { collapsed?: boolean }) {
     updateOnlineStatus();
     window.addEventListener("online", updateOnlineStatus);
     window.addEventListener("offline", updateOnlineStatus);
+    window.addEventListener("auth_token_set", updateOnlineStatus);
+    window.addEventListener("auth_token_cleared", updateOnlineStatus);
 
     const interval = setInterval(() => {
       const stored = localStorage.getItem("last_sync_time");
@@ -56,6 +58,8 @@ export function SyncIndicator({ collapsed = false }: { collapsed?: boolean }) {
     return () => {
       window.removeEventListener("online", updateOnlineStatus);
       window.removeEventListener("offline", updateOnlineStatus);
+      window.removeEventListener("auth_token_set", updateOnlineStatus);
+      window.removeEventListener("auth_token_cleared", updateOnlineStatus);
       clearInterval(interval);
     };
   }, []);

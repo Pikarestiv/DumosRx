@@ -18,6 +18,7 @@ export const setToken = (newToken: string) => {
   if (typeof window !== "undefined") {
     localStorage.setItem("auth_token", newToken);
     localStorage.setItem("auth_token_issued_at", Date.now().toString());
+    window.dispatchEvent(new Event("auth_token_set"));
   }
 };
 
@@ -26,6 +27,7 @@ export const clearToken = () => {
   if (typeof window !== "undefined") {
     localStorage.removeItem("auth_token");
     localStorage.removeItem("auth_token_issued_at");
+    window.dispatchEvent(new Event("auth_token_cleared"));
   }
 };
 

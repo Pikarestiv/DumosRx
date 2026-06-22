@@ -455,6 +455,8 @@ class SyncController extends Controller
             'purchase_orders' => PurchaseOrder::class,
             'purchase_order_items' => PurchaseOrderItem::class,
             'payment_accounts' => \App\Models\PaymentAccount::class,
+            'returns' => \App\Models\SaleReturn::class,
+            'return_items' => \App\Models\SaleReturnItem::class,
         ];
         return $map[$tableName] ?? null;
     }

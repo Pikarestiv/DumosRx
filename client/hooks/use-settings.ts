@@ -294,7 +294,7 @@ export function useSettings() {
       setIsCloudLinkOpen(true);
       return;
     }
-    toast.promise(sync(), {
+    toast.promise(sync(true), {
       loading: "Synchronizing data with cloud...",
       success: (data) => `Sync complete! Pushed ${data.pushed}, Pulled ${data.pulled}`,
       error: "Sync failed. Please check your connection.",

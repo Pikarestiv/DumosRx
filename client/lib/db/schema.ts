@@ -212,6 +212,36 @@ CREATE TABLE IF NOT EXISTS prescription_items (
   FOREIGN KEY (prescription_id) REFERENCES prescriptions(id)
 );
 
+CREATE TABLE IF NOT EXISTS returns (
+  id TEXT PRIMARY KEY,
+  sale_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  reason TEXT,
+  total_refunded REAL DEFAULT 0,
+  created_at TEXT,
+  updated_at TEXT,
+  _version INTEGER DEFAULT 1,
+  _synced INTEGER DEFAULT 0,
+  _synced_at TEXT,
+  _deleted INTEGER DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS return_items (
+  id TEXT PRIMARY KEY,
+  return_id TEXT NOT NULL,
+  medicine_id TEXT NOT NULL,
+  quantity INTEGER NOT NULL,
+  unit_price REAL NOT NULL,
+  subtotal REAL NOT NULL,
+  created_at TEXT,
+  updated_at TEXT,
+  _version INTEGER DEFAULT 1,
+  _synced INTEGER DEFAULT 0,
+  _synced_at TEXT,
+  _deleted INTEGER DEFAULT 0,
+  FOREIGN KEY (return_id) REFERENCES returns(id)
+);
+
 CREATE TABLE IF NOT EXISTS _sync_queue (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   table_name TEXT NOT NULL,

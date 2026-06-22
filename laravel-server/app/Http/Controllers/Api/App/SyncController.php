@@ -455,6 +455,8 @@ class SyncController extends Controller
             'purchase_orders' => PurchaseOrder::class,
             'purchase_order_items' => PurchaseOrderItem::class,
             'payment_accounts' => \App\Models\PaymentAccount::class,
+            'returns' => \App\Models\SaleReturn::class,
+            'return_items' => \App\Models\SaleReturnItem::class,
         ];
         return $map[$tableName] ?? null;
     }
@@ -473,7 +475,9 @@ class SyncController extends Controller
             $systemConfig = \App\Models\SystemConfig::getVal('subscription_plans', []);
             $canSync = $systemConfig['tiers'][$plan]['features']['cloud_sync'] ?? false;
             
-            if (!$canSync) {
+            $isManual = $request->boolean('manual');
+            
+            if (!$canSync && !$isManual) {
                 if ($isPush || !empty($request->input('last_synced', []))) {
                     return [
                         'valid' => false,
@@ -485,7 +489,7 @@ class SyncController extends Controller
             } else {
                 $syncIntervalMinutes = $systemConfig['tiers'][$plan]['limits']['sync_interval'] ?? 0;
                 
-                if ($syncIntervalMinutes > 0) {
+                if ($syncIntervalMinutes > 0 && !$isManual) {
                     $store = Store::where('user_id', $owner->id)->first() ?? Store::where('id', $user->store_id)->first();
                     if ($store && $store->last_sync_at) {
                         $minutesSinceLastSync = now()->diffInMinutes($store->last_sync_at);

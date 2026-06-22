@@ -112,7 +112,7 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
     if (typeof window !== "undefined" && navigator.onLine) {
       try {
         const { sync } = await import("@/lib/db/sync-engine");
-        await sync();
+        await sync(true);
       } catch (e) {
         console.error("[LicenseGuard] Failed to sync on status refresh:", e);
       }

@@ -48,6 +48,8 @@ class Store extends Model
     protected $casts = [
         'enabled_payment_methods' => 'array',
         'require_payment_account' => 'boolean',
+        'last_sync_at' => 'datetime',
+        '_synced_at' => 'datetime',
     ];
 
     protected static function boot()

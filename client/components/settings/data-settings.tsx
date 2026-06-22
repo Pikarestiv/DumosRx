@@ -95,7 +95,7 @@ export function DataSettings({
           )}
 
           <div
-            className={`flex flex-col md:flex-row items-start md:items-center justify-between p-4 border rounded-lg bg-muted/30 gap-4 ${!canCloudSync ? "opacity-50 pointer-events-none" : ""}`}
+            className={`flex flex-col md:flex-row items-start md:items-center justify-between p-4 border rounded-lg bg-muted/30 gap-4`}
           >
             <div className="flex items-center gap-3">
               <div

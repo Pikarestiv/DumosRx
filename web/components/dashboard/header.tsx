@@ -14,6 +14,7 @@ import { useNotifications } from "@/lib/api/hooks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ModeToggle } from "@/components/mode-toggle";
+import { ServerSelector } from "@/components/ui/server-selector";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
@@ -128,6 +129,7 @@ export function Header({ onSetActiveTab }: HeaderProps) {
         )}
       </div>
       <div id="tour-header-actions" className="flex items-center gap-1 sm:gap-4">
+        <ServerSelector />
         <ModeToggle />
         <DropdownMenu>
           <Tooltip>

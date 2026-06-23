@@ -72,7 +72,7 @@ return new class extends Migration
         });
 
         // Inventory
-        Schema::create('inventory', function (Blueprint $table) {
+        Schema::create('inventories', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->foreignUuid('medicine_id')->constrained()->cascadeOnDelete();
             $table->string('batch_number');
@@ -99,7 +99,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('inventory');
+        Schema::dropIfExists('inventories');
         Schema::dropIfExists('medicines');
         Schema::dropIfExists('suppliers');
         Schema::dropIfExists('categories');

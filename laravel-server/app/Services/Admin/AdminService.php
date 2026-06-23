@@ -224,7 +224,7 @@ class AdminService
 
         return [
             'data' => collect($paginator->items())->map(function ($medicine) {
-                $inventory = DB::table('inventory')->where('medicine_id', $medicine->id);
+                $inventory = DB::table('inventories')->where('medicine_id', $medicine->id);
                 $totalStock = $inventory->sum('quantity_in_stock');
                 $avgReorder = $inventory->avg('reorder_level') ?: 10;
                 
@@ -234,7 +234,7 @@ class AdminService
                 elseif ($totalStock > 0) $stockLevel = 'Low';
 
                 $status = $medicine->is_active ? 'Active' : 'Inactive';
-                $hasExpired = DB::table('inventory')
+                $hasExpired = DB::table('inventories')
                     ->where('medicine_id', $medicine->id)
                     ->where('expiry_date', '<', now())
                     ->exists();
@@ -279,7 +279,7 @@ class AdminService
         $growth = $this->calculateChange($thisMonth, $lastMonth);
 
         // Stock alerts
-        $lowStockCount = DB::table('inventory')->where('quantity_in_stock', '<', 10)->count();
+        $lowStockCount = DB::table('inventories')->where('quantity_in_stock', '<', 10)->count();
 
         // PCN Compliance
         $compliantCount = Medicine::whereNotNull('nafdac_number')->where('nafdac_number', '!=', '')->count();

@@ -84,7 +84,7 @@ class SyncController extends Controller
                 }
 
                 // Map quantity to quantity_in_stock for inventory
-                if ($change['table_name'] === 'inventory' && isset($payload['quantity'])) {
+                if ($change['table_name'] === 'inventories' && isset($payload['quantity'])) {
                     $payload['quantity_in_stock'] = $payload['quantity'];
                     unset($payload['quantity']);
                 }
@@ -294,7 +294,7 @@ class SyncController extends Controller
         $changes = [];
         $serverTimestamp = now()->toIso8601String();
 
-        $tables = ['medicines', 'inventory', 'categories', 'customers', 'vendors', 'suppliers', 'sales', 'store_profile', 'users', 'stock_movements', 'purchase_orders', 'purchase_order_items', 'expenses', 'payment_accounts'];
+        $tables = ['medicines', 'inventories', 'categories', 'customers', 'vendors', 'suppliers', 'sales', 'store_profile', 'users', 'stock_movements', 'purchase_orders', 'purchase_order_items', 'expenses', 'payment_accounts'];
 
         foreach ($tables as $table) {
             $lastSynced = $lastSyncedMap[$table] ?? null;
@@ -444,7 +444,7 @@ class SyncController extends Controller
             'sale_items' => SaleItem::class,
             'store_profile' => Store::class,
             'users' => User::class,
-            'inventory' => Inventory::class,
+            'inventories' => Inventory::class,
             'activity_logs' => ActivityLog::class,
             'audit_logs' => ActivityLog::class,
             'categories' => \App\Models\Category::class,

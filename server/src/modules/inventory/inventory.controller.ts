@@ -11,7 +11,7 @@ import { Roles } from "../auth/decorators/roles.decorator"
 @ApiTags("Inventory")
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller("inventory")
+@Controller("inventories")
 export class InventoryController {
   constructor(private readonly inventoryService: InventoryService) {}
 

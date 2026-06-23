@@ -1,7 +1,18 @@
 import axios from "axios";
 import { addLogToBuffer, sanitizePayload, reportClientError } from "./logger";
 
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.dumosrx.com/api/v1";
+let initialApiUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.dumosrx.com/api/v1";
+
+if (typeof window !== "undefined") {
+  const storedUrl = localStorage.getItem("dumos_api_url");
+  if (storedUrl) {
+    initialApiUrl = storedUrl;
+  } else if (process.env.NODE_ENV === "development") {
+    initialApiUrl = process.env.NEXT_PUBLIC_API_URL_STAGING || "https://api.dev.dumosrx.com/api/v1";
+  }
+}
+
+export const API_URL = initialApiUrl;
 
 export const apiClient = axios.create({
   baseURL: API_URL,
@@ -11,6 +22,21 @@ export const apiClient = axios.create({
   },
   withCredentials: true,
 });
+
+export const setBaseURL = (url: string) => {
+  apiClient.defaults.baseURL = url;
+  if (typeof window !== "undefined") {
+    if (url) {
+      localStorage.setItem("dumos_api_url", url);
+    } else {
+      localStorage.removeItem("dumos_api_url");
+    }
+  }
+};
+
+export const getBaseURL = () => {
+  return apiClient.defaults.baseURL as string;
+};
 
 // Request interceptor for token fallback
 apiClient.interceptors.request.use((config) => {

@@ -123,7 +123,7 @@ export async function receivePurchaseOrder(id: string) {
       [totalBaseUnits, now, item.medicine_id]
     );
 
-    const invId = await insert("inventory", {
+    const invId = await insert("inventories", {
       medicine_id: item.medicine_id,
       quantity: totalBaseUnits,
       cost_price: Number(item.unit_cost) / unitsPerBulk,

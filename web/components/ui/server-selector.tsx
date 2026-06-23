@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { apiClient } from "@/lib/api/client";
+import { getBaseURL, setBaseURL } from "@/lib/api/base-client";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,13 +37,15 @@ export function ServerSelector() {
   const [currentUrl, setCurrentUrl] = useState<string>("");
 
   useEffect(() => {
-    setCurrentUrl(apiClient.getBaseURL());
+    setCurrentUrl(getBaseURL());
   }, []);
 
   const handleSelect = (url: string) => {
-    apiClient.setBaseURL(url);
+    setBaseURL(url);
     setCurrentUrl(url);
     toast.success("Server environment updated");
+    // Reload the page to ensure all instances/fetchers use the new URL
+    window.location.reload();
   };
 
   if (!currentUrl) return null;

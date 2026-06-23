@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         // 1. Add _synced_at column and index to missing synced tables
-        $missingSyncTables = ['inventory', 'activity_logs', 'categories'];
+        $missingSyncTables = ['inventories', 'activity_logs', 'categories'];
 
         foreach ($missingSyncTables as $table) {
             if (Schema::hasTable($table) && !Schema::hasColumn($table, '_synced_at')) {
@@ -30,7 +30,7 @@ return new class extends Migration
             'sales',
             'sale_items',
             'users',
-            'inventory',
+            'inventories',
             'activity_logs',
             'categories'
         ];
@@ -55,7 +55,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        $missingSyncTables = ['inventory', 'activity_logs', 'categories'];
+        $missingSyncTables = ['inventories', 'activity_logs', 'categories'];
 
         foreach ($missingSyncTables as $table) {
             if (Schema::hasTable($table) && Schema::hasColumn($table, '_synced_at')) {
@@ -73,7 +73,7 @@ return new class extends Migration
             'sales',
             'sale_items',
             'users',
-            'inventory',
+            'inventories',
             'activity_logs',
             'categories'
         ];

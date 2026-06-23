@@ -11,7 +11,7 @@ export class InventoryService {
   async create(createInventoryDto: CreateInventoryDto) {
     // Check if inventory with same medicine and batch already exists
     const { data: existing } = await this.supabaseService.db
-      .from("inventory")
+      .from("inventories")
       .select("id")
       .eq("medicine_id", createInventoryDto.medicine_id)
       .eq("batch_number", createInventoryDto.batch_number)
@@ -22,7 +22,7 @@ export class InventoryService {
     }
 
     const { data, error } = await this.supabaseService.db
-      .from("inventory")
+      .from("inventories")
       .insert([createInventoryDto])
       .select(`
         *,
@@ -42,7 +42,7 @@ export class InventoryService {
     const offset = (page - 1) * limit
 
     const { data, error, count } = await this.supabaseService.db
-      .from("inventory")
+      .from("inventories")
       .select(
         `
         *,
@@ -72,7 +72,7 @@ export class InventoryService {
 
   async findOne(id: string) {
     const { data, error } = await this.supabaseService.db
-      .from("inventory")
+      .from("inventories")
       .select(`
         *,
         medicines(id, name, generic_name, brand_name, strength, dosage_form, unit_of_measure),
@@ -93,7 +93,7 @@ export class InventoryService {
 
   async update(id: string, updateInventoryDto: UpdateInventoryDto) {
     const { data, error } = await this.supabaseService.db
-      .from("inventory")
+      .from("inventories")
       .update({ ...updateInventoryDto, updated_at: new Date().toISOString() })
       .eq("id", id)
       .select(`
@@ -125,7 +125,7 @@ export class InventoryService {
 
     // Update inventory
     const { data, error } = await this.supabaseService.db
-      .from("inventory")
+      .from("inventories")
       .update({
         quantity_in_stock: newQuantity,
         updated_at: new Date().toISOString(),
@@ -180,7 +180,7 @@ export class InventoryService {
 
   async getInventoryByMedicine(medicineId: string) {
     const { data, error } = await this.supabaseService.db
-      .from("inventory")
+      .from("inventories")
       .select(`
         *,
         suppliers(id, name)
@@ -198,7 +198,7 @@ export class InventoryService {
 
   async getInventoryValue() {
     const { data, error } = await this.supabaseService.db
-      .from("inventory")
+      .from("inventories")
       .select("quantity_in_stock, cost_price")
       .eq("status", "active")
 
@@ -219,7 +219,7 @@ export class InventoryService {
 
   async searchInventory(query: string) {
     const { data, error } = await this.supabaseService.db
-      .from("inventory")
+      .from("inventories")
       .select(`
         *,
         medicines(id, name, generic_name, brand_name, strength),
@@ -238,7 +238,7 @@ export class InventoryService {
 
   async updateStatus(id: string, status: string, reason?: string) {
     const { data, error } = await this.supabaseService.db
-      .from("inventory")
+      .from("inventories")
       .update({
         status,
         updated_at: new Date().toISOString(),

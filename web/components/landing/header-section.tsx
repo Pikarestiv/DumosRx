@@ -22,6 +22,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { ModeToggle } from "@/components/mode-toggle";
+import { ServerSelector } from "@/components/ui/server-selector";
 
 export function HeaderSection() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -93,12 +94,14 @@ export function HeaderSection() {
                 </Button>
               </>
             )}
+            <ServerSelector />
             <ModeToggle />
           </div>
         </nav>
 
         {/* Mobile Nav */}
         <div className="md:hidden flex items-center gap-4">
+          <ServerSelector />
           <ModeToggle />
           <Sheet>
             <SheetTrigger asChild>

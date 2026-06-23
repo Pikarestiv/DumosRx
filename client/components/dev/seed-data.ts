@@ -304,7 +304,7 @@ export async function resetAll() {
   const { execute } = await db();
   const tables = [
     "medicines",
-    "inventory",
+    "inventories",
     "categories",
     "suppliers",
     "vendors",

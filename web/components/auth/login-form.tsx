@@ -22,9 +22,11 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Card, CardContent } from "@/components/ui/card";
+import { ServerSelector } from "@/components/ui/server-selector";
 
 const loginSchema = z.object({
-  email: z.email({ message: "Invalid email address" }),
+  email: z.string().email({ message: "Invalid email address" }),
   password: z.string().min(1, { message: "Password is required" }),
 });
 
@@ -171,6 +173,10 @@ export function LoginForm() {
                   Create Account
                 </Link>
               </p>
+            </motion.div>
+            
+            <motion.div variants={item} className="flex justify-center pt-2">
+              <ServerSelector />
             </motion.div>
           </motion.div>
         </form>

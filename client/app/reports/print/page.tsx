@@ -46,7 +46,7 @@ function PrintReportContent() {
             rows = await fetchSalesReportData(dateFrom, dateTo);
             cols = ["Transaction #", "Date", "Customer", "Payment Method", "Subtotal", "Tax", "Discount", "Total", "Status"];
             break;
-          case "inventory":
+          case "inventories":
             rows = await fetchInventoryReportData();
             cols = ["Medicine", "Generic Name", "Form", "Strength", "Stock Qty", "Reorder Level", "Cost Price", "Selling Price", "Stock Value", "Nearest Expiry"];
             break;
@@ -116,7 +116,7 @@ function PrintReportContent() {
 
   const reportTitleMap: Record<string, string> = {
     "sales": "Sales Report",
-    "inventory": "Inventory Valuation Report",
+    "inventories": "Inventory Valuation Report",
     "profit-loss": "Profit & Loss Summary",
     "customers": "Customer Loyalty Report",
     "expenses": "Expenses Report"

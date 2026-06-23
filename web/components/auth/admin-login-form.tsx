@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { ServerSelector } from "@/components/ui/server-selector";
 
 const loginSchema = z.object({
   email: z.email({ message: "Invalid email address" }),
@@ -156,6 +157,10 @@ export function AdminLoginForm() {
               <Button type="submit" className="w-full h-12 text-lg font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/20 transition-all active:scale-[0.98]" disabled={loading}>
                 {loading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : "Authenticate & Access"}
               </Button>
+            </motion.div>
+            
+            <motion.div variants={item} className="flex justify-center pt-2">
+              <ServerSelector />
             </motion.div>
           </motion.div>
         </form>

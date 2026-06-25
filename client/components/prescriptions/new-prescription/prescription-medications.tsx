@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Pill, Plus, Trash2 } from "lucide-react";
+import { Combobox } from "@/components/ui/combobox";
 import type { NewPrescriptionForm, PrescriptionMedication } from "./use-new-prescription";
 
 interface PrescriptionMedicationsProps {
@@ -57,29 +58,19 @@ export function PrescriptionMedications({
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label>Medicine Name *</Label>
-              <Select
+              <Combobox
+                options={Array.from(new Set(availableMedicines.map((m) => m.name)))}
                 value={newMedication.medicineName}
-                onValueChange={(value) => {
+                onChange={(value) => {
                   setNewMedication((prev: any) => ({
                     ...prev,
                     medicineName: value,
                     strength: "",
                   }));
                 }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select medicine" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Array.from(
-                    new Set(availableMedicines.map((m) => m.name))
-                  ).map((name) => (
-                    <SelectItem key={name} value={name}>
-                      {name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder="Select medicine"
+                emptyText="No medicine found."
+              />
             </div>
 
             <div className="space-y-2">

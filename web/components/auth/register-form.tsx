@@ -96,9 +96,13 @@ export function RegisterForm() {
     try {
       const response = await webApiClient.register(values);
       localStorage.setItem("drx_token", response.token);
-      toast.success(
-        "Account created successfully! Please check your email inbox and spam folder for the verification link.",
-      );
+      
+      if (response.user?.require_email_verification) {
+        toast.success("Account created successfully! Please check your email inbox and spam folder for the verification link.");
+      } else {
+        toast.success("Account created successfully!");
+      }
+      
       router.push("/dashboard");
     } catch (err: any) {
       setError(err.message || "Registration failed. Please try again.");

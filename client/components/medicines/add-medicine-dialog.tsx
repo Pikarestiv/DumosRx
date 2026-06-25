@@ -120,9 +120,9 @@ export function AddMedicineDialog({
     }
   }, [editingMedicine, open]);
 
-  const isStore = storeType === "pharmacy";
+  const isPharmacy = storeType === "pharmacy";
 
-  const [suggestions, setSuggestions] = useState<any>(isStore ? FORM_SUGGESTIONS.store : FORM_SUGGESTIONS.retail);
+  const [suggestions, setSuggestions] = useState<any>(isPharmacy ? FORM_SUGGESTIONS.store : FORM_SUGGESTIONS.retail);
 
   useEffect(() => {
     let baseSuggestions = FORM_SUGGESTIONS;
@@ -138,7 +138,7 @@ export function AddMedicineDialog({
     const pharmList = baseSuggestions.store || FORM_SUGGESTIONS.store;
     const retailList = baseSuggestions.retail || FORM_SUGGESTIONS.retail;
 
-    if (isStore) {
+    if (isPharmacy) {
       const showRetail = storeProfile?.show_retail_suggestions === 1;
       if (showRetail) {
         const mergeAndUnique = (arr1: string[] = [], arr2: string[] = []) => {
@@ -158,7 +158,7 @@ export function AddMedicineDialog({
     } else {
       setSuggestions(retailList);
     }
-  }, [isStore, storeProfile?.show_retail_suggestions]);
+  }, [isPharmacy, storeProfile?.show_retail_suggestions]);
 
   const commonSuggestions = FORM_SUGGESTIONS.common;
 
@@ -171,7 +171,7 @@ export function AddMedicineDialog({
       return;
     }
 
-    if (isStore && !formData.genericName) {
+    if (isPharmacy && !formData.genericName) {
       setAlertMessage(
         `Generic Name is required for ${t("store").toLowerCase()}s`,
       );
@@ -295,7 +295,7 @@ export function AddMedicineDialog({
           <MedicineFormFields
             formData={formData}
             onInputChange={handleInputChange}
-            isStore={isStore}
+            isPharmacy={isPharmacy}
             suggestions={suggestions as any}
             commonSuggestions={commonSuggestions}
             t={t}

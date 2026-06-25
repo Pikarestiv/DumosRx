@@ -11,7 +11,7 @@ import { MedicineFormUnits } from "./medicine-form/medicine-form-units";
 interface MedicineFormFieldsProps {
   formData: Medicine;
   onInputChange: (field: keyof Medicine, value: any) => void;
-  isStore: boolean;
+  isPharmacy: boolean;
   suggestions: {
     names: string[];
     generics?: string[];
@@ -29,7 +29,7 @@ interface MedicineFormFieldsProps {
 export function MedicineFormFields({
   formData,
   onInputChange,
-  isStore,
+  isPharmacy,
   suggestions,
   commonSuggestions,
   t,
@@ -42,7 +42,7 @@ export function MedicineFormFields({
         <MedicineFormBasic
           formData={formData}
           onInputChange={onInputChange}
-          isStore={isStore}
+          isPharmacy={isPharmacy}
           suggestions={suggestions}
           t={t}
         />

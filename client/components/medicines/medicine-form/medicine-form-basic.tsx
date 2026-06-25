@@ -6,7 +6,7 @@ import type { Medicine } from "../types";
 interface MedicineFormBasicProps {
   formData: Medicine;
   onInputChange: (field: keyof Medicine, value: any) => void;
-  isStore: boolean;
+  isPharmacy: boolean;
   suggestions: {
     names: string[];
     generics?: string[];
@@ -21,7 +21,7 @@ interface MedicineFormBasicProps {
 export function MedicineFormBasic({
   formData,
   onInputChange,
-  isStore,
+  isPharmacy,
   suggestions,
   t,
 }: MedicineFormBasicProps) {
@@ -34,12 +34,12 @@ export function MedicineFormBasic({
           value={formData.name}
           onValueChange={(val) => onInputChange("name", val)}
           options={suggestions.names}
-          placeholder={`e.g., ${isStore ? "Paracetamol" : "Product Name"}`}
+          placeholder={`e.g., ${isPharmacy ? "Paracetamol" : "Product Name"}`}
           required
         />
       </div>
 
-      {isStore && (
+      {isPharmacy && (
         <div className="space-y-2">
           <Label htmlFor="genericName">Generic Name *</Label>
           <SearchableInput
@@ -60,7 +60,7 @@ export function MedicineFormBasic({
           value={formData.brand}
           onValueChange={(val) => onInputChange("brand", val)}
           options={suggestions.names}
-          placeholder={`e.g., ${isStore ? "Panadol" : "Brand Name"}`}
+          placeholder={`e.g., ${isPharmacy ? "Panadol" : "Brand Name"}`}
         />
       </div>
 
@@ -91,7 +91,7 @@ export function MedicineFormBasic({
           value={formData.strength}
           onValueChange={(val) => onInputChange("strength", val)}
           options={
-            isStore
+            isPharmacy
               ? suggestions.strengths
               : ["Small", "Medium", "Large", "1kg", "500g", "1L", "500ml"]
           }
@@ -99,7 +99,7 @@ export function MedicineFormBasic({
         />
       </div>
 
-      {isStore && (
+      {isPharmacy && (
         <div className="space-y-2">
           <Label htmlFor="dosageForm">Dosage Form</Label>
           <SearchableInput

@@ -3,7 +3,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SearchableInput } from "@/components/ui/searchable-input";
 import { Switch } from "@/components/ui/switch";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Info, ScanLine } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import { Medicine } from "./types";
+import { useState } from "react";
+import { CameraScannerDialog } from "@/components/pos/camera-scanner-dialog";
 
 interface MedicineFormFieldsProps {
   formData: Medicine;
@@ -31,6 +37,8 @@ export function MedicineFormFields({
   commonSuggestions,
   t,
 }: MedicineFormFieldsProps) {
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+
   return (
     <>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -83,14 +91,13 @@ export function MedicineFormFields({
 
         <div className="space-y-2">
           <Label htmlFor="nafdacNumber">
-            {t("registration_number")} {isStore ? "*" : ""}
+            {t("registration_number")}
           </Label>
           <Input
             id="nafdacNumber"
             value={formData.nafdacNumber}
             onChange={(e) => onInputChange("nafdacNumber", e.target.value)}
             placeholder="e.g., 04-1234"
-            required={isStore}
           />
         </div>
 
@@ -186,7 +193,19 @@ export function MedicineFormFields({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="stockQuantity">Stock Quantity</Label>
+          <div className="flex items-center gap-2">
+            <Label htmlFor="stockQuantity">Stock Quantity</Label>
+            <TooltipProvider delayDuration={0}>
+              <Tooltip>
+                <TooltipTrigger type="button">
+                  <Info className="h-4 w-4 text-muted-foreground" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="max-w-xs">The current number of units you have physically available in the store.</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
           <Input
             id="stockQuantity"
             type="number"
@@ -206,7 +225,19 @@ export function MedicineFormFields({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="reorderLevel">Reorder Level</Label>
+          <div className="flex items-center gap-2">
+            <Label htmlFor="reorderLevel">Reorder Level</Label>
+            <TooltipProvider delayDuration={0}>
+              <Tooltip>
+                <TooltipTrigger type="button">
+                  <Info className="h-4 w-4 text-muted-foreground" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="max-w-xs">You will be alerted when stock falls to or below this number, reminding you to restock.</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
           <Input
             id="reorderLevel"
             type="number"
@@ -224,14 +255,52 @@ export function MedicineFormFields({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="expiryDate">Expiry Date</Label>
+          <Label htmlFor="expiryDate">Expiry Date (DD/MM/YYYY)</Label>
           <Input
             id="expiryDate"
-            type="date"
+            type="text"
+            placeholder="DD/MM/YYYY"
+            maxLength={10}
             value={formData.expiryDate}
-            onChange={(e) =>
-              onInputChange("expiryDate", e.target.value)
-            }
+            onChange={(e) => {
+              let val = e.target.value;
+              
+              // If user is deleting, just update state and return to avoid re-adding slashes
+              if (formData.expiryDate && val.length < formData.expiryDate.length) {
+                onInputChange("expiryDate", val);
+                return;
+              }
+
+              val = val.replace(/\D/g, "");
+              
+              if (val.length >= 2) {
+                const day = parseInt(val.substring(0, 2), 10);
+                if (day > 31) val = "31" + val.substring(2);
+                else if (day === 0) val = "01" + val.substring(2);
+              }
+              
+              if (val.length >= 4) {
+                const month = parseInt(val.substring(2, 4), 10);
+                if (month > 12) val = val.substring(0, 2) + "12" + val.substring(4);
+                else if (month === 0) val = val.substring(0, 2) + "01" + val.substring(4);
+              }
+              
+              if (val.length >= 8) {
+                let year = parseInt(val.substring(4, 8), 10);
+                if (year < 2000) year = 2000;
+                if (year > 2100) year = 2100;
+                val = val.substring(0, 4) + year.toString();
+              }
+
+              let formatted = val;
+              if (formatted.length >= 2) {
+                formatted = formatted.substring(0, 2) + "/" + formatted.substring(2);
+              }
+              if (formatted.length >= 5) {
+                formatted = formatted.substring(0, 5) + "/" + formatted.substring(5, 9);
+              }
+              onInputChange("expiryDate", formatted);
+            }}
           />
         </div>
 
@@ -249,18 +318,44 @@ export function MedicineFormFields({
 
         <div className="space-y-2">
           <Label htmlFor="barcode">Barcode (Optional)</Label>
-          <Input
-            id="barcode"
-            value={formData.barcode}
-            onChange={(e) =>
-              onInputChange("barcode", e.target.value)
-            }
-            placeholder="Scan or type barcode"
-          />
+          <div className="flex gap-2">
+            <Input
+              id="barcode"
+              value={formData.barcode}
+              onChange={(e) =>
+                onInputChange("barcode", e.target.value)
+              }
+              placeholder="Scan or type barcode"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="shrink-0"
+              onClick={() => {
+                setIsScannerOpen(true);
+              }}
+              title="Scan Barcode"
+            >
+              <ScanLine className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
 
         <div className="space-y-2 flex flex-col justify-center">
-          <Label htmlFor="showOnline" className="mb-2">Show in Public Storefront</Label>
+          <div className="flex items-center gap-2 mb-2">
+            <Label htmlFor="showOnline">Show in Public Storefront</Label>
+            <TooltipProvider delayDuration={0}>
+              <Tooltip>
+                <TooltipTrigger type="button">
+                  <Info className="h-4 w-4 text-muted-foreground" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="max-w-xs">Enable this to display the product on your online pharmacy storefront. Note: This feature may be restricted on some subscription plans.</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
           <div className="flex items-center space-x-2">
             <Switch
               id="showOnline"
@@ -273,6 +368,16 @@ export function MedicineFormFields({
           </div>
         </div>
       </div>
+
+      <CameraScannerDialog 
+        isOpen={isScannerOpen} 
+        onClose={() => setIsScannerOpen(false)} 
+        onScanSuccess={(barcode) => {
+          onInputChange("barcode", barcode);
+          setIsScannerOpen(false);
+          toast.success("Barcode scanned successfully");
+        }} 
+      />
 
       <div className="border-t pt-4 space-y-4">
         <h4 className="font-medium text-sm">
@@ -324,6 +429,16 @@ export function MedicineFormFields({
           {formData.unitsPerBulk} {formData.baseUnit || "Base Unit"}(s)
         </p>
       </div>
+
+      <CameraScannerDialog 
+        isOpen={isScannerOpen} 
+        onClose={() => setIsScannerOpen(false)} 
+        onScanSuccess={(barcode) => {
+          onInputChange("barcode", barcode);
+          setIsScannerOpen(false);
+          toast.success("Barcode scanned successfully");
+        }} 
+      />
     </>
   );
 }

@@ -7,7 +7,7 @@ import { BatchTracking } from "./batch-tracking"
 import { MedicineDatabase } from "@/components/medicines/medicine-database"
 import { Button } from "@/components/ui/button"
 import { ClipboardCheck, Lock } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
 import { StockAuditDialog } from "./stock-audit-dialog"
 import { ExpiringBatchesAlert } from "./expiring-batches-alert"
@@ -24,6 +24,15 @@ export function InventoryManagement() {
   // If navigated here with ?action=add or ?status=low_stock, land on the products tab
   const hasProductsParam = searchParams.get("action") === "add" || !!searchParams.get("status")
   const defaultTab = hasProductsParam ? "products" : "overview"
+  const [activeTab, setActiveTab] = useState(defaultTab)
+  
+  useEffect(() => {
+    const action = searchParams.get("action")
+    const status = searchParams.get("status")
+    if (action === "add" || !!status) {
+      setActiveTab("products")
+    }
+  }, [searchParams])
 
   return (
     <div className="space-y-6">
@@ -60,7 +69,7 @@ export function InventoryManagement() {
         onClose={() => setIsAuditOpen(false)} 
       />
 
-      <Tabs defaultValue={defaultTab} className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="bg-muted/50 p-1 h-auto flex-wrap justify-start">
           <TabsTrigger value="overview" className="px-4 py-2">Overview</TabsTrigger>
           <TabsTrigger value="products" className="px-4 py-2 capitalize">{t('products')} Database</TabsTrigger>

@@ -102,8 +102,15 @@ export function RefillTable({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredRefills.map((refill) => (
-                <TableRow key={refill.id}>
+              {filteredRefills.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={9} className="h-24 text-center">
+                    No refill requests found.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredRefills.map((refill) => (
+                  <TableRow key={refill.id}>
                   <TableCell>
                     <div>
                       <div className="font-medium">{refill.patientName}</div>
@@ -186,7 +193,7 @@ export function RefillTable({
                     </div>
                   </TableCell>
                 </TableRow>
-              ))}
+              )))}
             </TableBody>
           </Table>
         </div>

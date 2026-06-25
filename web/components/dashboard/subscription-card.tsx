@@ -64,7 +64,7 @@ export function SubscriptionCard() {
   const isInactive = subscription?.status === "inactive";
   const planName = subscription?.plan?.toLowerCase() || "";
   const isFreePlan = planName.includes("free");
-  const daysLeft = subscription?.days_remaining || 0;
+  const daysLeft = Math.floor(subscription?.days_remaining || 0);
   const isTrial = subscription?.is_trial === true;
   const isExpiringSoon = daysLeft < 7 && !isFreePlan;
 

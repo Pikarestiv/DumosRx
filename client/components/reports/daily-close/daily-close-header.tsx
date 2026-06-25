@@ -1,8 +1,6 @@
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Input } from "@/components/ui/input";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { CheckCircle2, CalendarIcon } from "lucide-react";
-import { getLocalTodayDate } from "@/lib/utils";
 
 interface DailyCloseHeaderProps {
   reportDate: string;

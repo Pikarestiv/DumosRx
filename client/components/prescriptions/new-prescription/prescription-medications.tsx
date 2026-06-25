@@ -3,13 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Pill, Plus, Trash2 } from "lucide-react";
 import { Combobox } from "@/components/ui/combobox";
@@ -51,7 +44,7 @@ export function PrescriptionMedications({
 }: PrescriptionMedicationsProps) {
   const uniqueMedicineNames = React.useMemo(() => {
     return Array.from(
-      new Set(availableMedicines.map((m) => m.name).filter(Boolean))
+      new Set(availableMedicines.map((m) => m.name).filter(Boolean)),
     );
   }, [availableMedicines]);
 
@@ -61,8 +54,8 @@ export function PrescriptionMedications({
         availableMedicines
           .filter((m) => m.name === newMedication.medicineName)
           .map((m) => m.strength)
-          .filter(Boolean)
-      )
+          .filter(Boolean),
+      ),
     );
   }, [availableMedicines, newMedication.medicineName]);
 
@@ -107,7 +100,9 @@ export function PrescriptionMedications({
                     strength: value,
                   }))
                 }
-                disabled={!newMedication.medicineName || strengthOptions.length === 0}
+                disabled={
+                  !newMedication.medicineName || strengthOptions.length === 0
+                }
                 placeholder="Select strength"
                 emptyText="No strength found."
               />
@@ -153,7 +148,8 @@ export function PrescriptionMedications({
                   const val = e.target.value;
                   setNewMedication((prev: any) => ({
                     ...prev,
-                    refillsAuthorized: val === "" ? "" : Number.parseInt(val) || 0,
+                    refillsAuthorized:
+                      val === "" ? "" : Number.parseInt(val) || 0,
                   }));
                 }}
                 min="0"
@@ -170,7 +166,8 @@ export function PrescriptionMedications({
                   const val = e.target.value;
                   setNewMedication((prev: any) => ({
                     ...prev,
-                    refillIntervalDays: val === "" ? "" : Number.parseInt(val) || 30,
+                    refillIntervalDays:
+                      val === "" ? "" : Number.parseInt(val) || 30,
                   }));
                 }}
                 min="1"

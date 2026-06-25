@@ -2,7 +2,11 @@ import { useState, useEffect, useMemo } from "react";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { genericFuzzySearch } from "@/lib/utils/search";
 import { useLocalData } from "@/lib/db/hooks/useLocalData";
-import { query, execute, generateId, createPrescription } from "@/lib/db/local-database";
+import {
+  execute,
+  generateId,
+  createPrescription,
+} from "@/lib/db/local-database";
 import { toast } from "sonner";
 
 export interface RefillRequest {
@@ -31,7 +35,7 @@ export function useRefillManagement() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [refills, setRefills] = useState<RefillRequest[]>([]);
 
-  const { data, loading, refetch } = useLocalData<any>(
+  const { data, refetch } = useLocalData<any>(
     `SELECT 
       pi.id,
       p.id as prescription_id,
@@ -52,7 +56,7 @@ export function useRefillManagement() {
       p.updated_at
      FROM prescription_items pi
      JOIN prescriptions p ON pi.prescription_id = p.id
-     WHERE pi.refills_authorized > 0 AND p.status IN ('completed', 'dispensed') AND pi._deleted = 0`
+     WHERE pi.refills_authorized > 0 AND p.status IN ('completed', 'dispensed') AND pi._deleted = 0`,
   );
 
   useEffect(() => {
@@ -91,7 +95,9 @@ export function useRefillManagement() {
           dosage: item.dosage || "",
           quantity: item.quantity || 1,
           instructions: item.instructions || "",
-          lastFilled: item.updated_at?.split("T")[0] || new Date().toISOString().split("T")[0],
+          lastFilled:
+            item.updated_at?.split("T")[0] ||
+            new Date().toISOString().split("T")[0],
           nextRefillDate: nextDateStr.split("T")[0],
           refillsRemaining: remaining,
           totalRefills: item.refills_authorized,
@@ -114,7 +120,7 @@ export function useRefillManagement() {
   const { results: filteredRefills, isFuzzyFallback } = genericFuzzySearch(
     searchTerm,
     preFilteredRefills,
-    ["patientName", "originalPrescription", "medicineName"]
+    ["patientName", "originalPrescription", "medicineName"],
   );
 
   const formatCurrency = (amount: number) => {
@@ -130,7 +136,7 @@ export function useRefillManagement() {
   };
 
   const processRefill = async (id: string) => {
-    const refillItem = refills.find(r => r.id === id);
+    const refillItem = refills.find((r) => r.id === id);
     if (!refillItem) return;
 
     if (refillItem.refillsRemaining <= 0) {
@@ -140,7 +146,7 @@ export function useRefillManagement() {
 
     try {
       const now = new Date();
-      
+
       // 1. Generate a new prescription record (pending)
       const newPrescriptionId = generateId();
       const newPrescription = {
@@ -182,7 +188,7 @@ export function useRefillManagement() {
         `UPDATE prescription_items 
          SET refills_used = refills_used + 1, next_refill_date = ? 
          WHERE id = ?`,
-        [nextDate.toISOString(), id]
+        [nextDate.toISOString(), id],
       );
 
       toast.success("Refill processed and sent to active queue!");

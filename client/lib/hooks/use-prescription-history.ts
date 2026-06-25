@@ -3,13 +3,14 @@
 import { useState, useEffect, useMemo } from "react";
 import { query } from "@/lib/db/local-database";
 import { genericFuzzySearch } from "@/lib/utils/search";
-import { Prescription, PrescriptionMedication } from "./use-prescription-queue";
+import { Prescription } from "./use-prescription-queue";
 
 export function usePrescriptionHistory() {
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedPrescription, setSelectedPrescription] = useState<Prescription | null>(null);
+  const [selectedPrescription, setSelectedPrescription] =
+    useState<Prescription | null>(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
 
   const fetchHistory = async () => {
@@ -17,12 +18,12 @@ export function usePrescriptionHistory() {
     try {
       // 1. Fetch completed/cancelled prescriptions
       const pData = await query<any>(
-        "SELECT * FROM prescriptions WHERE _deleted = 0 AND status IN ('completed', 'cancelled', 'dispensed') ORDER BY updated_at DESC"
+        "SELECT * FROM prescriptions WHERE _deleted = 0 AND status IN ('completed', 'cancelled', 'dispensed') ORDER BY updated_at DESC",
       );
 
       // 2. Fetch all prescription items for these prescriptions
       const itemsData = await query<any>(
-        "SELECT * FROM prescription_items WHERE _deleted = 0"
+        "SELECT * FROM prescription_items WHERE _deleted = 0",
       );
 
       // 3. Group items by prescription_id
@@ -77,7 +78,7 @@ export function usePrescriptionHistory() {
     const { results, isFuzzyFallback } = genericFuzzySearch(
       searchTerm,
       prescriptions,
-      ["patientName", "prescriptionNumber", "doctorName"]
+      ["patientName", "prescriptionNumber", "doctorName"],
     );
     return { filteredPrescriptions: results, isFuzzyFallback };
   }, [searchTerm, prescriptions]);

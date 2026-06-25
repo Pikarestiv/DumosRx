@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { format, isValid, parse } from "date-fns";
 import { Calendar as CalendarIcon } from "lucide-react";
 
@@ -30,7 +30,7 @@ export function DatePickerInput({
   disabled = false,
 }: DatePickerInputProps) {
   const [date, setDate] = useState<Date | undefined>(
-    value ? new Date(value) : undefined
+    value ? new Date(value) : undefined,
   );
   const [inputValue, setInputValue] = useState("");
   const [isOpen, setIsOpen] = useState(false);
@@ -54,17 +54,21 @@ export function DatePickerInput({
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let val = e.target.value;
-    
+
     // Auto-insert slashes
-    if (val.length === 2 && inputValue.length === 1 && !val.includes('/')) {
-      val += '/';
-    } else if (val.length === 5 && inputValue.length === 4 && (val.match(/\//g) || []).length === 1) {
-      val += '/';
+    if (val.length === 2 && inputValue.length === 1 && !val.includes("/")) {
+      val += "/";
+    } else if (
+      val.length === 5 &&
+      inputValue.length === 4 &&
+      (val.match(/\//g) || []).length === 1
+    ) {
+      val += "/";
     }
-    
+
     // Strip non-digits and slashes, limit length to 10
     val = val.replace(/[^\d/]/g, "").slice(0, 10);
-    
+
     setInputValue(val);
 
     // If it's a complete date string, try to parse it
@@ -115,11 +119,7 @@ export function DatePickerInput({
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="end">
-            <Calendar
-              mode="single"
-              selected={date}
-              onSelect={handleSelect}
-            />
+            <Calendar mode="single" selected={date} onSelect={handleSelect} />
           </PopoverContent>
         </Popover>
       </div>

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { toast } from "sonner";
 import { isTauri } from "@/lib/db/local-database";
+import { useAuth } from "@/lib/context/auth-context";
 
 interface EditBatchDialogProps {
   isOpen: boolean;
@@ -18,6 +19,7 @@ interface EditBatchDialogProps {
 
 export function EditBatchDialog({ isOpen, onClose, batch, onSuccess }: EditBatchDialogProps) {
   const [loading, setLoading] = useState(false);
+  const { isAdmin } = useAuth();
   const [formData, setFormData] = useState({
     batch_number: "",
     expiry_date: "",
@@ -105,6 +107,7 @@ export function EditBatchDialog({ isOpen, onClose, batch, onSuccess }: EditBatch
               type="number"
               value={formData.quantity}
               onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 0 })}
+              disabled={!isAdmin}
             />
           </div>
 

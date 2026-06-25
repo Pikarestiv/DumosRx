@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Printer, RotateCcw } from "lucide-react";
+import { useAuth } from "@/lib/context/auth-context";
 
 interface TransactionDetailsDialogProps {
   sale: any;
@@ -35,6 +36,7 @@ export function TransactionDetailsDialog({
   currencyCode,
   onReturnClick,
 }: TransactionDetailsDialogProps) {
+  const { isAdmin } = useAuth();
   const { data: items } = useLocalData<any>(
     open && sale?.id
       ? `SELECT 
@@ -159,7 +161,7 @@ export function TransactionDetailsDialog({
         </div>
 
         <div className="flex justify-end gap-3 mt-6 pt-4 border-t hide-on-print">
-          {onReturnClick && (
+          {isAdmin && onReturnClick && (
             <Button
               variant="outline"
               onClick={() => {

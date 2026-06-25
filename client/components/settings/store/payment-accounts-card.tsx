@@ -56,7 +56,7 @@ export function PaymentAccountsCard() {
   });
 
   const { storeProfile } = useStore();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
 
   const activeStoreId = storeProfile?.id;
   const activeUserId = user?.id;
@@ -152,17 +152,19 @@ export function PaymentAccountsCard() {
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <div>
-          <CardTitle>Payment Accounts</CardTitle>
-          <CardDescription>
-            Manage destination accounts for Transfer and Card payments.
-          </CardDescription>
-        </div>
-        <Button onClick={() => handleOpenDialog()} size="sm">
-          <Plus className="h-4 w-4 mr-2" />
-          Add Account
-        </Button>
+      <CardHeader>
+        <CardTitle className="text-xl flex justify-between items-center">
+          <span>Payment Accounts</span>
+          {isAdmin && (
+            <Button onClick={() => handleOpenDialog()} size="sm">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Account
+            </Button>
+          )}
+        </CardTitle>
+        <CardDescription>
+          Manage destination accounts for Transfer and Card payments.
+        </CardDescription>
       </CardHeader>
       <CardContent>
         {loading ? (
@@ -172,19 +174,21 @@ export function PaymentAccountsCard() {
         ) : accounts.length === 0 ? (
           <div className="text-center p-8 border rounded-lg border-dashed">
             <p className="text-muted-foreground text-sm">No payment accounts configured.</p>
-            <Button variant="link" onClick={() => handleOpenDialog()} className="mt-2">
-              Add your first account
-            </Button>
+            {isAdmin && (
+              <Button variant="link" onClick={() => handleOpenDialog()} className="mt-2">
+                Add your first account
+              </Button>
+            )}
           </div>
         ) : (
           <div className="space-y-3">
             {accounts.map((account) => (
-              <div key={account.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/30 transition-colors">
+              <div key={account.id} className="p-4 border rounded-lg hover:bg-muted/30 transition-colors">
                 <div className="flex items-center gap-4">
                   <div className="p-2 bg-muted rounded-full">
                     {getIcon(account.account_type)}
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <h4 className="font-semibold text-sm">{account.name}</h4>
                     <p className="text-xs text-muted-foreground">
                       {account.account_type === "bank" ? "Bank Account" : 
@@ -194,21 +198,30 @@ export function PaymentAccountsCard() {
                     </p>
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(account)}>
-                    <Edit2 className="h-4 w-4 text-muted-foreground" />
-                  </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    onClick={() => {
-                      setAccountToDelete(account.id);
-                      setIsConfirmOpen(true);
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
-                </div>
+                {isAdmin && (
+                    <div className="flex items-center gap-2 mt-4 pt-4 border-t">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="flex-1"
+                        onClick={() => handleOpenDialog(account)}
+                      >
+                        <Edit2 className="h-4 w-4 mr-2" />
+                        Edit
+                      </Button>
+                      <Button 
+                        variant="destructive" 
+                        size="icon"
+                        className="shrink-0"
+                        onClick={() => {
+                          setAccountToDelete(account.id);
+                          setIsConfirmOpen(true);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                )}
               </div>
             ))}
           </div>

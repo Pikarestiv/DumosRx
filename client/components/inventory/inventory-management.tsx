@@ -13,11 +13,13 @@ import { StockAuditDialog } from "./stock-audit-dialog"
 import { ExpiringBatchesAlert } from "./expiring-batches-alert"
 import { useStore } from "@/lib/context/store-context"
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate"
+import { useAuth } from "@/lib/context/auth-context"
 import { toast } from "sonner"
 
 export function InventoryManagement() {
   const [isAuditOpen, setIsAuditOpen] = useState(false)
   const { t } = useStore()
+  const { isAdmin } = useAuth()
   const searchParams = useSearchParams()
   const { canUseAuditMode, getUpgradeMessage } = useFeatureGate()
 
@@ -79,7 +81,7 @@ export function InventoryManagement() {
           <TabsTrigger value="products" className="px-4 py-2 capitalize">{t('products')} Database</TabsTrigger>
           <TabsTrigger value="batches" className="px-4 py-2">Batches & Expiry</TabsTrigger>
           <TabsTrigger value="movements" className="px-4 py-2">Stock Movements</TabsTrigger>
-          <TabsTrigger value="adjustments" className="px-4 py-2">Adjustments</TabsTrigger>
+          {isAdmin && <TabsTrigger value="adjustments" className="px-4 py-2">Adjustments</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="products">
@@ -98,9 +100,11 @@ export function InventoryManagement() {
           <StockMovements />
         </TabsContent>
 
-        <TabsContent value="adjustments">
-          <StockAdjustments />
-        </TabsContent>
+        {isAdmin && (
+          <TabsContent value="adjustments">
+            <StockAdjustments />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   )

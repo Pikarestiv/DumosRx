@@ -27,6 +27,8 @@ interface PrescriptionTableProps {
   getPriorityBadge: (priority: Prescription["priority"]) => React.ReactNode;
   viewDetails: (prescription: Prescription) => void;
   updateStatus: (id: string, status: Prescription["status"]) => void;
+  onDispense: (prescription: Prescription) => void;
+  onEdit: (prescription: Prescription) => void;
 }
 
 export function PrescriptionTable({
@@ -38,7 +40,9 @@ export function PrescriptionTable({
   getStatusBadge,
   getPriorityBadge,
   viewDetails,
-  updateStatus
+  updateStatus,
+  onDispense,
+  onEdit
 }: PrescriptionTableProps) {
   return (
     <Card>
@@ -157,14 +161,24 @@ export function PrescriptionTable({
                           <Eye className="h-4 w-4" />
                         </Button>
                         {prescription.status === "pending" && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => updateStatus(prescription.id, "in_progress")}
-                            className="cursor-pointer"
-                          >
-                            Start
-                          </Button>
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => onEdit(prescription)}
+                              className="cursor-pointer"
+                            >
+                              Edit
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => updateStatus(prescription.id, "in_progress")}
+                              className="cursor-pointer"
+                            >
+                              Start
+                            </Button>
+                          </>
                         )}
                         {prescription.status === "in_progress" && (
                           <Button
@@ -180,7 +194,7 @@ export function PrescriptionTable({
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => updateStatus(prescription.id, "dispensed")}
+                            onClick={() => onDispense(prescription)}
                             className="cursor-pointer"
                           >
                             Dispense

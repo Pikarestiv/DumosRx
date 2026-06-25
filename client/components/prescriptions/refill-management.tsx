@@ -1,30 +1,55 @@
-/* eslint-disable max-lines */
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, Calendar, RefreshCw, Clock, CheckCircle, AlertTriangle } from "lucide-react"
-import { genericFuzzySearch } from "@/lib/utils/search"
+import { useState } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Search,
+  Calendar,
+  RefreshCw,
+  Clock,
+  CheckCircle,
+  AlertTriangle,
+} from "lucide-react";
+import { genericFuzzySearch } from "@/lib/utils/search";
 
 interface RefillRequest {
-  id: string
-  originalPrescription: string
-  patientName: string
-  patientPhone: string
-  medicineName: string
-  strength: string
-  lastFilled: string
-  nextRefillDate: string
-  refillsRemaining: number
-  totalRefills: number
-  status: "due" | "early" | "overdue" | "completed" | "expired"
-  doctorName: string
-  cost: number
+  id: string;
+  originalPrescription: string;
+  patientName: string;
+  patientPhone: string;
+  medicineName: string;
+  strength: string;
+  lastFilled: string;
+  nextRefillDate: string;
+  refillsRemaining: number;
+  totalRefills: number;
+  status: "due" | "early" | "overdue" | "completed" | "expired";
+  doctorName: string;
+  cost: number;
 }
 
 const refillsData: RefillRequest[] = [
@@ -88,24 +113,25 @@ const refillsData: RefillRequest[] = [
     doctorName: "Dr. James Wilson",
     cost: 4200,
   },
-]
+];
 
 export function RefillManagement() {
-  const [refills, setRefills] = useState<RefillRequest[]>(refillsData)
-  const [searchTerm, setSearchTerm] = useState("")
-  const [statusFilter, setStatusFilter] = useState("all")
+  const [refills, setRefills] = useState<RefillRequest[]>(refillsData);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
 
   const preFilteredRefills = refills.filter((refill) => {
-    const matchesStatus = statusFilter === "all" || refill.status === statusFilter
+    const matchesStatus =
+      statusFilter === "all" || refill.status === statusFilter;
 
-    return matchesStatus
-  })
+    return matchesStatus;
+  });
 
   const { results: filteredRefills, isFuzzyFallback } = genericFuzzySearch(
     searchTerm,
     preFilteredRefills,
-    ["patientName", "originalPrescription", "medicineName"]
-  )
+    ["patientName", "originalPrescription", "medicineName"],
+  );
 
   const getStatusBadge = (status: RefillRequest["status"]) => {
     const variants = {
@@ -114,7 +140,7 @@ export function RefillManagement() {
       overdue: "destructive",
       completed: "outline",
       expired: "destructive",
-    } as const
+    } as const;
 
     const labels = {
       due: "Due",
@@ -122,73 +148,76 @@ export function RefillManagement() {
       overdue: "Overdue",
       completed: "Completed",
       expired: "Expired",
-    }
+    };
 
     return (
       <Badge variant={variants[status]} className="text-xs">
         {labels[status]}
       </Badge>
-    )
-  }
+    );
+  };
 
   const getStatusIcon = (status: RefillRequest["status"]) => {
     switch (status) {
       case "due":
-        return <Clock className="h-4 w-4 text-blue-600" />
+        return <Clock className="h-4 w-4 text-blue-600" />;
       case "early":
-        return <Calendar className="h-4 w-4 text-gray-600" />
+        return <Calendar className="h-4 w-4 text-gray-600" />;
       case "overdue":
-        return <AlertTriangle className="h-4 w-4 text-red-600" />
+        return <AlertTriangle className="h-4 w-4 text-red-600" />;
       case "completed":
-        return <CheckCircle className="h-4 w-4 text-green-600" />
+        return <CheckCircle className="h-4 w-4 text-green-600" />;
       case "expired":
-        return <AlertTriangle className="h-4 w-4 text-red-600" />
+        return <AlertTriangle className="h-4 w-4 text-red-600" />;
       default:
-        return null
+        return null;
     }
-  }
+  };
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-NG", {
       style: "currency",
       currency: "NGN",
       minimumFractionDigits: 0,
-    }).format(amount)
-  }
+    }).format(amount);
+  };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-NG", {
       year: "numeric",
       month: "short",
       day: "numeric",
-    })
-  }
+    });
+  };
 
   const processRefill = (id: string) => {
     setRefills(
       refills.map((refill) => {
         if (refill.id === id) {
-          const newRefillsRemaining = refill.refillsRemaining - 1
-          const nextRefillDate = new Date()
-          nextRefillDate.setDate(nextRefillDate.getDate() + 30) // 30 days from now
+          const newRefillsRemaining = refill.refillsRemaining - 1;
+          const nextRefillDate = new Date();
+          nextRefillDate.setDate(nextRefillDate.getDate() + 30); // 30 days from now
 
           return {
             ...refill,
             lastFilled: new Date().toISOString().split("T")[0],
             nextRefillDate: nextRefillDate.toISOString().split("T")[0],
             refillsRemaining: newRefillsRemaining,
-            status: newRefillsRemaining > 0 ? ("early" as const) : ("completed" as const),
-          }
+            status:
+              newRefillsRemaining > 0
+                ? ("early" as const)
+                : ("completed" as const),
+          };
         }
-        return refill
+        return refill;
       }),
-    )
-  }
+    );
+  };
 
-  const dueCount = refills.filter((r) => r.status === "due").length
-  const overdueCount = refills.filter((r) => r.status === "overdue").length
-  const earlyCount = refills.filter((r) => r.status === "early").length
-  const completedCount = refills.filter((r) => r.status === "completed").length
+  const dueCount = refills.filter((r) => r.status === "due").length;
+  const overdueCount = refills.filter((r) => r.status === "overdue").length;
+  const earlyCount = refills.filter((r) => r.status === "early").length;
+  const completedCount = refills.filter((r) => r.status === "completed").length;
 
   return (
     <div className="space-y-6">
@@ -211,7 +240,9 @@ export function RefillManagement() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Overdue</p>
-                <p className="text-2xl font-bold text-red-600">{overdueCount}</p>
+                <p className="text-2xl font-bold text-red-600">
+                  {overdueCount}
+                </p>
               </div>
               <AlertTriangle className="h-8 w-8 text-red-600" />
             </div>
@@ -235,7 +266,9 @@ export function RefillManagement() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Completed</p>
-                <p className="text-2xl font-bold text-green-600">{completedCount}</p>
+                <p className="text-2xl font-bold text-green-600">
+                  {completedCount}
+                </p>
               </div>
               <CheckCircle className="h-8 w-8 text-green-600" />
             </div>
@@ -246,8 +279,12 @@ export function RefillManagement() {
       {/* Filters */}
       <Card>
         <CardHeader>
-          <CardTitle className="font-serif font-semibold">Refill Management</CardTitle>
-          <CardDescription>Track and process prescription refills and renewals</CardDescription>
+          <CardTitle className="font-serif font-semibold">
+            Refill Management
+          </CardTitle>
+          <CardDescription>
+            Track and process prescription refills and renewals
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col md:flex-row gap-4">
@@ -282,7 +319,9 @@ export function RefillManagement() {
       {/* Refills Table */}
       <Card>
         <CardHeader>
-          <CardTitle className="font-serif font-semibold">Refill Requests</CardTitle>
+          <CardTitle className="font-serif font-semibold">
+            Refill Requests
+          </CardTitle>
           <CardDescription>
             Showing {filteredRefills.length} of {refills.length} refill requests
           </CardDescription>
@@ -314,17 +353,23 @@ export function RefillManagement() {
                     <TableCell>
                       <div>
                         <div className="font-medium">{refill.patientName}</div>
-                        <div className="text-sm text-muted-foreground">{refill.patientPhone}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {refill.patientPhone}
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell>
                       <div>
                         <div className="font-medium">{refill.medicineName}</div>
-                        <div className="text-sm text-muted-foreground">{refill.strength}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {refill.strength}
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <code className="text-sm bg-muted px-2 py-1 rounded">{refill.originalPrescription}</code>
+                      <code className="text-sm bg-muted px-2 py-1 rounded">
+                        {refill.originalPrescription}
+                      </code>
                     </TableCell>
                     <TableCell>{formatDate(refill.lastFilled)}</TableCell>
                     <TableCell>{formatDate(refill.nextRefillDate)}</TableCell>
@@ -333,7 +378,9 @@ export function RefillManagement() {
                         <span className="font-medium">
                           {refill.refillsRemaining}/{refill.totalRefills}
                         </span>
-                        <div className="text-xs text-muted-foreground">remaining</div>
+                        <div className="text-xs text-muted-foreground">
+                          remaining
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -343,28 +390,42 @@ export function RefillManagement() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="font-medium">{formatCurrency(refill.cost)}</div>
+                      <div className="font-medium">
+                        {formatCurrency(refill.cost)}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        {(refill.status === "due" || refill.status === "overdue") && refill.refillsRemaining > 0 && (
+                        {(refill.status === "due" ||
+                          refill.status === "overdue") &&
+                          refill.refillsRemaining > 0 && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => processRefill(refill.id)}
+                              className="flex items-center gap-1"
+                            >
+                              <RefreshCw className="h-4 w-4" />
+                              Fill
+                            </Button>
+                          )}
+                        {refill.status === "early" && (
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => processRefill(refill.id)}
-                            className="flex items-center gap-1"
+                            disabled
+                            className="text-muted-foreground"
                           >
-                            <RefreshCw className="h-4 w-4" />
-                            Fill
-                          </Button>
-                        )}
-                        {refill.status === "early" && (
-                          <Button variant="ghost" size="sm" disabled className="text-muted-foreground">
                             Too Early
                           </Button>
                         )}
                         {refill.status === "completed" && (
-                          <Button variant="ghost" size="sm" disabled className="text-muted-foreground">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled
+                            className="text-muted-foreground"
+                          >
                             Complete
                           </Button>
                         )}
@@ -378,5 +439,5 @@ export function RefillManagement() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

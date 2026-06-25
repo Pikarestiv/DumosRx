@@ -1,4 +1,3 @@
-/* eslint-disable max-lines */
 "use client";
 
 import type React from "react";
@@ -71,7 +70,8 @@ export function StockAdjustments() {
       try {
         let res;
         if (isTauri()) {
-          const { getStockAdjustments } = await import("@/lib/db/local-database");
+          const { getStockAdjustments } =
+            await import("@/lib/db/local-database");
           res = await getStockAdjustments(1, 100);
         } else {
           res = await apiClient.getStockAdjustments(1, 100);
@@ -101,7 +101,7 @@ export function StockAdjustments() {
   const { results: filteredAdjustments, isFuzzyFallback } = genericFuzzySearch(
     searchTerm,
     adjustments,
-    ["medicine", "reason"]
+    ["medicine", "reason"],
   );
 
   const handleSubmitAdjustment = async (e: React.FormEvent) => {
@@ -125,9 +125,14 @@ export function StockAdjustments() {
       try {
         const { query, execute } = await import("@/lib/db/core");
         // Resolve medicine ID from the name selection
-        const med = await query<any>("SELECT id FROM medicines WHERE name = ? LIMIT 1", [newAdjustment.medicine]);
+        const med = await query<any>(
+          "SELECT id FROM medicines WHERE name = ? LIMIT 1",
+          [newAdjustment.medicine],
+        );
         if (!med || med.length === 0) {
-          toast.error("Selected medicine not found in database. Please enter or register a valid medicine.");
+          toast.error(
+            "Selected medicine not found in database. Please enter or register a valid medicine.",
+          );
           return;
         }
         const medicineId = med[0].id;
@@ -137,13 +142,19 @@ export function StockAdjustments() {
         await execute(
           `INSERT INTO stock_movements (id, medicine_id, movement_type, quantity, reason, created_at, _synced) 
            VALUES (?, ?, 'adjustment', ?, ?, ?, 0)`,
-          [uuid, medicineId, calculatedQty, newAdjustment.reason, new Date().toISOString()]
+          [
+            uuid,
+            medicineId,
+            calculatedQty,
+            newAdjustment.reason,
+            new Date().toISOString(),
+          ],
         );
 
         // Adjust medicine stock level locally
         await execute(
           `UPDATE medicines SET stock_quantity = stock_quantity + ?, updated_at = ? WHERE id = ?`,
-          [calculatedQty, new Date().toISOString(), medicineId]
+          [calculatedQty, new Date().toISOString(), medicineId],
         );
       } catch (err) {
         console.error("Failed to apply local adjustment:", err);
@@ -173,7 +184,11 @@ export function StockAdjustments() {
       notes: "",
     });
     setShowAddForm(false);
-    toast.success(isTauri() ? "Stock adjustment applied successfully" : "Stock adjustment submitted for approval");
+    toast.success(
+      isTauri()
+        ? "Stock adjustment applied successfully"
+        : "Stock adjustment submitted for approval",
+    );
   };
 
   const formatDateTime = (dateString: string) => {
@@ -265,7 +280,9 @@ export function StockAdjustments() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Total Adjustments</p>
+                <p className="text-sm text-muted-foreground">
+                  Total Adjustments
+                </p>
                 <p className="text-2xl font-bold">{totalAdjustments}</p>
               </div>
               <RotateCcw className="h-8 w-8 text-primary" />
@@ -277,8 +294,12 @@ export function StockAdjustments() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Pending Approval</p>
-                <p className="text-2xl font-bold text-orange-600">{pendingAdjustments}</p>
+                <p className="text-sm text-muted-foreground">
+                  Pending Approval
+                </p>
+                <p className="text-2xl font-bold text-orange-600">
+                  {pendingAdjustments}
+                </p>
               </div>
               <AlertTriangle className="h-8 w-8 text-orange-600" />
             </div>
@@ -293,7 +314,8 @@ export function StockAdjustments() {
                 <p className="text-2xl font-bold">
                   {
                     adjustments.filter(
-                      (adj) => new Date(adj.date).getMonth() === new Date().getMonth(),
+                      (adj) =>
+                        new Date(adj.date).getMonth() === new Date().getMonth(),
                     ).length
                   }
                 </p>
@@ -320,8 +342,12 @@ export function StockAdjustments() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="font-serif font-semibold">Stock Adjustments</CardTitle>
-              <CardDescription>Track and manage inventory adjustments</CardDescription>
+              <CardTitle className="font-serif font-semibold">
+                Stock Adjustments
+              </CardTitle>
+              <CardDescription>
+                Track and manage inventory adjustments
+              </CardDescription>
             </div>
             <Button
               onClick={() => setShowAddForm(true)}
@@ -352,9 +378,12 @@ export function StockAdjustments() {
       {/* Adjustments Table */}
       <Card>
         <CardHeader>
-          <CardTitle className="font-serif font-semibold">Adjustment History</CardTitle>
+          <CardTitle className="font-serif font-semibold">
+            Adjustment History
+          </CardTitle>
           <CardDescription>
-            Showing {filteredAdjustments.length} of {adjustments.length} adjustments
+            Showing {filteredAdjustments.length} of {adjustments.length}{" "}
+            adjustments
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -396,12 +425,16 @@ export function StockAdjustments() {
                   filteredAdjustments.map((adjustment) => (
                     <TableRow key={adjustment.id}>
                       <TableCell>
-                        <div className="text-sm">{formatDateTime(adjustment.date)}</div>
+                        <div className="text-sm">
+                          {formatDateTime(adjustment.date)}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div className="font-medium">{adjustment.medicine}</div>
                       </TableCell>
-                      <TableCell>{getAdjustmentBadge(adjustment.adjustmentType)}</TableCell>
+                      <TableCell>
+                        {getAdjustmentBadge(adjustment.adjustmentType)}
+                      </TableCell>
                       <TableCell>
                         <div
                           className={`font-medium ${adjustment.quantity > 0 ? "text-green-600" : "text-red-600"}`}

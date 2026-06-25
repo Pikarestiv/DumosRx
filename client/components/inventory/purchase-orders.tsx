@@ -1,4 +1,3 @@
-/* eslint-disable max-lines */
 "use client";
 
 import { useState, useEffect } from "react";
@@ -62,11 +61,12 @@ export function PurchaseOrders() {
         } else {
           res = await apiClient.getPurchaseOrders(1, 100);
         }
-        
+
         const items = (res.data || []).map((o: any) => ({
           id: o.id,
           orderNumber: o.order_number || o.orderNumber || `PO-${o.id}`,
-          supplier: o.supplier?.name || o.supplier_name || o.vendor_name || "Unknown",
+          supplier:
+            o.supplier?.name || o.supplier_name || o.vendor_name || "Unknown",
           orderDate: o.order_date || o.created_at,
           expectedDate: o.expected_date || o.order_date || o.created_at,
           status: o.status || "draft",
@@ -96,7 +96,8 @@ export function PurchaseOrders() {
   });
 
   const getStatusBadge = (status: PurchaseOrder["status"]) => {
-    let variant: "secondary" | "outline" | "default" | "destructive" = "default";
+    let variant: "secondary" | "outline" | "default" | "destructive" =
+      "default";
     let label = "Confirmed";
 
     switch (status) {

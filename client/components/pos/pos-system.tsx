@@ -1,4 +1,3 @@
-/* eslint-disable max-lines */
 "use client";
 
 import { useEffect, useState } from "react";
@@ -55,7 +54,7 @@ import { POSCustomerSelector } from "./pos-customer-selector";
 import { POSCart } from "./pos-cart";
 import { useSmartSuggestions } from "@/hooks/use-smart-suggestions";
 import { HeldTransactionsDialog } from "./held-transactions-dialog";
-import { insert, remove } from "@/lib/db/local-database";
+import { insert, remove, query } from "@/lib/db/local-database";
 import { searchMedicines } from "@/lib/utils/search";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
@@ -116,15 +115,17 @@ export function POSSystem() {
   );
 
   const { data: recentlySoldData } = useLocalData<any>(
-    "SELECT DISTINCT medicine_id FROM sale_items ORDER BY created_at DESC LIMIT 8"
+    "SELECT DISTINCT medicine_id FROM sale_items ORDER BY created_at DESC LIMIT 8",
   );
 
   const { data: commonlySoldData } = useLocalData<any>(
-    "SELECT medicine_id, SUM(quantity) as total_qty FROM sale_items GROUP BY medicine_id ORDER BY total_qty DESC LIMIT 8"
+    "SELECT medicine_id, SUM(quantity) as total_qty FROM sale_items GROUP BY medicine_id ORDER BY total_qty DESC LIMIT 8",
   );
 
-  const recentlySoldIds = recentlySoldData?.map((item: any) => item.medicine_id) || [];
-  const commonlySoldIds = commonlySoldData?.map((item: any) => item.medicine_id) || [];
+  const recentlySoldIds =
+    recentlySoldData?.map((item: any) => item.medicine_id) || [];
+  const commonlySoldIds =
+    commonlySoldData?.map((item: any) => item.medicine_id) || [];
 
   // Fetch customers from local DB
   const { data: customers, loading: loadingCustomers } = useLocalData<Customer>(
@@ -260,6 +261,54 @@ export function POSSystem() {
     return searchMedicines(searchTerm, medicines);
   }, [searchTerm, medicines]);
 
+  useEffect(() => {
+    const rxId = searchParams.get("dispense_rx");
+    if (rxId && medicines.length > 0 && cart.length === 0) {
+      const loadPrescription = async () => {
+        try {
+          // fetch prescription items
+          const itemsData = await query(
+            "SELECT * FROM prescription_items WHERE prescription_id = ? AND _deleted = 0",
+            [rxId],
+          );
+
+          // update prescription status to in_progress or dispensed
+          // The POS handles final sale, but let's just load the cart for now.
+          const restoredItems = itemsData
+            .map((item: any) => {
+              const medicine = medicines.find(
+                (m) =>
+                  m.name === item.medicine_name && m.strength === item.strength,
+              );
+              if (medicine) {
+                return {
+                  ...medicine,
+                  quantity: item.quantity,
+                  subtotal: medicine.unit_price * item.quantity,
+                };
+              }
+              return null;
+            })
+            .filter((item: any) => item !== null) as any;
+
+          if (restoredItems.length > 0) {
+            restoreCart(restoredItems);
+            toast.success("Prescription loaded into POS");
+            const newParams = new URLSearchParams(searchParams.toString());
+            newParams.delete("dispense_rx");
+            router.replace(`${pathname}?${newParams.toString()}`);
+          } else {
+            toast.error("Could not match prescription items to inventory.");
+          }
+        } catch (error) {
+          console.error("Failed to load prescription to POS:", error);
+          toast.error("Failed to load prescription.");
+        }
+      };
+      loadPrescription();
+    }
+  }, [searchParams, medicines, cart.length, restoreCart, router, pathname]);
+
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && searchTerm.trim()) {
       handleScanSuccess(searchTerm.trim());
@@ -333,7 +382,7 @@ export function POSSystem() {
           }
           return null;
         })
-        .filter(Boolean);
+        .filter((item: any) => item !== null) as any;
 
       restoreCart(restoredItems);
 
@@ -448,7 +497,11 @@ export function POSSystem() {
         <div className="flex flex-col lg:grid lg:grid-cols-3 gap-4 lg:gap-6">
           {/* Left: product search + list */}
           <div className="lg:col-span-2 space-y-4">
-            <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+            <Tabs
+              value={activeTab}
+              onValueChange={handleTabChange}
+              className="w-full"
+            >
               <div className="overflow-x-auto scrollbar-none">
                 <TabsList className="w-max min-w-full bg-muted/50 p-1 flex mb-4">
                   <TabsTrigger value="products" className="px-4 py-2 shrink-0">

@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import { useLocalData } from "@/lib/db/hooks/useLocalData";
 import { useStore } from "@/lib/context/store-context";
 import { formatCurrency } from "@/lib/utils";
@@ -22,20 +24,48 @@ import { CheckCircle2, Download, Printer } from "lucide-react";
 import { getLocalTodayDate } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { ArrowRight, CalendarIcon } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { TransactionDetailsDialog } from "@/components/pos/transaction-details-dialog";
 
 export function DailyCloseReport() {
   const { storeProfile } = useStore();
   const currencyCode = storeProfile?.currency;
 
+  const [reportDate, setReportDate] = useState(getLocalTodayDate());
+  const [isSalesModalOpen, setIsSalesModalOpen] = useState(false);
+  const [salesSearch, setSalesSearch] = useState("");
+  const [selectedSale, setSelectedSale] = useState<any>(null);
+  const [paymentFilter, setPaymentFilter] = useState("all");
+
+  const openSalesModal = (filter: string) => {
+    setPaymentFilter(filter);
+    setIsSalesModalOpen(true);
+  };
+
   // 1. Fetch sales for today
   const { data: salesToday } = useLocalData<any>(
-    `SELECT * FROM sales WHERE date(transaction_date) = '${getLocalTodayDate()}' AND _deleted = 0`,
+    `SELECT * FROM sales WHERE date(transaction_date) = '${reportDate}' AND _deleted = 0`,
   );
 
   // 2. Fetch sale items for today to calculate profit and top sellers
@@ -44,7 +74,7 @@ export function DailyCloseReport() {
      FROM sale_items si 
      JOIN sales s ON si.sale_id = s.id 
      LEFT JOIN medicines m ON si.medicine_id = m.id 
-     WHERE date(s.transaction_date) = '${getLocalTodayDate()}' AND si._deleted = 0 AND s._deleted = 0`,
+     WHERE date(s.transaction_date) = '${reportDate}' AND si._deleted = 0 AND s._deleted = 0`,
   );
 
   // Parse Mixed payments by joining with customer_payments if needed, but we can rely on `payment_splits` which is stored as JSON in `payment_details` if we modified it?
@@ -162,23 +192,53 @@ export function DailyCloseReport() {
     URL.revokeObjectURL(url);
   };
 
+  const filteredSales = salesToday.filter((s: any) => {
+    const matchesSearch = s.transaction_number
+      .toLowerCase()
+      .includes(salesSearch.toLowerCase());
+    const matchesFilter =
+      paymentFilter === "all" ||
+      s.payment_method?.toLowerCase() === paymentFilter;
+    return matchesSearch && matchesFilter;
+  });
+
   return (
     <div className="space-y-6">
-      <Alert className="bg-primary/5 border-primary/20">
-        <CheckCircle2 className="h-4 w-4 text-primary" />
-        <AlertTitle>Daily Close Ready</AlertTitle>
-        <AlertDescription>
-          This report aggregates all transactions made today. Use this for end
-          of day reconciliation.
-        </AlertDescription>
-      </Alert>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <Alert className="bg-primary/5 border-primary/20 flex-1">
+          <CheckCircle2 className="h-4 w-4 text-primary" />
+          <AlertTitle>Daily Close Ready</AlertTitle>
+          <AlertDescription>
+            This report aggregates all transactions made on {reportDate}. Use
+            this for end of day reconciliation.
+          </AlertDescription>
+        </Alert>
+
+        <div className="flex items-center gap-2 shrink-0 bg-background border rounded-md px-3 py-2 shadow-sm">
+          <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+          <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">
+            Date:
+          </label>
+          <Input
+            type="date"
+            value={reportDate}
+            onChange={(e) => setReportDate(e.target.value)}
+            max={getLocalTodayDate()}
+            className="w-auto h-8 border-none shadow-none focus-visible:ring-0 px-1"
+          />
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
+        <Card
+          className="cursor-pointer hover:bg-muted/50 transition-colors"
+          onClick={() => openSalesModal("all")}
+        >
+          <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Total Sales
             </CardTitle>
+            <ArrowRight className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
@@ -186,11 +246,15 @@ export function DailyCloseReport() {
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="pb-2">
+        <Card
+          className="cursor-pointer hover:bg-muted/50 transition-colors"
+          onClick={() => openSalesModal("cash")}
+        >
+          <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Cash Expected
             </CardTitle>
+            <ArrowRight className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
@@ -198,11 +262,15 @@ export function DailyCloseReport() {
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="pb-2">
+        <Card
+          className="cursor-pointer hover:bg-muted/50 transition-colors"
+          onClick={() => openSalesModal("transfer")}
+        >
+          <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Transfer / Mobile
             </CardTitle>
+            <ArrowRight className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
@@ -341,6 +409,90 @@ export function DailyCloseReport() {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+
+      {/* Sales List Modal */}
+      <Dialog open={isSalesModalOpen} onOpenChange={setIsSalesModalOpen}>
+        <DialogContent className="sm:max-w-4xl max-h-[80vh] flex flex-col pt-10">
+          <DialogHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-2 sm:space-y-0 pb-4 mt-2 border-b mb-4">
+            <DialogTitle>Sales on {reportDate}</DialogTitle>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <Select value={paymentFilter} onValueChange={setPaymentFilter}>
+                <SelectTrigger className="w-[140px] h-8">
+                  <SelectValue placeholder="Payment Method" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Methods</SelectItem>
+                  <SelectItem value="cash">Cash</SelectItem>
+                  <SelectItem value="card">POS / Card</SelectItem>
+                  <SelectItem value="transfer">Transfer</SelectItem>
+                  <SelectItem value="credit">Credit</SelectItem>
+                  <SelectItem value="mixed">Mixed</SelectItem>
+                </SelectContent>
+              </Select>
+              <Input
+                placeholder="Search receipt..."
+                value={salesSearch}
+                onChange={(e) => setSalesSearch(e.target.value)}
+                className="h-8 w-full sm:w-[200px]"
+              />
+            </div>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto px-1">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Time</TableHead>
+                  <TableHead>Receipt No</TableHead>
+                  <TableHead>Payment</TableHead>
+                  <TableHead className="text-right">Total</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredSales.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={4}
+                      className="text-center py-8 text-muted-foreground"
+                    >
+                      No sales found.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredSales.map((sale: any) => (
+                    <TableRow
+                      key={sale.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => setSelectedSale(sale)}
+                    >
+                      <TableCell>
+                        {new Date(sale.transaction_date).toLocaleTimeString(
+                          [],
+                          { hour: "2-digit", minute: "2-digit" },
+                        )}
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {sale.transaction_number}
+                      </TableCell>
+                      <TableCell className="capitalize">
+                        {sale.payment_method}
+                      </TableCell>
+                      <TableCell className="text-right font-bold">
+                        {formatCurrency(sale.total_amount, currencyCode)}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <TransactionDetailsDialog
+        sale={selectedSale}
+        open={!!selectedSale}
+        onOpenChange={(open) => !open && setSelectedSale(null)}
+      />
     </div>
   );
 }

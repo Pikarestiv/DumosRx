@@ -53,6 +53,17 @@ export function PrescriptionMedications({
     );
   }, [availableMedicines]);
 
+  const strengthOptions = React.useMemo(() => {
+    return Array.from(
+      new Set(
+        availableMedicines
+          .filter((m) => m.name === newMedication.medicineName)
+          .map((m) => m.strength)
+          .filter(Boolean)
+      )
+    );
+  }, [availableMedicines, newMedication.medicineName]);
+
   return (
     <Card>
       <CardHeader>
@@ -85,32 +96,19 @@ export function PrescriptionMedications({
 
             <div className="space-y-2">
               <Label>Strength *</Label>
-              <Select
+              <Combobox
+                options={strengthOptions}
                 value={newMedication.strength}
-                onValueChange={(value) =>
+                onChange={(value) =>
                   setNewMedication((prev: any) => ({
                     ...prev,
                     strength: value,
                   }))
                 }
-                disabled={!newMedication.medicineName}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select strength" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableMedicines
-                    .filter((m) => m.name === newMedication.medicineName)
-                    .map((medicine) => (
-                      <SelectItem
-                        key={medicine.strength}
-                        value={medicine.strength}
-                      >
-                        {medicine.strength}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
+                disabled={!newMedication.medicineName || strengthOptions.length === 0}
+                placeholder="Select strength"
+                emptyText="No strength found."
+              />
             </div>
 
             <div className="space-y-2">
@@ -118,14 +116,15 @@ export function PrescriptionMedications({
               <Input
                 type="number"
                 value={newMedication.quantity}
-                onChange={(e) =>
+                onChange={(e) => {
+                  const val = e.target.value;
                   setNewMedication((prev: any) => ({
                     ...prev,
-                    quantity: Number.parseInt(e.target.value) || 1,
-                  }))
-                }
+                    quantity: val === "" ? "" : Number.parseInt(val) || 1,
+                  }));
+                }}
                 min="1"
-                placeholder="1"
+                placeholder="e.g., 10"
               />
             </div>
 

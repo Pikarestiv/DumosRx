@@ -90,7 +90,7 @@ export function PrescriptionQueue() {
   };
 
   const handleEdit = (prescription: Prescription) => {
-    router.push(`/dashboard/prescriptions?tab=new&edit_rx=${prescription.id}`);
+    router.push(`/prescriptions?tab=new&edit_rx=${prescription.id}`);
   };
 
   const handleDispense = (prescription: Prescription) => {

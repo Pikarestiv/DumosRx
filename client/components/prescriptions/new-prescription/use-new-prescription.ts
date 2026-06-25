@@ -65,7 +65,7 @@ export function useNewPrescription() {
     medicineName: "",
     strength: "",
     dosage: "",
-    quantity: 1,
+    quantity: 1 as number | "",
     instructions: "",
   });
 
@@ -120,6 +120,11 @@ export function useNewPrescription() {
       return;
     }
 
+    if (!newMedication.quantity || Number(newMedication.quantity) <= 0) {
+      toast.error("Please enter a valid quantity");
+      return;
+    }
+
     const medicine = availableMedicines.find(
       (m) =>
         m.name === newMedication.medicineName &&
@@ -136,9 +141,9 @@ export function useNewPrescription() {
       medicineName: newMedication.medicineName,
       strength: newMedication.strength,
       dosage: newMedication.dosage,
-      quantity: newMedication.quantity,
+      quantity: Number(newMedication.quantity),
       instructions: newMedication.instructions,
-      cost: medicine.cost * newMedication.quantity,
+      cost: medicine.cost * Number(newMedication.quantity),
     };
 
     setFormData((prev) => ({
@@ -150,7 +155,7 @@ export function useNewPrescription() {
       medicineName: "",
       strength: "",
       dosage: "",
-      quantity: 1,
+      quantity: "",
       instructions: "",
     });
   };

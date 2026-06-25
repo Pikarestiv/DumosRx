@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS medicines (
   _deleted INTEGER DEFAULT 0
 );
 
-CREATE TABLE IF NOT EXISTS inventory (
+CREATE TABLE IF NOT EXISTS inventories (
   id TEXT PRIMARY KEY,
   medicine_id TEXT NOT NULL,
   batch_number TEXT,

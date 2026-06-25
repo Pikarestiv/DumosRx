@@ -37,19 +37,30 @@ export function useBIData(externalTimeRange?: string) {
 
   // 1. Total Revenue
   const { data: revenueData } = useLocalData<{ total: number }>(
-    `SELECT SUM(total_amount) as total FROM sales WHERE transaction_date >= ? AND _deleted = 0`,
+    `SELECT SUM(total_amount) as total FROM sales WHERE transaction_date >= ? AND (_deleted = 0 OR _deleted IS NULL)`,
     [dateFilter]
   );
-  const totalRevenue = revenueData[0]?.total || 0;
+  const { data: totalRefundsData } = useLocalData<{ total: number }>(
+    `SELECT SUM(total_refunded) as total FROM returns WHERE created_at >= ? AND (_deleted = 0 OR _deleted IS NULL)`,
+    [dateFilter]
+  );
+  const totalRevenue = (revenueData[0]?.total || 0) - (totalRefundsData[0]?.total || 0);
 
   // 2. Total COGS
   const { data: cogsData } = useLocalData<{ total: number }>(
     `SELECT SUM(si.cost_price * si.quantity) as total FROM sale_items si
      JOIN sales s ON si.sale_id = s.id
-     WHERE s.transaction_date >= ? AND s._deleted = 0`,
+     WHERE s.transaction_date >= ? AND (s._deleted = 0 OR s._deleted IS NULL)`,
     [dateFilter]
   );
-  const totalCogs = cogsData[0]?.total || 0;
+  const { data: returnedCogsData } = useLocalData<{ total: number }>(
+    `SELECT SUM(ri.quantity * m.cost_price) as total FROM return_items ri
+     JOIN returns r ON ri.return_id = r.id
+     LEFT JOIN medicines m ON ri.medicine_id = m.id
+     WHERE r.created_at >= ? AND (r._deleted = 0 OR r._deleted IS NULL)`,
+    [dateFilter]
+  );
+  const totalCogs = (cogsData[0]?.total || 0) - (returnedCogsData[0]?.total || 0);
 
   // 3. Total Expenses
   const { data: expensesData } = useLocalData<{ total: number }>(
@@ -165,9 +176,27 @@ export function useBIData(externalTimeRange?: string) {
       COUNT(DISTINCT s.id) as transactions
      FROM sales s
      LEFT JOIN sale_items si ON s.id = si.sale_id
-     WHERE s.transaction_date >= ? AND s._deleted = 0
+     WHERE s.transaction_date >= ? AND (s._deleted = 0 OR s._deleted IS NULL)
      GROUP BY strftime('%Y-%m', s.transaction_date)
      ORDER BY strftime('%Y-%m', s.transaction_date) ASC`,
+    [dateFilter]
+  );
+
+  const { data: rawMonthlyReturns } = useLocalData<{
+    month: string;
+    refunds: number;
+    returned_cogs: number;
+  }>(
+    `SELECT
+      strftime('%Y-%m', r.created_at) as month,
+      SUM(r.total_refunded) as refunds,
+      SUM(ri.quantity * m.cost_price) as returned_cogs
+     FROM returns r
+     LEFT JOIN return_items ri ON ri.return_id = r.id
+     LEFT JOIN medicines m ON ri.medicine_id = m.id
+     WHERE r.created_at >= ? AND (r._deleted = 0 OR r._deleted IS NULL)
+     GROUP BY strftime('%Y-%m', r.created_at)
+     ORDER BY strftime('%Y-%m', r.created_at) ASC`,
     [dateFilter]
   );
 
@@ -185,6 +214,11 @@ export function useBIData(externalTimeRange?: string) {
     const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     return rawMonthlyData.map((item) => {
       const exp = rawExpenseData.find((e) => e.month === item.month)?.expenses || 0;
+      const returns = rawMonthlyReturns.find((e) => e.month === item.month) || { refunds: 0, returned_cogs: 0 };
+      
+      const netRevenue = item.revenue - (returns.refunds || 0);
+      const netCogs = item.cogs - (returns.returned_cogs || 0);
+
       let monthLabel = item.month;
       if (item.month) {
         const parts = item.month.split("-");
@@ -197,12 +231,14 @@ export function useBIData(externalTimeRange?: string) {
       }
       return {
         ...item,
+        revenue: netRevenue,
+        cogs: netCogs,
         month: monthLabel,
-        profit: item.revenue - item.cogs - exp,
+        profit: netRevenue - netCogs - exp,
         expenses: exp,
       };
     });
-  }, [rawMonthlyData, rawExpenseData]);
+  }, [rawMonthlyData, rawExpenseData, rawMonthlyReturns]);
 
   // ─── Top Selling Medicines ─────────────────────────────────────────────────
 

@@ -74,7 +74,22 @@ export function DailyCloseReport() {
      FROM sale_items si 
      JOIN sales s ON si.sale_id = s.id 
      LEFT JOIN medicines m ON si.medicine_id = m.id 
-     WHERE date(s.transaction_date) = '${reportDate}' AND si._deleted = 0 AND s._deleted = 0`,
+     WHERE date(s.transaction_date) = '${reportDate}' AND (si._deleted = 0 OR si._deleted IS NULL) AND (s._deleted = 0 OR s._deleted IS NULL)`,
+  );
+
+  const { data: returnsToday } = useLocalData<any>(
+    `SELECT r.*, s.payment_method, s.payment_details 
+     FROM returns r 
+     JOIN sales s ON r.sale_id = s.id 
+     WHERE date(r.created_at) = '${reportDate}' AND (r._deleted = 0 OR r._deleted IS NULL)`,
+  );
+
+  const { data: returnItemsToday } = useLocalData<any>(
+    `SELECT ri.*, m.cost_price as med_cost_price
+     FROM return_items ri
+     JOIN returns r ON ri.return_id = r.id
+     LEFT JOIN medicines m ON ri.medicine_id = m.id
+     WHERE date(r.created_at) = '${reportDate}' AND (ri._deleted = 0 OR ri._deleted IS NULL) AND (r._deleted = 0 OR r._deleted IS NULL)`,
   );
 
   // Parse Mixed payments by joining with customer_payments if needed, but we can rely on `payment_splits` which is stored as JSON in `payment_details` if we modified it?
@@ -85,6 +100,7 @@ export function DailyCloseReport() {
     transfer: 0,
     credit: 0,
     total: 0,
+    refunds: 0,
   };
 
   salesToday.forEach((sale: any) => {
@@ -119,6 +135,21 @@ export function DailyCloseReport() {
     }
   });
 
+  returnsToday.forEach((ret: any) => {
+    aggregatedTotals.total -= ret.total_refunded;
+    aggregatedTotals.refunds += ret.total_refunded;
+    const method = ret.payment_method?.toLowerCase();
+
+    if (method === "mixed") {
+      // Deduct mixed refunds primarily from cash as agreed
+      aggregatedTotals.cash -= ret.total_refunded;
+    } else if (aggregatedTotals[method as keyof typeof aggregatedTotals] !== undefined && method !== 'total' && method !== 'refunds') {
+      (aggregatedTotals as any)[method] -= ret.total_refunded;
+    } else if (method === "mobile") {
+      aggregatedTotals.transfer -= ret.total_refunded;
+    }
+  });
+
   // Calculate top sellers & profit
   let totalCostPrice = 0;
   const itemMap: Record<
@@ -141,6 +172,11 @@ export function DailyCloseReport() {
     itemMap[item.medicine_id].revenue += item.total_price;
   });
 
+  returnItemsToday.forEach((item: any) => {
+    const cost = item.cost_price || item.med_cost_price || 0;
+    totalCostPrice -= cost * item.quantity;
+  });
+
   const totalProfit = aggregatedTotals.total - totalCostPrice;
   const topSellingMeds = Object.values(itemMap)
     .sort((a, b) => b.quantity - a.quantity)
@@ -149,10 +185,11 @@ export function DailyCloseReport() {
   const exportToCSV = () => {
     const csvContent = [
       ["Daily Close Report", `Generated: ${new Date().toLocaleDateString()}`],
-      ["Total Sales", aggregatedTotals.total.toString()],
+      ["Total Net Sales", aggregatedTotals.total.toString()],
+      ["Total Refunds", aggregatedTotals.refunds.toString()],
       ["Cash Expected", aggregatedTotals.cash.toString()],
       ["Transfer / Mobile", aggregatedTotals.transfer.toString()],
-      ["Total Profit (Est.)", totalProfit.toString()],
+      ["Total Net Profit (Est.)", totalProfit.toString()],
       [],
       ["Payment Breakdown"],
       ["Method", "Amount"],
@@ -278,7 +315,19 @@ export function DailyCloseReport() {
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-muted/30">
+        <Card className="bg-destructive/5">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-destructive">
+              Total Refunds
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-destructive">
+              {formatCurrency(aggregatedTotals.refunds, currencyCode)}
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-muted/30 lg:col-span-4">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Total Profit (Est.)

@@ -13,8 +13,8 @@ import { Button } from "@/components/ui/button";
 interface ConfirmDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  title: string;
-  description: string;
+  title: string | React.ReactNode;
+  description: string | React.ReactNode;
   confirmLabel?: string;
   cancelLabel?: string;
   hideCancel?: boolean;
@@ -38,7 +38,13 @@ export function ConfirmDialog({
       <DialogContent showCloseButton={false}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
+          {typeof description === "string" ? (
+            <DialogDescription>{description}</DialogDescription>
+          ) : (
+            <DialogDescription asChild>
+              <div className="text-muted-foreground text-sm font-normal mt-1.5">{description}</div>
+            </DialogDescription>
+          )}
         </DialogHeader>
         <DialogFooter>
           {!hideCancel && (

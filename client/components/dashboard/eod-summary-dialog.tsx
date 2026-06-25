@@ -32,6 +32,7 @@ interface EODSummaryDialogProps {
     cashSales: number;
     cardSales: number;
     debtSales: number;
+    totalRefunds: number;
     transactionCount: number;
     topStaff: { name: string; total: number };
   };
@@ -120,6 +121,16 @@ export function EODSummaryDialog({
                         <span className="text-sm font-bold">Credit Sales</span>
                     </div>
                     <span className="font-mono font-bold">{formatCurrency(summary.debtSales, currencyCode)}</span>
+                </div>
+
+                <div className="flex justify-between items-center p-3 rounded-2xl bg-card border border-destructive/10 hover:bg-destructive/5 transition-all text-destructive">
+                    <div className="flex items-center gap-3">
+                        <div className="h-8 w-8 rounded-xl bg-destructive/10 text-destructive flex items-center justify-center">
+                            <ArrowRight className="h-4 w-4" />
+                        </div>
+                        <span className="text-sm font-bold">Refunds Processed</span>
+                    </div>
+                    <span className="font-mono font-bold">-{formatCurrency(summary.totalRefunds, currencyCode)}</span>
                 </div>
             </div>
           </div>

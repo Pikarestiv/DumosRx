@@ -25,8 +25,9 @@ import { formatCurrency } from "@/lib/utils";
 import { insert, update, query } from "@/lib/db/local-database";
 import { useLocalData } from "@/lib/db/hooks/useLocalData";
 import { toast } from "sonner";
-import { Loader2, RotateCcw } from "lucide-react";
+import { Loader2, RotateCcw, Minus, Plus } from "lucide-react";
 import { useAuth } from "@/lib/context/auth-context";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 interface ReturnDialogProps {
   open: boolean;
@@ -47,6 +48,7 @@ export function ReturnDialog({
   const [selectedItems, setSelectedItems] = useState<Map<string, { selected: boolean; quantity: number }>>(new Map());
   const [reason, setReason] = useState("");
   const [processing, setProcessing] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   // Fetch items for this sale
   const { data: saleItems } = useLocalData<any>(
@@ -67,35 +69,39 @@ export function ReturnDialog({
   };
 
   const handleQtyChange = (itemId: string, qty: number, maxQty: number) => {
-    const validQty = Math.min(Math.max(1, qty), maxQty);
+    const parsedQty = typeof qty === 'number' && !isNaN(qty) ? qty : 1;
+    const validQty = Math.min(Math.max(1, parsedQty), maxQty);
     setSelectedItems((prev) => {
       const next = new Map(prev);
       const current = next.get(itemId);
       next.set(itemId, {
-        selected: !!current?.selected,
+        selected: true,
         quantity: validQty,
       });
       return next;
     });
   };
 
-  const handleSubmit = async () => {
-    const itemsToReturn = Array.from(selectedItems.entries())
-      .filter(([_, val]) => val.selected)
-      .map(([id, val]) => ({
-        ...saleItems.find((si: any) => si.id === id),
-        returnQuantity: val.quantity,
-      }));
+  const itemsToReturn = Array.from(selectedItems.entries())
+    .filter(([_, val]) => val.selected)
+    .map(([id, val]) => ({
+      ...(saleItems?.find((si: any) => si.id === id) || {}),
+      returnQuantity: val.quantity,
+    }));
 
+  const totalRefund = itemsToReturn.reduce((sum, item) => sum + ((item.unit_price || 0) * item.returnQuantity), 0);
+
+  const handleInitialSubmit = () => {
     if (itemsToReturn.length === 0) {
       toast.error("Please select at least one item to return");
       return;
     }
+    setShowConfirm(true);
+  };
 
+  const handleSubmit = async () => {
     setProcessing(true);
     try {
-      const totalRefund = itemsToReturn.reduce((sum, item) => sum + (item.unit_price * item.returnQuantity), 0);
-      
       // 1. Create return record
       const returnId = await insert("returns", {
         sale_id: sale.id,
@@ -116,12 +122,31 @@ export function ReturnDialog({
         });
 
         // Update medicine stock
-        const medicines = await query<any>(`SELECT stock_quantity FROM medicines WHERE id = ?`, [item.medicine_id]);
+        const medicines = await query<any>(`SELECT * FROM medicines WHERE id = ?`, [item.medicine_id]);
         const currentMedicine = medicines[0];
-        await update("medicines", item.medicine_id, {
-          stock_quantity: (currentMedicine?.stock_quantity || 0) + item.returnQuantity
-        });
+        if (currentMedicine) {
+          await update("medicines", item.medicine_id, {
+            stock_quantity: (currentMedicine.stock_quantity || 0) + item.returnQuantity
+          });
+        }
+
+        // Update inventory if applicable
+        if (item.inventory_id) {
+          const invs = await query<any>(`SELECT * FROM inventories WHERE id = ?`, [item.inventory_id]);
+          const currentInv = invs[0];
+          if (currentInv) {
+            await update("inventories", item.inventory_id, {
+              quantity: (currentInv.quantity || 0) + item.returnQuantity
+            });
+          }
+        }
       }
+
+      // 3. Mark sale as returned
+      const allItemsReturned = itemsToReturn.length === saleItems.length && itemsToReturn.every(i => i.returnQuantity === i.quantity);
+      await update("sales", sale.id, {
+        payment_status: allItemsReturned ? "refunded" : "partially_refunded"
+      });
 
       toast.success(`Return processed. Refund amount: ${formatCurrency(totalRefund, currencyCode)}`);
       onSuccess();
@@ -175,13 +200,32 @@ export function ReturnDialog({
                     <TableCell className="font-medium">{item.medicine_name}</TableCell>
                     <TableCell className="text-right">{item.quantity}</TableCell>
                     <TableCell className="text-right">
-                      <Input 
-                        type="number" 
-                        className="w-16 h-8 text-right ml-auto"
-                        value={selectedItems.get(item.id)?.quantity ?? item.quantity}
-                        onChange={(e) => handleQtyChange(item.id, parseInt(e.target.value), item.quantity)}
-                        disabled={!selectedItems.get(item.id)?.selected}
-                      />
+                      <div className="flex items-center justify-end gap-0">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8 rounded-r-none border-r-0"
+                          onClick={() => handleQtyChange(item.id, (selectedItems.get(item.id)?.quantity ?? item.quantity) - 1, item.quantity)}
+                          disabled={(selectedItems.get(item.id)?.quantity ?? item.quantity) <= 1}
+                        >
+                          <Minus className="h-3 w-3" />
+                        </Button>
+                        <Input 
+                          type="number" 
+                          className="w-14 h-8 text-center rounded-none px-1"
+                          value={selectedItems.get(item.id)?.quantity ?? item.quantity}
+                          onChange={(e) => handleQtyChange(item.id, parseInt(e.target.value) || 1, item.quantity)}
+                        />
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8 rounded-l-none border-l-0"
+                          onClick={() => handleQtyChange(item.id, (selectedItems.get(item.id)?.quantity ?? item.quantity) + 1, item.quantity)}
+                          disabled={(selectedItems.get(item.id)?.quantity ?? item.quantity) >= item.quantity}
+                        >
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      </div>
                     </TableCell>
                     <TableCell className="text-right">
                       {formatCurrency((selectedItems.get(item.id)?.quantity ?? item.quantity) * item.unit_price, currencyCode)}
@@ -207,12 +251,39 @@ export function ReturnDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={processing}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={processing} className="bg-accent hover:bg-accent/90">
+          <Button onClick={handleInitialSubmit} disabled={processing} className="bg-accent hover:bg-accent/90">
             {processing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Confirm Return & Refund
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      <ConfirmDialog
+        open={showConfirm}
+        onOpenChange={setShowConfirm}
+        title="Confirm Return & Refund"
+        confirmLabel="Yes, Process Return"
+        description={
+          <div className="space-y-3 mt-2 text-left">
+            <p className="text-sm">You are about to process a return for the following item(s):</p>
+            <ul className="list-disc pl-5 text-sm space-y-1">
+              {itemsToReturn.map((item: any) => (
+                <li key={item.id}>
+                  <span className="font-medium">{item.returnQuantity}x</span> {item.medicine_name} 
+                  <span className="text-muted-foreground ml-1">({formatCurrency((item.unit_price || 0) * item.returnQuantity, currencyCode)})</span>
+                </li>
+              ))}
+            </ul>
+            <div className="pt-2 border-t mt-2">
+              <p className="font-medium text-destructive">Total Refund: {formatCurrency(totalRefund, currencyCode)}</p>
+            </div>
+            <p className="text-xs text-muted-foreground pt-2">
+              <strong>Consequences:</strong> The returned quantities will be immediately restocked into inventory, and this sale will be marked as returned in the transaction history. This action cannot be undone.
+            </p>
+          </div>
+        }
+        onConfirm={handleSubmit}
+      />
     </Dialog>
   );
 }

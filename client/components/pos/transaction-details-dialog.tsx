@@ -37,11 +37,31 @@ export function TransactionDetailsDialog({
 }: TransactionDetailsDialogProps) {
   const { data: items } = useLocalData<any>(
     open && sale?.id
-      ? `SELECT si.*, m.name as medicine_name, m.cost_price as med_cost_price FROM sale_items si LEFT JOIN medicines m ON si.medicine_id = m.id WHERE si.sale_id = '${sale.id}' AND si._deleted = 0`
+      ? `SELECT 
+          si.*, 
+          m.name as medicine_name, 
+          m.cost_price as med_cost_price,
+          COALESCE((
+            SELECT SUM(ri.quantity) 
+            FROM return_items ri 
+            JOIN returns r ON ri.return_id = r.id 
+            WHERE r.sale_id = si.sale_id AND ri.medicine_id = si.medicine_id AND (ri._deleted = 0 OR ri._deleted IS NULL) AND (r._deleted = 0 OR r._deleted IS NULL)
+          ), 0) as returned_quantity
+         FROM sale_items si 
+         LEFT JOIN medicines m ON si.medicine_id = m.id 
+         WHERE si.sale_id = '${sale.id}' AND (si._deleted = 0 OR si._deleted IS NULL)`
       : "SELECT 1 WHERE 1=0",
   );
 
+  const { data: returnsData } = useLocalData<any>(
+    open && sale?.id
+      ? `SELECT SUM(total_refunded) as total_refunded FROM returns WHERE sale_id = '${sale.id}' AND (_deleted = 0 OR _deleted IS NULL)`
+      : "SELECT 1 WHERE 1=0"
+  );
+
   if (!sale) return null;
+
+  const totalRefunded = returnsData?.[0]?.total_refunded || 0;
 
   const totalCostPrice =
     items?.reduce((acc: number, item: any) => {
@@ -50,7 +70,16 @@ export function TransactionDetailsDialog({
         : (item.med_cost_price || 0);
       return acc + cost * item.quantity;
     }, 0) || 0;
-  const profit = sale.total_amount - totalCostPrice;
+
+  const returnedCostPrice =
+    items?.reduce((acc: number, item: any) => {
+      const cost = (item.cost_price !== null && item.cost_price !== undefined)
+        ? item.cost_price
+        : (item.med_cost_price || 0);
+      return acc + cost * (item.returned_quantity || 0);
+    }, 0) || 0;
+
+  const profit = (sale.total_amount - totalRefunded) - (totalCostPrice - returnedCostPrice);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -79,6 +108,11 @@ export function TransactionDetailsDialog({
             <p className="font-medium text-lg text-primary">
               {formatCurrency(sale.total_amount, currencyCode)}
             </p>
+            {totalRefunded > 0 && (
+              <p className="text-xs font-medium text-destructive mt-0.5">
+                -{formatCurrency(totalRefunded, currencyCode)} refunded
+              </p>
+            )}
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Total Profit</p>
@@ -104,7 +138,14 @@ export function TransactionDetailsDialog({
               {items?.map((item: any) => (
                 <TableRow key={item.id}>
                   <TableCell>{item.medicine_name || "Unknown Item"}</TableCell>
-                  <TableCell className="text-right">{item.quantity}</TableCell>
+                  <TableCell className="text-right">
+                    <span>{item.quantity}</span>
+                    {item.returned_quantity > 0 && (
+                      <span className="text-destructive text-xs ml-1 font-medium block">
+                        (-{item.returned_quantity} returned)
+                      </span>
+                    )}
+                  </TableCell>
                   <TableCell className="text-right">
                     {formatCurrency(item.unit_price, currencyCode)}
                   </TableCell>

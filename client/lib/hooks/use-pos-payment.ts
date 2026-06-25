@@ -24,6 +24,7 @@ interface UsePOSPaymentProps {
   selectedCustomer: Customer | null;
   clearCart: () => void;
   refetchMedicines: () => void;
+  refetchSales?: () => void;
   requirePaymentAccount?: boolean;
 }
 
@@ -36,6 +37,7 @@ export function usePOSPayment({
   selectedCustomer,
   clearCart,
   refetchMedicines,
+  refetchSales,
   requirePaymentAccount = false,
 }: UsePOSPaymentProps) {
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "card" | "transfer" | "credit" | "mixed">("cash");
@@ -168,6 +170,7 @@ export function usePOSPayment({
       }
 
       refetchMedicines();
+      if (refetchSales) refetchSales();
 
       const transaction = {
         id: saleId,

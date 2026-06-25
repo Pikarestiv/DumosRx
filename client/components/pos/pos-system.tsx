@@ -111,7 +111,7 @@ export function POSSystem() {
     },
   );
 
-  const { data: recentSales } = useLocalData<any>(
+  const { data: recentSales, refetch: refetchSales } = useLocalData<any>(
     "SELECT s.*, c.first_name || ' ' || c.last_name as customer_name FROM sales s LEFT JOIN customers c ON s.customer_id = c.id WHERE s._deleted = 0 ORDER BY s.created_at DESC LIMIT 10",
   );
 
@@ -196,6 +196,7 @@ export function POSSystem() {
     selectedCustomer,
     clearCart,
     refetchMedicines,
+    refetchSales,
     requirePaymentAccount,
   });
 
@@ -582,6 +583,7 @@ export function POSSystem() {
         sale={saleToReturn}
         onSuccess={() => {
           refetchMedicines();
+          refetchSales();
           toast.success("Inventory updated after return");
         }}
         currencyCode={storeProfile?.currency}

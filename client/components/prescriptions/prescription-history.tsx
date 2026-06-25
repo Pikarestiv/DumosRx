@@ -8,115 +8,35 @@ import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Search, Download, Eye, FileText } from "lucide-react"
-import { genericFuzzySearch } from "@/lib/utils/search"
-
-interface PrescriptionHistory {
-  id: string
-  prescriptionNumber: string
-  patientName: string
-  patientPhone: string
-  doctorName: string
-  dateIssued: string
-  dateDispensed: string
-  status: "dispensed" | "partially_dispensed" | "cancelled"
-  medicationCount: number
-  totalCost: number
-  specialist: string
-  paymentMethod: string
-}
-
-const historyData: PrescriptionHistory[] = [
-  {
-    id: "1",
-    prescriptionNumber: "RX-2026-001",
-    patientName: "John Doe",
-    patientPhone: "08012345678",
-    doctorName: "Dr. Sarah Johnson",
-    dateIssued: "2026-01-20T09:30:00",
-    dateDispensed: "2026-01-20T14:15:00",
-    status: "dispensed",
-    medicationCount: 2,
-    totalCost: 5380,
-    specialist: "Mary Specialist",
-    paymentMethod: "Cash",
-  },
-  {
-    id: "2",
-    prescriptionNumber: "RX-2026-002",
-    patientName: "Mary Smith",
-    patientPhone: "08087654321",
-    doctorName: "Dr. Michael Brown",
-    dateIssued: "2026-01-19T11:15:00",
-    dateDispensed: "2026-01-19T16:30:00",
-    status: "partially_dispensed",
-    medicationCount: 1,
-    totalCost: 4250,
-    specialist: "John Specialist",
-    paymentMethod: "Card",
-  },
-  {
-    id: "3",
-    prescriptionNumber: "RX-2026-003",
-    patientName: "David Wilson",
-    patientPhone: "08098765432",
-    doctorName: "Dr. Emily Davis",
-    dateIssued: "2026-01-18T14:45:00",
-    dateDispensed: "2026-01-18T15:20:00",
-    status: "dispensed",
-    medicationCount: 1,
-    totalCost: 2400,
-    specialist: "Sarah Specialist",
-    paymentMethod: "Mobile",
-  },
-  {
-    id: "4",
-    prescriptionNumber: "RX-2026-004",
-    patientName: "Jane Brown",
-    patientPhone: "08076543210",
-    doctorName: "Dr. James Wilson",
-    dateIssued: "2026-01-17T10:20:00",
-    dateDispensed: "",
-    status: "cancelled",
-    medicationCount: 3,
-    totalCost: 0,
-    specialist: "",
-    paymentMethod: "",
-  },
-  {
-    id: "5",
-    prescriptionNumber: "RX-2026-005",
-    patientName: "Robert Taylor",
-    patientPhone: "08065432109",
-    doctorName: "Dr. Lisa Anderson",
-    dateIssued: "2026-01-16T13:10:00",
-    dateDispensed: "2026-01-16T17:45:00",
-    status: "dispensed",
-    medicationCount: 4,
-    totalCost: 7850,
-    specialist: "Peter Specialist",
-    paymentMethod: "Insurance",
-  },
-]
+import { usePrescriptionHistory } from "@/lib/hooks/use-prescription-history"
+import { Prescription } from "@/lib/hooks/use-prescription-queue"
+import { PrescriptionDetailsDialog } from "./prescription-details-dialog"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export function PrescriptionHistory() {
-  const [history] = useState<PrescriptionHistory[]>(historyData)
-  const [searchTerm, setSearchTerm] = useState("")
+  const {
+    prescriptions,
+    loading,
+    searchTerm,
+    setSearchTerm,
+    filteredPrescriptions,
+    isFuzzyFallback,
+    selectedPrescription,
+    showDetailsDialog,
+    setShowDetailsDialog,
+    viewPrescriptionDetails
+  } = usePrescriptionHistory()
+
   const [statusFilter, setStatusFilter] = useState("all")
   const [dateFilter, setDateFilter] = useState("all")
 
-  const preFilteredHistory = history.filter((record) => {
-    const matchesStatus = statusFilter === "all" || record.status === statusFilter
-
+  const preFilteredHistory = filteredPrescriptions.filter((record) => {
+    // Map completed status to dispensed for the filter UI
+    const recordStatus = record.status === "completed" ? "dispensed" : record.status;
+    const matchesStatus = statusFilter === "all" || recordStatus === statusFilter
     const matchesDate = dateFilter === "all" || checkDateFilter(record.dateIssued, dateFilter)
-
     return matchesStatus && matchesDate
   })
-
-  const { results: filteredHistory, isFuzzyFallback } = genericFuzzySearch(
-    searchTerm,
-    preFilteredHistory,
-    ["patientName", "prescriptionNumber", "doctorName"]
-  )
 
   function checkDateFilter(date: string, filter: string): boolean {
     const recordDate = new Date(date)
@@ -135,22 +55,24 @@ export function PrescriptionHistory() {
     }
   }
 
-  const getStatusBadge = (status: PrescriptionHistory["status"]) => {
-    const variants = {
+  const getStatusBadge = (status: Prescription["status"]) => {
+    const variants: Record<string, "default" | "outline" | "destructive"> = {
+      completed: "default",
       dispensed: "default",
       partially_dispensed: "outline",
       cancelled: "destructive",
-    } as const
+    }
 
-    const labels = {
+    const labels: Record<string, string> = {
+      completed: "Dispensed",
       dispensed: "Dispensed",
       partially_dispensed: "Partially Dispensed",
       cancelled: "Cancelled",
     }
 
     return (
-      <Badge variant={variants[status]} className="text-xs">
-        {labels[status]}
+      <Badge variant={variants[status] || "default"} className="text-xs">
+        {labels[status] || status}
       </Badge>
     )
   }
@@ -174,12 +96,12 @@ export function PrescriptionHistory() {
     })
   }
 
-  const totalDispensed = history.filter((h) => h.status === "dispensed").length
-  const totalRevenue = history
-    .filter((h) => h.status === "dispensed" || h.status === "partially_dispensed")
+  const totalDispensed = prescriptions.filter((h) => h.status === "dispensed" || h.status === "completed").length
+  const totalRevenue = prescriptions
+    .filter((h) => h.status === "dispensed" || h.status === "completed" || h.status === "partially_dispensed")
     .reduce((sum, h) => sum + h.totalCost, 0)
-  const partiallyDispensed = history.filter((h) => h.status === "partially_dispensed").length
-  const cancelled = history.filter((h) => h.status === "cancelled").length
+  const partiallyDispensed = prescriptions.filter((h) => h.status === "partially_dispensed").length
+  const cancelled = prescriptions.filter((h) => h.status === "cancelled").length
 
   return (
     <div className="space-y-6">
@@ -288,11 +210,11 @@ export function PrescriptionHistory() {
         <CardHeader>
           <CardTitle className="font-serif font-semibold">Transaction Records</CardTitle>
           <CardDescription>
-            Showing {filteredHistory.length} of {history.length} prescription records
+            Showing {preFilteredHistory.length} of {prescriptions.length} prescription records
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {isFuzzyFallback && filteredHistory.length > 0 && (
+          {isFuzzyFallback && preFilteredHistory.length > 0 && (
             <div className="bg-amber-500/10 text-amber-600 px-4 py-2 text-sm border border-amber-500/20 text-center font-medium rounded-md mb-4">
               Did you mean? (No exact matches found. Showing closest names.)
             </div>
@@ -309,49 +231,82 @@ export function PrescriptionHistory() {
                   <TableHead>Status</TableHead>
                   <TableHead>Medications</TableHead>
                   <TableHead>Total Cost</TableHead>
-                  <TableHead>Specialist</TableHead>
-                  <TableHead>Payment</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredHistory.map((record) => (
-                  <TableRow key={record.id}>
-                    <TableCell>
-                      <code className="text-sm bg-muted px-2 py-1 rounded">{record.prescriptionNumber}</code>
-                    </TableCell>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{record.patientName}</div>
-                        <div className="text-sm text-muted-foreground">{record.patientPhone}</div>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={11} className="text-center py-8">
+                      <div className="flex flex-col items-center justify-center space-y-3">
+                        <Skeleton className="h-12 w-full max-w-lg" />
+                        <Skeleton className="h-12 w-full max-w-lg" />
+                        <Skeleton className="h-12 w-full max-w-lg" />
                       </div>
                     </TableCell>
-                    <TableCell>
-                      <div className="font-medium">{record.doctorName}</div>
-                    </TableCell>
-                    <TableCell>{formatDateTime(record.dateIssued)}</TableCell>
-                    <TableCell>{formatDateTime(record.dateDispensed)}</TableCell>
-                    <TableCell>{getStatusBadge(record.status)}</TableCell>
-                    <TableCell>
-                      <div className="text-center font-medium">{record.medicationCount}</div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="font-medium">{record.totalCost > 0 ? formatCurrency(record.totalCost) : "—"}</div>
-                    </TableCell>
-                    <TableCell>{record.specialist || "—"}</TableCell>
-                    <TableCell>{record.paymentMethod || "—"}</TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="sm">
-                        <Eye className="h-4 w-4" />
-                      </Button>
+                  </TableRow>
+                ) : preFilteredHistory.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
+                      No matching records found.
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : (
+                  preFilteredHistory.map((record) => (
+                    <TableRow key={record.id}>
+                      <TableCell>
+                        <code className="text-sm bg-muted px-2 py-1 rounded">{record.prescriptionNumber}</code>
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium">{record.patientName}</div>
+                          <div className="text-sm text-muted-foreground">{record.patientPhone}</div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-medium">{record.doctorName}</div>
+                      </TableCell>
+                      <TableCell>{formatDateTime(record.dateIssued)}</TableCell>
+                      <TableCell>{formatDateTime(record.dateDispensed || record.dateIssued)}</TableCell>
+                      <TableCell>{getStatusBadge(record.status)}</TableCell>
+                      <TableCell>
+                        <div className="text-center font-medium">{record.medications?.length || 0}</div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-medium">{record.totalCost > 0 ? formatCurrency(record.totalCost) : "—"}</div>
+                      </TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="sm" onClick={() => viewPrescriptionDetails(record)}>
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </div>
         </CardContent>
       </Card>
+      <PrescriptionDetailsDialog
+        prescription={selectedPrescription}
+        open={showDetailsDialog}
+        onOpenChange={setShowDetailsDialog}
+        getPriorityBadge={(priority) => {
+          const colors = {
+            normal: "text-muted-foreground",
+            urgent: "text-orange-600",
+            stat: "text-red-600",
+          }
+          const labels = {
+            normal: "Normal",
+            urgent: "Urgent",
+            stat: "STAT",
+          }
+          return <span className={`text-xs font-medium ${colors[priority]}`}>{labels[priority]}</span>
+        }}
+        formatDateTime={formatDateTime}
+      />
     </div>
   )
 }

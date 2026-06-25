@@ -3,51 +3,21 @@
 import { useState, useEffect, useMemo } from "react";
 import { query } from "@/lib/db/local-database";
 import { genericFuzzySearch } from "@/lib/utils/search";
+import { Prescription, PrescriptionMedication } from "./use-prescription-queue";
 
-export interface PrescriptionMedication {
-  id: string;
-  medicineName: string;
-  strength: string;
-  dosage: string;
-  quantity: number;
-  instructions: string;
-  available: boolean;
-  cost: number;
-}
-
-export interface Prescription {
-  id: string;
-  prescriptionNumber: string;
-  patientName: string;
-  patientPhone: string;
-  patientAge: number;
-  doctorName: string;
-  doctorLicense: string;
-  dateIssued: string;
-  dateDispensed?: string;
-  status: "pending" | "in_progress" | "ready" | "dispensed" | "completed" | "on_hold";
-  priority: "normal" | "urgent" | "stat";
-  medications: PrescriptionMedication[];
-  insurance?: string;
-  totalCost: number;
-  notes?: string;
-}
-
-export function usePrescriptionQueue() {
+export function usePrescriptionHistory() {
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [priorityFilter, setPriorityFilter] = useState("all");
   const [selectedPrescription, setSelectedPrescription] = useState<Prescription | null>(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
 
-  const fetchPrescriptions = async () => {
+  const fetchHistory = async () => {
     setLoading(true);
     try {
-      // 1. Fetch prescriptions
+      // 1. Fetch completed/cancelled prescriptions
       const pData = await query<any>(
-        "SELECT * FROM prescriptions WHERE _deleted = 0 AND status != 'completed' ORDER BY created_at DESC"
+        "SELECT * FROM prescriptions WHERE _deleted = 0 AND status IN ('completed', 'cancelled', 'dispensed') ORDER BY updated_at DESC"
       );
 
       // 2. Fetch all prescription items for these prescriptions
@@ -68,7 +38,6 @@ export function usePrescriptionQueue() {
           dosage: item.dosage,
           quantity: item.quantity,
           instructions: item.instructions,
-          available: true,
           cost: item.cost,
         });
       });
@@ -83,6 +52,7 @@ export function usePrescriptionQueue() {
         doctorName: p.doctor_name,
         doctorLicense: p.doctor_license,
         dateIssued: p.issued_at,
+        dateDispensed: p.updated_at, // Use updated_at as dispense date
         status: p.status,
         priority: p.priority,
         medications: itemsMap.get(p.id) || [],
@@ -93,80 +63,41 @@ export function usePrescriptionQueue() {
 
       setPrescriptions(items);
     } catch (error) {
-      console.error("Failed to fetch prescriptions:", error);
+      console.error("Failed to fetch prescription history:", error);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchPrescriptions();
+    fetchHistory();
   }, []);
-
-  const preFilteredPrescriptions = useMemo(() => {
-    return prescriptions.filter((prescription) => {
-      const matchesStatus = statusFilter === "all" || prescription.status === statusFilter;
-      const matchesPriority = priorityFilter === "all" || prescription.priority === priorityFilter;
-
-      return matchesStatus && matchesPriority;
-    });
-  }, [prescriptions, statusFilter, priorityFilter]);
 
   const { filteredPrescriptions, isFuzzyFallback } = useMemo(() => {
     const { results, isFuzzyFallback } = genericFuzzySearch(
       searchTerm,
-      preFilteredPrescriptions,
+      prescriptions,
       ["patientName", "prescriptionNumber", "doctorName"]
     );
     return { filteredPrescriptions: results, isFuzzyFallback };
-  }, [searchTerm, preFilteredPrescriptions]);
-
-  const updatePrescriptionStatus = async (id: string, newStatus: Prescription["status"]) => {
-    try {
-      await query("UPDATE prescriptions SET status = ?, updated_at = ? WHERE id = ?", [
-        newStatus,
-        new Date().toISOString(),
-        id,
-      ]);
-      setPrescriptions((prev) =>
-        prev.map((p) => (p.id === id ? { ...p, status: newStatus } : p))
-      );
-    } catch (err) {
-      console.error("Failed to update status", err);
-    }
-  };
+  }, [searchTerm, prescriptions]);
 
   const viewPrescriptionDetails = (prescription: Prescription) => {
     setSelectedPrescription(prescription);
     setShowDetailsDialog(true);
   };
 
-  const stats = useMemo(() => {
-    return {
-      pending: prescriptions.filter((p) => p.status === "pending").length,
-      inProgress: prescriptions.filter((p) => p.status === "in_progress").length,
-      ready: prescriptions.filter((p) => p.status === "ready").length,
-      urgent: prescriptions.filter((p) => p.priority === "urgent" || p.priority === "stat").length,
-    };
-  }, [prescriptions]);
-
   return {
     prescriptions,
     loading,
     searchTerm,
     setSearchTerm,
-    statusFilter,
-    setStatusFilter,
-    priorityFilter,
-    setPriorityFilter,
     filteredPrescriptions,
     isFuzzyFallback,
     selectedPrescription,
     showDetailsDialog,
     setShowDetailsDialog,
-    updatePrescriptionStatus,
     viewPrescriptionDetails,
-    stats,
-    refetch: fetchPrescriptions,
+    refetch: fetchHistory,
   };
 }

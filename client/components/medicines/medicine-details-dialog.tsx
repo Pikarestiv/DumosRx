@@ -121,14 +121,14 @@ export function MedicineDetailsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center justify-between">
             <div>
-              <DialogTitle className="font-serif font-bold text-2xl">
+              <DialogTitle className="text-left font-serif font-bold text-2xl">
                 {medicine.name}
               </DialogTitle>
-              <DialogDescription className="text-lg">
+              <DialogDescription className="text-left text-lg">
                 {medicine.genericName}
               </DialogDescription>
             </div>

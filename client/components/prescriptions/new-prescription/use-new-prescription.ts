@@ -12,6 +12,8 @@ export interface PrescriptionMedication {
   quantity: number;
   instructions: string;
   cost: number;
+  refillsAuthorized: number;
+  refillIntervalDays: number;
 }
 
 export interface NewPrescriptionForm {
@@ -67,6 +69,8 @@ export function useNewPrescription() {
     dosage: "",
     quantity: 1 as number | "",
     instructions: "",
+    refillsAuthorized: 0 as number | "",
+    refillIntervalDays: 30 as number | "",
   });
 
   useEffect(() => {
@@ -99,11 +103,13 @@ export function useNewPrescription() {
             medications: itemsData.map((item: any) => ({
               id: item.id,
               medicineName: item.medicine_name,
-              strength: item.strength,
-              dosage: item.dosage,
-              quantity: item.quantity,
+              strength: item.strength || "",
+              dosage: item.dosage || "",
+              quantity: item.quantity || 1,
               instructions: item.instructions || "",
-              cost: item.cost,
+              cost: item.cost || 0,
+              refillsAuthorized: item.refills_authorized || 0,
+              refillIntervalDays: item.refill_interval_days || 30,
             })),
           });
         } catch (error) {
@@ -144,6 +150,8 @@ export function useNewPrescription() {
       quantity: Number(newMedication.quantity),
       instructions: newMedication.instructions,
       cost: medicine.cost * Number(newMedication.quantity),
+      refillsAuthorized: Number(newMedication.refillsAuthorized) || 0,
+      refillIntervalDays: Number(newMedication.refillIntervalDays) || 30,
     };
 
     setFormData((prev) => ({
@@ -157,6 +165,8 @@ export function useNewPrescription() {
       dosage: "",
       quantity: "",
       instructions: "",
+      refillsAuthorized: 0,
+      refillIntervalDays: 30,
     });
   };
 
@@ -176,6 +186,8 @@ export function useNewPrescription() {
         dosage: medToEdit.dosage,
         quantity: medToEdit.quantity,
         instructions: medToEdit.instructions,
+        refillsAuthorized: medToEdit.refillsAuthorized,
+        refillIntervalDays: medToEdit.refillIntervalDays,
       });
       removeMedication(id);
     }
@@ -248,9 +260,12 @@ export function useNewPrescription() {
         );
 
         for (const med of formData.medications) {
+          const nextRefillDate = new Date();
+          nextRefillDate.setDate(nextRefillDate.getDate() + Number(med.refillIntervalDays));
+          
           await query(
-            `INSERT INTO prescription_items (id, prescription_id, medicine_name, strength, dosage, quantity, instructions, cost, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO prescription_items (id, prescription_id, medicine_name, strength, dosage, quantity, instructions, cost, refills_authorized, refill_interval_days, next_refill_date, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               generateId(),
               editRxId,
@@ -260,6 +275,9 @@ export function useNewPrescription() {
               med.quantity,
               med.instructions,
               med.cost,
+              med.refillsAuthorized,
+              med.refillIntervalDays,
+              nextRefillDate.toISOString(),
               now,
               now,
             ]
@@ -290,17 +308,24 @@ export function useNewPrescription() {
           updated_at: now,
         };
 
-        const prescriptionItems = formData.medications.map((med) => ({
-          id: generateId(),
-          medicine_name: med.medicineName,
-          strength: med.strength,
-          dosage: med.dosage,
-          quantity: med.quantity,
-          instructions: med.instructions,
-          cost: med.cost,
-          created_at: now,
-          updated_at: now,
-        }));
+        const prescriptionItems = formData.medications.map((med) => {
+          const nextRefillDate = new Date();
+          nextRefillDate.setDate(nextRefillDate.getDate() + Number(med.refillIntervalDays));
+          return {
+            id: generateId(),
+            medicine_name: med.medicineName,
+            strength: med.strength,
+            dosage: med.dosage,
+            quantity: med.quantity,
+            instructions: med.instructions,
+            cost: med.cost,
+            refills_authorized: med.refillsAuthorized,
+            refill_interval_days: med.refillIntervalDays,
+            next_refill_date: nextRefillDate.toISOString(),
+            created_at: now,
+            updated_at: now,
+          };
+        });
 
         await createPrescription(prescriptionData, prescriptionItems);
         toast.success("Prescription created successfully!");

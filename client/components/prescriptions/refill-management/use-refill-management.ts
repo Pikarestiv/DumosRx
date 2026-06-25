@@ -1,6 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { genericFuzzySearch } from "@/lib/utils/search";
+import { useLocalData } from "@/lib/db/hooks/useLocalData";
+import { query, execute, generateId, createPrescription } from "@/lib/db/local-database";
+import { toast } from "sonner";
 
 export interface RefillRequest {
   id: string;
@@ -16,82 +19,97 @@ export interface RefillRequest {
   status: "due" | "early" | "overdue" | "completed" | "expired";
   doctorName: string;
   cost: number;
+  prescriptionId: string;
+  dosage: string;
+  quantity: number;
+  instructions: string;
+  refillIntervalDays: number;
 }
 
-const refillsData: RefillRequest[] = [
-  {
-    id: "1",
-    originalPrescription: "RX-2023-145",
-    patientName: "John Doe",
-    patientPhone: "08012345678",
-    medicineName: "Lisinopril",
-    strength: "10mg",
-    lastFilled: "2026-01-05",
-    nextRefillDate: "2026-01-20",
-    refillsRemaining: 3,
-    totalRefills: 5,
-    status: "due",
-    doctorName: "Dr. Sarah Johnson",
-    cost: 2400,
-  },
-  {
-    id: "2",
-    originalPrescription: "RX-2023-167",
-    patientName: "Mary Smith",
-    patientPhone: "08087654321",
-    medicineName: "Metformin",
-    strength: "500mg",
-    lastFilled: "2026-01-10",
-    nextRefillDate: "2026-01-25",
-    refillsRemaining: 2,
-    totalRefills: 6,
-    status: "early",
-    doctorName: "Dr. Michael Brown",
-    cost: 3600,
-  },
-  {
-    id: "3",
-    originalPrescription: "RX-2023-189",
-    patientName: "David Wilson",
-    patientPhone: "08098765432",
-    medicineName: "Amlodipine",
-    strength: "5mg",
-    lastFilled: "2023-12-15",
-    nextRefillDate: "2026-01-15",
-    refillsRemaining: 1,
-    totalRefills: 3,
-    status: "overdue",
-    doctorName: "Dr. Emily Davis",
-    cost: 1800,
-  },
-  {
-    id: "4",
-    originalPrescription: "RX-2023-201",
-    patientName: "Sarah Johnson",
-    patientPhone: "08076543210",
-    medicineName: "Atorvastatin",
-    strength: "20mg",
-    lastFilled: "2026-01-18",
-    nextRefillDate: "2026-02-18",
-    refillsRemaining: 0,
-    totalRefills: 4,
-    status: "completed",
-    doctorName: "Dr. James Wilson",
-    cost: 4200,
-  },
-];
-
 export function useRefillManagement() {
-  const [refills, setRefills] = useState<RefillRequest[]>(refillsData);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [refills, setRefills] = useState<RefillRequest[]>([]);
 
-  const preFilteredRefills = refills.filter((refill) => {
-    const matchesStatus =
-      statusFilter === "all" || refill.status === statusFilter;
+  const { data, loading, refetch } = useLocalData<any>(
+    `SELECT 
+      pi.id,
+      p.id as prescription_id,
+      p.prescription_number,
+      p.patient_name,
+      p.patient_phone,
+      p.doctor_name,
+      pi.medicine_name,
+      pi.strength,
+      pi.dosage,
+      pi.quantity,
+      pi.instructions,
+      pi.cost,
+      pi.refills_authorized,
+      pi.refills_used,
+      pi.refill_interval_days,
+      pi.next_refill_date,
+      p.updated_at
+     FROM prescription_items pi
+     JOIN prescriptions p ON pi.prescription_id = p.id
+     WHERE pi.refills_authorized > 0 AND p.status IN ('completed', 'dispensed') AND pi._deleted = 0`
+  );
 
-    return matchesStatus;
-  });
+  useEffect(() => {
+    if (data) {
+      const now = new Date();
+      now.setHours(0, 0, 0, 0);
+
+      const parsedRefills: RefillRequest[] = data.map((item) => {
+        const remaining = item.refills_authorized - item.refills_used;
+        const nextDateStr = item.next_refill_date || new Date().toISOString();
+        const nextDate = new Date(nextDateStr);
+        nextDate.setHours(0, 0, 0, 0);
+
+        const diffTime = nextDate.getTime() - now.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        let status: RefillRequest["status"] = "due";
+        if (remaining <= 0) {
+          status = "completed";
+        } else if (diffDays < -3) {
+          status = "overdue";
+        } else if (diffDays <= 3 && diffDays >= -3) {
+          status = "due";
+        } else {
+          status = "early";
+        }
+
+        return {
+          id: item.id,
+          prescriptionId: item.prescription_id,
+          originalPrescription: item.prescription_number || "Unknown",
+          patientName: item.patient_name || "Unknown",
+          patientPhone: item.patient_phone || "Unknown",
+          medicineName: item.medicine_name,
+          strength: item.strength || "",
+          dosage: item.dosage || "",
+          quantity: item.quantity || 1,
+          instructions: item.instructions || "",
+          lastFilled: item.updated_at?.split("T")[0] || new Date().toISOString().split("T")[0],
+          nextRefillDate: nextDateStr.split("T")[0],
+          refillsRemaining: remaining,
+          totalRefills: item.refills_authorized,
+          status,
+          doctorName: item.doctor_name || "",
+          cost: item.cost || 0,
+          refillIntervalDays: item.refill_interval_days || 30,
+        };
+      });
+      setRefills(parsedRefills);
+    }
+  }, [data]);
+
+  const preFilteredRefills = useMemo(() => {
+    return refills.filter((refill) => {
+      return statusFilter === "all" || refill.status === statusFilter;
+    });
+  }, [refills, statusFilter]);
 
   const { results: filteredRefills, isFuzzyFallback } = genericFuzzySearch(
     searchTerm,
@@ -111,28 +129,68 @@ export function useRefillManagement() {
     return formatDateToDDMMYYYY(dateString);
   };
 
-  const processRefill = (id: string) => {
-    setRefills(
-      refills.map((refill) => {
-        if (refill.id === id) {
-          const newRefillsRemaining = refill.refillsRemaining - 1;
-          const nextRefillDate = new Date();
-          nextRefillDate.setDate(nextRefillDate.getDate() + 30); // 30 days from now
+  const processRefill = async (id: string) => {
+    const refillItem = refills.find(r => r.id === id);
+    if (!refillItem) return;
 
-          return {
-            ...refill,
-            lastFilled: new Date().toISOString().split("T")[0],
-            nextRefillDate: nextRefillDate.toISOString().split("T")[0],
-            refillsRemaining: newRefillsRemaining,
-            status:
-              newRefillsRemaining > 0
-                ? ("early" as const)
-                : ("completed" as const),
-          };
-        }
-        return refill;
-      })
-    );
+    if (refillItem.refillsRemaining <= 0) {
+      toast.error("No refills remaining for this medication.");
+      return;
+    }
+
+    try {
+      const now = new Date();
+      
+      // 1. Generate a new prescription record (pending)
+      const newPrescriptionId = generateId();
+      const newPrescription = {
+        id: newPrescriptionId,
+        prescription_number: `RX-${now.getFullYear()}-${String(Date.now()).slice(-3)}`,
+        patient_name: refillItem.patientName,
+        patient_phone: refillItem.patientPhone,
+        doctor_name: refillItem.doctorName,
+        priority: "normal",
+        status: "pending",
+        total_cost: refillItem.cost,
+        issued_at: now.toISOString(),
+        created_at: now.toISOString(),
+        updated_at: now.toISOString(),
+        notes: `Refill for ${refillItem.originalPrescription}`,
+      };
+
+      const newPrescriptionItem = {
+        id: generateId(),
+        medicine_name: refillItem.medicineName,
+        strength: refillItem.strength,
+        dosage: refillItem.dosage,
+        quantity: refillItem.quantity,
+        instructions: refillItem.instructions,
+        cost: refillItem.cost,
+        refills_authorized: 0, // The child prescription does not authorize further refills directly
+        refill_interval_days: 0,
+        created_at: now.toISOString(),
+        updated_at: now.toISOString(),
+      };
+
+      await createPrescription(newPrescription, [newPrescriptionItem]);
+
+      // 2. Update the master record to decrement remaining refills and set new target date
+      const nextDate = new Date(refillItem.nextRefillDate);
+      nextDate.setDate(nextDate.getDate() + refillItem.refillIntervalDays);
+
+      await execute(
+        `UPDATE prescription_items 
+         SET refills_used = refills_used + 1, next_refill_date = ? 
+         WHERE id = ?`,
+        [nextDate.toISOString(), id]
+      );
+
+      toast.success("Refill processed and sent to active queue!");
+      refetch();
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to process refill.");
+    }
   };
 
   const dueCount = refills.filter((r) => r.status === "due").length;

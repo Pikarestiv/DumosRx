@@ -25,7 +25,7 @@ export interface Prescription {
   doctorLicense: string;
   dateIssued: string;
   dateDispensed?: string;
-  status: "pending" | "in_progress" | "ready" | "dispensed" | "completed" | "on_hold";
+  status: "pending" | "in_progress" | "ready" | "dispensed" | "completed" | "on_hold" | "partially_dispensed" | "cancelled";
   priority: "normal" | "urgent" | "stat";
   medications: PrescriptionMedication[];
   insurance?: string;

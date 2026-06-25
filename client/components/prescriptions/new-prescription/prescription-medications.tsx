@@ -24,8 +24,10 @@ interface PrescriptionMedicationsProps {
     medicineName: string;
     strength: string;
     dosage: string;
-    quantity: number;
+    quantity: number | "";
     instructions: string;
+    refillsAuthorized: number | "";
+    refillIntervalDays: number | "";
   };
   setNewMedication: React.Dispatch<React.SetStateAction<any>>;
   availableMedicines: any[];
@@ -139,6 +141,40 @@ export function PrescriptionMedications({
                   }))
                 }
                 placeholder="e.g., 3 times daily"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Refills Authorized</Label>
+              <Input
+                type="number"
+                value={newMedication.refillsAuthorized}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setNewMedication((prev: any) => ({
+                    ...prev,
+                    refillsAuthorized: val === "" ? "" : Number.parseInt(val) || 0,
+                  }));
+                }}
+                min="0"
+                placeholder="e.g., 0"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Refill Interval (Days)</Label>
+              <Input
+                type="number"
+                value={newMedication.refillIntervalDays}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setNewMedication((prev: any) => ({
+                    ...prev,
+                    refillIntervalDays: val === "" ? "" : Number.parseInt(val) || 30,
+                  }));
+                }}
+                min="1"
+                placeholder="e.g., 30"
               />
             </div>
 

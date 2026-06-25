@@ -138,6 +138,19 @@ export async function initDatabase(): Promise<any> {
       ],
     },
     {
+      table: "prescription_items",
+      columns: [
+        "_version INTEGER DEFAULT 1",
+        "_synced INTEGER DEFAULT 0",
+        "_synced_at TEXT",
+        "_deleted INTEGER DEFAULT 0",
+        "refills_authorized INTEGER DEFAULT 0",
+        "refills_used INTEGER DEFAULT 0",
+        "refill_interval_days INTEGER DEFAULT 30",
+        "next_refill_date TEXT",
+      ],
+    },
+    {
       table: "expenses",
       columns: [
         "_version INTEGER DEFAULT 1",

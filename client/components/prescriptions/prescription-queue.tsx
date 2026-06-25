@@ -42,6 +42,9 @@ export function PrescriptionQueue() {
       ready: "default",
       dispensed: "default",
       on_hold: "destructive",
+      completed: "default",
+      partially_dispensed: "secondary",
+      cancelled: "destructive",
     } as const;
 
     const labels = {
@@ -50,6 +53,9 @@ export function PrescriptionQueue() {
       ready: "Ready",
       dispensed: "Dispensed",
       on_hold: "On Hold",
+      completed: "Completed",
+      partially_dispensed: "Partially Dispensed",
+      cancelled: "Cancelled",
     };
 
     return (

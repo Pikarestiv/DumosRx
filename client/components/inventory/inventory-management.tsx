@@ -23,13 +23,17 @@ export function InventoryManagement() {
 
   // If navigated here with ?action=add or ?status=low_stock, land on the products tab
   const hasProductsParam = searchParams.get("action") === "add" || !!searchParams.get("status")
-  const defaultTab = hasProductsParam ? "products" : "overview"
+  const defaultTab = searchParams.get("tab") || (hasProductsParam ? "products" : "overview")
   const [activeTab, setActiveTab] = useState(defaultTab)
   
   useEffect(() => {
+    const tab = searchParams.get("tab")
     const action = searchParams.get("action")
     const status = searchParams.get("status")
-    if (action === "add" || !!status) {
+    
+    if (tab) {
+      setActiveTab(tab)
+    } else if (action === "add" || !!status) {
       setActiveTab("products")
     }
   }, [searchParams])

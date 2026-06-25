@@ -19,15 +19,20 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search } from "lucide-react";
+import { Search, Pencil } from "lucide-react";
 import { useLocalData } from "@/lib/db/hooks/useLocalData";
 import { useInventoryStats } from "@/lib/hooks/use-inventory-stats";
 import { genericFuzzySearch } from "@/lib/utils/search";
 
 import { useStore } from "@/lib/context/store-context";
 
+import { EditBatchDialog } from "./edit-batch-dialog";
+
 export function BatchTracking() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedBatch, setSelectedBatch] = useState<any>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+
   const { storeProfile } = useStore();
   const expiryThreshold = storeProfile?.expiry_warning_days || 90;
 
@@ -155,7 +160,17 @@ export function BatchTracking() {
                         <Badge variant={status.variant}>{status.label}</Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="sm">Adjust</Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => {
+                            setSelectedBatch(batch);
+                            setIsEditDialogOpen(true);
+                          }}
+                        >
+                          <Pencil className="h-4 w-4 mr-2" />
+                          Edit
+                        </Button>
                       </TableCell>
                     </TableRow>
                   );
@@ -165,6 +180,16 @@ export function BatchTracking() {
           </Table>
         </CardContent>
       </Card>
+
+      <EditBatchDialog
+        isOpen={isEditDialogOpen}
+        onClose={() => {
+          setIsEditDialogOpen(false);
+          setSelectedBatch(null);
+        }}
+        batch={selectedBatch}
+        onSuccess={() => window.location.reload()}
+      />
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import type React from "react";
 import { useState, useEffect } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { toast } from "sonner";
 import { apiClient } from "@/lib/api/client";
 import { isTauri } from "@/lib/db/local-database";
@@ -17,17 +18,33 @@ export interface StockAdjustment {
 }
 
 export function useStockAdjustments() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
   const [adjustments, setAdjustments] = useState<StockAdjustment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(
+    searchParams.get("action") === "adjust"
+  );
   const [searchTerm, setSearchTerm] = useState("");
   const [newAdjustment, setNewAdjustment] = useState({
-    medicine: "",
+    medicine: searchParams.get("medicine") || "",
     adjustmentType: "decrease" as "increase" | "decrease",
     quantity: 0,
     reason: "",
     notes: "",
   });
+
+  useEffect(() => {
+    // Clear URL parameters after setting state
+    if (searchParams.get("action") === "adjust") {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("action");
+      params.delete("medicine");
+      router.replace(`${pathname}?${params.toString()}`);
+    }
+  }, [searchParams, pathname, router]);
 
   const reasons = [
     "Damaged Goods",

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { query } from "@/lib/db/local-database";
 import { toast } from "sonner";
 import { Medicine } from "./use-pos-data";
@@ -20,6 +20,8 @@ export function usePOSPrescription({
   router,
   pathname,
 }: UsePOSPrescriptionProps) {
+  const [dispensedRxId, setDispensedRxId] = useState<string | null>(null);
+
   useEffect(() => {
     const rxId = searchParams.get("dispense_rx");
     if (rxId && medicines.length > 0 && cartLength === 0) {
@@ -53,6 +55,7 @@ export function usePOSPrescription({
           if (restoredItems.length > 0) {
             restoreCart(restoredItems);
             toast.success("Prescription loaded into POS");
+            setDispensedRxId(rxId);
             const newParams = new URLSearchParams(searchParams.toString());
             newParams.delete("dispense_rx");
             router.replace(`${pathname}?${newParams.toString()}`);
@@ -67,4 +70,6 @@ export function usePOSPrescription({
       loadPrescription();
     }
   }, [searchParams, medicines, cartLength, restoreCart, router, pathname]);
+
+  return { dispensedRxId, setDispensedRxId };
 }

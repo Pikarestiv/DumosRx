@@ -26,6 +26,8 @@ interface UsePOSPaymentProps {
   refetchMedicines: () => void;
   refetchSales?: () => void;
   requirePaymentAccount?: boolean;
+  dispensedRxId?: string | null;
+  setDispensedRxId?: (id: string | null) => void;
 }
 
 export function usePOSPayment({
@@ -39,6 +41,8 @@ export function usePOSPayment({
   refetchMedicines,
   refetchSales,
   requirePaymentAccount = false,
+  dispensedRxId,
+  setDispensedRxId,
 }: UsePOSPaymentProps) {
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "card" | "transfer" | "credit" | "mixed">("cash");
   const [amountPaid, setAmountPaid] = useState("");
@@ -198,12 +202,23 @@ export function usePOSPayment({
 
       setCompletedTransaction(transaction);
       clearCart();
+      if (refetchSales) refetchSales();
+      refetchMedicines();
       setPaymentMethod("cash");
       setAmountPaid("");
       setSelectedAccountId("");
       setPaymentSplits([]);
-      setShowPaymentDialog(false);
+      
+      // Update prescription status if this was a dispensed prescription
+      if (dispensedRxId) {
+        await update("prescriptions", dispensedRxId, {
+          status: "completed"
+        });
+        setDispensedRxId?.(null);
+      }
+      
       setShowReceiptDialog(true);
+      setShowPaymentDialog(false);
       toast.success("Transaction completed successfully!");
     } catch (error) {
       console.error("Payment failed", error);

@@ -96,6 +96,16 @@ export function POSSystem() {
     // default
   }
 
+  // 4.5. Dispense Prescription Logic
+  const { dispensedRxId, setDispensedRxId } = usePOSPrescription({
+    searchParams,
+    medicines,
+    cartLength: cart.length,
+    restoreCart,
+    router,
+    pathname,
+  });
+
   // 5. Payment Logic
   const {
     paymentMethod,
@@ -124,16 +134,8 @@ export function POSSystem() {
     refetchMedicines,
     refetchSales,
     requirePaymentAccount,
-  });
-
-  // 6. Dispense Prescription Logic
-  usePOSPrescription({
-    searchParams,
-    medicines,
-    cartLength: cart.length,
-    restoreCart,
-    router,
-    pathname,
+    dispensedRxId,
+    setDispensedRxId,
   });
 
   // 7. Keyboard Shortcuts Logic

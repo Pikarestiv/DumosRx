@@ -46,7 +46,7 @@ export function usePrescriptionQueue() {
     try {
       // 1. Fetch prescriptions
       const pData = await query<any>(
-        "SELECT * FROM prescriptions WHERE _deleted = 0 ORDER BY created_at DESC"
+        "SELECT * FROM prescriptions WHERE _deleted = 0 AND status != 'completed' ORDER BY created_at DESC"
       );
 
       // 2. Fetch all prescription items for these prescriptions

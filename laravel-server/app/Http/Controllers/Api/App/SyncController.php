@@ -55,7 +55,7 @@ class SyncController extends Controller
         $currentUser = $request->user();
         $currentStoreId = null;
         if ($currentUser) {
-            $currentStoreId = $currentUser->store_id ?? \App\Models\Store::where('user_id', $currentUser->id)->value('id');
+            $currentStoreId = $currentUser->store_id ?? Store::where('user_id', $currentUser->id)->value('id');
         }
 
         try {
@@ -476,9 +476,10 @@ class SyncController extends Controller
             $canSync = $systemConfig['tiers'][$plan]['features']['cloud_sync'] ?? false;
             
             $isManual = $request->boolean('manual');
+            $isSetup = !$isPush && empty($request->input('last_synced', []));
             
-            if (!$canSync && !$isManual) {
-                if ($isPush || !empty($request->input('last_synced', []))) {
+            if (!$isSetup) {
+                if (!$canSync) {
                     return [
                         'valid' => false,
                         'message' => 'Cloud sync is disabled on your current plan. Please upgrade to a premium plan to backup your data.',
@@ -486,7 +487,7 @@ class SyncController extends Controller
                         'status' => 403
                     ];
                 }
-            } else {
+
                 $syncIntervalMinutes = $systemConfig['tiers'][$plan]['limits']['sync_interval'] ?? 0;
                 
                 if ($syncIntervalMinutes > 0 && !$isManual) {

@@ -33,7 +33,7 @@ export function useMedicineDetails(
 ) {
   const { data: batches, loading: loadingBatches } = useLocalData<any>(
     medicine
-      ? `SELECT * FROM inventory WHERE medicine_id = "${medicine.id}" AND _deleted = 0 ORDER BY expiry_date ASC`
+      ? `SELECT * FROM inventories WHERE medicine_id = "${medicine.id}" AND _deleted = 0 ORDER BY expiry_date ASC`
       : "",
   );
 

@@ -259,7 +259,7 @@ export async function seedUsers() {
 export async function resetMedicines() {
   const { execute } = await db();
   await execute("DELETE FROM medicines");
-  await execute("DELETE FROM inventory");
+  await execute("DELETE FROM inventories");
   await execute("DELETE FROM categories");
 }
 

@@ -82,7 +82,7 @@ export function useBIData(externalTimeRange?: string) {
   // 5. Inventory Value (local uses quantity column)
   const { data: inventoryValueData } = useLocalData<{ value: number }>(
     `SELECT SUM(inv.cost_price * inv.quantity) as value
-     FROM inventory inv WHERE inv._deleted = 0`
+     FROM inventories inv WHERE inv._deleted = 0`
   );
   const inventoryValue = inventoryValueData[0]?.value || 0;
 

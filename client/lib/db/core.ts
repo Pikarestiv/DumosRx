@@ -299,6 +299,13 @@ export async function initDatabase(): Promise<any> {
         await db.execute(statement);
       }
 
+      // Rename inventory to inventories if the old table exists
+      try {
+        await db.execute("ALTER TABLE inventory RENAME TO inventories");
+      } catch (_e) {
+        // Table probably doesn't exist or already renamed
+      }
+
       // Run migrations for Tauri
       for (const { table, columns } of syncColumns) {
         for (const colDef of columns) {
@@ -329,6 +336,14 @@ export async function initDatabase(): Promise<any> {
       try {
         const data = new Uint8Array(JSON.parse(savedData));
         db = new SQL.Database(data);
+        
+        // Rename inventory to inventories if the old table exists
+        try {
+          db.run("ALTER TABLE inventory RENAME TO inventories");
+        } catch (_e) {
+          // Table probably doesn't exist or already renamed
+        }
+
         // Ensure new tables from schema updates are created
         db.run(SCHEMA_SQL);
       } catch (_e) {

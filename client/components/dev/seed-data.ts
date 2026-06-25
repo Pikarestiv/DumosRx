@@ -16,13 +16,13 @@ export interface SeedCategory {
 }
 
 export const SEED_CATEGORIES: { key: SeedKey; label: string; description: string }[] = [
-  { key: "medicines", label: "Medicines", description: "22 sample medicines with varied stock & expiry scenarios" },
-  { key: "suppliers", label: "Suppliers", description: "2 sample suppliers (Emzor, GSK Nigeria)" },
-  { key: "expenses", label: "Expenses", description: "1 sample rent expense" },
-  { key: "sales", label: "Sales & Items", description: "2 sample completed sales with detailed items" },
-  { key: "customers", label: "Customers", description: "3 sample customers with varying loyalty and credit history" },
   { key: "users", label: "Staff Users", description: "1 default admin user (admin / 1234)" },
+  { key: "customers", label: "Customers", description: "3 sample customers with varying loyalty and credit history" },
+  { key: "suppliers", label: "Suppliers", description: "2 sample suppliers (Emzor, GSK Nigeria)" },
+  { key: "medicines", label: "Medicines", description: "22 sample medicines with varied stock & expiry scenarios" },
+  { key: "expenses", label: "Expenses", description: "1 sample rent expense" },
   { key: "procurement", label: "Procurement", description: "Sample purchase orders and items" },
+  { key: "sales", label: "Sales & Items", description: "2 sample completed sales with detailed items" },
   { key: "prescriptions", label: "Prescriptions", description: "Sample prescriptions and items" },
 ];
 
@@ -36,6 +36,7 @@ export async function seedSuppliers() {
   const { insert, execute } = await db();
   await execute("DELETE FROM suppliers WHERE id IN ('v1', 'v2')");
   await execute("DELETE FROM vendors WHERE id IN ('v1', 'v2')");
+  await execute("DELETE FROM _sync_queue WHERE table_name IN ('suppliers', 'vendors')");
 
   await insert("suppliers", {
     id: "v1",
@@ -85,6 +86,7 @@ export async function seedSuppliers() {
 export async function seedExpenses() {
   const { insert, execute } = await db();
   await execute("DELETE FROM expenses WHERE id IN ('e1', 'e2', 'e3')");
+  await execute("DELETE FROM _sync_queue WHERE table_name = 'expenses'");
   
   const today = new Date().toISOString().split("T")[0];
   const lastWeek = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
@@ -127,6 +129,7 @@ export async function seedProcurement() {
   const { insert, execute } = await db();
   await execute("DELETE FROM purchase_orders WHERE id IN ('po1', 'po2')");
   await execute("DELETE FROM purchase_order_items WHERE po_id IN ('po1', 'po2')");
+  await execute("DELETE FROM _sync_queue WHERE table_name IN ('purchase_orders', 'purchase_order_items')");
 
   const today = new Date().toISOString();
   const todayDate = today.split("T")[0];
@@ -150,6 +153,7 @@ export async function seedPrescriptions() {
   const { insert, execute } = await db();
   await execute("DELETE FROM prescriptions WHERE id IN ('rx1', 'rx2')");
   await execute("DELETE FROM prescription_items WHERE prescription_id IN ('rx1', 'rx2')");
+  await execute("DELETE FROM _sync_queue WHERE table_name IN ('prescriptions', 'prescription_items')");
 
   const today = new Date().toISOString();
 
@@ -171,6 +175,7 @@ export async function seedPrescriptions() {
 export async function seedCustomers() {
   const { insert, execute } = await db();
   await execute("DELETE FROM customers WHERE id IN ('c1', 'c2', 'c3')");
+  await execute("DELETE FROM _sync_queue WHERE table_name = 'customers'");
   
   const today = new Date().toISOString();
   
@@ -238,6 +243,7 @@ export async function seedCustomers() {
 export async function seedUsers() {
   const { insert, execute } = await db();
   await execute("DELETE FROM users WHERE id = 'u1' OR username = 'admin'");
+  await execute("DELETE FROM _sync_queue WHERE table_name = 'users'");
   await insert("users", {
     id: "u1",
     first_name: "Default",

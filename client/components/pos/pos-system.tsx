@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -62,6 +63,18 @@ export function POSSystem() {
   const { t, storeProfile, vatPercentage } = useStore();
   const { user, logout } = useAuth();
   const searchInputRef = React.useRef<HTMLInputElement>(null);
+
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const activeTab = searchParams.get("tab") || "products";
+
+  const handleTabChange = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", value);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
@@ -434,7 +447,7 @@ export function POSSystem() {
         <div className="flex flex-col lg:grid lg:grid-cols-3 gap-4 lg:gap-6">
           {/* Left: product search + list */}
           <div className="lg:col-span-2 space-y-4">
-            <Tabs defaultValue="products" className="w-full">
+            <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
               <div className="overflow-x-auto scrollbar-none">
                 <TabsList className="w-max min-w-full bg-muted/50 p-1 flex mb-4">
                   <TabsTrigger value="products" className="px-4 py-2 shrink-0">

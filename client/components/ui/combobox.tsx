@@ -56,7 +56,7 @@ export function Combobox({ options, value, onChange, placeholder = "Select...", 
               {options.map((option) => (
                 <CommandItem
                   key={option}
-                  value={option.toLowerCase()}
+                  value={option}
                   onSelect={() => {
                     onChange(option === value ? "" : option)
                     setOpen(false)

@@ -37,7 +37,7 @@ export function useNewPrescription() {
 
   const { data: inventoryData } = useLocalData<any>(
     `SELECT i.*, m.name as medicine_name, m.strength as m_strength
-     FROM inventory i 
+     FROM inventories i 
      JOIN medicines m ON i.medicine_id = m.id 
      WHERE i._deleted = 0 AND i.quantity > 0`
   );

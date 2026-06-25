@@ -1,3 +1,4 @@
+import * as React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +13,10 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Pill, Plus, Trash2 } from "lucide-react";
 import { Combobox } from "@/components/ui/combobox";
-import type { NewPrescriptionForm, PrescriptionMedication } from "./use-new-prescription";
+import type {
+  NewPrescriptionForm,
+  PrescriptionMedication,
+} from "./use-new-prescription";
 
 interface PrescriptionMedicationsProps {
   formData: NewPrescriptionForm;
@@ -43,6 +47,12 @@ export function PrescriptionMedications({
   formatCurrency,
   totalCost,
 }: PrescriptionMedicationsProps) {
+  const uniqueMedicineNames = React.useMemo(() => {
+    return Array.from(
+      new Set(availableMedicines.map((m) => m.name).filter(Boolean))
+    );
+  }, [availableMedicines]);
+
   return (
     <Card>
       <CardHeader>
@@ -59,7 +69,7 @@ export function PrescriptionMedications({
             <div className="space-y-2">
               <Label>Medicine Name *</Label>
               <Combobox
-                options={Array.from(new Set(availableMedicines.map((m) => m.name)))}
+                options={uniqueMedicineNames}
                 value={newMedication.medicineName}
                 onChange={(value) => {
                   setNewMedication((prev: any) => ({
@@ -171,9 +181,7 @@ export function PrescriptionMedications({
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <h5 className="font-medium">
-                        {medication.medicineName}
-                      </h5>
+                      <h5 className="font-medium">{medication.medicineName}</h5>
                       <Badge variant="outline" className="text-xs">
                         {medication.strength}
                       </Badge>

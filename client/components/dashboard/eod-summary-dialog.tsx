@@ -21,6 +21,7 @@ import {
   CalendarDays,
   ArrowRight,
 } from "lucide-react";
+import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { formatCurrency } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
@@ -61,11 +62,7 @@ export function EODSummaryDialog({
               <DialogDescription className="flex items-center gap-1.5">
                 <CalendarDays className="w-3.5 h-3.5" />
                 Performance summary for{" "}
-                {new Date().toLocaleDateString("en-US", {
-                  month: "long",
-                  day: "numeric",
-                  year: "numeric",
-                })}
+                {formatDateToDDMMYYYY(new Date())}
               </DialogDescription>
             </div>
           </div>

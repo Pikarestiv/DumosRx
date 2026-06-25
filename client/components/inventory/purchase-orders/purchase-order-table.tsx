@@ -10,6 +10,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Eye, Edit, PackageX } from "lucide-react";
+import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { PurchaseOrder } from "@/lib/hooks/use-purchase-orders";
 
 interface PurchaseOrderTableProps {
@@ -62,11 +63,7 @@ export function PurchaseOrderTable({ orders, filteredOrders }: PurchaseOrderTabl
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-NG", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
+    return formatDateToDDMMYYYY(dateString);
   };
 
   return (

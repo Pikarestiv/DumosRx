@@ -14,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { Loader2 } from "lucide-react";
 import { SearchableInput } from "@/components/ui/searchable-input";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -179,12 +180,10 @@ export function AddCustomerDialog({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="dateOfBirth">Date of Birth</Label>
-              <Input
-                id="dateOfBirth"
-                type="date"
+              <DatePickerInput
                 value={formData.dateOfBirth}
-                onChange={(e) =>
-                  handleInputChange("dateOfBirth", e.target.value)
+                onChange={(val) =>
+                  handleInputChange("dateOfBirth", val)
                 }
               />
             </div>

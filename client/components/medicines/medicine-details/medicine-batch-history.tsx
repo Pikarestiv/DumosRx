@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Clock } from "lucide-react";
+import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 
 interface MedicineBatchHistoryProps {
   batches: any[];
@@ -61,7 +62,7 @@ export function MedicineBatchHistory({
                     </TableCell>
                     <TableCell>{batch.quantity} units</TableCell>
                     <TableCell>
-                      {new Date(batch.expiry_date).toLocaleDateString()}
+                      {formatDateToDDMMYYYY(batch.expiry_date)}
                     </TableCell>
                     <TableCell>
                       {days <= 0 ? (

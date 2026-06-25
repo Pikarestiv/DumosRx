@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { useLocalData } from "@/lib/db/hooks/useLocalData";
 import { useStore } from "@/lib/context/store-context";
 import { getLocalTodayDate } from "@/lib/utils";
@@ -134,7 +135,7 @@ export function useDailyCloseData() {
 
   const exportToCSV = () => {
     const csvContent = [
-      ["Daily Close Report", `Generated: ${new Date().toLocaleDateString()}`],
+      ["Daily Close Report", `Generated: ${formatDateToDDMMYYYY(new Date())}`],
       ["Total Net Sales", aggregatedTotals.total.toString()],
       ["Total Refunds", aggregatedTotals.refunds.toString()],
       ["Cash Expected", aggregatedTotals.cash.toString()],

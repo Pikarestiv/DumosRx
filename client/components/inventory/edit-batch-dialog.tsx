@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { toast } from "sonner";
 import { isTauri } from "@/lib/db/local-database";
 
@@ -91,11 +92,9 @@ export function EditBatchDialog({ isOpen, onClose, batch, onSuccess }: EditBatch
           
           <div className="space-y-2">
             <Label htmlFor="expiry_date">Expiry Date</Label>
-            <Input
-              id="expiry_date"
-              type="date"
+            <DatePickerInput
               value={formData.expiry_date}
-              onChange={(e) => setFormData({ ...formData, expiry_date: e.target.value })}
+              onChange={(val) => setFormData({ ...formData, expiry_date: val })}
             />
           </div>
 

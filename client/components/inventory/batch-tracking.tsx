@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, Pencil } from "lucide-react";
+import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { useLocalData } from "@/lib/db/hooks/useLocalData";
 import { useInventoryStats } from "@/lib/hooks/use-inventory-stats";
 import { genericFuzzySearch } from "@/lib/utils/search";
@@ -155,7 +156,7 @@ export function BatchTracking() {
                       </TableCell>
                       <TableCell className="font-mono">{batch.batch_number}</TableCell>
                       <TableCell>{batch.quantity}</TableCell>
-                      <TableCell>{new Date(batch.expiry_date).toLocaleDateString()}</TableCell>
+                      <TableCell>{formatDateToDDMMYYYY(batch.expiry_date)}</TableCell>
                       <TableCell>
                         <Badge variant={status.variant}>{status.label}</Badge>
                       </TableCell>

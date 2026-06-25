@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { genericFuzzySearch } from "@/lib/utils/search";
 
 export interface RefillRequest {
@@ -107,11 +108,7 @@ export function useRefillManagement() {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-NG", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
+    return formatDateToDDMMYYYY(dateString);
   };
 
   const processRefill = (id: string) => {

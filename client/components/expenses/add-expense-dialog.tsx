@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { Textarea } from "@/components/ui/textarea";
 import { insert } from "@/lib/db/local-database";
 import { toast } from "sonner";
@@ -120,12 +121,10 @@ export function AddExpenseDialog({ open, onOpenChange }: AddExpenseDialogProps) 
 
           <div className="grid gap-2">
             <Label htmlFor="date">Date *</Label>
-            <Input
-              id="date"
-              type="date"
+            <DatePickerInput
               value={formData.date}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, date: e.target.value }))
+              onChange={(val) =>
+                setFormData((prev) => ({ ...prev, date: val }))
               }
             />
           </div>

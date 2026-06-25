@@ -15,6 +15,7 @@ import {
   Plus,
   Search,
 } from "lucide-react";
+import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { getSuppliers, createSupplier } from "@/lib/db/local-database";
 import { AddSupplierDialog } from "@/components/suppliers/add-supplier-dialog";
 import { useStore } from "@/lib/context/store-context";
@@ -106,11 +107,7 @@ export function SupplierManagement() {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-NG", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
+    return formatDateToDDMMYYYY(dateString);
   };
 
   const getStatusBadge = (status: Supplier["status"]) => {

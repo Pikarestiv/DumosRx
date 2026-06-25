@@ -1,5 +1,6 @@
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
+import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { CheckCircle2, CalendarIcon } from "lucide-react";
 import { getLocalTodayDate } from "@/lib/utils";
 
@@ -28,12 +29,10 @@ export function DailyCloseHeader({
         <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">
           Date:
         </label>
-        <Input
-          type="date"
+        <DatePickerInput
           value={reportDate}
-          onChange={(e) => setReportDate(e.target.value)}
-          max={getLocalTodayDate()}
-          className="w-auto h-8 border-none shadow-none focus-visible:ring-0 px-1"
+          onChange={(val) => setReportDate(val)}
+          className="w-40 border-none shadow-none focus-visible:ring-0 px-1"
         />
       </div>
     </div>

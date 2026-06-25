@@ -46,7 +46,7 @@ export function AddSupplierDialog({
   onAddSupplier,
 }: AddSupplierDialogProps) {
   const { storeType } = useStore();
-  const isStore = storeType === 'store';
+  const isStore = storeType === 'pharmacy';
   const [formData, setFormData] = useState<Supplier>({
     name: "",
     contactPerson: "",

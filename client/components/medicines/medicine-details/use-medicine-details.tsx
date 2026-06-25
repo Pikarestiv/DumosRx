@@ -1,5 +1,6 @@
 import { useLocalData } from "@/lib/db/hooks/useLocalData";
 import { formatCurrency } from "@/lib/utils";
+import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 
@@ -41,11 +42,7 @@ export function useMedicineDetails(
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-NG", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
+    return formatDateToDDMMYYYY(dateString);
   };
 
   const getStatusBadge = (status: Medicine["status"]): ReactNode => {

@@ -1,4 +1,5 @@
 import { Label } from "@/components/ui/label";
+import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 
 interface ReceiptPreviewProps {
   localName: string;
@@ -62,7 +63,7 @@ export function ReceiptPreview({
           </div>
           <div className="flex justify-between">
             <span className="font-bold">Date:</span>
-            <span>{new Date().toLocaleDateString("en-GB")}</span>
+            <span>{formatDateToDDMMYYYY(new Date())}</span>
           </div>
           <div className="flex justify-between">
             <span className="font-bold">Cashier:</span>

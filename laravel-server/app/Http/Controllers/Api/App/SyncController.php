@@ -476,7 +476,7 @@ class SyncController extends Controller
             $canSync = $systemConfig['tiers'][$plan]['features']['cloud_sync'] ?? false;
             
             $isManual = $request->boolean('manual');
-            $isSetup = !$isPush && empty($request->input('last_synced', []));
+            $isSetup = $request->boolean('setup') || (!$isPush && empty($request->input('last_synced', [])));
             
             if (!$isSetup) {
                 if (!$canSync) {
@@ -493,7 +493,7 @@ class SyncController extends Controller
                 if ($syncIntervalMinutes > 0 && !$isManual) {
                     $store = Store::where('user_id', $owner->id)->first() ?? Store::where('id', $user->store_id)->first();
                     if ($store && $store->last_sync_at) {
-                        $minutesSinceLastSync = now()->diffInMinutes($store->last_sync_at);
+                        $minutesSinceLastSync = abs((int)$store->last_sync_at->diffInMinutes(now()));
                         if ($minutesSinceLastSync < $syncIntervalMinutes) {
                             $intervalText = $syncIntervalMinutes >= 60 
                                 ? floor($syncIntervalMinutes / 60) . ' hours' 

@@ -104,7 +104,7 @@ export function useOnboarding() {
         // 4. If cloud is linked, trigger an initial sync to push the new administrator
         if (isCloudLinked) {
             toast.info("Pushing your account to cloud...");
-            sync().catch(console.error);
+            sync(false, true).catch(console.error);
         }
         router.push("/dashboard");
       }
@@ -142,7 +142,7 @@ export function useOnboarding() {
       setSyncProgress(30);
       setSyncStatus("Preparing data migration...");
       
-      const result = await sync();
+      const result = await sync(false, true);
       
       if (result.success) {
         setSyncProgress(80);

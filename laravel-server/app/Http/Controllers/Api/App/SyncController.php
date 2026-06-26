@@ -500,16 +500,21 @@ class SyncController extends Controller
                     if ($store && $store->last_sync_at) {
                         $minutesSinceLastSync = abs((int)$store->last_sync_at->diffInMinutes(now()));
                         if ($minutesSinceLastSync < $syncIntervalMinutes) {
-                            $intervalText = $syncIntervalMinutes >= 60 
-                                ? floor($syncIntervalMinutes / 60) . ' hours' 
-                                : $syncIntervalMinutes . ' minutes';
-                                
-                            return [
-                                'valid' => false,
-                                'message' => "Sync limit reached. Your current plan synchronizes once every {$intervalText}. Last sync: " . $store->last_sync_at->diffForHumans() . '. Please upgrade your plan for faster sync.',
-                                'code' => 'SYNC_THROTTLED',
-                                'status' => 429
-                            ];
+                            // Allow pull requests that happen immediately after a push (in the same minute)
+                            if (!$isPush && $minutesSinceLastSync === 0) {
+                                // Skip throttling for this immediate paired pull
+                            } else {
+                                $intervalText = $syncIntervalMinutes >= 60 
+                                    ? floor($syncIntervalMinutes / 60) . ' hours' 
+                                    : $syncIntervalMinutes . ' minutes';
+                                    
+                                return [
+                                    'valid' => false,
+                                    'message' => "Sync limit reached. Your current plan synchronizes once every {$intervalText}. Last sync: " . $store->last_sync_at->diffForHumans() . '. Please upgrade your plan for faster sync.',
+                                    'code' => 'SYNC_THROTTLED',
+                                    'status' => 429
+                                ];
+                            }
                         }
                     }
                 }

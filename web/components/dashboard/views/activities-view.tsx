@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { format } from "date-fns";
-import { Activity, Search, Filter, Loader2 } from "lucide-react";
+import { Activity, Search, Filter, Loader2, Store } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +30,35 @@ interface ActivityLog {
       name?: string;
     };
   };
+}
+
+
+const ActivityDetails = ({ details }: { details?: string }) => {
+  if (!details) return <span>-</span>;
+  try {
+    const parsed = JSON.parse(details);
+    if (typeof parsed === 'object' && parsed !== null) {
+      return (
+        <div className="flex flex-col gap-1 text-[11px] max-w-[400px]">
+          {Object.entries(parsed).slice(0, 3).map(([key, value]) => {
+             const displayValue = typeof value === 'object' ? JSON.stringify(value) : String(value);
+             return (
+               <div key={key} className="flex gap-2 bg-muted/40 px-2 py-1 rounded items-center">
+                 <span className="font-bold text-muted-foreground capitalize min-w-[80px]">{key.replace(/_/g, ' ')}</span>
+                 <span className="font-mono truncate" title={displayValue}>{displayValue}</span>
+               </div>
+             )
+          })}
+          {Object.keys(parsed).length > 3 && (
+            <div className="text-xs text-muted-foreground italic px-2">+{Object.keys(parsed).length - 3} more fields</div>
+          )}
+        </div>
+      );
+    }
+  } catch (e) {
+    // not json
+  }
+  return <div className="truncate max-w-[350px] text-sm" title={details}>{details}</div>;
 }
 
 export function ActivitiesView({ stores = [] }: { stores?: StoreProp[] }) {
@@ -155,10 +184,13 @@ export function ActivitiesView({ stores = [] }: { stores?: StoreProp[] }) {
                         {format(new Date(log.created_at || new Date()), "MMM dd, yyyy HH:mm")}
                       </TableCell>
                       <TableCell className="font-bold">
-                        <div className="flex flex-col">
+                        <div className="flex flex-col gap-1.5 mt-1 mb-1">
                           <span>{log.user?.name || log.user?.first_name || log.user_id || "System"}</span>
                           {log.user?.store && (
-                            <span className="text-xs font-normal text-muted-foreground">{log.user.store.name}</span>
+                            <Badge variant="secondary" className="w-fit text-[10px] font-bold px-1.5 py-0 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-200">
+                              <Store className="h-3 w-3 mr-1" />
+                              {log.user.store.name}
+                            </Badge>
                           )}
                         </div>
                       </TableCell>
@@ -170,10 +202,8 @@ export function ActivitiesView({ stores = [] }: { stores?: StoreProp[] }) {
                       <TableCell className="font-semibold text-sm capitalize text-muted-foreground">
                         {log.table_name?.replace(/_/g, " ")}
                       </TableCell>
-                      <TableCell className="pr-6 text-sm">
-                        <div className="truncate max-w-[300px]" title={log.details}>
-                          {log.details || "-"}
-                        </div>
+                      <TableCell className="pr-6 py-3">
+                        <ActivityDetails details={log.details} />
                       </TableCell>
                     </TableRow>
                   ))

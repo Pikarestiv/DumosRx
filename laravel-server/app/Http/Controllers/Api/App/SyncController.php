@@ -337,6 +337,9 @@ class SyncController extends Controller
                     $query->whereIn('purchase_order_id', $poIds);
                 } elseif ($table === 'stock_movements') {
                     $query->whereIn('performed_by', $userIds);
+                } elseif ($table === 'inventories') {
+                    $medicineIds = Medicine::where('user_id', $ownerId)->pluck('id')->toArray();
+                    $query->whereIn('medicine_id', $medicineIds);
                 } else {
                     // Default to filtering by owner_id for medicines, customers, suppliers
                     $query->where('user_id', $ownerId);

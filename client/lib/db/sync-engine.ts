@@ -123,6 +123,7 @@ export async function pushChanges(isManual: boolean = false, isSetup: boolean = 
  */
 export async function pullChanges(isManual: boolean = false, isSetup: boolean = false): Promise<{
   pulled: number;
+  updatedTables?: string[];
   error?: unknown;
 }> {
   try {
@@ -160,8 +161,13 @@ export async function pullChanges(isManual: boolean = false, isSetup: boolean = 
         rawDb.run("BEGIN");
       }
 
+      const updatedTables: string[] = [];
+
       for (const [table, records] of Object.entries(changes)) {
         if (!Array.isArray(records)) continue;
+        if (records.length > 0) {
+          updatedTables.push(table);
+        }
 
         // Fetch local table columns to avoid "no such column" errors
         const tableInfo = await query<{ name: string }>(`PRAGMA table_info(${table})`);
@@ -245,6 +251,8 @@ export async function pullChanges(isManual: boolean = false, isSetup: boolean = 
         rawDb.run("COMMIT");
         (await import("./core")).saveDatabase();
       }
+
+      return { pulled: pulledCount, updatedTables };
     } catch (err) {
       console.error("Failed to apply pull changes:", err);
       try {
@@ -258,7 +266,7 @@ export async function pullChanges(isManual: boolean = false, isSetup: boolean = 
       throw err;
     }
 
-    return { pulled: pulledCount };
+    return { pulled: pulledCount, updatedTables: [] }; // fallback if it reaches here
   } catch (error) {
     console.error("Pull sync failed:", error);
     throw error; // Throw so sync() can catch it properly
@@ -310,7 +318,9 @@ export async function sync(isManual: boolean = false, isSetup: boolean = false):
     localStorage.setItem("last_sync_time", new Date().toISOString());
 
     if (typeof window !== "undefined") {
-      window.dispatchEvent(new Event("dumos_sync_completed"));
+      window.dispatchEvent(new CustomEvent("dumos_sync_completed", { 
+        detail: { updatedTables: pullResult.updatedTables || [] }
+      }));
     }
 
     return {

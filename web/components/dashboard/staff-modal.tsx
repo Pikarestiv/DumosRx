@@ -42,7 +42,7 @@ export function StaffModal({
     last_name: "",
     email: "",
     username: "",
-    role: "specialist",
+    role: "sales_staff",
     store_id: "",
     password: "",
     pin: "",
@@ -55,7 +55,7 @@ export function StaffModal({
         last_name: staffMember?.last_name || "",
         email: staffMember?.email || "",
         username: staffMember?.username || "",
-        role: staffMember?.role || "specialist",
+        role: staffMember?.role || "sales_staff",
         store_id:
           staffMember?.store_id || (stores.length > 0 ? stores[0].id : ""),
         password: "",

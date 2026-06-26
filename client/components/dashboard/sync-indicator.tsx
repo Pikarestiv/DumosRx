@@ -96,7 +96,7 @@ export function SyncIndicator({ collapsed = false }: { collapsed?: boolean }) {
     setIsSyncInProgress(true);
     setStatus("syncing");
     try {
-      const result = await sync();
+      const result = await sync(true);
       if (result.success) {
         setStatus("online");
         setLastSync(new Date().toISOString());

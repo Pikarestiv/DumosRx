@@ -1,11 +1,11 @@
 import {
   getPendingSyncItems,
   markSynced,
-  query,
-  execute,
-  isTauri,
 } from "./local-database";
+import { execute, query } from "./core";
+import { isTauri } from "./local-database";
 import { apiClient } from "@/lib/api/client";
+import { queryClient } from "@/lib/query-client";
 
 /**
  * Sync Engine
@@ -209,10 +209,18 @@ export async function pullChanges(isManual: boolean = false, isSetup: boolean = 
               id,
             ];
             
-            if (isTauri()) {
-              await execute(sql, params);
-            } else if (rawDb) {
-              rawDb.run(sql, params);
+            try {
+              if (isTauri()) {
+                await execute(sql, params);
+              } else if (rawDb) {
+                rawDb.run(sql, params);
+              }
+            } catch (err: any) {
+              if (err?.message && err.message.includes("UNIQUE constraint failed")) {
+                console.warn(`[Sync] Skipped updating/inserting record in ${table} due to unique constraint:`, id, err.message);
+              } else {
+                throw err;
+              }
             }
           } else {
             // Insert new record
@@ -227,10 +235,18 @@ export async function pullChanges(isManual: boolean = false, isSetup: boolean = 
               _deleted ? 1 : 0,
             ];
             
-            if (isTauri()) {
-              await execute(sql, params);
-            } else if (rawDb) {
-              rawDb.run(sql, params);
+            try {
+              if (isTauri()) {
+                await execute(sql, params);
+              } else if (rawDb) {
+                rawDb.run(sql, params);
+              }
+            } catch (err: any) {
+              if (err?.message && err.message.includes("UNIQUE constraint failed")) {
+                console.warn(`[Sync] Skipped inserting record in ${table} due to unique constraint:`, id, err.message);
+              } else {
+                throw err;
+              }
             }
           }
 
@@ -318,6 +334,15 @@ export async function sync(isManual: boolean = false, isSetup: boolean = false):
     localStorage.setItem("last_sync_time", new Date().toISOString());
 
     if (typeof window !== "undefined") {
+      // Invalidate React Query cache for any tables that were updated
+      if (pullResult.updatedTables && pullResult.updatedTables.length > 0) {
+        pullResult.updatedTables.forEach((table) => {
+          queryClient.invalidateQueries({ queryKey: [table] });
+        });
+        // Globally invalidate localData abstraction queries
+        queryClient.invalidateQueries({ queryKey: ['localData'] });
+      }
+
       window.dispatchEvent(new CustomEvent("dumos_sync_completed", { 
         detail: { updatedTables: pullResult.updatedTables || [] }
       }));

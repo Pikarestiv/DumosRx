@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/select";
 import { Loader2, Info } from "lucide-react";
 import { toast } from "sonner";
-import { createUser, updateUser } from "@/lib/db/local-database";
+import { useMutateUser } from "@/lib/hooks/queries/use-users";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface StaffFormDialogProps {
@@ -38,6 +38,7 @@ export function StaffFormDialog({
   onSuccess,
 }: StaffFormDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { create, update } = useMutateUser();
   const [formData, setFormData] = useState({
     first_name: "",
     last_name: "",
@@ -105,7 +106,7 @@ export function StaffFormDialog({
           updateData.pin = formData.pin;
         }
 
-        await updateUser(userToEdit.id, updateData);
+        await update.mutateAsync({ id: userToEdit.id, data: updateData });
         toast.success("Staff account updated successfully");
       } else {
         const dataToSave = {
@@ -118,7 +119,7 @@ export function StaffFormDialog({
           store_id: activeStoreId || "",
         };
 
-        await createUser(dataToSave);
+        await create.mutateAsync(dataToSave);
         toast.success("Staff account created successfully");
       }
       onOpenChange(false);

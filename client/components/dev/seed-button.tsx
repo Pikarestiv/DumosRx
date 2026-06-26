@@ -132,7 +132,7 @@ export function DevSeedButton() {
   const handleSync = async () => {
     try {
       setSyncing(true);
-      const result = await sync();
+      const result = await sync(true);
       if (result.success) {
         toast.success(`Sync Complete: Pushed ${result.pushed}, Pulled ${result.pulled}`);
       } else {

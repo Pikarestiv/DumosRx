@@ -339,6 +339,8 @@ export async function sync(isManual: boolean = false, isSetup: boolean = false):
         pullResult.updatedTables.forEach((table) => {
           queryClient.invalidateQueries({ queryKey: [table] });
         });
+        // Globally invalidate localData abstraction queries
+        queryClient.invalidateQueries({ queryKey: ['localData'] });
       }
 
       window.dispatchEvent(new CustomEvent("dumos_sync_completed", { 

@@ -21,6 +21,7 @@ export function useMutateUser() {
     mutationFn: (data: any) => createUser(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users() });
+      queryClient.invalidateQueries({ queryKey: ['localData'] });
     },
   });
 
@@ -28,6 +29,7 @@ export function useMutateUser() {
     mutationFn: ({ id, data }: { id: string; data: any }) => updateUser(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users() });
+      queryClient.invalidateQueries({ queryKey: ['localData'] });
     },
   });
 
@@ -35,6 +37,7 @@ export function useMutateUser() {
     mutationFn: (id: string) => deleteUser(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users() });
+      queryClient.invalidateQueries({ queryKey: ['localData'] });
     },
   });
 

@@ -7,6 +7,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { initDatabase, query } from "../local-database";
 
 export interface UseLocalDataOptions<T> {
@@ -42,60 +43,25 @@ export function useLocalData<T = Record<string, unknown>>(
 ): UseLocalDataResult<T> {
   const { initialData = [], transform, refreshInterval = 0 } = options;
 
-  const [data, setData] = useState<T[]>(initialData);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-  const [dbReady, setDbReady] = useState(false);
-
-  // Use ref for transform to avoid infinite loops if inline function is passed
-  const transformRef = useRef(transform);
-
-  useEffect(() => {
-    transformRef.current = transform;
-  }, [transform]);
-
-  // Initialize database
-  useEffect(() => {
-    initDatabase()
-      .then(() => setDbReady(true))
-      .catch((err) => setError(err));
-  }, []);
-
-  // Fetch data
-  const fetchData = useCallback(async () => {
-    if (!dbReady) return;
-
-    try {
-      setLoading(true);
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ['localData', sql, params],
+    queryFn: async () => {
+      await initDatabase(); // Ensure DB is initialized before querying
       const results = await query<Record<string, unknown>>(sql, params);
-      const currentTransform = transformRef.current;
+      if (transform) {
+        return results.map(transform);
+      }
+      return results as unknown as T[];
+    },
+    refetchInterval: refreshInterval > 0 ? refreshInterval : false,
+  });
 
-      const transformed = currentTransform
-        ? results.map(currentTransform)
-        : (results as unknown as T[]);
-      setData(transformed);
-      setError(null);
-    } catch (err) {
-      setError(err as Error);
-    } finally {
-      setLoading(false);
-    }
-  }, [sql, JSON.stringify(params), dbReady]);
-
-  // Initial fetch
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  // Auto-refresh
-  useEffect(() => {
-    if (refreshInterval <= 0) return;
-
-    const interval = setInterval(fetchData, refreshInterval);
-    return () => clearInterval(interval);
-  }, [fetchData, refreshInterval]);
-
-  return { data, loading, error, refetch: fetchData };
+  return { 
+    data: data || initialData, 
+    loading: isLoading, 
+    error: error as Error | null, 
+    refetch: async () => { await refetch(); } 
+  };
 }
 
 /**

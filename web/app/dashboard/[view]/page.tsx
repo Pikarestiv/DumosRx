@@ -1,5 +1,6 @@
-import { use } from "react";
+import { use, Suspense } from "react";
 import { DashboardClient } from "../dashboard-client";
+import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
 
 export const dynamicParams = false;
 
@@ -7,6 +8,7 @@ export function generateStaticParams() {
   return [
     { view: "overview" },
     { view: "fleet" },
+    { view: "store-details" },
     { view: "staff" },
     { view: "billing" },
     { view: "downloads" },
@@ -18,5 +20,9 @@ export function generateStaticParams() {
 
 export default function DashboardViewPage({ params }: { params: Promise<{ view: string }> }) {
   const { view } = use(params);
-  return <DashboardClient view={view} />;
+  return (
+    <Suspense fallback={<DashboardSkeleton />}>
+      <DashboardClient view={view} />
+    </Suspense>
+  );
 }

@@ -15,6 +15,8 @@ import { DashboardTour } from "@/components/dashboard/dashboard-tour";
 // View Components
 import { OverviewView } from "@/components/dashboard/views/overview-view";
 import { FleetView } from "@/components/dashboard/views/fleet-view";
+import { FleetStoreDetailsView } from "@/components/dashboard/views/fleet-store-details-view";
+
 import { StaffView } from "@/components/dashboard/views/staff-view";
 import { ActivitiesView } from "@/components/dashboard/views/activities-view";
 import { BillingView } from "@/components/dashboard/views/billing-view";
@@ -23,9 +25,13 @@ import { NotificationsView } from "@/components/dashboard/views/notifications-vi
 import { ProfileView } from "@/components/dashboard/views/profile-view";
 import { webApiClient } from "@/lib/api/client";
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 
 export function DashboardClient({ view }: { view: string }) {
   const [isMounted, setIsMounted] = useState(false);
+  const searchParams = useSearchParams();
+  const storeIdParam = searchParams?.get('id') || undefined;
+
   useEffect(() => {
     setIsMounted(true);
   }, []);
@@ -77,6 +83,8 @@ export function DashboardClient({ view }: { view: string }) {
         );
       case "fleet":
         return <FleetView stores={stores} />;
+      case "store-details":
+        return <FleetStoreDetailsView storeId={storeIdParam} stores={stores} />;
       case "staff":
         return (
           <Suspense fallback={<DashboardSkeleton />}>

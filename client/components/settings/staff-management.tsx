@@ -4,11 +4,10 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { UserPlus } from "lucide-react";
-import { getUsers } from "@/lib/db/local-database";
+import { useUsers } from "@/lib/hooks/queries/use-users";
 import { toast } from "sonner";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { useStore } from "@/lib/context/store-context";
-import { useSyncListener } from "@/lib/hooks/use-sync-listener";
 
 import { StaffList } from "./staff/staff-list";
 import { StaffFormDialog } from "./staff/staff-form-dialog";
@@ -18,32 +17,12 @@ export function StaffManagement() {
   const { activeStoreId } = useStore();
   const { maxStaffAccounts, getUpgradeMessage } = useFeatureGate();
   
-  const [users, setUsers] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data: users = [], isLoading, refetch: loadUsers } = useUsers(activeStoreId);
   
   // Dialog States
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [userToEdit, setUserToEdit] = useState<any | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
-
-  const loadUsers = async () => {
-    setIsLoading(true);
-    try {
-      const data = await getUsers(activeStoreId);
-      setUsers(data);
-    } catch (error) {
-      console.error("Failed to load users:", error);
-      toast.error("Failed to load staff list");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadUsers();
-  }, [activeStoreId]);
-
-  useSyncListener(loadUsers, ['users']);
 
   const handleOpenCreate = () => {
     setUserToEdit(null);

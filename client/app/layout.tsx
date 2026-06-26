@@ -19,6 +19,7 @@ import { ErrorBoundary } from "@/components/tauri/error-boundary";
 import { GlobalErrorListener } from "@/components/tauri/global-error-listener";
 import { PwaRegistrar } from "@/components/pwa-registrar";
 import { AutoUpdater } from "@/components/tauri/auto-updater";
+import { QueryProvider } from "@/lib/query-provider";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -91,17 +92,19 @@ export default function RootLayout({
             <GlobalErrorListener>
               <ThemeProvider defaultTheme="light" storageKey="dumosrx-ui-theme">
                 <TooltipProvider delayDuration={1000}>
-                  <DatabaseProvider>
-                    <AuthProvider>
-                      <StoreProvider>
-                        <SystemConfigLoader />
-                        <AuthListener />
-                        <QuickSetupWizard />
-                        <LicenseGuard>{children}</LicenseGuard>
-                        <Toaster />
-                      </StoreProvider>
-                    </AuthProvider>
-                  </DatabaseProvider>
+                  <QueryProvider>
+                    <DatabaseProvider>
+                      <AuthProvider>
+                        <StoreProvider>
+                          <SystemConfigLoader />
+                          <AuthListener />
+                          <QuickSetupWizard />
+                          <LicenseGuard>{children}</LicenseGuard>
+                          <Toaster />
+                        </StoreProvider>
+                      </AuthProvider>
+                    </DatabaseProvider>
+                  </QueryProvider>
                 </TooltipProvider>
               </ThemeProvider>
             </GlobalErrorListener>

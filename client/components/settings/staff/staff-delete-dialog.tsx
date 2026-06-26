@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { deleteUser } from "@/lib/db/local-database";
+import { useMutateUser } from "@/lib/hooks/queries/use-users";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 interface StaffDeleteDialogProps {
@@ -15,12 +15,13 @@ export function StaffDeleteDialog({
   onSuccess,
 }: StaffDeleteDialogProps) {
   const [isDeleting, setIsDeleting] = useState(false);
+  const { remove } = useMutateUser();
 
   const confirmDeleteUser = async () => {
     if (!target) return;
     setIsDeleting(true);
     try {
-      await deleteUser(target.id);
+      await remove.mutateAsync(target.id);
       toast.success("Staff account deleted");
       onSuccess();
     } catch (error) {

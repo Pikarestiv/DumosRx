@@ -1,11 +1,11 @@
 import {
   getPendingSyncItems,
   markSynced,
-  query,
-  execute,
-  isTauri,
 } from "./local-database";
+import { execute, query } from "./core";
+import { isTauri } from "./local-database";
 import { apiClient } from "@/lib/api/client";
+import { queryClient } from "@/lib/query-client";
 
 /**
  * Sync Engine
@@ -318,6 +318,13 @@ export async function sync(isManual: boolean = false, isSetup: boolean = false):
     localStorage.setItem("last_sync_time", new Date().toISOString());
 
     if (typeof window !== "undefined") {
+      // Invalidate React Query cache for any tables that were updated
+      if (pullResult.updatedTables && pullResult.updatedTables.length > 0) {
+        pullResult.updatedTables.forEach((table) => {
+          queryClient.invalidateQueries({ queryKey: [table] });
+        });
+      }
+
       window.dispatchEvent(new CustomEvent("dumos_sync_completed", { 
         detail: { updatedTables: pullResult.updatedTables || [] }
       }));

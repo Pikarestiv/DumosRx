@@ -343,12 +343,17 @@ class SyncController extends Controller
                 }
             }
 
-            // Ignore last_synced for store_profile so subscription changes are always fetched
+            $lastSynced = $lastSyncedMap[$table] ?? null;
             if ($lastSynced && $table !== 'store_profile') {
-                $query->where(function ($q) use ($lastSynced) {
-                    $q->where('updated_at', '>', $lastSynced)
-                        ->orWhere('_synced_at', '>', $lastSynced);
-                });
+                $parsedLastSynced = \Carbon\Carbon::parse($lastSynced)->setTimezone('UTC')->format('Y-m-d H:i:s');
+                if (\Illuminate\Support\Facades\Schema::hasColumn($table, '_synced_at')) {
+                    $query->where(function($q) use ($parsedLastSynced) {
+                        $q->where('_synced_at', '>', $parsedLastSynced)
+                          ->orWhere('updated_at', '>', $parsedLastSynced);
+                    });
+                } else {
+                    $query->where('updated_at', '>', $parsedLastSynced);
+                }
             }
 
             $records = $query->limit(500)->get();

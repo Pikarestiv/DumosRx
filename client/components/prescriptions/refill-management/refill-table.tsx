@@ -104,8 +104,17 @@ export function RefillTable({
             <TableBody>
               {filteredRefills.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="h-24 text-center">
-                    No refill requests found.
+                  <TableCell colSpan={9} className="h-48 text-center bg-muted/20">
+                    <div className="flex flex-col items-center justify-center space-y-3 py-6">
+                      <div className="bg-muted p-3 rounded-full">
+                        <RefreshCw className="h-8 w-8 text-muted-foreground opacity-50" />
+                      </div>
+                      <h3 className="font-semibold text-lg text-foreground">No Refill Requests Found</h3>
+                      <p className="text-muted-foreground text-sm max-w-sm">
+                        There are no refill requests matching your current filters. 
+                        Adjust your search or check back later for new requests.
+                      </p>
+                    </div>
                   </TableCell>
                 </TableRow>
               ) : (

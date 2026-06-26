@@ -209,10 +209,18 @@ export async function pullChanges(isManual: boolean = false, isSetup: boolean = 
               id,
             ];
             
-            if (isTauri()) {
-              await execute(sql, params);
-            } else if (rawDb) {
-              rawDb.run(sql, params);
+            try {
+              if (isTauri()) {
+                await execute(sql, params);
+              } else if (rawDb) {
+                rawDb.run(sql, params);
+              }
+            } catch (err: any) {
+              if (err?.message && err.message.includes("UNIQUE constraint failed")) {
+                console.warn(`[Sync] Skipped updating/inserting record in ${table} due to unique constraint:`, id, err.message);
+              } else {
+                throw err;
+              }
             }
           } else {
             // Insert new record
@@ -227,10 +235,18 @@ export async function pullChanges(isManual: boolean = false, isSetup: boolean = 
               _deleted ? 1 : 0,
             ];
             
-            if (isTauri()) {
-              await execute(sql, params);
-            } else if (rawDb) {
-              rawDb.run(sql, params);
+            try {
+              if (isTauri()) {
+                await execute(sql, params);
+              } else if (rawDb) {
+                rawDb.run(sql, params);
+              }
+            } catch (err: any) {
+              if (err?.message && err.message.includes("UNIQUE constraint failed")) {
+                console.warn(`[Sync] Skipped inserting record in ${table} due to unique constraint:`, id, err.message);
+              } else {
+                throw err;
+              }
             }
           }
 

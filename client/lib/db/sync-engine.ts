@@ -41,7 +41,7 @@ export function isSyncing(): boolean {
 /**
  * Push local changes to server
  */
-export async function pushChanges(isManual: boolean = false): Promise<{ pushed: number }> {
+export async function pushChanges(isManual: boolean = false, isSetup: boolean = false): Promise<{ pushed: number }> {
   const pending = await getPendingSyncItems();
 
   if (pending.length === 0) return { pushed: 0 };
@@ -100,7 +100,7 @@ export async function pushChanges(isManual: boolean = false): Promise<{ pushed: 
 
       const response = (await apiClient.pushChanges({
         changes,
-      }, isManual)) as PushResponse;
+      }, isManual, isSetup)) as PushResponse;
 
       // If successful, mark as synced
       if (response.success) {
@@ -121,8 +121,9 @@ export async function pushChanges(isManual: boolean = false): Promise<{ pushed: 
 /**
  * Pull changes from server
  */
-export async function pullChanges(isManual: boolean = false): Promise<{
+export async function pullChanges(isManual: boolean = false, isSetup: boolean = false): Promise<{
   pulled: number;
+  updatedTables?: string[];
   error?: unknown;
 }> {
   try {
@@ -143,7 +144,7 @@ export async function pullChanges(isManual: boolean = false): Promise<{
     // Fetch changes from server
     const response = (await apiClient.pullChanges({
       last_synced: lastSyncedMap,
-    }, isManual)) as PullResponse;
+    }, isManual, isSetup)) as PullResponse;
     const { changes, server_timestamp } = response;
 
     if (!changes || Object.keys(changes).length === 0) {
@@ -160,8 +161,13 @@ export async function pullChanges(isManual: boolean = false): Promise<{
         rawDb.run("BEGIN");
       }
 
+      const updatedTables: string[] = [];
+
       for (const [table, records] of Object.entries(changes)) {
         if (!Array.isArray(records)) continue;
+        if (records.length > 0) {
+          updatedTables.push(table);
+        }
 
         // Fetch local table columns to avoid "no such column" errors
         const tableInfo = await query<{ name: string }>(`PRAGMA table_info(${table})`);
@@ -245,6 +251,8 @@ export async function pullChanges(isManual: boolean = false): Promise<{
         rawDb.run("COMMIT");
         (await import("./core")).saveDatabase();
       }
+
+      return { pulled: pulledCount, updatedTables };
     } catch (err) {
       console.error("Failed to apply pull changes:", err);
       try {
@@ -258,7 +266,7 @@ export async function pullChanges(isManual: boolean = false): Promise<{
       throw err;
     }
 
-    return { pulled: pulledCount };
+    return { pulled: pulledCount, updatedTables: [] }; // fallback if it reaches here
   } catch (error) {
     console.error("Pull sync failed:", error);
     throw error; // Throw so sync() can catch it properly
@@ -268,7 +276,7 @@ export async function pullChanges(isManual: boolean = false): Promise<{
 /**
  * Main Sync Function
  */
-export async function sync(isManual: boolean = false): Promise<SyncResult> {
+export async function sync(isManual: boolean = false, isSetup: boolean = false): Promise<SyncResult> {
   if (isSyncInProgress) {
     return { success: false, pushed: 0, pulled: 0, error: "Sync already in progress" };
   }
@@ -285,8 +293,8 @@ export async function sync(isManual: boolean = false): Promise<SyncResult> {
 
   try {
     isSyncInProgress = true;
-    const pushResult = await pushChanges(isManual);
-    const pullResult = await pullChanges(isManual);
+    const pushResult = await pushChanges(isManual, isSetup);
+    const pullResult = await pullChanges(isManual, isSetup);
 
     if (pushResult.pushed > 0 || pullResult.pulled > 0) {
       console.log(`Sync completed: Pushed ${pushResult.pushed}, Pulled ${pullResult.pulled}`);
@@ -310,7 +318,9 @@ export async function sync(isManual: boolean = false): Promise<SyncResult> {
     localStorage.setItem("last_sync_time", new Date().toISOString());
 
     if (typeof window !== "undefined") {
-      window.dispatchEvent(new Event("dumos_sync_completed"));
+      window.dispatchEvent(new CustomEvent("dumos_sync_completed", { 
+        detail: { updatedTables: pullResult.updatedTables || [] }
+      }));
     }
 
     return {

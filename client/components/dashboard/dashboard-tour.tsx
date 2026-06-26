@@ -20,43 +20,51 @@ export function DashboardTour() {
   const steps: Step[] = [
     {
       target: "body",
-      content: "Welcome to DumosRx! Let's take a quick tour of your Store Management App.",
+      content:
+        "Welcome to DumosRx! Let's take a quick tour of your Store Management App. Feel free to skip this tour if you're familiar with the app.",
       placement: "center",
       skipBeacon: true,
     },
     {
       target: "#tour-nav-dashboard",
-      content: "This is your main dashboard, showing daily sales and vital store metrics.",
+      content:
+        "This is your main dashboard, showing daily sales and vital store metrics.",
       placement: "right",
     },
     {
       target: "#tour-nav-inventory",
-      content: "Manage all your products, variations, and stock levels from here.",
+      content:
+        "Manage all your products, variations, and stock levels from here.",
       placement: "right",
     },
     {
       target: "#tour-nav-pos",
-      content: "Access the Point of Sale terminal to ring up customers and process offline transactions.",
+      content:
+        "Access the Point of Sale terminal to ring up customers and process offline transactions.",
       placement: "right",
     },
     {
       target: "#tour-nav-customers",
-      content: "View and manage all your loyal customers and their purchase history.",
+      content:
+        "View and manage all your loyal customers and their purchase history.",
       placement: "right",
     },
     {
       target: "#tour-nav-settings",
-      content: "Configure your store settings, receipt printing, and synchronization.",
+      content:
+        "Configure your store settings, receipt printing, and synchronization.",
       placement: "right",
     },
     {
       target: "#tour-nav-collapse",
-      content: "Expand or shrink the sidebar to give yourself more screen space.",
+      content:
+        "Expand or shrink the sidebar to give yourself more screen space.",
       placement: "right",
     },
     {
       target: "#tour-sync-indicator",
-      content: "Ensure your data is securely backed up and synced across all your devices.",
+      content:
+        "Ensure your data is securely backed up and synced across all your devices.",
       placement: "right",
     },
     {
@@ -66,7 +74,8 @@ export function DashboardTour() {
     },
     {
       target: "#tour-theme-toggle",
-      content: "Customize your visual experience by switching between light and dark themes.",
+      content:
+        "Customize your visual experience by switching between light and dark themes.",
       placement: "left",
     },
   ];
@@ -104,13 +113,13 @@ export function DashboardTour() {
         },
         buttonSkip: {
           color: "#64748b", // slate-500
-        }
+        },
       }}
       options={{
         primaryColor: "var(--color-primary)", // primary theme color
         zIndex: 1000,
         showProgress: true,
-        buttons: ['back', 'close', 'primary', 'skip']
+        buttons: ["back", "close", "primary", "skip"],
       }}
     />
   );

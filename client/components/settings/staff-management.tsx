@@ -8,6 +8,7 @@ import { getUsers } from "@/lib/db/local-database";
 import { toast } from "sonner";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { useStore } from "@/lib/context/store-context";
+import { useSyncListener } from "@/lib/hooks/use-sync-listener";
 
 import { StaffList } from "./staff/staff-list";
 import { StaffFormDialog } from "./staff/staff-form-dialog";
@@ -41,6 +42,8 @@ export function StaffManagement() {
   useEffect(() => {
     loadUsers();
   }, [activeStoreId]);
+
+  useSyncListener(loadUsers, ['users']);
 
   const handleOpenCreate = () => {
     setUserToEdit(null);

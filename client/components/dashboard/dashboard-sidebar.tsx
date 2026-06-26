@@ -92,7 +92,9 @@ export function DashboardSidebar({
           { name: "Expenses", href: "/expenses", icon: Wallet },
           { name: "Reports & Analytics", href: "/reports", icon: BarChart3 },
         ]
-      : []),
+      : [
+          { name: "Daily Close", href: "/reports?tab=daily_close", icon: BarChart3 },
+        ]),
   ];
 
   const allItems = [
@@ -112,7 +114,7 @@ export function DashboardSidebar({
     icon: React.ElementType;
     name: string;
   }) => {
-    const isActive = pathname.startsWith(href);
+    const isActive = pathname.startsWith(href.split('?')[0]);
     const locked = isLocked(href);
     const link = (
       <Link

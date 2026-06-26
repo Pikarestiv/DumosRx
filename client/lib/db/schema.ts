@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS medicines (
   _deleted INTEGER DEFAULT 0
 );
 
-CREATE TABLE IF NOT EXISTS inventory (
+CREATE TABLE IF NOT EXISTS inventories (
   id TEXT PRIMARY KEY,
   medicine_id TEXT NOT NULL,
   batch_number TEXT,
@@ -203,6 +203,10 @@ CREATE TABLE IF NOT EXISTS prescription_items (
   quantity INTEGER,
   instructions TEXT,
   cost REAL DEFAULT 0,
+  refills_authorized INTEGER DEFAULT 0,
+  refills_used INTEGER DEFAULT 0,
+  refill_interval_days INTEGER DEFAULT 30,
+  next_refill_date TEXT,
   created_at TEXT,
   updated_at TEXT,
   _version INTEGER DEFAULT 1,

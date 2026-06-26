@@ -176,9 +176,9 @@ export function POSPaymentDialog({
             </div>
           )}
 
-          {(paymentMethod === "card" || paymentMethod === "transfer") && requirePaymentAccount && (
+          {(paymentMethod === "card" || paymentMethod === "transfer") && (paymentAccounts && paymentAccounts.length > 0) && (
             <div>
-              <label className="text-sm font-medium">Destination Account</label>
+              <label className="text-sm font-medium">Destination Account {requirePaymentAccount && <span className="text-destructive">*</span>}</label>
               <select
                 className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 mt-1"
                 value={selectedAccountId || ""}

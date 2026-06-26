@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import {
   checkLicenseStatus,
   LicenseInfo,
@@ -192,7 +193,7 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
             {license?.expiryDate && (
               <p>
                 Last Valid Date:{" "}
-                {new Date(license.expiryDate).toLocaleDateString()}
+                {formatDateToDDMMYYYY(license.expiryDate)}
               </p>
             )}
           </div>

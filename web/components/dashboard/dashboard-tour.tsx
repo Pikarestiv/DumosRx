@@ -20,13 +20,15 @@ export function DashboardTour() {
   const steps: Step[] = [
     {
       target: "body",
-      content: "Welcome to DumosRx! Let's take a quick tour of your Store Dashboard.",
+      content:
+        "Welcome to DumosRx! Let's take a quick tour of your Store Dashboard. Feel free to skip this tour if you're familiar with the dashboard.",
       placement: "center",
       skipBeacon: true,
     },
     {
       target: "#tour-nav-overview",
-      content: "This is your main overview, showing daily sales and vital store metrics.",
+      content:
+        "This is your main overview, showing daily sales and vital store metrics.",
       placement: "right",
     },
     /*
@@ -43,12 +45,14 @@ export function DashboardTour() {
     */
     {
       target: "#tour-overview-stats",
-      content: "Get an instant snapshot of your sales, active staff, and inventory counts.",
+      content:
+        "Get an instant snapshot of your sales, active staff, and inventory counts.",
       placement: "top",
     },
     {
       target: "#tour-overview-add-store",
-      content: "Quickly provision and add a new physical or digital store to your network.",
+      content:
+        "Quickly provision and add a new physical or digital store to your network.",
       placement: "bottom",
     },
     /*
@@ -65,12 +69,14 @@ export function DashboardTour() {
     */
     {
       target: "#tour-nav-fleet",
-      content: "Manage your physical store locations and staff assignments here.",
+      content:
+        "Manage your physical store locations and staff assignments here.",
       placement: "right",
     },
     {
       target: "#tour-nav-staff",
-      content: "Add staff, assign roles, and control their access to the system.",
+      content:
+        "Add staff, assign roles, and control their access to the system.",
       placement: "right",
     },
     /*
@@ -134,13 +140,13 @@ export function DashboardTour() {
         },
         buttonSkip: {
           color: "#64748b", // slate-500
-        }
+        },
       }}
       options={{
         primaryColor: "var(--color-primary)", // primary theme color
         zIndex: 1000,
         showProgress: true,
-        buttons: ['back', 'close', 'primary', 'skip']
+        buttons: ["back", "close", "primary", "skip"],
       }}
     />
   );

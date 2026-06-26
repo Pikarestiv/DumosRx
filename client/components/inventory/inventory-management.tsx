@@ -7,23 +7,38 @@ import { BatchTracking } from "./batch-tracking"
 import { MedicineDatabase } from "@/components/medicines/medicine-database"
 import { Button } from "@/components/ui/button"
 import { ClipboardCheck, Lock } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
 import { StockAuditDialog } from "./stock-audit-dialog"
 import { ExpiringBatchesAlert } from "./expiring-batches-alert"
 import { useStore } from "@/lib/context/store-context"
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate"
+import { useAuth } from "@/lib/context/auth-context"
 import { toast } from "sonner"
 
 export function InventoryManagement() {
   const [isAuditOpen, setIsAuditOpen] = useState(false)
   const { t } = useStore()
+  const { isAdmin } = useAuth()
   const searchParams = useSearchParams()
   const { canUseAuditMode, getUpgradeMessage } = useFeatureGate()
 
   // If navigated here with ?action=add or ?status=low_stock, land on the products tab
   const hasProductsParam = searchParams.get("action") === "add" || !!searchParams.get("status")
-  const defaultTab = hasProductsParam ? "products" : "overview"
+  const defaultTab = searchParams.get("tab") || (hasProductsParam ? "products" : "overview")
+  const [activeTab, setActiveTab] = useState(defaultTab)
+  
+  useEffect(() => {
+    const tab = searchParams.get("tab")
+    const action = searchParams.get("action")
+    const status = searchParams.get("status")
+    
+    if (tab) {
+      setActiveTab(tab)
+    } else if (action === "add" || !!status) {
+      setActiveTab("products")
+    }
+  }, [searchParams])
 
   return (
     <div className="space-y-6">
@@ -60,13 +75,13 @@ export function InventoryManagement() {
         onClose={() => setIsAuditOpen(false)} 
       />
 
-      <Tabs defaultValue={defaultTab} className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="bg-muted/50 p-1 h-auto flex-wrap justify-start">
           <TabsTrigger value="overview" className="px-4 py-2">Overview</TabsTrigger>
           <TabsTrigger value="products" className="px-4 py-2 capitalize">{t('products')} Database</TabsTrigger>
           <TabsTrigger value="batches" className="px-4 py-2">Batches & Expiry</TabsTrigger>
           <TabsTrigger value="movements" className="px-4 py-2">Stock Movements</TabsTrigger>
-          <TabsTrigger value="adjustments" className="px-4 py-2">Adjustments</TabsTrigger>
+          {isAdmin && <TabsTrigger value="adjustments" className="px-4 py-2">Adjustments</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="products">
@@ -85,9 +100,11 @@ export function InventoryManagement() {
           <StockMovements />
         </TabsContent>
 
-        <TabsContent value="adjustments">
-          <StockAdjustments />
-        </TabsContent>
+        {isAdmin && (
+          <TabsContent value="adjustments">
+            <StockAdjustments />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   )

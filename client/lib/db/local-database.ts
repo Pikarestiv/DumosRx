@@ -64,7 +64,7 @@ export async function createSale(saleData: any, items: any[]) {
     // Update inventory quantity
     if (item.inventory_id) {
       await execute(
-        "UPDATE inventory SET quantity = quantity - ? WHERE id = ?",
+        "UPDATE inventories SET quantity = quantity - ? WHERE id = ?",
         [item.quantity, item.inventory_id]
       );
     }

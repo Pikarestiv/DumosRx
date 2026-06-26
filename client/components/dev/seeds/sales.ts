@@ -5,6 +5,7 @@ export async function seedSales(cashierId: string) {
   // Clean up
   await execute("DELETE FROM sales WHERE id IN ('s1', 's2')");
   await execute("DELETE FROM sale_items WHERE sale_id IN ('s1', 's2')");
+  await execute("DELETE FROM _sync_queue WHERE table_name IN ('sales', 'sale_items')");
   
   const today = new Date();
   const getPastDateTime = (days: number) => {

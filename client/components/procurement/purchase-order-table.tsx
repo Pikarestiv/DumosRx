@@ -20,6 +20,7 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
+import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -137,7 +138,7 @@ export function PurchaseOrderTable({
                     </div>
                   </TableCell>
                   <TableCell className="text-muted-foreground text-sm">
-                    {new Date(po.created_at).toLocaleDateString()}
+                    {formatDateToDDMMYYYY(po.created_at)}
                   </TableCell>
                   <TableCell className="font-bold">
                     {formatCurrency(po.total_amount)}

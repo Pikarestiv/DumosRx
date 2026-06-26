@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS categories (
   _deleted INTEGER DEFAULT 0
 );
 
-CREATE TABLE IF NOT EXISTS inventory (
+CREATE TABLE IF NOT EXISTS inventories (
   id TEXT PRIMARY KEY,
   medicine_id TEXT NOT NULL,
   batch_number TEXT,
@@ -204,9 +204,9 @@ CREATE INDEX IF NOT EXISTS idx_medicines_name ON medicines(name);
 CREATE INDEX IF NOT EXISTS idx_medicines_category ON medicines(category);
 CREATE INDEX IF NOT EXISTS idx_medicines_synced ON medicines(_synced);
 
-CREATE INDEX IF NOT EXISTS idx_inventory_medicine ON inventory(medicine_id);
-CREATE INDEX IF NOT EXISTS idx_inventory_expiry ON inventory(expiry_date);
-CREATE INDEX IF NOT EXISTS idx_inventory_synced ON inventory(_synced);
+CREATE INDEX IF NOT EXISTS idx_inventory_medicine ON inventories(medicine_id);
+CREATE INDEX IF NOT EXISTS idx_inventory_expiry ON inventories(expiry_date);
+CREATE INDEX IF NOT EXISTS idx_inventory_synced ON inventories(_synced);
 
 CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone);
 CREATE INDEX IF NOT EXISTS idx_customers_synced ON customers(_synced);

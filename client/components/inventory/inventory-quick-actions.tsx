@@ -1,21 +1,24 @@
 "use client";
 
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardHeader, 
-  CardTitle 
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { 
-  ShoppingCart, 
-  Package, 
-  Calendar, 
-  BarChart3, 
-  AlertTriangle, 
-  TrendingDown 
+import {
+  ShoppingCart,
+  Package,
+  Calendar,
+  BarChart3,
+  AlertTriangle,
+  TrendingDown,
+  PlusCircle,
 } from "lucide-react";
+import Link from "next/link";
+import { useStore } from "@/lib/context/store-context";
 
 interface InventoryQuickActionsProps {
   criticalItems: number;
@@ -24,8 +27,10 @@ interface InventoryQuickActionsProps {
 
 export function InventoryQuickActions({
   criticalItems,
-  lowStockCount
+  lowStockCount,
 }: InventoryQuickActionsProps) {
+  const { t } = useStore();
+  
   return (
     <Card>
       <CardHeader>
@@ -35,13 +40,25 @@ export function InventoryQuickActions({
         <CardDescription>Common inventory management tasks</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <Button
+            variant="outline"
+            className="h-20 flex flex-col gap-2 bg-primary/5 hover:bg-primary/10 border-primary/20"
+            asChild
+          >
+            <Link href="/inventory?action=add">
+              <PlusCircle className="h-6 w-6 text-primary hover-rotate-icon" />
+              <span className="text-sm font-medium text-primary capitalize">
+                Add {t("product")}
+              </span>
+            </Link>
+          </Button>
           <Button
             variant="outline"
             className="h-20 flex flex-col gap-2 bg-transparent"
           >
             <ShoppingCart className="h-6 w-6 hover-rotate-icon" />
-            <span className="text-sm">Create Purchase Order</span>
+            <span className="text-sm">Create P.O.</span>
           </Button>
           <Button
             variant="outline"

@@ -12,6 +12,7 @@ import { PackageX, Barcode as BarcodeIcon, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useStore } from "@/lib/context/store-context";
 
 interface StockItem {
   id: string;
@@ -38,6 +39,7 @@ export function StockStatusList({
   onPrintBarcode
 }: StockStatusListProps) {
   const { canUseBarcodeGeneration, getUpgradeMessage } = useFeatureGate();
+  const { t } = useStore();
   
   return (
     <Card>
@@ -54,7 +56,7 @@ export function StockStatusList({
           <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
             <PackageX className="h-12 w-12 mb-4" />
             <p className="font-medium">No inventory items</p>
-            <p className="text-sm">Add medicines to track stock levels.</p>
+            <p className="text-sm">Add {t('product')}s to track stock levels.</p>
           </div>
         ) : (
           <div className="space-y-4">

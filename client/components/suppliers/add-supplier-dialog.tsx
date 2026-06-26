@@ -46,7 +46,7 @@ export function AddSupplierDialog({
   onAddSupplier,
 }: AddSupplierDialogProps) {
   const { storeType } = useStore();
-  const isStore = storeType === 'store';
+  const isPharmacy = storeType === "pharmacy";
   const [formData, setFormData] = useState<Supplier>({
     name: "",
     contactPerson: "",
@@ -129,8 +129,16 @@ export function AddSupplierDialog({
               id="name"
               value={formData.name}
               onValueChange={(val) => handleInputChange("name", val)}
-              options={isStore ? FORM_SUGGESTIONS.store.manufacturers : FORM_SUGGESTIONS.retail.manufacturers}
-              placeholder={isStore ? "e.g., Emzor Pharmaceuticals" : "e.g., Global Distributors"}
+              options={
+                isPharmacy
+                  ? FORM_SUGGESTIONS.store.manufacturers
+                  : FORM_SUGGESTIONS.retail.manufacturers
+              }
+              placeholder={
+                isPharmacy
+                  ? "e.g., Emzor Pharmaceuticals"
+                  : "e.g., Global Distributors"
+              }
               required
             />
           </div>
@@ -230,7 +238,9 @@ export function AddSupplierDialog({
       </DialogContent>
       <ConfirmDialog
         open={!!alertMessage}
-        onOpenChange={(open) => { if (!open) setAlertMessage(null); }}
+        onOpenChange={(open) => {
+          if (!open) setAlertMessage(null);
+        }}
         title="Validation Error"
         description={alertMessage || ""}
         confirmLabel="OK"

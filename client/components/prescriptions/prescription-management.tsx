@@ -5,8 +5,20 @@ import { PrescriptionQueue } from "./prescription-queue"
 import { PrescriptionHistory } from "./prescription-history"
 import { NewPrescription } from "./new-prescription"
 import { RefillManagement } from "./refill-management"
+import { useRouter, useSearchParams, usePathname } from "next/navigation"
 
 export function PrescriptionManagement() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  
+  const activeTab = searchParams.get("tab") || "queue";
+
+  const handleTabChange = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", value);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
   return (
     <div className="space-y-6">
       <div>
@@ -16,7 +28,7 @@ export function PrescriptionManagement() {
         </p>
       </div>
 
-      <Tabs defaultValue="queue" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
         <TabsList className="bg-muted/50 p-1 h-auto flex-wrap justify-start">
           <TabsTrigger value="queue" className="px-4 py-2">Prescription Queue</TabsTrigger>
           <TabsTrigger value="new" className="px-4 py-2">New Prescription</TabsTrigger>

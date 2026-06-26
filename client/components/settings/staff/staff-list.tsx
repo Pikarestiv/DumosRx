@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { Edit2, Trash2, Shield, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -97,7 +98,7 @@ export function StaffList({ users, isLoading, onEdit, onDelete }: StaffListProps
               </TableCell>
               <TableCell className="text-muted-foreground">
                 {user.created_at
-                  ? new Date(user.created_at).toLocaleDateString()
+                  ? formatDateToDDMMYYYY(user.created_at)
                   : "N/A"}
               </TableCell>
               <TableCell className="text-right">

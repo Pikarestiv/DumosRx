@@ -1,310 +1,48 @@
-/* eslint-disable max-lines */
 "use client";
 
-import type React from "react";
-import { useState, useEffect } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { toast } from "sonner";
-import { Plus, Search, RotateCcw, AlertTriangle, PackageX } from "lucide-react";
-import { apiClient } from "@/lib/api/client";
 import { genericFuzzySearch } from "@/lib/utils/search";
 import { AddStockAdjustmentForm } from "./add-stock-adjustment-form";
-import { isTauri } from "@/lib/db/local-database";
-
-export interface StockAdjustment {
-  id: string;
-  date: string;
-  medicine: string;
-  adjustmentType: "increase" | "decrease";
-  quantity: number;
-  reason: string;
-  notes: string;
-  user: string;
-  approved: boolean;
-}
+import { useStockAdjustments } from "@/lib/hooks/use-stock-adjustments";
+import { StockAdjustmentLoading } from "./stock-adjustments/stock-adjustment-loading";
+import { StockAdjustmentMetrics } from "./stock-adjustments/stock-adjustment-metrics";
+import { StockAdjustmentFilters } from "./stock-adjustments/stock-adjustment-filters";
+import { StockAdjustmentTable } from "./stock-adjustments/stock-adjustment-table";
 
 export function StockAdjustments() {
-  const [adjustments, setAdjustments] = useState<StockAdjustment[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [newAdjustment, setNewAdjustment] = useState({
-    medicine: "",
-    adjustmentType: "decrease" as "increase" | "decrease",
-    quantity: 0,
-    reason: "",
-    notes: "",
-  });
+  const {
+    adjustments,
+    loading,
+    showAddForm,
+    setShowAddForm,
+    searchTerm,
+    setSearchTerm,
+    newAdjustment,
+    setNewAdjustment,
+    reasons,
+    handleSubmitAdjustment,
+    pendingAdjustments,
+    totalAdjustments,
+    thisMonthAdjustments,
+  } = useStockAdjustments();
 
-  const reasons = [
-    "Damaged Goods",
-    "Expired",
-    "Theft/Loss",
-    "Found Stock",
-    "Counting Error",
-    "Quality Issues",
-    "Transfer",
-    "Other",
-  ];
-
-  useEffect(() => {
-    async function fetchAdjustments() {
-      setLoading(true);
-      try {
-        let res;
-        if (isTauri()) {
-          const { getStockAdjustments } = await import("@/lib/db/local-database");
-          res = await getStockAdjustments(1, 100);
-        } else {
-          res = await apiClient.getStockAdjustments(1, 100);
-        }
-
-        const items = (res.data || []).map((a: any) => ({
-          id: a.id,
-          date: a.created_at || a.date,
-          medicine: a.medicine?.name || a.medicine_name || "Unknown",
-          adjustmentType: a.adjustment_type || a.type || "decrease",
-          quantity: a.quantity || 0,
-          reason: a.reason || "",
-          notes: a.notes || "",
-          user: a.user?.name || a.user_name || "System",
-          approved: a.approved ?? false,
-        }));
-        setAdjustments(items);
-      } catch (error) {
-        console.error("Failed to fetch stock adjustments:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchAdjustments();
-  }, []);
+  if (loading) {
+    return <StockAdjustmentLoading />;
+  }
 
   const { results: filteredAdjustments, isFuzzyFallback } = genericFuzzySearch(
     searchTerm,
     adjustments,
-    ["medicine", "reason"]
+    ["medicine", "reason"],
   );
-
-  const handleSubmitAdjustment = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (
-      !newAdjustment.medicine ||
-      !newAdjustment.reason ||
-      newAdjustment.quantity === 0
-    ) {
-      toast.error("Please fill in all required fields");
-      return;
-    }
-
-    const calculatedQty =
-      newAdjustment.adjustmentType === "decrease"
-        ? -Math.abs(newAdjustment.quantity)
-        : Math.abs(newAdjustment.quantity);
-
-    if (isTauri()) {
-      try {
-        const { query, execute } = await import("@/lib/db/core");
-        // Resolve medicine ID from the name selection
-        const med = await query<any>("SELECT id FROM medicines WHERE name = ? LIMIT 1", [newAdjustment.medicine]);
-        if (!med || med.length === 0) {
-          toast.error("Selected medicine not found in database. Please enter or register a valid medicine.");
-          return;
-        }
-        const medicineId = med[0].id;
-        const uuid = crypto.randomUUID();
-
-        // Insert stock movement record
-        await execute(
-          `INSERT INTO stock_movements (id, medicine_id, movement_type, quantity, reason, created_at, _synced) 
-           VALUES (?, ?, 'adjustment', ?, ?, ?, 0)`,
-          [uuid, medicineId, calculatedQty, newAdjustment.reason, new Date().toISOString()]
-        );
-
-        // Adjust medicine stock level locally
-        await execute(
-          `UPDATE medicines SET stock_quantity = stock_quantity + ?, updated_at = ? WHERE id = ?`,
-          [calculatedQty, new Date().toISOString(), medicineId]
-        );
-      } catch (err) {
-        console.error("Failed to apply local adjustment:", err);
-        toast.error("Failed to save stock adjustment locally");
-        return;
-      }
-    }
-
-    const adjustment: StockAdjustment = {
-      id: Date.now().toString(),
-      date: new Date().toISOString(),
-      medicine: newAdjustment.medicine,
-      adjustmentType: newAdjustment.adjustmentType,
-      quantity: calculatedQty,
-      reason: newAdjustment.reason,
-      notes: newAdjustment.notes,
-      user: "Current User",
-      approved: isTauri() ? true : false,
-    };
-
-    setAdjustments([adjustment, ...adjustments]);
-    setNewAdjustment({
-      medicine: "",
-      adjustmentType: "decrease",
-      quantity: 0,
-      reason: "",
-      notes: "",
-    });
-    setShowAddForm(false);
-    toast.success(isTauri() ? "Stock adjustment applied successfully" : "Stock adjustment submitted for approval");
-  };
-
-  const formatDateTime = (dateString: string) => {
-    return new Date(dateString).toLocaleString("en-NG", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  const getAdjustmentBadge = (
-    adjustmentType: StockAdjustment["adjustmentType"],
-  ) => {
-    return (
-      <Badge
-        variant={adjustmentType === "increase" ? "default" : "destructive"}
-        className="text-xs"
-      >
-        {adjustmentType === "increase" ? "Increase" : "Decrease"}
-      </Badge>
-    );
-  };
-
-  const pendingAdjustments = adjustments.filter((adj) => !adj.approved).length;
-  const totalAdjustments = adjustments.length;
-
-  if (loading) {
-    return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {[...Array(3)].map((_, i) => (
-            <Card key={i}>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-2">
-                    <Skeleton className="h-4 w-28" />
-                    <Skeleton className="h-8 w-12" />
-                  </div>
-                  <Skeleton className="h-8 w-8" />
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="space-y-2">
-                <Skeleton className="h-6 w-40" />
-                <Skeleton className="h-4 w-56" />
-              </div>
-              <Skeleton className="h-10 w-36" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <Skeleton className="h-10 w-full" />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-6 w-40" />
-            <Skeleton className="h-4 w-48" />
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {[...Array(3)].map((_, i) => (
-                <div key={i} className="flex gap-4 items-center">
-                  <Skeleton className="h-4 w-28" />
-                  <Skeleton className="h-4 w-24" />
-                  <Skeleton className="h-6 w-20" />
-                  <Skeleton className="h-4 w-16" />
-                  <Skeleton className="h-4 w-24" />
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Total Adjustments</p>
-                <p className="text-2xl font-bold">{totalAdjustments}</p>
-              </div>
-              <RotateCcw className="h-8 w-8 text-primary" />
-            </div>
-          </CardContent>
-        </Card>
+      <StockAdjustmentMetrics
+        totalAdjustments={totalAdjustments}
+        pendingAdjustments={pendingAdjustments}
+        thisMonthAdjustments={thisMonthAdjustments}
+      />
 
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Pending Approval</p>
-                <p className="text-2xl font-bold text-orange-600">{pendingAdjustments}</p>
-              </div>
-              <AlertTriangle className="h-8 w-8 text-orange-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">This Month</p>
-                <p className="text-2xl font-bold">
-                  {
-                    adjustments.filter(
-                      (adj) => new Date(adj.date).getMonth() === new Date().getMonth(),
-                    ).length
-                  }
-                </p>
-              </div>
-              <RotateCcw className="h-8 w-8 text-accent" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Add Adjustment Form */}
       {showAddForm && (
         <AddStockAdjustmentForm
           newAdjustment={newAdjustment}
@@ -315,124 +53,17 @@ export function StockAdjustments() {
         />
       )}
 
-      {/* Search and Actions */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="font-serif font-semibold">Stock Adjustments</CardTitle>
-              <CardDescription>Track and manage inventory adjustments</CardDescription>
-            </div>
-            <Button
-              onClick={() => setShowAddForm(true)}
-              className="bg-accent hover:bg-accent/90 cursor-pointer"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              New Adjustment
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                <Input
-                  placeholder="Search adjustments, medicines, reasons..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <StockAdjustmentFilters
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+        onNewAdjustment={() => setShowAddForm(true)}
+      />
 
-      {/* Adjustments Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="font-serif font-semibold">Adjustment History</CardTitle>
-          <CardDescription>
-            Showing {filteredAdjustments.length} of {adjustments.length} adjustments
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isFuzzyFallback && filteredAdjustments.length > 0 && (
-            <div className="bg-amber-500/10 text-amber-600 px-4 py-2 text-sm border border-amber-500/20 text-center font-medium rounded-md mb-4">
-              Did you mean? (No exact matches found. Showing closest names.)
-            </div>
-          )}
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date & Time</TableHead>
-                  <TableHead>Medicine</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Quantity</TableHead>
-                  <TableHead>Reason</TableHead>
-                  <TableHead>Notes</TableHead>
-                  <TableHead>User</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredAdjustments.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="h-32 text-center">
-                      <div className="flex flex-col items-center justify-center text-muted-foreground">
-                        <PackageX className="h-8 w-8 mb-2 opacity-50" />
-                        <p className="font-medium">No adjustments found</p>
-                        <p className="text-sm">
-                          {adjustments.length === 0
-                            ? "Stock adjustments will appear here after they're created"
-                            : "Try adjusting your search"}
-                        </p>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredAdjustments.map((adjustment) => (
-                    <TableRow key={adjustment.id}>
-                      <TableCell>
-                        <div className="text-sm">{formatDateTime(adjustment.date)}</div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="font-medium">{adjustment.medicine}</div>
-                      </TableCell>
-                      <TableCell>{getAdjustmentBadge(adjustment.adjustmentType)}</TableCell>
-                      <TableCell>
-                        <div
-                          className={`font-medium ${adjustment.quantity > 0 ? "text-green-600" : "text-red-600"}`}
-                        >
-                          {adjustment.quantity > 0 ? "+" : ""}
-                          {adjustment.quantity}
-                        </div>
-                      </TableCell>
-                      <TableCell>{adjustment.reason}</TableCell>
-                      <TableCell>
-                        <div className="max-w-xs truncate text-sm text-muted-foreground">
-                          {adjustment.notes || "—"}
-                        </div>
-                      </TableCell>
-                      <TableCell>{adjustment.user}</TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={adjustment.approved ? "default" : "outline"}
-                          className="text-xs"
-                        >
-                          {adjustment.approved ? "Approved" : "Pending"}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+      <StockAdjustmentTable
+        adjustments={adjustments}
+        filteredAdjustments={filteredAdjustments}
+        isFuzzyFallback={isFuzzyFallback}
+      />
     </div>
   );
 }

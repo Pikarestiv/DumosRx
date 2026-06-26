@@ -1,134 +1,74 @@
-/* eslint-disable max-lines */
 "use client";
 
-import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import React, { useState } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Receipt, User, Zap, LogOut, PauseCircle, Clock } from "lucide-react";
-import { useLocalData } from "@/lib/db/hooks/useLocalData";
-
-interface Medicine {
-  id: string;
-  name: string;
-  generic_name: string;
-  brand: string;
-  strength: string;
-  unit_price: number;
-  stock: number;
-  cost_price?: number;
-  barcode?: string;
-  batch_number?: string;
-}
-
-interface Customer {
-  id: string;
-  first_name: string;
-  last_name: string;
-  phone: string;
-  loyalty_points: number;
-  outstanding_balance: number;
-}
-
 import { useStore } from "@/lib/context/store-context";
-import { useAuth } from "@/lib/context/auth-context";
-import { ReceiptView } from "./receipt-view";
-import React from "react";
-
 import { usePOSCart } from "@/lib/hooks/use-pos-cart";
 import { usePOSPayment } from "@/lib/hooks/use-pos-payment";
-import { POSProductList } from "./pos-product-list";
-import { POSPaymentDialog } from "./pos-payment-dialog";
-import { RetailSpeedPOS } from "./retail-speed-pos";
-import { ReturnDialog } from "./return-dialog";
+import { useSmartSuggestions } from "@/hooks/use-smart-suggestions";
+import { searchMedicines } from "@/lib/utils/search";
+
+// UI Components
+import { POSHeader } from "./pos-header";
 import { POSSearchCard } from "./pos-search-card";
+import { POSProductList } from "./pos-product-list";
 import { POSTransactionHistory } from "./pos-transaction-history";
 import { POSCustomerSelector } from "./pos-customer-selector";
 import { POSCart } from "./pos-cart";
-import { useSmartSuggestions } from "@/hooks/use-smart-suggestions";
+import { RetailSpeedPOS } from "./retail-speed-pos";
+import { POSPaymentDialog } from "./pos-payment-dialog";
+import { POSReceiptDialog } from "./pos-receipt-dialog";
+import { ReturnDialog } from "./return-dialog";
 import { HeldTransactionsDialog } from "./held-transactions-dialog";
-import { insert, remove } from "@/lib/db/local-database";
-import { searchMedicines } from "@/lib/utils/search";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+
+// Custom Hooks
+import { usePOSData, Customer } from "@/lib/hooks/use-pos-data";
+import { usePOSPrescription } from "@/lib/hooks/use-pos-prescription";
+import { usePOSHeldTransactions } from "@/lib/hooks/use-pos-held-transactions";
+import { usePOSKeyboardShortcuts } from "@/lib/hooks/use-pos-keyboard-shortcuts";
 
 export function POSSystem() {
   const { t, storeProfile, vatPercentage } = useStore();
-  const { user, logout } = useAuth();
   const searchInputRef = React.useRef<HTMLInputElement>(null);
 
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const activeTab = searchParams.get("tab") || "products";
+
+  const handleTabChange = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", value);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
-    null,
-  );
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [posMode, setPosMode] = useState<"standard" | "speed">("standard");
   const [showReturnDialog, setShowReturnDialog] = useState(false);
   const [saleToReturn, setSaleToReturn] = useState<any>(null);
   const [showHeldDialog, setShowHeldDialog] = useState(false);
   const [showClearCartDialog, setShowClearCartDialog] = useState(false);
 
-  // Fetch medicines from local DB
+  // 1. Fetch Data
   const {
-    data: medicines,
-    loading: loadingMedicines,
-    refetch: refetchMedicines,
-  } = useLocalData<Medicine>(
-    "SELECT * FROM medicines WHERE _deleted = 0 ORDER BY name ASC",
-    [],
-    {
-      transform: (m: any) => ({
-        id: m.id,
-        name: m.name,
-        generic_name: m.generic_name || "",
-        brand: m.brand_name || m.brand || "",
-        strength: m.strength || "",
-        unit_price: m.selling_price || 0,
-        stock: m.stock_quantity || 0,
-        cost_price: m.cost_price || 0,
-        barcode: m.barcode || "",
-        batch_number: m.batch_number || "",
-        category_id: m.category_id || "",
-      }),
-    },
-  );
+    medicines,
+    loadingMedicines,
+    refetchMedicines,
+    recentSales,
+    refetchSales,
+    recentlySoldIds,
+    commonlySoldIds,
+    customers,
+    loadingCustomers,
+    paymentAccounts,
+  } = usePOSData();
 
-  const { data: recentSales } = useLocalData<any>(
-    "SELECT s.*, c.first_name || ' ' || c.last_name as customer_name FROM sales s LEFT JOIN customers c ON s.customer_id = c.id WHERE s._deleted = 0 ORDER BY s.created_at DESC LIMIT 10",
-  );
-
-  const { data: recentlySoldData } = useLocalData<any>(
-    "SELECT DISTINCT medicine_id FROM sale_items ORDER BY created_at DESC LIMIT 8"
-  );
-
-  const { data: commonlySoldData } = useLocalData<any>(
-    "SELECT medicine_id, SUM(quantity) as total_qty FROM sale_items GROUP BY medicine_id ORDER BY total_qty DESC LIMIT 8"
-  );
-
-  const recentlySoldIds = recentlySoldData?.map((item: any) => item.medicine_id) || [];
-  const commonlySoldIds = commonlySoldData?.map((item: any) => item.medicine_id) || [];
-
-  // Fetch customers from local DB
-  const { data: customers, loading: loadingCustomers } = useLocalData<Customer>(
-    "SELECT * FROM customers WHERE _deleted = 0 ORDER BY first_name ASC",
-    [],
-    {
-      transform: (c: any) => ({
-        id: c.id,
-        first_name: c.first_name || "",
-        last_name: c.last_name || "",
-        phone: c.phone || "",
-        loyalty_points: c.loyalty_points || 0,
-        outstanding_balance: c.outstanding_balance || 0,
-      }),
-    },
-  );
-
+  // 2. Cart Logic
   const {
     cart,
     addToCart,
@@ -142,8 +82,10 @@ export function POSSystem() {
     discount,
   } = usePOSCart(medicines);
 
+  // 3. Suggestions
   const { suggestions } = useSmartSuggestions(cart, medicines);
 
+  // 4. Payment Config
   const requirePaymentAccount = storeProfile?.require_payment_account === 1;
   let enabledPaymentMethods = ["cash", "card", "transfer", "credit", "mixed"];
   try {
@@ -154,10 +96,17 @@ export function POSSystem() {
     // default
   }
 
-  const { data: paymentAccounts } = useLocalData<any>(
-    "SELECT * FROM payment_accounts WHERE _deleted = 0 ORDER BY created_at DESC",
-  );
+  // 4.5. Dispense Prescription Logic
+  const { dispensedRxId, setDispensedRxId } = usePOSPrescription({
+    searchParams,
+    medicines,
+    cartLength: cart.length,
+    restoreCart,
+    router,
+    pathname,
+  });
 
+  // 5. Payment Logic
   const {
     paymentMethod,
     setPaymentMethod,
@@ -183,65 +132,42 @@ export function POSSystem() {
     selectedCustomer,
     clearCart,
     refetchMedicines,
+    refetchSales,
     requirePaymentAccount,
+    dispensedRxId,
+    setDispensedRxId,
   });
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (((e.altKey || e.ctrlKey) && e.key === "s") || e.key === "F1") {
-        e.preventDefault();
-        searchInputRef.current?.focus();
-      }
-
-      if (cart.length > 0) {
-        if (e.key === "F2") {
-          e.preventDefault();
-          setPaymentMethod("cash");
-          setShowPaymentDialog(true);
-        }
-        if (e.key === "F3") {
-          e.preventDefault();
-          setPaymentMethod("card");
-          setShowPaymentDialog(true);
-        }
-        if (e.key === "F4") {
-          e.preventDefault();
-          if (!selectedCustomer) {
-            toast.error("Please select a customer for credit sales");
-            return;
-          }
-          setPaymentMethod("credit");
-          setShowPaymentDialog(true);
-        }
-        if (e.key === "F5") {
-          e.preventDefault();
-          setPaymentMethod("mixed");
-          setShowPaymentDialog(true);
-        }
-      }
-
-      if (e.key === "Escape") {
-        if (showPaymentDialog) setShowPaymentDialog(false);
-        else if (showReceiptDialog) setShowReceiptDialog(false);
-        else if (searchTerm) setSearchTerm("");
-        else if (cart.length > 0) {
-          setShowClearCartDialog(true);
-        }
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [
-    cart,
+  // 7. Keyboard Shortcuts Logic
+  usePOSKeyboardShortcuts({
+    searchInputRef,
+    cartLength: cart.length,
     selectedCustomer,
     showPaymentDialog,
-    showReceiptDialog,
-    searchTerm,
-    clearCart,
     setShowPaymentDialog,
+    showReceiptDialog,
+    setShowReceiptDialog,
+    searchTerm,
+    setSearchTerm,
+    setShowClearCartDialog,
     setPaymentMethod,
-  ]);
+  });
 
+  // 8. Held Transactions Logic
+  const { handleHoldTransaction, handleRecallTransaction } =
+    usePOSHeldTransactions({
+      cart,
+      total,
+      selectedCustomer,
+      clearCart,
+      setSelectedCustomer,
+      medicines,
+      restoreCart,
+      customers,
+      setShowHeldDialog,
+    });
+
+  // 9. Search & Filter
   const { results: filteredMedicines, isFuzzyFallback } = React.useMemo(() => {
     return searchMedicines(searchTerm, medicines);
   }, [searchTerm, medicines]);
@@ -269,146 +195,15 @@ export function POSSystem() {
     }
   };
 
-  const handlePrint = () => {
-    window.print();
-  };
-
-  const handleHoldTransaction = async () => {
-    if (cart.length === 0) return;
-
-    try {
-      const id = `held_${Date.now()}`;
-      await insert("held_transactions", {
-        id,
-        customer_id: selectedCustomer?.id || null,
-        customer_name: selectedCustomer
-          ? `${selectedCustomer.first_name} ${selectedCustomer.last_name}`
-          : "Walk-in Customer",
-        items_json: JSON.stringify(cart),
-        total_amount: total,
-        created_at: new Date().toISOString(),
-      });
-
-      toast.success("Transaction held successfully");
-      clearCart();
-      setSelectedCustomer(null);
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to hold transaction");
-    }
-  };
-
-  const handleRecallTransaction = async (held: any) => {
-    try {
-      // 1. Clear current cart (maybe ask user?)
-      clearCart();
-
-      // 2. Parse items and add to cart
-      const items = JSON.parse(held.items_json);
-      const restoredItems = items
-        .map((item: any) => {
-          const medicine = medicines.find(
-            (m) => m.id === (item.medicine_id || item.id),
-          );
-          if (medicine) {
-            return {
-              ...medicine,
-              quantity: item.quantity,
-              subtotal: medicine.unit_price * item.quantity,
-            };
-          }
-          return null;
-        })
-        .filter(Boolean);
-
-      restoreCart(restoredItems);
-
-      if (held.customer_id) {
-        const customer = customers.find((c) => c.id === held.customer_id);
-        if (customer) setSelectedCustomer(customer);
-      }
-
-      // 3. Delete from held
-      await remove("held_transactions", held.id);
-
-      toast.success("Transaction recalled");
-      setShowHeldDialog(false);
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to recall transaction");
-    }
-  };
-
   return (
     <div className="space-y-4">
-      {/* Header: title left, actions right — wraps on mobile */}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="font-serif font-bold text-2xl sm:text-3xl text-foreground leading-tight">
-            Point of Sale
-          </h1>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Process sales transactions and manage {t("products").toLowerCase()}{" "}
-            orders
-          </p>
-        </div>
-        {/* Action buttons — scroll horizontally when they don't fit */}
-        <div className="w-full sm:w-auto overflow-x-auto scrollbar-none">
-          <div className="flex items-center gap-2 min-w-max">
-            <Button
-              variant={posMode === "standard" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setPosMode("standard")}
-              className="cursor-pointer flex items-center gap-1.5 shrink-0"
-            >
-              Standard View
-            </Button>
-            <Button
-              variant={posMode === "speed" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setPosMode("speed")}
-              className="cursor-pointer flex items-center gap-1.5 shrink-0"
-            >
-              <Zap className="h-4 w-4" />
-              Retail Speed
-            </Button>
-            <div className="w-px h-6 bg-border mx-0.5 shrink-0" />
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleHoldTransaction}
-              disabled={cart.length === 0}
-              className="cursor-pointer flex items-center gap-1.5 shrink-0 border-amber-500/20 hover:bg-amber-500/5 text-amber-600"
-            >
-              <PauseCircle className="h-4 w-4" />
-              Pause
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowHeldDialog(true)}
-              className="cursor-pointer flex items-center gap-1.5 shrink-0"
-            >
-              <Clock className="h-4 w-4" />
-              Held Sales
-            </Button>
-            <div className="flex items-center gap-2 px-3 py-1 bg-muted rounded-full border shrink-0">
-              <User className="h-3 w-3 text-muted-foreground" />
-              <span className="text-xs font-medium max-w-[80px] truncate">
-                {user?.first_name || user?.username}
-              </span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-4 w-4 p-0 ml-1"
-                onClick={logout}
-              >
-                <LogOut className="h-3 w-3" />
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <POSHeader
+        posMode={posMode}
+        setPosMode={setPosMode}
+        handleHoldTransaction={handleHoldTransaction}
+        cartLength={cart.length}
+        setShowHeldDialog={setShowHeldDialog}
+      />
 
       {posMode === "speed" ? (
         <RetailSpeedPOS
@@ -434,7 +229,11 @@ export function POSSystem() {
         <div className="flex flex-col lg:grid lg:grid-cols-3 gap-4 lg:gap-6">
           {/* Left: product search + list */}
           <div className="lg:col-span-2 space-y-4">
-            <Tabs defaultValue="products" className="w-full">
+            <Tabs
+              value={activeTab}
+              onValueChange={handleTabChange}
+              className="w-full"
+            >
               <div className="overflow-x-auto scrollbar-none">
                 <TabsList className="w-max min-w-full bg-muted/50 p-1 flex mb-4">
                   <TabsTrigger value="products" className="px-4 py-2 shrink-0">
@@ -532,43 +331,19 @@ export function POSSystem() {
         paymentAccounts={paymentAccounts || []}
       />
 
-      <Dialog open={showReceiptDialog} onOpenChange={setShowReceiptDialog}>
-        <DialogContent className="max-w-[450px] p-0 overflow-hidden">
-          <DialogHeader className="p-6 bg-muted/50 border-b">
-            <DialogTitle>Sale Completed</DialogTitle>
-            <DialogDescription>
-              Transaction ID:{" "}
-              {completedTransaction?.id?.slice(0, 8).toUpperCase()}
-            </DialogDescription>
-          </DialogHeader>
+      <POSReceiptDialog
+        showReceiptDialog={showReceiptDialog}
+        setShowReceiptDialog={setShowReceiptDialog}
+        completedTransaction={completedTransaction}
+      />
 
-          <div className="max-h-[60vh] overflow-y-auto">
-            {completedTransaction && (
-              <ReceiptView transaction={completedTransaction} />
-            )}
-          </div>
-
-          <div className="flex gap-3 p-6 bg-muted/50 border-t">
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={() => setShowReceiptDialog(false)}
-            >
-              Close
-            </Button>
-            <Button className="flex-1" onClick={handlePrint}>
-              <Receipt className="h-4 w-4 mr-2" />
-              Print Receipt
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
       <ReturnDialog
         open={showReturnDialog}
         onOpenChange={setShowReturnDialog}
         sale={saleToReturn}
         onSuccess={() => {
           refetchMedicines();
+          refetchSales();
           toast.success("Inventory updated after return");
         }}
         currencyCode={storeProfile?.currency}

@@ -166,15 +166,27 @@ class ApiClient extends BaseApiClient {
   }
 
   // Sync Endpoints
-  async pushChanges(payload: { changes: any[] }, isManual: boolean = false) {
-    return this.request(`/sync/push${isManual ? "?manual=1" : ""}`, {
+  async pushChanges(payload: { changes: any[] }, isManual: boolean = false, isSetup: boolean = false) {
+    let url = `/sync/push`;
+    const params = new URLSearchParams();
+    if (isManual) params.append("manual", "1");
+    if (isSetup) params.append("setup", "1");
+    if (params.toString()) url += `?${params.toString()}`;
+
+    return this.request(url, {
       method: "POST",
       body: JSON.stringify(payload),
     });
   }
 
-  async pullChanges(payload: { last_synced: Record<string, string> }, isManual: boolean = false) {
-    return this.request(`/sync/pull${isManual ? "?manual=1" : ""}`, {
+  async pullChanges(payload: { last_synced: Record<string, string> }, isManual: boolean = false, isSetup: boolean = false) {
+    let url = `/sync/pull`;
+    const params = new URLSearchParams();
+    if (isManual) params.append("manual", "1");
+    if (isSetup) params.append("setup", "1");
+    if (params.toString()) url += `?${params.toString()}`;
+
+    return this.request(url, {
       method: "POST",
       body: JSON.stringify(payload),
     });

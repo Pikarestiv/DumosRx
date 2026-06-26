@@ -55,7 +55,7 @@ class SyncController extends Controller
         $currentUser = $request->user();
         $currentStoreId = null;
         if ($currentUser) {
-            $currentStoreId = $currentUser->store_id ?? \App\Models\Store::where('user_id', $currentUser->id)->value('id');
+            $currentStoreId = $currentUser->store_id ?? Store::where('user_id', $currentUser->id)->value('id');
         }
 
         try {
@@ -343,12 +343,17 @@ class SyncController extends Controller
                 }
             }
 
-            // Ignore last_synced for store_profile so subscription changes are always fetched
+            $lastSynced = $lastSyncedMap[$table] ?? null;
             if ($lastSynced && $table !== 'store_profile') {
-                $query->where(function ($q) use ($lastSynced) {
-                    $q->where('updated_at', '>', $lastSynced)
-                        ->orWhere('_synced_at', '>', $lastSynced);
-                });
+                $parsedLastSynced = \Carbon\Carbon::parse($lastSynced)->setTimezone('UTC')->format('Y-m-d H:i:s');
+                if (\Illuminate\Support\Facades\Schema::hasColumn($table, '_synced_at')) {
+                    $query->where(function($q) use ($parsedLastSynced) {
+                        $q->where('_synced_at', '>', $parsedLastSynced)
+                          ->orWhere('updated_at', '>', $parsedLastSynced);
+                    });
+                } else {
+                    $query->where('updated_at', '>', $parsedLastSynced);
+                }
             }
 
             $records = $query->limit(500)->get();
@@ -476,9 +481,10 @@ class SyncController extends Controller
             $canSync = $systemConfig['tiers'][$plan]['features']['cloud_sync'] ?? false;
             
             $isManual = $request->boolean('manual');
+            $isSetup = $request->boolean('setup') || (!$isPush && empty($request->input('last_synced', [])));
             
-            if (!$canSync && !$isManual) {
-                if ($isPush || !empty($request->input('last_synced', []))) {
+            if (!$isSetup) {
+                if (!$canSync) {
                     return [
                         'valid' => false,
                         'message' => 'Cloud sync is disabled on your current plan. Please upgrade to a premium plan to backup your data.',
@@ -486,24 +492,29 @@ class SyncController extends Controller
                         'status' => 403
                     ];
                 }
-            } else {
+
                 $syncIntervalMinutes = $systemConfig['tiers'][$plan]['limits']['sync_interval'] ?? 0;
                 
                 if ($syncIntervalMinutes > 0 && !$isManual) {
                     $store = Store::where('user_id', $owner->id)->first() ?? Store::where('id', $user->store_id)->first();
                     if ($store && $store->last_sync_at) {
-                        $minutesSinceLastSync = now()->diffInMinutes($store->last_sync_at);
+                        $minutesSinceLastSync = abs((int)$store->last_sync_at->diffInMinutes(now()));
                         if ($minutesSinceLastSync < $syncIntervalMinutes) {
-                            $intervalText = $syncIntervalMinutes >= 60 
-                                ? floor($syncIntervalMinutes / 60) . ' hours' 
-                                : $syncIntervalMinutes . ' minutes';
-                                
-                            return [
-                                'valid' => false,
-                                'message' => "Sync limit reached. Your current plan synchronizes once every {$intervalText}. Last sync: " . $store->last_sync_at->diffForHumans() . '. Please upgrade your plan for faster sync.',
-                                'code' => 'SYNC_THROTTLED',
-                                'status' => 429
-                            ];
+                            // Allow pull requests that happen immediately after a push (in the same minute)
+                            if (!$isPush && $minutesSinceLastSync === 0) {
+                                // Skip throttling for this immediate paired pull
+                            } else {
+                                $intervalText = $syncIntervalMinutes >= 60 
+                                    ? floor($syncIntervalMinutes / 60) . ' hours' 
+                                    : $syncIntervalMinutes . ' minutes';
+                                    
+                                return [
+                                    'valid' => false,
+                                    'message' => "Sync limit reached. Your current plan synchronizes once every {$intervalText}. Last sync: " . $store->last_sync_at->diffForHumans() . '. Please upgrade your plan for faster sync.',
+                                    'code' => 'SYNC_THROTTLED',
+                                    'status' => 429
+                                ];
+                            }
                         }
                     }
                 }

@@ -25,9 +25,10 @@ interface ComboboxProps {
   onChange: (value: string) => void
   placeholder?: string
   emptyText?: string
+  disabled?: boolean
 }
 
-export function Combobox({ options, value, onChange, placeholder = "Select...", emptyText = "No option found." }: ComboboxProps) {
+export function Combobox({ options, value, onChange, placeholder = "Select...", emptyText = "No option found.", disabled = false }: ComboboxProps) {
   const [open, setOpen] = React.useState(false)
 
   return (
@@ -37,9 +38,10 @@ export function Combobox({ options, value, onChange, placeholder = "Select...", 
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full justify-between font-normal"
+          disabled={disabled}
+          className="w-full justify-between font-normal bg-transparent border-input shadow-xs"
         >
-          {value ? value : placeholder}
+          <span className="truncate">{value ? value : placeholder}</span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>

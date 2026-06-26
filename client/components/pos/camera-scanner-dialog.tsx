@@ -22,6 +22,7 @@ export function CameraScannerDialog({
   onScanSuccess,
 }: CameraScannerDialogProps) {
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+  const readerId = React.useId().replace(/:/g, "");
 
   useEffect(() => {
     if (!isOpen) {
@@ -41,7 +42,7 @@ export function CameraScannerDialog({
         supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
       };
 
-      const scanner = new Html5QrcodeScanner("reader", config, false);
+      const scanner = new Html5QrcodeScanner(`reader-${readerId}`, config, false);
       scannerRef.current = scanner;
 
       scanner.render(
@@ -78,7 +79,7 @@ export function CameraScannerDialog({
           </DialogDescription>
         </DialogHeader>
 
-          <div id="reader" className="w-full min-h-[300px] overflow-hidden rounded-lg"></div>
+          <div id={`reader-${readerId}`} className="w-full min-h-[300px] overflow-hidden rounded-lg"></div>
       </DialogContent>
     </Dialog>
   );

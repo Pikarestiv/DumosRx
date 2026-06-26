@@ -38,7 +38,7 @@ export async function fetchInventoryReportData() {
       inv.selling_price as "Selling Price",
       SUM(inv.quantity * inv.cost_price) as "Stock Value",
       MIN(inv.expiry_date) as "Nearest Expiry"
-     FROM inventory inv
+     FROM inventories inv
      JOIN medicines m ON inv.medicine_id = m.id
      WHERE inv._deleted = 0 AND m._deleted = 0
      GROUP BY m.id

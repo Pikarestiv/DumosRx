@@ -4,6 +4,7 @@ import { useStore } from "@/lib/context/store-context";
 import { APP_NAME } from "@/lib/constants";
 import Barcode from "react-barcode";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
+import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 
 interface ReceiptProps {
   transaction: {
@@ -163,7 +164,7 @@ export function ReceiptView({ transaction }: ReceiptProps) {
         
         <div className="flex justify-between mt-2 pt-2 border-t border-dashed border-black">
           <span>Date:</span>
-          <span>{new Date(transaction.date).toLocaleDateString("en-GB")}</span>
+          <span>{formatDateToDDMMYYYY(transaction.date)}</span>
         </div>
         <div className="flex justify-between font-bold">
           <span>Total paid:</span>

@@ -84,6 +84,14 @@ export function AddMedicineDialog({
         status: editingMedicine.status || "active",
         showOnline: editingMedicine.showOnline || false,
       });
+      
+      // Format YYYY-MM-DD to DD/MM/YYYY for the frontend if necessary
+      if (editingMedicine.expiryDate && editingMedicine.expiryDate.includes('-')) {
+        setFormData(prev => ({
+          ...prev,
+          expiryDate: editingMedicine.expiryDate.split('-').reverse().join('/')
+        }));
+      }
     } else if (!editingMedicine && open) {
       setFormData({
         id: "",
@@ -112,9 +120,9 @@ export function AddMedicineDialog({
     }
   }, [editingMedicine, open]);
 
-  const isStore = storeType === "pharmacy";
+  const isPharmacy = storeType === "pharmacy";
 
-  const [suggestions, setSuggestions] = useState<any>(isStore ? FORM_SUGGESTIONS.store : FORM_SUGGESTIONS.retail);
+  const [suggestions, setSuggestions] = useState<any>(isPharmacy ? FORM_SUGGESTIONS.store : FORM_SUGGESTIONS.retail);
 
   useEffect(() => {
     let baseSuggestions = FORM_SUGGESTIONS;
@@ -130,7 +138,7 @@ export function AddMedicineDialog({
     const pharmList = baseSuggestions.store || FORM_SUGGESTIONS.store;
     const retailList = baseSuggestions.retail || FORM_SUGGESTIONS.retail;
 
-    if (isStore) {
+    if (isPharmacy) {
       const showRetail = storeProfile?.show_retail_suggestions === 1;
       if (showRetail) {
         const mergeAndUnique = (arr1: string[] = [], arr2: string[] = []) => {
@@ -150,7 +158,7 @@ export function AddMedicineDialog({
     } else {
       setSuggestions(retailList);
     }
-  }, [isStore, storeProfile?.show_retail_suggestions]);
+  }, [isPharmacy, storeProfile?.show_retail_suggestions]);
 
   const commonSuggestions = FORM_SUGGESTIONS.common;
 
@@ -163,11 +171,42 @@ export function AddMedicineDialog({
       return;
     }
 
-    if (isStore && (!formData.genericName || !formData.nafdacNumber)) {
+    if (isPharmacy && !formData.genericName) {
       setAlertMessage(
-        `Generic Name and ${t("registration_number")} are required for ${t("store").toLowerCase()}s`,
+        `Generic Name is required for ${t("store").toLowerCase()}s`,
       );
       return;
+    }
+
+    // Parse DD/MM/YYYY back to YYYY-MM-DD for backend
+    let formattedExpiry = formData.expiryDate;
+    if (formattedExpiry) {
+      if (formattedExpiry.length !== 10) {
+        setAlertMessage("Please enter a complete expiry date (DD/MM/YYYY) or leave it blank.");
+        return;
+      }
+      
+      const parts = formattedExpiry.split('/');
+      if (parts.length === 3) {
+        const day = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10);
+        const year = parseInt(parts[2], 10);
+        
+        // Basic check for a realistic year (e.g., no 9999 or 1000)
+        if (year < 2000 || year > 2100) {
+          setAlertMessage("Please enter a realistic expiry year (e.g., 2024).");
+          return;
+        }
+
+        const date = new Date(year, month - 1, day);
+        if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
+          setAlertMessage("The expiry date entered is not a valid date.");
+          return;
+        }
+
+        // DD/MM/YYYY -> YYYY-MM-DD
+        formattedExpiry = `${parts[2]}-${parts[1]}-${parts[0]}`;
+      }
     }
 
     // Determine status based on stock and expiry
@@ -175,7 +214,7 @@ export function AddMedicineDialog({
     if (formData.stockQuantity <= formData.reorderLevel) {
       status = "low_stock";
     }
-    if (formData.expiryDate && new Date(formData.expiryDate) < new Date()) {
+    if (formattedExpiry && new Date(formattedExpiry) < new Date()) {
       status = "expired";
     }
 
@@ -195,7 +234,7 @@ export function AddMedicineDialog({
       selling_price: formData.sellingPrice,
       stock_quantity: formData.stockQuantity,
       reorder_level: formData.reorderLevel,
-      expiry_date: formData.expiryDate,
+      expiry_date: formattedExpiry,
       batch_number: formData.batchNumber,
       barcode: formData.barcode,
       base_unit: formData.baseUnit,
@@ -256,7 +295,7 @@ export function AddMedicineDialog({
           <MedicineFormFields
             formData={formData}
             onInputChange={handleInputChange}
-            isStore={isStore}
+            isPharmacy={isPharmacy}
             suggestions={suggestions as any}
             commonSuggestions={commonSuggestions}
             t={t}

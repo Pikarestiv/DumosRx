@@ -46,6 +46,10 @@ CREATE TABLE IF NOT EXISTS prescription_items (
   status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'dispensed', 'substituted', 'unavailable')),
   substituted_medicine_id UUID REFERENCES medicines(id),
   substitution_reason TEXT,
+  refills_authorized INTEGER DEFAULT 0,
+  refills_used INTEGER DEFAULT 0,
+  refill_interval_days INTEGER DEFAULT 30,
+  next_refill_date DATE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

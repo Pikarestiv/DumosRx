@@ -11,6 +11,7 @@ import { query } from "@/lib/db/core";
 import { getDaysToExpiry } from "@/lib/utils/date-utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useSettings } from "@/hooks/use-settings";
 
 interface ExpiringItem {
   id: string;
@@ -21,22 +22,24 @@ interface ExpiringItem {
 }
 
 export function ExpiringBatchesAlert() {
+  const { expiryDays } = useSettings();
   const [items, setItems] = useState<ExpiringItem[]>([]);
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
     loadExpiringItems();
-  }, []);
+  }, [expiryDays]);
 
   const loadExpiringItems = async () => {
     try {
-      // Find items expiring in the next 90 days
+      const days = Number(expiryDays) || 90;
+      // Find items expiring in the next X days
       const res = await query<ExpiringItem>(`
         SELECT id, name, batch_number, expiry_date, stock_quantity 
         FROM medicines 
         WHERE expiry_date IS NOT NULL 
         AND stock_quantity > 0
-        AND date(expiry_date) <= date('now', '+90 days')
+        AND date(expiry_date) <= date('now', '+${days} days')
         ORDER BY expiry_date ASC
       `);
       setItems(res);
@@ -65,7 +68,7 @@ export function ExpiringBatchesAlert() {
             </button>
           </div>
           <p className="text-xs text-amber-800/70 dark:text-amber-200/70 leading-relaxed">
-            You have <span className="font-bold">{items.length} products</span> reaching their expiry date within the next 90 days. Please prioritize these batches for sale or return to supplier.
+            You have <span className="font-bold">{items.length} products</span> reaching their expiry date within the next {expiryDays || 90} days. Please prioritize these batches for sale or return to supplier.
           </p>
           
           <div className="pt-3 flex flex-wrap gap-2">

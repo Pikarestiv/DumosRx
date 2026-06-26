@@ -11,7 +11,7 @@ export function useInventoryAlerts() {
       m.name as medicine,
       SUM(inv.quantity) as quantity,
       m.reorder_level as threshold
-     FROM inventory inv
+     FROM inventories inv
      JOIN medicines m ON inv.medicine_id = m.id
      WHERE inv._deleted = 0 AND m._deleted = 0
      GROUP BY m.id
@@ -29,7 +29,7 @@ export function useInventoryAlerts() {
       m.name as medicine,
       inv.expiry_date as expiryDate,
       CAST((julianday(inv.expiry_date) - julianday('now')) AS INTEGER) as daysLeft
-     FROM inventory inv
+     FROM inventories inv
      JOIN medicines m ON inv.medicine_id = m.id
      WHERE inv._deleted = 0 AND m._deleted = 0
        AND inv.expiry_date IS NOT NULL

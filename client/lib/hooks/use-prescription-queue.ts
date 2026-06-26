@@ -24,7 +24,8 @@ export interface Prescription {
   doctorName: string;
   doctorLicense: string;
   dateIssued: string;
-  status: "pending" | "in_progress" | "ready" | "dispensed" | "on_hold";
+  dateDispensed?: string;
+  status: "pending" | "in_progress" | "ready" | "dispensed" | "completed" | "on_hold" | "partially_dispensed" | "cancelled";
   priority: "normal" | "urgent" | "stat";
   medications: PrescriptionMedication[];
   insurance?: string;
@@ -46,7 +47,7 @@ export function usePrescriptionQueue() {
     try {
       // 1. Fetch prescriptions
       const pData = await query<any>(
-        "SELECT * FROM prescriptions WHERE _deleted = 0 ORDER BY created_at DESC"
+        "SELECT * FROM prescriptions WHERE _deleted = 0 AND status != 'completed' ORDER BY created_at DESC"
       );
 
       // 2. Fetch all prescription items for these prescriptions

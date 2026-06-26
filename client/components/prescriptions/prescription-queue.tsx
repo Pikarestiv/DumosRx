@@ -12,8 +12,10 @@ import { PrescriptionDetailsDialog } from "./prescription-details-dialog";
 import { formatCurrency } from "@/lib/utils";
 import { PrescriptionFilterCard } from "./prescription-filter-card";
 import { PrescriptionTable } from "./prescription-table";
+import { useRouter } from "next/navigation";
 
 export function PrescriptionQueue() {
+  const router = useRouter();
   const {
     loading,
     searchTerm,
@@ -40,6 +42,9 @@ export function PrescriptionQueue() {
       ready: "default",
       dispensed: "default",
       on_hold: "destructive",
+      completed: "default",
+      partially_dispensed: "secondary",
+      cancelled: "destructive",
     } as const;
 
     const labels = {
@@ -48,6 +53,9 @@ export function PrescriptionQueue() {
       ready: "Ready",
       dispensed: "Dispensed",
       on_hold: "On Hold",
+      completed: "Completed",
+      partially_dispensed: "Partially Dispensed",
+      cancelled: "Cancelled",
     };
 
     return (
@@ -85,6 +93,14 @@ export function PrescriptionQueue() {
       hour: "2-digit",
       minute: "2-digit",
     });
+  };
+
+  const handleEdit = (prescription: Prescription) => {
+    router.push(`/prescriptions?tab=new&edit_rx=${prescription.id}`);
+  };
+
+  const handleDispense = (prescription: Prescription) => {
+    router.push(`/pos?dispense_rx=${prescription.id}`);
   };
 
   if (loading) {
@@ -140,6 +156,8 @@ export function PrescriptionQueue() {
         getPriorityBadge={getPriorityBadge}
         viewDetails={viewPrescriptionDetails}
         updateStatus={updatePrescriptionStatus}
+        onEdit={handleEdit}
+        onDispense={handleDispense}
       />
 
       <PrescriptionDetailsDialog

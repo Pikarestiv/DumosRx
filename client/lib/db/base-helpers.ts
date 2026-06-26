@@ -3,6 +3,7 @@
  */
 
 import { execute, query, generateId, logAction } from "./core";
+import { queryClient } from "../query-client";
 
 export async function insert(table: string, data: Record<string, unknown>): Promise<string> {
   const id = (data.id as string) || generateId();
@@ -33,6 +34,11 @@ export async function insert(table: string, data: Record<string, unknown>): Prom
 
   await addToSyncQueue(table, id, "INSERT", record);
   await logAction("INSERT", table, id, record);
+
+  if (typeof window !== "undefined") {
+    queryClient.invalidateQueries({ queryKey: ['localData'] });
+    queryClient.invalidateQueries({ queryKey: [table] });
+  }
 
   return id;
 }
@@ -71,6 +77,11 @@ export async function update(
 
   await addToSyncQueue(table, id, "UPDATE", record);
   await logAction("UPDATE", table, id, record);
+  
+  if (typeof window !== "undefined") {
+    queryClient.invalidateQueries({ queryKey: ['localData'] });
+    queryClient.invalidateQueries({ queryKey: [table] });
+  }
 }
 
 export async function softDelete(table: string, id: string): Promise<void> {
@@ -87,12 +98,22 @@ export async function softDelete(table: string, id: string): Promise<void> {
 
   await addToSyncQueue(table, id, "DELETE", { id });
   await logAction("DELETE", table, id, { id });
+
+  if (typeof window !== "undefined") {
+    queryClient.invalidateQueries({ queryKey: ['localData'] });
+    queryClient.invalidateQueries({ queryKey: [table] });
+  }
 }
 
 export async function remove(table: string, id: string): Promise<void> {
   await execute(`DELETE FROM ${table} WHERE id = ?`, [id]);
   // Also remove from sync queue if it was pending
   await execute(`DELETE FROM _sync_queue WHERE table_name = ? AND record_id = ?`, [table, id]);
+
+  if (typeof window !== "undefined") {
+    queryClient.invalidateQueries({ queryKey: ['localData'] });
+    queryClient.invalidateQueries({ queryKey: [table] });
+  }
 }
 
 async function addToSyncQueue(

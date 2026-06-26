@@ -71,9 +71,20 @@ export function MedicineDatabase() {
     { transform: transformMedicine },
   );
 
-  const categories = isStore 
-    ? ["all", "Analgesics", "Antibiotics", "Antimalarials", "Vitamins", "Antacids"]
-    : ["all", "Groceries", "Beverages", "Personal Care", "Household", "Snacks", "Dairy"];
+  const { data: rawCategories } = useLocalData<any>(
+    "SELECT name FROM categories WHERE _deleted = 0 ORDER BY name ASC"
+  );
+
+  const defaultCategories = isStore 
+    ? ["Analgesics", "Antibiotics", "Antimalarials", "Vitamins", "Antacids"]
+    : ["Groceries", "Beverages", "Personal Care", "Household", "Snacks", "Dairy"];
+    
+  const fetchedCategories = rawCategories?.map(c => c.name) || [];
+  
+  const categories = [
+    "all", 
+    ...(fetchedCategories.length > 0 ? fetchedCategories : defaultCategories)
+  ];
     
   const statuses = ["all", "active", "inactive", "expired", "low_stock"];
 

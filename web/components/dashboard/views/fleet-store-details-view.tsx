@@ -24,7 +24,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ActivityDetails, filterIndirectSaleLogs } from "./activities-view";
 import { StoreInventoryTab } from "./store-inventory-tab";
 
@@ -36,8 +36,14 @@ export function FleetStoreDetailsView({
   stores?: any[];
 }) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState("overview");
+  const searchParams = useSearchParams();
+  const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "overview");
   const [viewingTransaction, setViewingTransaction] = useState<any>(null);
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    router.replace(`/dashboard/store-details/?id=${storeId}&tab=${tab}`);
+  };
 
   if (!storeId || !stores) return null;
   const store = stores.find((s: any) => s.id.toString() === storeId);
@@ -128,7 +134,7 @@ export function FleetStoreDetailsView({
           variant={activeTab === "overview" ? "secondary" : "ghost"}
           size="sm"
           className="rounded-xl font-bold"
-          onClick={() => setActiveTab("overview")}
+          onClick={() => handleTabChange("overview")}
         >
           Overview
         </Button>
@@ -136,7 +142,7 @@ export function FleetStoreDetailsView({
           variant={activeTab === "activities" ? "secondary" : "ghost"}
           size="sm"
           className="rounded-xl font-bold"
-          onClick={() => setActiveTab("activities")}
+          onClick={() => handleTabChange("activities")}
         >
           Recent Activities
         </Button>
@@ -144,7 +150,7 @@ export function FleetStoreDetailsView({
           variant={activeTab === "transactions" ? "secondary" : "ghost"}
           size="sm"
           className="rounded-xl font-bold"
-          onClick={() => setActiveTab("transactions")}
+          onClick={() => handleTabChange("transactions")}
         >
           Recent Sales
         </Button>
@@ -152,7 +158,7 @@ export function FleetStoreDetailsView({
           variant={activeTab === "inventory" ? "secondary" : "ghost"}
           size="sm"
           className="rounded-xl font-bold"
-          onClick={() => setActiveTab("inventory")}
+          onClick={() => handleTabChange("inventory")}
         >
           Inventory
         </Button>
@@ -336,7 +342,7 @@ export function FleetStoreDetailsView({
         )}
 
         {activeTab === "inventory" && (
-          <StoreInventoryTab storeId={store.id} />
+          <StoreInventoryTab store={store} />
         )}
       </div>
 

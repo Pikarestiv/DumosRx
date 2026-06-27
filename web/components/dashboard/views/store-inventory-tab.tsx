@@ -2,30 +2,39 @@
 
 import { useEffect, useState } from "react";
 import { webApiClient } from "@/lib/api/client";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { RefreshCcw, AlertTriangle, Clock, Package } from "lucide-react";
 
-export function StoreInventoryTab({ storeId }: { storeId: string }) {
+export function StoreInventoryTab({ store }: { store: any }) {
   const [loading, setLoading] = useState(true);
   const [inventory, setInventory] = useState<any[]>([]);
   const [lowStock, setLowStock] = useState<any[]>([]);
   const [expiring, setExpiring] = useState<any[]>([]);
   const [totalValue, setTotalValue] = useState(0);
   const [subTab, setSubTab] = useState<"all" | "low_stock" | "expiring">("all");
+  
+  const expiryDays = store?.expiry_warning_days || 90;
+  const storeIdStr = store.id.toString();
 
   const fetchData = async () => {
     setLoading(true);
     try {
       const [invRes, lowRes, expRes, valRes] = await Promise.all([
-        webApiClient.getInventory(storeId, 1, 100),
-        webApiClient.getLowStockInventory(storeId),
-        webApiClient.getExpiringInventory(storeId, 90),
-        webApiClient.getInventoryValue(storeId),
+        webApiClient.getInventory(storeIdStr, 1, 100),
+        webApiClient.getLowStockInventory(storeIdStr),
+        webApiClient.getExpiringInventory(storeIdStr, expiryDays),
+        webApiClient.getInventoryValue(storeIdStr),
       ]);
-      setInventory(invRes?.data || invRes || []); 
+      setInventory(invRes?.data || invRes || []);
       setLowStock(lowRes || []);
       setExpiring(expRes || []);
       setTotalValue(valRes?.total_value || 0);
@@ -38,7 +47,7 @@ export function StoreInventoryTab({ storeId }: { storeId: string }) {
 
   useEffect(() => {
     fetchData();
-  }, [storeId]);
+  }, [storeIdStr]);
 
   if (loading) {
     return (
@@ -54,31 +63,43 @@ export function StoreInventoryTab({ storeId }: { storeId: string }) {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="border-none shadow-sm bg-muted/30">
           <CardHeader className="p-4 flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-bold">Total Inventory Value</CardTitle>
+            <CardTitle className="text-sm font-bold">
+              Total Inventory Value
+            </CardTitle>
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="p-4 pt-0">
-            <div className="text-2xl font-black">₦{totalValue.toLocaleString()}</div>
+            <div className="text-2xl font-black">
+              ₦{totalValue.toLocaleString()}
+            </div>
           </CardContent>
         </Card>
-        
+
         <Card className="border-none shadow-sm bg-red-50 dark:bg-red-950/20">
           <CardHeader className="p-4 flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-bold text-red-600">Low Stock Alerts</CardTitle>
+            <CardTitle className="text-sm font-bold text-red-600">
+              Low Stock Alerts
+            </CardTitle>
             <AlertTriangle className="h-4 w-4 text-red-600" />
           </CardHeader>
           <CardContent className="p-4 pt-0">
-            <div className="text-2xl font-black text-red-600">{lowStock.length}</div>
+            <div className="text-2xl font-black text-red-600">
+              {lowStock.length}
+            </div>
           </CardContent>
         </Card>
 
         <Card className="border-none shadow-sm bg-amber-50 dark:bg-amber-950/20">
           <CardHeader className="p-4 flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-bold text-amber-600">Expiring Soon (90 Days)</CardTitle>
+            <CardTitle className="text-sm font-bold text-amber-600">
+              Expiring Soon ({expiryDays} Days)
+            </CardTitle>
             <Clock className="h-4 w-4 text-amber-600" />
           </CardHeader>
           <CardContent className="p-4 pt-0">
-            <div className="text-2xl font-black text-amber-600">{expiring.length}</div>
+            <div className="text-2xl font-black text-amber-600">
+              {expiring.length}
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -101,7 +122,11 @@ export function StoreInventoryTab({ storeId }: { storeId: string }) {
         <Button
           variant={subTab === "expiring" ? "secondary" : "outline"}
           size="sm"
-          className={subTab === "expiring" ? "bg-amber-500 text-white hover:bg-amber-600 border-transparent" : ""}
+          className={
+            subTab === "expiring"
+              ? "bg-amber-500 text-white hover:bg-amber-600 border-transparent"
+              : ""
+          }
           onClick={() => setSubTab("expiring")}
         >
           Expiring Soon ({expiring.length})
@@ -120,14 +145,27 @@ export function StoreInventoryTab({ storeId }: { storeId: string }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {(subTab === "all" ? inventory : subTab === "low_stock" ? lowStock : expiring).length === 0 ? (
+            {(subTab === "all"
+              ? inventory
+              : subTab === "low_stock"
+                ? lowStock
+                : expiring
+            ).length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                <TableCell
+                  colSpan={5}
+                  className="text-center py-8 text-muted-foreground"
+                >
                   No items found in this category.
                 </TableCell>
               </TableRow>
             ) : (
-              (subTab === "all" ? inventory : subTab === "low_stock" ? lowStock : expiring).map((item) => (
+              (subTab === "all"
+                ? inventory
+                : subTab === "low_stock"
+                  ? lowStock
+                  : expiring
+              ).map((item) => (
                 <TableRow key={item.id}>
                   <TableCell className="font-medium">
                     {item.medicine?.name || "Unknown Medicine"}
@@ -136,14 +174,34 @@ export function StoreInventoryTab({ storeId }: { storeId: string }) {
                     {item.medicine?.category?.name || "Uncategorized"}
                   </TableCell>
                   <TableCell className="text-right">
-                    <span className={item.quantity_in_stock <= item.reorder_level ? "text-red-600 font-bold" : ""}>
+                    <span
+                      className={
+                        item.quantity_in_stock <= item.reorder_level
+                          ? "text-red-600 font-bold"
+                          : ""
+                      }
+                    >
                       {item.quantity_in_stock}
                     </span>
                   </TableCell>
-                  <TableCell className="text-right font-medium">₦{item.selling_price}</TableCell>
+                  <TableCell className="text-right font-medium">
+                    ₦{item.selling_price}
+                  </TableCell>
                   <TableCell className="text-right">
-                    <span className={item.expiry_date && new Date(item.expiry_date) <= new Date(new Date().setDate(new Date().getDate() + 90)) ? "text-amber-600 font-bold" : ""}>
-                      {item.expiry_date ? new Date(item.expiry_date).toLocaleDateString() : "N/A"}
+                    <span
+                      className={
+                        item.expiry_date &&
+                        new Date(item.expiry_date) <=
+                          new Date(
+                            new Date().setDate(new Date().getDate() + 90),
+                          )
+                          ? "text-amber-600 font-bold"
+                          : ""
+                      }
+                    >
+                      {item.expiry_date
+                        ? new Date(item.expiry_date).toLocaleDateString()
+                        : "N/A"}
                     </span>
                   </TableCell>
                 </TableRow>

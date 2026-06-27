@@ -52,7 +52,7 @@
     "updater": {
       "active": true,
       "endpoints": [
-        "https://raw.githubusercontent.com/Pikarestiv/DumosRx/main/updater.json"
+        "https://downloads.dumosrx.com/updater.json"
       ],
       "pubkey": "RWQ//On7ZRE1h4f52RC+NR6tEGjrAoDw60olPbWzdGgB0ULzoQZdnQUm"
     }

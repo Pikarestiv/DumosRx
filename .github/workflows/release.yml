@@ -162,3 +162,52 @@ jobs:
           files: |
             ${{ env.UPLOAD_FILE }}
           tag_name: ${{ github.ref_name }}
+
+  deploy-ftp:
+    needs: [release, release-android]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all release assets
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release download ${{ github.ref_name }} --repo ${{ github.repository }} --dir release-assets
+
+      - name: Rewrite updater JSON URLs to Namecheap
+        run: |
+          cd release-assets
+          # Tauri action might name it latest.json or updater.json depending on the version
+          if [ -f "latest.json" ]; then
+            UPDATER_FILE="latest.json"
+          elif [ -f "updater.json" ]; then
+            UPDATER_FILE="updater.json"
+          else
+            echo "No updater json found!"
+            exit 0
+          fi
+          
+          # Replace GitHub release URLs with Namecheap subdomain URLs
+          # from https://github.com/Pikarestiv/DumosRx/releases/download/v0.0.18/DumosRx_0.0.18_x64_en-US.msi.zip
+          # to https://downloads.dumosrx.com/DumosRx_0.0.18_x64_en-US.msi.zip
+          node -e "
+            const fs = require('fs');
+            const data = fs.readFileSync('$UPDATER_FILE', 'utf8');
+            // Regex to match github releases download url
+            const regex = /https:\/\/github\.com\/[^/]+\/[^/]+\/releases\/download\/[^/]+\//g;
+            const replaced = data.replace(regex, 'https://downloads.dumosrx.com/');
+            fs.writeFileSync('updater.json', replaced);
+            if ('$UPDATER_FILE' !== 'updater.json') {
+              fs.unlinkSync('$UPDATER_FILE');
+            }
+          "
+          echo "Updated updater.json:"
+          cat updater.json
+
+      - name: FTP Deploy to Namecheap
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./release-assets/
+          server-dir: /downloads.dumosrx.com/

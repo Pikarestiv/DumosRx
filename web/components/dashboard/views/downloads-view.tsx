@@ -21,6 +21,19 @@ export function DownloadsView({
   releaseLinks,
   requiresVerification,
 }: DownloadsViewProps) {
+  if (!releaseLinks || !releaseLinks.version) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] text-center px-4 animate-in fade-in duration-500">
+        <div className="w-20 h-20 bg-muted/60 rounded-full flex items-center justify-center mb-6">
+          <Download className="h-10 w-10 text-muted-foreground opacity-50" />
+        </div>
+        <h2 className="text-2xl font-bold mb-3">No Releases Available Yet</h2>
+        <p className="text-muted-foreground max-w-md mx-auto">
+          No release files available yet. Please check back later!
+        </p>
+      </div>
+    );
+  }
   const primaryApps = [
     {
       os: "Windows",
@@ -202,7 +215,7 @@ export function DownloadsView({
         </h3>
         <p className="text-muted-foreground mb-8 max-w-lg mx-auto">
           Access all historical versions, beta releases, and view the changelog
-          on our official GitHub repository.
+          on our official download center.
         </p>
         <Button
           variant="default"
@@ -214,7 +227,7 @@ export function DownloadsView({
             <span>Verify Email to Browse</span>
           ) : (
             <a
-              href="https://github.com/Pikarestiv/DumosRx/releases"
+              href="https://downloads.dumosrx.com"
               target="_blank"
               rel="noopener noreferrer"
             >

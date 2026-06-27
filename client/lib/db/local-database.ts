@@ -1,6 +1,6 @@
 /**
  * LocalDatabase - SQLite wrapper for offline-first operation
- * 
+ *
  * This file serves as the main entry point for database operations,
  * re-exporting core logic and specialized helpers.
  */
@@ -42,7 +42,10 @@ export async function getProducts(page = 1, limit = 50, search = "") {
 }
 
 export async function getProductById(id: string) {
-  const results = await query<any>("SELECT p.*, COALESCE(SUM(sb.quantity), 0) as stock_quantity FROM products p LEFT JOIN stock_batches sb ON p.id = sb.product_id AND sb._deleted = 0 AND sb.is_active = 1 WHERE p.id = ? GROUP BY p.id", [id]);
+  const results = await query<any>(
+    "SELECT p.*, COALESCE(SUM(sb.quantity), 0) as stock_quantity FROM products p LEFT JOIN stock_batches sb ON p.id = sb.product_id AND sb._deleted = 0 AND sb.is_active = 1 WHERE p.id = ? GROUP BY p.id",
+    [id],
+  );
   return results[0] || null;
 }
 
@@ -66,14 +69,14 @@ export async function createSale(saleData: any, items: any[]) {
     if (item.stock_batch_id) {
       await execute(
         "UPDATE stock_batches SET quantity = quantity - ? WHERE id = ?",
-        [item.quantity, item.stock_batch_id]
+        [item.quantity, item.stock_batch_id],
       );
     }
-    
+
     // Update main product stock
     await execute(
       "UPDATE products SET stock_quantity = stock_quantity - ? WHERE id = ?",
-      [item.quantity, item.product_id]
+      [item.quantity, item.product_id],
     );
 
     // Log local stock movement
@@ -92,7 +95,7 @@ export async function createSale(saleData: any, items: any[]) {
       created_at: new Date().toISOString(),
       _version: 1,
       _synced: 0,
-      _deleted: 0
+      _deleted: 0,
     });
   }
 
@@ -103,7 +106,9 @@ export async function createSale(saleData: any, items: any[]) {
  * Customers
  */
 export async function getCustomers() {
-  return await query<any>("SELECT * FROM customers WHERE _deleted = 0 ORDER BY first_name ASC");
+  return await query<any>(
+    "SELECT * FROM customers WHERE _deleted = 0 ORDER BY first_name ASC",
+  );
 }
 
 /**
@@ -113,7 +118,7 @@ export async function getExpenses(page = 1, limit = 50) {
   const offset = (page - 1) * limit;
   const results = await query<any>(
     "SELECT * FROM expenses WHERE _deleted = 0 ORDER BY date DESC LIMIT ? OFFSET ?",
-    [limit, offset]
+    [limit, offset],
   );
   return { data: results, page, limit };
 }
@@ -144,11 +149,13 @@ export async function createPrescription(data: any, items: any[]) {
 export async function getUsers(storeId?: string | null) {
   if (storeId) {
     return await query<any>(
-      "SELECT * FROM users WHERE _deleted = 0 AND (store_id = ? OR store_id IS NULL OR role = 'admin' OR role = 'store_owner') ORDER BY first_name ASC", 
-      [storeId]
+      "SELECT * FROM users WHERE _deleted = 0 AND (store_id = ? OR store_id IS NULL OR role = 'admin' OR role = 'store_owner') ORDER BY first_name ASC",
+      [storeId],
     );
   }
-  return await query<any>("SELECT * FROM users WHERE _deleted = 0 ORDER BY first_name ASC");
+  return await query<any>(
+    "SELECT * FROM users WHERE _deleted = 0 ORDER BY first_name ASC",
+  );
 }
 
 export async function createUser(data: any) {
@@ -158,7 +165,7 @@ export async function createUser(data: any) {
     is_active: 1,
     created_at: new Date().toISOString(),
     _version: 1,
-    _synced: 0
+    _synced: 0,
   });
 }
 
@@ -182,7 +189,7 @@ export async function getStockMovements(page = 1, limit = 50) {
      WHERE sm._deleted = 0 
      ORDER BY sm.created_at DESC 
      LIMIT ? OFFSET ?`,
-    [limit, offset]
+    [limit, offset],
   );
   return { data: results, page, limit };
 }
@@ -196,13 +203,13 @@ export async function getStockAdjustments(page = 1, limit = 50) {
      WHERE sm._deleted = 0 AND sm.movement_type IN ('adjustment', 'expired', 'damaged') 
      ORDER BY sm.created_at DESC 
      LIMIT ? OFFSET ?`,
-    [limit, offset]
+    [limit, offset],
   );
   // Map fields to match what frontend expects
   const mapped = results.map((r: any) => ({
     ...r,
     adjustment_type: r.quantity > 0 ? "increase" : "decrease",
-    approved: 1
+    approved: 1,
   }));
   return { data: mapped, page, limit };
 }
@@ -213,32 +220,53 @@ export async function createStockMovement(data: any) {
     id: data.id || crypto.randomUUID(),
     created_at: new Date().toISOString(),
     _version: 1,
-    _synced: 0
+    _synced: 0,
   });
 }
 
 // Dev utility to force sync all tables
 export async function forceSyncAllData() {
   const tables = [
-    "products", "stock_batches", "categories", "customers", 
-    "sales", "sale_items", "prescriptions", "prescription_items", 
-    "returns", "return_items", "customer_payments", "stores", 
-    "expenses", "users", "audit_logs", "purchase_orders", "purchase_order_items", 
-    "suppliers", "stock_audits", "held_transactions", "loyalty_transactions", 
-    "feedback", "stock_movements", "payment_accounts", "system_configs"
+    "products",
+    "stock_batches",
+    "categories",
+    "customers",
+    "sales",
+    "sale_items",
+    "prescriptions",
+    "prescription_items",
+    "returns",
+    "return_items",
+    "customer_payments",
+    "stores",
+    "expenses",
+    "users",
+    "audit_logs",
+    "purchase_orders",
+    "purchase_order_items",
+    "suppliers",
+    "stock_audits",
+    "held_transactions",
+    "loyalty_transactions",
+    "feedback",
+    "stock_movements",
+    "payment_accounts",
+    "system_configs",
   ];
 
-  console.log("Marking all local data as un-synced and adding to sync queue...");
+  console.log(
+    "Marking all local data as un-synced and adding to sync queue...",
+  );
   let count = 0;
   await execute(`DELETE FROM _sync_queue`); // Clear existing queue to prevent duplicates
-  
+
   const now = new Date().toISOString();
 
   for (const table of tables) {
     try {
       await execute(`UPDATE ${table} SET _synced = 0`);
       const records = await query<any>(`SELECT * FROM ${table}`);
-      
+
       for (const record of records) {
         await execute(
           `INSERT INTO _sync_queue (table_name, record_id, operation, payload, created_at)
@@ -247,11 +275,13 @@ export async function forceSyncAllData() {
         );
         count++;
       }
-    } catch (e) {
+    } catch (_e) {
       // Table might not exist or error, ignore
     }
   }
-  console.log(`Successfully queued ${count} records for syncing. You can now press 'Sync' on the POS to push everything to the cloud.`);
+  console.log(
+    `Successfully queued ${count} records for syncing. You can now press 'Sync' on the POS to push everything to the cloud.`,
+  );
   return `Done! Queued ${count} records. You can now press 'Sync' on the POS to push everything to the cloud.`;
 }
 

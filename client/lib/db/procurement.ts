@@ -2,7 +2,7 @@
  * Procurement Database Helpers
  */
 
-import { query, execute, logAction, generateId } from "./core";
+import { query, logAction, generateId } from "./core";
 import { insert, update } from "./base-helpers";
 
 export interface PurchaseOrder {

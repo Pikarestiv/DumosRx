@@ -80,6 +80,34 @@ export function AddStockAdjustmentForm({
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="batch_id">Batch *</Label>
+              <Select
+                value={newAdjustment.batch_id}
+                onValueChange={(value) =>
+                  setNewAdjustment((prev) => ({ ...prev, batch_id: value }))
+                }
+                disabled={!newAdjustment.product}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select batch..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableBatches.map(batch => (
+                    <SelectItem key={batch.id} value={batch.id}>
+                      {batch.batch_number} (Qty: {batch.quantity}, Exp: {batch.expiry_date ? new Date(batch.expiry_date).toLocaleDateString() : 'N/A'})
+                    </SelectItem>
+                  ))}
+                  {newAdjustment.adjustmentType === "increase" && (
+                    <SelectItem value="new">+ Create New Batch</SelectItem>
+                  )}
+                  {newAdjustment.adjustmentType === "decrease" && availableBatches.length > 0 && (
+                     <SelectItem value="">Auto (FIFO Deduction)</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="quantity">Quantity *</Label>
               <Input
                 id="quantity"

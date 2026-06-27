@@ -231,6 +231,10 @@ class WebApiClient {
     const { data } = await apiClient.put(`/admin/system-configs/${key}`, { value });
     return data;
   }
+  async submitFeedback(payload: { name: string; email: string; subject: string; message: string }) {
+    const { data } = await apiClient.post("/support", payload);
+    return data;
+  }
 }
 
 export const webApiClient = new WebApiClient();

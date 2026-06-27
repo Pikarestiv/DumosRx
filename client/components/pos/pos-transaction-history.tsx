@@ -30,7 +30,7 @@ export function POSTransactionHistory({
 }: POSTransactionHistoryProps) {
   const [selectedSale, setSelectedSale] = useState<any>(null);
   const { user } = useAuthStore();
-  const canReturn = user?.role === "owner" || user?.role === "admin" || user?.role === "manager";
+  const canReturn = user?.role === "store_owner" || user?.role === "admin" || user?.role === "manager";
 
   return (
     <Card>

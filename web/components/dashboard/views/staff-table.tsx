@@ -92,13 +92,13 @@ export function StaffTable({
               </TableHeader>
               <TableBody>
                 {[...filteredStaff].sort((a, b) => {
-                  const isAOwner = !a.store_id || a.role === 'owner';
-                  const isBOwner = !b.store_id || b.role === 'owner';
+                  const isAOwner = !a.store_id || a.role === 'store_owner';
+                  const isBOwner = !b.store_id || b.role === 'store_owner';
                   if (isAOwner && !isBOwner) return -1;
                   if (!isAOwner && isBOwner) return 1;
                   return 0;
                 }).map((s: any) => {
-                  const isMainAccount = !s.store_id || s.role === 'owner';
+                  const isMainAccount = !s.store_id || s.role === 'store_owner';
                   return (
                   <TableRow
                     key={s.id}

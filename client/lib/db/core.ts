@@ -326,6 +326,10 @@ export async function initDatabase(): Promise<any> {
       } catch (_e) { }
 
       try {
+        await db.execute("UPDATE users SET role = 'store_owner' WHERE role = 'owner'");
+      } catch (_e) { }
+
+      try {
         await db.execute("ALTER TABLE store_profile RENAME TO stores");
       } catch (_e) { }
 
@@ -369,6 +373,10 @@ export async function initDatabase(): Promise<any> {
 
         try {
           db.run("ALTER TABLE vendors RENAME TO suppliers");
+        } catch (_e) { }
+
+        try {
+          db.run("UPDATE users SET role = 'store_owner' WHERE role = 'owner'");
         } catch (_e) { }
 
         try {

@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { query } from "@/lib/db/local-database";
 import { toast } from "sonner";
-import { Medicine } from "./use-pos-data";
+import { Product } from "./use-pos-data";
 
 interface UsePOSPrescriptionProps {
   searchParams: URLSearchParams;
-  medicines: Medicine[];
+  products: Product[];
   cartLength: number;
   restoreCart: (items: any[]) => void;
   router: any;
@@ -14,7 +14,7 @@ interface UsePOSPrescriptionProps {
 
 export function usePOSPrescription({
   searchParams,
-  medicines,
+  products,
   cartLength,
   restoreCart,
   router,
@@ -24,7 +24,7 @@ export function usePOSPrescription({
 
   useEffect(() => {
     const rxId = searchParams.get("dispense_rx");
-    if (rxId && medicines.length > 0 && cartLength === 0) {
+    if (rxId && products.length > 0 && cartLength === 0) {
       const loadPrescription = async () => {
         try {
           // fetch prescription items
@@ -37,15 +37,15 @@ export function usePOSPrescription({
           // The POS handles final sale, but let's just load the cart for now.
           const restoredItems = itemsData
             .map((item: any) => {
-              const medicine = medicines.find(
+              const product = products.find(
                 (m) =>
-                  m.name === item.medicine_name && m.strength === item.strength,
+                  m.name === item.product_name && m.strength === item.strength,
               );
-              if (medicine) {
+              if (product) {
                 return {
-                  ...medicine,
+                  ...product,
                   quantity: item.quantity,
-                  subtotal: medicine.unit_price * item.quantity,
+                  subtotal: product.unit_price * item.quantity,
                 };
               }
               return null;
@@ -60,7 +60,7 @@ export function usePOSPrescription({
             newParams.delete("dispense_rx");
             router.replace(`${pathname}?${newParams.toString()}`);
           } else {
-            toast.error("Could not match prescription items to inventory.");
+            toast.error("Could not match prescription items to stock_batch.");
           }
         } catch (error) {
           console.error("Failed to load prescription to POS:", error);
@@ -69,7 +69,7 @@ export function usePOSPrescription({
       };
       loadPrescription();
     }
-  }, [searchParams, medicines, cartLength, restoreCart, router, pathname]);
+  }, [searchParams, products, cartLength, restoreCart, router, pathname]);
 
   return { dispensedRxId, setDispensedRxId };
 }

@@ -34,7 +34,7 @@ export default function PrivacyPolicyPage() {
             <div>
               <h3 className="font-bold text-lg text-slate-900 dark:text-white">DumosRx Offline First Architecture</h3>
               <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-                Your medical inventory, customer records, and sales data are stored locally on your device. We do not inspect, sell, or run advertising targeting based on your local database.
+                Your medical stock_batch, customer records, and sales data are stored locally on your device. We do not inspect, sell, or run advertising targeting based on your local database.
               </p>
             </div>
           </div>

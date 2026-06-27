@@ -235,25 +235,25 @@ class WebApiClient {
     const { data } = await apiClient.post("/support", payload);
     return data;
   }
-  async getInventory(storeId?: string, page: number = 1, limit: number = 50) {
+  async getStockBatch(storeId?: string, page: number = 1, limit: number = 50) {
     const query = new URLSearchParams({ page: page.toString(), limit: limit.toString() });
-    const { data } = await apiClient.get(`/app/inventory?${query.toString()}`);
+    const { data } = await apiClient.get(`/app/stock-batch?${query.toString()}`);
     return data;
   }
 
-  async getLowStockInventory(storeId?: string) {
-    const { data } = await apiClient.get(`/app/inventory/low-stock`);
+  async getLowStockStockBatch(storeId?: string) {
+    const { data } = await apiClient.get(`/app/stock-batch/low-stock`);
     return data;
   }
 
-  async getExpiringInventory(storeId?: string, days: number = 90) {
+  async getExpiringStockBatch(storeId?: string, days: number = 90) {
     const query = new URLSearchParams({ days: days.toString() });
-    const { data } = await apiClient.get(`/app/inventory/expiring?${query.toString()}`);
+    const { data } = await apiClient.get(`/app/stock-batch/expiring?${query.toString()}`);
     return data;
   }
 
-  async getInventoryValue(storeId?: string) {
-    const { data } = await apiClient.get(`/app/inventory/value`);
+  async getStockBatchValue(storeId?: string) {
+    const { data } = await apiClient.get(`/app/stock-batch/value`);
     return data;
   }
 }

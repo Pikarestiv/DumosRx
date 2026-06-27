@@ -41,8 +41,8 @@ export async function seedSales(cashierId: string) {
   await insert("sale_items", {
     id: "si1",
     sale_id: "s1",
-    medicine_id: "m1",
-    inventory_id: "inv-m1-b1",
+    product_id: "m1",
+    stock_batch_id: "inv-m1-b1",
     quantity: 10,
     unit_price: 15,
     cost_price: 10,
@@ -55,8 +55,8 @@ export async function seedSales(cashierId: string) {
   await insert("sale_items", {
     id: "si2",
     sale_id: "s1",
-    medicine_id: "m2",
-    inventory_id: "inv-m2-b1",
+    product_id: "m2",
+    stock_batch_id: "inv-m2-b1",
     quantity: 2,
     unit_price: 120,
     cost_price: 80,
@@ -93,8 +93,8 @@ export async function seedSales(cashierId: string) {
   await insert("sale_items", {
     id: "si3",
     sale_id: "s2",
-    medicine_id: "m3",
-    inventory_id: "inv-m3-b1",
+    product_id: "m3",
+    stock_batch_id: "inv-m3-b1",
     quantity: 5,
     unit_price: 8,
     cost_price: 5,
@@ -107,8 +107,8 @@ export async function seedSales(cashierId: string) {
   await insert("sale_items", {
     id: "si4",
     sale_id: "s2",
-    medicine_id: "m6",
-    inventory_id: "inv-m6-b1",
+    product_id: "m6",
+    stock_batch_id: "inv-m6-b1",
     quantity: 1,
     unit_price: 5000,
     cost_price: 3500,

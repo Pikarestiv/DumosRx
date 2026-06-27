@@ -23,7 +23,7 @@ interface UsePOSPaymentProps {
   discount: number;
   selectedCustomer: Customer | null;
   clearCart: () => void;
-  refetchMedicines: () => void;
+  refetchProducts: () => void;
   refetchSales?: () => void;
   requirePaymentAccount?: boolean;
   dispensedRxId?: string | null;
@@ -38,7 +38,7 @@ export function usePOSPayment({
   discount,
   selectedCustomer,
   clearCart,
-  refetchMedicines,
+  refetchProducts,
   refetchSales,
   requirePaymentAccount = false,
   dispensedRxId,
@@ -134,7 +134,7 @@ export function usePOSPayment({
       for (const item of cart) {
         await insert("sale_items", {
           sale_id: saleId,
-          medicine_id: item.id,
+          product_id: item.id,
           quantity: item.quantity,
           unit_price: item.unit_price,
           cost_price: item.cost_price || 0,
@@ -142,7 +142,7 @@ export function usePOSPayment({
         });
 
         const newStock = Math.max(0, item.stock - item.quantity);
-        await update("medicines", item.id, { stock_quantity: newStock });
+        await update("products", item.id, { stock_quantity: newStock });
       }
 
       if (paymentMethod === "credit" && selectedCustomer) {
@@ -173,7 +173,7 @@ export function usePOSPayment({
         });
       }
 
-      refetchMedicines();
+      refetchProducts();
       if (refetchSales) refetchSales();
 
       const transaction = {
@@ -203,7 +203,7 @@ export function usePOSPayment({
       setCompletedTransaction(transaction);
       clearCart();
       if (refetchSales) refetchSales();
-      refetchMedicines();
+      refetchProducts();
       setPaymentMethod("cash");
       setAmountPaid("");
       setSelectedAccountId("");

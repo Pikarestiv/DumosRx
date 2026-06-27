@@ -11,7 +11,7 @@ class PrescriptionItem extends Model
     use HasFactory, HasUuids;
 
     protected $fillable = [
-        'prescription_id', 'medicine_id', 'dosage', 'quantity_prescribed',
+        'prescription_id', 'product_id', 'dosage', 'quantity_prescribed',
         'quantity_dispensed', 'status',
         'refills_authorized', 'refills_used', 'refill_interval_days', 'next_refill_date'
     ];

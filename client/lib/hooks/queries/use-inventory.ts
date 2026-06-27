@@ -8,19 +8,19 @@ import { insert } from "@/lib/db/base-helpers";
 
 export function useStockMovements(page = 1, limit = 50) {
   return useQuery({
-    queryKey: [...queryKeys.inventory(), "movements", { page, limit }],
+    queryKey: [...queryKeys.stock_batch(), "movements", { page, limit }],
     queryFn: () => getStockMovements(page, limit),
   });
 }
 
 export function useStockAdjustments(page = 1, limit = 50) {
   return useQuery({
-    queryKey: [...queryKeys.inventory(), "adjustments", { page, limit }],
+    queryKey: [...queryKeys.stock_batch(), "adjustments", { page, limit }],
     queryFn: () => getStockAdjustments(page, limit),
   });
 }
 
-export function useMutateInventory() {
+export function useMutateStockBatch() {
   const queryClient = useQueryClient();
 
   const adjustStock = useMutation({
@@ -30,8 +30,8 @@ export function useMutateInventory() {
       return id;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.inventory() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.medicines() }); // Adjusting stock affects medicine quantities
+      queryClient.invalidateQueries({ queryKey: queryKeys.stock_batch() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.products() }); // Adjusting stock affects product quantities
       queryClient.invalidateQueries({ queryKey: ["localData"] });
     },
   });

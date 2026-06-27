@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/dialog";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ActivityDetails, filterIndirectSaleLogs } from "./activities-view";
-import { StoreInventoryTab } from "./store-inventory-tab";
+import { StoreStockBatchTab } from "./store-stock-batch-tab";
 
 export function FleetStoreDetailsView({
   storeId,
@@ -105,10 +105,10 @@ export function FleetStoreDetailsView({
         <Card className="border-none shadow-sm bg-muted/30">
           <CardHeader className="p-4 pb-2">
             <CardDescription className="font-bold uppercase text-xs">
-              Total Inventory
+              Total StockBatch
             </CardDescription>
             <CardTitle className="text-2xl font-black">
-              {store.total_inventory ?? 0}
+              {store.total_stock_batch ?? 0}
             </CardTitle>
           </CardHeader>
         </Card>
@@ -155,12 +155,12 @@ export function FleetStoreDetailsView({
           Recent Sales
         </Button>
         <Button
-          variant={activeTab === "inventory" ? "secondary" : "ghost"}
+          variant={activeTab === "stock_batch" ? "secondary" : "ghost"}
           size="sm"
           className="rounded-xl font-bold"
-          onClick={() => handleTabChange("inventory")}
+          onClick={() => handleTabChange("stock_batch")}
         >
-          Inventory
+          StockBatch
         </Button>
       </div>
 
@@ -322,7 +322,7 @@ export function FleetStoreDetailsView({
                           {trx.items
                             ?.map(
                               (item: any) =>
-                                `${item.quantity}x ${item.medicine_name || "Item"}`,
+                                `${item.quantity}x ${item.product_name || "Item"}`,
                             )
                             .join(", ") || "No items"}
                         </TableCell>
@@ -341,8 +341,8 @@ export function FleetStoreDetailsView({
           </div>
         )}
 
-        {activeTab === "inventory" && (
-          <StoreInventoryTab store={store} />
+        {activeTab === "stock_batch" && (
+          <StoreStockBatchTab store={store} />
         )}
       </div>
 
@@ -380,7 +380,7 @@ export function FleetStoreDetailsView({
                   >
                     <div>
                       <p className="font-medium">
-                        {item.medicine_name || "Item"}
+                        {item.product_name || "Item"}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {item.quantity} x ₦{item.unit_price}

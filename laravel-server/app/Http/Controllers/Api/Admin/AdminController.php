@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
-use App\Models\Medicine;
+use App\Models\Product;
 use App\Services\Admin\AdminService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -97,7 +97,7 @@ class AdminController extends Controller
         return response()->json([
             'products' => $this->adminService->getGlobalProducts($page, $search, $category),
             'metrics' => $this->adminService->getProductMetrics(),
-            'categories' => Medicine::select('generic_name')
+            'categories' => Product::select('generic_name')
                 ->whereNotNull('generic_name')
                 ->distinct()
                 ->pluck('generic_name')

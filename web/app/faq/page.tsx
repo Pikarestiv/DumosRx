@@ -13,11 +13,11 @@ const faqs = [
     questions: [
       {
         q: "What is DumosRx?",
-        a: "DumosRx is a comprehensive store management platform designed to streamline operations, manage inventory, and improve customer communication.",
+        a: "DumosRx is a comprehensive store management platform designed to streamline operations, manage stock_batch, and improve customer communication.",
       },
       {
         q: "How do I get started?",
-        a: "You can sign up for a free trial directly on our website. Once registered, you can dive right into setting up your store profile and initial inventory.",
+        a: "You can sign up for a free trial directly on our website. Once registered, you can dive right into setting up your store profile and initial stock_batch.",
       },
     ],
   },

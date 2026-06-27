@@ -18,8 +18,8 @@ class Supplier extends Model
         'is_active', 'rating'
     ];
 
-    public function medicines()
+    public function products()
     {
-        return $this->hasMany(Medicine::class);
+        return $this->hasMany(Product::class);
     }
 }

@@ -1,11 +1,11 @@
-export { seedMedicines } from "./seeds/medicines";
+export { seedProducts } from "./seeds/products";
 export { seedSales } from "./seeds/sales";
 /**
  * Seed data definitions for local SQLite database.
  * Each category is independently seedable.
  */
 
-export type SeedKey = "medicines" | "suppliers" | "expenses" | "sales" | "customers" | "users" | "procurement" | "prescriptions";
+export type SeedKey = "products" | "suppliers" | "expenses" | "sales" | "customers" | "users" | "procurement" | "prescriptions";
 
 export interface SeedCategory {
   id: string;
@@ -19,7 +19,7 @@ export const SEED_CATEGORIES: { key: SeedKey; label: string; description: string
   { key: "users", label: "Staff Users", description: "1 default admin user (admin / 1234)" },
   { key: "customers", label: "Customers", description: "3 sample customers with varying loyalty and credit history" },
   { key: "suppliers", label: "Suppliers", description: "2 sample suppliers (Emzor, GSK Nigeria)" },
-  { key: "medicines", label: "Medicines", description: "22 sample medicines with varied stock & expiry scenarios" },
+  { key: "products", label: "Products", description: "22 sample products with varied stock & expiry scenarios" },
   { key: "expenses", label: "Expenses", description: "1 sample rent expense" },
   { key: "procurement", label: "Procurement", description: "Sample purchase orders and items" },
   { key: "sales", label: "Sales & Items", description: "2 sample completed sales with detailed items" },
@@ -138,14 +138,14 @@ export async function seedProcurement() {
     id: "po1", order_number: "PO-2026-001", vendor_id: "v1", ordered_by: "u1", order_date: todayDate, status: "received", total_amount: 150000, notes: "Monthly restock", created_at: today, received_at: today, updated_at: today
   });
   await insert("purchase_order_items", {
-    id: "poi1", po_id: "po1", medicine_id: "m1", bulk_quantity: 10, units_per_bulk: 100, unit_cost: 15000, subtotal: 150000, created_at: today, updated_at: today
+    id: "poi1", po_id: "po1", product_id: "m1", bulk_quantity: 10, units_per_bulk: 100, unit_cost: 15000, subtotal: 150000, created_at: today, updated_at: today
   });
 
   await insert("purchase_orders", {
     id: "po2", order_number: "PO-2026-002", vendor_id: "v2", ordered_by: "u1", order_date: todayDate, status: "draft", total_amount: 50000, notes: "Urgent shortage", created_at: today, updated_at: today
   });
   await insert("purchase_order_items", {
-    id: "poi2", po_id: "po2", medicine_id: "m2", bulk_quantity: 5, units_per_bulk: 50, unit_cost: 10000, subtotal: 50000, created_at: today, updated_at: today
+    id: "poi2", po_id: "po2", product_id: "m2", bulk_quantity: 5, units_per_bulk: 50, unit_cost: 10000, subtotal: 50000, created_at: today, updated_at: today
   });
 }
 
@@ -161,14 +161,14 @@ export async function seedPrescriptions() {
     id: "rx1", prescription_number: "RX-2026-001", customer_id: "c1", patient_name: "John Doe", patient_phone: "08012345678", patient_age: 38, doctor_name: "Dr. Smith", doctor_license: "MD12345", status: "completed", priority: "normal", total_cost: 12000, issued_at: today, created_at: today, updated_at: today
   });
   await insert("prescription_items", {
-    id: "rxi1", prescription_id: "rx1", medicine_name: "Amoxicillin", strength: "500mg", dosage: "1 tablet every 8 hours", quantity: 21, instructions: "Take after meals", cost: 12000, created_at: today, updated_at: today
+    id: "rxi1", prescription_id: "rx1", product_name: "Amoxicillin", strength: "500mg", dosage: "1 tablet every 8 hours", quantity: 21, instructions: "Take after meals", cost: 12000, created_at: today, updated_at: today
   });
 
   await insert("prescriptions", {
     id: "rx2", prescription_number: "RX-2026-002", patient_name: "Jane Smith", patient_phone: "08098765432", patient_age: 34, doctor_name: "Dr. Adams", doctor_license: "MD67890", status: "pending", priority: "high", total_cost: 8500, issued_at: today, created_at: today, updated_at: today
   });
   await insert("prescription_items", {
-    id: "rxi2", prescription_id: "rx2", medicine_name: "Salbutamol Inhaler", strength: "100mcg", dosage: "2 puffs as needed", quantity: 1, instructions: "For shortness of breath", cost: 8500, created_at: today, updated_at: today
+    id: "rxi2", prescription_id: "rx2", product_name: "Salbutamol Inhaler", strength: "100mcg", dosage: "2 puffs as needed", quantity: 1, instructions: "For shortness of breath", cost: 8500, created_at: today, updated_at: today
   });
 }
 
@@ -256,10 +256,10 @@ export async function seedUsers() {
   });
 }
 
-export async function resetMedicines() {
+export async function resetProducts() {
   const { execute } = await db();
-  await execute("DELETE FROM medicines");
-  await execute("DELETE FROM inventories");
+  await execute("DELETE FROM products");
+  await execute("DELETE FROM stock_batches");
   await execute("DELETE FROM categories");
 }
 
@@ -309,8 +309,8 @@ export async function resetPrescriptions() {
 export async function resetAll() {
   const { execute } = await db();
   const tables = [
-    "medicines",
-    "inventories",
+    "products",
+    "stock_batches",
     "categories",
     "suppliers",
     "suppliers",

@@ -18,7 +18,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import {
-  seedMedicines,
+  seedProducts,
   seedSuppliers,
   seedExpenses,
   seedSales,
@@ -26,7 +26,7 @@ import {
   seedUsers,
   seedProcurement,
   seedPrescriptions,
-  resetMedicines,
+  resetProducts,
   resetSuppliers,
   resetExpenses,
   resetSales,
@@ -62,7 +62,7 @@ export function DevSeedButton() {
     try {
       const cashierId = getCashierId();
       switch (key) {
-        case "medicines": await seedMedicines(); break;
+        case "products": await seedProducts(); break;
         case "suppliers": await seedSuppliers(); break;
         case "expenses": await seedExpenses(); break;
         case "sales": await seedSales(cashierId); break;
@@ -93,7 +93,7 @@ export function DevSeedButton() {
     setResetDone((d) => ({ ...d, [key]: false }));
     try {
       switch (key) {
-        case "medicines": await resetMedicines(); break;
+        case "products": await resetProducts(); break;
         case "suppliers": await resetSuppliers(); break;
         case "expenses": await resetExpenses(); break;
         case "sales": await resetSales(); break;

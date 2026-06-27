@@ -66,7 +66,7 @@ export function SystemSettings() {
         <CardContent className="text-sm text-muted-foreground">
           <p>
             DumosRx is a professional retail and store management system
-            designed to streamline operations, track inventory, and manage sales
+            designed to streamline operations, track stock_batch, and manage sales
             with ease.
           </p>
           <p className="mt-4">

@@ -11,7 +11,7 @@ class StockMovement extends Model
     use HasFactory, HasUuids;
 
     protected $fillable = [
-        'inventory_id', 'medicine_id', 'movement_type', 'quantity',
+        'inventory_id', 'product_id', 'movement_type', 'quantity',
         'unit_cost', 'total_cost', 'reference_id', 'reference_type',
         'reason', 'performed_by', 'movement_date', '_synced_at'
     ];
@@ -25,12 +25,12 @@ class StockMovement extends Model
 
     public function inventory()
     {
-        return $this->belongsTo(Inventory::class);
+        return $this->belongsTo(StockBatch::class);
     }
 
-    public function medicine()
+    public function product()
     {
-        return $this->belongsTo(Medicine::class);
+        return $this->belongsTo(Product::class);
     }
 
     public function user()

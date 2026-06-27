@@ -25,10 +25,10 @@ export async function fetchSalesReportData(dateFrom?: string, dateTo?: string) {
   );
 }
 
-export async function fetchInventoryReportData() {
+export async function fetchStockBatchReportData() {
   return query<Record<string, any>>(
     `SELECT
-      m.name as "Medicine",
+      m.name as "Product",
       m.generic_name as "Generic Name",
       m.dosage_form as "Form",
       m.strength as "Strength",
@@ -38,8 +38,8 @@ export async function fetchInventoryReportData() {
       inv.selling_price as "Selling Price",
       SUM(inv.quantity * inv.cost_price) as "Stock Value",
       MIN(inv.expiry_date) as "Nearest Expiry"
-     FROM inventories inv
-     JOIN medicines m ON inv.medicine_id = m.id
+     FROM stock_batches inv
+     JOIN products m ON inv.product_id = m.id
      WHERE inv._deleted = 0 AND m._deleted = 0
      GROUP BY m.id
      ORDER BY m.name ASC`

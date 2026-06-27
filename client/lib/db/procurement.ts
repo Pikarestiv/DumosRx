@@ -19,12 +19,12 @@ export interface PurchaseOrder {
 export interface PurchaseOrderItem {
   id: string;
   po_id: string;
-  medicine_id: string;
+  product_id: string;
   bulk_quantity: number;
   units_per_bulk: number;
   unit_cost: number;
   subtotal: number;
-  medicine_name: string;
+  product_name: string;
   base_unit: string;
   bulk_unit: string;
 }
@@ -55,9 +55,9 @@ export async function getPurchaseOrderById(id: string) {
   if (!po[0]) return null;
 
   const items = await query<PurchaseOrderItem>(
-    `SELECT poi.*, m.name as medicine_name, m.base_unit, m.bulk_unit 
+    `SELECT poi.*, m.name as product_name, m.base_unit, m.bulk_unit 
      FROM purchase_order_items poi 
-     JOIN medicines m ON poi.medicine_id = m.id 
+     JOIN products m ON poi.product_id = m.id 
      WHERE poi.po_id = ?`,
     [id]
   );
@@ -87,7 +87,7 @@ export async function createPurchaseOrder(supplierId: string, notes: string, ite
     await insert("purchase_order_items", {
       id: generateId(),
       po_id: poId,
-      medicine_id: item.medicine_id,
+      product_id: item.product_id,
       bulk_quantity: item.bulk_quantity,
       units_per_bulk: item.units_per_bulk,
       unit_cost: item.unit_cost,
@@ -119,12 +119,12 @@ export async function receivePurchaseOrder(id: string) {
     const totalBaseUnits = bulkQty * unitsPerBulk;
     
     await execute(
-      `UPDATE medicines SET stock_quantity = stock_quantity + ?, updated_at = ? WHERE id = ?`,
-      [totalBaseUnits, now, item.medicine_id]
+      `UPDATE products SET stock_quantity = stock_quantity + ?, updated_at = ? WHERE id = ?`,
+      [totalBaseUnits, now, item.product_id]
     );
 
-    const invId = await insert("inventories", {
-      medicine_id: item.medicine_id,
+    const invId = await insert("stock_batches", {
+      product_id: item.product_id,
       quantity: totalBaseUnits,
       cost_price: Number(item.unit_cost) / unitsPerBulk,
       selling_price: 0,
@@ -136,8 +136,8 @@ export async function receivePurchaseOrder(id: string) {
     // Log local stock movement
     await insert("stock_movements", {
       id: crypto.randomUUID(),
-      medicine_id: item.medicine_id,
-      inventory_id: invId,
+      product_id: item.product_id,
+      stock_batch_id: invId,
       movement_type: "purchase",
       quantity: totalBaseUnits,
       unit_cost: Number(item.unit_cost) / unitsPerBulk,

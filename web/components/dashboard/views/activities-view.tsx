@@ -96,15 +96,15 @@ export const ActivityDetails = ({
           ? `Added new customer: ${parsedContent.first_name || ""} ${parsedContent.last_name || ""}`.trim()
           : `Updated customer: ${parsedContent.first_name || ""}`;
         break;
-      case "medicines":
+      case "products":
         if (parsedContent.stock_quantity !== undefined) {
-          summary = `Updated medicine stock to ${parsedContent.stock_quantity}`;
+          summary = `Updated product stock to ${parsedContent.stock_quantity}`;
         } else if (parsedContent.name) {
           summary = isInsert
-            ? `Added new medicine: ${parsedContent.name}`
-            : `Updated medicine: ${parsedContent.name}`;
+            ? `Added new product: ${parsedContent.name}`
+            : `Updated product: ${parsedContent.name}`;
         } else {
-          summary = `Updated medicine details`;
+          summary = `Updated product details`;
         }
         break;
       case "sale_items":
@@ -160,7 +160,7 @@ export const filterIndirectSaleLogs = (logs: any[], log: any) => {
     return false;
   }
 
-  if (tableNameStr === "medicines" && log.action?.toLowerCase() === "update") {
+  if (tableNameStr === "products" && log.action?.toLowerCase() === "update") {
     const logTime = new Date(log.created_at || new Date()).getTime();
     const isPartOfSale = logs.some((otherLog: any) => {
       const otherTable = (

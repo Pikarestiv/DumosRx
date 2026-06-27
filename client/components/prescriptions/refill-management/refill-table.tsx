@@ -130,7 +130,7 @@ export function RefillTable({
                   </TableCell>
                   <TableCell>
                     <div>
-                      <div className="font-medium">{refill.medicineName}</div>
+                      <div className="font-medium">{refill.productName}</div>
                       <div className="text-sm text-muted-foreground">
                         {refill.strength}
                       </div>

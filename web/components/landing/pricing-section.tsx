@@ -59,7 +59,7 @@ export function PricingSection() {
       priceYearly: 0,
       description: "Ideal for single-operator standalone desktop use.",
       features: [
-        "Full POS & Inventory tracking",
+        "Full POS & StockBatch tracking",
         `${config?.tiers?.free?.limits?.staff === -1 ? 'Unlimited' : (config?.tiers?.free?.limits?.staff || 1)} User (Owner Only)`,
         "Local Database operation",
         "Expiry & Stock Reminders",

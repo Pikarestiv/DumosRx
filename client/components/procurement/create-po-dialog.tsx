@@ -43,7 +43,7 @@ interface Vendor {
   name: string;
 }
 
-interface Medicine {
+interface Product {
   id: string;
   name: string;
   bulk_unit: string;
@@ -56,7 +56,7 @@ export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
   const { t, storeType } = useStore();
   const [open, setOpen] = useState(false);
   const [suppliers, setSuppliers] = useState<Vendor[]>([]);
-  const [medicines, setMedicines] = useState<Medicine[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [selectedSupplierId, setSelectedSupplierId] = useState("");
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<any[]>([]);
@@ -65,7 +65,7 @@ export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
   const ProductIcon = storeType === 'pharmacy' ? Pill : Package;
 
   // New item state
-  const [currentMedicineId, setCurrentMedicineId] = useState("");
+  const [currentProductId, setCurrentProductId] = useState("");
   const [currentBulkQty, setCurrentBulkQty] = useState(1);
   const [currentUoM, setCurrentUoM] = useState(1);
   const [currentCost, setCurrentCost] = useState(0);
@@ -79,26 +79,26 @@ export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
   const fetchData = async () => {
     try {
       const vendorData = await query<Vendor>("SELECT id, name FROM suppliers WHERE _deleted = 0");
-      const medData = await query<Medicine>("SELECT id, name, bulk_unit, base_unit, units_per_bulk, cost_price FROM medicines WHERE _deleted = 0");
+      const medData = await query<Product>("SELECT id, name, bulk_unit, base_unit, units_per_bulk, cost_price FROM products WHERE _deleted = 0");
       setSuppliers(vendorData);
-      setMedicines(medData);
+      setProducts(medData);
     } catch (error) {
       console.error("Failed to fetch data for PO:", error);
     }
   };
 
   const handleAddLineItem = () => {
-    if (!currentMedicineId) {
+    if (!currentProductId) {
       toast.error("Please select a product");
       return;
     }
 
-    const med = medicines.find(m => m.id === currentMedicineId);
+    const med = products.find(m => m.id === currentProductId);
     if (!med) return;
 
     const newItem = {
-      medicine_id: currentMedicineId,
-      medicine_name: med.name,
+      product_id: currentProductId,
+      product_name: med.name,
       bulk_unit: med.bulk_unit || 'Carton',
       bulk_quantity: currentBulkQty,
       units_per_bulk: currentUoM,
@@ -109,7 +109,7 @@ export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
     setItems([...items, newItem]);
     
     // Reset item state
-    setCurrentMedicineId("");
+    setCurrentProductId("");
     setCurrentBulkQty(1);
     setCurrentUoM(1);
     setCurrentCost(0);
@@ -151,8 +151,8 @@ export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
   };
 
   const handleMedChange = (id: string) => {
-    setCurrentMedicineId(id);
-    const med = medicines.find(m => m.id === id);
+    setCurrentProductId(id);
+    const med = products.find(m => m.id === id);
     if (med) {
       setCurrentUoM(med.units_per_bulk || 1);
       setCurrentCost(med.cost_price * (med.units_per_bulk || 1));
@@ -169,7 +169,7 @@ export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col p-0 border-accent/20 bg-card/95 backdrop-blur-xl">
         <DialogHeader className="p-6 border-b border-accent/10">
           <DialogTitle className="text-2xl font-serif font-bold">Create Purchase Order</DialogTitle>
-          <DialogDescription>Draft a formal request for inventory replenishment</DialogDescription>
+          <DialogDescription>Draft a formal request for stock_batch replenishment</DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
@@ -208,12 +208,12 @@ export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
               <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
                 <div className="md:col-span-4 space-y-2">
                   <Label className="text-[10px] uppercase font-bold text-muted-foreground">{t('product')}</Label>
-                  <Select value={currentMedicineId} onValueChange={handleMedChange}>
+                  <Select value={currentProductId} onValueChange={handleMedChange}>
                     <SelectTrigger className="bg-card border-accent/10 h-10">
                       <SelectValue placeholder="Search product..." />
                     </SelectTrigger>
                     <SelectContent className="bg-card border-accent/20 max-h-[200px]">
-                      {medicines.map(m => (
+                      {products.map(m => (
                         <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
                       ))}
                     </SelectContent>
@@ -241,7 +241,7 @@ export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
                   />
                 </div>
                 <div className="md:col-span-3 space-y-2">
-                  <Label className="text-[10px] uppercase font-bold text-muted-foreground text-primary">Bulk Cost ({medicines.find(m => m.id === currentMedicineId)?.bulk_unit || 'Unit'})</Label>
+                  <Label className="text-[10px] uppercase font-bold text-muted-foreground text-primary">Bulk Cost ({products.find(m => m.id === currentProductId)?.bulk_unit || 'Unit'})</Label>
                   <Input 
                     type="number" 
                     className="bg-card border-accent/10 h-10" 
@@ -276,7 +276,7 @@ export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
                           <ProductIcon className="w-5 h-5" />
                         </div>
                       <div>
-                        <p className="font-bold text-sm">{item.medicine_name}</p>
+                        <p className="font-bold text-sm">{item.product_name}</p>
                         <div className="flex items-center gap-2 mt-0.5">
                           <Badge variant="outline" className="text-[10px] h-4">{item.bulk_quantity} {item.bulk_unit}(s)</Badge>
                           <span className="text-[10px] text-muted-foreground italic">({item.units_per_bulk} per unit)</span>

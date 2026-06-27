@@ -16,12 +16,12 @@ import { insert, update, softDelete } from "./base-helpers";
 // --- Specialized Domain Helpers ---
 
 /**
- * Medicines & Inventory
+ * Products & StockBatch
  */
-export async function getMedicines(page = 1, limit = 50, search = "") {
+export async function getProducts(page = 1, limit = 50, search = "") {
   const offset = (page - 1) * limit;
   let sql = `SELECT m.*, c.name as category_name, v.name as supplier_name 
-             FROM medicines m 
+             FROM products m 
              LEFT JOIN categories c ON m.category_id = c.id 
              LEFT JOIN suppliers v ON m.supplier_id = v.id 
              WHERE m._deleted = 0`;
@@ -40,13 +40,13 @@ export async function getMedicines(page = 1, limit = 50, search = "") {
   return { data, page, limit };
 }
 
-export async function getMedicineById(id: string) {
-  const results = await query<any>("SELECT * FROM medicines WHERE id = ?", [id]);
+export async function getProductById(id: string) {
+  const results = await query<any>("SELECT * FROM products WHERE id = ?", [id]);
   return results[0] || null;
 }
 
-export async function createMedicine(data: any) {
-  return await insert("medicines", data);
+export async function createProduct(data: any) {
+  return await insert("products", data);
 }
 
 /**
@@ -61,25 +61,25 @@ export async function createSale(saleData: any, items: any[]) {
       sale_id: saleId,
     });
 
-    // Update inventory quantity
-    if (item.inventory_id) {
+    // Update stock_batch quantity
+    if (item.stock_batch_id) {
       await execute(
-        "UPDATE inventories SET quantity = quantity - ? WHERE id = ?",
-        [item.quantity, item.inventory_id]
+        "UPDATE stock_batches SET quantity = quantity - ? WHERE id = ?",
+        [item.quantity, item.stock_batch_id]
       );
     }
     
-    // Update main medicine stock
+    // Update main product stock
     await execute(
-      "UPDATE medicines SET stock_quantity = stock_quantity - ? WHERE id = ?",
-      [item.quantity, item.medicine_id]
+      "UPDATE products SET stock_quantity = stock_quantity - ? WHERE id = ?",
+      [item.quantity, item.product_id]
     );
 
     // Log local stock movement
     await insert("stock_movements", {
       id: crypto.randomUUID(),
-      medicine_id: item.medicine_id,
-      inventory_id: item.inventory_id || null,
+      product_id: item.product_id,
+      stock_batch_id: item.stock_batch_id || null,
       movement_type: "sale",
       quantity: -Math.abs(item.quantity),
       unit_cost: item.cost_price || 0,
@@ -175,9 +175,9 @@ export async function deleteUser(id: string) {
 export async function getStockMovements(page = 1, limit = 50) {
   const offset = (page - 1) * limit;
   const results = await query<any>(
-    `SELECT sm.*, m.name as medicine_name 
+    `SELECT sm.*, m.name as product_name 
      FROM stock_movements sm 
-     LEFT JOIN medicines m ON sm.medicine_id = m.id 
+     LEFT JOIN products m ON sm.product_id = m.id 
      WHERE sm._deleted = 0 
      ORDER BY sm.created_at DESC 
      LIMIT ? OFFSET ?`,
@@ -189,9 +189,9 @@ export async function getStockMovements(page = 1, limit = 50) {
 export async function getStockAdjustments(page = 1, limit = 50) {
   const offset = (page - 1) * limit;
   const results = await query<any>(
-    `SELECT sm.*, m.name as medicine_name 
+    `SELECT sm.*, m.name as product_name 
      FROM stock_movements sm 
-     LEFT JOIN medicines m ON sm.medicine_id = m.id 
+     LEFT JOIN products m ON sm.product_id = m.id 
      WHERE sm._deleted = 0 AND sm.movement_type IN ('adjustment', 'expired', 'damaged') 
      ORDER BY sm.created_at DESC 
      LIMIT ? OFFSET ?`,
@@ -219,7 +219,7 @@ export async function createStockMovement(data: any) {
 // Dev utility to force sync all tables
 export async function forceSyncAllData() {
   const tables = [
-    "medicines", "inventories", "categories", "customers", 
+    "products", "stock_batches", "categories", "customers", 
     "sales", "sale_items", "prescriptions", "prescription_items", 
     "returns", "return_items", "customer_payments", "stores", 
     "expenses", "users", "audit_logs", "purchase_orders", "purchase_order_items", 

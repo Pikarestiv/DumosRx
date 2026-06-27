@@ -49,7 +49,7 @@ export async function initDatabase(): Promise<any> {
   // ---- Migration: ensure sync tracking and missing columns exist ----
   const syncColumns = [
     {
-      table: "medicines",
+      table: "products",
       columns: [
         "_version INTEGER DEFAULT 1",
         "_synced INTEGER DEFAULT 0",
@@ -59,7 +59,7 @@ export async function initDatabase(): Promise<any> {
       ],
     },
     {
-      table: "inventories",
+      table: "stock_batches",
       columns: [
         "_version INTEGER DEFAULT 1",
         "_synced INTEGER DEFAULT 0",
@@ -314,11 +314,31 @@ export async function initDatabase(): Promise<any> {
         await db.execute(statement);
       }
 
-      // Rename inventory to inventories if the old table exists
+      // Rename stock_batch to stock_batches if the old table exists
       try {
-        await db.execute("ALTER TABLE inventory RENAME TO inventories");
-      } catch (_e) {
-        // Table probably doesn't exist or already renamed
+        await db.execute("ALTER TABLE stock_batch RENAME TO stock_batches");
+      } catch (_e) { }
+
+      try {
+        await db.execute("ALTER TABLE stock_batches RENAME TO stock_batches");
+      } catch (_e) { }
+
+      try {
+        await db.execute("ALTER TABLE products RENAME TO products");
+      } catch (_e) { }
+
+      const tablesWithProductId = [
+        "stock_batches",
+        "sale_items",
+        "stock_movements",
+        "purchase_order_items",
+        "prescription_items",
+        "return_items"
+      ];
+      for (const t of tablesWithProductId) {
+        try {
+          await db.execute(`ALTER TABLE ${t} RENAME COLUMN product_id TO product_id`);
+        } catch (_e) { }
       }
 
       try {
@@ -364,11 +384,31 @@ export async function initDatabase(): Promise<any> {
         const data = new Uint8Array(JSON.parse(savedData));
         db = new SQL.Database(data);
         
-        // Rename inventory to inventories if the old table exists
+        // Rename stock_batch to stock_batches if the old table exists
         try {
-          db.run("ALTER TABLE inventory RENAME TO inventories");
-        } catch (_e) {
-          // Table probably doesn't exist or already renamed
+          db.run("ALTER TABLE stock_batch RENAME TO stock_batches");
+        } catch (_e) { }
+
+        try {
+          db.run("ALTER TABLE stock_batches RENAME TO stock_batches");
+        } catch (_e) { }
+
+        try {
+          db.run("ALTER TABLE products RENAME TO products");
+        } catch (_e) { }
+
+        const tablesWithProductId = [
+          "stock_batches",
+          "sale_items",
+          "stock_movements",
+          "purchase_order_items",
+          "prescription_items",
+          "return_items"
+        ];
+        for (const t of tablesWithProductId) {
+          try {
+            db.run(`ALTER TABLE ${t} RENAME COLUMN product_id TO product_id`);
+          } catch (_e) { }
         }
 
         try {
@@ -510,8 +550,8 @@ export async function resetDatabase(): Promise<void> {
   if (!db) await initDatabase();
 
   const tablesToClear = [
-    "medicines",
-    "inventories",
+    "products",
+    "stock_batches",
     "sales",
     "sale_items",
     "customers",

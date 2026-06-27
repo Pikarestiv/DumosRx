@@ -14,7 +14,7 @@ export interface RefillRequest {
   originalPrescription: string;
   patientName: string;
   patientPhone: string;
-  medicineName: string;
+  productName: string;
   strength: string;
   lastFilled: string;
   nextRefillDate: string;
@@ -43,7 +43,7 @@ export function useRefillManagement() {
       p.patient_name,
       p.patient_phone,
       p.doctor_name,
-      pi.medicine_name,
+      pi.product_name,
       pi.strength,
       pi.dosage,
       pi.quantity,
@@ -90,7 +90,7 @@ export function useRefillManagement() {
           originalPrescription: item.prescription_number || "Unknown",
           patientName: item.patient_name || "Unknown",
           patientPhone: item.patient_phone || "Unknown",
-          medicineName: item.medicine_name,
+          productName: item.product_name,
           strength: item.strength || "",
           dosage: item.dosage || "",
           quantity: item.quantity || 1,
@@ -120,7 +120,7 @@ export function useRefillManagement() {
   const { results: filteredRefills, isFuzzyFallback } = genericFuzzySearch(
     searchTerm,
     preFilteredRefills,
-    ["patientName", "originalPrescription", "medicineName"],
+    ["patientName", "originalPrescription", "productName"],
   );
 
   const formatCurrency = (amount: number) => {
@@ -166,7 +166,7 @@ export function useRefillManagement() {
 
       const newPrescriptionItem = {
         id: generateId(),
-        medicine_name: refillItem.medicineName,
+        product_name: refillItem.productName,
         strength: refillItem.strength,
         dosage: refillItem.dosage,
         quantity: refillItem.quantity,

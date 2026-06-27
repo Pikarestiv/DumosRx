@@ -23,7 +23,7 @@ export function NewPrescription() {
     setFormData,
     newMedication,
     setNewMedication,
-    availableMedicines,
+    availableProducts,
     addMedication,
     removeMedication,
     editMedication,
@@ -65,7 +65,7 @@ export function NewPrescription() {
               formData={formData}
               newMedication={newMedication}
               setNewMedication={setNewMedication}
-              availableMedicines={availableMedicines}
+              availableProducts={availableProducts}
               addMedication={addMedication}
               removeMedication={removeMedication}
               editMedication={editMedication}

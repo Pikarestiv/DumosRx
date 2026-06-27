@@ -132,11 +132,11 @@ export function DashboardActionCenter({
         items.push({
           id: "expiring-soon",
           title: `${expiringCount} Items Expiring Soon`,
-          description: "Review your inventory to discount or remove items.",
+          description: "Review your stock_batch to discount or remove items.",
           icon: Clock,
           priority: "warning",
           actionLabel: "Check Now",
-          actionRoute: "/inventory?filter=expiring",
+          actionRoute: "/stock-batch?filter=expiring",
         });
       }
 
@@ -149,7 +149,7 @@ export function DashboardActionCenter({
           icon: PackageX,
           priority: "warning",
           actionLabel: "View Needs",
-          actionRoute: "/inventory?filter=low-stock",
+          actionRoute: "/stock-batch?filter=low-stock",
         });
       }
     }

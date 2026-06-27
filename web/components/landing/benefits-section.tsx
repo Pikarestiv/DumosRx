@@ -21,7 +21,7 @@ export function BenefitsSection() {
                 },
                 {
                   title: "NAFDAC & Expiry Alerts",
-                  desc: "Automated tracking for regulatory compliance and proactive inventory management.",
+                  desc: "Automated tracking for regulatory compliance and proactive stock_batch management.",
                 },
                 {
                   title: "Transparent Pricing",

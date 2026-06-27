@@ -41,16 +41,16 @@ export function TransactionDetailsDialog({
     open && sale?.id
       ? `SELECT 
           si.*, 
-          m.name as medicine_name, 
+          m.name as product_name, 
           m.cost_price as med_cost_price,
           COALESCE((
             SELECT SUM(ri.quantity) 
             FROM return_items ri 
             JOIN returns r ON ri.return_id = r.id 
-            WHERE r.sale_id = si.sale_id AND ri.medicine_id = si.medicine_id AND (ri._deleted = 0 OR ri._deleted IS NULL) AND (r._deleted = 0 OR r._deleted IS NULL)
+            WHERE r.sale_id = si.sale_id AND ri.product_id = si.product_id AND (ri._deleted = 0 OR ri._deleted IS NULL) AND (r._deleted = 0 OR r._deleted IS NULL)
           ), 0) as returned_quantity
          FROM sale_items si 
-         LEFT JOIN medicines m ON si.medicine_id = m.id 
+         LEFT JOIN products m ON si.product_id = m.id 
          WHERE si.sale_id = '${sale.id}' AND (si._deleted = 0 OR si._deleted IS NULL)`
       : "SELECT 1 WHERE 1=0",
   );
@@ -139,7 +139,7 @@ export function TransactionDetailsDialog({
             <TableBody>
               {items?.map((item: any) => (
                 <TableRow key={item.id}>
-                  <TableCell>{item.medicine_name || "Unknown Item"}</TableCell>
+                  <TableCell>{item.product_name || "Unknown Item"}</TableCell>
                   <TableCell className="text-right">
                     <span>{item.quantity}</span>
                     {item.returned_quantity > 0 && (

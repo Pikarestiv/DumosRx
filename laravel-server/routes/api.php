@@ -21,8 +21,8 @@ use App\Http\Controllers\Api\Admin\AdminController;
 use App\Http\Controllers\Api\Admin\MailController;
 
 // App Controllers
-use App\Http\Controllers\Api\App\MedicineController;
-use App\Http\Controllers\Api\App\InventoryController;
+use App\Http\Controllers\Api\App\ProductController;
+use App\Http\Controllers\Api\App\StockBatchController;
 use App\Http\Controllers\Api\App\SaleController;
 use App\Http\Controllers\Api\App\CustomerController;
 use App\Http\Controllers\Api\App\SupplierController;
@@ -59,8 +59,8 @@ Route::prefix('v1')->group(function () {
     Route::post('/webhooks/paystack', [\App\Http\Controllers\Api\Web\PaymentController::class, 'handlePaystack']);
     Route::post('/webhooks/flutterwave', [\App\Http\Controllers\Api\Web\PaymentController::class, 'handleFlutterwave']);
 
-    Route::get('/dev/clear-inventory', function() {
-        \Illuminate\Support\Facades\DB::table('inventories')->delete();
+    Route::get('/dev/clear-stock-batches', function() {
+        \Illuminate\Support\Facades\DB::table('stock_batches')->delete();
         \Illuminate\Support\Facades\DB::table('categories')->delete();
         return 'Cleared';
     });
@@ -193,21 +193,21 @@ Route::prefix('v1')->group(function () {
         // --- APP / TERMINAL ROUTES ---
         Route::prefix('app')->middleware('subscription')->group(function () {
             // Medicine Database
-            Route::get('/medicines/search', [MedicineController::class, 'search']);
-            Route::apiResource('medicines', MedicineController::class);
+            Route::get('/products/search', [ProductController::class, 'search']);
+            Route::apiResource('products', ProductController::class);
 
             // Inventory
-            Route::prefix('inventory')->group(function () {
-                Route::get('/low-stock', [InventoryController::class, 'lowStock']);
-                Route::get('/expiring', [InventoryController::class, 'expiring']);
-                Route::get('/value', [InventoryController::class, 'value']);
-                Route::get('/', [InventoryController::class, 'index']);
+            Route::prefix('stock-batches')->group(function () {
+                Route::get('/low-stock', [StockBatchController::class, 'lowStock']);
+                Route::get('/expiring', [StockBatchController::class, 'expiring']);
+                Route::get('/value', [StockBatchController::class, 'value']);
+                Route::get('/', [StockBatchController::class, 'index']);
             });
 
             // Sales & POS
             Route::prefix('sales')->group(function () {
                 Route::get('/daily', [SaleController::class, 'dailySales']);
-                Route::get('/top-medicines', [SaleController::class, 'topMedicines']);
+                Route::get('/top-products', [SaleController::class, 'topMedicines']);
                 Route::apiResource('/', SaleController::class)->only(['index', 'store', 'show']);
             });
 
@@ -225,13 +225,13 @@ Route::prefix('v1')->group(function () {
         // Once frontend is updated, these can be removed
         Route::get('/dashboard/summary', [DashboardController::class, 'summary']);
         Route::post('/dashboard/reset', [DashboardController::class, 'resetData']);
-        Route::get('/medicines/search', [MedicineController::class, 'search']);
-        Route::get('/inventory/low-stock', [InventoryController::class, 'lowStock']);
-        Route::get('/inventory/expiring', [InventoryController::class, 'expiring']);
-        Route::get('/inventory/value', [InventoryController::class, 'value']);
-        Route::get('/inventory', [InventoryController::class, 'index']);
+        Route::get('/products/search', [ProductController::class, 'search']);
+        Route::get('/stock-batches/low-stock', [StockBatchController::class, 'lowStock']);
+        Route::get('/stock-batches/expiring', [StockBatchController::class, 'expiring']);
+        Route::get('/stock-batches/value', [StockBatchController::class, 'value']);
+        Route::get('/stock-batches', [StockBatchController::class, 'index']);
         Route::get('/sales/daily', [SaleController::class, 'dailySales']);
-        Route::get('/sales/top-medicines', [SaleController::class, 'topMedicines']);
+        Route::get('/sales/top-products', [SaleController::class, 'topMedicines']);
         Route::apiResource('sales', SaleController::class)->only(['index', 'store', 'show']);
         Route::apiResource('customers', CustomerController::class);
         Route::apiResource('suppliers', SupplierController::class);

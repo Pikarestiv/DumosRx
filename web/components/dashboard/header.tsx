@@ -116,7 +116,7 @@ export function Header({ onSetActiveTab }: HeaderProps) {
                 <div className="relative w-full">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search records, stores or medicines..."
+                    placeholder="Search records, stores or products..."
                     className="pl-10 bg-muted/50 border-none focus-visible:ring-primary w-full"
                   />
                 </div>

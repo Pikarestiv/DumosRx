@@ -113,7 +113,7 @@ export function PrescriptionDetailsDialog({
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
-                            <h4 className="font-medium">{medication.medicineName}</h4>
+                            <h4 className="font-medium">{medication.productName}</h4>
                             <Badge
                               variant={medication.available ? "default" : "destructive"}
                               className="text-xs"

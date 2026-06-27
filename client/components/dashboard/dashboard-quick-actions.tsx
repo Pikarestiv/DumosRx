@@ -41,7 +41,7 @@ export function DashboardQuickActions({
       <CardContent>
         <div className="grid grid-cols-2 gap-3">
           <Link
-            href="/inventory?action=add"
+            href="/stock-batch?action=add"
             className="p-4 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors flex flex-col items-center justify-center text-center cursor-pointer border border-primary/20"
           >
             <Package className="h-6 w-6 mb-2" />
@@ -55,14 +55,14 @@ export function DashboardQuickActions({
             <span className="text-sm font-medium">New Sale</span>
           </Link>
           <Link
-            href="/inventory"
+            href="/stock-batch"
             className="p-4 bg-amber-500/10 text-amber-600 rounded-lg hover:bg-amber-500/20 transition-colors flex flex-col items-center justify-center text-center cursor-pointer border border-amber-200"
           >
             <AlertTriangle className="h-6 w-6 mb-2" />
             <span className="text-sm font-medium">Check Expiry</span>
           </Link>
           <Link
-            href="/inventory?status=low_stock"
+            href="/stock-batch?status=low_stock"
             className="p-4 bg-orange-500/10 text-orange-600 rounded-lg hover:bg-orange-500/20 transition-colors flex flex-col items-center justify-center text-center cursor-pointer border border-orange-200"
           >
             <TrendingUp className="h-6 w-6 mb-2" />

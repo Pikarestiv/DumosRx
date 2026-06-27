@@ -37,7 +37,7 @@ export function AlertSettings({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Inventory Alerts</CardTitle>
+        <CardTitle>StockBatch Alerts</CardTitle>
         <CardDescription>
           Configure when you want to be warned about stock issues.
         </CardDescription>
@@ -83,7 +83,7 @@ export function AlertSettings({
               </TooltipProvider>
             </div>
             <p className="text-sm text-muted-foreground">
-              Notify before medicines expire
+              Notify before products expire
             </p>
           </div>
           <Switch

@@ -55,7 +55,7 @@ export function ReturnDialog({
   // Fetch items for this sale
   const { data: saleItems } = useLocalData<any>(
     sale
-      ? `SELECT si.*, m.name as medicine_name FROM sale_items si JOIN medicines m ON si.medicine_id = m.id WHERE si.sale_id = ?`
+      ? `SELECT si.*, m.name as product_name FROM sale_items si JOIN products m ON si.product_id = m.id WHERE si.sale_id = ?`
       : "",
     sale ? [sale.id] : [],
   );
@@ -122,34 +122,34 @@ export function ReturnDialog({
       for (const item of itemsToReturn) {
         await insert("return_items", {
           return_id: returnId,
-          medicine_id: item.medicine_id,
+          product_id: item.product_id,
           quantity: item.returnQuantity,
           unit_price: item.unit_price,
           subtotal: item.unit_price * item.returnQuantity,
         });
 
-        // Update medicine stock
-        const medicines = await query<any>(
-          `SELECT * FROM medicines WHERE id = ?`,
-          [item.medicine_id],
+        // Update product stock
+        const products = await query<any>(
+          `SELECT * FROM products WHERE id = ?`,
+          [item.product_id],
         );
-        const currentMedicine = medicines[0];
-        if (currentMedicine) {
-          await update("medicines", item.medicine_id, {
+        const currentProduct = products[0];
+        if (currentProduct) {
+          await update("products", item.product_id, {
             stock_quantity:
-              (currentMedicine.stock_quantity || 0) + item.returnQuantity,
+              (currentProduct.stock_quantity || 0) + item.returnQuantity,
           });
         }
 
-        // Update inventory if applicable
-        if (item.inventory_id) {
+        // Update stock_batch if applicable
+        if (item.stock_batch_id) {
           const invs = await query<any>(
-            `SELECT * FROM inventories WHERE id = ?`,
-            [item.inventory_id],
+            `SELECT * FROM stock_batches WHERE id = ?`,
+            [item.stock_batch_id],
           );
           const currentInv = invs[0];
           if (currentInv) {
-            await update("inventories", item.inventory_id, {
+            await update("stock_batches", item.stock_batch_id, {
               quantity: (currentInv.quantity || 0) + item.returnQuantity,
             });
           }
@@ -219,7 +219,7 @@ export function ReturnDialog({
                       />
                     </TableCell>
                     <TableCell className="font-medium">
-                      {item.medicine_name}
+                      {item.product_name}
                     </TableCell>
                     <TableCell className="text-right">
                       {item.quantity}
@@ -338,7 +338,7 @@ export function ReturnDialog({
               {itemsToReturn.map((item: any) => (
                 <li key={item.id}>
                   <span className="font-medium">{item.returnQuantity}x</span>{" "}
-                  {item.medicine_name}
+                  {item.product_name}
                   <span className="text-muted-foreground ml-1">
                     (
                     {formatCurrency(
@@ -357,7 +357,7 @@ export function ReturnDialog({
             </div>
             <p className="text-xs text-muted-foreground pt-2">
               <strong>Consequences:</strong> The returned quantities will be
-              immediately restocked into inventory, and this sale will be marked
+              immediately restocked into stock_batch, and this sale will be marked
               as returned in the transaction history. This action cannot be
               undone.
             </p>

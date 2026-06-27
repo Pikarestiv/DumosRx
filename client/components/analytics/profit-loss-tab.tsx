@@ -49,7 +49,7 @@ const chartConfig = {
     color: "#f59e0b",
   },
   cogs: {
-    label: "Inventory Cost",
+    label: "StockBatch Cost",
     color: "#0ea5e9",
   },
 } satisfies ChartConfig;
@@ -152,7 +152,7 @@ export function ProfitLossTab({
               <div className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/30 transition-colors">
                 <div className="flex items-center gap-3">
                   <div className="w-3 h-3 rounded-full bg-[#0ea5e9]" />
-                  <span className="text-xs font-medium">Inventory Cost</span>
+                  <span className="text-xs font-medium">StockBatch Cost</span>
                 </div>
                 <span className="text-xs font-bold">{totalRevenue > 0 ? ((totalCogs / totalRevenue) * 100).toFixed(0) : 0}%</span>
               </div>

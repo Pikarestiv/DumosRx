@@ -66,7 +66,7 @@ export function ReportCenter() {
 
   const {
     exportSalesReport,
-    exportInventoryReport,
+    exportStockBatchReport,
     exportProfitLossReport,
     exportCustomerReport,
     exportExpensesReport,
@@ -89,8 +89,8 @@ export function ReportCenter() {
         case "sales":
           await exportSalesReport(from, to);
           break;
-        case "inventories":
-          await exportInventoryReport();
+        case "stock_batches":
+          await exportStockBatchReport();
           break;
         case "profit-loss":
           await exportProfitLossReport(from, to);
@@ -141,8 +141,8 @@ export function ReportCenter() {
       category: "Financial",
     },
     {
-      id: "inventories",
-      title: "Inventory Valuation",
+      id: "stock_batches",
+      title: "StockBatch Valuation",
       description: "Current stock levels, cost value, and potential selling value.",
       icon: ClipboardList,
       category: "Operations",

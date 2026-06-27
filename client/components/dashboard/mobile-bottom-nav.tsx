@@ -28,8 +28,8 @@ export function MobileBottomNav({ onOpenFeedback }: MobileBottomNavProps) {
     { name: "Home", href: "/dashboard", icon: LayoutDashboard },
     { name: "POS", href: "/pos", icon: ShoppingCart },
     {
-      name: "Inventory",
-      href: "/inventory",
+      name: "StockBatch",
+      href: "/stock-batch",
       icon: storeType === "pharmacy" ? Pill : ShoppingBasket,
     },
     { name: "Customers", href: "/customers", icon: Users },

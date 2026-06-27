@@ -248,7 +248,7 @@ export function StaffFormDialog({
                     <Info className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>Determines what the staff member can access. Cashiers can only make sales, Managers can view inventory, and Admins have full access.</p>
+                    <p>Determines what the staff member can access. Cashiers can only make sales, Managers can view stock_batch, and Admins have full access.</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>

@@ -1,6 +1,6 @@
 import { insert, remove } from "@/lib/db/local-database";
 import { toast } from "sonner";
-import { Customer, Medicine } from "./use-pos-data";
+import { Customer, Product } from "./use-pos-data";
 
 interface UsePOSHeldTransactionsProps {
   cart: any[];
@@ -8,7 +8,7 @@ interface UsePOSHeldTransactionsProps {
   selectedCustomer: Customer | null;
   clearCart: () => void;
   setSelectedCustomer: (customer: Customer | null) => void;
-  medicines: Medicine[];
+  products: Product[];
   restoreCart: (items: any[]) => void;
   customers: Customer[];
   setShowHeldDialog: (show: boolean) => void;
@@ -20,7 +20,7 @@ export function usePOSHeldTransactions({
   selectedCustomer,
   clearCart,
   setSelectedCustomer,
-  medicines,
+  products,
   restoreCart,
   customers,
   setShowHeldDialog,
@@ -59,14 +59,14 @@ export function usePOSHeldTransactions({
       const items = JSON.parse(held.items_json);
       const restoredItems = items
         .map((item: any) => {
-          const medicine = medicines.find(
-            (m) => m.id === (item.medicine_id || item.id),
+          const product = products.find(
+            (m) => m.id === (item.product_id || item.id),
           );
-          if (medicine) {
+          if (product) {
             return {
-              ...medicine,
+              ...product,
               quantity: item.quantity,
-              subtotal: medicine.unit_price * item.quantity,
+              subtotal: product.unit_price * item.quantity,
             };
           }
           return null;

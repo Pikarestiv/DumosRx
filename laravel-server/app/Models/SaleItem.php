@@ -13,7 +13,7 @@ class SaleItem extends Model
     use HasFactory, HasUuids, SoftDeletes;
 
     protected $fillable = [
-        'sale_id', 'medicine_id', 'inventory_id', 'quantity',
+        'sale_id', 'product_id', 'inventory_id', 'quantity',
         'unit_price', 'discount_amount', 'total_price', 'cost_price'
     ];
 }

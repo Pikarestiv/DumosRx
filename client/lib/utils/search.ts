@@ -37,25 +37,25 @@ export function calculateLevenshteinDistance(a: string, b: string): number {
   return matrix[bLen][aLen];
 }
 
-export interface SearchMedicineResult<T> {
+export interface SearchProductResult<T> {
   results: T[];
   isFuzzyFallback: boolean;
 }
 
-export function searchMedicines<T extends { name: string; generic_name?: string | null; brand?: string | null; barcode?: string | null }>(
+export function searchProducts<T extends { name: string; generic_name?: string | null; brand?: string | null; barcode?: string | null }>(
   searchTerm: string,
-  medicines: T[]
-): SearchMedicineResult<T> {
+  products: T[]
+): SearchProductResult<T> {
   const term = searchTerm.trim().toLowerCase();
   
   if (!term) {
-    return { results: medicines, isFuzzyFallback: false };
+    return { results: products, isFuzzyFallback: false };
   }
 
   const tokens = term.split(/\s+/).filter(Boolean);
 
   // 1. Initial Strict Search (Tiers 1-3)
-  const scoredResults = medicines.map((med) => {
+  const scoredResults = products.map((med) => {
     const name = med.name.toLowerCase();
     const generic = (med.generic_name || "").toLowerCase();
     const brand = (med.brand || "").toLowerCase();
@@ -104,7 +104,7 @@ export function searchMedicines<T extends { name: string; generic_name?: string 
     return { results: [], isFuzzyFallback: false };
   }
 
-  const fuzzyResults = medicines.map((med) => {
+  const fuzzyResults = products.map((med) => {
     const name = med.name.toLowerCase();
     // Compare first word or full name with term to find distance
     const distName = calculateLevenshteinDistance(term, name.substring(0, term.length + 2));

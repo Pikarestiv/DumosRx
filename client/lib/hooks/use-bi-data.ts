@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useLocalData } from "@/lib/db/hooks/useLocalData";
-import { useInventoryAlerts } from "./use-inventory-alerts";
+import { useStockBatchAlerts } from "./use-stock-batch-alerts";
 import { usePurchasePatterns } from "./use-purchase-patterns";
 
 export function useBIData(externalTimeRange?: string) {
@@ -56,7 +56,7 @@ export function useBIData(externalTimeRange?: string) {
   const { data: returnedCogsData } = useLocalData<{ total: number }>(
     `SELECT SUM(ri.quantity * m.cost_price) as total FROM return_items ri
      JOIN returns r ON ri.return_id = r.id
-     LEFT JOIN medicines m ON ri.medicine_id = m.id
+     LEFT JOIN products m ON ri.product_id = m.id
      WHERE r.created_at >= ? AND (r._deleted = 0 OR r._deleted IS NULL)`,
     [dateFilter]
   );
@@ -79,12 +79,12 @@ export function useBIData(externalTimeRange?: string) {
   );
   const totalTransactions = transactionData[0]?.count || 0;
 
-  // 5. Inventory Value (local uses quantity column)
-  const { data: inventoryValueData } = useLocalData<{ value: number }>(
+  // 5. StockBatch Value (local uses quantity column)
+  const { data: stock_batchValueData } = useLocalData<{ value: number }>(
     `SELECT SUM(inv.cost_price * inv.quantity) as value
-     FROM inventories inv WHERE inv._deleted = 0`
+     FROM stock_batches inv WHERE inv._deleted = 0`
   );
-  const inventoryValue = inventoryValueData[0]?.value || 0;
+  const stock_batchValue = stock_batchValueData[0]?.value || 0;
 
   // 6. Active Customers
   const { data: customerData } = useLocalData<{ count: number }>(
@@ -193,7 +193,7 @@ export function useBIData(externalTimeRange?: string) {
       SUM(ri.quantity * m.cost_price) as returned_cogs
      FROM returns r
      LEFT JOIN return_items ri ON ri.return_id = r.id
-     LEFT JOIN medicines m ON ri.medicine_id = m.id
+     LEFT JOIN products m ON ri.product_id = m.id
      WHERE r.created_at >= ? AND (r._deleted = 0 OR r._deleted IS NULL)
      GROUP BY strftime('%Y-%m', r.created_at)
      ORDER BY strftime('%Y-%m', r.created_at) ASC`,
@@ -240,7 +240,7 @@ export function useBIData(externalTimeRange?: string) {
     });
   }, [rawMonthlyData, rawExpenseData, rawMonthlyReturns]);
 
-  // ─── Top Selling Medicines ─────────────────────────────────────────────────
+  // ─── Top Selling Products ─────────────────────────────────────────────────
 
   const { data: topSellingByRevenue } = useLocalData<{
     name: string;
@@ -254,7 +254,7 @@ export function useBIData(externalTimeRange?: string) {
       SUM(si.quantity) as units,
       COALESCE(c.name, 'Uncategorized') as category
      FROM sale_items si
-     JOIN medicines m ON si.medicine_id = m.id
+     JOIN products m ON si.product_id = m.id
      LEFT JOIN categories c ON m.category_id = c.id
      JOIN sales s ON si.sale_id = s.id
      WHERE s.transaction_date >= ? AND s._deleted = 0
@@ -276,7 +276,7 @@ export function useBIData(externalTimeRange?: string) {
       SUM(si.quantity) as units,
       COALESCE(c.name, 'Uncategorized') as category
      FROM sale_items si
-     JOIN medicines m ON si.medicine_id = m.id
+     JOIN products m ON si.product_id = m.id
      LEFT JOIN categories c ON m.category_id = c.id
      JOIN sales s ON si.sale_id = s.id
      WHERE s.transaction_date >= ? AND s._deleted = 0
@@ -286,7 +286,7 @@ export function useBIData(externalTimeRange?: string) {
     [dateFilter]
   );
 
-  const topSellingMedicines = useMemo(() => ({
+  const topSellingProducts = useMemo(() => ({
     revenue: topSellingByRevenue,
     quantity: topSellingByQuantity,
   }), [topSellingByRevenue, topSellingByQuantity]);
@@ -298,7 +298,7 @@ export function useBIData(externalTimeRange?: string) {
       COALESCE(c.name, 'Uncategorized') as name,
       SUM(si.total_price) as value
      FROM sale_items si
-     JOIN medicines m ON si.medicine_id = m.id
+     JOIN products m ON si.product_id = m.id
      LEFT JOIN categories c ON m.category_id = c.id
      JOIN sales s ON si.sale_id = s.id
      WHERE s.transaction_date >= ? AND s._deleted = 0
@@ -314,9 +314,9 @@ export function useBIData(externalTimeRange?: string) {
     }));
   }, [categoryDistribution]);
 
-  // ─── Inventory Alerts ─────────────────────────────────────────────────────
+  // ─── StockBatch Alerts ─────────────────────────────────────────────────────
 
-  const inventoryAlerts = useInventoryAlerts();
+  const stock_batchAlerts = useStockBatchAlerts();
 
   // ─── Customer Purchase Patterns by Time Slot ──────────────────────────────
 
@@ -362,16 +362,16 @@ export function useBIData(externalTimeRange?: string) {
     totalTransactions,
     avgTransactionValue,
     avgTransactionChange,
-    inventoryValue,
+    stock_batchValue,
     activeCustomers,
     customerChange,
     loyaltyMembers,
     retentionRate,
     monthlySalesData,
-    topSellingMedicines,
+    topSellingProducts,
     formattedCategoryData,
     salesByCategory: categoryDistribution,
-    inventoryAlerts,
+    stock_batchAlerts,
     purchasePatterns,
     liveCustomerMetrics,
     setInternalTimeRange,

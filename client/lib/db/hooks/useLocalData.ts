@@ -32,10 +32,10 @@ export interface UseLocalDataResult<T> {
  * Hook for querying local SQLite database
  *
  * @example
- * const { data: medicines, loading } = useLocalData<Medicine>(
- *   'SELECT * FROM medicines WHERE _deleted = 0',
+ * const { data: products, loading } = useLocalData<Product>(
+ *   'SELECT * FROM products WHERE _deleted = 0',
  *   [],
- *   { transform: transformMedicine }
+ *   { transform: transformProduct }
  * );
  */
 export function useLocalData<T = Record<string, unknown>>(

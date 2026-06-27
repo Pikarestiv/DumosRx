@@ -1,7 +1,7 @@
 export const queryKeys = {
   users: () => ["users"],
-  medicines: () => ["medicines"],
-  inventory: () => ["inventories"],
+  products: () => ["products"],
+  stock_batch: () => ["stock_batches"],
   categories: () => ["categories"],
   customers: () => ["customers"],
   suppliers: () => ["suppliers"],

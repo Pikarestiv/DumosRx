@@ -22,42 +22,42 @@ class ApiClient extends BaseApiClient {
     return this.request<any>("/auth/profile");
   }
 
-  // Medicines endpoints
-  async getMedicines(page = 1, limit = 50) {
-    return this.request<any>(`/medicines?page=${page}&limit=${limit}`);
+  // Products endpoints
+  async getProducts(page = 1, limit = 50) {
+    return this.request<any>(`/products?page=${page}&limit=${limit}`);
   }
 
-  async searchMedicines(params: any) {
+  async searchProducts(params: any) {
     const searchParams = new URLSearchParams(params);
-    return this.request<any>(`/medicines/search?${searchParams}`);
+    return this.request<any>(`/products/search?${searchParams}`);
   }
 
-  async getMedicine(id: string) {
-    return this.request<any>(`/medicines/${id}`);
+  async getProduct(id: string) {
+    return this.request<any>(`/products/${id}`);
   }
 
-  async createMedicine(data: any) {
-    return this.request<any>("/medicines", {
+  async createProduct(data: any) {
+    return this.request<any>("/products", {
       method: "POST",
       body: JSON.stringify(data),
     });
   }
 
-  // Inventory endpoints
-  async getInventory(page = 1, limit = 50) {
-    return this.request<any>(`/inventory?page=${page}&limit=${limit}`);
+  // StockBatch endpoints
+  async getStockBatch(page = 1, limit = 50) {
+    return this.request<any>(`/stock-batch?page=${page}&limit=${limit}`);
   }
 
   async getLowStockItems() {
-    return this.request<any>("/inventory/low-stock");
+    return this.request<any>("/stock-batch/low-stock");
   }
 
   async getExpiringItems(days = 90) {
-    return this.request<any>(`/inventory/expiring?days=${days}`);
+    return this.request<any>(`/stock-batch/expiring?days=${days}`);
   }
 
-  async getInventoryValue() {
-    return this.request<any>("/inventory/value");
+  async getStockBatchValue() {
+    return this.request<any>("/stock-batch/value");
   }
 
   // Sales endpoints
@@ -77,9 +77,9 @@ class ApiClient extends BaseApiClient {
     return this.request<any>(`/sales/daily${params}`);
   }
 
-  async getTopSellingMedicines(limit = 10, days = 30) {
+  async getTopSellingProducts(limit = 10, days = 30) {
     return this.request<any>(
-      `/sales/top-medicines?limit=${limit}&days=${days}`,
+      `/sales/top-products?limit=${limit}&days=${days}`,
     );
   }
 
@@ -103,16 +103,16 @@ class ApiClient extends BaseApiClient {
   // Dashboard endpoints
   async getDashboardStats() {
     // Aggregate stats from multiple endpoints
-    const [medicines, dailySales, expiringItems, lowStockItems] =
+    const [products, dailySales, expiringItems, lowStockItems] =
       await Promise.all([
-        this.getMedicines(1, 1).catch(() => ({ total: 0 })),
+        this.getProducts(1, 1).catch(() => ({ total: 0 })),
         this.getDailySales().catch(() => ({ total: 0, revenue: 0 })),
         this.getExpiringItems(30).catch(() => ({ data: [] })),
         this.getLowStockItems().catch(() => ({ data: [] })),
       ]);
 
     return {
-      totalMedicines: medicines.total || medicines.data?.length || 0,
+      totalProducts: products.total || products.data?.length || 0,
       dailySalesRevenue: dailySales.revenue || dailySales.total || 0,
       expiringSoon: expiringItems.count || expiringItems.data?.length || 0,
       lowStockCount: lowStockItems.count || lowStockItems.data?.length || 0,

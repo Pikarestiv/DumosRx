@@ -17,10 +17,10 @@ export function useDailyCloseData() {
 
   // 2. Fetch sale items to calculate profit and top sellers
   const { data: itemsToday } = useLocalData<any>(
-    `SELECT si.*, m.name as medicine_name, m.cost_price as med_cost_price 
+    `SELECT si.*, m.name as product_name, m.cost_price as med_cost_price 
      FROM sale_items si 
      JOIN sales s ON si.sale_id = s.id 
-     LEFT JOIN medicines m ON si.medicine_id = m.id 
+     LEFT JOIN products m ON si.product_id = m.id 
      WHERE date(s.transaction_date) = '${reportDate}' AND (si._deleted = 0 OR si._deleted IS NULL) AND (s._deleted = 0 OR s._deleted IS NULL)`,
   );
 
@@ -37,7 +37,7 @@ export function useDailyCloseData() {
     `SELECT ri.*, m.cost_price as med_cost_price
      FROM return_items ri
      JOIN returns r ON ri.return_id = r.id
-     LEFT JOIN medicines m ON ri.medicine_id = m.id
+     LEFT JOIN products m ON ri.product_id = m.id
      WHERE date(r.created_at) = '${reportDate}' AND (ri._deleted = 0 OR ri._deleted IS NULL) AND (r._deleted = 0 OR r._deleted IS NULL)`,
   );
 
@@ -105,15 +105,15 @@ export function useDailyCloseData() {
       const cost = item.cost_price || item.med_cost_price || 0;
       totalCostPrice += cost * item.quantity;
 
-      if (!itemMap[item.medicine_id]) {
-        itemMap[item.medicine_id] = {
-          name: item.medicine_name || "Unknown",
+      if (!itemMap[item.product_id]) {
+        itemMap[item.product_id] = {
+          name: item.product_name || "Unknown",
           quantity: 0,
           revenue: 0,
         };
       }
-      itemMap[item.medicine_id].quantity += item.quantity;
-      itemMap[item.medicine_id].revenue += item.total_price;
+      itemMap[item.product_id].quantity += item.quantity;
+      itemMap[item.product_id].revenue += item.total_price;
     });
 
     returnItemsToday.forEach((item: any) => {
@@ -149,8 +149,8 @@ export function useDailyCloseData() {
       ["Transfer / Mobile", aggregatedTotals.transfer.toString()],
       ["Credit Sales", aggregatedTotals.credit.toString()],
       [],
-      ["Highest Selling Medicines"],
-      ["Medicine", "Qty Sold", "Revenue"],
+      ["Highest Selling Products"],
+      ["Product", "Qty Sold", "Revenue"],
       ...topSellingMeds.map((med) => [
         med.name,
         med.quantity.toString(),

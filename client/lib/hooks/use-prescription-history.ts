@@ -34,7 +34,7 @@ export function usePrescriptionHistory() {
         }
         itemsMap.get(item.prescription_id)!.push({
           id: item.id,
-          medicineName: item.medicine_name,
+          productName: item.product_name,
           strength: item.strength,
           dosage: item.dosage,
           quantity: item.quantity,

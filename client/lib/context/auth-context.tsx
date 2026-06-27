@@ -19,7 +19,7 @@ interface AuthContextType {
   logout: () => void;
   isAuthenticated: boolean;
   isAdmin: boolean;
-  canManageInventory: boolean;
+  canManageStockBatch: boolean;
   canProcessSales: boolean;
   changePin: (currentPin: string, newPin: string) => Promise<{ success: boolean; message: string }>;
   linkCloudAccount: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
@@ -32,7 +32,7 @@ export const checkIsAdmin = (role?: string) => {
   return normalizedRole.includes("admin") || normalizedRole.includes("manager") || normalizedRole.includes("storeowner");
 };
 
-export const checkCanManageInventory = (role?: string) => {
+export const checkCanManageStockBatch = (role?: string) => {
   if (!role) return false;
   const normalizedRole = role.toLowerCase().replace(/[^a-z_]/g, "");
   return ["admin", "manager", "specialist", "store_owner"].includes(normalizedRole);
@@ -181,7 +181,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const isAdmin = user ? checkIsAdmin(user.role) : false;
-  const canManageInventory = user ? checkCanManageInventory(user.role) : false;
+  const canManageStockBatch = user ? checkCanManageStockBatch(user.role) : false;
   const canProcessSales = user ? checkCanProcessSales(user.role) : false;
 
   return (
@@ -192,7 +192,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         logout,
         isAuthenticated: !!user,
         isAdmin,
-        canManageInventory,
+        canManageStockBatch,
         canProcessSales,
         changePin,
         linkCloudAccount,

@@ -55,9 +55,9 @@ export function DangerZoneCard({ onReset }: { onReset?: (type: string) => Promis
         title: "Clear Activity Logs",
         description: "This will permanently delete all activity and system logs for your account.",
       },
-      inventories: {
-        title: "Clear Inventory",
-        description: "Are you sure you want to wipe your online inventory stock? You will need to re-sync from your terminals.",
+      stock_batches: {
+        title: "Clear StockBatch",
+        description: "Are you sure you want to wipe your online stock_batch stock? You will need to re-sync from your terminals.",
       },
       customers: {
         title: "Clear Customers",
@@ -69,7 +69,7 @@ export function DangerZoneCard({ onReset }: { onReset?: (type: string) => Promis
       },
       all: {
         title: "Full Account Reset",
-        description: "WARNING: This will delete ALL data (Sales, Logs, Inventory, Customers). This is irreversible.",
+        description: "WARNING: This will delete ALL data (Sales, Logs, StockBatch, Customers). This is irreversible.",
       },
     };
 
@@ -168,9 +168,9 @@ export function DangerZoneCard({ onReset }: { onReset?: (type: string) => Promis
                   variant="outline" 
                   size="sm"
                   className="text-xs font-bold border-red-200 hover:bg-red-600 hover:text-white dark:border-red-900"
-                  onClick={() => handleResetClick("inventories")}
+                  onClick={() => handleResetClick("stock_batches")}
                 >
-                  Clear Inventory
+                  Clear StockBatch
                 </Button>
                 <Button 
                   variant="outline" 

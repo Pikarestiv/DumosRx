@@ -27,8 +27,8 @@ export function OverviewStats({ stats }: OverviewStatsProps) {
       bg: "bg-blue-100 dark:bg-blue-900/20",
     },
     {
-      name: "Inventory Value",
-      value: `₦${(stats?.inventory_value?.value || 0).toLocaleString()}`,
+      name: "StockBatch Value",
+      value: `₦${(stats?.stock_batch_value?.value || 0).toLocaleString()}`,
       change: "Live Stock",
       icon: Package,
       color: "text-purple-600",

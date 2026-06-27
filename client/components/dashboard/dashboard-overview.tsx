@@ -5,7 +5,7 @@ import { getLocalTodayDate } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Package, ShoppingCart, AlertTriangle, TrendingUp } from "lucide-react";
 import { useLocalData } from "@/lib/db/hooks/useLocalData";
-import { useInventoryStats } from "@/lib/hooks/use-inventory-stats";
+import { useStockBatchStats } from "@/lib/hooks/use-stock-batch-stats";
 import { useStore } from "@/lib/context/store-context";
 import { useAuth } from "@/lib/context/auth-context";
 import { DashboardStats } from "./dashboard-stats";
@@ -20,8 +20,8 @@ export function DashboardOverview() {
   const { user } = useAuth();
   const [selectedSale, setSelectedSale] = useState<any>(null);
 
-  // Single source of truth for all inventory-related stat cards
-  const inventoryStats = useInventoryStats();
+  // Single source of truth for all stock-batch-related stat cards
+  const stock_batchStats = useStockBatchStats();
 
   const isRestrictedRole = user?.role === "sales_staff" || user?.role === "specialist";
   const userFilter = isRestrictedRole && user?.id ? ` AND user_id = '${user.id}'` : "";
@@ -67,10 +67,10 @@ export function DashboardOverview() {
   const expiryDays = storeProfile?.expiry_warning_days || 30;
 
   const stats = {
-    totalMedicines: inventoryStats.activeMedicines,
+    totalProducts: stock_batchStats.activeProducts,
     dailySalesRevenue: (salesToday[0]?.total || 0) - (refundsToday[0]?.total || 0),
-    expiringSoon: inventoryStats.expiringSoonCount,
-    lowStockCount: inventoryStats.lowStockCount,
+    expiringSoon: stock_batchStats.expiringSoonCount,
+    lowStockCount: stock_batchStats.lowStockCount,
   };
 
   const activities = recentSales.map((sale: any) => ({
@@ -105,7 +105,7 @@ export function DashboardOverview() {
   const statsCards = [
     {
       title: `Total ${t("products")}`,
-      value: stats.totalMedicines.toLocaleString(),
+      value: stats.totalProducts.toLocaleString(),
       description: `Active ${t("products").toLowerCase()} in stock`,
       icon: Package,
       trend: "In database",
@@ -133,7 +133,7 @@ export function DashboardOverview() {
     },
   ];
 
-  if (inventoryStats.loading && !salesToday.length) {
+  if (stock_batchStats.loading && !salesToday.length) {
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

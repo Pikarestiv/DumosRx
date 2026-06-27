@@ -14,7 +14,7 @@ import type {
 interface PrescriptionMedicationsProps {
   formData: NewPrescriptionForm;
   newMedication: {
-    medicineName: string;
+    productName: string;
     strength: string;
     dosage: string;
     quantity: number | "";
@@ -23,7 +23,7 @@ interface PrescriptionMedicationsProps {
     refillIntervalDays: number | "";
   };
   setNewMedication: React.Dispatch<React.SetStateAction<any>>;
-  availableMedicines: any[];
+  availableProducts: any[];
   addMedication: () => void;
   removeMedication: (id: string) => void;
   editMedication: (id: string) => void;
@@ -35,29 +35,29 @@ export function PrescriptionMedications({
   formData,
   newMedication,
   setNewMedication,
-  availableMedicines,
+  availableProducts,
   addMedication,
   removeMedication,
   editMedication,
   formatCurrency,
   totalCost,
 }: PrescriptionMedicationsProps) {
-  const uniqueMedicineNames = React.useMemo(() => {
+  const uniqueProductNames = React.useMemo(() => {
     return Array.from(
-      new Set(availableMedicines.map((m) => m.name).filter(Boolean)),
+      new Set(availableProducts.map((m) => m.name).filter(Boolean)),
     );
-  }, [availableMedicines]);
+  }, [availableProducts]);
 
   const strengthOptions = React.useMemo(() => {
     return Array.from(
       new Set(
-        availableMedicines
-          .filter((m) => m.name === newMedication.medicineName)
+        availableProducts
+          .filter((m) => m.name === newMedication.productName)
           .map((m) => m.strength)
           .filter(Boolean),
       ),
     );
-  }, [availableMedicines, newMedication.medicineName]);
+  }, [availableProducts, newMedication.productName]);
 
   return (
     <Card>
@@ -73,19 +73,19 @@ export function PrescriptionMedications({
           <h4 className="font-medium mb-3">Add Medication</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label>Medicine Name *</Label>
+              <Label>Product Name *</Label>
               <Combobox
-                options={uniqueMedicineNames}
-                value={newMedication.medicineName}
+                options={uniqueProductNames}
+                value={newMedication.productName}
                 onChange={(value) => {
                   setNewMedication((prev: any) => ({
                     ...prev,
-                    medicineName: value,
+                    productName: value,
                     strength: "",
                   }));
                 }}
-                placeholder="Select medicine"
-                emptyText="No medicine found."
+                placeholder="Select product"
+                emptyText="No product found."
               />
             </div>
 
@@ -101,7 +101,7 @@ export function PrescriptionMedications({
                   }))
                 }
                 disabled={
-                  !newMedication.medicineName || strengthOptions.length === 0
+                  !newMedication.productName || strengthOptions.length === 0
                 }
                 placeholder="Select strength"
                 emptyText="No strength found."
@@ -213,7 +213,7 @@ export function PrescriptionMedications({
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <h5 className="font-medium">{medication.medicineName}</h5>
+                      <h5 className="font-medium">{medication.productName}</h5>
                       <Badge variant="outline" className="text-xs">
                         {medication.strength}
                       </Badge>

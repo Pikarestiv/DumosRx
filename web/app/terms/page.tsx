@@ -55,7 +55,7 @@ export default function TermsOfServicePage() {
               2. Acceptable Use
             </h2>
             <p>
-              You agree to use DumosRx only for lawful business administration, inventory control, and checkout operations. You are strictly prohibited from:
+              You agree to use DumosRx only for lawful business administration, stock_batch control, and checkout operations. You are strictly prohibited from:
             </p>
             <ul className="list-disc pl-6 space-y-1">
               <li>Tampering with system subscription checks or bypassing client-side license verification.</li>

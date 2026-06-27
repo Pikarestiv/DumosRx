@@ -47,7 +47,7 @@ export function usePurchasePatterns(dateFilter: string) {
            ORDER BY COUNT(*) DESC
          ) as rn
        FROM sale_items si
-       JOIN medicines m ON si.medicine_id = m.id
+       JOIN products m ON si.product_id = m.id
        LEFT JOIN categories c ON m.category_id = c.id
        JOIN sales s ON si.sale_id = s.id
        WHERE s.transaction_date >= ? AND s._deleted = 0

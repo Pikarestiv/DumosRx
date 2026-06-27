@@ -8,7 +8,7 @@ import { isTauri } from "@/lib/db/local-database";
 export interface StockAdjustment {
   id: string;
   date: string;
-  medicine: string;
+  product: string;
   adjustmentType: "increase" | "decrease";
   quantity: number;
   reason: string;
@@ -29,7 +29,7 @@ export function useStockAdjustments() {
   );
   const [searchTerm, setSearchTerm] = useState("");
   const [newAdjustment, setNewAdjustment] = useState({
-    medicine: searchParams.get("medicine") || "",
+    product: searchParams.get("product") || "",
     adjustmentType: "decrease" as "increase" | "decrease",
     quantity: 0,
     reason: "",
@@ -41,7 +41,7 @@ export function useStockAdjustments() {
     if (searchParams.get("action") === "adjust") {
       const params = new URLSearchParams(searchParams.toString());
       params.delete("action");
-      params.delete("medicine");
+      params.delete("product");
       router.replace(`${pathname}?${params.toString()}`);
     }
   }, [searchParams, pathname, router]);
@@ -73,7 +73,7 @@ export function useStockAdjustments() {
         const items = (res.data || []).map((a: any) => ({
           id: a.id,
           date: a.created_at || a.date,
-          medicine: a.medicine?.name || a.medicine_name || "Unknown",
+          product: a.product?.name || a.product_name || "Unknown",
           adjustmentType: a.adjustment_type || a.type || "decrease",
           quantity: a.quantity || 0,
           reason: a.reason || "",
@@ -95,7 +95,7 @@ export function useStockAdjustments() {
     e.preventDefault();
 
     if (
-      !newAdjustment.medicine ||
+      !newAdjustment.product ||
       !newAdjustment.reason ||
       newAdjustment.quantity === 0
     ) {
@@ -111,37 +111,37 @@ export function useStockAdjustments() {
     if (isTauri()) {
       try {
         const { query, execute } = await import("@/lib/db/core");
-        // Resolve medicine ID from the name selection
+        // Resolve product ID from the name selection
         const med = await query<any>(
-          "SELECT id FROM medicines WHERE name = ? LIMIT 1",
-          [newAdjustment.medicine],
+          "SELECT id FROM products WHERE name = ? LIMIT 1",
+          [newAdjustment.product],
         );
         if (!med || med.length === 0) {
           toast.error(
-            "Selected medicine not found in database. Please enter or register a valid medicine.",
+            "Selected product not found in database. Please enter or register a valid product.",
           );
           return;
         }
-        const medicineId = med[0].id;
+        const productId = med[0].id;
         const uuid = crypto.randomUUID();
 
         // Insert stock movement record
         await execute(
-          `INSERT INTO stock_movements (id, medicine_id, movement_type, quantity, reason, created_at, _synced) 
+          `INSERT INTO stock_movements (id, product_id, movement_type, quantity, reason, created_at, _synced) 
            VALUES (?, ?, 'adjustment', ?, ?, ?, 0)`,
           [
             uuid,
-            medicineId,
+            productId,
             calculatedQty,
             newAdjustment.reason,
             new Date().toISOString(),
           ],
         );
 
-        // Adjust medicine stock level locally
+        // Adjust product stock level locally
         await execute(
-          `UPDATE medicines SET stock_quantity = stock_quantity + ?, updated_at = ? WHERE id = ?`,
-          [calculatedQty, new Date().toISOString(), medicineId],
+          `UPDATE products SET stock_quantity = stock_quantity + ?, updated_at = ? WHERE id = ?`,
+          [calculatedQty, new Date().toISOString(), productId],
         );
       } catch (err) {
         console.error("Failed to apply local adjustment:", err);
@@ -153,7 +153,7 @@ export function useStockAdjustments() {
     const adjustment: StockAdjustment = {
       id: Date.now().toString(),
       date: new Date().toISOString(),
-      medicine: newAdjustment.medicine,
+      product: newAdjustment.product,
       adjustmentType: newAdjustment.adjustmentType,
       quantity: calculatedQty,
       reason: newAdjustment.reason,
@@ -164,7 +164,7 @@ export function useStockAdjustments() {
 
     setAdjustments([adjustment, ...adjustments]);
     setNewAdjustment({
-      medicine: "",
+      product: "",
       adjustmentType: "decrease",
       quantity: 0,
       reason: "",

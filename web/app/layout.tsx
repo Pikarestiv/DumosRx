@@ -18,7 +18,7 @@ export const metadata: Metadata = {
     template: "%s | DumosRx",
   },
   description: "Professional business management system for retail stores. Offline-first, cloud-synced, and built for growth.",
-  keywords: ["store management", "retail OS", "offline POS", "inventory management", "DumosRx"],
+  keywords: ["store management", "retail OS", "offline POS", "stock_batch management", "DumosRx"],
   authors: [{ name: "Dumos Technologies" }],
   creator: "Dumos Technologies",
   publisher: "Dumos Technologies",

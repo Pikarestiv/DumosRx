@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { ArrowLeft, Printer } from "lucide-react";
 import {
   fetchSalesReportData,
-  fetchInventoryReportData,
+  fetchStockBatchReportData,
   fetchProfitLossReportData,
   fetchCustomerReportData,
   fetchExpensesReportData,
@@ -46,9 +46,9 @@ function PrintReportContent() {
             rows = await fetchSalesReportData(dateFrom, dateTo);
             cols = ["Transaction #", "Date", "Customer", "Payment Method", "Subtotal", "Tax", "Discount", "Total", "Status"];
             break;
-          case "inventories":
-            rows = await fetchInventoryReportData();
-            cols = ["Medicine", "Generic Name", "Form", "Strength", "Stock Qty", "Reorder Level", "Cost Price", "Selling Price", "Stock Value", "Nearest Expiry"];
+          case "stock_batches":
+            rows = await fetchStockBatchReportData();
+            cols = ["Product", "Generic Name", "Form", "Strength", "Stock Qty", "Reorder Level", "Cost Price", "Selling Price", "Stock Value", "Nearest Expiry"];
             break;
           case "profit-loss":
             rows = await fetchProfitLossReportData(dateFrom, dateTo);
@@ -116,7 +116,7 @@ function PrintReportContent() {
 
   const reportTitleMap: Record<string, string> = {
     "sales": "Sales Report",
-    "inventories": "Inventory Valuation Report",
+    "stock_batches": "StockBatch Valuation Report",
     "profit-loss": "Profit & Loss Summary",
     "customers": "Customer Loyalty Report",
     "expenses": "Expenses Report"

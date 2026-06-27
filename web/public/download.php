@@ -29,11 +29,11 @@ if ($response) {
 if ($os === 'windows') {
     $downloadUrl = "https://downloads.dumosrx.com/v{$version}/DumosRx_{$version}_x64_en-US.msi";
 } elseif ($os === 'macos') {
-    $downloadUrl = "https://downloads.dumosrx.com/v{$version}/DumosRx_{$version}_x64.dmg";
+    $downloadUrl = "https://downloads.dumosrx.com/v{$version}/DumosRx_{$version}_aarch64.dmg";
 } elseif ($os === 'linux') {
     $downloadUrl = "https://downloads.dumosrx.com/v{$version}/DumosRx_{$version}_amd64.AppImage";
 } elseif ($os === 'android') {
-    $downloadUrl = "https://downloads.dumosrx.com/v{$version}/app-release.apk";
+    $downloadUrl = "https://downloads.dumosrx.com/v{$version}/DumosRx-Android.apk";
 }
 
 if ($downloadUrl) {

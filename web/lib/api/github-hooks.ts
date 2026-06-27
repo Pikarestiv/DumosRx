@@ -37,9 +37,9 @@ export const useLatestRelease = () => {
 
       return {
         windows: `https://downloads.dumosrx.com/v${cleanVersion}/DumosRx_${cleanVersion}_x64_en-US.msi`,
-        macos: `https://downloads.dumosrx.com/v${cleanVersion}/DumosRx_${cleanVersion}_x64.dmg`,
+        macos: `https://downloads.dumosrx.com/v${cleanVersion}/DumosRx_${cleanVersion}_aarch64.dmg`,
         linux: `https://downloads.dumosrx.com/v${cleanVersion}/DumosRx_${cleanVersion}_amd64.AppImage`,
-        android: `https://downloads.dumosrx.com/v${cleanVersion}/app-release.apk`,
+        android: `https://downloads.dumosrx.com/v${cleanVersion}/DumosRx-Android.apk`,
         version: version,
         winSize: "",
         macSize: "",

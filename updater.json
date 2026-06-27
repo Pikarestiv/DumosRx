@@ -1,23 +1,23 @@
 {
-  "version": "0.0.19",
-  "notes": "DumosRx Production Release v0.0.19. Standardized store owner roles and schemas.",
+  "version": "0.0.20",
+  "notes": "DumosRx Production Release v0.0.20. Standardized store owner roles and schemas.",
   "pub_date": "2026-06-27T18:00:00Z",
   "platforms": {
     "windows-x86_64": {
       "signature": "",
-      "url": "https://downloads.dumosrx.com/v0.0.20/DumosRx_0.0.19_x64_en-US.msi"
+      "url": "https://downloads.dumosrx.com/v0.0.20/DumosRx_0.0.20_x64_en-US.msi"
     },
     "darwin-aarch64": {
       "signature": "",
-      "url": "https://downloads.dumosrx.com/v0.0.20/DumosRx_0.0.19_aarch64.dmg"
+      "url": "https://downloads.dumosrx.com/v0.0.20/DumosRx_0.0.20_aarch64.dmg"
     },
     "darwin-x86_64": {
       "signature": "",
-      "url": "https://downloads.dumosrx.com/v0.0.20/DumosRx_0.0.19_x64.dmg"
+      "url": "https://downloads.dumosrx.com/v0.0.20/DumosRx_0.0.20_x64.dmg"
     },
     "linux-x86_64": {
       "signature": "",
-      "url": "https://downloads.dumosrx.com/v0.0.20/DumosRx_0.0.19_amd64.AppImage"
+      "url": "https://downloads.dumosrx.com/v0.0.20/DumosRx_0.0.20_amd64.AppImage"
     }
   }
 }

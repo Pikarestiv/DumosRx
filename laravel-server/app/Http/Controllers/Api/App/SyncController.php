@@ -246,10 +246,19 @@ class SyncController extends Controller
                         }
                         
                         $model->save();
+
+                        // Handle _deleted flag for soft deletes
+                        if (isset($payload['_deleted']) && $payload['_deleted']) {
+                            if (\method_exists($model, 'trashed')) {
+                                $model->delete();
+                            }
+                        }
                     }
                 } elseif ($change['operation'] === 'UPDATE') {
                     $recordId = $change['record_id'] ?? ($payload['id'] ?? null);
-                    $model = $modelClass::find($recordId);
+                    // Use withTrashed to ensure we can find soft-deleted items to restore them if needed
+                    $model = \method_exists($modelClass, 'trashed') ? $modelClass::withTrashed()->find($recordId) : $modelClass::find($recordId);
+                    
                     if ($model) {
                         $model->fill($payload);
                         
@@ -274,6 +283,17 @@ class SyncController extends Controller
                         }
 
                         $model->save();
+
+                        // Handle _deleted flag for soft deletes on update
+                        if (isset($payload['_deleted'])) {
+                            if (\method_exists($model, 'trashed')) {
+                                if ($payload['_deleted'] && !$model->trashed()) {
+                                    $model->delete();
+                                } elseif (!$payload['_deleted'] && $model->trashed()) {
+                                    $model->restore();
+                                }
+                            }
+                        }
                     }
                 } elseif ($change['operation'] === 'DELETE') {
                     $modelClass::where('id', $change['record_id'])->delete();

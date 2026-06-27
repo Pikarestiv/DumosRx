@@ -102,7 +102,7 @@ export function DashboardClient({ view, subView }: { view: string, subView?: str
       case "notifications":
         return <NotificationsView onBack={() => setActiveTab("overview")} />;
       case "profile":
-        return <ProfileView />;
+        return <ProfileView onReset={resetAccountData} />;
       default:
         return (
           <OverviewView

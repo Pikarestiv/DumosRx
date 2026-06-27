@@ -58,6 +58,7 @@ class DashboardService
         try {
             $inventoryStats = DB::table('medicines')
                 ->whereIn('user_id', $userIds)
+                ->whereNull('deleted_at')
                 ->select(DB::raw('SUM(stock_quantity * cost_price) as total_value'))
                 ->first();
             $inventoryValue = (float)($inventoryStats->total_value ?? 0);
@@ -125,15 +126,15 @@ class DashboardService
             $storeDailySales = (float)Sale::whereIn('cashier_id', $cashierIds)->whereDate('created_at', Carbon::today())->sum('total_amount');
             
             // Inventory
-            $storeInventory = DB::table('medicines')->whereIn('user_id', $cashierIds);
+            $storeInventory = DB::table('medicines')->whereIn('user_id', $cashierIds)->whereNull('deleted_at');
             $totalInventory = $storeInventory->count();
-            $lowStock = DB::table('medicines')->whereIn('user_id', $cashierIds)->whereColumn('stock_quantity', '<=', 'reorder_level')->count();
+            $lowStock = DB::table('medicines')->whereIn('user_id', $cashierIds)->whereNull('deleted_at')->whereColumn('stock_quantity', '<=', 'reorder_level')->count();
             
             // Expiring Items (Medicines table currently doesn't track expiry date in the base schema)
             $expiringItems = 0;
                 
             // Recent Transactions
-            $recentTransactions = Sale::whereIn('cashier_id', $cashierIds)
+            $recentTransactions = Sale::with('cashier')->whereIn('cashier_id', $cashierIds)
                 ->orderBy('created_at', 'desc')
                 ->limit(5)
                 ->get()
@@ -147,7 +148,9 @@ class DashboardService
                         'id' => $sale->id,
                         'transaction_number' => $sale->transaction_number,
                         'total_amount' => $sale->total_amount,
+                        'payment_method' => $sale->payment_method,
                         'created_at' => $sale->created_at,
+                        'cashier_name' => $sale->cashier ? ($sale->cashier->name ?? trim($sale->cashier->first_name . ' ' . $sale->cashier->last_name)) : 'Unknown',
                         'items' => $items
                     ];
                 });

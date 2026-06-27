@@ -31,7 +31,6 @@ import { toast } from "sonner";
 import { useSubscriptionStatus } from "@/lib/api/hooks";
 import { webApiClient } from "@/lib/api/client";
 import { OverviewStats } from "./overview-stats";
-import { OverviewDangerZone } from "./overview-danger-zone";
 
 interface OverviewViewProps {
   stats: any;
@@ -199,8 +198,6 @@ export function OverviewView({ stats, user, stores, onReset, onNavigate: _onNavi
               </div>
             </CardContent>
           </Card>
-
-          <OverviewDangerZone onReset={onReset} />
         </div>
       </div>
     </div>

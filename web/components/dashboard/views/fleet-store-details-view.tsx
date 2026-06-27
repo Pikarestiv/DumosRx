@@ -340,11 +340,16 @@ export function FleetStoreDetailsView({
           <div className="py-4">
             <div className="space-y-4">
               <div className="flex justify-between items-center text-sm font-medium text-muted-foreground">
-                <span>
-                  Date:{" "}
-                  {viewingTransaction &&
-                    new Date(viewingTransaction.created_at).toLocaleString()}
-                </span>
+                <div className="flex flex-col">
+                  <span>
+                    Date:{" "}
+                    {viewingTransaction &&
+                      new Date(viewingTransaction.created_at).toLocaleString()}
+                  </span>
+                  <span>
+                    Cashier: {viewingTransaction?.cashier_name || "Unknown"}
+                  </span>
+                </div>
                 <span>Items: {viewingTransaction?.items?.length || 0}</span>
               </div>
 

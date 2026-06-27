@@ -9,7 +9,7 @@ interface User {
   first_name: string;
   last_name: string;
   username: string;
-  role: "super_admin" | "admin" | "manager" | "specialist" | "sales_staff" | "auditor";
+  role: "super_admin" | "store_owner" | "admin" | "manager" | "specialist" | "sales_staff" | "auditor";
   store_id?: string;
 }
 

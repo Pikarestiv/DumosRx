@@ -12,7 +12,7 @@ import {
   TableRow 
 } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/utils";
-import { useAuthStore } from "@/lib/auth/store";
+import { useAuth } from "@/lib/context/auth-context";
 
 interface POSTransactionHistoryProps {
   recentSales: any[];
@@ -29,7 +29,7 @@ export function POSTransactionHistory({
   currencyCode
 }: POSTransactionHistoryProps) {
   const [selectedSale, setSelectedSale] = useState<any>(null);
-  const { user } = useAuthStore();
+  const { user } = useAuth();
   const canReturn = user?.role === "store_owner" || user?.role === "admin" || user?.role === "manager";
 
   return (

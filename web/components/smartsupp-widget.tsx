@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useAuthStore } from "@/lib/store/use-auth-store";
+import { usePathname } from "next/navigation";
 
 interface SmartSuppWidgetProps {
   chatKey: string;
@@ -13,20 +14,25 @@ interface SmartSuppWidgetProps {
  */
 export function SmartSuppWidget({ chatKey }: SmartSuppWidgetProps) {
   const user = useAuthStore((s) => s.user);
+  const pathname = usePathname() || "";
+
+  const isDashboard = pathname.startsWith("/dashboard");
+  const isAdmin = pathname.startsWith("/admin") && pathname !== "/admin/login";
+
+  // Visible everywhere EXCEPT dashboard and secure admin pages
+  // But explicitly allow it on /dashboard/support
+  let isVisible = !(isDashboard || isAdmin);
+  
+  if (pathname.includes("/dashboard/support")) {
+    isVisible = true;
+  }
 
   useEffect(() => {
     if (!chatKey) return;
 
-    const setupVisibility = () => {
-      document.body.classList.add("smartsupp-visible");
-      return () => {
-        document.body.classList.remove("smartsupp-visible");
-      };
-    };
-
     // Avoid double-injection
     if (document.getElementById("smartsupp-script")) {
-      return setupVisibility();
+      return;
     }
 
     // Bootstrap Smartsupp global
@@ -45,7 +51,6 @@ export function SmartSuppWidget({ chatKey }: SmartSuppWidgetProps) {
     script.src = "https://www.smartsuppchat.com/loader.js?";
     document.head.appendChild(script);
 
-    return setupVisibility();
   }, [chatKey]);
 
   // Identify user once logged in (or clear identity on logout)
@@ -67,6 +72,19 @@ export function SmartSuppWidget({ chatKey }: SmartSuppWidgetProps) {
       } catch (_) {}
     }
   }, [user]);
+
+  if (!isVisible) {
+    return (
+      <style dangerouslySetInnerHTML={{ __html: `
+        #smartsupp-widget-container, div[id^="smartsupp"], iframe[name^="smartsupp"] {
+          display: none !important;
+          opacity: 0 !important;
+          visibility: hidden !important;
+          pointer-events: none !important;
+        }
+      `}} />
+    );
+  }
 
   return null;
 }

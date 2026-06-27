@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { format } from "date-fns";
+import { useSearchParams } from "next/navigation";
 import {
   Activity,
   Search,
@@ -208,9 +209,12 @@ export function ActivitiesView({ stores = [] }: { stores?: StoreProp[] }) {
     : Array.isArray(response)
       ? response
       : [];
+  const searchParams = useSearchParams();
+  const defaultStoreId = searchParams?.get('storeId') || "all";
+
   const [search, setSearch] = useState("");
   const [filterAction, setFilterAction] = useState("all");
-  const [filterStore, setFilterStore] = useState("all");
+  const [filterStore, setFilterStore] = useState(defaultStoreId);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
 
@@ -244,12 +248,11 @@ export function ActivitiesView({ stores = [] }: { stores?: StoreProp[] }) {
       detailsStr.toLowerCase().includes(search.toLowerCase()) ||
       tableNameStr.includes(search.toLowerCase()) ||
       userNameStr.toString().toLowerCase().includes(search.toLowerCase());
-    const matchesAction =
-      filterAction === "all" ||
-      log.action?.toLowerCase() === filterAction.toLowerCase();
-    const matchesStore =
-      filterStore === "all" || log.user?.store_id?.toString() === filterStore;
-
+    const matchesAction = filterAction === "all" || log.action?.toLowerCase() === filterAction.toLowerCase();
+    const matchesStore = filterStore === "all" || 
+                         log.user?.store_id?.toString() === filterStore ||
+                         !log.user?.store_id; // Include admin logs in all store filters since they lack a specific store_id
+    
     return matchesSearch && matchesAction && matchesStore;
   });
 

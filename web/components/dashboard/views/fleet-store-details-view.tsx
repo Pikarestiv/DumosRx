@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Circle, Activity, ShoppingCart, ChevronLeft, ChevronRight } from "lucide-react";
+import { Circle, Activity, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -37,8 +37,6 @@ export function FleetStoreDetailsView({
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("overview");
   const [viewingTransaction, setViewingTransaction] = useState<any>(null);
-  const [currentActivityPage, setCurrentActivityPage] = useState(1);
-  const activityPageSize = 5;
 
   if (!storeId || !stores) return null;
   const store = stores.find((s: any) => s.id.toString() === storeId);
@@ -196,9 +194,12 @@ export function FleetStoreDetailsView({
         {activeTab === "activities" && (
           <div className="space-y-3">
             {(() => {
-              const filteredActivities = store.recent_activities ? store.recent_activities.filter((act: any) => filterIndirectSaleLogs(store.recent_activities, act)) : [];
-              const totalActivityPages = Math.ceil(filteredActivities.length / activityPageSize);
-              const paginatedActivities = filteredActivities.slice((currentActivityPage - 1) * activityPageSize, currentActivityPage * activityPageSize);
+              const filteredActivities = store.recent_activities
+                ? store.recent_activities.filter((act: any) =>
+                    filterIndirectSaleLogs(store.recent_activities, act),
+                  )
+                : [];
+              const previewActivities = filteredActivities.slice(0, 10);
 
               return filteredActivities.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
@@ -209,77 +210,67 @@ export function FleetStoreDetailsView({
                 </div>
               ) : (
                 <>
-                  {paginatedActivities.map((act: any) => (
+                  {previewActivities.map((act: any) => (
                     <div
-                  key={act.id}
-                  className="p-4 border rounded-xl flex items-start gap-4"
-                >
-                  <div className="mt-1">
-                    <Activity className="h-5 w-5 text-indigo-500" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold text-sm flex items-center gap-2">
-                      <span className="uppercase tracking-wider text-[10px] bg-muted px-2 py-0.5 rounded">
-                        {act.action}
-                      </span>
-                      <span>
-                        {act.table_name ||
-                          act.properties?.table_name ||
-                          "System"}
-                      </span>
-                    </p>
-                    <ActivityDetails 
-                      details={act.details || act.properties?.details || act.description} 
-                      tableName={act.table_name || act.properties?.table_name} 
-                      action={act.action} 
-                    />
-                  </div>
-                  <div className="text-right whitespace-nowrap">
-                    <p className="text-xs font-bold">
-                      {act.user?.name || act.user?.first_name || "System"}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">
-                      {new Date(act.created_at).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-              ))}
-              
-              {totalActivityPages > 1 && (
-                <div className="flex items-center justify-between pt-4 border-t border-muted mt-4">
-                  <div className="text-xs text-muted-foreground font-medium">
-                    Showing {(currentActivityPage - 1) * activityPageSize + 1} to {Math.min(currentActivityPage * activityPageSize, filteredActivities.length)} of {filteredActivities.length} entries
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setCurrentActivityPage(prev => Math.max(prev - 1, 1))}
-                      disabled={currentActivityPage === 1}
-                      className="h-8 px-2 border-muted"
+                      key={act.id}
+                      className="p-4 border rounded-xl flex items-start gap-4"
                     >
-                      <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <div className="text-xs font-bold min-w-[3rem] text-center">
-                      {currentActivityPage} / {totalActivityPages}
+                      <div className="mt-1">
+                        <Activity className="h-5 w-5 text-indigo-500" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-sm flex items-center gap-2">
+                          <span className="uppercase tracking-wider text-[10px] bg-muted px-2 py-0.5 rounded">
+                            {act.action}
+                          </span>
+                          <span>
+                            {act.table_name ||
+                              act.properties?.table_name ||
+                              "System"}
+                          </span>
+                        </p>
+                        <ActivityDetails
+                          details={
+                            act.details ||
+                            act.properties?.details ||
+                            act.description
+                          }
+                          tableName={
+                            act.table_name || act.properties?.table_name
+                          }
+                          action={act.action}
+                        />
+                      </div>
+                      <div className="text-right whitespace-nowrap">
+                        <p className="text-xs font-bold">
+                          {act.user?.name || act.user?.first_name || "System"}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          {new Date(act.created_at).toLocaleString()}
+                        </p>
+                      </div>
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setCurrentActivityPage(prev => Math.min(prev + 1, totalActivityPages))}
-                      disabled={currentActivityPage === totalActivityPages}
-                      className="h-8 px-2 border-muted"
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </>
-            );
-          })()}
-        </div>
-      )}
+                  ))}
+                  {filteredActivities.length > 0 && (
+                    <div className="pt-4 flex justify-center">
+                      <Button
+                        variant="outline"
+                        className="w-full text-primary border-primary hover:text-white hover:bg-primary"
+                        onClick={() =>
+                          router.push(
+                            `/dashboard/activities?storeId=${storeId}`,
+                          )
+                        }
+                      >
+                        View All Activities
+                      </Button>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+          </div>
+        )}
 
         {activeTab === "transactions" && (
           <div className="space-y-4">
@@ -304,8 +295,8 @@ export function FleetStoreDetailsView({
                   </TableHeader>
                   <TableBody>
                     {store.recent_transactions.map((trx: any) => (
-                      <TableRow 
-                        key={trx.id} 
+                      <TableRow
+                        key={trx.id}
                         className="cursor-pointer hover:bg-muted/50"
                         onClick={() => setViewingTransaction(trx)}
                       >
@@ -336,23 +327,37 @@ export function FleetStoreDetailsView({
         )}
       </div>
 
-      <Dialog open={!!viewingTransaction} onOpenChange={() => setViewingTransaction(null)}>
+      <Dialog
+        open={!!viewingTransaction}
+        onOpenChange={() => setViewingTransaction(null)}
+      >
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Receipt #{viewingTransaction?.transaction_number}</DialogTitle>
+            <DialogTitle>
+              Receipt #{viewingTransaction?.transaction_number}
+            </DialogTitle>
           </DialogHeader>
           <div className="py-4">
             <div className="space-y-4">
               <div className="flex justify-between items-center text-sm font-medium text-muted-foreground">
-                <span>Date: {viewingTransaction && new Date(viewingTransaction.created_at).toLocaleString()}</span>
+                <span>
+                  Date:{" "}
+                  {viewingTransaction &&
+                    new Date(viewingTransaction.created_at).toLocaleString()}
+                </span>
                 <span>Items: {viewingTransaction?.items?.length || 0}</span>
               </div>
-              
+
               <div className="border rounded-md divide-y">
                 {viewingTransaction?.items?.map((item: any) => (
-                  <div key={item.id} className="p-3 flex justify-between items-center">
+                  <div
+                    key={item.id}
+                    className="p-3 flex justify-between items-center"
+                  >
                     <div>
-                      <p className="font-medium">{item.medicine_name || "Item"}</p>
+                      <p className="font-medium">
+                        {item.medicine_name || "Item"}
+                      </p>
                       <p className="text-xs text-muted-foreground">
                         {item.quantity} x ₦{item.unit_price}
                       </p>
@@ -364,7 +369,9 @@ export function FleetStoreDetailsView({
 
               <div className="flex justify-between items-center pt-4 border-t">
                 <span className="font-bold">Total Amount</span>
-                <span className="font-black text-green-600 text-lg">₦{viewingTransaction?.total_amount}</span>
+                <span className="font-black text-green-600 text-lg">
+                  ₦{viewingTransaction?.total_amount}
+                </span>
               </div>
             </div>
           </div>

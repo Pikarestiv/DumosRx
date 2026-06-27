@@ -10,6 +10,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { initDatabase, query } from "../local-database";
 
+const EMPTY_ARRAY: any[] = [];
+
 export interface UseLocalDataOptions<T> {
   /** Initial data while loading */
   initialData?: T[];
@@ -41,7 +43,7 @@ export function useLocalData<T = Record<string, unknown>>(
   params: (string | number | null | Uint8Array)[] = [],
   options: UseLocalDataOptions<T> = {},
 ): UseLocalDataResult<T> {
-  const { initialData = [], transform, refreshInterval = 0 } = options;
+  const { initialData = EMPTY_ARRAY as T[], transform, refreshInterval = 0 } = options;
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['localData', sql, params],

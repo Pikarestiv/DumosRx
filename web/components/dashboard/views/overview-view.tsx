@@ -40,7 +40,7 @@ interface OverviewViewProps {
   onNavigate?: (tab: string) => void;
 }
 
-export function OverviewView({ stats, user, stores, onReset, onNavigate: _onNavigate }: OverviewViewProps) {
+export function OverviewView({ stats, user, stores, onReset: _onReset, onNavigate: _onNavigate }: OverviewViewProps) {
   const { data: subscription } = useSubscriptionStatus();
   const router = useRouter();
   

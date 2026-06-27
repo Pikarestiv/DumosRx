@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { GITHUB_REPO, APP_VERSION } from "@/lib/constants";
+import { APP_VERSION } from "@/lib/constants";
 
 export interface ReleaseLinks {
   windows: string;
@@ -13,11 +13,6 @@ export interface ReleaseLinks {
   androidSize: string;
 }
 
-const formatSize = (bytes: number) => {
-  if (!bytes) return "";
-  return (bytes / (1024 * 1024)).toFixed(1) + " MB";
-};
-
 export const useLatestRelease = () => {
   return useQuery({
     queryKey: ["github-latest-release"],
@@ -29,11 +24,13 @@ export const useLatestRelease = () => {
           const data = await res.json();
           if (data.version) version = data.version;
         }
-      } catch (e) {
-        console.warn("Failed to fetch updater.json, using fallback APP_VERSION");
+      } catch (_e) {
+        console.warn(
+          "Failed to fetch updater.json, using fallback APP_VERSION",
+        );
       }
-      
-      const cleanVersion = version.replace(/^v/, '');
+
+      const cleanVersion = version.replace(/^v/, "");
 
       return {
         windows: `https://downloads.dumosrx.com/v${cleanVersion}/DumosRx_${cleanVersion}_x64_en-US.msi`,

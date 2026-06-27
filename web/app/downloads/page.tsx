@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { APP_VERSION, GITHUB_REPO } from "@/lib/constants";
+import { APP_VERSION } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import {
   Card,

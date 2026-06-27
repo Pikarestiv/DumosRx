@@ -318,9 +318,17 @@ class DashboardService
                         $query->where('user_id', $userId);
                         Log::info("Clearing inventory for user: {$userId}");
                         $query->delete(); 
-                        $message = $type === 'all' ? "All data cleared." : "Inventory records cleared.";
                     }
                 }
+                if (Schema::hasTable('medicines')) {
+                    $query = \App\Models\Medicine::query();
+                    if (Schema::hasColumn('medicines', 'user_id')) {
+                        $query->where('user_id', $userId);
+                        Log::info("Clearing medicines for user: {$userId}");
+                        $query->delete(); 
+                    }
+                }
+                $message = $type === 'all' ? "All data cleared." : "Inventory records cleared.";
             }
 
             if ($type === 'all' || $type === 'stores') {

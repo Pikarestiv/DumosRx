@@ -141,13 +141,37 @@ class SyncController extends Controller
                 $tablesWithUserId = [
                     'sales', 'customers', 'medicines', 'inventories', 
                     'subscriptions', 'payment_transactions', 'categories', 
-                    'suppliers', 'prescriptions'
+                    'suppliers', 'vendors', 'prescriptions', 'store_profile', 'stores'
                 ];
                 if (in_array($change['table_name'], $tablesWithUserId)) {
                     if (!isset($payload['user_id']) || empty($payload['user_id'])) {
                         if ($currentUser) {
                             $payload['user_id'] = $currentUser->id;
                         }
+                    }
+
+                // Inject device_id for stores if missing
+                if ($change['table_name'] === 'store_profile' || $change['table_name'] === 'stores') {
+                    if (empty($payload['device_id'])) {
+                        $payload['device_id'] = $request->header('X-Device-Id') ?? 'web-client';
+                    }
+                }
+                }
+
+                // Prevent NULL constraint violations for medicines
+                if ($change['table_name'] === 'medicines') {
+                    if (empty($payload['pack_size'])) {
+                        $payload['pack_size'] = 1;
+                    }
+                    if (empty($payload['unit_of_measure'])) {
+                        $payload['unit_of_measure'] = 'piece';
+                    }
+                }
+
+                // Prevent NULL constraint violations for suppliers/vendors
+                if ($change['table_name'] === 'suppliers' || $change['table_name'] === 'vendors') {
+                    if (empty($payload['payment_terms']) || $payload['payment_terms'] === 'null') {
+                        $payload['payment_terms'] = 30; // Default fallback
                     }
                 }
 
@@ -171,15 +195,30 @@ class SyncController extends Controller
                     unset($payload['id']);
                 }
 
-                if ($change['operation'] === 'INSERT') {
-                    $recordId = $change['record_id'] ?? ($payload['id'] ?? null);
-                    
+                $recordId = $change['record_id'] ?? ($payload['id'] ?? null);
+
+                if ($change['operation'] === 'INSERT' && $recordId) {
                     if ($change['table_name'] === 'audit_logs') {
                         $exists = $modelClass::where('properties->client_id', $recordId)->exists();
                     } else {
-                        $exists = $modelClass::where('id', $recordId)->exists();
+                        // Use withTrashed to catch soft-deleted items so we don't get Duplicate Entry crashes
+                        $exists = \method_exists($modelClass, 'trashed') 
+                            ? $modelClass::withTrashed()->where('id', $recordId)->exists() 
+                            : $modelClass::where('id', $recordId)->exists();
                     }
-                    
+
+                    if ($exists) {
+                        // If it exists (even if soft-deleted), we should treat it as an UPDATE
+                        // to restore it and apply the new payload instead of crashing on INSERT
+                        $change['operation'] = 'UPDATE';
+                        Log::info("Sync push: Overriding INSERT to UPDATE for existing record {$recordId} in {$change['table_name']}");
+                    }
+                }
+
+                if ($change['operation'] === 'INSERT') {
+                    // Re-calculate exists for normal INSERT flow just in case
+                    $exists = false;
+
                     // Prevent duplicate email/username crashes for users
                     if (!$exists && $change['table_name'] === 'users') {
                         $conflict = $modelClass::where('email', $payload['email'])
@@ -245,6 +284,22 @@ class SyncController extends Controller
                             $model->_synced_at = $now;
                         }
                         
+                        if ($change['table_name'] === 'suppliers' || $change['table_name'] === 'vendors') {
+                            if (empty($model->payment_terms) || $model->payment_terms === 'null') {
+                                $model->payment_terms = 30;
+                            }
+                        }
+                        if ($change['table_name'] === 'medicines') {
+                            if (empty($model->pack_size) || $model->pack_size === 'null') $model->pack_size = 1;
+                            if (empty($model->unit_of_measure) || $model->unit_of_measure === 'null') $model->unit_of_measure = 'piece';
+                        }
+                        
+                        if ($change['table_name'] === 'store_profile' || $change['table_name'] === 'stores') {
+                            if (empty($model->device_id)) {
+                                $model->device_id = $request->header('X-Device-Id') ?? 'web-client';
+                            }
+                        }
+                        
                         $model->save();
 
                         // Handle _deleted flag for soft deletes
@@ -282,6 +337,22 @@ class SyncController extends Controller
                             $model->_synced_at = $now;
                         }
 
+                        if ($change['table_name'] === 'suppliers') {
+                            if (empty($model->payment_terms) || $model->payment_terms === 'null') {
+                                $model->payment_terms = 30;
+                            }
+                        }
+                        if ($change['table_name'] === 'medicines') {
+                            if (empty($model->pack_size) || $model->pack_size === 'null') $model->pack_size = 1;
+                            if (empty($model->unit_of_measure) || $model->unit_of_measure === 'null') $model->unit_of_measure = 'piece';
+                        }
+
+                        if ($change['table_name'] === 'store_profile' || $change['table_name'] === 'stores') {
+                            if (empty($model->device_id)) {
+                                $model->device_id = $request->header('X-Device-Id') ?? 'web-client';
+                            }
+                        }
+                        
                         $model->save();
 
                         // Handle _deleted flag for soft deletes on update

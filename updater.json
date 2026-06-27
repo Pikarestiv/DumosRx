@@ -5,19 +5,19 @@
   "platforms": {
     "windows-x86_64": {
       "signature": "",
-      "url": "https://github.com/Pikarestiv/DumosRx/releases/download/v0.0.19/DumosRx_0.0.19_x64_en-US.msi"
+      "url": "https://downloads.dumosrx.com/DumosRx_0.0.19_x64_en-US.msi"
     },
     "darwin-aarch64": {
       "signature": "",
-      "url": "https://github.com/Pikarestiv/DumosRx/releases/download/v0.0.19/DumosRx_0.0.19_aarch64.dmg"
+      "url": "https://downloads.dumosrx.com/DumosRx_0.0.19_aarch64.dmg"
     },
     "darwin-x86_64": {
       "signature": "",
-      "url": "https://github.com/Pikarestiv/DumosRx/releases/download/v0.0.19/DumosRx_0.0.19_x64.dmg"
+      "url": "https://downloads.dumosrx.com/DumosRx_0.0.19_x64.dmg"
     },
     "linux-x86_64": {
       "signature": "",
-      "url": "https://github.com/Pikarestiv/DumosRx/releases/download/v0.0.19/DumosRx_0.0.19_amd64.AppImage"
+      "url": "https://downloads.dumosrx.com/DumosRx_0.0.19_amd64.AppImage"
     }
   }
 }

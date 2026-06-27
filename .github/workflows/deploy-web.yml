@@ -45,7 +45,7 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           server-dir: /dumosrx.com/
           local-dir: ./web/out/
-          timeout: 300000
+          timeout: 1200000
           state-name: .ftp-deploy-sync-state-v2.json
           exclude: |
             **/.git*

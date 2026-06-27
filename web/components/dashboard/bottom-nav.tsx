@@ -10,6 +10,7 @@ import {
   Bell,
   Shield,
   LogOut,
+  MessageSquarePlus,
 } from "lucide-react";
 import {
   Sheet,
@@ -41,6 +42,7 @@ export function BottomNav({ activeTab, setActiveTab, user, onLogout }: BottomNav
     { id: "billing", name: "Subscription", icon: CreditCard },
     { id: "downloads", name: "App Downloads", icon: Download },
     { id: "profile", name: "Account Security", icon: Shield },
+    { id: "support", name: "Support", icon: MessageSquarePlus },
   ];
 
   const isMoreActive = moreMenuItems.some((item) => item.id === activeTab);

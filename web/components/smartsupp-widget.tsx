@@ -17,8 +17,17 @@ export function SmartSuppWidget({ chatKey }: SmartSuppWidgetProps) {
   useEffect(() => {
     if (!chatKey) return;
 
+    const setupVisibility = () => {
+      document.body.classList.add("smartsupp-visible");
+      return () => {
+        document.body.classList.remove("smartsupp-visible");
+      };
+    };
+
     // Avoid double-injection
-    if (document.getElementById("smartsupp-script")) return;
+    if (document.getElementById("smartsupp-script")) {
+      return setupVisibility();
+    }
 
     // Bootstrap Smartsupp global
     (window as any)._smartsupp = (window as any)._smartsupp || {};
@@ -35,6 +44,8 @@ export function SmartSuppWidget({ chatKey }: SmartSuppWidgetProps) {
     script.async = true;
     script.src = "https://www.smartsuppchat.com/loader.js?";
     document.head.appendChild(script);
+
+    return setupVisibility();
   }, [chatKey]);
 
   // Identify user once logged in (or clear identity on logout)

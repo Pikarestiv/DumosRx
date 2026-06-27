@@ -22,6 +22,7 @@ import { BillingView } from "@/components/dashboard/views/billing-view";
 import { DownloadsView } from "@/components/dashboard/views/downloads-view";
 import { NotificationsView } from "@/components/dashboard/views/notifications-view";
 import { ProfileView } from "@/components/dashboard/views/profile-view";
+import { SupportView } from "@/components/dashboard/views/support-view";
 import { webApiClient } from "@/lib/api/client";
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
@@ -103,6 +104,8 @@ export function DashboardClient({ view, subView }: { view: string, subView?: str
         return <NotificationsView onBack={() => setActiveTab("overview")} />;
       case "profile":
         return <ProfileView onReset={resetAccountData} />;
+      case "support":
+        return <SupportView />;
       default:
         return (
           <OverviewView

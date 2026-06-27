@@ -55,6 +55,7 @@ export async function initDatabase(): Promise<any> {
         "_synced INTEGER DEFAULT 0",
         "_synced_at TEXT",
         "_deleted INTEGER DEFAULT 0",
+        "is_active INTEGER DEFAULT 1",
       ],
     },
     {
@@ -73,6 +74,7 @@ export async function initDatabase(): Promise<any> {
         "_synced INTEGER DEFAULT 0",
         "_synced_at TEXT",
         "_deleted INTEGER DEFAULT 0",
+        "is_active INTEGER DEFAULT 1",
       ],
     },
     {

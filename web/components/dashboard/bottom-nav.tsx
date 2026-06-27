@@ -50,7 +50,7 @@ export function BottomNav({ activeTab, setActiveTab, user, onLogout }: BottomNav
       <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-xl border-t border-border/50 lg:hidden shadow-[0_-8px_30px_rgba(0,0,0,0.04)] pb-[env(safe-area-inset-bottom)]">
         <div className="flex items-center justify-around px-2 py-2">
           {mainNavItems.map((item) => {
-            const isActive = activeTab === item.id;
+            const isActive = activeTab === item.id || (item.id === "fleet" && activeTab === "store-details");
             return (
               <button
                 key={item.id}
@@ -111,7 +111,7 @@ export function BottomNav({ activeTab, setActiveTab, user, onLogout }: BottomNav
                       setIsMoreOpen(false);
                     }}
                     className={`w-full flex items-center gap-3 px-4 py-4 rounded-2xl font-bold transition-all ${
-                      activeTab === item.id
+                      activeTab === item.id || (item.id === "fleet" && activeTab === "store-details")
                         ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
                         : "text-foreground hover:bg-muted"
                     }`}

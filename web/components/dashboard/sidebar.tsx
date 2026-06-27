@@ -79,7 +79,7 @@ export function Sidebar({
                 setActiveTab(item.id);
               }}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                activeTab === item.id
+                activeTab === item.id || (item.id === "fleet" && activeTab === "store-details")
                   ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
                   : "text-muted-foreground hover:bg-primary/10 hover:text-primary"
               }`}

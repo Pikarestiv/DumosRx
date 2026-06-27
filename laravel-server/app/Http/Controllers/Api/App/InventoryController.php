@@ -12,6 +12,7 @@ class InventoryController extends Controller
     public function index(Request $request)
     {
         $limit = $request->get('limit', 50);
+        
         $inventory = Inventory::where('user_id', $request->user()->id)
             ->with('medicine')
             ->latest()
@@ -32,7 +33,7 @@ class InventoryController extends Controller
 
     public function expiring(Request $request)
     {
-        $days = $request->get('days', 90);
+        $days = (int) $request->get('days', 90);
         $date = now()->addDays($days);
 
         $inventory = Inventory::where('user_id', $request->user()->id)

@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/dialog";
 import { useRouter } from "next/navigation";
 import { ActivityDetails, filterIndirectSaleLogs } from "./activities-view";
+import { StoreInventoryTab } from "./store-inventory-tab";
 
 export function FleetStoreDetailsView({
   storeId,
@@ -146,6 +147,14 @@ export function FleetStoreDetailsView({
           onClick={() => setActiveTab("transactions")}
         >
           Recent Sales
+        </Button>
+        <Button
+          variant={activeTab === "inventory" ? "secondary" : "ghost"}
+          size="sm"
+          className="rounded-xl font-bold"
+          onClick={() => setActiveTab("inventory")}
+        >
+          Inventory
         </Button>
       </div>
 
@@ -324,6 +333,10 @@ export function FleetStoreDetailsView({
               </div>
             )}
           </div>
+        )}
+
+        {activeTab === "inventory" && (
+          <StoreInventoryTab storeId={store.id} />
         )}
       </div>
 

@@ -19,18 +19,77 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { AlertTriangle, Loader2 } from "lucide-react";
+import { AlertTriangle, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { webApiClient } from "@/lib/api/client";
 import { useDashboard } from "@/app/dashboard/use-dashboard";
+import { ConfirmationModal } from "@/components/dashboard/confirmation-modal";
 
-export function DangerZoneCard() {
+export function DangerZoneCard({ onReset }: { onReset?: (type: string) => Promise<any> }) {
   const { user, refetch } = useDashboard();
   const queryClient = useQueryClient();
   const [isDeletionDialogOpen, setIsDeletionDialogOpen] = useState(false);
   const [deletionReason, setDeletionReason] = useState("");
+
+  const [resetConfig, setResetConfig] = useState<{
+    isOpen: boolean;
+    type: string;
+    title: string;
+    description: string;
+  }>({
+    isOpen: false,
+    type: "all",
+    title: "",
+    description: "",
+  });
+
+  const handleResetClick = (type: string) => {
+    const configs: Record<string, { title: string; description: string }> = {
+      sales: {
+        title: "Clear Sales Records",
+        description: "Are you sure you want to delete all sales history? This action cannot be undone.",
+      },
+      logs: {
+        title: "Clear Activity Logs",
+        description: "This will permanently delete all activity and system logs for your account.",
+      },
+      inventories: {
+        title: "Clear Inventory",
+        description: "Are you sure you want to wipe your online inventory stock? You will need to re-sync from your terminals.",
+      },
+      customers: {
+        title: "Clear Customers",
+        description: "This will delete all customer records from the cloud database.",
+      },
+      stores: {
+        title: "Clear Terminals",
+        description: "Are you sure you want to delete all connected terminals? They will need to re-register to sync data.",
+      },
+      all: {
+        title: "Full Account Reset",
+        description: "WARNING: This will delete ALL data (Sales, Logs, Inventory, Customers). This is irreversible.",
+      },
+    };
+
+    setResetConfig({
+      isOpen: true,
+      type,
+      ...configs[type],
+    });
+  };
+
+  const confirmReset = async () => {
+    if (!onReset) return;
+    const res = await onReset(resetConfig.type);
+    setResetConfig((prev) => ({ ...prev, isOpen: false }));
+    if (res.success) {
+      toast.success(res.message || "Data reset successfully");
+    } else {
+      toast.error(res.error || "Reset failed. Please try again.");
+    }
+  };
 
   const deleteAccountMutation = useMutation({
     mutationFn: (data: { reason: string }) => webApiClient.requestAccountDeletion(data),
@@ -80,7 +139,71 @@ export function DangerZoneCard() {
               Irreversible and destructive actions for your account.
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-8">
+            <div className="space-y-4">
+              <div className="flex flex-col">
+                <h4 className="font-semibold text-slate-900 dark:text-white">Clear Specific Data</h4>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  Selectively wipe specific data records from the cloud database.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  className="text-xs font-bold border-red-200 hover:bg-red-600 hover:text-white dark:border-red-900"
+                  onClick={() => handleResetClick("sales")}
+                >
+                  Clear Sales
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  className="text-xs font-bold border-red-200 hover:bg-red-600 hover:text-white dark:border-red-900"
+                  onClick={() => handleResetClick("logs")}
+                >
+                  Clear Logs
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  className="text-xs font-bold border-red-200 hover:bg-red-600 hover:text-white dark:border-red-900"
+                  onClick={() => handleResetClick("inventories")}
+                >
+                  Clear Inventory
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  className="text-xs font-bold border-red-200 hover:bg-red-600 hover:text-white dark:border-red-900"
+                  onClick={() => handleResetClick("customers")}
+                >
+                  Clear Customers
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  className="text-xs font-bold border-red-200 hover:bg-red-600 hover:text-white dark:border-red-900"
+                  onClick={() => handleResetClick("stores")}
+                >
+                  Clear Terminals
+                </Button>
+              </div>
+
+              <div className="pt-2">
+                <Button 
+                  variant="destructive" 
+                  className="w-full font-bold gap-2 bg-red-600 hover:bg-red-700"
+                  onClick={() => handleResetClick("all")}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Nuke Everything (Full Reset)
+                </Button>
+              </div>
+            </div>
+
+            <div className="border-t border-red-200 dark:border-red-900/50" />
+
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <div>
                 <h4 className="font-semibold text-slate-900 dark:text-white">Delete Account</h4>
@@ -158,6 +281,15 @@ export function DangerZoneCard() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmationModal
+        isOpen={resetConfig.isOpen}
+        onClose={() => setResetConfig((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmReset}
+        title={resetConfig.title}
+        description={resetConfig.description}
+        variant="destructive"
+      />
     </>
   );
 }

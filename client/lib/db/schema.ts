@@ -101,25 +101,6 @@ CREATE TABLE IF NOT EXISTS customers (
   _deleted INTEGER DEFAULT 0
 );
 
-CREATE TABLE IF NOT EXISTS vendors (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  contact_person TEXT,
-  email TEXT,
-  phone TEXT,
-  address TEXT,
-  tax_id TEXT,
-  payment_terms TEXT,
-  rating REAL DEFAULT 0,
-  is_active INTEGER DEFAULT 1,
-  created_at TEXT,
-  updated_at TEXT,
-  deleted_at TEXT,
-  _version INTEGER DEFAULT 1,
-  _synced INTEGER DEFAULT 0,
-  _synced_at TEXT,
-  _deleted INTEGER DEFAULT 0
-);
 
 CREATE TABLE IF NOT EXISTS sales (
   id TEXT PRIMARY KEY,
@@ -279,11 +260,13 @@ CREATE TABLE IF NOT EXISTS customer_payments (
   FOREIGN KEY (customer_id) REFERENCES customers(id)
 );
 
-CREATE TABLE IF NOT EXISTS store_profile (
+CREATE TABLE IF NOT EXISTS stores (
   id TEXT PRIMARY KEY,
   name TEXT,
   store_slug TEXT UNIQUE,
   store_type TEXT DEFAULT 'store',
+  device_id TEXT UNIQUE,
+  user_id TEXT,
   location TEXT,
   address TEXT,
   phone TEXT,
@@ -369,24 +352,11 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   _deleted INTEGER DEFAULT 0
 );
 
-CREATE TABLE IF NOT EXISTS returns (
-  id TEXT PRIMARY KEY,
-  sale_id TEXT NOT NULL,
-  user_id TEXT NOT NULL,
-  reason TEXT,
-  total_refunded REAL NOT NULL,
-  created_at TEXT,
-  updated_at TEXT,
-  _version INTEGER DEFAULT 1,
-  _synced INTEGER DEFAULT 0,
-  _synced_at TEXT,
-  _deleted INTEGER DEFAULT 0
-);
 
 CREATE TABLE IF NOT EXISTS purchase_orders (
   id TEXT PRIMARY KEY,
   order_number TEXT,
-  vendor_id TEXT NOT NULL,
+  supplier_id TEXT NOT NULL,
   ordered_by TEXT,
   order_date TEXT,
   status TEXT DEFAULT 'draft',
@@ -423,7 +393,9 @@ CREATE TABLE IF NOT EXISTS suppliers (
   phone TEXT,
   email TEXT,
   address TEXT,
-  payment_terms TEXT,
+  tax_id TEXT,
+  payment_terms INTEGER DEFAULT 30,
+  rating REAL DEFAULT 0,
   is_active INTEGER DEFAULT 1,
   created_at TEXT,
   updated_at TEXT,

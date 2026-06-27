@@ -20,6 +20,7 @@ use App\Models\Expense;
 use App\Models\StockMovement;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
+use App\Services\Web\SyncPayloadMapper;
 
 class SyncController extends Controller
 {
@@ -59,6 +60,8 @@ class SyncController extends Controller
         }
 
         try {
+            $idMap = [];
+
             foreach ($changes as $change) {
                 $modelClass = $this->getModelForTable($change['table_name']);
 
@@ -68,6 +71,17 @@ class SyncController extends Controller
                 }
 
                 $payload = is_array($change['payload']) ? $change['payload'] : json_decode($change['payload'], true);
+                
+                // Apply ID mappings for foreign keys (if a previous record was merged due to conflict)
+                foreach ($payload as $key => $value) {
+                    if (is_string($value) && isset($idMap[$value])) {
+                        $payload[$key] = $idMap[$value];
+                    }
+                }
+
+                $context = ['user_id' => $currentUser ? $currentUser->id : null, 'store_id' => $currentStoreId];
+                $payload = SyncPayloadMapper::map($change['table_name'], $payload, $context);
+
                 $now = now();
 
                 // Ensure staff users get associated with the store
@@ -127,8 +141,49 @@ class SyncController extends Controller
                     }
                 }
 
+                // Inject user_id for core tables if missing
+                $tablesWithUserId = [
+                    'sales', 'customers', 'medicines', 'inventories', 
+                    'subscriptions', 'payment_transactions', 'categories', 
+                    'suppliers', 'prescriptions', 'stores'
+                ];
+                if (in_array($change['table_name'], $tablesWithUserId)) {
+                    if (!isset($payload['user_id']) || empty($payload['user_id'])) {
+                        if ($currentUser) {
+                            $payload['user_id'] = $currentUser->id;
+                        }
+                    }
+
+                // Inject device_id for stores if missing
+                if ($change['table_name'] === 'stores') {
+                    if (empty($payload['device_id'])) {
+                        $payload['device_id'] = $request->header('X-Device-Id') ?? 'web-client';
+                    }
+                }
+                }
+
+                // Prevent NULL constraint violations for medicines
+                if ($change['table_name'] === 'medicines') {
+                    if (empty($payload['pack_size'])) {
+                        $payload['pack_size'] = 1;
+                    }
+                    if (empty($payload['unit_of_measure'])) {
+                        $payload['unit_of_measure'] = 'piece';
+                    }
+                }
+
+                // Prevent NULL constraint violations for suppliers/vendors
+                if ($change['table_name'] === 'suppliers') {
+                    if (empty($payload['payment_terms']) || $payload['payment_terms'] === 'null') {
+                        $payload['payment_terms'] = 30; // Default fallback
+                    }
+                }
+
                 // Handle audit_logs specific mappings
                 if ($change['table_name'] === 'audit_logs') {
+                    if (empty($payload['user_id']) && $currentUser) {
+                        $payload['user_id'] = $currentUser->id;
+                    }
                     $payload['description'] = "Action: " . ($payload['action'] ?? 'Unknown') . " on " . ($payload['table_name'] ?? 'unknown');
                     $payload['properties'] = [
                         'client_id' => $payload['id'] ?? null,
@@ -144,15 +199,30 @@ class SyncController extends Controller
                     unset($payload['id']);
                 }
 
-                if ($change['operation'] === 'INSERT') {
-                    $recordId = $change['record_id'] ?? ($payload['id'] ?? null);
-                    
+                $recordId = $change['record_id'] ?? ($payload['id'] ?? null);
+
+                if ($change['operation'] === 'INSERT' && $recordId) {
                     if ($change['table_name'] === 'audit_logs') {
                         $exists = $modelClass::where('properties->client_id', $recordId)->exists();
                     } else {
-                        $exists = $modelClass::where('id', $recordId)->exists();
+                        // Use withTrashed to catch soft-deleted items so we don't get Duplicate Entry crashes
+                        $exists = \method_exists($modelClass, 'trashed') 
+                            ? $modelClass::withTrashed()->where('id', $recordId)->exists() 
+                            : $modelClass::where('id', $recordId)->exists();
                     }
-                    
+
+                    if ($exists) {
+                        // If it exists (even if soft-deleted), we should treat it as an UPDATE
+                        // to restore it and apply the new payload instead of crashing on INSERT
+                        $change['operation'] = 'UPDATE';
+                        Log::info("Sync push: Overriding INSERT to UPDATE for existing record {$recordId} in {$change['table_name']}");
+                    }
+                }
+
+                if ($change['operation'] === 'INSERT') {
+                    // Re-calculate exists for normal INSERT flow just in case
+                    $exists = false;
+
                     // Prevent duplicate email/username crashes for users
                     if (!$exists && $change['table_name'] === 'users') {
                         $conflict = $modelClass::where('email', $payload['email'])
@@ -161,6 +231,27 @@ class SyncController extends Controller
                         if ($conflict) {
                             Log::warning("Sync push skipped user insert due to duplicate email/username: {$payload['email']}");
                             $exists = true; // Pretend it exists to skip insertion
+                            $idMap[$recordId] = $conflict->id;
+                        }
+                    }
+
+                    // Prevent duplicate category name crashes
+                    if (!$exists && $change['table_name'] === 'categories' && !empty($payload['name'])) {
+                        $conflict = $modelClass::where('name', $payload['name'])->first();
+                        if ($conflict) {
+                            Log::warning("Sync push skipped category insert due to duplicate name: {$payload['name']}");
+                            $exists = true; // Pretend it exists to skip insertion
+                            $idMap[$recordId] = $conflict->id;
+                        }
+                    }
+                    
+                    // Prevent duplicate supplier name crashes
+                    if (!$exists && $change['table_name'] === 'suppliers' && !empty($payload['name'])) {
+                        $conflict = $modelClass::where('name', $payload['name'])->first();
+                        if ($conflict) {
+                            Log::warning("Sync push skipped supplier insert due to duplicate name: {$payload['name']}");
+                            $exists = true; // Pretend it exists to skip insertion
+                            $idMap[$recordId] = $conflict->id;
                         }
                     }
 
@@ -197,11 +288,36 @@ class SyncController extends Controller
                             $model->_synced_at = $now;
                         }
                         
+                        if ($change['table_name'] === 'suppliers') {
+                            if (empty($model->payment_terms) || $model->payment_terms === 'null') {
+                                $model->payment_terms = 30;
+                            }
+                        }
+                        if ($change['table_name'] === 'medicines') {
+                            if (empty($model->pack_size) || $model->pack_size === 'null') $model->pack_size = 1;
+                            if (empty($model->unit_of_measure) || $model->unit_of_measure === 'null') $model->unit_of_measure = 'piece';
+                        }
+                        
+                        if ($change['table_name'] === 'stores') {
+                            if (empty($model->device_id)) {
+                                $model->device_id = $request->header('X-Device-Id') ?? 'web-client';
+                            }
+                        }
+                        
                         $model->save();
+
+                        // Handle _deleted flag for soft deletes
+                        if (isset($payload['_deleted']) && $payload['_deleted']) {
+                            if (\method_exists($model, 'trashed')) {
+                                $model->delete();
+                            }
+                        }
                     }
                 } elseif ($change['operation'] === 'UPDATE') {
                     $recordId = $change['record_id'] ?? ($payload['id'] ?? null);
-                    $model = $modelClass::find($recordId);
+                    // Use withTrashed to ensure we can find soft-deleted items to restore them if needed
+                    $model = \method_exists($modelClass, 'trashed') ? $modelClass::withTrashed()->find($recordId) : $modelClass::find($recordId);
+                    
                     if ($model) {
                         $model->fill($payload);
                         
@@ -225,7 +341,34 @@ class SyncController extends Controller
                             $model->_synced_at = $now;
                         }
 
+                        if ($change['table_name'] === 'suppliers') {
+                            if (empty($model->payment_terms) || $model->payment_terms === 'null') {
+                                $model->payment_terms = 30;
+                            }
+                        }
+                        if ($change['table_name'] === 'medicines') {
+                            if (empty($model->pack_size) || $model->pack_size === 'null') $model->pack_size = 1;
+                            if (empty($model->unit_of_measure) || $model->unit_of_measure === 'null') $model->unit_of_measure = 'piece';
+                        }
+
+                        if ($change['table_name'] === 'stores') {
+                            if (empty($model->device_id)) {
+                                $model->device_id = $request->header('X-Device-Id') ?? 'web-client';
+                            }
+                        }
+                        
                         $model->save();
+
+                        // Handle _deleted flag for soft deletes on update
+                        if (isset($payload['_deleted'])) {
+                            if (\method_exists($model, 'trashed')) {
+                                if ($payload['_deleted'] && !$model->trashed()) {
+                                    $model->delete();
+                                } elseif (!$payload['_deleted'] && $model->trashed()) {
+                                    $model->restore();
+                                }
+                            }
+                        }
                     }
                 } elseif ($change['operation'] === 'DELETE') {
                     $modelClass::where('id', $change['record_id'])->delete();
@@ -294,7 +437,7 @@ class SyncController extends Controller
         $changes = [];
         $serverTimestamp = now()->toIso8601String();
 
-        $tables = ['medicines', 'inventories', 'categories', 'customers', 'vendors', 'suppliers', 'sales', 'store_profile', 'users', 'stock_movements', 'purchase_orders', 'purchase_order_items', 'expenses', 'payment_accounts'];
+        $tables = ['medicines', 'inventories', 'categories', 'customers', 'suppliers', 'sales', 'stores', 'users', 'stock_movements', 'purchase_orders', 'purchase_order_items', 'expenses', 'payment_accounts'];
 
         foreach ($tables as $table) {
             $lastSynced = $lastSyncedMap[$table] ?? null;
@@ -322,7 +465,7 @@ class SyncController extends Controller
 
                 if ($table === 'users') {
                     $query->whereIn('id', $userIds);
-                } elseif ($table === 'store_profile') {
+                } elseif ($table === 'stores') {
                     if ($user->store_id) {
                         $query->where('id', $user->store_id)->with(['user.subscriptions']);
                     } else {
@@ -347,7 +490,7 @@ class SyncController extends Controller
             }
 
             $lastSynced = $lastSyncedMap[$table] ?? null;
-            if ($lastSynced && $table !== 'store_profile') {
+            if ($lastSynced && $table !== 'stores') {
                 $parsedLastSynced = \Carbon\Carbon::parse($lastSynced)->setTimezone('UTC')->format('Y-m-d H:i:s');
                 if (\Illuminate\Support\Facades\Schema::hasColumn($table, '_synced_at')) {
                     $query->where(function($q) use ($parsedLastSynced) {
@@ -366,7 +509,7 @@ class SyncController extends Controller
                 $array['_deleted'] = (\method_exists($item, 'trashed') && $item->trashed()) ? 1 : 0;
 
                 // Map subscription_tier for store_profile
-                if ($table === 'store_profile') {
+                if ($table === 'stores') {
                     $plan = 'free';
                     $expiry = null;
                     if ($item->user && $item->user->subscriptions->isNotEmpty()) {
@@ -447,16 +590,15 @@ class SyncController extends Controller
         $map = [
             'medicines' => Medicine::class,
             'customers' => Customer::class,
-            'suppliers' => null, // Defer to 'vendors' which maps to Supplier
+            'suppliers' => Supplier::class,
             'sales' => Sale::class,
             'sale_items' => SaleItem::class,
-            'store_profile' => Store::class,
+            'stores' => Store::class,
             'users' => User::class,
             'inventories' => Inventory::class,
             'activity_logs' => ActivityLog::class,
             'audit_logs' => ActivityLog::class,
             'categories' => \App\Models\Category::class,
-            'vendors' => Supplier::class, // Map client vendors to server suppliers
             'expenses' => Expense::class,
             'feedback' => \App\Models\Feedback::class,
             'stock_movements' => StockMovement::class,

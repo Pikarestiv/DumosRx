@@ -10,7 +10,6 @@ import {
   Download,
   Bell,
   Shield,
-  Activity,
 } from "lucide-react";
 import {
   Tooltip,
@@ -38,8 +37,7 @@ export function Sidebar({
     { id: "overview", name: "Overview", icon: LayoutDashboard },
     { id: "notifications", name: "Notifications", icon: Bell },
     { id: "fleet", name: "Store Fleet", icon: Store },
-    { id: "staff", name: "Staff Management", icon: Users },
-    { id: "activities", name: "Staff Activities", icon: Activity },
+    { id: "staff", name: "Staff", icon: Users },
     { id: "billing", name: "Subscription", icon: CreditCard },
     { id: "downloads", name: "App Downloads", icon: Download },
     { id: "profile", name: "Account Security", icon: Shield },
@@ -65,7 +63,7 @@ export function Sidebar({
         {sidebarItems.map((item) => {
           const tooltipContent: Record<string, string> = {
             notifications: "Stay updated with important system alerts",
-            activities: "Track staff activities and inventory changes",
+            staff: "Manage your team and track activities",
             billing: "Manage your subscription and billing details",
             downloads: "Download the mobile or desktop apps",
             profile: "Access your account security settings",
@@ -79,7 +77,7 @@ export function Sidebar({
                 setActiveTab(item.id);
               }}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                activeTab === item.id
+                activeTab === item.id || (item.id === "fleet" && activeTab === "store-details")
                   ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
                   : "text-muted-foreground hover:bg-primary/10 hover:text-primary"
               }`}

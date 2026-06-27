@@ -167,7 +167,7 @@ export class BaseApiClient {
           try {
             const { execute } = await import("../db/core");
             await execute(
-              "UPDATE store_profile SET status = 'Suspended', suspension_reason = ?",
+              "UPDATE stores SET status = 'Suspended', suspension_reason = ?",
               [
                 errorData.reason ||
                   "Your store account has been suspended for violating our terms of usage. Please contact administrative support.",

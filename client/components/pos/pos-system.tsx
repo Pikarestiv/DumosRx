@@ -17,6 +17,7 @@ import { POSProductList } from "./pos-product-list";
 import { POSTransactionHistory } from "./pos-transaction-history";
 import { POSCustomerSelector } from "./pos-customer-selector";
 import { POSCart } from "./pos-cart";
+import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { RetailSpeedPOS } from "./retail-speed-pos";
 import { POSPaymentDialog } from "./pos-payment-dialog";
 import { POSReceiptDialog } from "./pos-receipt-dialog";
@@ -47,7 +48,9 @@ export function POSSystem() {
   };
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
+    null,
+  );
   const [posMode, setPosMode] = useState<"standard" | "speed">("standard");
   const [showReturnDialog, setShowReturnDialog] = useState(false);
   const [saleToReturn, setSaleToReturn] = useState<any>(null);
@@ -83,6 +86,7 @@ export function POSSystem() {
   } = usePOSCart(medicines);
 
   // 3. Suggestions
+  const { withRestriction } = useFeatureGate();
   const { suggestions } = useSmartSuggestions(cart, medicines);
 
   // 4. Payment Config
@@ -304,7 +308,7 @@ export function POSSystem() {
               updateQuantity={updateQuantity}
               removeFromCart={removeFromCart}
               clearCart={clearCart}
-              onCheckout={() => setShowPaymentDialog(true)}
+              onCheckout={withRestriction(() => setShowPaymentDialog(true))}
             />
           </div>
         </div>

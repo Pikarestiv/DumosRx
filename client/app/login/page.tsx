@@ -167,13 +167,13 @@ export default function LoginPage() {
                   Restore from Backup
                 </Button>
               </Link>
-              <div className="pt-2 text-center">
+              <div className="pt-2 text-center font-semibold text-xs text-muted-foreground">
+                Already have a cloud account?{" "}
                 <Link
                   href="/setup?step=cloud&from=login"
-                  className="text-xs text-muted-foreground hover:text-primary transition-colors"
+                  className="underline hover:text-primary transition-colors"
                 >
-                  Already have a cloud account?{" "}
-                  <span className="font-semibold underline">Sync Now</span>
+                  Sync Now
                 </Link>
               </div>
             </CardContent>

@@ -30,7 +30,7 @@ import { SecuritySettings } from "@/components/dashboard/views/security-settings
 import { SessionsView } from "@/components/dashboard/views/sessions-view";
 import { DangerZoneCard } from "@/components/dashboard/views/danger-zone-card";
 
-export function ProfileView() {
+export function ProfileView({ onReset }: { onReset?: (type: string) => Promise<any> }) {
   const { user } = useDashboard();
   const queryClient = useQueryClient();
 
@@ -220,7 +220,7 @@ export function ProfileView() {
         <SessionsView />
 
         {/* Danger Zone */}
-        <DangerZoneCard />
+        <DangerZoneCard onReset={onReset} />
       </div>
     </div>
   );

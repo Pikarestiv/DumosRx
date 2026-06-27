@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -12,7 +13,7 @@ use Exception;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable, HasUuids;
+    use HasApiTokens, HasFactory, Notifiable, HasUuids, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -178,6 +179,17 @@ class User extends Authenticatable
             // Generate unique referral code for store owners
             if (in_array($user->role, ['admin', 'store_owner'])) {
                 $user->referral_code = self::generateUniqueReferralCode();
+            }
+        });
+
+        static::deleting(function ($user) {
+            if (! $user->isForceDeleting()) {
+                $suffix = '_del_' . time();
+                $user->email = $user->email . $suffix;
+                if ($user->username) {
+                    $user->username = $user->username . $suffix;
+                }
+                $user->save();
             }
         });
     }

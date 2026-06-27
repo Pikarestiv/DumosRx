@@ -56,13 +56,12 @@ class DashboardService
         // 2. Inventory Stats
         $inventoryValue = 0;
         try {
-            if (Schema::hasTable('inventories')) {
-                $inventoryStats = DB::table('inventories')
-                    ->where('user_id', $userId)
-                    ->select(DB::raw('SUM(quantity_in_stock * cost_price) as total_value'))
-                    ->first();
-                $inventoryValue = (float)($inventoryStats->total_value ?? 0);
-            }
+            $inventoryStats = DB::table('medicines')
+                ->whereIn('user_id', $userIds)
+                ->whereNull('deleted_at')
+                ->select(DB::raw('SUM(stock_quantity * cost_price) as total_value'))
+                ->first();
+            $inventoryValue = (float)($inventoryStats->total_value ?? 0);
         } catch (\Exception $e) {
             Log::error("DashboardService [Inventory]: " . $e->getMessage());
         }
@@ -71,8 +70,8 @@ class DashboardService
         $totalCustomers = 0;
         $newCustomersThisWeek = 0;
         try {
-            $totalCustomers = Customer::where('user_id', $userId)->count();
-            $newCustomersThisWeek = Customer::where('user_id', $userId)->where('created_at', '>=', $last7Days)->count();
+            $totalCustomers = Customer::whereIn('user_id', $userIds)->count();
+            $newCustomersThisWeek = Customer::whereIn('user_id', $userIds)->where('created_at', '>=', $last7Days)->count();
         } catch (\Exception $e) {
             Log::error("DashboardService [Customers]: " . $e->getMessage());
         }
@@ -112,7 +111,58 @@ class DashboardService
 
         // Map Stores
         $storesCount = $userStores->count();
-        $stores = $userStores->map(function($store) use ($totalSales, $storesCount) {
+        $stores = $userStores->map(function($store) use ($totalSales, $storesCount, $userId) {
+            $storeStaffIds = User::where('store_id', $store->id)->pluck('id')->toArray();
+            
+            // If owner only has 1 store, include their ID in store staff for sales matching
+            $cashierIds = $storeStaffIds;
+            if ($storesCount === 1) {
+                $cashierIds[] = $userId;
+            }
+            $cashierIds = array_unique($cashierIds);
+
+            // Store Sales
+            $storeTotalSales = (float)Sale::whereIn('cashier_id', $cashierIds)->sum('total_amount');
+            $storeDailySales = (float)Sale::whereIn('cashier_id', $cashierIds)->whereDate('created_at', Carbon::today())->sum('total_amount');
+            
+            // Inventory
+            $storeInventory = DB::table('medicines')->whereIn('user_id', $cashierIds)->whereNull('deleted_at');
+            $totalInventory = $storeInventory->count();
+            $lowStock = DB::table('medicines')->whereIn('user_id', $cashierIds)->whereNull('deleted_at')->whereColumn('stock_quantity', '<=', 'reorder_level')->count();
+            
+            // Expiring Items (Medicines table currently doesn't track expiry date in the base schema)
+            $expiringItems = 0;
+                
+            // Recent Transactions
+            $recentTransactions = Sale::with('cashier')->whereIn('cashier_id', $cashierIds)
+                ->orderBy('created_at', 'desc')
+                ->limit(5)
+                ->get()
+                ->map(function ($sale) {
+                    $items = DB::table('sale_items')
+                        ->where('sale_id', $sale->id)
+                        ->leftJoin('medicines', 'sale_items.medicine_id', '=', 'medicines.id')
+                        ->select('sale_items.*', 'medicines.name as medicine_name')
+                        ->get();
+                    return [
+                        'id' => $sale->id,
+                        'transaction_number' => $sale->transaction_number,
+                        'total_amount' => $sale->total_amount,
+                        'payment_method' => $sale->payment_method,
+                        'created_at' => $sale->created_at,
+                        'cashier_name' => $sale->cashier ? ($sale->cashier->name ?? trim($sale->cashier->first_name . ' ' . $sale->cashier->last_name)) : 'Unknown',
+                        'items' => $items
+                    ];
+                });
+
+            // Recent Activities
+            $recentActivities = ActivityLog::whereIn('user_id', $cashierIds)
+                ->where('action', '!=', 'CLIENT_API_ERROR')
+                ->with('user')
+                ->orderBy('created_at', 'desc')
+                ->limit(20)
+                ->get();
+
             return [
                 'id' => $store->id,
                 'name' => $store->name,
@@ -122,7 +172,14 @@ class DashboardService
                 'store_type' => $store->store_type,
                 'status' => $store->last_sync_at && Carbon::parse($store->last_sync_at)->gt(now()->subMinutes(30)) ? 'online' : 'offline',
                 'lastSync' => $store->last_sync_at ? Carbon::parse($store->last_sync_at)->diffForHumans() : 'Never',
-                'sales' => '₦' . number_format($totalSales / ($storesCount ?: 1), 2)
+                'sales' => '₦' . number_format($storeTotalSales, 2),
+                'daily_sales' => '₦' . number_format($storeDailySales, 2),
+                'total_inventory' => $totalInventory,
+                'low_stock_alerts' => $lowStock,
+                'expiring_items' => $expiringItems,
+                'staff_count' => count($storeStaffIds),
+                'recent_transactions' => $recentTransactions,
+                'recent_activities' => $recentActivities
             ];
         });
 
@@ -152,9 +209,9 @@ class DashboardService
         // Approximate storage usage based on data
         $storageUsedGB = 0.05; // Base 50MB
         try {
-            $salesCount = \App\Models\Sale::whereIn('cashier_id', $userIds)->count();
-            $customersCount = \App\Models\Customer::where('user_id', $userId)->count();
-            $logsCount = Schema::hasTable('activity_logs') ? \App\Models\ActivityLog::where('user_id', $userId)->count() : 0;
+            $salesCount = Sale::whereIn('cashier_id', $userIds)->count();
+            $customersCount = Customer::where('user_id', $userId)->count();
+            $logsCount = Schema::hasTable('activity_logs') ? ActivityLog::where('user_id', $userId)->count() : 0;
             
             $totalRows = $salesCount + $customersCount + $logsCount;
             $storageUsedMB = 50 + ($totalRows * 0.005); // Base 50MB + 5KB per row
@@ -261,9 +318,17 @@ class DashboardService
                         $query->where('user_id', $userId);
                         Log::info("Clearing inventory for user: {$userId}");
                         $query->delete(); 
-                        $message = $type === 'all' ? "All data cleared." : "Inventory records cleared.";
                     }
                 }
+                if (Schema::hasTable('medicines')) {
+                    $query = \App\Models\Medicine::query();
+                    if (Schema::hasColumn('medicines', 'user_id')) {
+                        $query->where('user_id', $userId);
+                        Log::info("Clearing medicines for user: {$userId}");
+                        $query->delete(); 
+                    }
+                }
+                $message = $type === 'all' ? "All data cleared." : "Inventory records cleared.";
             }
 
             if ($type === 'all' || $type === 'stores') {

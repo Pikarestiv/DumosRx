@@ -23,8 +23,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useStore } from "@/lib/context/store-context";
+import { useAuth } from "@/lib/context/auth-context";
+import { usePathname } from "next/navigation";
 import { useTheme } from "@/components/theme-provider";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
+import { isMobileDevice } from "@/lib/utils";
+import { WEB_APP_URL } from "@/lib/constants";
+import { toast } from "sonner";
 
 function ThemeRestrictor() {
   const { currentTier } = useFeatureGate();
@@ -47,48 +52,112 @@ function ThemeRestrictor() {
 
 function MobileRestrictionGuard() {
   const { canUseMobileApp, getUpgradeMessage } = useFeatureGate();
+  const { isAuthenticated } = useAuth();
+  const pathname = usePathname();
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(
-        window.innerWidth < 768 ||
-          /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-            navigator.userAgent,
-          ),
-      );
+      setIsMobile(isMobileDevice());
     };
     checkMobile();
     window.addEventListener("resize", checkMobile);
-    return () => window.removeEventListener("resize", checkMobile);
-  }, []);
 
-  if (isMobile && !canUseMobileApp) {
+    // Feature usage interceptor
+    const handleGlobalClick = (e: MouseEvent) => {
+      if (
+        !isMobile ||
+        canUseMobileApp ||
+        !isAuthenticated ||
+        pathname === "/login" ||
+        pathname === "/setup"
+      ) {
+        return;
+      }
+
+      const target = e.target as HTMLElement;
+
+      // Allow our own banner to be clicked
+      if (target.closest("#mobile-restriction-banner")) return;
+
+      // Allow navigation and tabs
+      if (target.closest('nav, aside, header, .sidebar, [role="tab"], a'))
+        return;
+
+      // Intercept action elements
+      const isAction = target.closest(
+        'button, input, textarea, select, [role="switch"], [role="checkbox"]',
+      );
+      if (isAction) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        toast.error("Mobile Access Locked", {
+          description:
+            "Please upgrade your plan to perform actions on the mobile app.",
+        });
+      }
+    };
+
+    document.addEventListener("click", handleGlobalClick, { capture: true });
+
+    return () => {
+      window.removeEventListener("resize", checkMobile);
+      document.removeEventListener("click", handleGlobalClick, {
+        capture: true,
+      });
+    };
+  }, [isMobile, canUseMobileApp, isAuthenticated, pathname]);
+
+  const openBilling = async () => {
+    const url = `${WEB_APP_URL}/dashboard/billing`;
+    try {
+      if ((window as any).__TAURI_INTERNALS__) {
+        const { open } = await import("@tauri-apps/plugin-shell");
+        await open(url);
+      } else {
+        window.open(url, "_blank", "noopener,noreferrer");
+      }
+    } catch (_e) {
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
+  };
+
+  if (
+    isMobile &&
+    !canUseMobileApp &&
+    isAuthenticated &&
+    pathname !== "/login" &&
+    pathname !== "/setup"
+  ) {
     return (
-      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/85 backdrop-blur-xl p-6">
-        <Card className="max-w-md w-full border-border/40 shadow-2xl bg-card text-card-foreground">
-          <CardHeader className="text-center pb-4">
-            <div className="mx-auto w-14 h-14 bg-destructive/10 text-destructive rounded-full flex items-center justify-center mb-4">
-              <Lock className="h-6 w-6" />
+      <div className="fixed bottom-0 left-0 right-0 z-[9999] p-4 pointer-events-none">
+        <Card
+          id="mobile-restriction-banner"
+          className="max-w-md mx-auto w-full border-border/40 shadow-2xl bg-card text-card-foreground pointer-events-auto"
+        >
+          <CardHeader className="pb-2 flex flex-row items-start gap-4 space-y-0">
+            <div className="w-10 h-10 bg-destructive/10 text-destructive rounded-full flex shrink-0 items-center justify-center">
+              <Lock className="h-5 w-5" />
             </div>
-            <CardTitle className="text-2xl font-bold font-serif tracking-tight">
-              📱 Mobile App Access Locked
-            </CardTitle>
-            <CardDescription className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              {getUpgradeMessage('mobile_access', "Mobile access is a premium feature. Please upgrade your plan to access your dashboard on the go.")}
-            </CardDescription>
+            <div>
+              <CardTitle className="text-lg font-bold font-serif tracking-tight">
+                📱 Mobile Access Locked
+              </CardTitle>
+              <CardDescription className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                {getUpgradeMessage(
+                  "mobile_access",
+                  "Mobile access is a premium feature. Please upgrade your plan to access your dashboard on the go.",
+                )}
+              </CardDescription>
+            </div>
           </CardHeader>
-          <CardFooter className="flex flex-col gap-3 pt-2">
+          <CardFooter className="pt-2 pb-4">
             <Button
-              className="w-full bg-primary hover:bg-primary/95 text-primary-foreground font-bold shadow-lg shadow-primary/20 h-11"
-              onClick={() => {
-                window.open(
-                  "https://dumosrx.com/dashboard/billing",
-                  "_blank",
-                  "noreferrer",
-                );
-              }}
+              className="w-full bg-primary hover:bg-primary/95 text-primary-foreground font-bold shadow-md shadow-primary/20 h-10"
+              onClick={openBilling}
             >
+              <ExternalLink className="h-4 w-4 mr-2" />
               Upgrade Plan
             </Button>
           </CardFooter>
@@ -191,10 +260,7 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
             </p>
             <p>Device ID: {deviceId}</p>
             {license?.expiryDate && (
-              <p>
-                Last Valid Date:{" "}
-                {formatDateToDDMMYYYY(license.expiryDate)}
-              </p>
+              <p>Last Valid Date: {formatDateToDDMMYYYY(license.expiryDate)}</p>
             )}
           </div>
         </CardContent>

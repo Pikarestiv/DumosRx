@@ -79,12 +79,12 @@ export function useOnboarding() {
       // 1. Create or update the store profile
       if (!existingStoreId) {
         await execute(
-          "INSERT INTO store_profile (id, name, is_initialized, created_at, updated_at, _synced, auto_sync_enabled, auto_sync_interval) VALUES (?, ?, ?, ?, ?, ?, 1, 30)",
+          "INSERT INTO stores (id, name, is_initialized, created_at, updated_at, _synced, auto_sync_enabled, auto_sync_interval) VALUES (?, ?, ?, ?, ?, ?, 1, 30)",
           [storeId, storeName, 1, now, now, 0],
         );
       } else {
         await execute(
-          "UPDATE store_profile SET name = ?, is_initialized = 1, updated_at = ? WHERE id = ?",
+          "UPDATE stores SET name = ?, is_initialized = 1, updated_at = ? WHERE id = ?",
           [storeName, now, storeId],
         );
       }
@@ -155,8 +155,8 @@ export function useOnboarding() {
         await new Promise((r) => setTimeout(r, 1000));
         
         if (userCount === 0) {
-          // Check for existing stores in store_profile
-          const stores = await query<any>("SELECT id, name FROM store_profile WHERE _deleted = 0");
+          // Check for existing stores in stores
+          const stores = await query<any>("SELECT id, name FROM stores WHERE _deleted = 0");
           setExistingStores(stores);
           
           setSyncStatus("No account data found");

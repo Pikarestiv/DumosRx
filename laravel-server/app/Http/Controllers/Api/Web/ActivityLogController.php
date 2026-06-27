@@ -27,6 +27,7 @@ class ActivityLogController extends Controller
 
         $logs = ActivityLog::with('user')
             ->whereIn('user_id', $staffIds)
+            ->where('action', '!=', 'CLIENT_API_ERROR')
             ->latest()
             ->paginate(50);
 

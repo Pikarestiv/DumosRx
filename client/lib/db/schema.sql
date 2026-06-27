@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS medicines (
   requires_prescription INTEGER DEFAULT 0,
   is_controlled INTEGER DEFAULT 0,
   status TEXT DEFAULT 'active',
+  is_active INTEGER DEFAULT 1,
   created_at TEXT,
   updated_at TEXT,
   -- Sync metadata
@@ -35,6 +36,7 @@ CREATE TABLE IF NOT EXISTS categories (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   description TEXT,
+  is_active INTEGER DEFAULT 1,
   created_at TEXT,
   updated_at TEXT,
   _version INTEGER DEFAULT 1,

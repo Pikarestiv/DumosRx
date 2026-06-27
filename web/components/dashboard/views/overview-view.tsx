@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { StoreModal } from "@/components/dashboard/store-modal";
 import { 
   Plus,
@@ -30,7 +31,6 @@ import { toast } from "sonner";
 import { useSubscriptionStatus } from "@/lib/api/hooks";
 import { webApiClient } from "@/lib/api/client";
 import { OverviewStats } from "./overview-stats";
-import { OverviewDangerZone } from "./overview-danger-zone";
 
 interface OverviewViewProps {
   stats: any;
@@ -42,6 +42,7 @@ interface OverviewViewProps {
 
 export function OverviewView({ stats, user, stores, onReset, onNavigate: _onNavigate }: OverviewViewProps) {
   const { data: subscription } = useSubscriptionStatus();
+  const router = useRouter();
   
   const syncInterval = subscription?.limits?.sync_interval ?? 0;
   const isDelayedSync = syncInterval > 0;
@@ -151,7 +152,11 @@ export function OverviewView({ stats, user, stores, onReset, onNavigate: _onNavi
                 </TableHeader>
                 <TableBody>
                   {stores.map((store: any) => (
-                    <TableRow key={store.id} className="border-muted hover:bg-muted/30">
+                    <TableRow 
+                      key={store.id} 
+                      className="border-muted hover:bg-muted/30 cursor-pointer"
+                      onClick={() => router.push(`/dashboard/store-details/?id=${store.id}`)}
+                    >
                       <TableCell className="font-bold py-4 pl-6">
                         <div className="flex flex-col">
                           <span>{store.name}</span>
@@ -193,8 +198,6 @@ export function OverviewView({ stats, user, stores, onReset, onNavigate: _onNavi
               </div>
             </CardContent>
           </Card>
-
-          <OverviewDangerZone onReset={onReset} />
         </div>
       </div>
     </div>

@@ -14,7 +14,7 @@ export interface LicenseInfo {
 }
 
 export async function checkLicenseStatus(): Promise<LicenseInfo> {
-  const profiles = await query<any>("SELECT * FROM store_profile LIMIT 1");
+  const profiles = await query<any>("SELECT * FROM stores LIMIT 1");
   const profile = profiles[0];
 
   if (!profile) {
@@ -48,7 +48,7 @@ export async function checkLicenseStatus(): Promise<LicenseInfo> {
   }
 
   // 2. Update monotonic time for next check
-  await execute("UPDATE store_profile SET last_monotonic_time = ? WHERE id = ?", [nowIso, profile.id]);
+  await execute("UPDATE stores SET last_monotonic_time = ? WHERE id = ?", [nowIso, profile.id]);
 
   // 3. Free tier is always valid (but with limited features)
   if (!profile.subscription_tier || profile.subscription_tier === "free") {
@@ -103,7 +103,7 @@ export async function activateLicense(token: string) {
   try {
     const decoded = JSON.parse(token); 
     await execute(
-      "UPDATE store_profile SET license_token = ?, subscription_tier = ?, updated_at = ?",
+      "UPDATE stores SET license_token = ?, subscription_tier = ?, updated_at = ?",
       [token, decoded.tier || "pro", new Date().toISOString()]
     );
     return true;

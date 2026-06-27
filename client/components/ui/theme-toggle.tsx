@@ -5,17 +5,12 @@ import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate"
-import { toast } from "sonner"
 
 export function ThemeToggle() {
   const { setTheme, theme } = useTheme()
-  const { canUseDarkMode, getUpgradeMessage } = useFeatureGate()
+  const { canUseDarkMode, withRestriction } = useFeatureGate()
 
   const handleSetTheme = (newTheme: "light" | "dark" | "system") => {
-    if (newTheme !== "light" && !canUseDarkMode) {
-      toast.error(getUpgradeMessage('dark_mode', "Dark Mode is a premium feature. Please upgrade your plan to access it."))
-      return;
-    }
     setTheme(newTheme)
   }
 
@@ -36,17 +31,17 @@ export function ThemeToggle() {
         </TooltipContent>
       </Tooltip>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => handleSetTheme("light")} className="cursor-pointer">
+        <DropdownMenuItem onClick={withRestriction(() => handleSetTheme("light"))} className="cursor-pointer">
           <Sun className="mr-2 h-4 w-4" />
           <span>Light</span>
           {theme === "light" && <span className="ml-auto text-xs">✓</span>}
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => handleSetTheme("dark")} className="cursor-pointer">
+        <DropdownMenuItem onClick={withRestriction(() => handleSetTheme("dark"), { featureAllowed: canUseDarkMode, featureKey: 'dark_mode' })} className="cursor-pointer">
           <Moon className="mr-2 h-4 w-4" />
           <span>Dark</span>
           {theme === "dark" && <span className="ml-auto text-xs">✓</span>}
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => handleSetTheme("system")} className="cursor-pointer">
+        <DropdownMenuItem onClick={withRestriction(() => handleSetTheme("system"), { featureAllowed: canUseDarkMode, featureKey: 'dark_mode' })} className="cursor-pointer">
           <Monitor className="mr-2 h-4 w-4" />
           <span>System</span>
           {theme === "system" && <span className="ml-auto text-xs">✓</span>}

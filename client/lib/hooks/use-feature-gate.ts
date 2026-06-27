@@ -2,6 +2,8 @@
 
 import { useStore } from "@/lib/context/store-context";
 import { useSystemConfigStore } from "@/lib/store/system-config-store";
+import { toast } from "sonner";
+import { isMobileDevice } from "@/lib/utils";
 
 export type SubscriptionTier = "free" | "starter" | "local" | "pro" | "enterprise";
 
@@ -55,7 +57,44 @@ export function useFeatureGate() {
     return fallbackMessage;
   };
 
+
+  // Universal restriction wrapper for actions
+  const withRestriction = <T extends (...args: any[]) => any>(
+    action: T,
+    options: {
+      enforceMobileAccess?: boolean;
+      featureAllowed?: boolean;
+      featureKey?: string;
+    } = {}
+  ) => {
+    const { enforceMobileAccess = true, featureAllowed, featureKey } = options;
+    return (...args: Parameters<T>) => {
+      // 1. Mobile restriction check
+      if (enforceMobileAccess && typeof window !== "undefined") {
+        const isMobile = isMobileDevice();
+        const mobileAllowed = getFeature('mobile_app', 'mobile_access', isPro || isEnterprise);
+        if (isMobile && !mobileAllowed) {
+          toast.error("Mobile Access Locked", {
+            description: getUpgradeMessage('mobile_access', "Mobile access is a premium feature. Please upgrade your plan.")
+          });
+          return;
+        }
+      }
+
+      // 2. Desktop/General feature restriction check
+      if (featureAllowed === false && featureKey) {
+        toast.error("Feature Locked", {
+          description: getUpgradeMessage(featureKey as any, "This feature requires a plan upgrade.")
+        });
+        return;
+      }
+
+      return action(...args);
+    };
+  };
+
   return {
+    withRestriction,
     getUpgradeMessage,
     currentTier: normalizedTier,
     // Max staff accounts allowed

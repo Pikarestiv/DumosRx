@@ -9,7 +9,6 @@ import { Label } from "@/components/ui/label"
 import { Slider } from "@/components/ui/slider"
 import { useStore } from "@/lib/context/store-context"
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate"
-import { toast } from "sonner"
 
 const colorThemes = [
   { id: "default", name: "Dumos Blue", primary: "#2563eb", accent: "#3b82f6" },
@@ -23,21 +22,13 @@ const colorThemes = [
 export function ThemeCustomizer() {
   const { t, theme: activeThemeId, setTheme } = useStore()
   const [borderRadius, setBorderRadius] = React.useState([8])
-  const { canCustomizeTheme, getUpgradeMessage } = useFeatureGate()
+  const { canCustomizeTheme, withRestriction } = useFeatureGate()
 
   const applyTheme = (themeId: string) => {
-    if (themeId !== "default" && !canCustomizeTheme) {
-      toast.error(getUpgradeMessage('theme_customizer', "Theme customization is a premium feature. Please upgrade your plan to access it."))
-      return
-    }
     setTheme(themeId)
   }
 
   const applyBorderRadius = (value: number[]) => {
-    if (!canCustomizeTheme) {
-      toast.error(getUpgradeMessage('custom_branding', "Border radius customization is a premium feature. Please upgrade your plan to access it."))
-      return
-    }
     const root = document.documentElement
     root.style.setProperty("--radius", `${value[0]}px`)
     setBorderRadius(value)
@@ -79,7 +70,7 @@ export function ThemeCustomizer() {
                 return (
                   <button
                     key={theme.id}
-                    onClick={() => applyTheme(theme.id)}
+                    onClick={theme.id === 'default' ? withRestriction(() => applyTheme(theme.id)) : withRestriction(() => applyTheme(theme.id), { featureAllowed: canCustomizeTheme, featureKey: 'theme_customizer' })}
                     className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
                       activeThemeId === theme.id 
                         ? "border-primary bg-primary/5" 
@@ -109,7 +100,7 @@ export function ThemeCustomizer() {
             <div className="space-y-2">
               <Slider
                 value={borderRadius}
-                onValueChange={applyBorderRadius}
+                onValueChange={withRestriction(applyBorderRadius, { featureAllowed: canCustomizeTheme, featureKey: 'custom_branding' })}
                 max={20}
                 min={0}
                 step={1}

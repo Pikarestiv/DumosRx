@@ -59,7 +59,7 @@ export async function seedSuppliers() {
     is_active: 1,
   });
 
-  await insert("vendors", {
+  await insert("suppliers", {
     id: "v1",
     name: "Emzor Pharmaceuticals",
     contact_person: "Mr. Emeka",
@@ -70,7 +70,7 @@ export async function seedSuppliers() {
     rating: 4.8,
     is_active: 1,
   });
-  await insert("vendors", {
+  await insert("suppliers", {
     id: "v2",
     name: "GSK Nigeria",
     contact_person: "Sarah Okon",
@@ -313,7 +313,7 @@ export async function resetAll() {
     "inventories",
     "categories",
     "suppliers",
-    "vendors",
+    "suppliers",
     "expenses",
     "sales",
     "sale_items",
@@ -332,7 +332,7 @@ export async function resetAll() {
     "_sync_queue",
     "_sync_state",
     "users",
-    "store_profile",
+    "stores",
   ];
   for (const table of tables) {
     try {

@@ -4,8 +4,8 @@ export const queryKeys = {
   inventory: () => ["inventories"],
   categories: () => ["categories"],
   customers: () => ["customers"],
-  vendors: () => ["vendors"],
+  suppliers: () => ["suppliers"],
   sales: () => ["sales"],
-  store_profile: () => ["store_profile"],
+  stores: () => ["stores"],
   transactions: () => ["transactions"],
 } as const;

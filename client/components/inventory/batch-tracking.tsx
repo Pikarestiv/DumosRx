@@ -26,6 +26,7 @@ import { useInventoryStats } from "@/lib/hooks/use-inventory-stats";
 import { genericFuzzySearch } from "@/lib/utils/search";
 
 import { useStore } from "@/lib/context/store-context";
+import { useAuth } from "@/lib/context/auth-context";
 
 import { EditBatchDialog } from "./edit-batch-dialog";
 
@@ -35,6 +36,7 @@ export function BatchTracking() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   const { storeProfile } = useStore();
+  const { isAdmin } = useAuth();
   const expiryThreshold = storeProfile?.expiry_warning_days || 90;
 
   // Shared stats hook — single source of truth for expiry/expired counts
@@ -133,7 +135,7 @@ export function BatchTracking() {
                 <TableHead>Quantity</TableHead>
                 <TableHead>Expiry Date</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">Action</TableHead>
+                {isAdmin && <TableHead className="text-right">Action</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -160,19 +162,21 @@ export function BatchTracking() {
                       <TableCell>
                         <Badge variant={status.variant}>{status.label}</Badge>
                       </TableCell>
-                      <TableCell className="text-right">
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => {
-                            setSelectedBatch(batch);
-                            setIsEditDialogOpen(true);
-                          }}
-                        >
-                          <Pencil className="h-4 w-4 mr-2" />
-                          Edit
-                        </Button>
-                      </TableCell>
+                      {isAdmin && (
+                        <TableCell className="text-right">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => {
+                              setSelectedBatch(batch);
+                              setIsEditDialogOpen(true);
+                            }}
+                          >
+                            <Pencil className="h-4 w-4 mr-2" />
+                            Edit
+                          </Button>
+                        </TableCell>
+                      )}
                     </TableRow>
                   );
                 })

@@ -19,9 +19,10 @@ import { StaffTable } from "./staff-table";
 interface StaffViewProps {
   staff: any[];
   stores: any[];
+  hideHeader?: boolean;
 }
 
-export function StaffView({ staff, stores }: StaffViewProps) {
+export function StaffView({ staff, stores, hideHeader }: StaffViewProps) {
   const searchParams = useSearchParams();
   const storeIdParam = searchParams.get("store_id");
 
@@ -93,28 +94,29 @@ export function StaffView({ staff, stores }: StaffViewProps) {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
-            Staff Management
-          </h1>
-          <p className="text-muted-foreground">
-            Monitor performance and manage accounts across your fleet
-          </p>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-3 sm:items-center w-full lg:w-auto">
-          <select
-            className="bg-background border border-input px-4 py-2 rounded-lg text-sm font-bold focus:ring-2 focus:ring-primary outline-none transition-all h-10 w-full sm:w-40"
-            value={selectedStore}
-            onChange={(e) => setSelectedStore(e.target.value)}
-          >
-            <option value="all">All Stores</option>
-            {stores.map((store) => (
-              <option key={store.id} value={store.id}>
-                {store.name}
-              </option>
-            ))}
-          </select>
+      {!hideHeader && (
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
+              Staff Management
+            </h1>
+            <p className="text-muted-foreground mt-1 text-sm sm:text-base">
+              Monitor performance and manage accounts across your fleet
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3 sm:items-center w-full lg:w-auto">
+            <select
+              className="bg-background border border-input px-4 py-2 rounded-lg text-sm font-bold focus:ring-2 focus:ring-primary outline-none transition-all h-10 w-full sm:w-40"
+              value={selectedStore}
+              onChange={(e) => setSelectedStore(e.target.value)}
+            >
+              <option value="all">All Stores</option>
+              {stores.map((store) => (
+                <option key={store.id} value={store.id}>
+                  {store.name}
+                </option>
+              ))}
+            </select>
           <Button variant="outline" className="font-bold w-full sm:w-auto">
             Export Staff List
           </Button>
@@ -127,7 +129,7 @@ export function StaffView({ staff, stores }: StaffViewProps) {
           </Button>
         </div>
       </div>
-
+      )}
       <StaffStats filteredStaff={filteredStaff} subStatus={subStatus} />
 
       <StaffTable

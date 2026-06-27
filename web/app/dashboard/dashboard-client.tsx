@@ -15,17 +15,22 @@ import { DashboardTour } from "@/components/dashboard/dashboard-tour";
 // View Components
 import { OverviewView } from "@/components/dashboard/views/overview-view";
 import { FleetView } from "@/components/dashboard/views/fleet-view";
-import { StaffView } from "@/components/dashboard/views/staff-view";
-import { ActivitiesView } from "@/components/dashboard/views/activities-view";
+import { FleetStoreDetailsView } from "@/components/dashboard/views/fleet-store-details-view";
+
+import { StaffWrapperView } from "@/components/dashboard/views/staff-wrapper-view";
 import { BillingView } from "@/components/dashboard/views/billing-view";
 import { DownloadsView } from "@/components/dashboard/views/downloads-view";
 import { NotificationsView } from "@/components/dashboard/views/notifications-view";
 import { ProfileView } from "@/components/dashboard/views/profile-view";
 import { webApiClient } from "@/lib/api/client";
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 
-export function DashboardClient({ view }: { view: string }) {
+export function DashboardClient({ view, subView }: { view: string, subView?: string }) {
   const [isMounted, setIsMounted] = useState(false);
+  const searchParams = useSearchParams();
+  const storeIdParam = searchParams?.get('id') || undefined;
+
   useEffect(() => {
     setIsMounted(true);
   }, []);
@@ -77,14 +82,14 @@ export function DashboardClient({ view }: { view: string }) {
         );
       case "fleet":
         return <FleetView stores={stores} />;
+      case "store-details":
+        return <FleetStoreDetailsView storeId={storeIdParam} stores={stores} />;
       case "staff":
         return (
           <Suspense fallback={<DashboardSkeleton />}>
-            <StaffView staff={staff} stores={stores} />
+            <StaffWrapperView staff={staff} stores={stores} subView={subView} />
           </Suspense>
         );
-      case "activities":
-        return <ActivitiesView stores={stores} />;
       case "billing":
         return <BillingView />;
       case "downloads":
@@ -97,7 +102,7 @@ export function DashboardClient({ view }: { view: string }) {
       case "notifications":
         return <NotificationsView onBack={() => setActiveTab("overview")} />;
       case "profile":
-        return <ProfileView />;
+        return <ProfileView onReset={resetAccountData} />;
       default:
         return (
           <OverviewView

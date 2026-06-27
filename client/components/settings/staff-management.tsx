@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { UserPlus } from "lucide-react";
 import { useUsers } from "@/lib/hooks/queries/use-users";
-import { toast } from "sonner";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { useStore } from "@/lib/context/store-context";
 
@@ -15,7 +14,7 @@ import { StaffDeleteDialog } from "./staff/staff-delete-dialog";
 
 export function StaffManagement() {
   const { activeStoreId } = useStore();
-  const { maxStaffAccounts, getUpgradeMessage } = useFeatureGate();
+  const { maxStaffAccounts, getUpgradeMessage , withRestriction } = useFeatureGate();
   
   const { data: users = [], isLoading, refetch: loadUsers } = useUsers(activeStoreId);
   
@@ -55,7 +54,7 @@ export function StaffManagement() {
         <Button 
           className="bg-primary hover:bg-primary/90"
           disabled={users.length >= maxStaffAccounts}
-          onClick={handleOpenCreate}
+          onClick={withRestriction(handleOpenCreate)}
         >
           <UserPlus className="w-4 h-4 mr-2" />
           Add Staff Member

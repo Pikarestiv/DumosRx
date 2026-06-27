@@ -54,7 +54,7 @@ export function StoreInformationCard({
   setShowRetailSuggestions,
   handleSaveProfile,
 }: StoreInformationCardProps) {
-  const { canUseEcommerce, getUpgradeMessage } = useFeatureGate();
+  const { canUseEcommerce, withRestriction, getUpgradeMessage } = useFeatureGate();
   const [isEditingSlug, setIsEditingSlug] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -206,7 +206,7 @@ export function StoreInformationCard({
         )}
       </CardContent>
       <CardFooter className="border-t px-6 py-4">
-        <Button onClick={handleSaveProfile} className="cursor-pointer">
+        <Button onClick={withRestriction(handleSaveProfile)} className="cursor-pointer">
           <Save className="w-4 h-4 mr-2" />
           Save Changes
         </Button>

@@ -29,3 +29,16 @@ export function getLocalTodayDate(): string {
   const day = String(d.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
+
+/**
+ * Checks if the current environment is a mobile device based on screen width and user agent.
+ */
+export function isMobileDevice(): boolean {
+  if (typeof window === "undefined") return false;
+  return (
+    window.innerWidth < 768 ||
+    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+      navigator.userAgent
+    )
+  );
+}

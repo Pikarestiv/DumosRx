@@ -58,7 +58,7 @@ class DashboardService
         try {
             if (Schema::hasTable('inventories')) {
                 $inventoryStats = DB::table('inventories')
-                    ->where('user_id', $userId)
+                    ->whereIn('user_id', $userIds)
                     ->select(DB::raw('SUM(quantity_in_stock * cost_price) as total_value'))
                     ->first();
                 $inventoryValue = (float)($inventoryStats->total_value ?? 0);
@@ -71,8 +71,8 @@ class DashboardService
         $totalCustomers = 0;
         $newCustomersThisWeek = 0;
         try {
-            $totalCustomers = Customer::where('user_id', $userId)->count();
-            $newCustomersThisWeek = Customer::where('user_id', $userId)->where('created_at', '>=', $last7Days)->count();
+            $totalCustomers = Customer::whereIn('user_id', $userIds)->count();
+            $newCustomersThisWeek = Customer::whereIn('user_id', $userIds)->where('created_at', '>=', $last7Days)->count();
         } catch (\Exception $e) {
             Log::error("DashboardService [Customers]: " . $e->getMessage());
         }
@@ -127,13 +127,13 @@ class DashboardService
             $storeDailySales = (float)Sale::whereIn('cashier_id', $cashierIds)->whereDate('created_at', Carbon::today())->sum('total_amount');
             
             // Inventory
-            $storeInventory = DB::table('inventories')->where('user_id', $userId);
+            $storeInventory = DB::table('inventories')->whereIn('user_id', $cashierIds);
             $totalInventory = $storeInventory->count();
-            $lowStock = DB::table('inventories')->where('user_id', $userId)->where('quantity_in_stock', '<', 10)->count();
+            $lowStock = DB::table('inventories')->whereIn('user_id', $cashierIds)->where('quantity_in_stock', '<', 10)->count();
             
             // Expiring Items
             $expiringItems = DB::table('inventories')
-                ->where('user_id', $userId)
+                ->whereIn('user_id', $cashierIds)
                 ->whereNotNull('expiry_date')
                 ->where('expiry_date', '<', Carbon::now()->addDays(30))
                 ->count();
@@ -160,6 +160,7 @@ class DashboardService
 
             // Recent Activities
             $recentActivities = ActivityLog::whereIn('user_id', $cashierIds)
+                ->where('action', '!=', 'CLIENT_API_ERROR')
                 ->with('user')
                 ->orderBy('created_at', 'desc')
                 ->limit(5)

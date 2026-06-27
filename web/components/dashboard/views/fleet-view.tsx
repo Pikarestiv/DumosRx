@@ -67,7 +67,7 @@ export function FleetView({ stores: initialStores }: FleetViewProps) {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
 
   const { data: storesData } = useStores();
-  const storesToDisplay = storesData || initialStores;
+  const storesToDisplay = initialStores; // Use the detailed stores passed from the dashboard layout
 
   const handleManageStaff = (storeId: string) => {
     router.push(`/dashboard/staff?store_id=${storeId}`);

@@ -21,6 +21,11 @@ interface ActivityLog {
   action: string;
   table_name?: string;
   details?: string;
+  description?: string;
+  properties?: {
+    table_name?: string;
+    details?: string;
+  };
   user_id?: string | number;
   user?: {
     name?: string;
@@ -83,8 +88,10 @@ export function ActivitiesView({ stores = [] }: { stores?: StoreProp[] }) {
   };
 
   const filteredLogs = logs.filter((log: ActivityLog) => {
-    const matchesSearch = log.details?.toLowerCase().includes(search.toLowerCase()) || 
-                          log.table_name?.toLowerCase().includes(search.toLowerCase());
+    const detailsStr = log.details || log.properties?.details || log.description || "";
+    const tableNameStr = log.table_name || log.properties?.table_name || "";
+    const matchesSearch = detailsStr.toLowerCase().includes(search.toLowerCase()) || 
+                          tableNameStr.toLowerCase().includes(search.toLowerCase());
     const matchesAction = filterAction === "all" || log.action?.toLowerCase() === filterAction.toLowerCase();
     const matchesStore = filterStore === "all" || log.user?.store_id?.toString() === filterStore;
     return matchesSearch && matchesAction && matchesStore;
@@ -200,10 +207,10 @@ export function ActivitiesView({ stores = [] }: { stores?: StoreProp[] }) {
                         </Badge>
                       </TableCell>
                       <TableCell className="font-semibold text-sm capitalize text-muted-foreground">
-                        {log.table_name?.replace(/_/g, " ")}
+                        {(log.table_name || log.properties?.table_name || "System").replace(/_/g, " ")}
                       </TableCell>
                       <TableCell className="pr-6 py-3">
-                        <ActivityDetails details={log.details} />
+                        <ActivityDetails details={log.details || log.properties?.details || log.description} />
                       </TableCell>
                     </TableRow>
                   ))

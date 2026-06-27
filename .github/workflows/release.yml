@@ -209,7 +209,11 @@ jobs:
       - name: Separate root files from binaries
         run: |
           mkdir -p root-assets
-          mv release-assets/updater.json root-assets/
+          if [ -f "release-assets/updater.json" ]; then
+            mv release-assets/updater.json root-assets/
+          else
+            echo "Warning: release-assets/updater.json not found! Skipping move."
+          fi
           cp .github/downloads-index.php root-assets/index.php
 
       - name: FTP Deploy Binaries to Version Folder

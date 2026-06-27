@@ -15,7 +15,6 @@ import {
 import { APP_NAME } from "@/lib/constants";
 import { Theme } from "@/components/theme-provider";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
-import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface AppearanceSettingsProps {

@@ -86,7 +86,7 @@ export function POSSystem() {
   } = usePOSCart(medicines);
 
   // 3. Suggestions
-  const { canUseSmartSuggestions, canUseMobileApp, withRestriction } = useFeatureGate();
+  const { withRestriction } = useFeatureGate();
   const { suggestions } = useSmartSuggestions(cart, medicines);
 
   // 4. Payment Config

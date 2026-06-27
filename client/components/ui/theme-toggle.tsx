@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate"
-import { toast } from "sonner"
 
 export function ThemeToggle() {
   const { setTheme, theme } = useTheme()

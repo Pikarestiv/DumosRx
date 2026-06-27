@@ -6,7 +6,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+
 import { useQuery } from "@tanstack/react-query";
 import { initDatabase, query } from "../local-database";
 

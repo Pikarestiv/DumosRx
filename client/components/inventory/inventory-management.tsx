@@ -14,7 +14,6 @@ import { ExpiringBatchesAlert } from "./expiring-batches-alert"
 import { useStore } from "@/lib/context/store-context"
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate"
 import { useAuth } from "@/lib/context/auth-context"
-import { toast } from "sonner"
 
 export function InventoryManagement() {
   const [isAuditOpen, setIsAuditOpen] = useState(false)

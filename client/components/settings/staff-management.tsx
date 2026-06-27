@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { UserPlus } from "lucide-react";
 import { useUsers } from "@/lib/hooks/queries/use-users";
-import { toast } from "sonner";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { useStore } from "@/lib/context/store-context";
 

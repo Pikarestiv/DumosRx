@@ -9,7 +9,6 @@ import { Label } from "@/components/ui/label"
 import { Slider } from "@/components/ui/slider"
 import { useStore } from "@/lib/context/store-context"
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate"
-import { toast } from "sonner"
 
 const colorThemes = [
   { id: "default", name: "Dumos Blue", primary: "#2563eb", accent: "#3b82f6" },

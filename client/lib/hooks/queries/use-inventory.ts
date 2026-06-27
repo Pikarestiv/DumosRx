@@ -4,7 +4,7 @@ import {
   getStockMovements,
   getStockAdjustments,
 } from "@/lib/db/local-database";
-import { insert, update } from "@/lib/db/base-helpers";
+import { insert } from "@/lib/db/base-helpers";
 
 export function useStockMovements(page = 1, limit = 50) {
   return useQuery({

@@ -62,38 +62,50 @@ function MobileRestrictionGuard() {
     };
     checkMobile();
     window.addEventListener("resize", checkMobile);
-    
+
     // Feature usage interceptor
     const handleGlobalClick = (e: MouseEvent) => {
-      if (!isMobile || canUseMobileApp || !isAuthenticated || pathname === '/login' || pathname === '/setup') {
+      if (
+        !isMobile ||
+        canUseMobileApp ||
+        !isAuthenticated ||
+        pathname === "/login" ||
+        pathname === "/setup"
+      ) {
         return;
       }
-      
+
       const target = e.target as HTMLElement;
-      
+
       // Allow our own banner to be clicked
-      if (target.closest('#mobile-restriction-banner')) return;
-      
+      if (target.closest("#mobile-restriction-banner")) return;
+
       // Allow navigation and tabs
-      if (target.closest('nav, aside, header, .sidebar, [role="tab"], a')) return;
-      
+      if (target.closest('nav, aside, header, .sidebar, [role="tab"], a'))
+        return;
+
       // Intercept action elements
-      const isAction = target.closest('button, input, textarea, select, [role="switch"], [role="checkbox"]');
+      const isAction = target.closest(
+        'button, input, textarea, select, [role="switch"], [role="checkbox"]',
+      );
       if (isAction) {
         e.preventDefault();
         e.stopPropagation();
-        
+
         toast.error("Mobile Access Locked", {
-          description: "Please upgrade your plan to perform actions on the mobile app."
+          description:
+            "Please upgrade your plan to perform actions on the mobile app.",
         });
       }
     };
-    
+
     document.addEventListener("click", handleGlobalClick, { capture: true });
-    
+
     return () => {
       window.removeEventListener("resize", checkMobile);
-      document.removeEventListener("click", handleGlobalClick, { capture: true });
+      document.removeEventListener("click", handleGlobalClick, {
+        capture: true,
+      });
     };
   }, [isMobile, canUseMobileApp, isAuthenticated, pathname]);
 
@@ -106,15 +118,24 @@ function MobileRestrictionGuard() {
       } else {
         window.open(url, "_blank", "noopener,noreferrer");
       }
-    } catch (e) {
+    } catch (_e) {
       window.open(url, "_blank", "noopener,noreferrer");
     }
   };
 
-  if (isMobile && !canUseMobileApp && isAuthenticated && pathname !== '/login' && pathname !== '/setup') {
+  if (
+    isMobile &&
+    !canUseMobileApp &&
+    isAuthenticated &&
+    pathname !== "/login" &&
+    pathname !== "/setup"
+  ) {
     return (
       <div className="fixed bottom-0 left-0 right-0 z-[9999] p-4 pointer-events-none">
-        <Card id="mobile-restriction-banner" className="max-w-md mx-auto w-full border-border/40 shadow-2xl bg-card text-card-foreground pointer-events-auto">
+        <Card
+          id="mobile-restriction-banner"
+          className="max-w-md mx-auto w-full border-border/40 shadow-2xl bg-card text-card-foreground pointer-events-auto"
+        >
           <CardHeader className="pb-2 flex flex-row items-start gap-4 space-y-0">
             <div className="w-10 h-10 bg-destructive/10 text-destructive rounded-full flex shrink-0 items-center justify-center">
               <Lock className="h-5 w-5" />
@@ -124,7 +145,10 @@ function MobileRestrictionGuard() {
                 📱 Mobile Access Locked
               </CardTitle>
               <CardDescription className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                {getUpgradeMessage('mobile_access', "Mobile access is a premium feature. Please upgrade your plan to access your dashboard on the go.")}
+                {getUpgradeMessage(
+                  "mobile_access",
+                  "Mobile access is a premium feature. Please upgrade your plan to access your dashboard on the go.",
+                )}
               </CardDescription>
             </div>
           </CardHeader>
@@ -236,10 +260,7 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
             </p>
             <p>Device ID: {deviceId}</p>
             {license?.expiryDate && (
-              <p>
-                Last Valid Date:{" "}
-                {formatDateToDDMMYYYY(license.expiryDate)}
-              </p>
+              <p>Last Valid Date: {formatDateToDDMMYYYY(license.expiryDate)}</p>
             )}
           </div>
         </CardContent>

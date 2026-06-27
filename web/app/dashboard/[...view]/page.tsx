@@ -9,6 +9,7 @@ export function generateStaticParams() {
     { view: ["overview"] },
     { view: ["fleet"] },
     { view: ["store-details"] },
+    { view: ["staff"] },
     { view: ["staff", "management"] },
     { view: ["staff", "activities"] },
     { view: ["billing"] },

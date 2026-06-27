@@ -27,13 +27,13 @@ if ($response) {
 
 // Generate deterministic URLs
 if ($os === 'windows') {
-    $downloadUrl = "https://downloads.dumosrx.com/DumosRx_{$version}_x64_en-US.msi";
+    $downloadUrl = "https://downloads.dumosrx.com/v{$version}/DumosRx_{$version}_x64_en-US.msi";
 } elseif ($os === 'macos') {
-    $downloadUrl = "https://downloads.dumosrx.com/DumosRx_{$version}_x64.dmg";
+    $downloadUrl = "https://downloads.dumosrx.com/v{$version}/DumosRx_{$version}_x64.dmg";
 } elseif ($os === 'linux') {
-    $downloadUrl = "https://downloads.dumosrx.com/DumosRx_{$version}_amd64.AppImage";
+    $downloadUrl = "https://downloads.dumosrx.com/v{$version}/DumosRx_{$version}_amd64.AppImage";
 } elseif ($os === 'android') {
-    $downloadUrl = "https://downloads.dumosrx.com/app-release.apk";
+    $downloadUrl = "https://downloads.dumosrx.com/v{$version}/app-release.apk";
 }
 
 if ($downloadUrl) {

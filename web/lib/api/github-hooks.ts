@@ -36,10 +36,10 @@ export const useLatestRelease = () => {
       const cleanVersion = version.replace(/^v/, '');
 
       return {
-        windows: `https://downloads.dumosrx.com/DumosRx_${cleanVersion}_x64_en-US.msi`,
-        macos: `https://downloads.dumosrx.com/DumosRx_${cleanVersion}_x64.dmg`,
-        linux: `https://downloads.dumosrx.com/DumosRx_${cleanVersion}_amd64.AppImage`,
-        android: `https://downloads.dumosrx.com/app-release.apk`,
+        windows: `https://downloads.dumosrx.com/v${cleanVersion}/DumosRx_${cleanVersion}_x64_en-US.msi`,
+        macos: `https://downloads.dumosrx.com/v${cleanVersion}/DumosRx_${cleanVersion}_x64.dmg`,
+        linux: `https://downloads.dumosrx.com/v${cleanVersion}/DumosRx_${cleanVersion}_amd64.AppImage`,
+        android: `https://downloads.dumosrx.com/v${cleanVersion}/app-release.apk`,
         version: version,
         winSize: "",
         macSize: "",

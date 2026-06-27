@@ -15,7 +15,7 @@ import { StaffDeleteDialog } from "./staff/staff-delete-dialog";
 
 export function StaffManagement() {
   const { activeStoreId } = useStore();
-  const { maxStaffAccounts, getUpgradeMessage } = useFeatureGate();
+  const { maxStaffAccounts, getUpgradeMessage , withRestriction } = useFeatureGate();
   
   const { data: users = [], isLoading, refetch: loadUsers } = useUsers(activeStoreId);
   
@@ -55,7 +55,7 @@ export function StaffManagement() {
         <Button 
           className="bg-primary hover:bg-primary/90"
           disabled={users.length >= maxStaffAccounts}
-          onClick={handleOpenCreate}
+          onClick={withRestriction(handleOpenCreate)}
         >
           <UserPlus className="w-4 h-4 mr-2" />
           Add Staff Member

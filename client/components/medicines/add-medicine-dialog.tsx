@@ -3,6 +3,7 @@
 import type React from "react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import {
   Dialog,
   DialogContent,
@@ -30,6 +31,7 @@ export function AddMedicineDialog({
   onAddMedicine,
   editingMedicine,
 }: AddMedicineDialogProps) {
+  const { withRestriction } = useFeatureGate();
   const { t, storeType, storeProfile } = useStore();
   const [formData, setFormData] = useState<Medicine>({
     id: "",
@@ -291,7 +293,7 @@ export function AddMedicineDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={withRestriction(handleSubmit)} className="space-y-4">
           <MedicineFormFields
             formData={formData}
             onInputChange={handleInputChange}

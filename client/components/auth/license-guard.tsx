@@ -27,7 +27,9 @@ import { useAuth } from "@/lib/context/auth-context";
 import { usePathname } from "next/navigation";
 import { useTheme } from "@/components/theme-provider";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
+import { isMobileDevice } from "@/lib/utils";
 import { WEB_APP_URL } from "@/lib/constants";
+import { toast } from "sonner";
 
 function ThemeRestrictor() {
   const { currentTier } = useFeatureGate();
@@ -56,17 +58,44 @@ function MobileRestrictionGuard() {
 
   useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(
-        window.innerWidth < 768 ||
-          /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-            navigator.userAgent,
-          ),
-      );
+      setIsMobile(isMobileDevice());
     };
     checkMobile();
     window.addEventListener("resize", checkMobile);
-    return () => window.removeEventListener("resize", checkMobile);
-  }, []);
+    
+    // Feature usage interceptor
+    const handleGlobalClick = (e: MouseEvent) => {
+      if (!isMobile || canUseMobileApp || !isAuthenticated || pathname === '/login' || pathname === '/setup') {
+        return;
+      }
+      
+      const target = e.target as HTMLElement;
+      
+      // Allow our own banner to be clicked
+      if (target.closest('#mobile-restriction-banner')) return;
+      
+      // Allow navigation and tabs
+      if (target.closest('nav, aside, header, .sidebar, [role="tab"], a')) return;
+      
+      // Intercept action elements
+      const isAction = target.closest('button, input, textarea, select, [role="switch"], [role="checkbox"]');
+      if (isAction) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        toast.error("Mobile Access Locked", {
+          description: "Please upgrade your plan to perform actions on the mobile app."
+        });
+      }
+    };
+    
+    document.addEventListener("click", handleGlobalClick, { capture: true });
+    
+    return () => {
+      window.removeEventListener("resize", checkMobile);
+      document.removeEventListener("click", handleGlobalClick, { capture: true });
+    };
+  }, [isMobile, canUseMobileApp, isAuthenticated, pathname]);
 
   const openBilling = async () => {
     const url = `${WEB_APP_URL}/dashboard/billing`;
@@ -85,7 +114,7 @@ function MobileRestrictionGuard() {
   if (isMobile && !canUseMobileApp && isAuthenticated && pathname !== '/login' && pathname !== '/setup') {
     return (
       <div className="fixed bottom-0 left-0 right-0 z-[9999] p-4 pointer-events-none">
-        <Card className="max-w-md mx-auto w-full border-border/40 shadow-2xl bg-card text-card-foreground pointer-events-auto">
+        <Card id="mobile-restriction-banner" className="max-w-md mx-auto w-full border-border/40 shadow-2xl bg-card text-card-foreground pointer-events-auto">
           <CardHeader className="pb-2 flex flex-row items-start gap-4 space-y-0">
             <div className="w-10 h-10 bg-destructive/10 text-destructive rounded-full flex shrink-0 items-center justify-center">
               <Lock className="h-5 w-5" />

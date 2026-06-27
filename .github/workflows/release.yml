@@ -167,6 +167,9 @@ jobs:
     needs: [release, release-android]
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
       - name: Download all release assets
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -202,6 +205,9 @@ jobs:
           "
           echo "Updated updater.json:"
           cat updater.json
+          
+      - name: Add index.php to release assets
+        run: cp .github/downloads-index.php release-assets/index.php
 
       - name: FTP Deploy to Namecheap
         uses: SamKirkland/FTP-Deploy-Action@v4.3.4

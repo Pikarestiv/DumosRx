@@ -79,7 +79,7 @@ class SyncController extends Controller
                     }
                 }
 
-                $context = ['user_id' => $user->id, 'store_id' => $currentStoreId];
+                $context = ['user_id' => $currentUser ? $currentUser->id : null, 'store_id' => $currentStoreId];
                 $payload = SyncPayloadMapper::map($change['table_name'], $payload, $context);
 
                 $now = now();

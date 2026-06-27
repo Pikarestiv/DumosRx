@@ -12,6 +12,7 @@ import { FORM_SUGGESTIONS } from "@/lib/constants/suggestions";
 interface AddStockAdjustmentFormProps {
   newAdjustment: {
     product: string;
+    batch_id: string;
     adjustmentType: "increase" | "decrease";
     quantity: number;
     reason: string;
@@ -19,6 +20,7 @@ interface AddStockAdjustmentFormProps {
   };
   setNewAdjustment: React.Dispatch<React.SetStateAction<{
     product: string;
+    batch_id: string;
     adjustmentType: "increase" | "decrease";
     quantity: number;
     reason: string;
@@ -27,6 +29,7 @@ interface AddStockAdjustmentFormProps {
   onSubmit: (e: React.FormEvent) => void;
   onCancel: () => void;
   reasons: string[];
+  availableBatches?: any[];
 }
 
 export function AddStockAdjustmentForm({
@@ -35,6 +38,7 @@ export function AddStockAdjustmentForm({
   onSubmit,
   onCancel,
   reasons,
+  availableBatches = [],
 }: AddStockAdjustmentFormProps) {
   return (
     <Card>

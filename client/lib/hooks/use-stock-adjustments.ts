@@ -30,6 +30,7 @@ export function useStockAdjustments() {
   const [searchTerm, setSearchTerm] = useState("");
   const [newAdjustment, setNewAdjustment] = useState({
     product: searchParams.get("product") || "",
+    batch_id: "",
     adjustmentType: "decrease" as "increase" | "decrease",
     quantity: 0,
     reason: "",
@@ -45,6 +46,42 @@ export function useStockAdjustments() {
       router.replace(`${pathname}?${params.toString()}`);
     }
   }, [searchParams, pathname, router]);
+
+  const [availableBatches, setAvailableBatches] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!newAdjustment.product || !isTauri()) {
+      setAvailableBatches([]);
+      return;
+    }
+    
+    async function fetchBatches() {
+      try {
+        const { query } = await import("@/lib/db/core");
+        const med = await query<any>(
+          "SELECT id FROM products WHERE name = ? LIMIT 1",
+          [newAdjustment.product]
+        );
+        if (med && med.length > 0) {
+          const batches = await query<any>(
+            "SELECT * FROM stock_batches WHERE product_id = ? AND _deleted = 0 AND quantity > 0 ORDER BY expiry_date ASC",
+            [med[0].id]
+          );
+          setAvailableBatches(batches);
+          
+          if (batches.length === 1) {
+             setNewAdjustment(prev => ({ ...prev, batch_id: batches[0].id }));
+          } else {
+             setNewAdjustment(prev => ({ ...prev, batch_id: "" }));
+          }
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    
+    fetchBatches();
+  }, [newAdjustment.product]);
 
   const reasons = [
     "Damaged Goods",
@@ -139,7 +176,30 @@ export function useStockAdjustments() {
         );
 
         // Adjust stock_batches
-        if (calculatedQty < 0) {
+        if (newAdjustment.batch_id === "new" || (!newAdjustment.batch_id && calculatedQty > 0)) {
+          // Increase: Add to an 'ADJUSTMENT' batch
+          const batchId = crypto.randomUUID();
+          await execute(
+            "INSERT INTO stock_batches (id, product_id, batch_number, quantity, is_active, created_at, updated_at) VALUES (?, ?, 'ADJUSTMENT', ?, 1, ?, ?)",
+            [batchId, productId, Math.abs(calculatedQty), new Date().toISOString(), new Date().toISOString()]
+          );
+          
+          await execute(
+             "UPDATE stock_movements SET stock_batch_id = ? WHERE id = ?",
+             [batchId, uuid]
+          );
+        } else if (newAdjustment.batch_id) {
+           await execute(
+              "UPDATE stock_batches SET quantity = quantity + ?, updated_at = ? WHERE id = ?",
+              [calculatedQty, new Date().toISOString(), newAdjustment.batch_id]
+           );
+           
+           await execute(
+             "UPDATE stock_movements SET stock_batch_id = ? WHERE id = ?",
+             [newAdjustment.batch_id, uuid]
+           );
+        } else if (calculatedQty < 0) {
+          // Fallback FIFO
           const batches = await query<any>(
             "SELECT * FROM stock_batches WHERE product_id = ? AND _deleted = 0 AND quantity > 0 ORDER BY expiry_date ASC, created_at ASC",
             [productId]
@@ -154,13 +214,6 @@ export function useStockAdjustments() {
             );
             remainingToDeduct -= deduction;
           }
-        } else {
-          // Increase: Add to an 'ADJUSTMENT' batch
-          const batchId = crypto.randomUUID();
-          await execute(
-            "INSERT INTO stock_batches (id, product_id, batch_number, quantity, is_active, created_at, updated_at) VALUES (?, ?, 'ADJUSTMENT', ?, 1, ?, ?)",
-            [batchId, productId, calculatedQty, new Date().toISOString(), new Date().toISOString()]
-          );
         }
       } catch (err) {
         console.error("Failed to apply local adjustment:", err);
@@ -213,6 +266,7 @@ export function useStockAdjustments() {
     newAdjustment,
     setNewAdjustment,
     reasons,
+    availableBatches,
     handleSubmitAdjustment,
     pendingAdjustments,
     totalAdjustments,

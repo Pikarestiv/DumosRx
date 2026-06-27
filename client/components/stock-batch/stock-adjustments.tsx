@@ -19,6 +19,7 @@ export function StockAdjustments() {
     newAdjustment,
     setNewAdjustment,
     reasons,
+    availableBatches,
     handleSubmitAdjustment,
     pendingAdjustments,
     totalAdjustments,
@@ -50,6 +51,7 @@ export function StockAdjustments() {
           onSubmit={handleSubmitAdjustment}
           onCancel={() => setShowAddForm(false)}
           reasons={reasons}
+          availableBatches={availableBatches}
         />
       )}
 

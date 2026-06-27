@@ -25,8 +25,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ActivityDetails, filterIndirectSaleLogs } from "./activities-view";
-import { StoreStockBatchTab } from "./store-stock-batch-tab";
+import { StoreActivitiesTab } from "./fleet/store-activities-tab";
+import { StoreTransactionsTab } from "./fleet/store-transactions-tab";
+import { StoreStockBatchTab } from "./fleet/store-stock-batch-tab";
 
 export function FleetStoreDetailsView({
   storeId,
@@ -38,7 +39,6 @@ export function FleetStoreDetailsView({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "overview");
-  const [viewingTransaction, setViewingTransaction] = useState<any>(null);
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
@@ -208,136 +208,13 @@ export function FleetStoreDetailsView({
 
         {activeTab === "activities" && (
           <div className="space-y-3">
-            {(() => {
-              const filteredActivities = store.recent_activities
-                ? store.recent_activities.filter((act: any) =>
-                    filterIndirectSaleLogs(store.recent_activities, act),
-                  )
-                : [];
-              const previewActivities = filteredActivities.slice(0, 10);
-
-              return filteredActivities.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                  <Activity className="h-8 w-8 opacity-20 mb-2" />
-                  <p className="font-medium">
-                    No recent activities found for this store
-                  </p>
-                </div>
-              ) : (
-                <>
-                  {previewActivities.map((act: any) => (
-                    <div
-                      key={act.id}
-                      className="p-4 border rounded-xl flex items-start gap-4"
-                    >
-                      <div className="mt-1">
-                        <Activity className="h-5 w-5 text-indigo-500" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-sm flex items-center gap-2">
-                          <span className="uppercase tracking-wider text-[10px] bg-muted px-2 py-0.5 rounded">
-                            {act.action}
-                          </span>
-                          <span>
-                            {act.table_name ||
-                              act.properties?.table_name ||
-                              "System"}
-                          </span>
-                        </p>
-                        <ActivityDetails
-                          details={
-                            act.details ||
-                            act.properties?.details ||
-                            act.description
-                          }
-                          tableName={
-                            act.table_name || act.properties?.table_name
-                          }
-                          action={act.action}
-                        />
-                      </div>
-                      <div className="text-right whitespace-nowrap">
-                        <p className="text-xs font-bold">
-                          {act.user?.name || act.user?.first_name || "System"}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">
-                          {new Date(act.created_at).toLocaleString()}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                  {filteredActivities.length > 0 && (
-                    <div className="pt-4 flex justify-center">
-                      <Button
-                        variant="outline"
-                        className="w-full text-primary border-primary hover:text-white hover:bg-primary"
-                        onClick={() =>
-                          router.push(
-                            `/dashboard/staff/activities?storeId=${storeId}`,
-                          )
-                        }
-                      >
-                        View All Activities
-                      </Button>
-                    </div>
-                  )}
-                </>
-              );
-            })()}
+            <StoreActivitiesTab store={store} storeId={storeId} />
           </div>
         )}
 
         {activeTab === "transactions" && (
           <div className="space-y-4">
-            {!store.recent_transactions ||
-            store.recent_transactions.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                <ShoppingCart className="h-8 w-8 opacity-20 mb-2" />
-                <p className="font-medium">
-                  No recent sales found for this store
-                </p>
-              </div>
-            ) : (
-              <div className="rounded-xl border overflow-hidden">
-                <Table>
-                  <TableHeader className="bg-muted/50">
-                    <TableRow>
-                      <TableHead>Receipt #</TableHead>
-                      <TableHead>Items</TableHead>
-                      <TableHead className="text-right">Total Amount</TableHead>
-                      <TableHead className="text-right">Date</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {store.recent_transactions.map((trx: any) => (
-                      <TableRow
-                        key={trx.id}
-                        className="cursor-pointer hover:bg-muted/50"
-                        onClick={() => setViewingTransaction(trx)}
-                      >
-                        <TableCell className="font-mono text-xs">
-                          {trx.transaction_number}
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">
-                          {trx.items
-                            ?.map(
-                              (item: any) =>
-                                `${item.quantity}x ${item.product_name || "Item"}`,
-                            )
-                            .join(", ") || "No items"}
-                        </TableCell>
-                        <TableCell className="text-right font-black text-green-600">
-                          ₦{trx.total_amount}
-                        </TableCell>
-                        <TableCell className="text-right text-xs font-medium">
-                          {new Date(trx.created_at).toLocaleString()}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
+            <StoreTransactionsTab store={store} />
           </div>
         )}
 
@@ -346,61 +223,7 @@ export function FleetStoreDetailsView({
         )}
       </div>
 
-      <Dialog
-        open={!!viewingTransaction}
-        onOpenChange={() => setViewingTransaction(null)}
-      >
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>
-              Receipt #{viewingTransaction?.transaction_number}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <div className="space-y-4">
-              <div className="flex justify-between items-center text-sm font-medium text-muted-foreground">
-                <div className="flex flex-col">
-                  <span>
-                    Date:{" "}
-                    {viewingTransaction &&
-                      new Date(viewingTransaction.created_at).toLocaleString()}
-                  </span>
-                  <span>
-                    Cashier: {viewingTransaction?.cashier_name || "Unknown"}
-                  </span>
-                </div>
-                <span>Items: {viewingTransaction?.items?.length || 0}</span>
-              </div>
-
-              <div className="border rounded-md divide-y">
-                {viewingTransaction?.items?.map((item: any) => (
-                  <div
-                    key={item.id}
-                    className="p-3 flex justify-between items-center"
-                  >
-                    <div>
-                      <p className="font-medium">
-                        {item.product_name || "Item"}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {item.quantity} x ₦{item.unit_price}
-                      </p>
-                    </div>
-                    <p className="font-bold">₦{item.total_price}</p>
-                  </div>
-                ))}
-              </div>
-
-              <div className="flex justify-between items-center pt-4 border-t">
-                <span className="font-bold">Total Amount</span>
-                <span className="font-black text-green-600 text-lg">
-                  ₦{viewingTransaction?.total_amount}
-                </span>
-              </div>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      
     </div>
   );
 }

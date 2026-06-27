@@ -18,7 +18,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useRouter } from "next/navigation";
+import { ActivityDetails, filterIndirectSaleLogs } from "./activities-view";
 
 export function FleetStoreDetailsView({
   storeId,
@@ -29,6 +36,7 @@ export function FleetStoreDetailsView({
 }) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("overview");
+  const [viewingTransaction, setViewingTransaction] = useState<any>(null);
 
   if (!storeId || !stores) return null;
   const store = stores.find((s: any) => s.id.toString() === storeId);
@@ -194,7 +202,9 @@ export function FleetStoreDetailsView({
                 </p>
               </div>
             ) : (
-              store.recent_activities.map((act: any) => (
+              store.recent_activities
+                .filter((act: any) => filterIndirectSaleLogs(store.recent_activities, act))
+                .map((act: any) => (
                 <div
                   key={act.id}
                   className="p-4 border rounded-xl flex items-start gap-4"
@@ -213,12 +223,11 @@ export function FleetStoreDetailsView({
                           "System"}
                       </span>
                     </p>
-                    <p className="text-sm text-muted-foreground mt-1 wrap-break-word">
-                      {act.details ||
-                        act.properties?.details ||
-                        act.description ||
-                        "No details provided"}
-                    </p>
+                    <ActivityDetails 
+                      details={act.details || act.properties?.details || act.description} 
+                      tableName={act.table_name || act.properties?.table_name} 
+                      action={act.action} 
+                    />
                   </div>
                   <div className="text-right whitespace-nowrap">
                     <p className="text-xs font-bold">
@@ -257,7 +266,11 @@ export function FleetStoreDetailsView({
                   </TableHeader>
                   <TableBody>
                     {store.recent_transactions.map((trx: any) => (
-                      <TableRow key={trx.id}>
+                      <TableRow 
+                        key={trx.id} 
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => setViewingTransaction(trx)}
+                      >
                         <TableCell className="font-mono text-xs">
                           {trx.transaction_number}
                         </TableCell>
@@ -284,6 +297,41 @@ export function FleetStoreDetailsView({
           </div>
         )}
       </div>
+
+      <Dialog open={!!viewingTransaction} onOpenChange={() => setViewingTransaction(null)}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Receipt #{viewingTransaction?.transaction_number}</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="space-y-4">
+              <div className="flex justify-between items-center text-sm font-medium text-muted-foreground">
+                <span>Date: {viewingTransaction && new Date(viewingTransaction.created_at).toLocaleString()}</span>
+                <span>Items: {viewingTransaction?.items?.length || 0}</span>
+              </div>
+              
+              <div className="border rounded-md divide-y">
+                {viewingTransaction?.items?.map((item: any) => (
+                  <div key={item.id} className="p-3 flex justify-between items-center">
+                    <div>
+                      <p className="font-medium">{item.medicine_name || "Item"}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {item.quantity} x ₦{item.unit_price}
+                      </p>
+                    </div>
+                    <p className="font-bold">₦{item.total_price}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex justify-between items-center pt-4 border-t">
+                <span className="font-bold">Total Amount</span>
+                <span className="font-black text-green-600 text-lg">₦{viewingTransaction?.total_amount}</span>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

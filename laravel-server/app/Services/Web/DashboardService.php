@@ -157,7 +157,7 @@ class DashboardService
                 ->where('action', '!=', 'CLIENT_API_ERROR')
                 ->with('user')
                 ->orderBy('created_at', 'desc')
-                ->limit(5)
+                ->limit(20)
                 ->get();
 
             return [

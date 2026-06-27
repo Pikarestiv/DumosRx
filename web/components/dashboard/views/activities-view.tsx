@@ -38,7 +38,7 @@ interface ActivityLog {
 }
 
 
-const ActivityDetails = ({ details, tableName, action }: { details?: string, tableName?: string, action?: string }) => {
+export const ActivityDetails = ({ details, tableName, action }: { details?: string, tableName?: string, action?: string }) => {
   if (!details) return <span>-</span>;
   
   let parsedContent: any = null;
@@ -99,6 +99,38 @@ const ActivityDetails = ({ details, tableName, action }: { details?: string, tab
   return <div className="truncate max-w-[350px] text-[13px]" title={details}>{details}</div>;
 }
 
+export const filterIndirectSaleLogs = (logs: any[], log: any) => {
+  const tableNameStr = (log.table_name || log.properties?.table_name || "").toLowerCase();
+  
+  if (tableNameStr === "sale_items") {
+    return false;
+  }
+
+  if (tableNameStr === "medicines" && log.action?.toLowerCase() === "update") {
+    const logTime = new Date(log.created_at || new Date()).getTime();
+    const isPartOfSale = logs.some((otherLog: any) => {
+      const otherTable = (otherLog.table_name || otherLog.properties?.table_name || "").toLowerCase();
+      if (otherTable === "sales" && otherLog.action?.toLowerCase() === "insert") {
+        const otherTime = new Date(otherLog.created_at || new Date()).getTime();
+        return log.user_id === otherLog.user_id && Math.abs(logTime - otherTime) < 2000;
+      }
+      return false;
+    });
+
+    if (isPartOfSale) {
+      try {
+        const detailsStr = log.details || log.properties?.details || log.description || "";
+        const parsed = JSON.parse(detailsStr);
+        const keys = Object.keys(parsed).filter((k: string) => !k.startsWith('_') && k !== 'created_at' && k !== 'updated_at' && k !== 'id');
+        if (keys.length === 1 && keys[0] === 'stock_quantity') {
+          return false;
+        }
+      } catch(_e) {}
+    }
+  }
+  return true;
+};
+
 export function ActivitiesView({ stores = [] }: { stores?: StoreProp[] }) {
   const { data: response, isLoading: loading } = useLogs();
   const logs = response?.data ? response.data : Array.isArray(response) ? response : [];
@@ -121,12 +153,15 @@ export function ActivitiesView({ stores = [] }: { stores?: StoreProp[] }) {
   };
 
   const filteredLogs = logs.filter((log: ActivityLog) => {
+    if (!filterIndirectSaleLogs(logs, log)) return false;
+
+    const tableNameStr = (log.table_name || log.properties?.table_name || "").toLowerCase();
     const detailsStr = log.details || log.properties?.details || log.description || "";
-    const tableNameStr = log.table_name || log.properties?.table_name || "";
     const matchesSearch = detailsStr.toLowerCase().includes(search.toLowerCase()) || 
-                          tableNameStr.toLowerCase().includes(search.toLowerCase());
+                          tableNameStr.includes(search.toLowerCase());
     const matchesAction = filterAction === "all" || log.action?.toLowerCase() === filterAction.toLowerCase();
     const matchesStore = filterStore === "all" || log.user?.store_id?.toString() === filterStore;
+    
     return matchesSearch && matchesAction && matchesStore;
   });
 

@@ -54,7 +54,7 @@ export function StoreInformationCard({
   setShowRetailSuggestions,
   handleSaveProfile,
 }: StoreInformationCardProps) {
-  const { canUseEcommerce, getUpgradeMessage } = useFeatureGate();
+  const { canUseEcommerce, withRestriction, getUpgradeMessage } = useFeatureGate();
   const [isEditingSlug, setIsEditingSlug] = useState(false);
   const [copied, setCopied] = useState(false);
 

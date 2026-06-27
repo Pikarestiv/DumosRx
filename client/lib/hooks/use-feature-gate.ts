@@ -84,7 +84,7 @@ export function useFeatureGate() {
       // 2. Desktop/General feature restriction check
       if (featureAllowed === false && featureKey) {
         toast.error("Feature Locked", {
-          description: getUpgradeMessage(options.featureKey, "This feature requires a plan upgrade.")
+          description: getUpgradeMessage(featureKey as any, "This feature requires a plan upgrade.")
         });
         return;
       }

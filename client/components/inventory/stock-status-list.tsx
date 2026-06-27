@@ -38,7 +38,7 @@ export function StockStatusList({
   getStatusBadge,
   onPrintBarcode
 }: StockStatusListProps) {
-  const { canUseBarcodeGeneration, getUpgradeMessage } = useFeatureGate();
+  const { canUseBarcodeGeneration, withRestriction, getUpgradeMessage } = useFeatureGate();
   const { t } = useStore();
   
   return (
@@ -82,13 +82,8 @@ export function StockStatusList({
                           <Button 
                             variant="ghost" 
                             size="icon" 
-                            className={`h-8 w-8 text-muted-foreground ${canUseBarcodeGeneration ? 'hover:text-primary' : 'opacity-50 cursor-not-allowed'}`}
-                            onClick={() => {
-                              if (canUseBarcodeGeneration) {
-                                onPrintBarcode?.(item);
-                              }
-                            }}
-                            disabled={!canUseBarcodeGeneration}
+                            className={`h-8 w-8 text-muted-foreground hover:text-primary`}
+                            onClick={withRestriction(() => onPrintBarcode?.(item), { featureAllowed: canUseBarcodeGeneration, featureKey: 'barcode_generation' })}
                           >
                             {!canUseBarcodeGeneration ? <Lock className="h-4 w-4" /> : <BarcodeIcon className="h-4 w-4" />}
                           </Button>

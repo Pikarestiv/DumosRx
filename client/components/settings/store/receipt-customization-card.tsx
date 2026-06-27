@@ -56,18 +56,11 @@ export function ReceiptCustomizationCard({
   setShowContact,
   handleSaveReceiptSettings,
 }: ReceiptCustomizationCardProps) {
-  const { canCustomizeTheme, getUpgradeMessage } = useFeatureGate();
+  const { canCustomizeTheme, withRestriction, getUpgradeMessage } = useFeatureGate();
 
   const handleToggleLogo = (checked: boolean) => {
-    if (checked) {
-      if (!canCustomizeTheme) {
-        toast.error(getUpgradeMessage("custom_branding"));
-        return;
-      }
-
-      if (!localLogo) {
-        toast.info("Please upload a store logo first.");
-      }
+    if (checked && !localLogo) {
+      toast.info("Please upload a store logo first.");
     }
     setShowLogo(checked);
   };
@@ -206,7 +199,7 @@ export function ReceiptCustomizationCard({
               </div>
               <Switch
                 checked={showLogo && canCustomizeTheme}
-                onCheckedChange={handleToggleLogo}
+                onCheckedChange={(checked) => checked ? withRestriction(() => handleToggleLogo(checked), { featureAllowed: canCustomizeTheme, featureKey: 'custom_branding' })() : withRestriction(() => handleToggleLogo(checked))()}
               />
             </div>
             <div className="flex items-center justify-between rounded-lg border p-4">

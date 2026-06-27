@@ -53,7 +53,7 @@ export function DataSettings({
   setAutoSyncInterval,
   handleSaveAutoSyncSettings,
 }: DataSettingsProps) {
-  const { canCloudSync, minimumSyncIntervalMinutes, getUpgradeMessage } = useFeatureGate();
+  const { canCloudSync, minimumSyncIntervalMinutes, withRestriction, getUpgradeMessage } = useFeatureGate();
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showQBImport, setShowQBImport] = useState(false);
   const [iifContent, setIifContent] = useState<string | null>(null);
@@ -237,7 +237,7 @@ export function DataSettings({
               <Button
                 variant="outline"
                 className="w-full justify-start cursor-pointer"
-                onClick={handleDownloadBackup}
+                onClick={withRestriction(handleDownloadBackup)}
               >
                 <Save className="w-4 h-4 mr-2" />
                 Download Local Backup

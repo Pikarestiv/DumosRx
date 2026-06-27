@@ -52,21 +52,13 @@ export function AppearanceSettings({
   handleSaveRegional,
   isAdmin,
 }: AppearanceSettingsProps) {
-  const { canCustomizeTheme, canUseDarkMode, getUpgradeMessage } = useFeatureGate();
+  const { canCustomizeTheme, canUseDarkMode, withRestriction } = useFeatureGate();
 
   const handleApplyTheme = (themeId: string) => {
-    if (themeId !== "default" && !canCustomizeTheme) {
-      toast.error(getUpgradeMessage('theme_customizer', "Theme customization is a premium feature. Please upgrade your plan to access it."));
-      return;
-    }
     setAppTheme(themeId);
   };
 
   const handleSetTheme = (mode: Theme) => {
-    if (mode !== "light" && !canUseDarkMode) {
-      toast.error(getUpgradeMessage('dark_mode', "Dark Mode is a premium feature. Please upgrade your plan to access it."));
-      return;
-    }
     setTheme(mode);
   };
 
@@ -84,7 +76,7 @@ export function AppearanceSettings({
             <Label>Theme Mode</Label>
             <div className="grid grid-cols-3 gap-4">
               <button
-                onClick={() => handleSetTheme("light")}
+                onClick={withRestriction(() => handleSetTheme("light"))}
                 className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all cursor-pointer ${
                   theme === "light"
                     ? "border-primary bg-primary/5"
@@ -96,7 +88,7 @@ export function AppearanceSettings({
               </button>
 
               <button
-                onClick={() => handleSetTheme("dark")}
+                onClick={withRestriction(() => handleSetTheme("dark"), { featureAllowed: canUseDarkMode, featureKey: 'dark_mode' })}
                 className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all cursor-pointer ${
                   theme === "dark"
                     ? "border-primary bg-primary/5"
@@ -108,7 +100,7 @@ export function AppearanceSettings({
               </button>
 
               <button
-                onClick={() => handleSetTheme("system")}
+                onClick={withRestriction(() => handleSetTheme("system"), { featureAllowed: canUseDarkMode, featureKey: 'dark_mode' })}
                 className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all cursor-pointer ${
                   theme === "system"
                     ? "border-primary bg-primary/5"
@@ -129,7 +121,7 @@ export function AppearanceSettings({
                 return (
                   <button
                     key={t.id}
-                    onClick={() => handleApplyTheme(t.id)}
+                    onClick={t.id === 'default' ? withRestriction(() => handleApplyTheme(t.id)) : withRestriction(() => handleApplyTheme(t.id), { featureAllowed: canCustomizeTheme, featureKey: 'theme_customizer' })}
                     className={`flex items-center justify-between p-4 rounded-lg border-2 transition-all cursor-pointer ${
                       activeTheme === t.id
                         ? "border-primary bg-primary/5"

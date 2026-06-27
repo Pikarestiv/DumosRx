@@ -38,10 +38,10 @@ interface ActivityLog {
 }
 
 
-const ActivityDetails = ({ details }: { details?: string }) => {
+const ActivityDetails = ({ details, tableName, action }: { details?: string, tableName?: string, action?: string }) => {
   if (!details) return <span>-</span>;
   
-  let parsedContent = null;
+  let parsedContent: any = null;
   try {
     const parsed = JSON.parse(details);
     if (typeof parsed === 'object' && parsed !== null) {
@@ -52,25 +52,51 @@ const ActivityDetails = ({ details }: { details?: string }) => {
   }
 
   if (parsedContent) {
+    let summary = "";
+    const isInsert = action?.toLowerCase() === "insert";
+    
+    switch (tableName?.toLowerCase()) {
+      case "users":
+        summary = isInsert ? `Added new staff member: ${parsedContent.first_name || ''} ${parsedContent.last_name || ''}`.trim() : `Updated staff member: ${parsedContent.first_name || ''}`;
+        break;
+      case "customers":
+        summary = isInsert ? `Added new customer: ${parsedContent.first_name || ''} ${parsedContent.last_name || ''}`.trim() : `Updated customer: ${parsedContent.first_name || ''}`;
+        break;
+      case "medicines":
+        if (parsedContent.stock_quantity !== undefined) {
+          summary = `Updated medicine stock to ${parsedContent.stock_quantity}`;
+        } else if (parsedContent.name) {
+          summary = isInsert ? `Added new medicine: ${parsedContent.name}` : `Updated medicine: ${parsedContent.name}`;
+        } else {
+          summary = `Updated medicine details`;
+        }
+        break;
+      case "sale_items":
+        summary = `Sold ${parsedContent.quantity || 1} units`;
+        break;
+      case "sales":
+        summary = `Recorded sale of ${parsedContent.amount_paid ? "₦" + parsedContent.amount_paid : "items"}`;
+        break;
+      case "held_transactions":
+        summary = `Saved a held transaction for ${parsedContent.customer_name || "Walk-in Customer"}`;
+        break;
+      case "categories":
+        summary = isInsert ? `Created new category: ${parsedContent.name}` : `Updated category`;
+        break;
+      default:
+        // Generic fallback with nice formatting
+        const keys = Object.keys(parsedContent).filter(k => !k.startsWith('_') && k !== 'created_at' && k !== 'updated_at' && k !== 'id');
+        summary = isInsert ? `Created new record` : `Updated ${keys.length} fields`;
+    }
+
     return (
-      <div className="flex flex-col gap-1 text-[11px] max-w-[400px]">
-        {Object.entries(parsedContent).slice(0, 3).map(([key, value]) => {
-            const displayValue = typeof value === 'object' ? JSON.stringify(value) : String(value);
-            return (
-              <div key={key} className="flex gap-2 bg-muted/40 px-2 py-1 rounded items-center">
-                <span className="font-bold text-muted-foreground capitalize min-w-[80px]">{key.replace(/_/g, ' ')}</span>
-                <span className="font-mono truncate" title={displayValue}>{displayValue}</span>
-              </div>
-            )
-        })}
-        {Object.keys(parsedContent).length > 3 && (
-          <div className="text-xs text-muted-foreground italic px-2">+{Object.keys(parsedContent).length - 3} more fields</div>
-        )}
+      <div className="flex flex-col gap-1 text-[13px] max-w-[400px]">
+        <div className="font-medium text-foreground">{summary}</div>
       </div>
     );
   }
 
-  return <div className="truncate max-w-[350px] text-sm" title={details}>{details}</div>;
+  return <div className="truncate max-w-[350px] text-[13px]" title={details}>{details}</div>;
 }
 
 export function ActivitiesView({ stores = [] }: { stores?: StoreProp[] }) {
@@ -216,8 +242,12 @@ export function ActivitiesView({ stores = [] }: { stores?: StoreProp[] }) {
                       <TableCell className="font-semibold text-sm capitalize text-muted-foreground">
                         {(log.table_name || log.properties?.table_name || "System").replace(/_/g, " ")}
                       </TableCell>
-                      <TableCell className="pr-6 py-3">
-                        <ActivityDetails details={log.details || log.properties?.details || log.description} />
+                      <TableCell className="pr-6 max-w-[200px] truncate">
+                        <ActivityDetails 
+                          details={log.details || log.properties?.details || log.description} 
+                          tableName={log.table_name || log.properties?.table_name} 
+                          action={log.action} 
+                        />
                       </TableCell>
                     </TableRow>
                   ))

@@ -56,13 +56,11 @@ class DashboardService
         // 2. Inventory Stats
         $inventoryValue = 0;
         try {
-            if (Schema::hasTable('inventories')) {
-                $inventoryStats = DB::table('inventories')
-                    ->whereIn('user_id', $userIds)
-                    ->select(DB::raw('SUM(quantity_in_stock * cost_price) as total_value'))
-                    ->first();
-                $inventoryValue = (float)($inventoryStats->total_value ?? 0);
-            }
+            $inventoryStats = DB::table('medicines')
+                ->whereIn('user_id', $userIds)
+                ->select(DB::raw('SUM(stock_quantity * cost_price) as total_value'))
+                ->first();
+            $inventoryValue = (float)($inventoryStats->total_value ?? 0);
         } catch (\Exception $e) {
             Log::error("DashboardService [Inventory]: " . $e->getMessage());
         }
@@ -127,16 +125,12 @@ class DashboardService
             $storeDailySales = (float)Sale::whereIn('cashier_id', $cashierIds)->whereDate('created_at', Carbon::today())->sum('total_amount');
             
             // Inventory
-            $storeInventory = DB::table('inventories')->whereIn('user_id', $cashierIds);
+            $storeInventory = DB::table('medicines')->whereIn('user_id', $cashierIds);
             $totalInventory = $storeInventory->count();
-            $lowStock = DB::table('inventories')->whereIn('user_id', $cashierIds)->where('quantity_in_stock', '<', 10)->count();
+            $lowStock = DB::table('medicines')->whereIn('user_id', $cashierIds)->whereColumn('stock_quantity', '<=', 'reorder_level')->count();
             
-            // Expiring Items
-            $expiringItems = DB::table('inventories')
-                ->whereIn('user_id', $cashierIds)
-                ->whereNotNull('expiry_date')
-                ->where('expiry_date', '<', Carbon::now()->addDays(30))
-                ->count();
+            // Expiring Items (Medicines table currently doesn't track expiry date in the base schema)
+            $expiringItems = 0;
                 
             // Recent Transactions
             $recentTransactions = Sale::whereIn('cashier_id', $cashierIds)

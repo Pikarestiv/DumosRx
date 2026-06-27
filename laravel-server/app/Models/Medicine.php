@@ -18,7 +18,7 @@ class Medicine extends Model
         'unit_of_measure', 'description', 'indications', 'contraindications',
         'side_effects', 'storage_conditions', 'requires_prescription',
         'is_controlled', 'is_active', 'show_online', 'cost_price', 'selling_price',
-        'markup_percentage', 'barcode'
+        'markup_percentage', 'barcode', 'stock_quantity', 'reorder_level'
     ];
 
     protected $casts = [

@@ -129,6 +129,9 @@ class SyncController extends Controller
 
                 // Handle audit_logs specific mappings
                 if ($change['table_name'] === 'audit_logs') {
+                    if (empty($payload['user_id']) && $currentUser) {
+                        $payload['user_id'] = $currentUser->id;
+                    }
                     $payload['description'] = "Action: " . ($payload['action'] ?? 'Unknown') . " on " . ($payload['table_name'] ?? 'unknown');
                     $payload['properties'] = [
                         'client_id' => $payload['id'] ?? null,

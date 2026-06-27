@@ -59,6 +59,8 @@ class SyncController extends Controller
         }
 
         try {
+            $idMap = [];
+
             foreach ($changes as $change) {
                 $modelClass = $this->getModelForTable($change['table_name']);
 
@@ -68,6 +70,14 @@ class SyncController extends Controller
                 }
 
                 $payload = is_array($change['payload']) ? $change['payload'] : json_decode($change['payload'], true);
+                
+                // Apply ID mappings for foreign keys (if a previous record was merged due to conflict)
+                foreach ($payload as $key => $value) {
+                    if (is_string($value) && isset($idMap[$value])) {
+                        $payload[$key] = $idMap[$value];
+                    }
+                }
+
                 $now = now();
 
                 // Ensure staff users get associated with the store
@@ -164,6 +174,27 @@ class SyncController extends Controller
                         if ($conflict) {
                             Log::warning("Sync push skipped user insert due to duplicate email/username: {$payload['email']}");
                             $exists = true; // Pretend it exists to skip insertion
+                            $idMap[$recordId] = $conflict->id;
+                        }
+                    }
+
+                    // Prevent duplicate category name crashes
+                    if (!$exists && $change['table_name'] === 'categories' && !empty($payload['name'])) {
+                        $conflict = $modelClass::where('name', $payload['name'])->first();
+                        if ($conflict) {
+                            Log::warning("Sync push skipped category insert due to duplicate name: {$payload['name']}");
+                            $exists = true; // Pretend it exists to skip insertion
+                            $idMap[$recordId] = $conflict->id;
+                        }
+                    }
+                    
+                    // Prevent duplicate supplier name crashes
+                    if (!$exists && $change['table_name'] === 'suppliers' && !empty($payload['name'])) {
+                        $conflict = $modelClass::where('name', $payload['name'])->first();
+                        if ($conflict) {
+                            Log::warning("Sync push skipped supplier insert due to duplicate name: {$payload['name']}");
+                            $exists = true; // Pretend it exists to skip insertion
+                            $idMap[$recordId] = $conflict->id;
                         }
                     }
 

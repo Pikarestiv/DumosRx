@@ -137,6 +137,20 @@ class SyncController extends Controller
                     }
                 }
 
+                // Inject user_id for core tables if missing
+                $tablesWithUserId = [
+                    'sales', 'customers', 'medicines', 'inventories', 
+                    'subscriptions', 'payment_transactions', 'categories', 
+                    'suppliers', 'prescriptions'
+                ];
+                if (in_array($change['table_name'], $tablesWithUserId)) {
+                    if (!isset($payload['user_id']) || empty($payload['user_id'])) {
+                        if ($currentUser) {
+                            $payload['user_id'] = $currentUser->id;
+                        }
+                    }
+                }
+
                 // Handle audit_logs specific mappings
                 if ($change['table_name'] === 'audit_logs') {
                     if (empty($payload['user_id']) && $currentUser) {

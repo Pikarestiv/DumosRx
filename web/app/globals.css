@@ -206,12 +206,6 @@ input[type="password"]::-webkit-credentials-auto-fill-button {
   right: 0;
 }
 
-/* Hide Smartsupp globally unless activated */
-body:not(.smartsupp-visible) #smartsupp-widget-container,
-body:not(.smartsupp-visible) div[id^="smartsupp"] {
-  display: none !important;
-}
-
 /* Push Smartsupp up on mobile so it doesn't overlap the bottom navigation bar */
 @media (max-width: 1024px) {
   #smartsupp-widget-container,

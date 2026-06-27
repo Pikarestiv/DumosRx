@@ -1,4 +1,3 @@
-import { SmartSuppProvider } from "@/components/smartsupp-provider";
 import { MessageSquarePlus, Lightbulb } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -28,7 +27,6 @@ export function SupportView() {
           <p className="mb-4">
             If you need assistance with your account, use the chat widget located at the bottom right corner of this screen. Our team will get back to you as soon as possible.
           </p>
-          <SmartSuppProvider />
         </CardContent>
       </Card>
 

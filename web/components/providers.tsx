@@ -4,7 +4,7 @@ import { useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "sonner";
-
+import { SmartSuppProvider } from "@/components/smartsupp-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -29,7 +29,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
           {children}
         </TooltipProvider>
         <Toaster position="top-right" richColors />
-
+        <SmartSuppProvider />
       </ThemeProvider>
     </QueryClientProvider>
   );

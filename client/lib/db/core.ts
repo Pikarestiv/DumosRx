@@ -87,7 +87,7 @@ export async function initDatabase(): Promise<any> {
       ],
     },
     {
-      table: "vendors",
+      table: "suppliers",
       columns: [
         "_version INTEGER DEFAULT 1",
         "_synced INTEGER DEFAULT 0",
@@ -255,7 +255,7 @@ export async function initDatabase(): Promise<any> {
       ],
     },
     {
-      table: "store_profile",
+      table: "stores",
       columns: [
         "location TEXT",
         "created_at TEXT",
@@ -321,6 +321,14 @@ export async function initDatabase(): Promise<any> {
         // Table probably doesn't exist or already renamed
       }
 
+      try {
+        await db.execute("ALTER TABLE vendors RENAME TO suppliers");
+      } catch (_e) { }
+
+      try {
+        await db.execute("ALTER TABLE store_profile RENAME TO stores");
+      } catch (_e) { }
+
       // Run migrations for Tauri
       for (const { table, columns } of syncColumns) {
         for (const colDef of columns) {
@@ -358,6 +366,14 @@ export async function initDatabase(): Promise<any> {
         } catch (_e) {
           // Table probably doesn't exist or already renamed
         }
+
+        try {
+          db.run("ALTER TABLE vendors RENAME TO suppliers");
+        } catch (_e) { }
+
+        try {
+          db.run("ALTER TABLE store_profile RENAME TO stores");
+        } catch (_e) { }
 
         // Ensure new tables from schema updates are created
         db.run(SCHEMA_SQL);
@@ -492,7 +508,7 @@ export async function resetDatabase(): Promise<void> {
     "sale_items",
     "customers",
     "expenses",
-    "vendors",
+    
     "categories",
     "prescriptions",
     "audit_logs",

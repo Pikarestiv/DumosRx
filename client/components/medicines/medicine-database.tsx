@@ -64,7 +64,7 @@ export function MedicineDatabase() {
     `SELECT m.*, c.name as category_name, v.name as supplier_name
      FROM medicines m
      LEFT JOIN categories c ON m.category_id = c.id
-     LEFT JOIN vendors v ON m.supplier_id = v.id
+     LEFT JOIN suppliers v ON m.supplier_id = v.id
      WHERE m._deleted = 0
      ORDER BY m.created_at DESC`,
     [],
@@ -119,15 +119,15 @@ export function MedicineDatabase() {
         localPayload.category_id = null;
       }
 
-      // Resolve supplier string to UUID (maps to client vendors table)
+      // Resolve supplier string to UUID (maps to client suppliers table)
       if (payload.supplier_id) {
         const supplierName = payload.supplier_id.trim();
-        const existing = await query<any>("SELECT id FROM vendors WHERE name = ? AND _deleted = 0", [supplierName]);
+        const existing = await query<any>("SELECT id FROM suppliers WHERE name = ? AND _deleted = 0", [supplierName]);
         if (existing && existing.length > 0) {
           localPayload.supplier_id = existing[0].id;
         } else {
           const newId = crypto.randomUUID();
-          await insert("vendors", {
+          await insert("suppliers", {
             id: newId,
             name: supplierName,
             is_active: 1,

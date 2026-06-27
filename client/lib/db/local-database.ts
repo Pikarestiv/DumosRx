@@ -23,7 +23,7 @@ export async function getMedicines(page = 1, limit = 50, search = "") {
   let sql = `SELECT m.*, c.name as category_name, v.name as supplier_name 
              FROM medicines m 
              LEFT JOIN categories c ON m.category_id = c.id 
-             LEFT JOIN vendors v ON m.supplier_id = v.id 
+             LEFT JOIN suppliers v ON m.supplier_id = v.id 
              WHERE m._deleted = 0`;
   const params: any[] = [];
 
@@ -219,9 +219,9 @@ export async function createStockMovement(data: any) {
 // Dev utility to force sync all tables
 export async function forceSyncAllData() {
   const tables = [
-    "medicines", "inventories", "categories", "customers", "vendors", 
+    "medicines", "inventories", "categories", "customers", 
     "sales", "sale_items", "prescriptions", "prescription_items", 
-    "returns", "return_items", "customer_payments", "store_profile", 
+    "returns", "return_items", "customer_payments", "stores", 
     "expenses", "users", "audit_logs", "purchase_orders", "purchase_order_items", 
     "suppliers", "stock_audits", "held_transactions", "loyalty_transactions", 
     "feedback", "stock_movements", "payment_accounts", "system_configs"

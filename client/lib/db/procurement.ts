@@ -32,9 +32,9 @@ export interface PurchaseOrderItem {
 export async function getPurchaseOrders(page = 1, limit = 50) {
   const offset = (page - 1) * limit;
   const results = await query<PurchaseOrder>(
-    `SELECT po.*, v.name as vendor_name 
+    `SELECT po.*, v.name as supplier_name 
      FROM purchase_orders po 
-     JOIN vendors v ON po.vendor_id = v.id 
+     JOIN suppliers v ON po.supplier_id = v.id 
      WHERE po._deleted = 0 
      ORDER BY po.created_at DESC 
      LIMIT ? OFFSET ?`,
@@ -45,9 +45,9 @@ export async function getPurchaseOrders(page = 1, limit = 50) {
 
 export async function getPurchaseOrderById(id: string) {
   const po = await query<PurchaseOrder>(
-    `SELECT po.*, v.name as vendor_name 
+    `SELECT po.*, v.name as supplier_name 
      FROM purchase_orders po 
-     JOIN vendors v ON po.vendor_id = v.id 
+     JOIN suppliers v ON po.supplier_id = v.id 
      WHERE po.id = ? AND po._deleted = 0`,
     [id]
   );
@@ -65,7 +65,7 @@ export async function getPurchaseOrderById(id: string) {
   return { ...po[0], items };
 }
 
-export async function createPurchaseOrder(vendorId: string, notes: string, items: any[]) {
+export async function createPurchaseOrder(supplierId: string, notes: string, items: any[]) {
   const poId = generateId();
   const now = new Date().toISOString();
   let totalAmount = 0;
@@ -76,7 +76,7 @@ export async function createPurchaseOrder(vendorId: string, notes: string, items
 
   await insert("purchase_orders", {
     id: poId,
-    vendor_id: vendorId,
+    supplier_id: supplierId,
     status: "draft",
     total_amount: totalAmount,
     notes,
@@ -160,12 +160,12 @@ export async function receivePurchaseOrder(id: string) {
 export async function getSuppliers(page = 1, limit = 50) {
   const offset = (page - 1) * limit;
   const results = await query<any>(
-    `SELECT * FROM vendors WHERE _deleted = 0 ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+    `SELECT * FROM suppliers WHERE _deleted = 0 ORDER BY created_at DESC LIMIT ? OFFSET ?`,
     [limit, offset]
   );
   return { data: results, page, limit };
 }
 
 export async function createSupplier(data: any) {
-  return await insert("vendors", data);
+  return await insert("suppliers", data);
 }

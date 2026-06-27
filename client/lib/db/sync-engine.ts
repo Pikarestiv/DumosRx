@@ -7,6 +7,8 @@ import { isTauri } from "./local-database";
 import { apiClient } from "@/lib/api/client";
 import { queryClient } from "@/lib/query-client";
 
+const schemaCache: Record<string, Set<string>> = {};
+
 /**
  * Sync Engine
  * Handles bidirectional synchronization between SQLite and Laravel
@@ -56,42 +58,7 @@ export async function pushChanges(isManual: boolean = false, isSetup: boolean = 
       // payload needs to be parsed from string
       const changes = batch.map((item) => {
         const payload = JSON.parse(item.payload);
-        if (item.table_name === "sales" && payload.payment_method === "mixed") {
-          payload.payment_method = "split";
-        }
-        if (item.table_name === "purchase_orders") {
-          if (!payload.order_number) {
-            payload.order_number = `PO-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 1000)}`;
-          }
-          if (!payload.ordered_by) {
-            payload.ordered_by = "u1";
-          }
-          if (!payload.order_date) {
-            payload.order_date = payload.created_at ? payload.created_at.split('T')[0] : new Date().toISOString().split('T')[0];
-          }
-          if (!payload.supplier_id && payload.vendor_id) {
-            payload.supplier_id = payload.vendor_id;
-          }
-          if (payload.status === "completed") {
-            payload.status = "received";
-          } else if (payload.status === "draft") {
-            payload.status = "pending";
-          }
-        }
-        if (item.table_name === "purchase_order_items") {
-          if (!payload.quantity_ordered && payload.bulk_quantity) {
-            payload.quantity_ordered = payload.bulk_quantity * (payload.units_per_bulk || 1);
-          }
-          if (!payload.total_cost && payload.subtotal) {
-            payload.total_cost = payload.subtotal;
-          }
-          if (!payload.purchase_order_id && payload.po_id) {
-            payload.purchase_order_id = payload.po_id;
-          }
-          if (!payload.status) {
-            payload.status = "pending";
-          }
-        }
+
         return {
           ...item,
           payload,
@@ -110,8 +77,8 @@ export async function pushChanges(isManual: boolean = false, isSetup: boolean = 
       }
     } catch (error) {
       console.error("Push sync failed for batch:", error);
-      // Don't throw, just stop pushing and continue to pull
-      break;
+      // Throw to properly report failure
+      throw error;
     }
   }
 
@@ -169,9 +136,12 @@ export async function pullChanges(isManual: boolean = false, isSetup: boolean = 
           updatedTables.push(table);
         }
 
-        // Fetch local table columns to avoid "no such column" errors
-        const tableInfo = await query<{ name: string }>(`PRAGMA table_info(${table})`);
-        const validColumns = new Set(tableInfo.map((c) => c.name));
+        // Fetch local table columns to avoid "no such column" errors, with caching
+        if (!schemaCache[table]) {
+          const tableInfo = await query<{ name: string }>(`PRAGMA table_info(${table})`);
+          schemaCache[table] = new Set(tableInfo.map((c) => c.name));
+        }
+        const validColumns = schemaCache[table];
 
         for (const record of records) {
           const { id, _deleted, ...rawData } = record as any;

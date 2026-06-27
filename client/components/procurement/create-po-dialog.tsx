@@ -55,9 +55,9 @@ interface Medicine {
 export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
   const { t, storeType } = useStore();
   const [open, setOpen] = useState(false);
-  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [suppliers, setSuppliers] = useState<Vendor[]>([]);
   const [medicines, setMedicines] = useState<Medicine[]>([]);
-  const [selectedVendorId, setSelectedVendorId] = useState("");
+  const [selectedSupplierId, setSelectedSupplierId] = useState("");
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -78,9 +78,9 @@ export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
 
   const fetchData = async () => {
     try {
-      const vendorData = await query<Vendor>("SELECT id, name FROM vendors WHERE _deleted = 0");
+      const vendorData = await query<Vendor>("SELECT id, name FROM suppliers WHERE _deleted = 0");
       const medData = await query<Medicine>("SELECT id, name, bulk_unit, base_unit, units_per_bulk, cost_price FROM medicines WHERE _deleted = 0");
-      setVendors(vendorData);
+      setSuppliers(vendorData);
       setMedicines(medData);
     } catch (error) {
       console.error("Failed to fetch data for PO:", error);
@@ -122,7 +122,7 @@ export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
   const totalAmount = items.reduce((sum, item) => sum + item.subtotal, 0);
 
   const handleSubmit = async () => {
-    if (!selectedVendorId) {
+    if (!selectedSupplierId) {
       toast.error("Please select a vendor");
       return;
     }
@@ -134,13 +134,13 @@ export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
 
     setIsSubmitting(true);
     try {
-      await createPurchaseOrder(selectedVendorId, notes, items);
+      await createPurchaseOrder(selectedSupplierId, notes, items);
       toast.success("Purchase Order created successfully");
       setOpen(false);
       onPOCreated();
       // Reset form
       setItems([]);
-      setSelectedVendorId("");
+      setSelectedSupplierId("");
       setNotes("");
     } catch (error) {
       console.error("Failed to create PO:", error);
@@ -176,12 +176,12 @@ export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <Label>Select Vendor</Label>
-              <Select value={selectedVendorId} onValueChange={setSelectedVendorId}>
+              <Select value={selectedSupplierId} onValueChange={setSelectedSupplierId}>
                 <SelectTrigger className="bg-muted/30 border-accent/10">
                   <SelectValue placeholder="Choose a supplier..." />
                 </SelectTrigger>
                 <SelectContent className="bg-card border-accent/20">
-                  {vendors.map(v => (
+                  {suppliers.map(v => (
                     <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>
                   ))}
                 </SelectContent>

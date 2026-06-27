@@ -68,7 +68,7 @@ export function ProcurementManagement() {
       <Tabs defaultValue="orders" className="space-y-6">
         <TabsList className="bg-muted/50 p-1 h-auto flex-wrap justify-start">
           <TabsTrigger value="orders" className="px-4 py-2">Purchase Orders</TabsTrigger>
-          <TabsTrigger value="vendors" className="px-4 py-2">Vendors Directory</TabsTrigger>
+          <TabsTrigger value="suppliers" className="px-4 py-2">Vendors Directory</TabsTrigger>
         </TabsList>
 
         <TabsContent value="orders" className="space-y-6">
@@ -86,7 +86,7 @@ export function ProcurementManagement() {
           />
         </TabsContent>
 
-        <TabsContent value="vendors">
+        <TabsContent value="suppliers">
           <SupplierManagement />
         </TabsContent>
       </Tabs>

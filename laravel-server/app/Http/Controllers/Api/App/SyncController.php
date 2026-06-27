@@ -20,6 +20,7 @@ use App\Models\Expense;
 use App\Models\StockMovement;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
+use App\Services\Web\SyncPayloadMapper;
 
 class SyncController extends Controller
 {
@@ -77,6 +78,9 @@ class SyncController extends Controller
                         $payload[$key] = $idMap[$value];
                     }
                 }
+
+                $context = ['user_id' => $user->id, 'store_id' => $currentStoreId];
+                $payload = SyncPayloadMapper::map($change['table_name'], $payload, $context);
 
                 $now = now();
 
@@ -141,7 +145,7 @@ class SyncController extends Controller
                 $tablesWithUserId = [
                     'sales', 'customers', 'medicines', 'inventories', 
                     'subscriptions', 'payment_transactions', 'categories', 
-                    'suppliers', 'vendors', 'prescriptions', 'store_profile', 'stores'
+                    'suppliers', 'prescriptions', 'stores'
                 ];
                 if (in_array($change['table_name'], $tablesWithUserId)) {
                     if (!isset($payload['user_id']) || empty($payload['user_id'])) {
@@ -151,7 +155,7 @@ class SyncController extends Controller
                     }
 
                 // Inject device_id for stores if missing
-                if ($change['table_name'] === 'store_profile' || $change['table_name'] === 'stores') {
+                if ($change['table_name'] === 'stores') {
                     if (empty($payload['device_id'])) {
                         $payload['device_id'] = $request->header('X-Device-Id') ?? 'web-client';
                     }
@@ -169,7 +173,7 @@ class SyncController extends Controller
                 }
 
                 // Prevent NULL constraint violations for suppliers/vendors
-                if ($change['table_name'] === 'suppliers' || $change['table_name'] === 'vendors') {
+                if ($change['table_name'] === 'suppliers') {
                     if (empty($payload['payment_terms']) || $payload['payment_terms'] === 'null') {
                         $payload['payment_terms'] = 30; // Default fallback
                     }
@@ -284,7 +288,7 @@ class SyncController extends Controller
                             $model->_synced_at = $now;
                         }
                         
-                        if ($change['table_name'] === 'suppliers' || $change['table_name'] === 'vendors') {
+                        if ($change['table_name'] === 'suppliers') {
                             if (empty($model->payment_terms) || $model->payment_terms === 'null') {
                                 $model->payment_terms = 30;
                             }
@@ -294,7 +298,7 @@ class SyncController extends Controller
                             if (empty($model->unit_of_measure) || $model->unit_of_measure === 'null') $model->unit_of_measure = 'piece';
                         }
                         
-                        if ($change['table_name'] === 'store_profile' || $change['table_name'] === 'stores') {
+                        if ($change['table_name'] === 'stores') {
                             if (empty($model->device_id)) {
                                 $model->device_id = $request->header('X-Device-Id') ?? 'web-client';
                             }
@@ -347,7 +351,7 @@ class SyncController extends Controller
                             if (empty($model->unit_of_measure) || $model->unit_of_measure === 'null') $model->unit_of_measure = 'piece';
                         }
 
-                        if ($change['table_name'] === 'store_profile' || $change['table_name'] === 'stores') {
+                        if ($change['table_name'] === 'stores') {
                             if (empty($model->device_id)) {
                                 $model->device_id = $request->header('X-Device-Id') ?? 'web-client';
                             }
@@ -433,7 +437,7 @@ class SyncController extends Controller
         $changes = [];
         $serverTimestamp = now()->toIso8601String();
 
-        $tables = ['medicines', 'inventories', 'categories', 'customers', 'vendors', 'suppliers', 'sales', 'store_profile', 'users', 'stock_movements', 'purchase_orders', 'purchase_order_items', 'expenses', 'payment_accounts'];
+        $tables = ['medicines', 'inventories', 'categories', 'customers', 'suppliers', 'sales', 'stores', 'users', 'stock_movements', 'purchase_orders', 'purchase_order_items', 'expenses', 'payment_accounts'];
 
         foreach ($tables as $table) {
             $lastSynced = $lastSyncedMap[$table] ?? null;
@@ -461,7 +465,7 @@ class SyncController extends Controller
 
                 if ($table === 'users') {
                     $query->whereIn('id', $userIds);
-                } elseif ($table === 'store_profile') {
+                } elseif ($table === 'stores') {
                     if ($user->store_id) {
                         $query->where('id', $user->store_id)->with(['user.subscriptions']);
                     } else {
@@ -486,7 +490,7 @@ class SyncController extends Controller
             }
 
             $lastSynced = $lastSyncedMap[$table] ?? null;
-            if ($lastSynced && $table !== 'store_profile') {
+            if ($lastSynced && $table !== 'stores') {
                 $parsedLastSynced = \Carbon\Carbon::parse($lastSynced)->setTimezone('UTC')->format('Y-m-d H:i:s');
                 if (\Illuminate\Support\Facades\Schema::hasColumn($table, '_synced_at')) {
                     $query->where(function($q) use ($parsedLastSynced) {
@@ -505,7 +509,7 @@ class SyncController extends Controller
                 $array['_deleted'] = (\method_exists($item, 'trashed') && $item->trashed()) ? 1 : 0;
 
                 // Map subscription_tier for store_profile
-                if ($table === 'store_profile') {
+                if ($table === 'stores') {
                     $plan = 'free';
                     $expiry = null;
                     if ($item->user && $item->user->subscriptions->isNotEmpty()) {
@@ -586,16 +590,15 @@ class SyncController extends Controller
         $map = [
             'medicines' => Medicine::class,
             'customers' => Customer::class,
-            'suppliers' => null, // Defer to 'vendors' which maps to Supplier
+            'suppliers' => Supplier::class,
             'sales' => Sale::class,
             'sale_items' => SaleItem::class,
-            'store_profile' => Store::class,
+            'stores' => Store::class,
             'users' => User::class,
             'inventories' => Inventory::class,
             'activity_logs' => ActivityLog::class,
             'audit_logs' => ActivityLog::class,
             'categories' => \App\Models\Category::class,
-            'vendors' => Supplier::class, // Map client vendors to server suppliers
             'expenses' => Expense::class,
             'feedback' => \App\Models\Feedback::class,
             'stock_movements' => StockMovement::class,

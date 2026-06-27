@@ -105,8 +105,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const targetId = user?.store_id || activeStoreId;
 
   const sql = targetId 
-    ? "SELECT * FROM store_profile WHERE id = ?" 
-    : "SELECT * FROM store_profile LIMIT 1";
+    ? "SELECT * FROM stores WHERE id = ?" 
+    : "SELECT * FROM stores LIMIT 1";
   const params = targetId ? [targetId] : [];
 
   const { data: profiles, loading, refetch } = useLocalData<StoreProfile>(
@@ -115,7 +115,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   // Fetch all available stores for the switcher (only needed if owner)
   const { data: allStores } = useLocalData<StoreProfile>(
-    user && !user.store_id ? "SELECT * FROM store_profile" : "SELECT * FROM store_profile WHERE 1=0"
+    user && !user.store_id ? "SELECT * FROM stores" : "SELECT * FROM stores WHERE 1=0"
   );
 
   const storeProfile = profiles[0] || null;
@@ -197,7 +197,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const updateStoreProfile = async (data: Partial<StoreProfile>) => {
     if (!storeProfile) {
-      await insert("store_profile", {
+      await insert("stores", {
         id: "default",
         name: "My Store",
         store_type: "pharmacy",
@@ -208,7 +208,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         ...data,
       });
     } else {
-      await update("store_profile", storeProfile.id, data);
+      await update("stores", storeProfile.id, data);
     }
     await refetch();
   };

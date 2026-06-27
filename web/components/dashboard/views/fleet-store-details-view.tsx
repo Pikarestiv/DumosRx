@@ -258,7 +258,7 @@ export function FleetStoreDetailsView({
                         className="w-full text-primary border-primary hover:text-white hover:bg-primary"
                         onClick={() =>
                           router.push(
-                            `/dashboard/activities?storeId=${storeId}`,
+                            `/dashboard/staff/activities?storeId=${storeId}`,
                           )
                         }
                       >

@@ -202,7 +202,13 @@ export const filterIndirectSaleLogs = (logs: any[], log: any) => {
   return true;
 };
 
-export function ActivitiesView({ stores = [] }: { stores?: StoreProp[] }) {
+export function ActivitiesView({
+  stores = [],
+  hideHeader,
+}: {
+  stores?: StoreProp[];
+  hideHeader?: boolean;
+}) {
   const { data: response, isLoading: loading } = useLogs();
   const logs = response?.data
     ? response.data
@@ -210,7 +216,7 @@ export function ActivitiesView({ stores = [] }: { stores?: StoreProp[] }) {
       ? response
       : [];
   const searchParams = useSearchParams();
-  const defaultStoreId = searchParams?.get('storeId') || "all";
+  const defaultStoreId = searchParams?.get("storeId") || "all";
 
   const [search, setSearch] = useState("");
   const [filterAction, setFilterAction] = useState("all");
@@ -248,11 +254,14 @@ export function ActivitiesView({ stores = [] }: { stores?: StoreProp[] }) {
       detailsStr.toLowerCase().includes(search.toLowerCase()) ||
       tableNameStr.includes(search.toLowerCase()) ||
       userNameStr.toString().toLowerCase().includes(search.toLowerCase());
-    const matchesAction = filterAction === "all" || log.action?.toLowerCase() === filterAction.toLowerCase();
-    const matchesStore = filterStore === "all" || 
-                         log.user?.store_id?.toString() === filterStore ||
-                         !log.user?.store_id; // Include admin logs in all store filters since they lack a specific store_id
-    
+    const matchesAction =
+      filterAction === "all" ||
+      log.action?.toLowerCase() === filterAction.toLowerCase();
+    const matchesStore =
+      filterStore === "all" ||
+      log.user?.store_id?.toString() === filterStore ||
+      !log.user?.store_id; // Include admin logs in all store filters since they lack a specific store_id
+
     return matchesSearch && matchesAction && matchesStore;
   });
 
@@ -263,17 +272,19 @@ export function ActivitiesView({ stores = [] }: { stores?: StoreProp[] }) {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="gap-6">
       <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-black flex items-center gap-2">
-            <Activity className="h-8 w-8 text-primary" />
-            Staff Activities
-          </h2>
-          <p className="text-muted-foreground font-medium mt-1">
-            Track actions performed across your connected stores.
-          </p>
-        </div>
+        {!hideHeader && (
+          <div>
+            <h2 className="text-3xl font-black flex items-center gap-2">
+              <Activity className="h-8 w-8 text-primary" />
+              Staff Activities
+            </h2>
+            <p className="text-muted-foreground font-medium mt-1">
+              Track actions performed across your connected stores.
+            </p>
+          </div>
+        )}
       </div>
 
       <Card className="border-none shadow-md">

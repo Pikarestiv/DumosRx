@@ -23,6 +23,10 @@ export function DashboardOverview() {
   // Single source of truth for all inventory-related stat cards
   const inventoryStats = useInventoryStats();
 
+  const isRestrictedRole = user?.role === "sales_staff" || user?.role === "specialist";
+  const userFilter = isRestrictedRole && user?.id ? ` AND user_id = '${user.id}'` : "";
+  const userFilterAliasS = isRestrictedRole && user?.id ? ` AND s.user_id = '${user.id}'` : "";
+
   const { data: salesToday } = useLocalData<{
     total: number;
     count: number;
@@ -37,7 +41,7 @@ export function DashboardOverview() {
       SUM(CASE WHEN payment_method = 'card' THEN total_amount ELSE 0 END) as card,
       SUM(CASE WHEN payment_method = 'credit' THEN total_amount ELSE 0 END) as debt
      FROM sales 
-     WHERE date(transaction_date) = '${getLocalTodayDate()}' AND (_deleted = 0 OR _deleted IS NULL)`,
+     WHERE date(transaction_date) = '${getLocalTodayDate()}' AND (_deleted = 0 OR _deleted IS NULL)${userFilter}`,
   );
 
   const { data: refundsToday } = useLocalData<{
@@ -53,11 +57,11 @@ export function DashboardOverview() {
       SUM(CASE WHEN s.payment_method = 'credit' THEN r.total_refunded ELSE 0 END) as debt
      FROM returns r
      JOIN sales s ON r.sale_id = s.id
-     WHERE date(r.created_at) = '${getLocalTodayDate()}' AND (r._deleted = 0 OR r._deleted IS NULL)`,
+     WHERE date(r.created_at) = '${getLocalTodayDate()}' AND (r._deleted = 0 OR r._deleted IS NULL)${userFilterAliasS}`,
   );
 
   const { data: recentSales } = useLocalData<any>(
-    "SELECT * FROM sales WHERE _deleted = 0 ORDER BY created_at DESC LIMIT 5",
+    `SELECT * FROM sales WHERE _deleted = 0${userFilter} ORDER BY created_at DESC LIMIT 5`,
   );
 
   const expiryDays = storeProfile?.expiry_warning_days || 30;

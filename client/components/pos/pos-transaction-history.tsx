@@ -12,6 +12,7 @@ import {
   TableRow 
 } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/utils";
+import { useAuthStore } from "@/lib/auth/store";
 
 interface POSTransactionHistoryProps {
   recentSales: any[];
@@ -28,6 +29,8 @@ export function POSTransactionHistory({
   currencyCode
 }: POSTransactionHistoryProps) {
   const [selectedSale, setSelectedSale] = useState<any>(null);
+  const { user } = useAuthStore();
+  const canReturn = user?.role === "owner" || user?.role === "admin" || user?.role === "manager";
 
   return (
     <Card>
@@ -66,18 +69,20 @@ export function POSTransactionHistory({
                     <TableCell>{sale.customer_name || 'Walk-in'}</TableCell>
                     <TableCell className="text-right font-bold">{formatCurrency(sale.total_amount, currencyCode)}</TableCell>
                     <TableCell className="text-right">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="text-accent hover:text-accent hover:bg-accent/10"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onReturnClick(sale);
-                        }}
-                      >
-                        <RotateCcw className="h-3 w-3 mr-1" />
-                        Return
-                      </Button>
+                      {canReturn && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-accent hover:text-accent hover:bg-accent/10"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onReturnClick(sale);
+                          }}
+                        >
+                          <RotateCcw className="h-3 w-3 mr-1" />
+                          Return
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))
@@ -92,7 +97,7 @@ export function POSTransactionHistory({
         open={!!selectedSale}
         onOpenChange={(open) => !open && setSelectedSale(null)}
         currencyCode={currencyCode}
-        onReturnClick={onReturnClick}
+        onReturnClick={canReturn ? onReturnClick : undefined}
       />
     </Card>
   );

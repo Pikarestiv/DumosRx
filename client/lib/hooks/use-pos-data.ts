@@ -1,4 +1,5 @@
 import { useLocalData } from "@/lib/db/hooks/useLocalData";
+import { useAuthStore } from "@/lib/auth/store";
 
 export interface Medicine {
   id: string;
@@ -24,6 +25,10 @@ export interface Customer {
 }
 
 export function usePOSData() {
+  const { user } = useAuthStore();
+  const isRestrictedRole = user?.role === "sales_staff" || user?.role === "specialist";
+  const userFilterAliasS = isRestrictedRole && user?.id ? ` AND s.user_id = '${user.id}'` : "";
+
   const {
     data: medicines,
     loading: loadingMedicines,
@@ -49,7 +54,7 @@ export function usePOSData() {
   );
 
   const { data: recentSales, refetch: refetchSales } = useLocalData<any>(
-    "SELECT s.*, c.first_name || ' ' || c.last_name as customer_name FROM sales s LEFT JOIN customers c ON s.customer_id = c.id WHERE s._deleted = 0 ORDER BY s.created_at DESC LIMIT 10",
+    `SELECT s.*, c.first_name || ' ' || c.last_name as customer_name FROM sales s LEFT JOIN customers c ON s.customer_id = c.id WHERE s._deleted = 0${userFilterAliasS} ORDER BY s.created_at DESC LIMIT 10`,
   );
 
   const { data: recentlySoldData } = useLocalData<any>(

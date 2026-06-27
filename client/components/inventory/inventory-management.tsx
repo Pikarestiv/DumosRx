@@ -50,17 +50,19 @@ export function InventoryManagement() {
             Manage your product catalog, monitor stock levels, and track movements
           </p>
         </div>
-        <Button 
-          onClick={withRestriction(() => setIsAuditOpen(true), { featureAllowed: canUseAuditMode, featureKey: 'audit_mode' })}
-          className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold cursor-pointer h-11"
-        >
-          {canUseAuditMode ? (
-            <ClipboardCheck className="w-5 h-5 mr-2" />
-          ) : (
-            <Lock className="w-4 h-4 mr-2" />
-          )}
-          Start Audit Mode
-        </Button>
+        {isAdmin && (
+          <Button 
+            onClick={withRestriction(() => setIsAuditOpen(true), { featureAllowed: canUseAuditMode, featureKey: 'audit_mode' })}
+            className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold cursor-pointer h-11"
+          >
+            {canUseAuditMode ? (
+              <ClipboardCheck className="w-5 h-5 mr-2" />
+            ) : (
+              <Lock className="w-4 h-4 mr-2" />
+            )}
+            Start Audit Mode
+          </Button>
+        )}
       </div>
 
       <StockAuditDialog 

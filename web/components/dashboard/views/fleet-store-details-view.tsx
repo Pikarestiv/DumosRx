@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Circle, Activity, ShoppingCart } from "lucide-react";
+import { Circle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -10,20 +10,6 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { useRouter, useSearchParams } from "next/navigation";
 import { StoreActivitiesTab } from "./fleet/store-activities-tab";
 import { StoreTransactionsTab } from "./fleet/store-transactions-tab";

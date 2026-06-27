@@ -91,10 +91,18 @@ export function StaffTable({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredStaff.map((s: any) => (
+                {[...filteredStaff].sort((a, b) => {
+                  const isAOwner = !a.store_id || a.role === 'owner';
+                  const isBOwner = !b.store_id || b.role === 'owner';
+                  if (isAOwner && !isBOwner) return -1;
+                  if (!isAOwner && isBOwner) return 1;
+                  return 0;
+                }).map((s: any) => {
+                  const isMainAccount = !s.store_id || s.role === 'owner';
+                  return (
                   <TableRow
                     key={s.id}
-                    className="border-muted hover:bg-muted/30 group"
+                    className={`border-muted group ${isMainAccount ? "bg-indigo-50/50 dark:bg-indigo-900/10 hover:bg-indigo-50 dark:hover:bg-indigo-900/20" : "hover:bg-muted/30"}`}
                   >
                     <TableCell className="font-bold py-4 pl-6">
                       <div className="flex items-center gap-3">
@@ -102,10 +110,17 @@ export function StaffTable({
                           {s.first_name?.charAt(0) || "U"}
                         </div>
                         <div className="flex flex-col">
-                          <span className="text-slate-900 dark:text-white">
-                            {(s.first_name || "") + " " + (s.last_name || "")}
-                          </span>
-                          <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-tighter">
+                          <div className="flex items-center gap-2">
+                            <span className="text-slate-900 dark:text-white">
+                              {(s.first_name || "") + " " + (s.last_name || "")}
+                            </span>
+                            {isMainAccount && (
+                              <Badge variant="default" className="h-5 px-1.5 text-[9px] bg-indigo-500 hover:bg-indigo-600">
+                                Main Account
+                              </Badge>
+                            )}
+                          </div>
+                          <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-tighter mt-0.5">
                             {s.email}
                           </span>
                         </div>
@@ -186,7 +201,8 @@ export function StaffTable({
                       </DropdownMenu>
                     </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           </div>

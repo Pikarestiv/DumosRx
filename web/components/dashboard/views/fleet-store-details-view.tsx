@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Circle, Activity, ShoppingCart } from "lucide-react";
+import { Circle, Activity, ShoppingCart, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -37,6 +37,8 @@ export function FleetStoreDetailsView({
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("overview");
   const [viewingTransaction, setViewingTransaction] = useState<any>(null);
+  const [currentActivityPage, setCurrentActivityPage] = useState(1);
+  const activityPageSize = 5;
 
   if (!storeId || !stores) return null;
   const store = stores.find((s: any) => s.id.toString() === storeId);
@@ -193,19 +195,22 @@ export function FleetStoreDetailsView({
 
         {activeTab === "activities" && (
           <div className="space-y-3">
-            {!store.recent_activities ||
-            store.recent_activities.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                <Activity className="h-8 w-8 opacity-20 mb-2" />
-                <p className="font-medium">
-                  No recent activities found for this store
-                </p>
-              </div>
-            ) : (
-              store.recent_activities
-                .filter((act: any) => filterIndirectSaleLogs(store.recent_activities, act))
-                .map((act: any) => (
-                <div
+            {(() => {
+              const filteredActivities = store.recent_activities ? store.recent_activities.filter((act: any) => filterIndirectSaleLogs(store.recent_activities, act)) : [];
+              const totalActivityPages = Math.ceil(filteredActivities.length / activityPageSize);
+              const paginatedActivities = filteredActivities.slice((currentActivityPage - 1) * activityPageSize, currentActivityPage * activityPageSize);
+
+              return filteredActivities.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                  <Activity className="h-8 w-8 opacity-20 mb-2" />
+                  <p className="font-medium">
+                    No recent activities found for this store
+                  </p>
+                </div>
+              ) : (
+                <>
+                  {paginatedActivities.map((act: any) => (
+                    <div
                   key={act.id}
                   className="p-4 border rounded-xl flex items-start gap-4"
                 >
@@ -238,10 +243,43 @@ export function FleetStoreDetailsView({
                     </p>
                   </div>
                 </div>
-              ))
-            )}
-          </div>
-        )}
+              ))}
+              
+              {totalActivityPages > 1 && (
+                <div className="flex items-center justify-between pt-4 border-t border-muted mt-4">
+                  <div className="text-xs text-muted-foreground font-medium">
+                    Showing {(currentActivityPage - 1) * activityPageSize + 1} to {Math.min(currentActivityPage * activityPageSize, filteredActivities.length)} of {filteredActivities.length} entries
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentActivityPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentActivityPage === 1}
+                      className="h-8 px-2 border-muted"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <div className="text-xs font-bold min-w-[3rem] text-center">
+                      {currentActivityPage} / {totalActivityPages}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentActivityPage(prev => Math.min(prev + 1, totalActivityPages))}
+                      disabled={currentActivityPage === totalActivityPages}
+                      className="h-8 px-2 border-muted"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
+            );
+          })()}
+        </div>
+      )}
 
         {activeTab === "transactions" && (
           <div className="space-y-4">

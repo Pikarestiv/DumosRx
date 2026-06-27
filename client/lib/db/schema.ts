@@ -24,7 +24,6 @@ CREATE TABLE IF NOT EXISTS products (
   cost_price REAL DEFAULT 0,
   selling_price REAL DEFAULT 0,
   markup_percentage REAL DEFAULT 0,
-  stock_quantity INTEGER DEFAULT 0,
   reorder_level INTEGER DEFAULT 10,
   requires_prescription INTEGER DEFAULT 0,
   is_controlled INTEGER DEFAULT 0,

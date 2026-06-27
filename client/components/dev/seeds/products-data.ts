@@ -25,17 +25,15 @@ export function getProductsSeedData(
         strength: "500mg",
         cost_price: 10,
         selling_price: 15,
-        stock_quantity: 500,
         reorder_level: 50,
         base_unit: "Tablet",
         bulk_unit: "Pack",
         units_per_bulk: 100,
         expiry_date: getFutureDate(500),
-        batch_number: "B-PARA-001",
       },
       batches: [
-        { id: "inv-m1-b1", batch_number: "B-PARA-001", expiry_date: getFutureDate(500), quantity: 300, cost_price: 10, selling_price: 15 },
-        { id: "inv-m1-b2", batch_number: "B-PARA-002", expiry_date: getFutureDate(600), quantity: 200, cost_price: 10, selling_price: 15 },
+        { id: "inv-m1-b1", expiry_date: getFutureDate(500), quantity: 300, cost_price: 10, selling_price: 15 },
+        { id: "inv-m1-b2", expiry_date: getFutureDate(600), quantity: 200, cost_price: 10, selling_price: 15 },
       ]
     },
     {
@@ -51,16 +49,14 @@ export function getProductsSeedData(
         strength: "500mg",
         cost_price: 80,
         selling_price: 120,
-        stock_quantity: 120,
         reorder_level: 30,
         base_unit: "Capsule",
         bulk_unit: "Carton",
         units_per_bulk: 100,
         expiry_date: getFutureDate(400),
-        batch_number: "B-AMOX-01",
       },
       batches: [
-        { id: "inv-m2-b1", batch_number: "B-AMOX-01", expiry_date: getFutureDate(400), quantity: 120, cost_price: 80, selling_price: 120 },
+        { id: "inv-m2-b1", expiry_date: getFutureDate(400), quantity: 120, cost_price: 80, selling_price: 120 },
       ]
     },
     {
@@ -76,14 +72,12 @@ export function getProductsSeedData(
         strength: "100mg",
         cost_price: 5,
         selling_price: 8,
-        stock_quantity: 8,
         reorder_level: 20,
         base_unit: "Sachet",
         expiry_date: getFutureDate(600),
-        batch_number: "B-VITC-99",
       },
       batches: [
-        { id: "inv-m3-b1", batch_number: "B-VITC-99", expiry_date: getFutureDate(600), quantity: 8, cost_price: 5, selling_price: 8 },
+        { id: "inv-m3-b1", expiry_date: getFutureDate(600), quantity: 8, cost_price: 5, selling_price: 8 },
       ]
     },
     {
@@ -99,14 +93,12 @@ export function getProductsSeedData(
         strength: "80/480mg",
         cost_price: 1200,
         selling_price: 1800,
-        stock_quantity: 50,
         reorder_level: 15,
         base_unit: "Tablet",
         expiry_date: getPastDate(60),
-        batch_number: "B-COAR-EX",
       },
       batches: [
-        { id: "inv-m4-b1", batch_number: "B-COAR-EX", expiry_date: getPastDate(60), quantity: 50, cost_price: 1200, selling_price: 1800 },
+        { id: "inv-m4-b1", expiry_date: getPastDate(60), quantity: 50, cost_price: 1200, selling_price: 1800 },
       ]
     },
     {
@@ -122,14 +114,12 @@ export function getProductsSeedData(
         strength: "100ml",
         cost_price: 450,
         selling_price: 650,
-        stock_quantity: 0,
         reorder_level: 10,
         base_unit: "Bottle",
         expiry_date: getFutureDate(300),
-        batch_number: "B-COUG-00",
       },
       batches: [
-        { id: "inv-m5-b1", batch_number: "B-COUG-00", expiry_date: getFutureDate(300), quantity: 0, cost_price: 450, selling_price: 650 },
+        { id: "inv-m5-b1", expiry_date: getFutureDate(300), quantity: 0, cost_price: 450, selling_price: 650 },
       ]
     },
     {
@@ -145,14 +135,12 @@ export function getProductsSeedData(
         strength: "625mg",
         cost_price: 3500,
         selling_price: 5000,
-        stock_quantity: 25,
         reorder_level: 10,
         base_unit: "Tablet",
         expiry_date: getFutureDate(45),
-        batch_number: "B-AUGM-NE",
       },
       batches: [
-        { id: "inv-m6-b1", batch_number: "B-AUGM-NE", expiry_date: getFutureDate(45), quantity: 25, cost_price: 3500, selling_price: 5000 },
+        { id: "inv-m6-b1", expiry_date: getFutureDate(45), quantity: 25, cost_price: 3500, selling_price: 5000 },
       ]
     },
     {
@@ -168,14 +156,12 @@ export function getProductsSeedData(
         strength: "10mg",
         cost_price: 150,
         selling_price: 250,
-        stock_quantity: 0,
         reorder_level: 15,
         base_unit: "Tablet",
         expiry_date: getPastDate(15),
-        batch_number: "B-LORA-EX",
       },
       batches: [
-        { id: "inv-m7-b1", batch_number: "B-LORA-EX", expiry_date: getPastDate(15), quantity: 0, cost_price: 150, selling_price: 250 },
+        { id: "inv-m7-b1", expiry_date: getPastDate(15), quantity: 0, cost_price: 150, selling_price: 250 },
       ]
     },
     {
@@ -191,14 +177,12 @@ export function getProductsSeedData(
         strength: "20mg",
         cost_price: 300,
         selling_price: 450,
-        stock_quantity: 3,
         reorder_level: 10,
         base_unit: "Capsule",
         expiry_date: getFutureDate(12),
-        batch_number: "B-OMEP-NE",
       },
       batches: [
-        { id: "inv-m8-b1", batch_number: "B-OMEP-NE", expiry_date: getFutureDate(12), quantity: 3, cost_price: 300, selling_price: 450 },
+        { id: "inv-m8-b1", expiry_date: getFutureDate(12), quantity: 3, cost_price: 300, selling_price: 450 },
       ]
     },
     {
@@ -214,14 +198,12 @@ export function getProductsSeedData(
         strength: "500mg/65mg",
         cost_price: 15,
         selling_price: 25,
-        stock_quantity: 300,
         reorder_level: 50,
         base_unit: "Tablet",
         expiry_date: getFutureDate(700),
-        batch_number: "B-PANA-EXT",
       },
       batches: [
-        { id: "inv-m9-b1", batch_number: "B-PANA-EXT", expiry_date: getFutureDate(700), quantity: 300, cost_price: 15, selling_price: 25 },
+        { id: "inv-m9-b1", expiry_date: getFutureDate(700), quantity: 300, cost_price: 15, selling_price: 25 },
       ]
     },
     {
@@ -237,15 +219,13 @@ export function getProductsSeedData(
         strength: "80mg/ml",
         cost_price: 800,
         selling_price: 1200,
-        stock_quantity: 40,
         reorder_level: 10,
         base_unit: "Ampoule",
         requires_prescription: 1,
         expiry_date: getFutureDate(800),
-        batch_number: "B-ARTE-INJ",
       },
       batches: [
-        { id: "inv-m10-b1", batch_number: "B-ARTE-INJ", expiry_date: getFutureDate(800), quantity: 40, cost_price: 800, selling_price: 1200 },
+        { id: "inv-m10-b1", expiry_date: getFutureDate(800), quantity: 40, cost_price: 800, selling_price: 1200 },
       ]
     },
     {
@@ -261,14 +241,12 @@ export function getProductsSeedData(
         strength: "500mg",
         cost_price: 25,
         selling_price: 40,
-        stock_quantity: 250,
         reorder_level: 40,
         base_unit: "Tablet",
         expiry_date: getFutureDate(600),
-        batch_number: "B-METF-01",
       },
       batches: [
-        { id: "inv-m11-b1", batch_number: "B-METF-01", expiry_date: getFutureDate(600), quantity: 250, cost_price: 25, selling_price: 40 },
+        { id: "inv-m11-b1", expiry_date: getFutureDate(600), quantity: 250, cost_price: 25, selling_price: 40 },
       ]
     },
     {
@@ -284,14 +262,12 @@ export function getProductsSeedData(
         strength: "5mg",
         cost_price: 50,
         selling_price: 80,
-        stock_quantity: 5,
         reorder_level: 15,
         base_unit: "Tablet",
         expiry_date: getFutureDate(450),
-        batch_number: "B-AMLO-01",
       },
       batches: [
-        { id: "inv-m12-b1", batch_number: "B-AMLO-01", expiry_date: getFutureDate(450), quantity: 5, cost_price: 50, selling_price: 80 },
+        { id: "inv-m12-b1", expiry_date: getFutureDate(450), quantity: 5, cost_price: 50, selling_price: 80 },
       ]
     },
     {
@@ -307,14 +283,12 @@ export function getProductsSeedData(
         strength: "500mg",
         cost_price: 450,
         selling_price: 700,
-        stock_quantity: 80,
         reorder_level: 15,
         base_unit: "Tablet",
         expiry_date: getPastDate(100),
-        batch_number: "B-CIPR-EX",
       },
       batches: [
-        { id: "inv-m13-b1", batch_number: "B-CIPR-EX", expiry_date: getPastDate(100), quantity: 80, cost_price: 450, selling_price: 700 },
+        { id: "inv-m13-b1", expiry_date: getPastDate(100), quantity: 80, cost_price: 450, selling_price: 700 },
       ]
     },
     {
@@ -330,14 +304,12 @@ export function getProductsSeedData(
         strength: "400mg",
         cost_price: 12,
         selling_price: 20,
-        stock_quantity: 150,
         reorder_level: 35,
         base_unit: "Tablet",
         expiry_date: getFutureDate(550),
-        batch_number: "B-IBUP-01",
       },
       batches: [
-        { id: "inv-m14-b1", batch_number: "B-IBUP-01", expiry_date: getFutureDate(550), quantity: 150, cost_price: 12, selling_price: 20 },
+        { id: "inv-m14-b1", expiry_date: getFutureDate(550), quantity: 150, cost_price: 12, selling_price: 20 },
       ]
     },
     {
@@ -353,14 +325,12 @@ export function getProductsSeedData(
         strength: "100g",
         cost_price: 1500,
         selling_price: 2200,
-        stock_quantity: 90,
         reorder_level: 20,
         base_unit: "Tablet",
         expiry_date: getFutureDate(60),
-        batch_number: "B-MULT-NE",
       },
       batches: [
-        { id: "inv-m15-b1", batch_number: "B-MULT-NE", expiry_date: getFutureDate(60), quantity: 90, cost_price: 1500, selling_price: 2200 },
+        { id: "inv-m15-b1", expiry_date: getFutureDate(60), quantity: 90, cost_price: 1500, selling_price: 2200 },
       ]
     },
     {
@@ -376,14 +346,12 @@ export function getProductsSeedData(
         strength: "150ml",
         cost_price: 2200,
         selling_price: 3200,
-        stock_quantity: 45,
         reorder_level: 10,
         base_unit: "Bottle",
         expiry_date: getFutureDate(350),
-        batch_number: "B-GAVI-01",
       },
       batches: [
-        { id: "inv-m16-b1", batch_number: "B-GAVI-01", expiry_date: getFutureDate(350), quantity: 45, cost_price: 2200, selling_price: 3200 },
+        { id: "inv-m16-b1", expiry_date: getFutureDate(350), quantity: 45, cost_price: 2200, selling_price: 3200 },
       ]
     },
     {
@@ -399,16 +367,14 @@ export function getProductsSeedData(
         strength: "5mg",
         cost_price: 80,
         selling_price: 150,
-        stock_quantity: 60,
         reorder_level: 10,
         base_unit: "Tablet",
         requires_prescription: 1,
         is_controlled: 1,
         expiry_date: getFutureDate(750),
-        batch_number: "B-DIAZ-01",
       },
       batches: [
-        { id: "inv-m17-b1", batch_number: "B-DIAZ-01", expiry_date: getFutureDate(750), quantity: 60, cost_price: 80, selling_price: 150 },
+        { id: "inv-m17-b1", expiry_date: getFutureDate(750), quantity: 60, cost_price: 80, selling_price: 150 },
       ]
     },
     {
@@ -424,14 +390,12 @@ export function getProductsSeedData(
         strength: "10mg",
         cost_price: 30,
         selling_price: 50,
-        stock_quantity: 0,
         reorder_level: 15,
         base_unit: "Tablet",
         expiry_date: getFutureDate(400),
-        batch_number: "B-CETI-00",
       },
       batches: [
-        { id: "inv-m18-b1", batch_number: "B-CETI-00", expiry_date: getFutureDate(400), quantity: 0, cost_price: 30, selling_price: 50 },
+        { id: "inv-m18-b1", expiry_date: getFutureDate(400), quantity: 0, cost_price: 30, selling_price: 50 },
       ]
     },
     {
@@ -447,14 +411,12 @@ export function getProductsSeedData(
         strength: "500mg",
         cost_price: 1800,
         selling_price: 2500,
-        stock_quantity: 2,
         reorder_level: 10,
         base_unit: "Tablet",
         expiry_date: getFutureDate(30),
-        batch_number: "B-AZIT-NE",
       },
       batches: [
-        { id: "inv-m19-b1", batch_number: "B-AZIT-NE", expiry_date: getFutureDate(30), quantity: 2, cost_price: 1800, selling_price: 2500 },
+        { id: "inv-m19-b1", expiry_date: getFutureDate(30), quantity: 2, cost_price: 1800, selling_price: 2500 },
       ]
     },
     {
@@ -470,14 +432,12 @@ export function getProductsSeedData(
         strength: "80/480mg",
         cost_price: 950,
         selling_price: 1400,
-        stock_quantity: 140,
         reorder_level: 25,
         base_unit: "Tablet",
         expiry_date: getFutureDate(520),
-        batch_number: "B-LONA-01",
       },
       batches: [
-        { id: "inv-m20-b1", batch_number: "B-LONA-01", expiry_date: getFutureDate(520), quantity: 140, cost_price: 950, selling_price: 1400 },
+        { id: "inv-m20-b1", expiry_date: getFutureDate(520), quantity: 140, cost_price: 950, selling_price: 1400 },
       ]
     },
     {
@@ -493,14 +453,12 @@ export function getProductsSeedData(
         strength: "100mcg",
         cost_price: 1500,
         selling_price: 2200,
-        stock_quantity: 35,
         reorder_level: 8,
         base_unit: "Device",
         expiry_date: getFutureDate(480),
-        batch_number: "B-SALB-01",
       },
       batches: [
-        { id: "inv-m21-b1", batch_number: "B-SALB-01", expiry_date: getFutureDate(480), quantity: 35, cost_price: 1500, selling_price: 2200 },
+        { id: "inv-m21-b1", expiry_date: getFutureDate(480), quantity: 35, cost_price: 1500, selling_price: 2200 },
       ]
     },
     {
@@ -516,14 +474,12 @@ export function getProductsSeedData(
         strength: "2mg",
         cost_price: 40,
         selling_price: 60,
-        stock_quantity: 3,
         reorder_level: 10,
         base_unit: "Capsule",
         expiry_date: getPastDate(5),
-        batch_number: "B-LOPE-EX",
       },
       batches: [
-        { id: "inv-m22-b1", batch_number: "B-LOPE-EX", expiry_date: getPastDate(5), quantity: 3, cost_price: 40, selling_price: 60 },
+        { id: "inv-m22-b1", expiry_date: getPastDate(5), quantity: 3, cost_price: 40, selling_price: 60 },
       ]
     }
   ];

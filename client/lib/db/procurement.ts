@@ -118,10 +118,7 @@ export async function receivePurchaseOrder(id: string) {
     const unitsPerBulk = Number(item.units_per_bulk);
     const totalBaseUnits = bulkQty * unitsPerBulk;
     
-    await execute(
-      `UPDATE products SET stock_quantity = stock_quantity + ?, updated_at = ? WHERE id = ?`,
-      [totalBaseUnits, now, item.product_id]
-    );
+    
 
     const invId = await insert("stock_batches", {
       product_id: item.product_id,

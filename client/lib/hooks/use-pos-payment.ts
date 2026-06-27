@@ -141,8 +141,20 @@ export function usePOSPayment({
           total_price: item.subtotal,
         });
 
-        const newStock = Math.max(0, item.stock - item.quantity);
-        await update("products", item.id, { stock_quantity: newStock });
+        const batches = await query<any>(
+          "SELECT * FROM stock_batches WHERE product_id = ? AND _deleted = 0 AND quantity > 0 ORDER BY expiry_date ASC, created_at ASC",
+          [item.id]
+        );
+        
+        let remainingToDeduct = item.quantity;
+        for (const batch of batches) {
+          if (remainingToDeduct <= 0) break;
+          const deduction = Math.min(batch.quantity, remainingToDeduct);
+          await update("stock_batches", batch.id, {
+            quantity: batch.quantity - deduction
+          });
+          remainingToDeduct -= deduction;
+        }
       }
 
       if (paymentMethod === "credit" && selectedCustomer) {

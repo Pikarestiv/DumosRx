@@ -353,6 +353,24 @@ export async function initDatabase(): Promise<any> {
         await db.execute("ALTER TABLE store_profile RENAME TO stores");
       } catch (_e) { }
 
+      
+      // --- Data migration: stock_quantity to stock_batches ---
+      try {
+        const hasProductsStock = await db.select("SELECT 1 FROM pragma_table_info('products') WHERE name='stock_quantity'");
+        if (hasProductsStock && hasProductsStock.length > 0) {
+          await db.execute(`
+            INSERT INTO stock_batches (id, product_id, batch_number, quantity, cost_price, selling_price, expiry_date, is_active, created_at, updated_at)
+            SELECT lower(hex(randomblob(16))), id, 'INITIAL', stock_quantity, cost_price, selling_price, date('now', '+2 years'), 1, created_at, updated_at
+            FROM products 
+            WHERE stock_quantity > 0 AND NOT EXISTS (
+              SELECT 1 FROM stock_batches WHERE stock_batches.product_id = products.id AND stock_batches.batch_number = 'INITIAL'
+            )
+          `);
+        }
+      } catch (e) {
+        console.error("Migration for stock_quantity skipped", e);
+      }
+
       // Run migrations for Tauri
       for (const { table, columns } of syncColumns) {
         for (const colDef of columns) {
@@ -434,6 +452,24 @@ export async function initDatabase(): Promise<any> {
       db = new SQL.Database();
       db.run(SCHEMA_SQL);
     }
+
+    
+      // --- Data migration: stock_quantity to stock_batches ---
+      try {
+        const hasProductsStock = db.exec("SELECT 1 FROM pragma_table_info('products') WHERE name='stock_quantity'");
+        if (hasProductsStock && hasProductsStock.length > 0 && hasProductsStock[0].values.length > 0) {
+          db.run(`
+            INSERT INTO stock_batches (id, product_id, batch_number, quantity, cost_price, selling_price, expiry_date, is_active, created_at, updated_at)
+            SELECT lower(hex(randomblob(16))), id, 'INITIAL', stock_quantity, cost_price, selling_price, date('now', '+2 years'), 1, created_at, updated_at
+            FROM products 
+            WHERE stock_quantity > 0 AND NOT EXISTS (
+              SELECT 1 FROM stock_batches WHERE stock_batches.product_id = products.id AND stock_batches.batch_number = 'INITIAL'
+            )
+          `);
+        }
+      } catch (e) {
+        console.error("Migration for stock_quantity skipped", e);
+      }
 
     // Run migrations for Web (non-Tauri)
     for (const { table, columns } of syncColumns) {

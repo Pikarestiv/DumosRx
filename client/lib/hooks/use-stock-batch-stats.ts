@@ -31,19 +31,25 @@ export function useStockBatchStats(): StockBatchStats {
 
   const { data: statsData, loading } = useLocalData<any>(
     `SELECT
-      COUNT(*)                                                              AS total_products,
-      COUNT(CASE WHEN (expiry_date IS NULL OR date(expiry_date) > date('now')) THEN 1 END) AS active_products,
-      COUNT(CASE WHEN stock_quantity <= reorder_level
-                  AND stock_quantity > 0                          THEN 1 END) AS low_stock_count,
-      COUNT(CASE WHEN stock_quantity = 0                         THEN 1 END) AS critical_stock_count,
-      COUNT(CASE WHEN expiry_date IS NOT NULL
-                  AND date(expiry_date) > date('now')
-                  AND date(expiry_date) <= date('now', '+' || ? || ' days') THEN 1 END) AS expiring_soon_count,
-      COUNT(CASE WHEN expiry_date IS NOT NULL
-                  AND date(expiry_date) <= date('now')            THEN 1 END) AS expired_count,
-      COALESCE(SUM(stock_quantity * cost_price), 0)                         AS total_stock_batch_value
-    FROM products
-    WHERE _deleted = 0`,
+      COUNT(p.id) AS total_products,
+      SUM(CASE WHEN p.status = 'active' THEN 1 ELSE 0 END) AS active_products,
+      SUM(CASE WHEN COALESCE(sb.total_qty, 0) <= p.reorder_level AND COALESCE(sb.total_qty, 0) > 0 THEN 1 ELSE 0 END) AS low_stock_count,
+      SUM(CASE WHEN COALESCE(sb.total_qty, 0) = 0 THEN 1 ELSE 0 END) AS critical_stock_count,
+      SUM(CASE WHEN sb.expiring_soon > 0 THEN 1 ELSE 0 END) AS expiring_soon_count,
+      SUM(CASE WHEN sb.expired > 0 THEN 1 ELSE 0 END) AS expired_count,
+      COALESCE(SUM(sb.total_value), 0) AS total_stock_batch_value
+    FROM products p
+    LEFT JOIN (
+      SELECT product_id,
+        SUM(quantity) as total_qty,
+        SUM(CASE WHEN expiry_date IS NOT NULL AND date(expiry_date) > date('now') AND date(expiry_date) <= date('now', '+' || ? || ' days') THEN 1 ELSE 0 END) as expiring_soon,
+        SUM(CASE WHEN expiry_date IS NOT NULL AND date(expiry_date) <= date('now') THEN 1 ELSE 0 END) as expired,
+        SUM(quantity * cost_price) as total_value
+      FROM stock_batches
+      WHERE _deleted = 0
+      GROUP BY product_id
+    ) sb ON p.id = sb.product_id
+    WHERE p._deleted = 0`,
     [expiryDays]
   );
 

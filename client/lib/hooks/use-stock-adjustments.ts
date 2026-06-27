@@ -138,11 +138,30 @@ export function useStockAdjustments() {
           ],
         );
 
-        // Adjust product stock level locally
-        await execute(
-          `UPDATE products SET stock_quantity = stock_quantity + ?, updated_at = ? WHERE id = ?`,
-          [calculatedQty, new Date().toISOString(), productId],
-        );
+        // Adjust stock_batches
+        if (calculatedQty < 0) {
+          const batches = await query<any>(
+            "SELECT * FROM stock_batches WHERE product_id = ? AND _deleted = 0 AND quantity > 0 ORDER BY expiry_date ASC, created_at ASC",
+            [productId]
+          );
+          let remainingToDeduct = Math.abs(calculatedQty);
+          for (const batch of batches) {
+            if (remainingToDeduct <= 0) break;
+            const deduction = Math.min(batch.quantity, remainingToDeduct);
+            await execute(
+              "UPDATE stock_batches SET quantity = quantity - ?, updated_at = ? WHERE id = ?",
+              [deduction, new Date().toISOString(), batch.id]
+            );
+            remainingToDeduct -= deduction;
+          }
+        } else {
+          // Increase: Add to an 'ADJUSTMENT' batch
+          const batchId = crypto.randomUUID();
+          await execute(
+            "INSERT INTO stock_batches (id, product_id, batch_number, quantity, is_active, created_at, updated_at) VALUES (?, ?, 'ADJUSTMENT', ?, 1, ?, ?)",
+            [batchId, productId, calculatedQty, new Date().toISOString(), new Date().toISOString()]
+          );
+        }
       } catch (err) {
         console.error("Failed to apply local adjustment:", err);
         toast.error("Failed to save stock adjustment locally");

@@ -34,7 +34,7 @@ export function usePOSData() {
     loading: loadingProducts,
     refetch: refetchProducts,
   } = useLocalData<Product>(
-    "SELECT * FROM products WHERE _deleted = 0 ORDER BY name ASC",
+    "SELECT p.*, COALESCE(SUM(sb.quantity), 0) as stock_quantity FROM products p LEFT JOIN stock_batches sb ON p.id = sb.product_id AND sb._deleted = 0 AND sb.is_active = 1 WHERE p._deleted = 0 GROUP BY p.id ORDER BY p.name ASC",
     [],
     {
       transform: (m: any) => ({

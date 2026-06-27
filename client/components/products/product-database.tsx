@@ -146,19 +146,26 @@ export function ProductDatabase() {
         await update("products", id, localPayload);
         toast.success(`${t('product')} updated successfully`);
       } else {
+        
+        const initialStock = localPayload.stock_quantity;
+        const initialExpiry = localPayload.expiry_date;
+        const initialBatch = localPayload.batch_number;
+        delete localPayload.stock_quantity;
+        delete localPayload.expiry_date;
+        delete localPayload.batch_number;
         const productId = await insert("products", localPayload);
         
         // Also create an initial stock batch if there's stock
-        if (localPayload.stock_quantity > 0) {
+        if (initialStock > 0) {
           await insert("stock_batches", {
             product_id: productId,
-            quantity: localPayload.stock_quantity,
-            initial_quantity: localPayload.stock_quantity,
+            quantity: initialStock,
+            initial_quantity: initialStock,
             unit_cost: localPayload.cost_price || 0,
             selling_price: localPayload.selling_price || 0,
-            batch_number: localPayload.batch_number || null,
-            expiry_date: localPayload.expiry_date || null,
-            status: localPayload.expiry_date && new Date(localPayload.expiry_date) < new Date() ? 'expired' : 'active'
+            batch_number: initialBatch || null,
+            expiry_date: initialExpiry || null,
+            status: initialExpiry && new Date(initialExpiry) < new Date() ? 'expired' : 'active'
           });
         }
         toast.success(`${t('product')} added successfully`);

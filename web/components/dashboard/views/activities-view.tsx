@@ -40,29 +40,36 @@ interface ActivityLog {
 
 const ActivityDetails = ({ details }: { details?: string }) => {
   if (!details) return <span>-</span>;
+  
+  let parsedContent = null;
   try {
     const parsed = JSON.parse(details);
     if (typeof parsed === 'object' && parsed !== null) {
-      return (
-        <div className="flex flex-col gap-1 text-[11px] max-w-[400px]">
-          {Object.entries(parsed).slice(0, 3).map(([key, value]) => {
-             const displayValue = typeof value === 'object' ? JSON.stringify(value) : String(value);
-             return (
-               <div key={key} className="flex gap-2 bg-muted/40 px-2 py-1 rounded items-center">
-                 <span className="font-bold text-muted-foreground capitalize min-w-[80px]">{key.replace(/_/g, ' ')}</span>
-                 <span className="font-mono truncate" title={displayValue}>{displayValue}</span>
-               </div>
-             )
-          })}
-          {Object.keys(parsed).length > 3 && (
-            <div className="text-xs text-muted-foreground italic px-2">+{Object.keys(parsed).length - 3} more fields</div>
-          )}
-        </div>
-      );
+      parsedContent = parsed;
     }
-  } catch (e) {
+  } catch (_e) {
     // not json
   }
+
+  if (parsedContent) {
+    return (
+      <div className="flex flex-col gap-1 text-[11px] max-w-[400px]">
+        {Object.entries(parsedContent).slice(0, 3).map(([key, value]) => {
+            const displayValue = typeof value === 'object' ? JSON.stringify(value) : String(value);
+            return (
+              <div key={key} className="flex gap-2 bg-muted/40 px-2 py-1 rounded items-center">
+                <span className="font-bold text-muted-foreground capitalize min-w-[80px]">{key.replace(/_/g, ' ')}</span>
+                <span className="font-mono truncate" title={displayValue}>{displayValue}</span>
+              </div>
+            )
+        })}
+        {Object.keys(parsedContent).length > 3 && (
+          <div className="text-xs text-muted-foreground italic px-2">+{Object.keys(parsedContent).length - 3} more fields</div>
+        )}
+      </div>
+    );
+  }
+
   return <div className="truncate max-w-[350px] text-sm" title={details}>{details}</div>;
 }
 

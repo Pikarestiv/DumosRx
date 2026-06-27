@@ -8,10 +8,6 @@ import {
   Users,
   Trash2,
   Store,
-  Activity,
-  ShoppingCart,
-  AlertTriangle,
-  Package,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,18 +34,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
-import { useStores, useDeleteStoreMutation } from "@/lib/api/hooks";
+import { useDeleteStoreMutation } from "@/lib/api/hooks";
 import { StoreModal } from "../store-modal";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
@@ -63,10 +52,7 @@ export function FleetView({ stores: initialStores }: FleetViewProps) {
   const [editingStore, setEditingStore] = useState<any>(null);
   const deleteMutation = useDeleteStoreMutation();
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
-  const [viewingStore, setViewingStore] = useState<any>(null);
-  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
 
-  const { data: storesData } = useStores();
   const storesToDisplay = initialStores; // Use the detailed stores passed from the dashboard layout
 
   const handleManageStaff = (storeId: string) => {

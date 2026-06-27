@@ -22,21 +22,24 @@ export const useLatestRelease = () => {
   return useQuery({
     queryKey: ["github-latest-release"],
     queryFn: async (): Promise<ReleaseLinks> => {
-      const res = await fetch(`https://downloads.dumosrx.com/updater.json`);
-      if (!res.ok) throw new Error("Failed to fetch updater.json");
+      let version = APP_VERSION;
+      try {
+        const res = await fetch(`https://downloads.dumosrx.com/updater.json`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.version) version = data.version;
+        }
+      } catch (e) {
+        console.warn("Failed to fetch updater.json, using fallback APP_VERSION");
+      }
       
-      const data = await res.json();
-      const version = data.version || APP_VERSION;
-      const platforms = data.platforms || {};
-
-      const defaultUrl = `https://downloads.dumosrx.com`;
+      const cleanVersion = version.replace(/^v/, '');
 
       return {
-        windows: platforms["windows-x86_64"]?.url || defaultUrl,
-        macos: platforms["darwin-aarch64"]?.url || platforms["darwin-x86_64"]?.url || defaultUrl,
-        linux: platforms["linux-x86_64"]?.url || defaultUrl,
-        // The APK is also uploaded to the same directory by the github action
-        android: `https://downloads.dumosrx.com/app-release.apk`, 
+        windows: `https://downloads.dumosrx.com/DumosRx_${cleanVersion}_x64_en-US.msi`,
+        macos: `https://downloads.dumosrx.com/DumosRx_${cleanVersion}_x64.dmg`,
+        linux: `https://downloads.dumosrx.com/DumosRx_${cleanVersion}_amd64.AppImage`,
+        android: `https://downloads.dumosrx.com/app-release.apk`,
         version: version,
         winSize: "",
         macSize: "",

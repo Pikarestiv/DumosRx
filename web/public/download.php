@@ -6,6 +6,10 @@
 
 $os = isset($_GET['os']) ? $_GET['os'] : 'windows';
 
+// Default version if updater.json is missing or fails
+$version = "0.0.19"; 
+$downloadUrl = "";
+
 // Fetch latest release data from DumosRx Server
 $url = "https://downloads.dumosrx.com/updater.json";
 $ch = curl_init();
@@ -14,24 +18,22 @@ curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 curl_setopt($ch, CURLOPT_USERAGENT, 'DumosRx-Download-Script');
 $response = curl_exec($ch);
 
-if (!$response) {
-    die("Connection to DumosRx failed. Please try again later.");
+if ($response) {
+    $data = json_decode($response, true);
+    if (isset($data['version'])) {
+        $version = str_replace('v', '', $data['version']);
+    }
 }
 
-$data = json_decode($response, true);
-
-if (!isset($data['platforms'])) {
-    die("No release assets found.");
-}
-
-$downloadUrl = "";
-
+// Generate deterministic URLs
 if ($os === 'windows') {
-    $downloadUrl = $data['platforms']['windows-x86_64']['url'] ?? '';
+    $downloadUrl = "https://downloads.dumosrx.com/DumosRx_{$version}_x64_en-US.msi";
 } elseif ($os === 'macos') {
-    $downloadUrl = $data['platforms']['darwin-aarch64']['url'] ?? $data['platforms']['darwin-x86_64']['url'] ?? '';
+    $downloadUrl = "https://downloads.dumosrx.com/DumosRx_{$version}_x64.dmg";
 } elseif ($os === 'linux') {
-    $downloadUrl = $data['platforms']['linux-x86_64']['url'] ?? '';
+    $downloadUrl = "https://downloads.dumosrx.com/DumosRx_{$version}_amd64.AppImage";
+} elseif ($os === 'android') {
+    $downloadUrl = "https://downloads.dumosrx.com/app-release.apk";
 }
 
 if ($downloadUrl) {

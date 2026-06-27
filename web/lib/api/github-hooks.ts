@@ -22,43 +22,26 @@ export const useLatestRelease = () => {
   return useQuery({
     queryKey: ["github-latest-release"],
     queryFn: async (): Promise<ReleaseLinks> => {
-      const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`);
-      if (!res.ok) throw new Error("Failed to fetch GitHub release");
+      const res = await fetch(`https://downloads.dumosrx.com/updater.json`);
+      if (!res.ok) throw new Error("Failed to fetch updater.json");
       
       const data = await res.json();
-      const assets = data.assets || [];
+      const version = data.version || APP_VERSION;
+      const platforms = data.platforms || {};
 
-      const win = assets.find((a: any) => 
-        a.name.toLowerCase().endsWith(".msi") || 
-        a.name.toLowerCase().endsWith("-setup.exe") ||
-        a.name.toLowerCase().includes("win")
-      );
-      const mac = assets.find((a: any) => 
-        a.name.toLowerCase().endsWith(".dmg") ||
-        a.name.toLowerCase().includes("mac") ||
-        a.name.toLowerCase().includes("darwin")
-      );
-      const linux = assets.find((a: any) => 
-        a.name.toLowerCase().endsWith(".appimage") ||
-        a.name.toLowerCase().includes("linux")
-      );
-      const android = assets.find((a: any) => 
-        a.name.toLowerCase().endsWith(".apk") ||
-        a.name.toLowerCase().includes("android")
-      );
-
-      const defaultUrl = `https://github.com/${GITHUB_REPO}/releases/latest`;
+      const defaultUrl = `https://downloads.dumosrx.com`;
 
       return {
-        windows: win?.browser_download_url || defaultUrl,
-        macos: mac?.browser_download_url || defaultUrl,
-        linux: linux?.browser_download_url || defaultUrl,
-        android: android?.browser_download_url || defaultUrl,
-        version: data.tag_name || APP_VERSION,
-        winSize: formatSize(win?.size),
-        macSize: formatSize(mac?.size),
-        linuxSize: formatSize(linux?.size),
-        androidSize: formatSize(android?.size),
+        windows: platforms["windows-x86_64"]?.url || defaultUrl,
+        macos: platforms["darwin-aarch64"]?.url || platforms["darwin-x86_64"]?.url || defaultUrl,
+        linux: platforms["linux-x86_64"]?.url || defaultUrl,
+        // The APK is also uploaded to the same directory by the github action
+        android: `https://downloads.dumosrx.com/app-release.apk`, 
+        version: version,
+        winSize: "",
+        macSize: "",
+        linuxSize: "",
+        androidSize: "",
       };
     },
     staleTime: 60 * 60 * 1000, // 1 hour cache

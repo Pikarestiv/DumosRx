@@ -276,7 +276,7 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
               </Button>
               <Button variant="outline" className="w-full" asChild>
                 <a
-                  href="https://dumosrx.com/billing"
+                  href="https://app.dumosrx.com/dashboard/billing"
                   target="_blank"
                   rel="noreferrer"
                 >

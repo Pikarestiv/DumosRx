@@ -13,6 +13,14 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { useState } from "react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useAutoLockStore } from "@/lib/hooks/use-auto-lock";
 
 interface SecuritySettingsProps {
   currentPin: string;
@@ -34,6 +42,7 @@ export function SecuritySettings({
   handleUpdateSecurity,
 }: SecuritySettingsProps) {
   const [isEditingPin, setIsEditingPin] = useState(false);
+  const { duration, setDuration } = useAutoLockStore();
 
   const onSubmit = async () => {
     const success = await handleUpdateSecurity();
@@ -116,10 +125,24 @@ export function SecuritySettings({
           <div className="space-y-0.5">
             <Label className="text-base">Auto-Lock Screen</Label>
             <p className="text-sm text-muted-foreground">
-              Lock dashboard after 5 minutes of inactivity
+              Lock dashboard after a period of inactivity
             </p>
           </div>
-          <Switch />
+          <Select
+            value={duration.toString()}
+            onValueChange={(val) => setDuration(Number(val))}
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Select duration" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="0">Off</SelectItem>
+              <SelectItem value="1">1 Minute</SelectItem>
+              <SelectItem value="5">5 Minutes</SelectItem>
+              <SelectItem value="15">15 Minutes</SelectItem>
+              <SelectItem value="30">30 Minutes</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </CardContent>
     </Card>

@@ -25,6 +25,8 @@ import { MobileBottomNav } from "./mobile-bottom-nav";
 import { LiveClock } from "./live-clock";
 import { DashboardTour } from "./dashboard-tour";
 import { cn } from "@/lib/utils";
+import { useAutoLockStore } from "@/lib/hooks/use-auto-lock";
+import { LockScreen } from "@/components/auth/lock-screen";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -40,6 +42,46 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { user } = useAuth();
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
+
+  const { duration, isLocked, lock, updateActivity, unlock } = useAutoLockStore();
+  const [recentUsers, setRecentUsers] = useState<any[]>([]);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("dumos_recent_users");
+      if (stored) setRecentUsers(JSON.parse(stored));
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    if (duration <= 0) return; // auto lock is off
+
+    const handleActivity = () => updateActivity();
+
+    // Attach listeners
+    window.addEventListener("mousemove", handleActivity);
+    window.addEventListener("keydown", handleActivity);
+    window.addEventListener("touchstart", handleActivity);
+    window.addEventListener("scroll", handleActivity);
+
+    const interval = setInterval(() => {
+      const { lastActivity, isLocked: currentLocked, duration: currentDuration } = useAutoLockStore.getState();
+      if (!currentLocked && currentDuration > 0) {
+        const inactiveTime = Date.now() - lastActivity;
+        if (inactiveTime > currentDuration * 60 * 1000) {
+          lock();
+        }
+      }
+    }, 10000); // Check every 10 seconds
+
+    return () => {
+      window.removeEventListener("mousemove", handleActivity);
+      window.removeEventListener("keydown", handleActivity);
+      window.removeEventListener("touchstart", handleActivity);
+      window.removeEventListener("scroll", handleActivity);
+      clearInterval(interval);
+    };
+  }, [duration, updateActivity, lock]);
 
   const tabs = ["/dashboard", "/pos", "/inventory", "/customers"];
   const currentIndex = tabs.findIndex(t => pathname.startsWith(t));
@@ -122,7 +164,22 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background relative">
+      {isLocked && (
+        <div className="fixed inset-0 z-[99999] bg-background flex flex-col items-center justify-center p-4 sm:p-8">
+          <div className="w-full max-w-md bg-card p-6 sm:p-8 rounded-xl shadow-xl border border-border">
+            <LockScreen 
+              recentUsers={recentUsers} 
+              onLoginAsOther={() => {
+                unlock();
+                router.push("/login");
+              }}
+              onUnlockSuccess={() => unlock()}
+            />
+          </div>
+        </div>
+      )}
+
       <DashboardSidebar
         onOpenFeedback={() => setFeedbackOpen(true)}
         collapsed={sidebarCollapsed}

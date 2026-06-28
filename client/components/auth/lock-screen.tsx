@@ -16,9 +16,10 @@ import { useRouter } from "next/navigation";
 interface LockScreenProps {
   recentUsers: RecentUser[];
   onLoginAsOther: () => void;
+  onUnlockSuccess?: () => void;
 }
 
-export function LockScreen({ recentUsers, onLoginAsOther }: LockScreenProps) {
+export function LockScreen({ recentUsers, onLoginAsOther, onUnlockSuccess }: LockScreenProps) {
   const [selectedUser, setSelectedUser] = useState<RecentUser | null>(null);
   const [pin, setPin] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -34,7 +35,11 @@ export function LockScreen({ recentUsers, onLoginAsOther }: LockScreenProps) {
       const success = await login(selectedUser.username, pin);
       if (success) {
         toast.success(`Welcome back, ${selectedUser.first_name}!`);
-        router.push("/dashboard");
+        if (onUnlockSuccess) {
+          onUnlockSuccess();
+        } else {
+          router.push("/dashboard");
+        }
       } else {
         toast.error("Invalid PIN. Please try again.");
       }

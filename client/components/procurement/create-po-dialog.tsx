@@ -183,7 +183,7 @@ export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
           <Plus className="w-4 h-4 mr-2" /> New Purchase Order
         </Button>
       </DialogTrigger>
-      <DialogContent 
+      <DialogContent
         className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col p-0 border-accent/20 bg-card/95 backdrop-blur-xl"
         onPointerDownOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => {
@@ -287,7 +287,7 @@ export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
                     />
                   </div>
                   <div className="md:col-span-4 space-y-2">
-                    <Label className="text-[10px] uppercase font-bold text-muted-foreground text-primary">
+                    <Label className="text-[10px] uppercase font-bold text-primary">
                       Bulk Cost (
                       {products.find((m) => m.id === currentProductId)
                         ?.bulk_unit || "Unit"}

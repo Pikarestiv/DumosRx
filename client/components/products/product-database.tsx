@@ -92,12 +92,12 @@ export function ProductDatabase() {
 
   const statuses = ["all", "active", "inactive", "expired", "low_stock"];
 
-  const handleAddProduct = async (payload: any) => {
+  const handleAddProduct = async (payload: any, keepOpen?: boolean) => {
     try {
       const isEditing = !!payload.id;
 
       // Create locally
-      const localPayload = {
+      const localPayload: any = {
         ...payload,
         is_active: payload.status === "inactive" ? 0 : 1,
       };
@@ -185,7 +185,9 @@ export function ProductDatabase() {
       }
 
       refetch();
-      setShowAddDialog(false);
+      if (!keepOpen) {
+        setShowAddDialog(false);
+      }
       setSelectedProduct(null);
     } catch (error) {
       console.error(`Failed to save ${t("product")}:`, error);

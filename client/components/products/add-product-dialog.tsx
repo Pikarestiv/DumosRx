@@ -22,8 +22,8 @@ import { ProductFormFields } from "./product-form-fields";
 interface AddProductDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAddProduct: (product: any) => void;
-  editingProduct?: any | null;
+  onAddProduct: (product: any, keepOpen?: boolean) => void;
+  editingProduct?: Product | null;
 }
 
 export function AddProductDialog({
@@ -176,8 +176,8 @@ export function AddProductDialog({
 
   const commonSuggestions = FORM_SUGGESTIONS.common;
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = (e?: React.FormEvent, keepOpen = false) => {
+    if (e) e.preventDefault();
 
     // Validation
     if (!formData.name) {
@@ -264,7 +264,7 @@ export function AddProductDialog({
       show_online: formData.showOnline ? 1 : 0,
     };
 
-    onAddProduct(payload as any);
+    onAddProduct(payload as any, keepOpen);
 
     // Reset form
     setFormData({
@@ -331,7 +331,7 @@ export function AddProductDialog({
             t={t}
           />
 
-          <DialogFooter className="mt-6">
+          <DialogFooter className="sticky bottom-0 bg-background pt-4 border-t z-10 mt-6 gap-2">
             <Button
               type="button"
               variant="outline"
@@ -339,11 +339,21 @@ export function AddProductDialog({
             >
               Cancel
             </Button>
-            <Button type="submit" className="bg-accent hover:bg-accent/90">
-              {editingProduct
-                ? `Update ${t("product")}`
-                : `Add ${t("product")}`}
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                type="button"
+                variant="outline"
+                className="border-accent text-accent hover:bg-accent/10"
+                onClick={withRestriction((e: any) => handleSubmit(e, true))}
+              >
+                {editingProduct ? `Update & Add Another` : `Save & Add Another`}
+              </Button>
+              <Button type="submit" className="bg-accent hover:bg-accent/90">
+                {editingProduct
+                  ? `Update ${t("product")}`
+                  : `Add ${t("product")}`}
+              </Button>
+            </div>
           </DialogFooter>
         </form>
       </DialogContent>

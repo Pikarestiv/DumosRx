@@ -139,6 +139,14 @@ export function ProductDatabase() {
         localPayload.supplier_id = null;
       }
 
+      const initialStock = localPayload.stock_quantity;
+      const initialExpiry = localPayload.expiry_date;
+      const initialBatch = localPayload.batch_number;
+
+      delete localPayload.stock_quantity;
+      delete localPayload.expiry_date;
+      delete localPayload.batch_number;
+
       if (isEditing) {
         const id = localPayload.id;
         delete localPayload.id;
@@ -146,13 +154,6 @@ export function ProductDatabase() {
         await update("products", id, localPayload);
         toast.success(`${t('product')} updated successfully`);
       } else {
-        
-        const initialStock = localPayload.stock_quantity;
-        const initialExpiry = localPayload.expiry_date;
-        const initialBatch = localPayload.batch_number;
-        delete localPayload.stock_quantity;
-        delete localPayload.expiry_date;
-        delete localPayload.batch_number;
         const productId = await insert("products", localPayload);
         
         // Also create an initial stock batch if there's stock
@@ -160,12 +161,11 @@ export function ProductDatabase() {
           await insert("stock_batches", {
             product_id: productId,
             quantity: initialStock,
-            initial_quantity: initialStock,
-            unit_cost: localPayload.cost_price || 0,
+            cost_price: localPayload.cost_price || 0,
             selling_price: localPayload.selling_price || 0,
-            batch_number: initialBatch || null,
-            expiry_date: initialExpiry || null,
-            status: initialExpiry && new Date(initialExpiry) < new Date() ? 'expired' : 'active'
+            batch_number: initialBatch || "INITIAL",
+            expiry_date: initialExpiry || new Date(Date.now() + 365*2*24*60*60*1000).toISOString().split('T')[0],
+            is_active: 1
           });
         }
         toast.success(`${t('product')} added successfully`);

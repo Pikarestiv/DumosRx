@@ -60,7 +60,7 @@ export function QuickBooksImportDialog({
 
       // Import Products
       if (importProducts && parsedData.products.length > 0) {
-        const existingProducts = await query<any>("SELECT name FROM products");
+        const existingProducts = await query<any>("SELECT id, name FROM products");
         const existingNames = new Set(existingProducts.map(m => m.name.toLowerCase()));
 
         for (const med of parsedData.products) {
@@ -68,26 +68,64 @@ export function QuickBooksImportDialog({
           
           if (isDuplicate) {
             if (duplicateStrategy === "overwrite") {
-              await execute(
-                "UPDATE products SET unit_price = ?, stock = ?, updated_at = ? WHERE LOWER(name) = ?",
-                [med.unit_price, med.stock, now, med.name.toLowerCase()]
-              );
+              const existingMed = existingProducts.find(p => p.name.toLowerCase() === med.name.toLowerCase());
+              if (existingMed) {
+                await execute(
+                  "UPDATE products SET selling_price = ?, updated_at = ? WHERE id = ?",
+                  [med.unit_price, now, existingMed.id]
+                );
+
+                // Update or insert QB_IMPORT batch
+                const existingBatch = await query<any>(
+                  "SELECT id FROM stock_batches WHERE product_id = ? AND batch_number = ? AND _deleted = 0",
+                  [existingMed.id, "QB_IMPORT"]
+                );
+
+                if (existingBatch && existingBatch.length > 0) {
+                  await execute(
+                    "UPDATE stock_batches SET quantity = ?, selling_price = ?, updated_at = ? WHERE id = ?",
+                    [med.stock, med.unit_price, now, existingBatch[0].id]
+                  );
+                } else if (med.stock > 0) {
+                  await insert("stock_batches", {
+                    product_id: existingMed.id,
+                    batch_number: "QB_IMPORT",
+                    quantity: med.stock,
+                    cost_price: med.unit_price * 0.8,
+                    selling_price: med.unit_price,
+                    expiry_date: new Date(Date.now() + 365*2*24*60*60*1000).toISOString().split('T')[0],
+                    is_active: 1
+                  });
+                }
+              }
             }
           } else {
-            await insert("products", {
+            const productId = await insert("products", {
               id: med.id,
               name: med.name,
-              generic_name: med.generic_name,
-              brand: med.brand,
-              strength: med.strength,
-              unit_price: med.unit_price,
-              stock: med.stock,
-              barcode: med.barcode,
+              generic_name: med.generic_name || "",
+              brand_name: med.brand || "",
+              strength: med.strength || "",
+              selling_price: med.unit_price,
+              cost_price: med.unit_price * 0.8,
+              barcode: med.barcode || "",
               created_at: now,
               updated_at: now,
               _deleted: 0,
               _synced: 0
             });
+
+            if (med.stock > 0) {
+              await insert("stock_batches", {
+                product_id: productId,
+                batch_number: "QB_IMPORT",
+                quantity: med.stock,
+                cost_price: med.unit_price * 0.8,
+                selling_price: med.unit_price,
+                expiry_date: new Date(Date.now() + 365*2*24*60*60*1000).toISOString().split('T')[0],
+                is_active: 1
+              });
+            }
             existingNames.add(med.name.toLowerCase());
           }
         }

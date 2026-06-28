@@ -35,6 +35,8 @@ interface Product {
   name: string;
   stock_quantity: number;
   base_unit: string;
+  cost_price?: number;
+  selling_price?: number;
 }
 
 interface StockAuditDialogProps {
@@ -60,7 +62,13 @@ export function StockAuditDialog({ isOpen, onClose, onSuccess }: StockAuditDialo
 
   const loadProducts = async () => {
     try {
-      const res = await query<Product>("SELECT id, name, stock_quantity, base_unit FROM products WHERE is_active = 1");
+      const res = await query<Product>(`
+        SELECT p.id, p.name, p.base_unit, p.cost_price, p.selling_price, COALESCE(SUM(sb.quantity), 0) as stock_quantity 
+        FROM products p 
+        LEFT JOIN stock_batches sb ON p.id = sb.product_id AND sb._deleted = 0 AND sb.is_active = 1 
+        WHERE p.is_active = 1 AND p._deleted = 0
+        GROUP BY p.id
+      `);
       setProducts(res);
     } catch (err) {
       console.error(err);
@@ -96,13 +104,37 @@ export function StockAuditDialog({ isOpen, onClose, onSuccess }: StockAuditDialo
         reconciled_at: new Date().toISOString(),
       });
 
-      // 2. Update the actual stock quantity in products table
-      await update("products", selectedProduct.id, {
-        stock_quantity: Number(actualQuantity),
-        updated_at: new Date().toISOString(),
-      });
+      // 2. Reconcile stock batches
+      if (diff > 0) {
+        // Positive discrepancy: add an audit batch
+        await insert("stock_batches", {
+          product_id: selectedProduct.id,
+          batch_number: "AUDIT_" + Date.now().toString().slice(-6),
+          quantity: diff,
+          cost_price: selectedProduct.cost_price || 0,
+          selling_price: selectedProduct.selling_price || 0,
+          expiry_date: new Date(Date.now() + 365*2*24*60*60*1000).toISOString().split('T')[0],
+          is_active: 1
+        });
+      } else if (diff < 0) {
+        // Negative discrepancy: deduct using FIFO
+        const batches = await query<any>(
+          "SELECT * FROM stock_batches WHERE product_id = ? AND _deleted = 0 AND quantity > 0 ORDER BY expiry_date ASC, created_at ASC",
+          [selectedProduct.id]
+        );
+        let remainingToDeduct = Math.abs(diff);
+        for (const batch of batches) {
+          if (remainingToDeduct <= 0) break;
+          const deduction = Math.min(batch.quantity, remainingToDeduct);
+          await update("stock_batches", batch.id, {
+            quantity: batch.quantity - deduction,
+            updated_at: new Date().toISOString()
+          });
+          remainingToDeduct -= deduction;
+        }
+      }
 
-      toast.success(`StockBatch reconciled for ${selectedProduct.name}`);
+      toast.success(`Stock reconciled for ${selectedProduct.name}`);
       onSuccess?.();
       onClose();
       

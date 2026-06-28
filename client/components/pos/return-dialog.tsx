@@ -128,18 +128,7 @@ export function ReturnDialog({
           subtotal: item.unit_price * item.returnQuantity,
         });
 
-        // Update product stock
-        const products = await query<any>(
-          `SELECT * FROM products WHERE id = ?`,
-          [item.product_id],
-        );
-        const currentProduct = products[0];
-        if (currentProduct) {
-          await update("products", item.product_id, {
-            stock_quantity:
-              (currentProduct.stock_quantity || 0) + item.returnQuantity,
-          });
-        }
+
 
         // Update stock_batch if applicable
         if (item.stock_batch_id) {

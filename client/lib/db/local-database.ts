@@ -20,11 +20,22 @@ import { insert, update, softDelete } from "./base-helpers";
  */
 export async function getProducts(page = 1, limit = 50, search = "") {
   const offset = (page - 1) * limit;
-  let sql = `SELECT m.*, c.name as category_name, v.name as supplier_name, COALESCE(sb.total_qty, 0) as stock_quantity 
+  let sql = `SELECT m.*, c.name as category_name, v.name as supplier_name, 
+                    COALESCE(sb.total_qty, 0) as stock_quantity,
+                    sb.earliest_expiry as expiry_date,
+                    sb.batches as batch_number
              FROM products m 
              LEFT JOIN categories c ON m.category_id = c.id 
              LEFT JOIN suppliers v ON m.supplier_id = v.id 
-             LEFT JOIN (SELECT product_id, SUM(quantity) as total_qty FROM stock_batches WHERE _deleted = 0 AND is_active = 1 GROUP BY product_id) sb ON m.id = sb.product_id
+             LEFT JOIN (
+               SELECT product_id, 
+                      SUM(quantity) as total_qty,
+                      MIN(expiry_date) as earliest_expiry,
+                      GROUP_CONCAT(batch_number, ', ') as batches
+               FROM stock_batches 
+               WHERE _deleted = 0 AND is_active = 1 
+               GROUP BY product_id
+             ) sb ON m.id = sb.product_id
              WHERE m._deleted = 0`;
   const params: any[] = [];
 
@@ -43,7 +54,21 @@ export async function getProducts(page = 1, limit = 50, search = "") {
 
 export async function getProductById(id: string) {
   const results = await query<any>(
-    "SELECT p.*, COALESCE(SUM(sb.quantity), 0) as stock_quantity FROM products p LEFT JOIN stock_batches sb ON p.id = sb.product_id AND sb._deleted = 0 AND sb.is_active = 1 WHERE p.id = ? GROUP BY p.id",
+    `SELECT p.*, 
+            COALESCE(sb.total_qty, 0) as stock_quantity,
+            sb.earliest_expiry as expiry_date,
+            sb.batches as batch_number
+     FROM products p 
+     LEFT JOIN (
+       SELECT product_id, 
+              SUM(quantity) as total_qty,
+              MIN(expiry_date) as earliest_expiry,
+              GROUP_CONCAT(batch_number, ', ') as batches
+       FROM stock_batches 
+       WHERE _deleted = 0 AND is_active = 1 
+       GROUP BY product_id
+     ) sb ON p.id = sb.product_id 
+     WHERE p.id = ?`,
     [id],
   );
   return results[0] || null;
@@ -72,12 +97,6 @@ export async function createSale(saleData: any, items: any[]) {
         [item.quantity, item.stock_batch_id],
       );
     }
-
-    // Update main product stock
-    await execute(
-      "UPDATE products SET stock_quantity = stock_quantity - ? WHERE id = ?",
-      [item.quantity, item.product_id],
-    );
 
     // Log local stock movement
     await insert("stock_movements", {

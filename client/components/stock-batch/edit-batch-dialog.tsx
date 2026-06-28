@@ -45,8 +45,8 @@ export function EditBatchDialog({ isOpen, onClose, batch, onSuccess }: EditBatch
         const { execute } = await import("@/lib/db/core");
         
         await execute(
-          `UPDATE products 
-           SET batch_number = ?, expiry_date = ?, stock_quantity = ?, updated_at = ? 
+          `UPDATE stock_batches 
+           SET batch_number = ?, expiry_date = ?, quantity = ?, updated_at = ? 
            WHERE id = ?`,
           [
             formData.batch_number,

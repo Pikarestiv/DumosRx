@@ -42,14 +42,15 @@ export function BatchTracking() {
   // Shared stats hook — single source of truth for expiry/expired counts
   const stats = useStockBatchStats();
 
-  // Products with expiry_date — the real batch-like view
+  // Batches with expiry_date and quantity
   const { data: batches, loading } = useLocalData<any>(
     `SELECT 
-      id, name as product_name, brand_name as product_brand,
-      batch_number, expiry_date, stock_quantity as quantity
-     FROM products
-     WHERE _deleted = 0
-     ORDER BY expiry_date ASC`
+      sb.id, p.name as product_name, p.brand_name as product_brand,
+      sb.batch_number, sb.expiry_date, sb.quantity
+     FROM stock_batches sb
+     JOIN products p ON sb.product_id = p.id
+     WHERE sb._deleted = 0 AND p._deleted = 0
+     ORDER BY sb.expiry_date ASC`
   );
 
   const { results: filteredBatches, isFuzzyFallback } = genericFuzzySearch(

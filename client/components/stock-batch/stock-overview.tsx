@@ -32,14 +32,25 @@ export function StockOverview() {
   // Shared stats hook — single source of truth for all stat cards
   const stats = useStockBatchStats();
 
-  // Stock list — read from products directly (products is the stock ledger)
+  // Stock list — read aggregated batch details
   const { data: stockData, loading: stockLoading } = useLocalData<any>(
     `SELECT 
-      id, name as product_name, brand_name, batch_number, expiry_date,
-      stock_quantity as quantity, reorder_level, cost_price, selling_price, barcode
-     FROM products
-     WHERE _deleted = 0
-     ORDER BY stock_quantity ASC
+      p.id, p.name as product_name, p.brand_name, p.reorder_level, p.cost_price, p.selling_price, p.barcode,
+      COALESCE(sb.total_qty, 0) as quantity,
+      sb.earliest_expiry as expiry_date,
+      sb.batches as batch_number
+     FROM products p
+     LEFT JOIN (
+       SELECT product_id, 
+              SUM(quantity) as total_qty,
+              MIN(expiry_date) as earliest_expiry,
+              GROUP_CONCAT(batch_number, ', ') as batches
+       FROM stock_batches 
+       WHERE _deleted = 0 AND is_active = 1 
+       GROUP BY product_id
+     ) sb ON p.id = sb.product_id
+     WHERE p._deleted = 0
+     ORDER BY quantity ASC
      LIMIT 50`,
   );
 

@@ -35,12 +35,15 @@ export function ExpiringBatchesAlert() {
       const days = Number(expiryDays) || 90;
       // Find items expiring in the next X days
       const res = await query<ExpiringItem>(`
-        SELECT id, name, batch_number, expiry_date, stock_quantity 
-        FROM products 
-        WHERE expiry_date IS NOT NULL 
-        AND stock_quantity > 0
-        AND date(expiry_date) <= date('now', '+${days} days')
-        ORDER BY expiry_date ASC
+        SELECT sb.id, p.name, sb.batch_number, sb.expiry_date, sb.quantity as stock_quantity 
+        FROM stock_batches sb
+        JOIN products p ON sb.product_id = p.id
+        WHERE sb.expiry_date IS NOT NULL 
+        AND sb.quantity > 0
+        AND sb._deleted = 0
+        AND p._deleted = 0
+        AND date(sb.expiry_date) <= date('now', '+${days} days')
+        ORDER BY sb.expiry_date ASC
       `);
       setItems(res);
     } catch (err) {

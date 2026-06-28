@@ -29,8 +29,8 @@ class ArchitectureTest extends TestCase
     {
         $this->assertTrue(Schema::hasTable('categories'));
         $this->assertTrue(Schema::hasTable('suppliers'));
-        $this->assertTrue(Schema::hasTable('medicines'));
-        $this->assertTrue(Schema::hasTable('inventories'));
+        $this->assertTrue(Schema::hasTable('products'));
+        $this->assertTrue(Schema::hasTable('stock_batches'));
     }
 
     /**
@@ -44,7 +44,7 @@ class ArchitectureTest extends TestCase
         $this->assertTrue(Schema::hasTable('prescriptions'));
     }
 
-     /**
+    /**
      * Test business logic tables exist.
      */
     public function test_business_tables_exist(): void

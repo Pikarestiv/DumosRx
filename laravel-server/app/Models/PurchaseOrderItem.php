@@ -11,7 +11,7 @@ class PurchaseOrderItem extends Model
     use HasFactory, HasUuids;
 
     protected $fillable = [
-        'purchase_order_id', 'medicine_id', 'quantity_ordered', 'quantity_received',
+        'purchase_order_id', 'product_id', 'quantity_ordered', 'quantity_received',
         'unit_cost', 'total_cost', 'batch_number', 'expiry_date', 'status', '_synced_at'
     ];
 
@@ -24,8 +24,8 @@ class PurchaseOrderItem extends Model
         return $this->belongsTo(PurchaseOrder::class);
     }
 
-    public function medicine()
+    public function product()
     {
-        return $this->belongsTo(Medicine::class);
+        return $this->belongsTo(Product::class);
     }
 }

@@ -1,35 +1,30 @@
 <?php
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Route;
-
-// Namespaced Controllers
-use App\Http\Controllers\Api\AuthController;
-
-// Web Controllers
-use App\Http\Controllers\Api\Web\DashboardController;
-use App\Http\Controllers\Api\Web\NotificationController;
-use App\Http\Controllers\Api\Web\StaffController;
-use App\Http\Controllers\Api\Web\SubscriptionController;
-use App\Http\Controllers\Api\Web\SessionController;
-use App\Http\Controllers\Api\Web\BackupController;
-use App\Http\Controllers\Api\Web\ActivityLogController;
-use App\Http\Controllers\Api\Web\StoreController;
-
-// Admin Controllers
 use App\Http\Controllers\Api\Admin\AdminController;
+// Namespaced Controllers
 use App\Http\Controllers\Api\Admin\MailController;
-
-// App Controllers
-use App\Http\Controllers\Api\App\MedicineController;
-use App\Http\Controllers\Api\App\InventoryController;
-use App\Http\Controllers\Api\App\SaleController;
-use App\Http\Controllers\Api\App\CustomerController;
-use App\Http\Controllers\Api\App\SupplierController;
+// Web Controllers
 use App\Http\Controllers\Api\App\CategoryController;
+use App\Http\Controllers\Api\App\CustomerController;
+use App\Http\Controllers\Api\App\ProductController;
+use App\Http\Controllers\Api\App\SaleController;
+use App\Http\Controllers\Api\App\StockBatchController;
+use App\Http\Controllers\Api\App\SupplierController;
 use App\Http\Controllers\Api\App\SyncController;
+use App\Http\Controllers\Api\AuthController;
+// Admin Controllers
 use App\Http\Controllers\Api\BroadcastController;
 use App\Http\Controllers\Api\SystemConfigController;
+// App Controllers
+use App\Http\Controllers\Api\Web\ActivityLogController;
+use App\Http\Controllers\Api\Web\BackupController;
+use App\Http\Controllers\Api\Web\DashboardController;
+use App\Http\Controllers\Api\Web\NotificationController;
+use App\Http\Controllers\Api\Web\SessionController;
+use App\Http\Controllers\Api\Web\StaffController;
+use App\Http\Controllers\Api\Web\StoreController;
+use App\Http\Controllers\Api\Web\SubscriptionController;
+use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
     // Public Routes
@@ -53,19 +48,16 @@ Route::prefix('v1')->group(function () {
     // Public Storefront
     Route::get('/storefront/{store_slug}', [\App\Http\Controllers\Api\Public\StorefrontController::class, 'show']);
 
-
-
     // Webhooks (Public)
     Route::post('/webhooks/paystack', [\App\Http\Controllers\Api\Web\PaymentController::class, 'handlePaystack']);
     Route::post('/webhooks/flutterwave', [\App\Http\Controllers\Api\Web\PaymentController::class, 'handleFlutterwave']);
 
-    Route::get('/dev/clear-inventory', function() {
-        \Illuminate\Support\Facades\DB::table('inventories')->delete();
+    Route::get('/dev/clear-stock-batches', function () {
+        \Illuminate\Support\Facades\DB::table('stock_batches')->delete();
         \Illuminate\Support\Facades\DB::table('categories')->delete();
+
         return 'Cleared';
     });
-
-
 
     // Protected Routes
     Route::middleware(['auth:sanctum', 'account_status', \App\Http\Middleware\EnsureEmailIsVerified::class, 'throttle:60,1'])->group(function () {
@@ -95,7 +87,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/alerts', [NotificationController::class, 'index']);
         Route::post('/alerts/{id}/read', [NotificationController::class, 'markAsRead']);
         Route::get('/announcements', [BroadcastController::class, 'index']);
-        
+
         // Stock Movements, Adjustments & Purchase Orders
         Route::get('/stock-movements', [\App\Http\Controllers\Api\App\StockMovementController::class, 'index']);
         Route::get('/stock-adjustments', [\App\Http\Controllers\Api\App\StockMovementController::class, 'adjustments']);
@@ -170,8 +162,6 @@ Route::prefix('v1')->group(function () {
             // Emails
             Route::post('/mail/send', [MailController::class, 'send']);
 
-
-
             // System Configs
             Route::put('/system-configs/{key}', [SystemConfigController::class, 'update']);
 
@@ -193,21 +183,21 @@ Route::prefix('v1')->group(function () {
         // --- APP / TERMINAL ROUTES ---
         Route::prefix('app')->middleware('subscription')->group(function () {
             // Medicine Database
-            Route::get('/medicines/search', [MedicineController::class, 'search']);
-            Route::apiResource('medicines', MedicineController::class);
+            Route::get('/products/search', [ProductController::class, 'search']);
+            Route::apiResource('products', ProductController::class);
 
             // Inventory
-            Route::prefix('inventory')->group(function () {
-                Route::get('/low-stock', [InventoryController::class, 'lowStock']);
-                Route::get('/expiring', [InventoryController::class, 'expiring']);
-                Route::get('/value', [InventoryController::class, 'value']);
-                Route::get('/', [InventoryController::class, 'index']);
+            Route::prefix('stock-batches')->group(function () {
+                Route::get('/low-stock', [StockBatchController::class, 'lowStock']);
+                Route::get('/expiring', [StockBatchController::class, 'expiring']);
+                Route::get('/value', [StockBatchController::class, 'value']);
+                Route::get('/', [StockBatchController::class, 'index']);
             });
 
             // Sales & POS
             Route::prefix('sales')->group(function () {
                 Route::get('/daily', [SaleController::class, 'dailySales']);
-                Route::get('/top-medicines', [SaleController::class, 'topMedicines']);
+                Route::get('/top-products', [SaleController::class, 'topProducts']);
                 Route::apiResource('/', SaleController::class)->only(['index', 'store', 'show']);
             });
 
@@ -225,13 +215,13 @@ Route::prefix('v1')->group(function () {
         // Once frontend is updated, these can be removed
         Route::get('/dashboard/summary', [DashboardController::class, 'summary']);
         Route::post('/dashboard/reset', [DashboardController::class, 'resetData']);
-        Route::get('/medicines/search', [MedicineController::class, 'search']);
-        Route::get('/inventory/low-stock', [InventoryController::class, 'lowStock']);
-        Route::get('/inventory/expiring', [InventoryController::class, 'expiring']);
-        Route::get('/inventory/value', [InventoryController::class, 'value']);
-        Route::get('/inventory', [InventoryController::class, 'index']);
+        Route::get('/products/search', [ProductController::class, 'search']);
+        Route::get('/stock-batches/low-stock', [StockBatchController::class, 'lowStock']);
+        Route::get('/stock-batches/expiring', [StockBatchController::class, 'expiring']);
+        Route::get('/stock-batches/value', [StockBatchController::class, 'value']);
+        Route::get('/stock-batches', [StockBatchController::class, 'index']);
         Route::get('/sales/daily', [SaleController::class, 'dailySales']);
-        Route::get('/sales/top-medicines', [SaleController::class, 'topMedicines']);
+        Route::get('/sales/top-products', [SaleController::class, 'topProducts']);
         Route::apiResource('sales', SaleController::class)->only(['index', 'store', 'show']);
         Route::apiResource('customers', CustomerController::class);
         Route::apiResource('suppliers', SupplierController::class);

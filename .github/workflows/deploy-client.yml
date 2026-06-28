@@ -44,4 +44,4 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           server-dir: /app.dumosrx.com/
           local-dir: ./client/out/
-          timeout: 300000
+          timeout: 1200000

@@ -23,19 +23,19 @@ export function FeaturesSection() {
             {
               title: "Offline-First Sync",
               description:
-                "Sell and manage inventory even without internet. Data syncs automatically to the cloud when you're back online.",
+                "Sell and manage stock_batch even without internet. Data syncs automatically to the cloud when you're back online.",
               icon: Zap,
             },
             {
               title: "Expiry Tracking",
               description:
-                "Get notified months before medicines expire. Reduce losses and ensure patient safety with automated alerts.",
+                "Get notified months before products expire. Reduce losses and ensure patient safety with automated alerts.",
               icon: Shield,
             },
             {
               title: "Mobile Dashboard",
               description:
-                "Monitor your store sales, staff activity, and inventory levels from your phone, anywhere in the world.",
+                "Monitor your store sales, staff activity, and stock_batch levels from your phone, anywhere in the world.",
               icon: Smartphone,
             },
             {

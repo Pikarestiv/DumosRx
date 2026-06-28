@@ -33,6 +33,9 @@ import { toast } from "sonner";
 import { useLocalData } from "@/lib/db/hooks/useLocalData";
 import { insert, update, remove } from "@/lib/db/local-database";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { NIGERIAN_BANKS } from "@/lib/constants/suggestions";
+import { SearchableInput } from "@/components/ui/searchable-input";
+import { useDefaultPaymentAccounts } from "@/lib/hooks/use-default-payment-accounts";
 
 interface PaymentAccount {
   id: string;
@@ -47,6 +50,7 @@ export function PaymentAccountsCard() {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [accountToDelete, setAccountToDelete] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [setAsDefault, setSetAsDefault] = useState(false);
   
   const [formData, setFormData] = useState({
     name: "",
@@ -57,6 +61,7 @@ export function PaymentAccountsCard() {
 
   const { storeProfile } = useStore();
   const { user, isAdmin } = useAuth();
+  const { defaults, setDefaultAccount } = useDefaultPaymentAccounts();
 
   const activeStoreId = storeProfile?.id;
   const activeUserId = user?.id;
@@ -76,8 +81,11 @@ export function PaymentAccountsCard() {
         account_number: account.account_number || "",
         bank_name: account.bank_name || "",
       });
+      const method = account.account_type === "pos_terminal" ? "card" : "transfer";
+      setSetAsDefault(defaults[`${activeStoreId}_${method}`] === account.id);
     } else {
       setEditingId(null);
+      setSetAsDefault(false);
       setFormData({
         name: "",
         account_type: "bank",
@@ -104,9 +112,13 @@ export function PaymentAccountsCard() {
           updated_at: new Date().toISOString(),
         });
         toast.success("Account updated successfully");
+        if (setAsDefault && activeStoreId) {
+          setDefaultAccount(activeStoreId, formData.account_type === "pos_terminal" ? "card" : "transfer", editingId);
+        }
       } else {
+        const newId = `pa_${Date.now()}`;
         await insert("payment_accounts", {
-          id: `pa_${Date.now()}`,
+          id: newId,
           user_id: activeUserId,
           store_id: activeStoreId,
           name: formData.name,
@@ -117,6 +129,9 @@ export function PaymentAccountsCard() {
           updated_at: new Date().toISOString(),
         });
         toast.success("Account added successfully");
+        if (setAsDefault && activeStoreId) {
+          setDefaultAccount(activeStoreId, formData.account_type === "pos_terminal" ? "card" : "transfer", newId);
+        }
       }
       setIsDialogOpen(false);
       refetch();
@@ -181,9 +196,9 @@ export function PaymentAccountsCard() {
             )}
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className={`grid gap-3 ${accounts.length === 1 ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2"}`}>
             {accounts.map((account) => (
-              <div key={account.id} className="p-4 border rounded-lg hover:bg-muted/30 transition-colors">
+              <div key={account.id} className="flex flex-col justify-between p-4 border rounded-lg hover:bg-muted/30 transition-colors">
                 <div className="flex items-center gap-4">
                   <div className="p-2 bg-muted rounded-full">
                     {getIcon(account.account_type)}
@@ -264,10 +279,12 @@ export function PaymentAccountsCard() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Bank Name (Optional)</Label>
-                <Input 
+                <SearchableInput 
+                  id="bank_name"
                   placeholder="e.g. Zenith Bank" 
                   value={formData.bank_name}
-                  onChange={(e) => setFormData({...formData, bank_name: e.target.value})}
+                  onValueChange={(val) => setFormData({...formData, bank_name: val})}
+                  options={NIGERIAN_BANKS}
                 />
               </div>
               <div className="space-y-2">
@@ -278,6 +295,19 @@ export function PaymentAccountsCard() {
                   onChange={(e) => setFormData({...formData, account_number: e.target.value})}
                 />
               </div>
+            </div>
+            
+            <div className="flex items-center gap-2 pt-2">
+              <input 
+                type="checkbox" 
+                id="setAsDefaultNew"
+                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary accent-primary cursor-pointer"
+                checked={setAsDefault}
+                onChange={(e) => setSetAsDefault(e.target.checked)}
+              />
+              <label htmlFor="setAsDefaultNew" className="text-sm cursor-pointer select-none">
+                Set as default for <span className="font-bold">{formData.account_type === "pos_terminal" ? "Card" : "Transfer"}</span> on this device
+              </label>
             </div>
           </div>
           <DialogFooter>

@@ -38,6 +38,7 @@ interface DataSettingsProps {
   autoSyncInterval: string;
   setAutoSyncInterval: (val: string) => void;
   handleSaveAutoSyncSettings: () => void;
+  setSyncAfterLink?: (val: boolean) => void;
 }
 
 export function DataSettings({
@@ -52,6 +53,7 @@ export function DataSettings({
   autoSyncInterval,
   setAutoSyncInterval,
   handleSaveAutoSyncSettings,
+  setSyncAfterLink,
 }: DataSettingsProps) {
   const { canCloudSync, minimumSyncIntervalMinutes, withRestriction, getUpgradeMessage } = useFeatureGate();
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -125,7 +127,10 @@ export function DataSettings({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setIsCloudLinkOpen(true)}
+                  onClick={() => {
+                    setSyncAfterLink?.(false);
+                    setIsCloudLinkOpen(true);
+                  }}
                 >
                   Link Account
                 </Button>
@@ -278,7 +283,7 @@ export function DataSettings({
                 <p className="text-sm font-semibold">QuickBooks Import</p>
                 <p className="text-xs text-muted-foreground">
                   Upload a QuickBooks Backup (.iif) to automatically import your
-                  inventory and customer lists.
+                  stock_batch and customer lists.
                 </p>
               </div>
               <div className="relative shrink-0">
@@ -312,7 +317,7 @@ export function DataSettings({
               <div className="space-y-1">
                 <p className="text-sm font-semibold">Factory Reset</p>
                 <p className="text-xs text-muted-foreground">
-                  Wipe all local data (medicines, sales, etc.) and start fresh.
+                  Wipe all local data (products, sales, etc.) and start fresh.
                 </p>
               </div>
               <Button
@@ -331,7 +336,7 @@ export function DataSettings({
         open={showResetConfirm}
         onOpenChange={setShowResetConfirm}
         title="Factory Reset"
-        description="This will permanently delete all local data — medicines, sales, customers, and expenses. Your login account will remain. This cannot be undone."
+        description="This will permanently delete all local data — products, sales, customers, and expenses. Your login account will remain. This cannot be undone."
         confirmLabel="Reset All Data"
         onConfirm={() => {
           handleResetDatabase();

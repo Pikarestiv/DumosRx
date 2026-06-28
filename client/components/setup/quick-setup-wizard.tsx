@@ -29,7 +29,7 @@ export function QuickSetupWizard() {
   const { isInitialized, updateStoreProfile, loading: storeLoading, storeProfile } = useStore();
   const { isAuthenticated, isAdmin, isCloudLinked } = useAuth();
   const { data: recordCounts, loading: dataLoading } = useLocalData<{ total: number }>(
-    "SELECT (SELECT COUNT(*) FROM medicines) + (SELECT COUNT(*) FROM sales) as total"
+    "SELECT (SELECT COUNT(*) FROM products) + (SELECT COUNT(*) FROM sales) as total"
   );
   const pathname = usePathname();
 
@@ -195,7 +195,7 @@ export function QuickSetupWizard() {
                   <div className="space-y-0.5">
                     <Label className="text-sm font-semibold">Include Retail Suggestions</Label>
                     <p className="text-xs text-muted-foreground">
-                      Show retail items (e.g. provisions, cosmetics) alongside medicine suggestions
+                      Show retail items (e.g. provisions, cosmetics) alongside product suggestions
                     </p>
                   </div>
                   <Switch

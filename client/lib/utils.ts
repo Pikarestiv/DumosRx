@@ -42,3 +42,14 @@ export function isMobileDevice(): boolean {
     )
   );
 }
+
+/**
+ * Extracts and formats user initials from their first and last name.
+ * Defaults to "U" if no valid initials can be extracted.
+ */
+export function getUserInitials(firstName?: string | null, lastName?: string | null): string {
+  const f = firstName?.[0] || "";
+  const l = lastName?.[0] || "";
+  const initials = `${f}${l}`.toUpperCase();
+  return initials || "U";
+}

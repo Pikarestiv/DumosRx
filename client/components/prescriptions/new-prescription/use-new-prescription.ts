@@ -6,7 +6,7 @@ import { createPrescription, generateId, query } from "@/lib/db/local-database";
 
 export interface PrescriptionMedication {
   id: string;
-  medicineName: string;
+  productName: string;
   strength: string;
   dosage: string;
   quantity: number;
@@ -37,18 +37,18 @@ export function useNewPrescription() {
   const [isEditing, setIsEditing] = useState(false);
   const [existingPrescriptionData, setExistingPrescriptionData] = useState<any>(null);
 
-  const { data: inventoryData } = useLocalData<any>(
-    `SELECT i.*, m.name as medicine_name, m.strength as m_strength
-     FROM inventories i 
-     JOIN medicines m ON i.medicine_id = m.id 
+  const { data: stock_batchData } = useLocalData<any>(
+    `SELECT i.*, m.name as product_name, m.strength as m_strength
+     FROM stock_batches i 
+     JOIN products m ON i.product_id = m.id 
      WHERE i._deleted = 0 AND i.quantity > 0`
   );
 
-  const availableMedicines = (inventoryData || []).map((item) => ({
-    name: item.medicine_name,
+  const availableProducts = (stock_batchData || []).map((item) => ({
+    name: item.product_name,
     strength: item.m_strength || item.strength || "",
     cost: item.selling_price || 0,
-    inventory_id: item.id,
+    stock_batch_id: item.id,
   }));
 
   const [formData, setFormData] = useState<NewPrescriptionForm>({
@@ -64,7 +64,7 @@ export function useNewPrescription() {
   });
 
   const [newMedication, setNewMedication] = useState({
-    medicineName: "",
+    productName: "",
     strength: "",
     dosage: "",
     quantity: 1 as number | "",
@@ -102,7 +102,7 @@ export function useNewPrescription() {
             notes: prescription.notes || "",
             medications: itemsData.map((item: any) => ({
               id: item.id,
-              medicineName: item.medicine_name,
+              productName: item.product_name,
               strength: item.strength || "",
               dosage: item.dosage || "",
               quantity: item.quantity || 1,
@@ -121,7 +121,7 @@ export function useNewPrescription() {
   }, [editRxId]);
 
   const addMedication = () => {
-    if (!newMedication.medicineName || !newMedication.dosage) {
+    if (!newMedication.productName || !newMedication.dosage) {
       toast.error("Please fill in medication name and dosage");
       return;
     }
@@ -131,25 +131,25 @@ export function useNewPrescription() {
       return;
     }
 
-    const medicine = availableMedicines.find(
+    const product = availableProducts.find(
       (m) =>
-        m.name === newMedication.medicineName &&
+        m.name === newMedication.productName &&
         m.strength === newMedication.strength
     );
 
-    if (!medicine) {
-      toast.error("Selected medicine not found");
+    if (!product) {
+      toast.error("Selected product not found");
       return;
     }
 
     const medication: PrescriptionMedication = {
       id: generateId(),
-      medicineName: newMedication.medicineName,
+      productName: newMedication.productName,
       strength: newMedication.strength,
       dosage: newMedication.dosage,
       quantity: Number(newMedication.quantity),
       instructions: newMedication.instructions,
-      cost: medicine.cost * Number(newMedication.quantity),
+      cost: product.cost * Number(newMedication.quantity),
       refillsAuthorized: Number(newMedication.refillsAuthorized) || 0,
       refillIntervalDays: Number(newMedication.refillIntervalDays) || 30,
     };
@@ -160,7 +160,7 @@ export function useNewPrescription() {
     }));
 
     setNewMedication({
-      medicineName: "",
+      productName: "",
       strength: "",
       dosage: "",
       quantity: "",
@@ -181,7 +181,7 @@ export function useNewPrescription() {
     const medToEdit = formData.medications.find((med) => med.id === id);
     if (medToEdit) {
       setNewMedication({
-        medicineName: medToEdit.medicineName,
+        productName: medToEdit.productName,
         strength: medToEdit.strength,
         dosage: medToEdit.dosage,
         quantity: medToEdit.quantity,
@@ -264,12 +264,12 @@ export function useNewPrescription() {
           nextRefillDate.setDate(nextRefillDate.getDate() + Number(med.refillIntervalDays));
           
           await query(
-            `INSERT INTO prescription_items (id, prescription_id, medicine_name, strength, dosage, quantity, instructions, cost, refills_authorized, refill_interval_days, next_refill_date, created_at, updated_at)
+            `INSERT INTO prescription_items (id, prescription_id, product_name, strength, dosage, quantity, instructions, cost, refills_authorized, refill_interval_days, next_refill_date, created_at, updated_at)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               generateId(),
               editRxId,
-              med.medicineName,
+              med.productName,
               med.strength,
               med.dosage,
               med.quantity,
@@ -313,7 +313,7 @@ export function useNewPrescription() {
           nextRefillDate.setDate(nextRefillDate.getDate() + Number(med.refillIntervalDays));
           return {
             id: generateId(),
-            medicine_name: med.medicineName,
+            product_name: med.productName,
             strength: med.strength,
             dosage: med.dosage,
             quantity: med.quantity,
@@ -354,7 +354,7 @@ export function useNewPrescription() {
     setFormData,
     newMedication,
     setNewMedication,
-    availableMedicines,
+    availableProducts,
     addMedication,
     removeMedication,
     editMedication,

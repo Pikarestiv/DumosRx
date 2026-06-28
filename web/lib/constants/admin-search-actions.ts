@@ -21,7 +21,7 @@ export const ADMIN_SEARCH_ACTIONS: AdminSearchAction[] = [
   { id: 'admin-roles', title: 'Role Management', type: 'Action', href: '/admin/users/roles', icon: 'ShieldCheck', description: 'Configure permissions and roles' },
   
   // Products
-  { id: 'view-products', title: 'Global Product Catalog', type: 'Page', href: '/admin/products', icon: 'Package', description: 'Global medicine and product database' },
+  { id: 'view-products', title: 'Global Product Catalog', type: 'Page', href: '/admin/products', icon: 'Package', description: 'Global product and product database' },
   { id: 'new-product', title: 'Add New Global Product', type: 'Action', href: '/admin/products/new', icon: 'Plus', description: 'Create a new product in the global catalog' },
   
   // System & Infrastructure

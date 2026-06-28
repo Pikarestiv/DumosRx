@@ -13,6 +13,8 @@ import { Input } from "@/components/ui/input";
 import { Banknote, CreditCard, Smartphone, Wallet, Loader2 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
+import { useDefaultPaymentAccounts } from "@/lib/hooks/use-default-payment-accounts";
+import { useStore } from "@/lib/context/store-context";
 
 interface POSPaymentDialogProps {
   showPaymentDialog: boolean;
@@ -56,12 +58,43 @@ export function POSPaymentDialog({
   paymentAccounts = [],
 }: POSPaymentDialogProps) {
   const isMethodEnabled = (method: string) => enabledPaymentMethods.includes(method);
-  
+  const { storeProfile } = useStore();
+  const { defaults, setDefaultAccount, clearDefaultAccount } = useDefaultPaymentAccounts();
+
   useEffect(() => {
     if (showPaymentDialog && (!amountPaid || amountPaid === "0")) {
       setAmountPaid(total.toString());
     }
   }, [showPaymentDialog, total, paymentMethod]);
+
+  // Auto-fill default account when switching methods
+  useEffect(() => {
+    if (!storeProfile?.id || !setSelectedAccountId || !showPaymentDialog) return;
+    
+    if (paymentMethod === "card" || paymentMethod === "transfer") {
+      const defaultId = defaults[`${storeProfile.id}_${paymentMethod}`];
+      if (defaultId) {
+        const isValid = paymentAccounts?.find(a => 
+          a.id === defaultId && 
+          (paymentMethod === "card" ? a.account_type === "pos_terminal" : a.account_type !== "pos_terminal")
+        );
+        if (isValid) {
+          setSelectedAccountId(defaultId);
+        }
+      }
+    }
+  }, [paymentMethod, storeProfile?.id, showPaymentDialog]);
+
+  const isCurrentDefault = selectedAccountId && storeProfile?.id ? selectedAccountId === defaults[`${storeProfile.id}_${paymentMethod}`] : false;
+
+  const handleSetDefaultToggle = () => {
+    if (!storeProfile?.id || !selectedAccountId) return;
+    if (isCurrentDefault) {
+      clearDefaultAccount(storeProfile.id, paymentMethod);
+    } else {
+      setDefaultAccount(storeProfile.id, paymentMethod, selectedAccountId);
+    }
+  };
 
   const handleAddSplit = (method: string) => {
     if (!setPaymentSplits || !paymentSplits) return;
@@ -189,6 +222,21 @@ export function POSPaymentDialog({
                   <option key={acc.id} value={acc.id}>{acc.name} {acc.bank_name ? `(${acc.bank_name})` : ''}</option>
                 ))}
               </select>
+
+              {selectedAccountId && (
+                <div className="flex items-center gap-2 mt-2 ml-1">
+                  <input 
+                    type="checkbox" 
+                    id="setDefaultToggle"
+                    className="h-3.5 w-3.5 rounded border-gray-300 text-primary focus:ring-primary accent-primary cursor-pointer"
+                    checked={isCurrentDefault}
+                    onChange={handleSetDefaultToggle}
+                  />
+                  <label htmlFor="setDefaultToggle" className="text-xs text-muted-foreground cursor-pointer select-none">
+                    Set as default for <span className="font-bold">{paymentMethod === "card" ? "Card" : "Transfer"}</span> on this device
+                  </label>
+                </div>
+              )}
             </div>
           )}
 

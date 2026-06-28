@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import { toast } from "sonner";
 import { useStore } from "@/lib/context/store-context";
 
-export interface Medicine {
+export interface Product {
   id: string;
   name: string;
   generic_name: string;
@@ -18,15 +20,46 @@ export interface Medicine {
   category_id?: string;
 }
 
-export interface CartItem extends Medicine {
+export interface CartItem extends Product {
   quantity: number;
   subtotal: number;
 }
 
-export function usePOSCart(medicines: Medicine[]) {
+interface POSCartState {
+  cart: CartItem[];
+  discount: number;
+  setCart: (cart: CartItem[] | ((prev: CartItem[]) => CartItem[])) => void;
+  setDiscount: (discount: number) => void;
+}
+
+export const usePOSCartStore = create<POSCartState>()(
+  persist(
+    (set) => ({
+      cart: [],
+      discount: 0,
+      setCart: (updater) =>
+        set((state) => ({
+          cart: typeof updater === "function" ? updater(state.cart) : updater,
+        })),
+      setDiscount: (discount) => set({ discount }),
+    }),
+    {
+      name: "pos-cart-storage",
+    }
+  )
+);
+
+export function usePOSCart(products: Product[]) {
   const { vatPercentage } = useStore();
-  const [cart, setCart] = useState<CartItem[]>([]);
-  const [discount, setDiscount] = useState(0);
+  const cart = usePOSCartStore((state) => state.cart);
+  const setCart = usePOSCartStore((state) => state.setCart);
+  const discount = usePOSCartStore((state) => state.discount);
+  const setDiscount = usePOSCartStore((state) => state.setDiscount);
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
 
   const subtotal = useMemo(
     () => cart.reduce((sum, item) => sum + item.subtotal, 0),
@@ -36,24 +69,24 @@ export function usePOSCart(medicines: Medicine[]) {
   const tax = useMemo(() => subtotal * (vatPercentage / 100), [subtotal, vatPercentage]);
   const total = useMemo(() => subtotal + tax - discount, [subtotal, tax, discount]);
 
-  const addToCart = (medicine: Medicine) => {
-    const existingItem = cart.find((item) => item.id === medicine.id);
+  const addToCart = (product: Product) => {
+    const existingItem = cart.find((item) => item.id === product.id);
 
     if (existingItem) {
-      if (existingItem.quantity < medicine.stock) {
-        updateQuantity(medicine.id, existingItem.quantity + 1);
+      if (existingItem.quantity < product.stock) {
+        updateQuantity(product.id, existingItem.quantity + 1);
       } else {
         toast.warning("Insufficient stock available");
       }
     } else {
-      if (medicine.stock > 0) {
+      if (product.stock > 0) {
         const cartItem: CartItem = {
-          ...medicine,
+          ...product,
           quantity: 1,
-          subtotal: medicine.unit_price,
+          subtotal: product.unit_price,
         };
         setCart((prev) => [...prev, cartItem]);
-        toast.success(`${medicine.name} added to cart`);
+        toast.success(`${product.name} added to cart`);
       } else {
         toast.error("This item is out of stock");
       }
@@ -66,8 +99,8 @@ export function usePOSCart(medicines: Medicine[]) {
       return;
     }
 
-    const medicine = medicines.find((m) => m.id === id);
-    if (medicine && newQuantity > medicine.stock) {
+    const product = products.find((m) => m.id === id);
+    if (product && newQuantity > product.stock) {
       toast.warning("Insufficient stock available");
       return;
     }
@@ -99,16 +132,16 @@ export function usePOSCart(medicines: Medicine[]) {
   };
 
   return {
-    cart,
+    cart: isHydrated ? cart : [],
     addToCart,
     updateQuantity,
     removeFromCart,
     clearCart,
     restoreCart,
-    subtotal,
-    tax,
-    total,
-    discount,
+    subtotal: isHydrated ? subtotal : 0,
+    tax: isHydrated ? tax : 0,
+    total: isHydrated ? total : 0,
+    discount: isHydrated ? discount : 0,
     setDiscount,
   };
 }

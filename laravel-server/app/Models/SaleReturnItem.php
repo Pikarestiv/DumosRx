@@ -14,7 +14,7 @@ class SaleReturnItem extends Model
     protected $table = 'return_items';
 
     protected $fillable = [
-        'return_id', 'medicine_id', 'quantity', 'unit_price', 'subtotal',
+        'return_id', 'product_id', 'quantity', 'unit_price', 'subtotal',
         '_version', '_synced', '_synced_at', '_deleted'
     ];
 
@@ -31,8 +31,8 @@ class SaleReturnItem extends Model
         return $this->belongsTo(SaleReturn::class, 'return_id');
     }
 
-    public function medicine()
+    public function product()
     {
-        return $this->belongsTo(Medicine::class);
+        return $this->belongsTo(Product::class);
     }
 }

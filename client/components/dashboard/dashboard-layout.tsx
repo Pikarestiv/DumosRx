@@ -7,6 +7,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { ThemeCustomizer } from "@/components/ui/theme-customizer";
+import { UserNav } from "@/components/dashboard/user-nav";
 import { useAuth } from "@/lib/context/auth-context";
 import { useStore } from "@/lib/context/store-context";
 import { APP_NAME } from "@/lib/constants";
@@ -185,6 +186,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           <div className="flex items-center gap-2">
             <ThemeToggle />
             <ThemeCustomizer />
+            <UserNav />
           </div>
         </header>
 

@@ -6,12 +6,12 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use App\Models\Medicine;
+use App\Models\Product;
 use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Models\Customer;
 use App\Models\Supplier;
-use App\Models\Inventory;
+use App\Models\StockBatch;
 use App\Models\Store;
 use App\Models\User;
 use App\Models\ActivityLog;
@@ -97,12 +97,6 @@ class SyncController extends Controller
                     unset($payload['user_id']);
                 }
 
-                // Map quantity to quantity_in_stock for inventory
-                if ($change['table_name'] === 'inventories' && isset($payload['quantity'])) {
-                    $payload['quantity_in_stock'] = $payload['quantity'];
-                    unset($payload['quantity']);
-                }
-
                 // Map vendor_id to supplier_id for purchase orders
                 if ($change['table_name'] === 'purchase_orders') {
                     if (isset($payload['vendor_id'])) {
@@ -143,7 +137,7 @@ class SyncController extends Controller
 
                 // Inject user_id for core tables if missing
                 $tablesWithUserId = [
-                    'sales', 'customers', 'medicines', 'inventories', 
+                    'sales', 'customers', 'products', 'stock_batches', 
                     'subscriptions', 'payment_transactions', 'categories', 
                     'suppliers', 'prescriptions', 'stores'
                 ];
@@ -162,8 +156,8 @@ class SyncController extends Controller
                 }
                 }
 
-                // Prevent NULL constraint violations for medicines
-                if ($change['table_name'] === 'medicines') {
+                // Prevent NULL constraint violations for products
+                if ($change['table_name'] === 'products') {
                     if (empty($payload['pack_size'])) {
                         $payload['pack_size'] = 1;
                     }
@@ -293,7 +287,7 @@ class SyncController extends Controller
                                 $model->payment_terms = 30;
                             }
                         }
-                        if ($change['table_name'] === 'medicines') {
+                        if ($change['table_name'] === 'products') {
                             if (empty($model->pack_size) || $model->pack_size === 'null') $model->pack_size = 1;
                             if (empty($model->unit_of_measure) || $model->unit_of_measure === 'null') $model->unit_of_measure = 'piece';
                         }
@@ -346,7 +340,7 @@ class SyncController extends Controller
                                 $model->payment_terms = 30;
                             }
                         }
-                        if ($change['table_name'] === 'medicines') {
+                        if ($change['table_name'] === 'products') {
                             if (empty($model->pack_size) || $model->pack_size === 'null') $model->pack_size = 1;
                             if (empty($model->unit_of_measure) || $model->unit_of_measure === 'null') $model->unit_of_measure = 'piece';
                         }
@@ -437,7 +431,7 @@ class SyncController extends Controller
         $changes = [];
         $serverTimestamp = now()->toIso8601String();
 
-        $tables = ['medicines', 'inventories', 'categories', 'customers', 'suppliers', 'sales', 'stores', 'users', 'stock_movements', 'purchase_orders', 'purchase_order_items', 'expenses', 'payment_accounts'];
+        $tables = ['products', 'stock_batches', 'categories', 'customers', 'suppliers', 'sales', 'stores', 'users', 'stock_movements', 'purchase_orders', 'purchase_order_items', 'expenses', 'payment_accounts'];
 
         foreach ($tables as $table) {
             $lastSynced = $lastSyncedMap[$table] ?? null;
@@ -480,11 +474,11 @@ class SyncController extends Controller
                     $query->whereIn('purchase_order_id', $poIds);
                 } elseif ($table === 'stock_movements') {
                     $query->whereIn('performed_by', $userIds);
-                } elseif ($table === 'inventories') {
-                    $medicineIds = Medicine::where('user_id', $ownerId)->pluck('id')->toArray();
-                    $query->whereIn('medicine_id', $medicineIds);
+                } elseif ($table === 'stock_batches') {
+                    $medicineIds = Product::where('user_id', $ownerId)->pluck('id')->toArray();
+                    $query->whereIn('product_id', $medicineIds);
                 } else {
-                    // Default to filtering by owner_id for medicines, customers, suppliers
+                    // Default to filtering by owner_id for products, customers, suppliers
                     $query->where('user_id', $ownerId);
                 }
             }
@@ -588,14 +582,14 @@ class SyncController extends Controller
     private function getModelForTable($tableName)
     {
         $map = [
-            'medicines' => Medicine::class,
+            'products' => Product::class,
             'customers' => Customer::class,
             'suppliers' => Supplier::class,
             'sales' => Sale::class,
             'sale_items' => SaleItem::class,
             'stores' => Store::class,
             'users' => User::class,
-            'inventories' => Inventory::class,
+            'stock_batches' => StockBatch::class,
             'activity_logs' => ActivityLog::class,
             'audit_logs' => ActivityLog::class,
             'categories' => \App\Models\Category::class,

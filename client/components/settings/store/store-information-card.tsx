@@ -186,7 +186,7 @@ export function StoreInformationCard({
                           <Info className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p>When enabled, general retail products (like provisions) will appear alongside medicines in search suggestions during sales.</p>
+                          <p>When enabled, general retail products (like provisions) will appear alongside products in search suggestions during sales.</p>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>

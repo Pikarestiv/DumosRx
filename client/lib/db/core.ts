@@ -49,7 +49,7 @@ export async function initDatabase(): Promise<any> {
   // ---- Migration: ensure sync tracking and missing columns exist ----
   const syncColumns = [
     {
-      table: "medicines",
+      table: "products",
       columns: [
         "_version INTEGER DEFAULT 1",
         "_synced INTEGER DEFAULT 0",
@@ -59,12 +59,21 @@ export async function initDatabase(): Promise<any> {
       ],
     },
     {
-      table: "inventories",
+      table: "stock_batches",
       columns: [
         "_version INTEGER DEFAULT 1",
         "_synced INTEGER DEFAULT 0",
         "_synced_at TEXT",
         "_deleted INTEGER DEFAULT 0",
+        "supplier_id TEXT",
+        "manufacture_date TEXT",
+        "batch_number TEXT",
+        "quantity INTEGER DEFAULT 0",
+        "cost_price REAL DEFAULT 0",
+        "selling_price REAL DEFAULT 0",
+        "expiry_date TEXT",
+        "received_date TEXT",
+        "notes TEXT",
       ],
     },
     {
@@ -201,6 +210,7 @@ export async function initDatabase(): Promise<any> {
         "ordered_by TEXT",
         "order_date TEXT",
         "order_number TEXT",
+        "supplier_id TEXT",
       ],
     },
     {
@@ -314,11 +324,31 @@ export async function initDatabase(): Promise<any> {
         await db.execute(statement);
       }
 
-      // Rename inventory to inventories if the old table exists
+      // Rename stock_batch to stock_batches if the old table exists
       try {
-        await db.execute("ALTER TABLE inventory RENAME TO inventories");
-      } catch (_e) {
-        // Table probably doesn't exist or already renamed
+        await db.execute("ALTER TABLE stock_batch RENAME TO stock_batches");
+      } catch (_e) { }
+
+      try {
+        await db.execute("ALTER TABLE stock_batches RENAME TO stock_batches");
+      } catch (_e) { }
+
+      try {
+        await db.execute("ALTER TABLE products RENAME TO products");
+      } catch (_e) { }
+
+      const tablesWithProductId = [
+        "stock_batches",
+        "sale_items",
+        "stock_movements",
+        "purchase_order_items",
+        "prescription_items",
+        "return_items"
+      ];
+      for (const t of tablesWithProductId) {
+        try {
+          await db.execute(`ALTER TABLE ${t} RENAME COLUMN product_id TO product_id`);
+        } catch (_e) { }
       }
 
       try {
@@ -333,6 +363,24 @@ export async function initDatabase(): Promise<any> {
         await db.execute("ALTER TABLE store_profile RENAME TO stores");
       } catch (_e) { }
 
+      
+      // --- Data migration: stock_quantity to stock_batches ---
+      try {
+        const hasProductsStock = await db.select("SELECT 1 FROM pragma_table_info('products') WHERE name='stock_quantity'");
+        if (hasProductsStock && hasProductsStock.length > 0) {
+          await db.execute(`
+            INSERT INTO stock_batches (id, product_id, batch_number, quantity, cost_price, selling_price, expiry_date, is_active, created_at, updated_at)
+            SELECT lower(hex(randomblob(16))), id, 'INITIAL', stock_quantity, cost_price, selling_price, date('now', '+2 years'), 1, created_at, updated_at
+            FROM products 
+            WHERE stock_quantity > 0 AND NOT EXISTS (
+              SELECT 1 FROM stock_batches WHERE stock_batches.product_id = products.id AND stock_batches.batch_number = 'INITIAL'
+            )
+          `);
+        }
+      } catch (e) {
+        console.error("Migration for stock_quantity skipped", e);
+      }
+
       // Run migrations for Tauri
       for (const { table, columns } of syncColumns) {
         for (const colDef of columns) {
@@ -342,6 +390,39 @@ export async function initDatabase(): Promise<any> {
             // Column likely already exists; ignore
           }
         }
+      }
+
+      // One-off data clearing for legacy transactions (retaining products, batches, users, and settings)
+      try {
+        const hasClearedLegacy = typeof window !== "undefined" && window.localStorage
+          ? window.localStorage.getItem("dumosrx_cleared_legacy_v2")
+          : "true";
+        if (!hasClearedLegacy) {
+          const tablesToClear = [
+            "sales",
+            "sale_items",
+            "stock_movements",
+            "returns",
+            "return_items",
+            "prescriptions",
+            "prescription_items",
+            "expenses",
+            "purchase_orders",
+            "purchase_order_items",
+            "audit_logs",
+            "_sync_queue"
+          ];
+          for (const table of tablesToClear) {
+            try {
+              await db.execute(`DELETE FROM ${table}`);
+            } catch (_e) { }
+          }
+          if (typeof window !== "undefined" && window.localStorage) {
+            window.localStorage.setItem("dumosrx_cleared_legacy_v2", "true");
+          }
+        }
+      } catch (e) {
+        console.error("Failed to clear legacy transactions in Tauri", e);
       }
 
       return db;
@@ -364,11 +445,31 @@ export async function initDatabase(): Promise<any> {
         const data = new Uint8Array(JSON.parse(savedData));
         db = new SQL.Database(data);
         
-        // Rename inventory to inventories if the old table exists
+        // Rename stock_batch to stock_batches if the old table exists
         try {
-          db.run("ALTER TABLE inventory RENAME TO inventories");
-        } catch (_e) {
-          // Table probably doesn't exist or already renamed
+          db.run("ALTER TABLE stock_batch RENAME TO stock_batches");
+        } catch (_e) { }
+
+        try {
+          db.run("ALTER TABLE stock_batches RENAME TO stock_batches");
+        } catch (_e) { }
+
+        try {
+          db.run("ALTER TABLE products RENAME TO products");
+        } catch (_e) { }
+
+        const tablesWithProductId = [
+          "stock_batches",
+          "sale_items",
+          "stock_movements",
+          "purchase_order_items",
+          "prescription_items",
+          "return_items"
+        ];
+        for (const t of tablesWithProductId) {
+          try {
+            db.run(`ALTER TABLE ${t} RENAME COLUMN product_id TO product_id`);
+          } catch (_e) { }
         }
 
         try {
@@ -395,6 +496,24 @@ export async function initDatabase(): Promise<any> {
       db.run(SCHEMA_SQL);
     }
 
+    
+      // --- Data migration: stock_quantity to stock_batches ---
+      try {
+        const hasProductsStock = db.exec("SELECT 1 FROM pragma_table_info('products') WHERE name='stock_quantity'");
+        if (hasProductsStock && hasProductsStock.length > 0 && hasProductsStock[0].values.length > 0) {
+          db.run(`
+            INSERT INTO stock_batches (id, product_id, batch_number, quantity, cost_price, selling_price, expiry_date, is_active, created_at, updated_at)
+            SELECT lower(hex(randomblob(16))), id, 'INITIAL', stock_quantity, cost_price, selling_price, date('now', '+2 years'), 1, created_at, updated_at
+            FROM products 
+            WHERE stock_quantity > 0 AND NOT EXISTS (
+              SELECT 1 FROM stock_batches WHERE stock_batches.product_id = products.id AND stock_batches.batch_number = 'INITIAL'
+            )
+          `);
+        }
+      } catch (e) {
+        console.error("Migration for stock_quantity skipped", e);
+      }
+
     // Run migrations for Web (non-Tauri)
     for (const { table, columns } of syncColumns) {
       for (const colDef of columns) {
@@ -405,6 +524,40 @@ export async function initDatabase(): Promise<any> {
           // Column likely already exists; ignore
         }
       }
+    }
+
+    // One-off data clearing for legacy transactions (retaining products, batches, users, and settings)
+    try {
+      const hasClearedLegacy = typeof window !== "undefined" && window.localStorage
+        ? window.localStorage.getItem("dumosrx_cleared_legacy_v2")
+        : "true";
+      if (!hasClearedLegacy) {
+        const tablesToClear = [
+          "sales",
+          "sale_items",
+          "stock_movements",
+          "returns",
+          "return_items",
+          "prescriptions",
+          "prescription_items",
+          "expenses",
+          "purchase_orders",
+          "purchase_order_items",
+          "audit_logs",
+          "_sync_queue"
+        ];
+        for (const table of tablesToClear) {
+          try {
+            db.run(`DELETE FROM ${table}`);
+          } catch (_e) { }
+        }
+        if (typeof window !== "undefined" && window.localStorage) {
+          window.localStorage.setItem("dumosrx_cleared_legacy_v2", "true");
+        }
+        saveDatabase();
+      }
+    } catch (e) {
+      console.error("Failed to clear legacy transactions in Web", e);
     }
 
     return db;
@@ -510,8 +663,8 @@ export async function resetDatabase(): Promise<void> {
   if (!db) await initDatabase();
 
   const tablesToClear = [
-    "medicines",
-    "inventories",
+    "products",
+    "stock_batches",
     "sales",
     "sale_items",
     "customers",

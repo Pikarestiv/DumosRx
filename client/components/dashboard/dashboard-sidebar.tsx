@@ -48,7 +48,7 @@ export function DashboardSidebar({
 }: DashboardSidebarProps) {
   const pathname = usePathname();
   const { storeType, t } = useStore();
-  const { logout, isAdmin, canManageInventory } = useAuth();
+  const { logout, isAdmin, canManageStockBatch } = useAuth();
   const { currentTier } = useFeatureGate();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
@@ -73,7 +73,7 @@ export function DashboardSidebar({
   const navigationItems = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     {
-      name: `Inventory & ${t("products")}`,
+      name: `${t("products")} & Batches`,
       href: "/inventory",
       icon: storeType === "pharmacy" ? Pill : ShoppingBasket,
     },
@@ -82,7 +82,7 @@ export function DashboardSidebar({
       ? [{ name: "Prescriptions", href: "/prescriptions", icon: FileText }]
       : []),
     { name: "Customers", href: "/customers", icon: Users },
-    ...(isAdmin || canManageInventory
+    ...(isAdmin || canManageStockBatch
       ? [
           {
             name: "Procurement & Vendors",
@@ -99,7 +99,7 @@ export function DashboardSidebar({
 
   const allItems = [
     ...navigationItems,
-    ...(isAdmin || canManageInventory
+    ...(isAdmin || canManageStockBatch
       ? [{ name: "Settings", href: "/settings", icon: Settings }]
       : []),
   ];

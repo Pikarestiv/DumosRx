@@ -40,7 +40,7 @@ interface OverviewViewProps {
   onNavigate?: (tab: string) => void;
 }
 
-export function OverviewView({ stats, user, stores, onReset, onNavigate: _onNavigate }: OverviewViewProps) {
+export function OverviewView({ stats, user, stores, onReset: _onReset, onNavigate: _onNavigate }: OverviewViewProps) {
   const { data: subscription } = useSubscriptionStatus();
   const router = useRouter();
   
@@ -133,7 +133,7 @@ export function OverviewView({ stats, user, stores, onReset, onNavigate: _onNavi
                 </div>
                 <h3 className="text-xl font-bold tracking-tight">No connected stores</h3>
                 <p className="text-sm text-muted-foreground mt-2 mb-6 max-w-sm">
-                  Get started by connecting your first terminal to sync data, track performance, and manage your inventory.
+                  Get started by connecting your first terminal to sync data, track performance, and manage your stock_batch.
                 </p>
                 <Button className="font-bold" onClick={() => setIsStoreModalOpen(true)}>
                   <Plus className="h-4 w-4 mr-2" />

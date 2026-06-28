@@ -51,7 +51,7 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
                 className="h-11 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-lg shadow-primary/20"
                 onClick={() => {
                   onOpenChange(false);
-                  router.push("/settings?tab=cloud");
+                  router.push("/settings/data");
                 }}
               >
                 Re-link Cloud Account

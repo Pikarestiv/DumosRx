@@ -1,10 +1,10 @@
 import { useMemo } from "react";
-import { CartItem, Medicine } from "@/lib/hooks/use-pos-cart";
+import { CartItem, Product } from "@/lib/hooks/use-pos-cart";
 import { SMART_SUGGESTIONS_RULES } from "@/lib/constants/smart-suggestions-rules";
 
-export function useSmartSuggestions(cart: CartItem[], medicines: Medicine[]) {
+export function useSmartSuggestions(cart: CartItem[], products: Product[]) {
   const suggestions = useMemo(() => {
-    if (cart.length === 0 || medicines.length === 0) return [];
+    if (cart.length === 0 || products.length === 0) return [];
 
     const targetCategories = new Set<string>();
     const targetNames = new Set<string>();
@@ -42,16 +42,16 @@ export function useSmartSuggestions(cart: CartItem[], medicines: Medicine[]) {
 
     const cartIds = new Set(cart.map(item => item.id));
 
-    // Filter in-stock medicines matching recommended categories or names
-    return medicines.filter(medicine => {
+    // Filter in-stock products matching recommended categories or names
+    return products.filter(product => {
       // Must not already be in the cart
-      if (cartIds.has(medicine.id)) return false;
+      if (cartIds.has(product.id)) return false;
 
       // Must be in stock
-      if (medicine.stock <= 0) return false;
+      if (product.stock <= 0) return false;
 
-      const medNameLower = medicine.name.toLowerCase();
-      const medCatLower = medicine.category_id ? medicine.category_id.toLowerCase() : "";
+      const medNameLower = product.name.toLowerCase();
+      const medCatLower = product.category_id ? product.category_id.toLowerCase() : "";
 
       // Match category
       if (targetCategories.has(medCatLower)) return true;
@@ -59,7 +59,7 @@ export function useSmartSuggestions(cart: CartItem[], medicines: Medicine[]) {
       // Match name by checking if it contains the target keyword
       return Array.from(targetNames).some(target => medNameLower.includes(target));
     }).slice(0, 4); // return top 4 recommendations
-  }, [cart, medicines]);
+  }, [cart, products]);
 
   return { suggestions };
 }

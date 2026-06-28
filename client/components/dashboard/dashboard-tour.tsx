@@ -32,7 +32,7 @@ export function DashboardTour() {
       placement: "right",
     },
     {
-      target: "#tour-nav-inventory",
+      target: "#tour-nav-stock-batch",
       content:
         "Manage all your products, variations, and stock levels from here.",
       placement: "right",

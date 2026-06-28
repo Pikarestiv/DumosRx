@@ -5,7 +5,7 @@
 -- CORE BUSINESS TABLES
 -- =====================================================
 
-CREATE TABLE IF NOT EXISTS medicines (
+CREATE TABLE IF NOT EXISTS products (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   generic_name TEXT,
@@ -17,7 +17,6 @@ CREATE TABLE IF NOT EXISTS medicines (
   description TEXT,
   cost_price REAL DEFAULT 0,
   selling_price REAL DEFAULT 0,
-  stock_quantity INTEGER DEFAULT 0,
   reorder_level INTEGER DEFAULT 10,
   requires_prescription INTEGER DEFAULT 0,
   is_controlled INTEGER DEFAULT 0,
@@ -45,9 +44,9 @@ CREATE TABLE IF NOT EXISTS categories (
   _deleted INTEGER DEFAULT 0
 );
 
-CREATE TABLE IF NOT EXISTS inventories (
+CREATE TABLE IF NOT EXISTS stock_batches (
   id TEXT PRIMARY KEY,
-  medicine_id TEXT NOT NULL,
+  product_id TEXT NOT NULL,
   batch_number TEXT,
   quantity INTEGER DEFAULT 0,
   cost_price REAL DEFAULT 0,
@@ -62,7 +61,7 @@ CREATE TABLE IF NOT EXISTS inventories (
   _synced INTEGER DEFAULT 0,
   _synced_at TEXT,
   _deleted INTEGER DEFAULT 0,
-  FOREIGN KEY (medicine_id) REFERENCES medicines(id)
+  FOREIGN KEY (product_id) REFERENCES products(id)
 );
 
 CREATE TABLE IF NOT EXISTS customers (
@@ -126,7 +125,7 @@ CREATE TABLE IF NOT EXISTS sales (
 CREATE TABLE IF NOT EXISTS sale_items (
   id TEXT PRIMARY KEY,
   sale_id TEXT NOT NULL,
-  medicine_id TEXT NOT NULL,
+  product_id TEXT NOT NULL,
   quantity INTEGER NOT NULL,
   unit_price REAL NOT NULL,
   total_price REAL NOT NULL,
@@ -134,7 +133,7 @@ CREATE TABLE IF NOT EXISTS sale_items (
   _version INTEGER DEFAULT 1,
   _synced INTEGER DEFAULT 0,
   FOREIGN KEY (sale_id) REFERENCES sales(id),
-  FOREIGN KEY (medicine_id) REFERENCES medicines(id)
+  FOREIGN KEY (product_id) REFERENCES products(id)
 );
 
 CREATE TABLE IF NOT EXISTS prescriptions (
@@ -202,13 +201,13 @@ CREATE TABLE IF NOT EXISTS _sync_state (
 -- INDEXES
 -- =====================================================
 
-CREATE INDEX IF NOT EXISTS idx_medicines_name ON medicines(name);
-CREATE INDEX IF NOT EXISTS idx_medicines_category ON medicines(category);
-CREATE INDEX IF NOT EXISTS idx_medicines_synced ON medicines(_synced);
+CREATE INDEX IF NOT EXISTS idx_products_name ON products(name);
+CREATE INDEX IF NOT EXISTS idx_products_category ON products(category);
+CREATE INDEX IF NOT EXISTS idx_products_synced ON products(_synced);
 
-CREATE INDEX IF NOT EXISTS idx_inventory_medicine ON inventories(medicine_id);
-CREATE INDEX IF NOT EXISTS idx_inventory_expiry ON inventories(expiry_date);
-CREATE INDEX IF NOT EXISTS idx_inventory_synced ON inventories(_synced);
+CREATE INDEX IF NOT EXISTS idx_stock_batch_product ON stock_batches(product_id);
+CREATE INDEX IF NOT EXISTS idx_stock_batch_expiry ON stock_batches(expiry_date);
+CREATE INDEX IF NOT EXISTS idx_stock_batch_synced ON stock_batches(_synced);
 
 CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone);
 CREATE INDEX IF NOT EXISTS idx_customers_synced ON customers(_synced);

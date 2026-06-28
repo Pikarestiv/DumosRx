@@ -6,7 +6,7 @@ import { genericFuzzySearch } from "@/lib/utils/search";
 
 export interface PrescriptionMedication {
   id: string;
-  medicineName: string;
+  productName: string;
   strength: string;
   dosage: string;
   quantity: number;
@@ -63,7 +63,7 @@ export function usePrescriptionQueue() {
         }
         itemsMap.get(item.prescription_id)!.push({
           id: item.id,
-          medicineName: item.medicine_name,
+          productName: item.product_name,
           strength: item.strength,
           dosage: item.dosage,
           quantity: item.quantity,

@@ -33,14 +33,14 @@ export function MobileMoreDrawer({
 }: MobileMoreDrawerProps) {
   const pathname = usePathname();
   const { storeType } = useStore();
-  const { logout, isAdmin, canManageInventory } = useAuth();
+  const { logout, isAdmin, canManageStockBatch } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
 
   const allModules = [
     ...(storeType === "pharmacy"
       ? [{ name: "Prescriptions", href: "/prescriptions", icon: FileText }]
       : []),
-    ...(isAdmin || canManageInventory
+    ...(isAdmin || canManageStockBatch
       ? [
           { name: "Procurement & Vendors", href: "/procurement", icon: ClipboardList },
           { name: "Expenses", href: "/expenses", icon: Wallet },

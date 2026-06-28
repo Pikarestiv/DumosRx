@@ -2,29 +2,29 @@
  * Sample Data for Business Intelligence Dashboard
  */
 
-export const inventoryAlerts = [
+export const stock_batchAlerts = [
   {
-    medicine: "Paracetamol 500mg",
+    product: "Paracetamol 500mg",
     issue: "Low Stock",
     quantity: 45,
     threshold: 100,
     severity: "high",
   },
   {
-    medicine: "Insulin Glargine",
+    product: "Insulin Glargine",
     issue: "Expiring Soon",
     expiryDate: "2026-02-15",
     severity: "critical",
   },
   {
-    medicine: "Amoxicillin 250mg",
+    product: "Amoxicillin 250mg",
     issue: "Low Stock",
     quantity: 78,
     threshold: 150,
     severity: "medium",
   },
   {
-    medicine: "Vitamin D3",
+    product: "Vitamin D3",
     issue: "Expiring Soon",
     expiryDate: "2026-02-28",
     severity: "high",

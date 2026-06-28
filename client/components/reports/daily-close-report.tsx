@@ -7,7 +7,7 @@ import { TransactionDetailsDialog } from "@/components/pos/transaction-details-d
 import { DailyCloseHeader } from "./daily-close/daily-close-header";
 import { DailyCloseMetrics } from "./daily-close/daily-close-metrics";
 import { PaymentBreakdownCard } from "./daily-close/payment-breakdown-card";
-import { HighestSellingMedicinesCard } from "./daily-close/highest-selling-medicines-card";
+import { HighestSellingProductsCard } from "./daily-close/highest-selling-products-card";
 import { DailyCloseActions } from "./daily-close/daily-close-actions";
 import { SalesListModal } from "./daily-close/sales-list-modal";
 
@@ -52,7 +52,7 @@ export function DailyCloseReport() {
           aggregatedTotals={aggregatedTotals}
         />
 
-        <HighestSellingMedicinesCard
+        <HighestSellingProductsCard
           currencyCode={currencyCode}
           topSellingMeds={topSellingMeds}
         />

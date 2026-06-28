@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useDashboardSummary } from "@/lib/api/hooks";
-import { useLatestRelease } from "@/lib/api/github-hooks";
-import { APP_VERSION, GITHUB_REPO } from "@/lib/constants";
+import { useLatestRelease } from "@/lib/api/release-hooks";
+import { APP_VERSION } from "@/lib/constants";
 
 export function useDashboard() {
   const router = useRouter();
@@ -32,10 +32,10 @@ export function useDashboard() {
   };
 
   const defaultReleaseLinks = {
-    windows: `https://github.com/${GITHUB_REPO}/releases/latest`,
-    macos: `https://github.com/${GITHUB_REPO}/releases/latest`,
-    linux: `https://github.com/${GITHUB_REPO}/releases/latest`,
-    android: `https://github.com/${GITHUB_REPO}/releases/latest`,
+    windows: `https://downloads.dumosrx.com`,
+    macos: `https://downloads.dumosrx.com`,
+    linux: `https://downloads.dumosrx.com`,
+    android: `https://downloads.dumosrx.com`,
     version: APP_VERSION,
     winSize: "---",
     macSize: "---",

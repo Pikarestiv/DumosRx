@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api\Public;
 
 use App\Http\Controllers\Controller;
 use App\Models\Store;
-use App\Models\Medicine;
+use App\Models\Product;
 use Illuminate\Http\Request;
 
 class StorefrontController extends Controller
@@ -18,8 +18,8 @@ class StorefrontController extends Controller
             return response()->json(['error' => 'Store unavailable'], 403);
         }
 
-        // We fetch medicines that are active and marked to show online
-        $medicines = Medicine::with('category')
+        // We fetch products that are active and marked to show online
+        $products = Product::with('category')
             ->where('is_active', true)
             ->where('show_online', true)
             ->get();
@@ -32,7 +32,7 @@ class StorefrontController extends Controller
                 'phone' => $store->phone,
                 'email' => $store->email,
             ],
-            'products' => $medicines
+            'products' => $products
         ]);
     }
 }

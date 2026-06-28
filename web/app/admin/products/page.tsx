@@ -102,7 +102,7 @@ export default function GlobalProductsManagement() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-4xl font-black tracking-tight text-slate-900 dark:text-white">Global Products</h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium">Monitor product catalog and inventory trends platform-wide</p>
+          <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium">Monitor product catalog and stock_batch trends platform-wide</p>
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto mt-4 md:mt-0">
             <Button 

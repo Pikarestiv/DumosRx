@@ -15,7 +15,7 @@ import { useBIData } from "@/lib/hooks/use-bi-data";
 import { BIKeyMetrics } from "./bi-key-metrics";
 import { SalesAnalyticsTab } from "./sales-analytics-tab";
 import { ProfitLossTab } from "./profit-loss-tab";
-import { InventoryInsightsTab } from "./inventory-insights-tab";
+import { StockBatchInsightsTab } from "./stock-batch-insights-tab";
 import { CustomerBehaviorTab } from "./customer-behavior-tab";
 
 export function BusinessIntelligenceDashboard() {
@@ -24,17 +24,17 @@ export function BusinessIntelligenceDashboard() {
   const {
     totalRevenue,
     totalTransactions,
-    inventoryValue,
+    stock_batchValue,
     activeCustomers,
     monthlySalesData,
-    topSellingMedicines,
+    topSellingProducts,
     salesByCategory,
     formattedCategoryData,
     totalCogs,
     totalExpenses,
     grossProfit,
     netProfit,
-    inventoryAlerts,
+    stock_batchAlerts,
     purchasePatterns,
     liveCustomerMetrics,
   } = useBIData(timeRange);
@@ -68,7 +68,7 @@ export function BusinessIntelligenceDashboard() {
       <BIKeyMetrics
         totalRevenue={totalRevenue}
         totalTransactions={totalTransactions}
-        inventoryValue={inventoryValue}
+        stock_batchValue={stock_batchValue}
         activeCustomers={activeCustomers}
         netProfit={netProfit}
       />
@@ -79,7 +79,7 @@ export function BusinessIntelligenceDashboard() {
           <TabsList className="w-max bg-muted/50 p-1 flex">
             <TabsTrigger value="sales" className="px-6 shrink-0">Sales Analytics</TabsTrigger>
             <TabsTrigger value="profit-loss" className="px-6 shrink-0">Profit & Loss</TabsTrigger>
-            <TabsTrigger value="inventories" className="px-6 shrink-0">Inventory Insights</TabsTrigger>
+            <TabsTrigger value="stock_batches" className="px-6 shrink-0">Stock Batch Insights</TabsTrigger>
             <TabsTrigger value="customers" className="px-6 shrink-0">Customer Behavior</TabsTrigger>
           </TabsList>
         </div>
@@ -87,7 +87,7 @@ export function BusinessIntelligenceDashboard() {
         <TabsContent value="sales" className="space-y-6">
           <SalesAnalyticsTab 
             monthlySalesData={monthlySalesData}
-            topSellingMedicines={topSellingMedicines}
+            topSellingProducts={topSellingProducts}
             formattedCategoryData={formattedCategoryData}
           />
         </TabsContent>
@@ -103,9 +103,9 @@ export function BusinessIntelligenceDashboard() {
           />
         </TabsContent>
 
-        <TabsContent value="inventories" className="space-y-6">
-          <InventoryInsightsTab 
-            inventoryAlerts={inventoryAlerts}
+        <TabsContent value="stock_batches" className="space-y-6">
+          <StockBatchInsightsTab 
+            stock_batchAlerts={stock_batchAlerts}
             salesByCategory={salesByCategory}
           />
         </TabsContent>

@@ -3,7 +3,7 @@
  * Database Schema SQL
  */
 export const SCHEMA_SQL = `
-CREATE TABLE IF NOT EXISTS medicines (
+CREATE TABLE IF NOT EXISTS products (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   generic_name TEXT,
@@ -21,18 +21,14 @@ CREATE TABLE IF NOT EXISTS medicines (
   contraindications TEXT,
   side_effects TEXT,
   storage_conditions TEXT,
-  cost_price REAL DEFAULT 0,
   selling_price REAL DEFAULT 0,
   markup_percentage REAL DEFAULT 0,
-  stock_quantity INTEGER DEFAULT 0,
   reorder_level INTEGER DEFAULT 10,
   requires_prescription INTEGER DEFAULT 0,
   is_controlled INTEGER DEFAULT 0,
   is_active INTEGER DEFAULT 1,
   show_online INTEGER DEFAULT 0,
   barcode TEXT,
-  expiry_date TEXT,
-  batch_number TEXT,
   base_unit TEXT DEFAULT 'Unit',
   bulk_unit TEXT,
   units_per_bulk INTEGER DEFAULT 1,
@@ -45,14 +41,15 @@ CREATE TABLE IF NOT EXISTS medicines (
   _deleted INTEGER DEFAULT 0
 );
 
-CREATE TABLE IF NOT EXISTS inventories (
+CREATE TABLE IF NOT EXISTS stock_batches (
   id TEXT PRIMARY KEY,
-  medicine_id TEXT NOT NULL,
+  product_id TEXT NOT NULL,
   batch_number TEXT,
   expiry_date TEXT,
   quantity INTEGER DEFAULT 0,
   cost_price REAL,
-  selling_price REAL,
+  supplier_id TEXT,
+  manufacture_date TEXT,
   location TEXT,
   is_active INTEGER DEFAULT 1,
   created_at TEXT,
@@ -135,8 +132,8 @@ CREATE TABLE IF NOT EXISTS sales (
 CREATE TABLE IF NOT EXISTS sale_items (
   id TEXT PRIMARY KEY,
   sale_id TEXT NOT NULL,
-  medicine_id TEXT NOT NULL,
-  inventory_id TEXT,
+  product_id TEXT NOT NULL,
+  stock_batch_id TEXT,
   quantity INTEGER NOT NULL,
   unit_price REAL NOT NULL,
   cost_price REAL DEFAULT 0,
@@ -178,7 +175,7 @@ CREATE TABLE IF NOT EXISTS prescriptions (
 CREATE TABLE IF NOT EXISTS prescription_items (
   id TEXT PRIMARY KEY,
   prescription_id TEXT NOT NULL,
-  medicine_name TEXT NOT NULL,
+  product_name TEXT NOT NULL,
   strength TEXT,
   dosage TEXT,
   quantity INTEGER,
@@ -214,7 +211,7 @@ CREATE TABLE IF NOT EXISTS returns (
 CREATE TABLE IF NOT EXISTS return_items (
   id TEXT PRIMARY KEY,
   return_id TEXT NOT NULL,
-  medicine_id TEXT NOT NULL,
+  product_id TEXT NOT NULL,
   quantity INTEGER NOT NULL,
   unit_price REAL NOT NULL,
   subtotal REAL NOT NULL,
@@ -374,7 +371,7 @@ CREATE TABLE IF NOT EXISTS purchase_orders (
 CREATE TABLE IF NOT EXISTS purchase_order_items (
   id TEXT PRIMARY KEY,
   po_id TEXT NOT NULL,
-  medicine_id TEXT NOT NULL,
+  product_id TEXT NOT NULL,
   bulk_quantity INTEGER NOT NULL,
   units_per_bulk INTEGER NOT NULL,
   unit_cost REAL NOT NULL,
@@ -406,7 +403,7 @@ CREATE TABLE IF NOT EXISTS suppliers (
 );
 CREATE TABLE IF NOT EXISTS stock_audits (
   id TEXT PRIMARY KEY,
-  medicine_id TEXT NOT NULL,
+  product_id TEXT NOT NULL,
   expected_quantity INTEGER NOT NULL,
   actual_quantity INTEGER NOT NULL,
   difference INTEGER NOT NULL,
@@ -465,8 +462,8 @@ CREATE TABLE IF NOT EXISTS feedback (
 
 CREATE TABLE IF NOT EXISTS stock_movements (
   id TEXT PRIMARY KEY,
-  inventory_id TEXT,
-  medicine_id TEXT NOT NULL,
+  stock_batch_id TEXT,
+  product_id TEXT NOT NULL,
   movement_type TEXT NOT NULL,
   quantity INTEGER NOT NULL,
   unit_cost REAL,

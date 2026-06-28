@@ -3,7 +3,7 @@
 import { useCallback } from "react";
 import {
   fetchSalesReportData,
-  fetchInventoryReportData,
+  fetchStockBatchReportData,
   fetchProfitLossReportData,
   fetchCustomerReportData,
   fetchExpensesReportData,
@@ -74,14 +74,14 @@ export function useReportExport() {
     saveToRecent(filename, "Sales Report", bytes);
   }, []);
 
-  const exportInventoryReport = useCallback(async () => {
-    const rows = await fetchInventoryReportData();
-    const headers = ["Medicine", "Generic Name", "Form", "Strength", "Stock Qty", "Reorder Level", "Cost Price", "Selling Price", "Stock Value", "Nearest Expiry"];
+  const exportStockBatchReport = useCallback(async () => {
+    const rows = await fetchStockBatchReportData();
+    const headers = ["Product", "Generic Name", "Form", "Strength", "Stock Qty", "Reorder Level", "Cost Price", "Selling Price", "Stock Value", "Nearest Expiry"];
     const csv = formatCsv(headers, rows);
     const dateStr = new Date().toISOString().slice(0, 10);
-    const filename = `Inventory_Report_${dateStr}.csv`;
+    const filename = `StockBatch_Report_${dateStr}.csv`;
     const bytes = triggerDownload(csv, filename);
-    saveToRecent(filename, "Inventory Report", bytes);
+    saveToRecent(filename, "Stock Batch Report", bytes);
   }, []);
 
   const exportProfitLossReport = useCallback(async (dateFrom?: string, dateTo?: string) => {
@@ -124,7 +124,7 @@ export function useReportExport() {
 
   return {
     exportSalesReport,
-    exportInventoryReport,
+    exportStockBatchReport,
     exportProfitLossReport,
     exportCustomerReport,
     exportExpensesReport,

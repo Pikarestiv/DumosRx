@@ -21,14 +21,14 @@ interface MobileBottomNavProps {
 
 export function MobileBottomNav({ onOpenFeedback }: MobileBottomNavProps) {
   const pathname = usePathname();
-  const { storeType } = useStore();
+  const { storeType, t } = useStore();
   const [moreDrawerOpen, setMoreDrawerOpen] = useState(false);
 
   const primaryTabs = [
     { name: "Home", href: "/dashboard", icon: LayoutDashboard },
     { name: "POS", href: "/pos", icon: ShoppingCart },
     {
-      name: "Inventory",
+      name: t("products"),
       href: "/inventory",
       icon: storeType === "pharmacy" ? Pill : ShoppingBasket,
     },

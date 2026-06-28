@@ -1,23 +1,23 @@
 {
-  "version": "0.0.18",
-  "notes": "DumosRx Production Release v0.0.18. Added mobile swipe-to-navigate and fixed safe area paddings.",
-  "pub_date": "2026-06-01T19:10:00Z",
+  "version": "0.0.20",
+  "notes": "DumosRx Production Release v0.0.20. Standardized store owner roles and schemas.",
+  "pub_date": "2026-06-27T18:00:00Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "REPLACE_WITH_WINDOWS_SIG",
-      "url": "https://github.com/Pikarestiv/DumosRx/releases/download/v0.0.18/DumosRx_0.0.18_x64_en-US.msi"
+      "signature": "",
+      "url": "https://downloads.dumosrx.com/v0.0.20/DumosRx_0.0.20_x64_en-US.msi"
     },
     "darwin-aarch64": {
-      "signature": "REPLACE_WITH_MAC_ARM_SIG",
-      "url": "https://github.com/Pikarestiv/DumosRx/releases/download/v0.0.18/DumosRx_0.0.18_aarch64.dmg"
+      "signature": "",
+      "url": "https://downloads.dumosrx.com/v0.0.20/DumosRx_0.0.20_aarch64.dmg"
     },
     "darwin-x86_64": {
-      "signature": "REPLACE_WITH_MAC_INTEL_SIG",
-      "url": "https://github.com/Pikarestiv/DumosRx/releases/download/v0.0.18/DumosRx_0.0.18_x64.dmg"
+      "signature": "",
+      "url": "https://downloads.dumosrx.com/v0.0.20/DumosRx_0.0.20_x64.dmg"
     },
     "linux-x86_64": {
-      "signature": "REPLACE_WITH_LINUX_SIG",
-      "url": "https://github.com/Pikarestiv/DumosRx/releases/download/v0.0.18/DumosRx_0.0.18_amd64.AppImage"
+      "signature": "",
+      "url": "https://downloads.dumosrx.com/v0.0.20/DumosRx_0.0.20_amd64.AppImage"
     }
   }
 }

@@ -1,12 +1,12 @@
 export interface ParsedIIF {
-  medicines: any[];
+  products: any[];
   customers: any[];
 }
 
 export function parseIIF(fileContent: string): ParsedIIF {
   const lines = fileContent.split('\n').map(l => l.trim()).filter(Boolean);
   
-  const medicines = [];
+  const products = [];
   const customers = [];
 
   let currentMode = '';
@@ -43,7 +43,7 @@ export function parseIIF(fileContent: string): ParsedIIF {
       const barcode = rowData['BARCODE'] || rowData['ALUP'] || rowData['UPC'] || '';
 
       if (name !== 'Unknown Item') {
-        medicines.push({
+        products.push({
           id: `qb_${crypto.randomUUID()}`,
           name,
           generic_name: '',
@@ -86,5 +86,5 @@ export function parseIIF(fileContent: string): ParsedIIF {
     }
   }
 
-  return { medicines, customers };
+  return { products, customers };
 }

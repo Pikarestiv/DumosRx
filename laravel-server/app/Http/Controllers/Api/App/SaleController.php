@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Api\App;
 use App\Http\Controllers\Controller;
 use App\Models\Sale;
 use App\Models\SaleItem;
-use App\Models\Inventory;
+use App\Models\StockBatch;
 use App\Models\User;
 use App\Models\Store;
 use Illuminate\Http\Request;
@@ -37,7 +37,7 @@ class SaleController extends Controller
     {
         $request->validate([
             'items' => 'required|array',
-            'items.*.medicine_id' => 'required|exists:medicines,id',
+            'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|integer|min:1',
             'payment_method' => 'required|string',
             'customer_id' => 'nullable|exists:customers,id',
@@ -61,8 +61,8 @@ class SaleController extends Controller
 
             foreach ($request->items as $item) {
                 // Get price scoped to tenant inventory
-                $inventory = Inventory::where('user_id', $tenantId)
-                    ->where('medicine_id', $item['medicine_id'])
+                $inventory = StockBatch::where('user_id', $tenantId)
+                    ->where('product_id', $item['product_id'])
                     ->first(); 
                 
                 $price = 0; 
@@ -70,7 +70,7 @@ class SaleController extends Controller
                 
                 // Create Item
                 $saleItem = new SaleItem([
-                    'medicine_id' => $item['medicine_id'],
+                    'product_id' => $item['product_id'],
                     'quantity' => $item['quantity'],
                     'unit_price' => $item['unit_price'] ?? 0, 
                     'subtotal' => ($item['unit_price'] ?? 0) * $item['quantity']
@@ -115,7 +115,7 @@ class SaleController extends Controller
         ]);
     }
 
-    public function topMedicines(Request $request)
+    public function topProducts(Request $request)
     {
         $limit = $request->get('limit', 10);
         $user = $request->user();
@@ -129,10 +129,10 @@ class SaleController extends Controller
 
         $topWithNames = DB::table('sale_items')
             ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
-            ->join('medicines', 'sale_items.medicine_id', '=', 'medicines.id')
+            ->join('products', 'sale_items.product_id', '=', 'products.id')
             ->whereIn('sales.cashier_id', $userIds)
-            ->select('medicines.name', DB::raw('SUM(sale_items.quantity) as total_quantity'))
-            ->groupBy('medicines.id', 'medicines.name')
+            ->select('products.name', DB::raw('SUM(sale_items.quantity) as total_quantity'))
+            ->groupBy('products.id', 'products.name')
             ->orderByDesc('total_quantity')
             ->limit($limit)
             ->get();

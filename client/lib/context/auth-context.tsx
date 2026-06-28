@@ -4,13 +4,22 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import { query, setCurrentUser as setDbUser } from "@/lib/db/local-database";
 import { apiClient } from "@/lib/api/client";
 
-interface User {
+export interface User {
   id: string;
   first_name: string;
   last_name: string;
   username: string;
-  role: "super_admin" | "admin" | "manager" | "specialist" | "sales_staff" | "auditor";
+  role: "super_admin" | "store_owner" | "admin" | "manager" | "specialist" | "sales_staff" | "auditor";
   store_id?: string;
+}
+
+export interface RecentUser {
+  id: string;
+  first_name: string;
+  last_name: string;
+  username: string;
+  role: string;
+  last_login: string;
 }
 
 interface AuthContextType {
@@ -19,7 +28,7 @@ interface AuthContextType {
   logout: () => void;
   isAuthenticated: boolean;
   isAdmin: boolean;
-  canManageInventory: boolean;
+  canManageStockBatch: boolean;
   canProcessSales: boolean;
   changePin: (currentPin: string, newPin: string) => Promise<{ success: boolean; message: string }>;
   linkCloudAccount: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
@@ -32,7 +41,7 @@ export const checkIsAdmin = (role?: string) => {
   return normalizedRole.includes("admin") || normalizedRole.includes("manager") || normalizedRole.includes("storeowner");
 };
 
-export const checkCanManageInventory = (role?: string) => {
+export const checkCanManageStockBatch = (role?: string) => {
   if (!role) return false;
   const normalizedRole = role.toLowerCase().replace(/[^a-z_]/g, "");
   return ["admin", "manager", "specialist", "store_owner"].includes(normalizedRole);
@@ -100,6 +109,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(userProfile);
       setDbUser(userProfile);
       localStorage.setItem("dumos_user", JSON.stringify(userProfile));
+
+      // Update recent users list
+      const recentUsersStr = localStorage.getItem("dumos_recent_users");
+      let recentUsers: RecentUser[] = recentUsersStr ? JSON.parse(recentUsersStr) : [];
+      
+      const recentUser: RecentUser = {
+        id: userProfile.id,
+        first_name: userProfile.first_name,
+        last_name: userProfile.last_name,
+        username: userProfile.username,
+        role: userProfile.role,
+        last_login: new Date().toISOString(),
+      };
+
+      recentUsers = recentUsers.filter((u) => u.id !== recentUser.id);
+      recentUsers.unshift(recentUser);
+      if (recentUsers.length > 5) recentUsers = recentUsers.slice(0, 5); // Keep last 5
+
+      localStorage.setItem("dumos_recent_users", JSON.stringify(recentUsers));
+      
       return true;
     }
     
@@ -126,6 +155,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(defaultAdmin);
       setDbUser(defaultAdmin);
       localStorage.setItem("dumos_user", JSON.stringify(defaultAdmin));
+
+      // Update recent users list for default admin
+      const recentUsersStr = localStorage.getItem("dumos_recent_users");
+      let recentUsers: RecentUser[] = recentUsersStr ? JSON.parse(recentUsersStr) : [];
+      
+      const recentUser: RecentUser = {
+        id: defaultAdmin.id,
+        first_name: defaultAdmin.first_name,
+        last_name: defaultAdmin.last_name,
+        username: defaultAdmin.username,
+        role: defaultAdmin.role,
+        last_login: new Date().toISOString(),
+      };
+
+      recentUsers = recentUsers.filter((u) => u.id !== recentUser.id);
+      recentUsers.unshift(recentUser);
+      if (recentUsers.length > 5) recentUsers = recentUsers.slice(0, 5); // Keep last 5
+
+      localStorage.setItem("dumos_recent_users", JSON.stringify(recentUsers));
+
       return true;
     }
 
@@ -181,7 +230,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const isAdmin = user ? checkIsAdmin(user.role) : false;
-  const canManageInventory = user ? checkCanManageInventory(user.role) : false;
+  const canManageStockBatch = user ? checkCanManageStockBatch(user.role) : false;
   const canProcessSales = user ? checkCanProcessSales(user.role) : false;
 
   return (
@@ -192,7 +241,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         logout,
         isAuthenticated: !!user,
         isAdmin,
-        canManageInventory,
+        canManageStockBatch,
         canProcessSales,
         changePin,
         linkCloudAccount,

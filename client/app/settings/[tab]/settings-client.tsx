@@ -36,6 +36,8 @@ export default function SettingsPage() {
     handleTabChange,
     isCloudLinkOpen,
     setIsCloudLinkOpen,
+    syncAfterLink,
+    setSyncAfterLink,
     isDesktop,
     currentPin,
     setCurrentPin,
@@ -281,6 +283,7 @@ export default function SettingsPage() {
                   handleRestoreBackup={handleRestoreBackup}
                   handleResetDatabase={handleResetDatabase}
                   setIsCloudLinkOpen={setIsCloudLinkOpen}
+                  setSyncAfterLink={setSyncAfterLink}
                 />
               </TabsContent>
             )}
@@ -315,7 +318,11 @@ export default function SettingsPage() {
       <CloudLinkDialog
         open={isCloudLinkOpen}
         onOpenChange={setIsCloudLinkOpen}
-        onSuccess={handleSync}
+        onSuccess={() => {
+          if (syncAfterLink) {
+            handleSync(true);
+          }
+        }}
       />
     </DashboardLayout>
   );

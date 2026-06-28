@@ -167,6 +167,9 @@ jobs:
     needs: [release, release-android]
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
       - name: Download all release assets
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -188,13 +191,13 @@ jobs:
           
           # Replace GitHub release URLs with Namecheap subdomain URLs
           # from https://github.com/Pikarestiv/DumosRx/releases/download/v0.0.18/DumosRx_0.0.18_x64_en-US.msi.zip
-          # to https://downloads.dumosrx.com/DumosRx_0.0.18_x64_en-US.msi.zip
+          # to https://downloads.dumosrx.com/v0.0.18/DumosRx_0.0.18_x64_en-US.msi.zip
           node -e "
             const fs = require('fs');
             const data = fs.readFileSync('$UPDATER_FILE', 'utf8');
             // Regex to match github releases download url
             const regex = /https:\/\/github\.com\/[^/]+\/[^/]+\/releases\/download\/[^/]+\//g;
-            const replaced = data.replace(regex, 'https://downloads.dumosrx.com/');
+            const replaced = data.replace(regex, 'https://downloads.dumosrx.com/${{ github.ref_name }}/');
             fs.writeFileSync('updater.json', replaced);
             if ('$UPDATER_FILE' !== 'updater.json') {
               fs.unlinkSync('$UPDATER_FILE');
@@ -202,12 +205,33 @@ jobs:
           "
           echo "Updated updater.json:"
           cat updater.json
+          
+      - name: Separate root files from binaries
+        run: |
+          mkdir -p root-assets
+          if [ -f "release-assets/updater.json" ]; then
+            mv release-assets/updater.json root-assets/
+          else
+            echo "Warning: release-assets/updater.json not found! Skipping move."
+          fi
+          cp .github/downloads-index.php root-assets/index.php
 
-      - name: FTP Deploy to Namecheap
+      - name: FTP Deploy Binaries to Version Folder
         uses: SamKirkland/FTP-Deploy-Action@v4.3.4
         with:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: ./release-assets/
+          server-dir: /downloads.dumosrx.com/${{ github.ref_name }}/
+          state-name: .ftp-deploy-sync-state-${{ github.ref_name }}.json
+
+      - name: FTP Deploy Root Files
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./root-assets/
           server-dir: /downloads.dumosrx.com/
+          state-name: .ftp-deploy-sync-state-root.json

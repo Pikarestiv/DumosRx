@@ -10,6 +10,7 @@ import {
   Download,
   Bell,
   Shield,
+  MessageSquarePlus,
 } from "lucide-react";
 import {
   Tooltip,
@@ -41,6 +42,7 @@ export function Sidebar({
     { id: "billing", name: "Subscription", icon: CreditCard },
     { id: "downloads", name: "App Downloads", icon: Download },
     { id: "profile", name: "Account Security", icon: Shield },
+    { id: "support", name: "Support", icon: MessageSquarePlus },
   ];
 
   const renderSidebar = (_isMobile: boolean) => (

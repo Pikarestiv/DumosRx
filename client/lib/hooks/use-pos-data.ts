@@ -1,7 +1,7 @@
 import { useLocalData } from "@/lib/db/hooks/useLocalData";
 import { useAuthStore } from "@/lib/auth/store";
 
-export interface Medicine {
+export interface Product {
   id: string;
   name: string;
   generic_name: string;
@@ -30,11 +30,11 @@ export function usePOSData() {
   const userFilterAliasS = isRestrictedRole && user?.id ? ` AND s.user_id = '${user.id}'` : "";
 
   const {
-    data: medicines,
-    loading: loadingMedicines,
-    refetch: refetchMedicines,
-  } = useLocalData<Medicine>(
-    "SELECT * FROM medicines WHERE _deleted = 0 ORDER BY name ASC",
+    data: products,
+    loading: loadingProducts,
+    refetch: refetchProducts,
+  } = useLocalData<Product>(
+    "SELECT p.*, COALESCE(SUM(sb.quantity), 0) as stock_quantity, GROUP_CONCAT(sb.batch_number, ', ') as batch_number FROM products p LEFT JOIN stock_batches sb ON p.id = sb.product_id AND sb._deleted = 0 AND sb.is_active = 1 WHERE p._deleted = 0 GROUP BY p.id ORDER BY p.name ASC",
     [],
     {
       transform: (m: any) => ({
@@ -58,17 +58,17 @@ export function usePOSData() {
   );
 
   const { data: recentlySoldData } = useLocalData<any>(
-    "SELECT DISTINCT medicine_id FROM sale_items ORDER BY created_at DESC LIMIT 8",
+    "SELECT DISTINCT product_id FROM sale_items ORDER BY created_at DESC LIMIT 8",
   );
 
   const { data: commonlySoldData } = useLocalData<any>(
-    "SELECT medicine_id, SUM(quantity) as total_qty FROM sale_items GROUP BY medicine_id ORDER BY total_qty DESC LIMIT 8",
+    "SELECT product_id, SUM(quantity) as total_qty FROM sale_items GROUP BY product_id ORDER BY total_qty DESC LIMIT 8",
   );
 
   const recentlySoldIds =
-    recentlySoldData?.map((item: any) => item.medicine_id) || [];
+    recentlySoldData?.map((item: any) => item.product_id) || [];
   const commonlySoldIds =
-    commonlySoldData?.map((item: any) => item.medicine_id) || [];
+    commonlySoldData?.map((item: any) => item.product_id) || [];
 
   const { data: customers, loading: loadingCustomers } = useLocalData<Customer>(
     "SELECT * FROM customers WHERE _deleted = 0 ORDER BY first_name ASC",
@@ -90,9 +90,9 @@ export function usePOSData() {
   );
 
   return {
-    medicines,
-    loadingMedicines,
-    refetchMedicines,
+    products,
+    loadingProducts,
+    refetchProducts,
     recentSales,
     refetchSales,
     recentlySoldIds,

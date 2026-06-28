@@ -1,7 +1,7 @@
 /* eslint-disable max-lines */
 export const FORM_SUGGESTIONS = {
-  "store": {
-    "names": [
+  store: {
+    names: [
       "Advil",
       "Albenda",
       "Albendazole",
@@ -136,9 +136,9 @@ export const FORM_SUGGESTIONS = {
       "Zinacef",
       "Zinnat",
       "Zithromax",
-      "Zyrtec"
+      "Zyrtec",
     ],
-    "generics": [
+    generics: [
       "Acetaminophen",
       "Albendazole",
       "Amlodipine",
@@ -196,9 +196,9 @@ export const FORM_SUGGESTIONS = {
       "Simvastatin",
       "Spironolactone",
       "Tetracycline",
-      "Vitamin B12"
+      "Vitamin B12",
     ],
-    "strengths": [
+    strengths: [
       "IU",
       "mcg",
       "percentage (%)",
@@ -252,9 +252,9 @@ export const FORM_SUGGESTIONS = {
       "2g",
       "3g",
       "4g",
-      "5g"
+      "5g",
     ],
-    "categories": [
+    categories: [
       "Analgesics",
       "Antacids",
       "Anthelmintics",
@@ -281,9 +281,9 @@ export const FORM_SUGGESTIONS = {
       "Laxatives",
       "Medical Devices",
       "Surgicals",
-      "Vitamins & Supplements"
+      "Vitamins & Supplements",
     ],
-    "dosageForms": [
+    dosageForms: [
       "Caplet",
       "Capsule",
       "Cream",
@@ -306,9 +306,9 @@ export const FORM_SUGGESTIONS = {
       "Suppository",
       "Suspension",
       "Syrup",
-      "Tablet"
+      "Tablet",
     ],
-    "manufacturers": [
+    manufacturers: [
       "AstraZeneca",
       "Bayer",
       "Bond Chemical",
@@ -346,11 +346,11 @@ export const FORM_SUGGESTIONS = {
       "Triveni",
       "Unique Pharma",
       "Vanguard Store",
-      "Zolon Healthcare"
-    ]
+      "Zolon Healthcare",
+    ],
   },
-  "retail": {
-    "names": [
+  retail: {
+    names: [
       "7Up",
       "Air Wick",
       "Always Sanitary Pad",
@@ -411,10 +411,10 @@ export const FORM_SUGGESTIONS = {
       "Sprite",
       "Sunlight Detergent",
       "Three Crowns Milk",
-      "Viju Milk"
+      "Viju Milk",
     ],
-    "generics": [],
-    "strengths": [
+    generics: [],
+    strengths: [
       "Economy",
       "Family Pack",
       "Large",
@@ -442,9 +442,9 @@ export const FORM_SUGGESTIONS = {
       "5kg",
       "10kg",
       "25kg",
-      "50kg"
+      "50kg",
     ],
-    "categories": [
+    categories: [
       "Baby Products",
       "Beverages",
       "Cereals",
@@ -464,10 +464,10 @@ export const FORM_SUGGESTIONS = {
       "Soft Drinks",
       "Stationery",
       "Toiletries",
-      "Water"
+      "Water",
     ],
-    "dosageForms": [],
-    "manufacturers": [
+    dosageForms: [],
+    manufacturers: [
       "Beloxxi Industries",
       "BUA Group",
       "Cadbury Nigeria",
@@ -486,11 +486,11 @@ export const FORM_SUGGESTIONS = {
       "PZ Cussons",
       "Tolaram Group",
       "Unilever Nigeria",
-      "Yale Foods"
-    ]
+      "Yale Foods",
+    ],
   },
-  "common": {
-    "units": [
+  common: {
+    units: [
       "Ampoule",
       "Bag",
       "Bottle",
@@ -512,9 +512,9 @@ export const FORM_SUGGESTIONS = {
       "Tin",
       "Tray",
       "Tube",
-      "Vial"
+      "Vial",
     ],
-    "locations": [
+    locations: [
       "Aba",
       "Abakaliki",
       "Abeokuta",
@@ -597,9 +597,9 @@ export const FORM_SUGGESTIONS = {
       "Uyo",
       "Warri",
       "Yola",
-      "Zaria"
+      "Zaria",
     ],
-    "states": [
+    states: [
       "Abia State",
       "Adamawa State",
       "Akwa Ibom State",
@@ -636,7 +636,52 @@ export const FORM_SUGGESTIONS = {
       "Sokoto State",
       "Taraba State",
       "Yobe State",
-      "Zamfara State"
-    ]
-  }
+      "Zamfara State",
+    ],
+  },
 };
+
+export const NIGERIAN_BANKS = [
+  "Access Bank",
+  "ALAT by WEMA",
+  "Carbon",
+  "Citibank Nigeria",
+  "Ecobank Nigeria",
+  "FairMoney",
+  "Fidelity Bank",
+  "First Bank of Nigeria",
+  "First City Monument Bank (FCMB)",
+  "Globus Bank",
+  "Guaranty Trust Bank (GTB)",
+  "Heritage Bank",
+  "Jaiz Bank",
+  "Keystone Bank",
+  "Kuda Bank",
+  "Lotus Bank",
+  "Moniepoint",
+  "Opay",
+  "Optimus Bank",
+  "Palmpay",
+  "Parallex Bank",
+  "Paga",
+  "Pocket App",
+  "Polaris Bank",
+  "PremiumTrust Bank",
+  "Providus Bank",
+  "PiggyVest",
+  "Rand Merchant Bank",
+  "Rubies Bank",
+  "Signature Bank",
+  "Stanbic IBTC Bank",
+  "Standard Chartered Bank",
+  "Sterling Bank",
+  "SunTrust Bank",
+  "TAJBank",
+  "Titan Trust Bank",
+  "Union Bank of Nigeria",
+  "United Bank for Africa (UBA)",
+  "Unity Bank",
+  "VFD Microfinance Bank",
+  "Wema Bank",
+  "Zenith Bank",
+];

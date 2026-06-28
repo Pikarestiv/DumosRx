@@ -26,7 +26,7 @@ import { useState } from "react";
 
 interface SalesAnalyticsTabProps {
   monthlySalesData: any[];
-  topSellingMedicines: {
+  topSellingProducts: {
     revenue: any[];
     quantity: any[];
   };
@@ -35,11 +35,11 @@ interface SalesAnalyticsTabProps {
 
 export function SalesAnalyticsTab({
   monthlySalesData,
-  topSellingMedicines,
+  topSellingProducts,
   formattedCategoryData
 }: SalesAnalyticsTabProps) {
   const [sortBy, setSortBy] = useState<"revenue" | "quantity">("revenue");
-  const medicines = (sortBy === "revenue" ? topSellingMedicines?.revenue : topSellingMedicines?.quantity) || [];
+  const products = (sortBy === "revenue" ? topSellingProducts?.revenue : topSellingProducts?.quantity) || [];
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -91,11 +91,11 @@ export function SalesAnalyticsTab({
           </CardContent>
         </Card>
 
-        {/* Top Selling Medicines */}
+        {/* Top Selling Products */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <div>
-              <CardTitle>Top Selling Medicines</CardTitle>
+              <CardTitle>Top Selling Products</CardTitle>
               <CardDescription>
                 Best performing products by {sortBy === "revenue" ? "revenue" : "quantity"}
               </CardDescription>
@@ -127,14 +127,14 @@ export function SalesAnalyticsTab({
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {medicines.length === 0 ? (
+              {products.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   No sales data available for this period.
                 </div>
               ) : (
-                medicines.map((medicine, index) => (
+                products.map((product, index) => (
                   <div
-                    key={medicine.name}
+                    key={product.name}
                     className="flex items-center justify-between"
                   >
                     <div className="flex items-center gap-3">
@@ -142,18 +142,18 @@ export function SalesAnalyticsTab({
                         {index + 1}
                       </div>
                       <div>
-                        <p className="font-medium">{medicine.name}</p>
+                        <p className="font-medium">{product.name}</p>
                         <p className="text-sm text-gray-500">
-                          {medicine.category}
+                          {product.category}
                         </p>
                       </div>
                     </div>
                     <div className="text-right">
                       <p className="font-medium">
-                        ₦{medicine.sales.toLocaleString()}
+                        ₦{product.sales.toLocaleString()}
                       </p>
                       <p className="text-sm text-gray-500">
-                        {medicine.units} units
+                        {product.units} units
                       </p>
                     </div>
                   </div>
@@ -169,7 +169,7 @@ export function SalesAnalyticsTab({
         <CardHeader>
           <CardTitle>Sales by Category</CardTitle>
           <CardDescription>
-            Revenue distribution across medicine categories
+            Revenue distribution across product categories
           </CardDescription>
         </CardHeader>
         <CardContent>

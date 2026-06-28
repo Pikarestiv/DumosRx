@@ -1,10 +1,5 @@
-import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
-import { InventoryManagement } from "@/components/inventory/inventory-management"
+import { redirect } from "next/navigation"
 
-export default function InventoryPage() {
-  return (
-    <DashboardLayout>
-      <InventoryManagement />
-    </DashboardLayout>
-  )
+export default function InventoryRootPage() {
+  redirect("/inventory/overview")
 }

@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useLocalData } from "@/lib/db/hooks/useLocalData";
-import { useInventoryAlerts } from "./use-inventory-alerts";
+import { useStockBatchAlerts } from "./use-stock-batch-alerts";
 import { usePurchasePatterns } from "./use-purchase-patterns";
 
 export function useBIData(externalTimeRange?: string) {
@@ -38,34 +38,36 @@ export function useBIData(externalTimeRange?: string) {
   // 1. Total Revenue
   const { data: revenueData } = useLocalData<{ total: number }>(
     `SELECT SUM(total_amount) as total FROM sales WHERE transaction_date >= ? AND (_deleted = 0 OR _deleted IS NULL)`,
-    [dateFilter]
+    [dateFilter],
   );
   const { data: totalRefundsData } = useLocalData<{ total: number }>(
     `SELECT SUM(total_refunded) as total FROM returns WHERE created_at >= ? AND (_deleted = 0 OR _deleted IS NULL)`,
-    [dateFilter]
+    [dateFilter],
   );
-  const totalRevenue = (revenueData[0]?.total || 0) - (totalRefundsData[0]?.total || 0);
+  const totalRevenue =
+    (revenueData[0]?.total || 0) - (totalRefundsData[0]?.total || 0);
 
   // 2. Total COGS
   const { data: cogsData } = useLocalData<{ total: number }>(
     `SELECT SUM(si.cost_price * si.quantity) as total FROM sale_items si
      JOIN sales s ON si.sale_id = s.id
      WHERE s.transaction_date >= ? AND (s._deleted = 0 OR s._deleted IS NULL)`,
-    [dateFilter]
+    [dateFilter],
   );
   const { data: returnedCogsData } = useLocalData<{ total: number }>(
     `SELECT SUM(ri.quantity * m.cost_price) as total FROM return_items ri
      JOIN returns r ON ri.return_id = r.id
-     LEFT JOIN medicines m ON ri.medicine_id = m.id
+     LEFT JOIN products m ON ri.product_id = m.id
      WHERE r.created_at >= ? AND (r._deleted = 0 OR r._deleted IS NULL)`,
-    [dateFilter]
+    [dateFilter],
   );
-  const totalCogs = (cogsData[0]?.total || 0) - (returnedCogsData[0]?.total || 0);
+  const totalCogs =
+    (cogsData[0]?.total || 0) - (returnedCogsData[0]?.total || 0);
 
   // 3. Total Expenses
   const { data: expensesData } = useLocalData<{ total: number }>(
     `SELECT SUM(amount) as total FROM expenses WHERE date >= ? AND _deleted = 0`,
-    [dateFilter]
+    [dateFilter],
   );
   const totalExpenses = expensesData[0]?.total || 0;
 
@@ -75,31 +77,34 @@ export function useBIData(externalTimeRange?: string) {
   // 4. Total Transactions
   const { data: transactionData } = useLocalData<{ count: number }>(
     `SELECT COUNT(*) as count FROM sales WHERE transaction_date >= ? AND _deleted = 0`,
-    [dateFilter]
+    [dateFilter],
   );
   const totalTransactions = transactionData[0]?.count || 0;
 
-  // 5. Inventory Value (local uses quantity column)
-  const { data: inventoryValueData } = useLocalData<{ value: number }>(
+  // 5. Stock Batch Value (local uses quantity column)
+  const { data: stock_batchValueData } = useLocalData<{ value: number }>(
     `SELECT SUM(inv.cost_price * inv.quantity) as value
-     FROM inventories inv WHERE inv._deleted = 0`
+     FROM stock_batches inv WHERE inv._deleted = 0 OR inv._deleted IS NULL`,
   );
-  const inventoryValue = inventoryValueData[0]?.value || 0;
+  const stock_batchValue = stock_batchValueData[0]?.value || 0;
 
   // 6. Active Customers
   const { data: customerData } = useLocalData<{ count: number }>(
-    `SELECT COUNT(*) as count FROM customers WHERE _deleted = 0`
+    `SELECT COUNT(*) as count FROM customers WHERE _deleted = 0`,
   );
   const activeCustomers = customerData[0]?.count || 0;
 
   // 7. Loyalty Members
   const { data: loyaltyData } = useLocalData<{ count: number }>(
-    `SELECT COUNT(*) as count FROM customers WHERE loyalty_points > 0 AND _deleted = 0`
+    `SELECT COUNT(*) as count FROM customers WHERE loyalty_points > 0 AND _deleted = 0`,
   );
   const loyaltyMembers = loyaltyData[0]?.count || 0;
 
   // 8. Customer Retention (customers who purchased more than once in the period)
-  const { data: retentionData } = useLocalData<{ returning: number; total: number }>(
+  const { data: retentionData } = useLocalData<{
+    returning: number;
+    total: number;
+  }>(
     `SELECT
       COUNT(DISTINCT CASE WHEN cnt > 1 THEN customer_id END) as returning,
       COUNT(DISTINCT customer_id) as total
@@ -109,7 +114,7 @@ export function useBIData(externalTimeRange?: string) {
        WHERE transaction_date >= ? AND _deleted = 0 AND customer_id IS NOT NULL
        GROUP BY customer_id
      )`,
-    [dateFilter]
+    [dateFilter],
   );
   const retentionRate = useMemo(() => {
     const r = retentionData[0];
@@ -122,21 +127,21 @@ export function useBIData(externalTimeRange?: string) {
   const { data: prevRevenueData } = useLocalData<{ total: number }>(
     `SELECT SUM(total_amount) as total FROM sales
      WHERE transaction_date >= ? AND transaction_date < ? AND _deleted = 0`,
-    [prevDateFilter, dateFilter]
+    [prevDateFilter, dateFilter],
   );
   const prevRevenue = prevRevenueData[0]?.total || 0;
 
   const { data: prevTransactionData } = useLocalData<{ count: number }>(
     `SELECT COUNT(*) as count FROM sales
      WHERE transaction_date >= ? AND transaction_date < ? AND _deleted = 0`,
-    [prevDateFilter, dateFilter]
+    [prevDateFilter, dateFilter],
   );
   const prevTransactions = prevTransactionData[0]?.count || 0;
 
   const { data: prevCustomerData } = useLocalData<{ count: number }>(
     `SELECT COUNT(*) as count FROM customers
      WHERE created_at >= ? AND created_at < ? AND _deleted = 0`,
-    [prevDateFilter, dateFilter]
+    [prevDateFilter, dateFilter],
   );
   const prevCustomers = prevCustomerData[0]?.count || 0;
 
@@ -159,7 +164,10 @@ export function useBIData(externalTimeRange?: string) {
     return activeCustomers;
   }, [activeCustomers]);
   const customerChange = pctChange(customersThisPeriod, prevCustomers);
-  const avgTransactionChange = pctChange(avgTransactionValue, prevAvgTransaction);
+  const avgTransactionChange = pctChange(
+    avgTransactionValue,
+    prevAvgTransaction,
+  );
 
   // ─── Monthly Sales Chart Data ──────────────────────────────────────────────
 
@@ -179,7 +187,7 @@ export function useBIData(externalTimeRange?: string) {
      WHERE s.transaction_date >= ? AND (s._deleted = 0 OR s._deleted IS NULL)
      GROUP BY strftime('%Y-%m', s.transaction_date)
      ORDER BY strftime('%Y-%m', s.transaction_date) ASC`,
-    [dateFilter]
+    [dateFilter],
   );
 
   const { data: rawMonthlyReturns } = useLocalData<{
@@ -193,29 +201,49 @@ export function useBIData(externalTimeRange?: string) {
       SUM(ri.quantity * m.cost_price) as returned_cogs
      FROM returns r
      LEFT JOIN return_items ri ON ri.return_id = r.id
-     LEFT JOIN medicines m ON ri.medicine_id = m.id
+     LEFT JOIN products m ON ri.product_id = m.id
      WHERE r.created_at >= ? AND (r._deleted = 0 OR r._deleted IS NULL)
      GROUP BY strftime('%Y-%m', r.created_at)
      ORDER BY strftime('%Y-%m', r.created_at) ASC`,
-    [dateFilter]
+    [dateFilter],
   );
 
-  const { data: rawExpenseData } = useLocalData<{ month: string; expenses: number }>(
+  const { data: rawExpenseData } = useLocalData<{
+    month: string;
+    expenses: number;
+  }>(
     `SELECT
       strftime('%Y-%m', date) as month,
       SUM(amount) as expenses
      FROM expenses
      WHERE date >= ? AND _deleted = 0
      GROUP BY strftime('%Y-%m', date)`,
-    [dateFilter]
+    [dateFilter],
   );
 
   const monthlySalesData = useMemo(() => {
-    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const monthNames = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
     return rawMonthlyData.map((item) => {
-      const exp = rawExpenseData.find((e) => e.month === item.month)?.expenses || 0;
-      const returns = rawMonthlyReturns.find((e) => e.month === item.month) || { refunds: 0, returned_cogs: 0 };
-      
+      const exp =
+        rawExpenseData.find((e) => e.month === item.month)?.expenses || 0;
+      const returns = rawMonthlyReturns.find((e) => e.month === item.month) || {
+        refunds: 0,
+        returned_cogs: 0,
+      };
+
       const netRevenue = item.revenue - (returns.refunds || 0);
       const netCogs = item.cogs - (returns.returned_cogs || 0);
 
@@ -240,7 +268,7 @@ export function useBIData(externalTimeRange?: string) {
     });
   }, [rawMonthlyData, rawExpenseData, rawMonthlyReturns]);
 
-  // ─── Top Selling Medicines ─────────────────────────────────────────────────
+  // ─── Top Selling Products ─────────────────────────────────────────────────
 
   const { data: topSellingByRevenue } = useLocalData<{
     name: string;
@@ -254,14 +282,14 @@ export function useBIData(externalTimeRange?: string) {
       SUM(si.quantity) as units,
       COALESCE(c.name, 'Uncategorized') as category
      FROM sale_items si
-     JOIN medicines m ON si.medicine_id = m.id
+     JOIN products m ON si.product_id = m.id
      LEFT JOIN categories c ON m.category_id = c.id
      JOIN sales s ON si.sale_id = s.id
      WHERE s.transaction_date >= ? AND s._deleted = 0
      GROUP BY m.id
      ORDER BY sales DESC
      LIMIT 5`,
-    [dateFilter]
+    [dateFilter],
   );
 
   const { data: topSellingByQuantity } = useLocalData<{
@@ -276,34 +304,40 @@ export function useBIData(externalTimeRange?: string) {
       SUM(si.quantity) as units,
       COALESCE(c.name, 'Uncategorized') as category
      FROM sale_items si
-     JOIN medicines m ON si.medicine_id = m.id
+     JOIN products m ON si.product_id = m.id
      LEFT JOIN categories c ON m.category_id = c.id
      JOIN sales s ON si.sale_id = s.id
      WHERE s.transaction_date >= ? AND s._deleted = 0
      GROUP BY m.id
      ORDER BY units DESC
      LIMIT 5`,
-    [dateFilter]
+    [dateFilter],
   );
 
-  const topSellingMedicines = useMemo(() => ({
-    revenue: topSellingByRevenue,
-    quantity: topSellingByQuantity,
-  }), [topSellingByRevenue, topSellingByQuantity]);
+  const topSellingProducts = useMemo(
+    () => ({
+      revenue: topSellingByRevenue,
+      quantity: topSellingByQuantity,
+    }),
+    [topSellingByRevenue, topSellingByQuantity],
+  );
 
   // ─── Sales by Category ─────────────────────────────────────────────────────
 
-  const { data: categoryDistribution } = useLocalData<{ name: string; value: number }>(
+  const { data: categoryDistribution } = useLocalData<{
+    name: string;
+    value: number;
+  }>(
     `SELECT
       COALESCE(c.name, 'Uncategorized') as name,
       SUM(si.total_price) as value
      FROM sale_items si
-     JOIN medicines m ON si.medicine_id = m.id
+     JOIN products m ON si.product_id = m.id
      LEFT JOIN categories c ON m.category_id = c.id
      JOIN sales s ON si.sale_id = s.id
      WHERE s.transaction_date >= ? AND s._deleted = 0
      GROUP BY COALESCE(c.name, 'Uncategorized')`,
-    [dateFilter]
+    [dateFilter],
   );
 
   const colors = ["#0ea5e9", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
@@ -314,9 +348,9 @@ export function useBIData(externalTimeRange?: string) {
     }));
   }, [categoryDistribution]);
 
-  // ─── Inventory Alerts ─────────────────────────────────────────────────────
+  // ─── Stock Batch Alerts ─────────────────────────────────────────────────────
 
-  const inventoryAlerts = useInventoryAlerts();
+  const stock_batchAlerts = useStockBatchAlerts();
 
   // ─── Customer Purchase Patterns by Time Slot ──────────────────────────────
 
@@ -324,32 +358,45 @@ export function useBIData(externalTimeRange?: string) {
 
   // ─── Customer Metrics with Real Changes ──────────────────────────────────
 
-  const liveCustomerMetrics = useMemo(() => [
-    {
-      metric: "Total Customers",
-      value: activeCustomers.toLocaleString(),
-      change: `${customerChange >= 0 ? "+" : ""}${customerChange}%`,
-      trend: customerChange >= 0 ? "up" : "down",
-    },
-    {
-      metric: "Loyalty Members",
-      value: loyaltyMembers.toLocaleString(),
-      change: loyaltyMembers > 0 ? `${Math.round((loyaltyMembers / Math.max(activeCustomers, 1)) * 100)}% of total` : "0%",
-      trend: "up",
-    },
-    {
-      metric: "Avg. Transaction",
-      value: `₦${Math.floor(avgTransactionValue).toLocaleString()}`,
-      change: `${avgTransactionChange >= 0 ? "+" : ""}${avgTransactionChange}%`,
-      trend: avgTransactionChange >= 0 ? "up" : "down",
-    },
-    {
-      metric: "Customer Retention",
-      value: `${retentionRate}%`,
-      change: retentionRate >= 50 ? "Healthy" : "Needs attention",
-      trend: retentionRate >= 50 ? "up" : "down",
-    },
-  ], [activeCustomers, loyaltyMembers, avgTransactionValue, avgTransactionChange, customerChange, retentionRate]);
+  const liveCustomerMetrics = useMemo(
+    () => [
+      {
+        metric: "Total Customers",
+        value: activeCustomers.toLocaleString(),
+        change: `${customerChange >= 0 ? "+" : ""}${customerChange}%`,
+        trend: customerChange >= 0 ? "up" : "down",
+      },
+      {
+        metric: "Loyalty Members",
+        value: loyaltyMembers.toLocaleString(),
+        change:
+          loyaltyMembers > 0
+            ? `${Math.round((loyaltyMembers / Math.max(activeCustomers, 1)) * 100)}% of total`
+            : "0%",
+        trend: "up",
+      },
+      {
+        metric: "Avg. Transaction",
+        value: `₦${Math.floor(avgTransactionValue).toLocaleString()}`,
+        change: `${avgTransactionChange >= 0 ? "+" : ""}${avgTransactionChange}%`,
+        trend: avgTransactionChange >= 0 ? "up" : "down",
+      },
+      {
+        metric: "Customer Retention",
+        value: `${retentionRate}%`,
+        change: retentionRate >= 50 ? "Healthy" : "Needs attention",
+        trend: retentionRate >= 50 ? "up" : "down",
+      },
+    ],
+    [
+      activeCustomers,
+      loyaltyMembers,
+      avgTransactionValue,
+      avgTransactionChange,
+      customerChange,
+      retentionRate,
+    ],
+  );
 
   return {
     timeRange,
@@ -362,16 +409,16 @@ export function useBIData(externalTimeRange?: string) {
     totalTransactions,
     avgTransactionValue,
     avgTransactionChange,
-    inventoryValue,
+    stock_batchValue,
     activeCustomers,
     customerChange,
     loyaltyMembers,
     retentionRate,
     monthlySalesData,
-    topSellingMedicines,
+    topSellingProducts,
     formattedCategoryData,
     salesByCategory: categoryDistribution,
-    inventoryAlerts,
+    stock_batchAlerts,
     purchasePatterns,
     liveCustomerMetrics,
     setInternalTimeRange,

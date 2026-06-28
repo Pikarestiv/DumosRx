@@ -37,6 +37,7 @@ export function useSettings() {
   const tabParam = params?.tab as string;
   const [activeTab, setActiveTab] = useState(tabParam || "appearance");
   const [isCloudLinkOpen, setIsCloudLinkOpen] = useState(false);
+  const [syncAfterLink, setSyncAfterLink] = useState(false);
   const [isDesktop, setIsDesktop] = useState(true);
 
   // Security State
@@ -289,8 +290,9 @@ export function useSettings() {
     }
   };
 
-  const handleSync = async () => {
-    if (!isCloudLinked) {
+  const handleSync = async (forceStart?: boolean | any) => {
+    if (!isCloudLinked && forceStart !== true) {
+      setSyncAfterLink(true);
       setIsCloudLinkOpen(true);
       return;
     }
@@ -363,6 +365,8 @@ export function useSettings() {
     handleTabChange,
     isCloudLinkOpen,
     setIsCloudLinkOpen,
+    syncAfterLink,
+    setSyncAfterLink,
     isDesktop,
     currentPin,
     setCurrentPin,

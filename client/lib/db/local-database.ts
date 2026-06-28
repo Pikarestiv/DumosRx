@@ -1,6 +1,6 @@
 /**
  * LocalDatabase - SQLite wrapper for offline-first operation
- * 
+ *
  * This file serves as the main entry point for database operations,
  * re-exporting core logic and specialized helpers.
  */
@@ -16,14 +16,26 @@ import { insert, update, softDelete } from "./base-helpers";
 // --- Specialized Domain Helpers ---
 
 /**
- * Medicines & Inventory
+ * Products & Stock Batch
  */
-export async function getMedicines(page = 1, limit = 50, search = "") {
+export async function getProducts(page = 1, limit = 50, search = "") {
   const offset = (page - 1) * limit;
-  let sql = `SELECT m.*, c.name as category_name, v.name as supplier_name 
-             FROM medicines m 
+  let sql = `SELECT m.*, c.name as category_name, v.name as supplier_name, 
+                    COALESCE(sb.total_qty, 0) as stock_quantity,
+                    sb.earliest_expiry as expiry_date,
+                    sb.batches as batch_number
+             FROM products m 
              LEFT JOIN categories c ON m.category_id = c.id 
              LEFT JOIN suppliers v ON m.supplier_id = v.id 
+             LEFT JOIN (
+               SELECT product_id, 
+                      SUM(quantity) as total_qty,
+                      MIN(expiry_date) as earliest_expiry,
+                      GROUP_CONCAT(batch_number, ', ') as batches
+               FROM stock_batches 
+               WHERE _deleted = 0 AND is_active = 1 
+               GROUP BY product_id
+             ) sb ON m.id = sb.product_id
              WHERE m._deleted = 0`;
   const params: any[] = [];
 
@@ -40,13 +52,30 @@ export async function getMedicines(page = 1, limit = 50, search = "") {
   return { data, page, limit };
 }
 
-export async function getMedicineById(id: string) {
-  const results = await query<any>("SELECT * FROM medicines WHERE id = ?", [id]);
+export async function getProductById(id: string) {
+  const results = await query<any>(
+    `SELECT p.*, 
+            COALESCE(sb.total_qty, 0) as stock_quantity,
+            sb.earliest_expiry as expiry_date,
+            sb.batches as batch_number
+     FROM products p 
+     LEFT JOIN (
+       SELECT product_id, 
+              SUM(quantity) as total_qty,
+              MIN(expiry_date) as earliest_expiry,
+              GROUP_CONCAT(batch_number, ', ') as batches
+       FROM stock_batches 
+       WHERE _deleted = 0 AND is_active = 1 
+       GROUP BY product_id
+     ) sb ON p.id = sb.product_id 
+     WHERE p.id = ?`,
+    [id],
+  );
   return results[0] || null;
 }
 
-export async function createMedicine(data: any) {
-  return await insert("medicines", data);
+export async function createProduct(data: any) {
+  return await insert("products", data);
 }
 
 /**
@@ -61,25 +90,19 @@ export async function createSale(saleData: any, items: any[]) {
       sale_id: saleId,
     });
 
-    // Update inventory quantity
-    if (item.inventory_id) {
+    // Update stock_batch quantity
+    if (item.stock_batch_id) {
       await execute(
-        "UPDATE inventories SET quantity = quantity - ? WHERE id = ?",
-        [item.quantity, item.inventory_id]
+        "UPDATE stock_batches SET quantity = quantity - ? WHERE id = ?",
+        [item.quantity, item.stock_batch_id],
       );
     }
-    
-    // Update main medicine stock
-    await execute(
-      "UPDATE medicines SET stock_quantity = stock_quantity - ? WHERE id = ?",
-      [item.quantity, item.medicine_id]
-    );
 
     // Log local stock movement
     await insert("stock_movements", {
       id: crypto.randomUUID(),
-      medicine_id: item.medicine_id,
-      inventory_id: item.inventory_id || null,
+      product_id: item.product_id,
+      stock_batch_id: item.stock_batch_id || null,
       movement_type: "sale",
       quantity: -Math.abs(item.quantity),
       unit_cost: item.cost_price || 0,
@@ -91,7 +114,7 @@ export async function createSale(saleData: any, items: any[]) {
       created_at: new Date().toISOString(),
       _version: 1,
       _synced: 0,
-      _deleted: 0
+      _deleted: 0,
     });
   }
 
@@ -102,7 +125,9 @@ export async function createSale(saleData: any, items: any[]) {
  * Customers
  */
 export async function getCustomers() {
-  return await query<any>("SELECT * FROM customers WHERE _deleted = 0 ORDER BY first_name ASC");
+  return await query<any>(
+    "SELECT * FROM customers WHERE _deleted = 0 ORDER BY first_name ASC",
+  );
 }
 
 /**
@@ -112,7 +137,7 @@ export async function getExpenses(page = 1, limit = 50) {
   const offset = (page - 1) * limit;
   const results = await query<any>(
     "SELECT * FROM expenses WHERE _deleted = 0 ORDER BY date DESC LIMIT ? OFFSET ?",
-    [limit, offset]
+    [limit, offset],
   );
   return { data: results, page, limit };
 }
@@ -143,11 +168,13 @@ export async function createPrescription(data: any, items: any[]) {
 export async function getUsers(storeId?: string | null) {
   if (storeId) {
     return await query<any>(
-      "SELECT * FROM users WHERE _deleted = 0 AND (store_id = ? OR store_id IS NULL OR role = 'admin' OR role = 'store_owner') ORDER BY first_name ASC", 
-      [storeId]
+      "SELECT * FROM users WHERE _deleted = 0 AND (store_id = ? OR store_id IS NULL OR role = 'admin' OR role = 'store_owner') ORDER BY first_name ASC",
+      [storeId],
     );
   }
-  return await query<any>("SELECT * FROM users WHERE _deleted = 0 ORDER BY first_name ASC");
+  return await query<any>(
+    "SELECT * FROM users WHERE _deleted = 0 ORDER BY first_name ASC",
+  );
 }
 
 export async function createUser(data: any) {
@@ -157,7 +184,7 @@ export async function createUser(data: any) {
     is_active: 1,
     created_at: new Date().toISOString(),
     _version: 1,
-    _synced: 0
+    _synced: 0,
   });
 }
 
@@ -175,13 +202,13 @@ export async function deleteUser(id: string) {
 export async function getStockMovements(page = 1, limit = 50) {
   const offset = (page - 1) * limit;
   const results = await query<any>(
-    `SELECT sm.*, m.name as medicine_name 
+    `SELECT sm.*, m.name as product_name 
      FROM stock_movements sm 
-     LEFT JOIN medicines m ON sm.medicine_id = m.id 
+     LEFT JOIN products m ON sm.product_id = m.id 
      WHERE sm._deleted = 0 
      ORDER BY sm.created_at DESC 
      LIMIT ? OFFSET ?`,
-    [limit, offset]
+    [limit, offset],
   );
   return { data: results, page, limit };
 }
@@ -189,19 +216,19 @@ export async function getStockMovements(page = 1, limit = 50) {
 export async function getStockAdjustments(page = 1, limit = 50) {
   const offset = (page - 1) * limit;
   const results = await query<any>(
-    `SELECT sm.*, m.name as medicine_name 
+    `SELECT sm.*, m.name as product_name 
      FROM stock_movements sm 
-     LEFT JOIN medicines m ON sm.medicine_id = m.id 
+     LEFT JOIN products m ON sm.product_id = m.id 
      WHERE sm._deleted = 0 AND sm.movement_type IN ('adjustment', 'expired', 'damaged') 
      ORDER BY sm.created_at DESC 
      LIMIT ? OFFSET ?`,
-    [limit, offset]
+    [limit, offset],
   );
   // Map fields to match what frontend expects
   const mapped = results.map((r: any) => ({
     ...r,
     adjustment_type: r.quantity > 0 ? "increase" : "decrease",
-    approved: 1
+    approved: 1,
   }));
   return { data: mapped, page, limit };
 }
@@ -212,32 +239,53 @@ export async function createStockMovement(data: any) {
     id: data.id || crypto.randomUUID(),
     created_at: new Date().toISOString(),
     _version: 1,
-    _synced: 0
+    _synced: 0,
   });
 }
 
 // Dev utility to force sync all tables
 export async function forceSyncAllData() {
   const tables = [
-    "medicines", "inventories", "categories", "customers", 
-    "sales", "sale_items", "prescriptions", "prescription_items", 
-    "returns", "return_items", "customer_payments", "stores", 
-    "expenses", "users", "audit_logs", "purchase_orders", "purchase_order_items", 
-    "suppliers", "stock_audits", "held_transactions", "loyalty_transactions", 
-    "feedback", "stock_movements", "payment_accounts", "system_configs"
+    "products",
+    "stock_batches",
+    "categories",
+    "customers",
+    "sales",
+    "sale_items",
+    "prescriptions",
+    "prescription_items",
+    "returns",
+    "return_items",
+    "customer_payments",
+    "stores",
+    "expenses",
+    "users",
+    "audit_logs",
+    "purchase_orders",
+    "purchase_order_items",
+    "suppliers",
+    "stock_audits",
+    "held_transactions",
+    "loyalty_transactions",
+    "feedback",
+    "stock_movements",
+    "payment_accounts",
+    "system_configs",
   ];
 
-  console.log("Marking all local data as un-synced and adding to sync queue...");
+  console.log(
+    "Marking all local data as un-synced and adding to sync queue...",
+  );
   let count = 0;
   await execute(`DELETE FROM _sync_queue`); // Clear existing queue to prevent duplicates
-  
+
   const now = new Date().toISOString();
 
   for (const table of tables) {
     try {
       await execute(`UPDATE ${table} SET _synced = 0`);
       const records = await query<any>(`SELECT * FROM ${table}`);
-      
+
       for (const record of records) {
         await execute(
           `INSERT INTO _sync_queue (table_name, record_id, operation, payload, created_at)
@@ -246,11 +294,13 @@ export async function forceSyncAllData() {
         );
         count++;
       }
-    } catch (e) {
+    } catch (_e) {
       // Table might not exist or error, ignore
     }
   }
-  console.log(`Successfully queued ${count} records for syncing. You can now press 'Sync' on the POS to push everything to the cloud.`);
+  console.log(
+    `Successfully queued ${count} records for syncing. You can now press 'Sync' on the POS to push everything to the cloud.`,
+  );
   return `Done! Queued ${count} records. You can now press 'Sync' on the POS to push everything to the cloud.`;
 }
 

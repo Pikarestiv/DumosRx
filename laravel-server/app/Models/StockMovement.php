@@ -11,9 +11,9 @@ class StockMovement extends Model
     use HasFactory, HasUuids;
 
     protected $fillable = [
-        'inventory_id', 'medicine_id', 'movement_type', 'quantity',
+        'stock_batch_id', 'product_id', 'movement_type', 'quantity',
         'unit_cost', 'total_cost', 'reference_id', 'reference_type',
-        'reason', 'performed_by', 'movement_date', '_synced_at'
+        'reason', 'performed_by', 'movement_date', '_synced_at',
     ];
 
     protected $casts = [
@@ -23,14 +23,14 @@ class StockMovement extends Model
         'total_cost' => 'decimal:2',
     ];
 
-    public function inventory()
+    public function stockBatch()
     {
-        return $this->belongsTo(Inventory::class);
+        return $this->belongsTo(StockBatch::class, 'stock_batch_id');
     }
 
-    public function medicine()
+    public function product()
     {
-        return $this->belongsTo(Medicine::class);
+        return $this->belongsTo(Product::class);
     }
 
     public function user()

@@ -8,7 +8,7 @@ import { useStore } from "@/lib/context/store-context";
 import { usePOSCart } from "@/lib/hooks/use-pos-cart";
 import { usePOSPayment } from "@/lib/hooks/use-pos-payment";
 import { useSmartSuggestions } from "@/hooks/use-smart-suggestions";
-import { searchMedicines } from "@/lib/utils/search";
+import { searchProducts } from "@/lib/utils/search";
 
 // UI Components
 import { POSHeader } from "./pos-header";
@@ -59,9 +59,9 @@ export function POSSystem() {
 
   // 1. Fetch Data
   const {
-    medicines,
-    loadingMedicines,
-    refetchMedicines,
+    products,
+    loadingProducts,
+    refetchProducts,
     recentSales,
     refetchSales,
     recentlySoldIds,
@@ -83,11 +83,11 @@ export function POSSystem() {
     tax,
     total,
     discount,
-  } = usePOSCart(medicines);
+  } = usePOSCart(products);
 
   // 3. Suggestions
   const { withRestriction } = useFeatureGate();
-  const { suggestions } = useSmartSuggestions(cart, medicines);
+  const { suggestions } = useSmartSuggestions(cart, products);
 
   // 4. Payment Config
   const requirePaymentAccount = storeProfile?.require_payment_account === 1;
@@ -103,7 +103,7 @@ export function POSSystem() {
   // 4.5. Dispense Prescription Logic
   const { dispensedRxId, setDispensedRxId } = usePOSPrescription({
     searchParams,
-    medicines,
+    products,
     cartLength: cart.length,
     restoreCart,
     router,
@@ -135,7 +135,7 @@ export function POSSystem() {
     discount,
     selectedCustomer,
     clearCart,
-    refetchMedicines,
+    refetchProducts,
     refetchSales,
     requirePaymentAccount,
     dispensedRxId,
@@ -165,16 +165,16 @@ export function POSSystem() {
       selectedCustomer,
       clearCart,
       setSelectedCustomer,
-      medicines,
+      products,
       restoreCart,
       customers,
       setShowHeldDialog,
     });
 
   // 9. Search & Filter
-  const { results: filteredMedicines, isFuzzyFallback } = React.useMemo(() => {
-    return searchMedicines(searchTerm, medicines);
-  }, [searchTerm, medicines]);
+  const { results: filteredProducts, isFuzzyFallback } = React.useMemo(() => {
+    return searchProducts(searchTerm, products);
+  }, [searchTerm, products]);
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && searchTerm.trim()) {
@@ -184,7 +184,7 @@ export function POSSystem() {
 
   const handleScanSuccess = (scannedBarcode: string) => {
     const query = scannedBarcode.toLowerCase().trim();
-    const barcodeMatch = medicines.find(
+    const barcodeMatch = products.find(
       (m) =>
         m.barcode?.toLowerCase() === query ||
         m.batch_number?.toLowerCase() === query,
@@ -219,7 +219,7 @@ export function POSSystem() {
           currencyCode={storeProfile?.currency}
           searchTerm={searchTerm}
           setSearchTerm={setSearchTerm}
-          filteredMedicines={filteredMedicines}
+          filteredProducts={filteredProducts}
           isFuzzyFallback={isFuzzyFallback}
           addToCart={addToCart}
           updateQuantity={updateQuantity}
@@ -262,10 +262,10 @@ export function POSSystem() {
                 />
 
                 <POSProductList
-                  loadingMedicines={loadingMedicines}
-                  filteredMedicines={filteredMedicines}
+                  loadingProducts={loadingProducts}
+                  filteredProducts={filteredProducts}
                   isFuzzyFallback={isFuzzyFallback}
-                  medicinesLength={medicines.length}
+                  productsLength={products.length}
                   addToCart={addToCart}
                   productTerm={t("product")}
                   currencyCode={storeProfile?.currency}
@@ -346,9 +346,9 @@ export function POSSystem() {
         onOpenChange={setShowReturnDialog}
         sale={saleToReturn}
         onSuccess={() => {
-          refetchMedicines();
+          refetchProducts();
           refetchSales();
-          toast.success("Inventory updated after return");
+          toast.success("Stock Batch updated after return");
         }}
         currencyCode={storeProfile?.currency}
       />

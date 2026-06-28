@@ -59,8 +59,8 @@ const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
 const terminology: Record<StoreType, Record<string, string>> = {
   pharmacy: {
-    product: "Medicine",
-    products: "Medicines",
+    product: "Product",
+    products: "Products",
     registration_number: "NAFDAC Number",
     category: "Therapeutic Class",
     stock: "Stock Level",

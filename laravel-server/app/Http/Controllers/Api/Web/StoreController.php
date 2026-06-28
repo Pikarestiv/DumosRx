@@ -63,6 +63,7 @@ class StoreController extends Controller
             'phone' => $request->phone,
             'device_id' => 'WEB-' . strtoupper(Str::random(8)),
             'store_type' => $request->store_type ?? 'pharmacy',
+            'auto_sync_enabled' => true,
         ]);
 
         // Auto-create a trial subscription if the user doesn't have one

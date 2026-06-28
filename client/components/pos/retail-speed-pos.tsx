@@ -28,8 +28,8 @@ interface RetailSpeedPOSProps {
   currencyCode?: string;
   searchTerm: string;
   setSearchTerm: (term: string) => void;
-  filteredMedicines: any[];
-  addToCart: (medicine: any) => void;
+  filteredProducts: any[];
+  addToCart: (product: any) => void;
   updateQuantity: (id: string, qty: number) => void;
   removeFromCart: (id: string) => void;
   clearCart: () => void;
@@ -48,7 +48,7 @@ export function RetailSpeedPOS({
   currencyCode,
   searchTerm,
   setSearchTerm,
-  filteredMedicines,
+  filteredProducts,
   addToCart,
   updateQuantity,
   removeFromCart,
@@ -144,7 +144,7 @@ export function RetailSpeedPOS({
 
         {/* Fast Favorites (Top Items) */}
         <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar min-h-10">
-          {filteredMedicines.slice(0, 6).map(m => (
+          {filteredProducts.slice(0, 6).map(m => (
             <Button
               key={`fav-${m.id}`}
               variant="outline"
@@ -163,14 +163,14 @@ export function RetailSpeedPOS({
           <CardContent className="p-4 h-full overflow-y-auto">
             {searchTerm ? (
               <div className="flex flex-col h-full">
-                {isFuzzyFallback && filteredMedicines.length > 0 && (
+                {isFuzzyFallback && filteredProducts.length > 0 && (
                   <div className="mb-3 px-3 py-2 bg-amber-500/10 text-amber-600 rounded-md text-xs font-bold flex items-center gap-2 shrink-0 border border-amber-500/20">
                     <AlertCircle className="h-4 w-4" />
                     Did you mean? (No exact matches)
                   </div>
                 )}
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {filteredMedicines.map((m) => (
+                {filteredProducts.map((m) => (
                   <Button
                     key={m.id}
                     variant="outline"

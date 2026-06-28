@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { insert, update } from "@/lib/db/local-database";
+import { insert, update, query } from "@/lib/db/local-database";
 import { CartItem } from "./use-pos-cart";
 import { calculateEarnedPoints } from "@/lib/utils/loyalty-calculator";
 
@@ -23,7 +23,7 @@ interface UsePOSPaymentProps {
   discount: number;
   selectedCustomer: Customer | null;
   clearCart: () => void;
-  refetchMedicines: () => void;
+  refetchProducts: () => void;
   refetchSales?: () => void;
   requirePaymentAccount?: boolean;
   dispensedRxId?: string | null;
@@ -38,7 +38,7 @@ export function usePOSPayment({
   discount,
   selectedCustomer,
   clearCart,
-  refetchMedicines,
+  refetchProducts,
   refetchSales,
   requirePaymentAccount = false,
   dispensedRxId,
@@ -134,15 +134,27 @@ export function usePOSPayment({
       for (const item of cart) {
         await insert("sale_items", {
           sale_id: saleId,
-          medicine_id: item.id,
+          product_id: item.id,
           quantity: item.quantity,
           unit_price: item.unit_price,
           cost_price: item.cost_price || 0,
           total_price: item.subtotal,
         });
 
-        const newStock = Math.max(0, item.stock - item.quantity);
-        await update("medicines", item.id, { stock_quantity: newStock });
+        const batches = await query<any>(
+          "SELECT * FROM stock_batches WHERE product_id = ? AND _deleted = 0 AND quantity > 0 ORDER BY expiry_date ASC, created_at ASC",
+          [item.id]
+        );
+        
+        let remainingToDeduct = item.quantity;
+        for (const batch of batches) {
+          if (remainingToDeduct <= 0) break;
+          const deduction = Math.min(batch.quantity, remainingToDeduct);
+          await update("stock_batches", batch.id, {
+            quantity: batch.quantity - deduction
+          });
+          remainingToDeduct -= deduction;
+        }
       }
 
       if (paymentMethod === "credit" && selectedCustomer) {
@@ -173,7 +185,7 @@ export function usePOSPayment({
         });
       }
 
-      refetchMedicines();
+      refetchProducts();
       if (refetchSales) refetchSales();
 
       const transaction = {
@@ -203,7 +215,7 @@ export function usePOSPayment({
       setCompletedTransaction(transaction);
       clearCart();
       if (refetchSales) refetchSales();
-      refetchMedicines();
+      refetchProducts();
       setPaymentMethod("cash");
       setAmountPaid("");
       setSelectedAccountId("");

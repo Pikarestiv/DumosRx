@@ -38,6 +38,7 @@ interface DataSettingsProps {
   autoSyncInterval: string;
   setAutoSyncInterval: (val: string) => void;
   handleSaveAutoSyncSettings: () => void;
+  setSyncAfterLink?: (val: boolean) => void;
 }
 
 export function DataSettings({
@@ -52,6 +53,7 @@ export function DataSettings({
   autoSyncInterval,
   setAutoSyncInterval,
   handleSaveAutoSyncSettings,
+  setSyncAfterLink,
 }: DataSettingsProps) {
   const { canCloudSync, minimumSyncIntervalMinutes, withRestriction, getUpgradeMessage } = useFeatureGate();
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -125,7 +127,10 @@ export function DataSettings({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setIsCloudLinkOpen(true)}
+                  onClick={() => {
+                    setSyncAfterLink?.(false);
+                    setIsCloudLinkOpen(true);
+                  }}
                 >
                   Link Account
                 </Button>

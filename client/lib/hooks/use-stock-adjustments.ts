@@ -50,7 +50,7 @@ export function useStockAdjustments() {
   const [availableBatches, setAvailableBatches] = useState<any[]>([]);
 
   useEffect(() => {
-    if (!newAdjustment.product || !isTauri()) {
+    if (!newAdjustment.product) {
       setAvailableBatches([]);
       return;
     }
@@ -99,13 +99,8 @@ export function useStockAdjustments() {
       setLoading(true);
       try {
         let res;
-        if (isTauri()) {
-          const { getStockAdjustments } =
-            await import("@/lib/db/local-database");
-          res = await getStockAdjustments(1, 100);
-        } else {
-          res = await apiClient.getStockAdjustments(1, 100);
-        }
+        const { getStockAdjustments } = await import("@/lib/db/local-database");
+        res = await getStockAdjustments(1, 100);
 
         const items = (res.data || []).map((a: any) => ({
           id: a.id,
@@ -145,7 +140,7 @@ export function useStockAdjustments() {
         ? -Math.abs(newAdjustment.quantity)
         : Math.abs(newAdjustment.quantity);
 
-    if (isTauri()) {
+    if (true) {
       try {
         const { query, execute } = await import("@/lib/db/core");
         // Resolve product ID from the name selection
@@ -231,23 +226,20 @@ export function useStockAdjustments() {
       reason: newAdjustment.reason,
       notes: newAdjustment.notes,
       user: "Current User",
-      approved: isTauri() ? true : false,
+      approved: true,
     };
 
     setAdjustments([adjustment, ...adjustments]);
     setNewAdjustment({
       product: "",
+      batch_id: "",
       adjustmentType: "decrease",
       quantity: 0,
       reason: "",
       notes: "",
     });
     setShowAddForm(false);
-    toast.success(
-      isTauri()
-        ? "Stock adjustment applied successfully"
-        : "Stock adjustment submitted for approval",
-    );
+    toast.success("Stock adjustment applied successfully");
   };
 
   const pendingAdjustments = adjustments.filter((adj) => !adj.approved).length;

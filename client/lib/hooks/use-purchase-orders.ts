@@ -23,12 +23,8 @@ export function usePurchaseOrders() {
       setLoading(true);
       try {
         let res;
-        if (isTauri()) {
-          const { getPurchaseOrders } = await import("@/lib/db/local-database");
-          res = await getPurchaseOrders(1, 100);
-        } else {
-          res = await apiClient.getPurchaseOrders(1, 100);
-        }
+        const { getPurchaseOrders } = await import("@/lib/db/local-database");
+        res = await getPurchaseOrders(1, 100);
 
         const items = (res.data || []).map((o: any) => ({
           id: o.id,

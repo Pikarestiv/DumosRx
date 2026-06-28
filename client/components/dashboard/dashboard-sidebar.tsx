@@ -50,20 +50,6 @@ export function DashboardSidebar({
   const { storeType, t } = useStore();
   const { logout, isAdmin, canManageStockBatch } = useAuth();
   const { currentTier } = useFeatureGate();
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-
-  const { data: queueData } = useLocalData<{ count: number }>(
-    "SELECT COUNT(*) as count FROM _sync_queue"
-  );
-  const pendingCount = queueData?.[0]?.count || 0;
-
-  const handleLogoutClick = () => {
-    if (pendingCount > 0) {
-      setShowLogoutConfirm(true);
-    } else {
-      logout();
-    }
-  };
 
   const isLocked = (href: string) => {
     if (currentTier !== "free") return false;
@@ -272,7 +258,6 @@ export function DashboardSidebar({
                   onOpenFeedback();
                 }}
               />
-              <ActionItem icon={LogOut} name="Sign Out" onClick={handleLogoutClick} />
             </div>
 
             {/* Collapse toggle — only on desktop */}
@@ -313,15 +298,6 @@ export function DashboardSidebar({
             <SyncIndicator collapsed={collapsed} />
           </div>
         </div>
-        
-        <ConfirmDialog
-          open={showLogoutConfirm}
-          onOpenChange={setShowLogoutConfirm}
-          title="Unsynced Changes Detected"
-          description={`You have ${pendingCount} offline transaction${pendingCount > 1 ? "s" : ""} pending sync. If you log out now, another user logging into this device will sync them on their account. Are you sure you want to sign out?`}
-          confirmLabel="Sign Out Anyway"
-          onConfirm={logout}
-        />
       </>
     </TooltipProvider>
   );

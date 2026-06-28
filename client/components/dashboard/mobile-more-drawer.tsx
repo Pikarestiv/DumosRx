@@ -6,6 +6,8 @@ import { usePathname } from "next/navigation";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { useStore } from "@/lib/context/store-context";
+import { useLocalData } from "@/lib/db/hooks/useLocalData";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useAuth } from "@/lib/context/auth-context";
 import { SyncIndicator } from "./sync-indicator";
 import { cn } from "@/lib/utils";
@@ -35,6 +37,21 @@ export function MobileMoreDrawer({
   const { storeType } = useStore();
   const { logout, isAdmin, canManageStockBatch } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  
+  const { data: queueData } = useLocalData<{ count: number }>(
+    "SELECT COUNT(*) as count FROM _sync_queue"
+  );
+  const pendingCount = queueData?.[0]?.count || 0;
+
+  const handleLogoutAttempt = () => {
+    if (pendingCount > 0) {
+      setShowLogoutConfirm(true);
+    } else {
+      onOpenChange(false);
+      logout();
+    }
+  };
 
   const allModules = [
     ...(storeType === "pharmacy"
@@ -55,6 +72,7 @@ export function MobileMoreDrawer({
   );
 
   return (
+    <>
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-[90vh] flex flex-col p-0 pb-6 rounded-t-xl" onOpenAutoFocus={(e) => e.preventDefault()}>
         <SheetHeader className="px-6 pt-6 pb-2 text-left">
@@ -115,10 +133,7 @@ export function MobileMoreDrawer({
               <span>Help & Feedback</span>
             </button>
             <button
-              onClick={() => {
-                onOpenChange(false);
-                logout();
-              }}
+              onClick={handleLogoutAttempt}
               className="w-full flex items-center gap-4 px-4 py-4 rounded-xl font-medium text-destructive hover:bg-destructive hover:text-white transition-colors"
             >
               <LogOut className="h-5 w-5 opacity-90" />
@@ -133,5 +148,18 @@ export function MobileMoreDrawer({
         </div>
       </SheetContent>
     </Sheet>
+    <ConfirmDialog
+      open={showLogoutConfirm}
+      onOpenChange={setShowLogoutConfirm}
+      title="Unsynced Changes Detected"
+      description={`You have ${pendingCount} offline transaction${pendingCount > 1 ? "s" : ""} pending sync. If you log out now, another user logging into this device will sync them on their account. Are you sure you want to sign out?`}
+      confirmLabel="Sign Out Anyway"
+      variant="destructive"
+      onConfirm={() => {
+        onOpenChange(false);
+        logout();
+      }}
+    />
+    </>
   );
 }

@@ -1,34 +1,40 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { LoginForm } from "@/components/auth/login-form";
-import { Suspense } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectPath = searchParams.get("redirect") || "/dashboard";
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
     const token = localStorage.getItem("drx_token");
     if (token) {
-      router.push("/dashboard");
+      router.push(redirectPath);
     } else {
       setChecking(false);
     }
-  }, [router]);
+  }, [router, redirectPath]);
 
   if (checking) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0a0a0a]">
-        <Loader2 className="h-10 w-10 text-primary animate-spin" />
+      <div className="flex justify-center items-center py-8">
+        <Loader2 className="h-8 w-8 text-primary animate-spin" />
       </div>
     );
   }
+
+  return <LoginForm redirectPath={redirectPath} />;
+}
+
+export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-[#0a0a0a]">
@@ -93,10 +99,12 @@ export default function LoginPage() {
 
           <Suspense
             fallback={
-              <div className="text-white text-center">Loading portal...</div>
+              <div className="text-white text-center py-8 flex justify-center">
+                <Loader2 className="h-8 w-8 text-primary animate-spin" />
+              </div>
             }
           >
-            <LoginForm />
+            <LoginContent />
           </Suspense>
         </div>
 

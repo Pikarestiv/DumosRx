@@ -29,7 +29,7 @@ const loginSchema = z.object({
   password: z.string().min(1, { message: "Password is required" }),
 });
 
-export function LoginForm() {
+export function LoginForm({ redirectPath = "/dashboard" }: { redirectPath?: string }) {
   const router = useRouter();
   const { setUser, setToken } = useAuthStore();
   const [loading, setLoading] = useState(false);
@@ -52,7 +52,7 @@ export function LoginForm() {
       const response = await webApiClient.login(values);
       setToken(response.token);
       setUser(response.user);
-      router.push("/dashboard");
+      router.push(redirectPath);
     } catch (err: any) {
       setError(err.message || "Invalid credentials. Please try again.");
     } finally {

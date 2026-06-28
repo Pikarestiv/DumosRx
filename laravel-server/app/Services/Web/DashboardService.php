@@ -140,8 +140,14 @@ class DashboardService
                 })
                 ->count();
 
-            // Expiring Items (Medicines table currently doesn't track expiry date in the base schema)
-            $expiringItems = 0;
+            // Expiring Items
+            $warningDays = $store->expiry_warning_days ?? 90;
+            $expiringItems = DB::table('stock_batches')
+                ->whereIn('user_id', $cashierIds)
+                ->where('quantity_in_stock', '>', 0)
+                ->where('expiry_date', '<=', now()->addDays($warningDays))
+                ->where('expiry_date', '>=', now()->toDateString())
+                ->count();
 
             // Recent Transactions
             $recentTransactions = Sale::with('cashier')->whereIn('cashier_id', $cashierIds)

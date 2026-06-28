@@ -25,7 +25,7 @@ import {
 
 const chartConfig = {
   stock_batch: {
-    label: "StockBatch Level",
+    label: "Stock Batch Level",
     color: "#0ea5e9",
   },
 } satisfies ChartConfig;
@@ -62,7 +62,7 @@ export function StockBatchInsightsTab({
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-red-600">
             <AlertTriangle className="h-5 w-5" />
-            StockBatch Alerts
+            Stock Batch Alerts
           </CardTitle>
           <CardDescription>
             Critical issues requiring immediate attention

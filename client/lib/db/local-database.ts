@@ -16,7 +16,7 @@ import { insert, update, softDelete } from "./base-helpers";
 // --- Specialized Domain Helpers ---
 
 /**
- * Products & StockBatch
+ * Products & Stock Batch
  */
 export async function getProducts(page = 1, limit = 50, search = "") {
   const offset = (page - 1) * limit;

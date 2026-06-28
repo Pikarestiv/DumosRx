@@ -31,11 +31,9 @@ export function ProductDatabase() {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showAddDialog, setShowAddDialog] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(
-    null,
-  );
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
-  
+
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -45,10 +43,12 @@ export function ProductDatabase() {
       // Clean up the URL
       const newParams = new URLSearchParams(searchParams.toString());
       newParams.delete("action");
-      const newUrl = window.location.pathname + (newParams.toString() ? `?${newParams.toString()}` : "");
+      const newUrl =
+        window.location.pathname +
+        (newParams.toString() ? `?${newParams.toString()}` : "");
       router.replace(newUrl);
     }
-    
+
     const status = searchParams.get("status");
     if (status) {
       setStatusFilter(status);
@@ -57,10 +57,7 @@ export function ProductDatabase() {
 
   const isStore = storeType === "pharmacy";
 
-  const {
-    data: products,
-    refetch,
-  } = useLocalData<Product>(
+  const { data: products, refetch } = useLocalData<Product>(
     `SELECT m.*, c.name as category_name, v.name as supplier_name
      FROM products m
      LEFT JOIN categories c ON m.category_id = c.id
@@ -72,26 +69,33 @@ export function ProductDatabase() {
   );
 
   const { data: rawCategories } = useLocalData<any>(
-    "SELECT name FROM categories WHERE _deleted = 0 ORDER BY name ASC"
+    "SELECT name FROM categories WHERE _deleted = 0 ORDER BY name ASC",
   );
 
-  const defaultCategories = isStore 
+  const defaultCategories = isStore
     ? ["Analgesics", "Antibiotics", "Antimalarials", "Vitamins", "Antacids"]
-    : ["Groceries", "Beverages", "Personal Care", "Household", "Snacks", "Dairy"];
-    
-  const fetchedCategories = rawCategories?.map(c => c.name) || [];
-  
+    : [
+        "Groceries",
+        "Beverages",
+        "Personal Care",
+        "Household",
+        "Snacks",
+        "Dairy",
+      ];
+
+  const fetchedCategories = rawCategories?.map((c) => c.name) || [];
+
   const categories = [
-    "all", 
-    ...(fetchedCategories.length > 0 ? fetchedCategories : defaultCategories)
+    "all",
+    ...(fetchedCategories.length > 0 ? fetchedCategories : defaultCategories),
   ];
-    
+
   const statuses = ["all", "active", "inactive", "expired", "low_stock"];
 
   const handleAddProduct = async (payload: any) => {
     try {
       const isEditing = !!payload.id;
-      
+
       // Create locally
       const localPayload = {
         ...payload,
@@ -102,7 +106,10 @@ export function ProductDatabase() {
       // Resolve category string to UUID
       if (payload.category_id) {
         const categoryName = payload.category_id.trim();
-        const existing = await query<any>("SELECT id FROM categories WHERE name = ? AND _deleted = 0", [categoryName]);
+        const existing = await query<any>(
+          "SELECT id FROM categories WHERE name = ? AND _deleted = 0",
+          [categoryName],
+        );
         if (existing && existing.length > 0) {
           localPayload.category_id = existing[0].id;
         } else {
@@ -122,7 +129,10 @@ export function ProductDatabase() {
       // Resolve supplier string to UUID (maps to client suppliers table)
       if (payload.supplier_id) {
         const supplierName = payload.supplier_id.trim();
-        const existing = await query<any>("SELECT id FROM suppliers WHERE name = ? AND _deleted = 0", [supplierName]);
+        const existing = await query<any>(
+          "SELECT id FROM suppliers WHERE name = ? AND _deleted = 0",
+          [supplierName],
+        );
         if (existing && existing.length > 0) {
           localPayload.supplier_id = existing[0].id;
         } else {
@@ -152,10 +162,10 @@ export function ProductDatabase() {
         delete localPayload.id;
         // Use generic update from base-helpers (which is re-exported by local-database)
         await update("products", id, localPayload);
-        toast.success(`${t('product')} updated successfully`);
+        toast.success(`${t("product")} updated successfully`);
       } else {
         const productId = await insert("products", localPayload);
-        
+
         // Also create an initial stock batch if there's stock
         if (initialStock > 0) {
           await insert("stock_batches", {
@@ -164,19 +174,23 @@ export function ProductDatabase() {
             cost_price: localPayload.cost_price || 0,
             selling_price: localPayload.selling_price || 0,
             batch_number: initialBatch || "INITIAL",
-            expiry_date: initialExpiry || new Date(Date.now() + 365*2*24*60*60*1000).toISOString().split('T')[0],
-            is_active: 1
+            expiry_date:
+              initialExpiry ||
+              new Date(Date.now() + 365 * 2 * 24 * 60 * 60 * 1000)
+                .toISOString()
+                .split("T")[0],
+            is_active: 1,
           });
         }
-        toast.success(`${t('product')} added successfully`);
+        toast.success(`${t("product")} added successfully`);
       }
 
       refetch();
       setShowAddDialog(false);
       setSelectedProduct(null);
     } catch (error) {
-      console.error(`Failed to save ${t('product')}:`, error);
-      toast.error(`Failed to save ${t('product')}.`);
+      console.error(`Failed to save ${t("product")}:`, error);
+      toast.error(`Failed to save ${t("product")}.`);
     }
   };
 
@@ -188,14 +202,22 @@ export function ProductDatabase() {
   const preFilteredProducts = products.filter((product) => {
     const matchesCategory =
       categoryFilter === "all" || product.category === categoryFilter;
-    
-    let matchesStatus = statusFilter === "all" || product.status === statusFilter;
-    
+
+    let matchesStatus =
+      statusFilter === "all" || product.status === statusFilter;
+
     // Explicit overrides for inclusive filtering
-    if (statusFilter === "low_stock" && product.stockQuantity <= product.reorderLevel) {
+    if (
+      statusFilter === "low_stock" &&
+      product.stockQuantity <= product.reorderLevel
+    ) {
       matchesStatus = true;
     }
-    if (statusFilter === "expired" && product.expiryDate && new Date(product.expiryDate) < new Date()) {
+    if (
+      statusFilter === "expired" &&
+      product.expiryDate &&
+      new Date(product.expiryDate) < new Date()
+    ) {
       matchesStatus = true;
     }
 
@@ -205,11 +227,12 @@ export function ProductDatabase() {
   const { results: filteredProducts, isFuzzyFallback } = genericFuzzySearch(
     searchTerm,
     preFilteredProducts,
-    ["name", "genericName", "brand", "nafdacNumber"]
+    ["name", "genericName", "brand", "nafdacNumber"],
   );
 
   const getStatusBadge = (status: Product["status"]) => {
-    let variant: "default" | "secondary" | "destructive" | "outline" = "default";
+    let variant: "default" | "secondary" | "destructive" | "outline" =
+      "default";
     let label = "Active";
 
     switch (status) {
@@ -256,10 +279,11 @@ export function ProductDatabase() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-serif font-bold text-3xl text-foreground">
-            {t('products')} Database
+            {t("products")} Database
           </h1>
           <p className="text-muted-foreground mt-2">
-            Manage your store's {t('products').toLowerCase()} stock_batch and information
+            Manage your store's {t("products").toLowerCase()} stock_batch and
+            information
           </p>
         </div>
         <Button
@@ -267,7 +291,7 @@ export function ProductDatabase() {
           className="bg-accent hover:bg-accent/90"
         >
           <Plus className="h-4 w-4 mr-2" />
-          Add {t('product')}
+          Add {t("product")}
         </Button>
       </div>
 
@@ -275,9 +299,15 @@ export function ProductDatabase() {
       <ProductStatsCards
         totalCount={products.length}
         activeCount={products.filter((m) => m.status !== "expired").length}
-        lowStockCount={products.filter((m) => m.stockQuantity <= m.reorderLevel).length}
-        expiredCount={products.filter((m) => m.expiryDate && new Date(m.expiryDate) < new Date()).length}
-        productsLabel={t('products')}
+        lowStockCount={
+          products.filter((m) => m.stockQuantity <= m.reorderLevel).length
+        }
+        expiredCount={
+          products.filter(
+            (m) => m.expiryDate && new Date(m.expiryDate) < new Date(),
+          ).length
+        }
+        productsLabel={t("products")}
       />
 
       {/* Search and Filters */}
@@ -287,7 +317,8 @@ export function ProductDatabase() {
             Search & Filter
           </CardTitle>
           <CardDescription>
-            Find {t('products').toLowerCase()} by name, brand, {t('registration_number').toLowerCase()}, or other criteria
+            Find {t("products").toLowerCase()} by name, brand,{" "}
+            {t("registration_number").toLowerCase()}, or other criteria
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -296,7 +327,7 @@ export function ProductDatabase() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                 <Input
-                  placeholder={`Search ${t('products').toLowerCase()}, brands, ${t('registration_number').toLowerCase()}...`}
+                  placeholder={`Search ${t("products").toLowerCase()}, brands, ${t("registration_number").toLowerCase()}...`}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
@@ -305,20 +336,30 @@ export function ProductDatabase() {
             </div>
             <div className="w-full md:w-56">
               <SearchableInput
-                options={categories.map(c => ({
-                  label: c === "all" ? `All ${t('category')}s` : c,
-                  value: c
+                options={categories.map((c) => ({
+                  label: c === "all" ? `All ${t("category")}s` : c,
+                  value: c,
                 }))}
                 value={categoryFilter}
                 onValueChange={setCategoryFilter}
-                placeholder={`All ${t('category')}s`}
+                placeholder={`All ${t("category")}s`}
               />
             </div>
             <div className="w-full md:w-56">
               <SearchableInput
-                options={statuses.map(s => ({
-                  label: s === "all" ? "All Status" : s.replace("_", " ").split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '),
-                  value: s
+                options={statuses.map((s) => ({
+                  label:
+                    s === "all"
+                      ? "All Status"
+                      : s
+                          .replace("_", " ")
+                          .split(" ")
+                          .map(
+                            (word) =>
+                              word.charAt(0).toUpperCase() + word.slice(1),
+                          )
+                          .join(" "),
+                  value: s,
                 }))}
                 value={statusFilter}
                 onValueChange={setStatusFilter}
@@ -333,10 +374,11 @@ export function ProductDatabase() {
       <Card>
         <CardHeader>
           <CardTitle className="font-serif font-semibold">
-            {t('products')} StockBatch
+            {t("products")} Stock Batch
           </CardTitle>
           <CardDescription>
-            Showing {filteredProducts.length} of {products.length} {t('products').toLowerCase()}
+            Showing {filteredProducts.length} of {products.length}{" "}
+            {t("products").toLowerCase()}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -349,11 +391,11 @@ export function ProductDatabase() {
             getStatusBadge={getStatusBadge}
             onViewDetails={handleViewDetails}
             onEditProduct={handleEditProduct}
-            productLabel={t('product')}
-            productsLabel={t('products')}
-            stockLabel={t('stock')}
-            categoryLabel={t('category')}
-            regNumLabel={t('registration_number')}
+            productLabel={t("product")}
+            productsLabel={t("products")}
+            stockLabel={t("stock")}
+            categoryLabel={t("category")}
+            regNumLabel={t("registration_number")}
           />
         </CardContent>
       </Card>

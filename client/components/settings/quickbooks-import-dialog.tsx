@@ -219,7 +219,7 @@ export function QuickBooksImportDialog({
                   disabled={parsedData.products.length === 0}
                 />
                 <Label htmlFor="import-meds" className="font-normal">
-                  Products / StockBatch Items ({parsedData.products.length})
+                  Products / Stock Batch Items ({parsedData.products.length})
                 </Label>
               </div>
               <div className="flex items-center space-x-2">

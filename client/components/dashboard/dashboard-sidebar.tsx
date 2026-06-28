@@ -73,7 +73,7 @@ export function DashboardSidebar({
   const navigationItems = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     {
-      name: `StockBatch & ${t("products")}`,
+      name: `${t("products")} & Batches`,
       href: "/stock-batch",
       icon: storeType === "pharmacy" ? Pill : ShoppingBasket,
     },

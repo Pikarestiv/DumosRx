@@ -37,7 +37,7 @@ export function AlertSettings({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>StockBatch Alerts</CardTitle>
+        <CardTitle>Stock Batch Alerts</CardTitle>
         <CardDescription>
           Configure when you want to be warned about stock issues.
         </CardDescription>

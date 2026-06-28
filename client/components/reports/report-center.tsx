@@ -142,7 +142,7 @@ export function ReportCenter() {
     },
     {
       id: "stock_batches",
-      title: "StockBatch Valuation",
+      title: "Stock Batch Valuation",
       description: "Current stock levels, cost value, and potential selling value.",
       icon: ClipboardList,
       category: "Operations",

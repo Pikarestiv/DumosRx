@@ -24,7 +24,9 @@ export function FleetStoreDetailsView({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "overview");
+  const [activeTab, setActiveTab] = useState(
+    searchParams.get("tab") || "overview",
+  );
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
@@ -91,7 +93,7 @@ export function FleetStoreDetailsView({
         <Card className="border-none shadow-sm bg-muted/30">
           <CardHeader className="p-4 pb-2">
             <CardDescription className="font-bold uppercase text-xs">
-              Total StockBatch
+              Total Stock Batch
             </CardDescription>
             <CardTitle className="text-2xl font-black">
               {store.total_stock_batch ?? 0}
@@ -146,7 +148,7 @@ export function FleetStoreDetailsView({
           className="rounded-xl font-bold"
           onClick={() => handleTabChange("stock_batch")}
         >
-          StockBatch
+          Stock Batch
         </Button>
       </div>
 
@@ -204,12 +206,8 @@ export function FleetStoreDetailsView({
           </div>
         )}
 
-        {activeTab === "stock_batch" && (
-          <StoreStockBatchTab store={store} />
-        )}
+        {activeTab === "stock_batch" && <StoreStockBatchTab store={store} />}
       </div>
-
-      
     </div>
   );
 }

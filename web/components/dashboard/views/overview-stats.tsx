@@ -27,7 +27,7 @@ export function OverviewStats({ stats }: OverviewStatsProps) {
       bg: "bg-blue-100 dark:bg-blue-900/20",
     },
     {
-      name: "StockBatch Value",
+      name: "Stock Batch Value",
       value: `₦${(stats?.stock_batch_value?.value || 0).toLocaleString()}`,
       change: "Live Stock",
       icon: Package,
@@ -47,7 +47,10 @@ export function OverviewStats({ stats }: OverviewStatsProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       {statCards.map((stat, i) => (
-        <Card key={i} className="border border-border/50 shadow-[0_0_24px_rgba(0,0,0,0.06)] hover:shadow-[0_0_32px_rgba(0,0,0,0.1)] transition-shadow dark:shadow-none">
+        <Card
+          key={i}
+          className="border border-border/50 shadow-[0_0_24px_rgba(0,0,0,0.06)] hover:shadow-[0_0_32px_rgba(0,0,0,0.1)] transition-shadow dark:shadow-none"
+        >
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-4">
               <div className={`${stat.bg} p-3 rounded-2xl`}>
@@ -58,8 +61,12 @@ export function OverviewStats({ stats }: OverviewStatsProps) {
               </Badge>
             </div>
             <div>
-              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">{stat.name}</p>
-              <h3 className="text-xl sm:text-2xl font-black mt-1">{stat.value}</h3>
+              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                {stat.name}
+              </p>
+              <h3 className="text-xl sm:text-2xl font-black mt-1">
+                {stat.value}
+              </h3>
             </div>
           </CardContent>
         </Card>

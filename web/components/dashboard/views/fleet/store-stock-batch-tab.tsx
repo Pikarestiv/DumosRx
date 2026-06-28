@@ -21,7 +21,7 @@ export function StoreStockBatchTab({ store }: { store: any }) {
   const [expiring, setExpiring] = useState<any[]>([]);
   const [totalValue, setTotalValue] = useState(0);
   const [subTab, setSubTab] = useState<"all" | "low_stock" | "expiring">("all");
-  
+
   const expiryDays = store?.expiry_warning_days || 90;
   const storeIdStr = store.id.toString();
 
@@ -64,7 +64,7 @@ export function StoreStockBatchTab({ store }: { store: any }) {
         <Card className="border-none shadow-sm bg-muted/30">
           <CardHeader className="p-4 flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-bold">
-              Total StockBatch Value
+              Total Stock Batch Value
             </CardTitle>
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>

@@ -27,7 +27,11 @@ import { webApiClient } from "@/lib/api/client";
 import { useDashboard } from "@/app/dashboard/use-dashboard";
 import { ConfirmationModal } from "@/components/dashboard/confirmation-modal";
 
-export function DangerZoneCard({ onReset }: { onReset?: (type: string) => Promise<any> }) {
+export function DangerZoneCard({
+  onReset,
+}: {
+  onReset?: (type: string) => Promise<any>;
+}) {
   const { user, refetch } = useDashboard();
   const queryClient = useQueryClient();
   const [isDeletionDialogOpen, setIsDeletionDialogOpen] = useState(false);
@@ -49,27 +53,33 @@ export function DangerZoneCard({ onReset }: { onReset?: (type: string) => Promis
     const configs: Record<string, { title: string; description: string }> = {
       sales: {
         title: "Clear Sales Records",
-        description: "Are you sure you want to delete all sales history? This action cannot be undone.",
+        description:
+          "Are you sure you want to delete all sales history? This action cannot be undone.",
       },
       logs: {
         title: "Clear Activity Logs",
-        description: "This will permanently delete all activity and system logs for your account.",
+        description:
+          "This will permanently delete all activity and system logs for your account.",
       },
       stock_batches: {
-        title: "Clear StockBatch",
-        description: "Are you sure you want to wipe your online stock_batch stock? You will need to re-sync from your terminals.",
+        title: "Clear Stock Batch",
+        description:
+          "Are you sure you want to wipe your online stock_batch stock? You will need to re-sync from your terminals.",
       },
       customers: {
         title: "Clear Customers",
-        description: "This will delete all customer records from the cloud database.",
+        description:
+          "This will delete all customer records from the cloud database.",
       },
       stores: {
         title: "Clear Terminals",
-        description: "Are you sure you want to delete all connected terminals? They will need to re-register to sync data.",
+        description:
+          "Are you sure you want to delete all connected terminals? They will need to re-register to sync data.",
       },
       all: {
         title: "Full Account Reset",
-        description: "WARNING: This will delete ALL data (Sales, Logs, StockBatch, Customers). This is irreversible.",
+        description:
+          "WARNING: This will delete ALL data (Sales, Logs, Stock Batch, Customers). This is irreversible.",
       },
     };
 
@@ -92,7 +102,8 @@ export function DangerZoneCard({ onReset }: { onReset?: (type: string) => Promis
   };
 
   const deleteAccountMutation = useMutation({
-    mutationFn: (data: { reason: string }) => webApiClient.requestAccountDeletion(data),
+    mutationFn: (data: { reason: string }) =>
+      webApiClient.requestAccountDeletion(data),
     onSuccess: () => {
       toast.success("Account Deletion Requested", {
         description: "Your request has been submitted to the administration.",
@@ -103,7 +114,9 @@ export function DangerZoneCard({ onReset }: { onReset?: (type: string) => Promis
       refetch();
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || "Failed to request deletion");
+      toast.error(
+        error.response?.data?.message || "Failed to request deletion",
+      );
     },
   });
 
@@ -117,7 +130,9 @@ export function DangerZoneCard({ onReset }: { onReset?: (type: string) => Promis
       refetch();
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || "Failed to cancel deletion request");
+      toast.error(
+        error.response?.data?.message || "Failed to cancel deletion request",
+      );
     },
   });
 
@@ -142,46 +157,49 @@ export function DangerZoneCard({ onReset }: { onReset?: (type: string) => Promis
           <CardContent className="space-y-8">
             <div className="space-y-4">
               <div className="flex flex-col">
-                <h4 className="font-semibold text-slate-900 dark:text-white">Clear Specific Data</h4>
+                <h4 className="font-semibold text-slate-900 dark:text-white">
+                  Clear Specific Data
+                </h4>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                  Selectively wipe specific data records from the cloud database.
+                  Selectively wipe specific data records from the cloud
+                  database.
                 </p>
               </div>
               <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-2">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="sm"
                   className="text-xs font-bold border-red-200 hover:bg-red-600 hover:text-white dark:border-red-900"
                   onClick={() => handleResetClick("sales")}
                 >
                   Clear Sales
                 </Button>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="sm"
                   className="text-xs font-bold border-red-200 hover:bg-red-600 hover:text-white dark:border-red-900"
                   onClick={() => handleResetClick("logs")}
                 >
                   Clear Logs
                 </Button>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="sm"
                   className="text-xs font-bold border-red-200 hover:bg-red-600 hover:text-white dark:border-red-900"
                   onClick={() => handleResetClick("stock_batches")}
                 >
-                  Clear StockBatch
+                  Clear Stock Batch
                 </Button>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="sm"
                   className="text-xs font-bold border-red-200 hover:bg-red-600 hover:text-white dark:border-red-900"
                   onClick={() => handleResetClick("customers")}
                 >
                   Clear Customers
                 </Button>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="sm"
                   className="text-xs font-bold border-red-200 hover:bg-red-600 hover:text-white dark:border-red-900"
                   onClick={() => handleResetClick("stores")}
@@ -191,8 +209,8 @@ export function DangerZoneCard({ onReset }: { onReset?: (type: string) => Promis
               </div>
 
               <div className="pt-2">
-                <Button 
-                  variant="destructive" 
+                <Button
+                  variant="destructive"
                   className="w-full font-bold gap-2 bg-red-600 hover:bg-red-700"
                   onClick={() => handleResetClick("all")}
                 >
@@ -206,14 +224,18 @@ export function DangerZoneCard({ onReset }: { onReset?: (type: string) => Promis
 
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <div>
-                <h4 className="font-semibold text-slate-900 dark:text-white">Delete Account</h4>
+                <h4 className="font-semibold text-slate-900 dark:text-white">
+                  Delete Account
+                </h4>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                  Submit a request to permanently delete your account and all associated data.
+                  Submit a request to permanently delete your account and all
+                  associated data.
                 </p>
                 {user?.deletion_requested_at && (
                   <div className="mt-2 text-xs flex items-center gap-2 bg-amber-500/10 text-amber-700 dark:text-amber-400 p-2.5 rounded-lg border border-amber-500/20">
                     <span>
-                      Account deletion requested. If you changed your mind, you can cancel this request:
+                      Account deletion requested. If you changed your mind, you
+                      can cancel this request:
                     </span>
                     <Button
                       type="button"
@@ -222,13 +244,17 @@ export function DangerZoneCard({ onReset }: { onReset?: (type: string) => Promis
                       onClick={() => cancelDeletionMutation.mutate()}
                       disabled={cancelDeletionMutation.isPending}
                     >
-                      {cancelDeletionMutation.isPending ? "Cancelling..." : "Cancel Request"}
+                      {cancelDeletionMutation.isPending
+                        ? "Cancelling..."
+                        : "Cancel Request"}
                     </Button>
                   </div>
                 )}
               </div>
               <Button
-                variant={user?.deletion_requested_at ? "outline" : "destructive"}
+                variant={
+                  user?.deletion_requested_at ? "outline" : "destructive"
+                }
                 onClick={() => setIsDeletionDialogOpen(true)}
                 disabled={!!user?.deletion_requested_at}
               >
@@ -239,7 +265,10 @@ export function DangerZoneCard({ onReset }: { onReset?: (type: string) => Promis
         </Card>
       </motion.div>
 
-      <Dialog open={isDeletionDialogOpen} onOpenChange={setIsDeletionDialogOpen}>
+      <Dialog
+        open={isDeletionDialogOpen}
+        onOpenChange={setIsDeletionDialogOpen}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="text-red-600 flex items-center gap-2">
@@ -247,7 +276,9 @@ export function DangerZoneCard({ onReset }: { onReset?: (type: string) => Promis
               Request Account Deletion
             </DialogTitle>
             <DialogDescription>
-              Please provide a reason for deleting your account. An administrator will review your request and permanently delete your account data. This action cannot be undone once processed.
+              Please provide a reason for deleting your account. An
+              administrator will review your request and permanently delete your
+              account data. This action cannot be undone once processed.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -270,8 +301,12 @@ export function DangerZoneCard({ onReset }: { onReset?: (type: string) => Promis
             </Button>
             <Button
               variant="destructive"
-              disabled={!deletionReason.trim() || deleteAccountMutation.isPending}
-              onClick={() => deleteAccountMutation.mutate({ reason: deletionReason })}
+              disabled={
+                !deletionReason.trim() || deleteAccountMutation.isPending
+              }
+              onClick={() =>
+                deleteAccountMutation.mutate({ reason: deletionReason })
+              }
             >
               {deleteAccountMutation.isPending && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

@@ -13,16 +13,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { 
-  ClipboardCheck, 
-  AlertTriangle, 
-  CheckCircle2, 
+import {
+  ClipboardCheck,
+  AlertTriangle,
+  CheckCircle2,
   Search,
   Package,
   TrendingDown,
   TrendingUp,
   Minus,
-  Plus
+  Plus,
 } from "lucide-react";
 import { query } from "@/lib/db/core";
 import { insert, update } from "@/lib/db/local-database";
@@ -45,7 +45,11 @@ interface StockAuditDialogProps {
   onSuccess?: () => void;
 }
 
-export function StockAuditDialog({ isOpen, onClose, onSuccess }: StockAuditDialogProps) {
+export function StockAuditDialog({
+  isOpen,
+  onClose,
+  onSuccess,
+}: StockAuditDialogProps) {
   const { user } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState("");
@@ -75,8 +79,8 @@ export function StockAuditDialog({ isOpen, onClose, onSuccess }: StockAuditDialo
     }
   };
 
-  const filteredProducts = products.filter(m => 
-    m.name.toLowerCase().includes(search.toLowerCase())
+  const filteredProducts = products.filter((m) =>
+    m.name.toLowerCase().includes(search.toLowerCase()),
   );
 
   const handleSubmit = async () => {
@@ -113,14 +117,16 @@ export function StockAuditDialog({ isOpen, onClose, onSuccess }: StockAuditDialo
           quantity: diff,
           cost_price: selectedProduct.cost_price || 0,
           selling_price: selectedProduct.selling_price || 0,
-          expiry_date: new Date(Date.now() + 365*2*24*60*60*1000).toISOString().split('T')[0],
-          is_active: 1
+          expiry_date: new Date(Date.now() + 365 * 2 * 24 * 60 * 60 * 1000)
+            .toISOString()
+            .split("T")[0],
+          is_active: 1,
         });
       } else if (diff < 0) {
         // Negative discrepancy: deduct using FIFO
         const batches = await query<any>(
           "SELECT * FROM stock_batches WHERE product_id = ? AND _deleted = 0 AND quantity > 0 ORDER BY expiry_date ASC, created_at ASC",
-          [selectedProduct.id]
+          [selectedProduct.id],
         );
         let remainingToDeduct = Math.abs(diff);
         for (const batch of batches) {
@@ -128,7 +134,7 @@ export function StockAuditDialog({ isOpen, onClose, onSuccess }: StockAuditDialo
           const deduction = Math.min(batch.quantity, remainingToDeduct);
           await update("stock_batches", batch.id, {
             quantity: batch.quantity - deduction,
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
           });
           remainingToDeduct -= deduction;
         }
@@ -137,7 +143,7 @@ export function StockAuditDialog({ isOpen, onClose, onSuccess }: StockAuditDialo
       toast.success(`Stock reconciled for ${selectedProduct.name}`);
       onSuccess?.();
       onClose();
-      
+
       // Reset
       setSelectedProduct(null);
       setActualQuantity("");
@@ -160,7 +166,9 @@ export function StockAuditDialog({ isOpen, onClose, onSuccess }: StockAuditDialo
               <ClipboardCheck className="w-6 h-6" />
             </div>
             <div>
-              <DialogTitle className="text-xl font-serif">StockBatch Audit Mode</DialogTitle>
+              <DialogTitle className="text-xl font-serif">
+                Stock Batch Audit Mode
+              </DialogTitle>
               <DialogDescription>
                 Perform physical stock-taking and reconcile with system records.
               </DialogDescription>
@@ -181,11 +189,11 @@ export function StockAuditDialog({ isOpen, onClose, onSuccess }: StockAuditDialo
             </div>
 
             <div className="border border-accent/10 rounded-xl h-[300px] overflow-y-auto bg-card/50">
-              {filteredProducts.map(m => (
+              {filteredProducts.map((m) => (
                 <button
                   key={m.id}
                   onClick={() => setSelectedProduct(m)}
-                  className={`w-full text-left p-3 border-b border-accent/5 hover:bg-accent/5 transition-colors flex items-center justify-between ${selectedProduct?.id === m.id ? 'bg-primary/5 border-l-2 border-l-primary' : ''}`}
+                  className={`w-full text-left p-3 border-b border-accent/5 hover:bg-accent/5 transition-colors flex items-center justify-between ${selectedProduct?.id === m.id ? "bg-primary/5 border-l-2 border-l-primary" : ""}`}
                 >
                   <div className="space-y-1">
                     <p className="font-bold text-sm">{m.name}</p>
@@ -214,9 +222,15 @@ export function StockAuditDialog({ isOpen, onClose, onSuccess }: StockAuditDialo
                 <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10 space-y-3">
                   <h4 className="font-bold text-lg">{selectedProduct.name}</h4>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">System Record:</span>
-                    <Badge variant="outline" className="font-mono text-primary border-primary/20 bg-primary/5">
-                      {selectedProduct.stock_quantity} {selectedProduct.base_unit}
+                    <span className="text-muted-foreground">
+                      System Record:
+                    </span>
+                    <Badge
+                      variant="outline"
+                      className="font-mono text-primary border-primary/20 bg-primary/5"
+                    >
+                      {selectedProduct.stock_quantity}{" "}
+                      {selectedProduct.base_unit}
                     </Badge>
                   </div>
                 </div>
@@ -226,10 +240,14 @@ export function StockAuditDialog({ isOpen, onClose, onSuccess }: StockAuditDialo
                     Physical Count ({selectedProduct.base_unit})
                   </Label>
                   <div className="flex items-center gap-3">
-                    <Button 
-                      variant="outline" 
-                      size="icon" 
-                      onClick={() => setActualQuantity(prev => Math.max(0, (Number(prev) || 0) - 1))}
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() =>
+                        setActualQuantity((prev) =>
+                          Math.max(0, (Number(prev) || 0) - 1),
+                        )
+                      }
                     >
                       <Minus className="w-4 h-4" />
                     </Button>
@@ -238,12 +256,18 @@ export function StockAuditDialog({ isOpen, onClose, onSuccess }: StockAuditDialo
                       placeholder="Enter actual count"
                       className="text-center text-lg font-bold bg-card border-accent/10"
                       value={actualQuantity}
-                      onChange={(e) => setActualQuantity(e.target.value === "" ? "" : Number(e.target.value))}
+                      onChange={(e) =>
+                        setActualQuantity(
+                          e.target.value === "" ? "" : Number(e.target.value),
+                        )
+                      }
                     />
-                    <Button 
-                      variant="outline" 
-                      size="icon" 
-                      onClick={() => setActualQuantity(prev => (Number(prev) || 0) + 1)}
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() =>
+                        setActualQuantity((prev) => (Number(prev) || 0) + 1)
+                      }
                     >
                       <Plus className="w-4 h-4" />
                     </Button>
@@ -251,15 +275,20 @@ export function StockAuditDialog({ isOpen, onClose, onSuccess }: StockAuditDialo
                 </div>
 
                 {actualQuantity !== "" && (
-                  <div className={`p-4 rounded-2xl border flex items-center gap-3 transition-all ${
-                    Number(actualQuantity) === selectedProduct.stock_quantity
-                    ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500'
-                    : 'bg-amber-500/10 border-amber-500/20 text-amber-500'
-                  }`}>
-                    {Number(actualQuantity) === selectedProduct.stock_quantity ? (
+                  <div
+                    className={`p-4 rounded-2xl border flex items-center gap-3 transition-all ${
+                      Number(actualQuantity) === selectedProduct.stock_quantity
+                        ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-500"
+                        : "bg-amber-500/10 border-amber-500/20 text-amber-500"
+                    }`}
+                  >
+                    {Number(actualQuantity) ===
+                    selectedProduct.stock_quantity ? (
                       <>
                         <CheckCircle2 className="w-5 h-5 shrink-0" />
-                        <p className="text-sm font-bold">Perfect Match! No discrepancy found.</p>
+                        <p className="text-sm font-bold">
+                          Perfect Match! No discrepancy found.
+                        </p>
                       </>
                     ) : (
                       <>
@@ -267,11 +296,19 @@ export function StockAuditDialog({ isOpen, onClose, onSuccess }: StockAuditDialo
                         <div className="space-y-1">
                           <p className="text-sm font-bold">Discrepancy Found</p>
                           <p className="text-[10px] uppercase tracking-wider">
-                            Difference: {Number(actualQuantity) - selectedProduct.stock_quantity > 0 ? '+' : ''}
-                            {Number(actualQuantity) - selectedProduct.stock_quantity} units
+                            Difference:{" "}
+                            {Number(actualQuantity) -
+                              selectedProduct.stock_quantity >
+                            0
+                              ? "+"
+                              : ""}
+                            {Number(actualQuantity) -
+                              selectedProduct.stock_quantity}{" "}
+                            units
                           </p>
                         </div>
-                        {Number(actualQuantity) < selectedProduct.stock_quantity ? (
+                        {Number(actualQuantity) <
+                        selectedProduct.stock_quantity ? (
                           <TrendingDown className="w-5 h-5 ml-auto opacity-50" />
                         ) : (
                           <TrendingUp className="w-5 h-5 ml-auto opacity-50" />
@@ -301,12 +338,12 @@ export function StockAuditDialog({ isOpen, onClose, onSuccess }: StockAuditDialo
           <Button variant="ghost" onClick={onClose} className="cursor-pointer">
             Cancel
           </Button>
-          <Button 
-            onClick={handleSubmit} 
+          <Button
+            onClick={handleSubmit}
             disabled={submitting || !selectedProduct || actualQuantity === ""}
             className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold cursor-pointer"
           >
-            {submitting ? "Processing..." : "Reconcile StockBatch"}
+            {submitting ? "Processing..." : "Reconcile Stock Batch"}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -81,7 +81,7 @@ export function useReportExport() {
     const dateStr = new Date().toISOString().slice(0, 10);
     const filename = `StockBatch_Report_${dateStr}.csv`;
     const bytes = triggerDownload(csv, filename);
-    saveToRecent(filename, "StockBatch Report", bytes);
+    saveToRecent(filename, "Stock Batch Report", bytes);
   }, []);
 
   const exportProfitLossReport = useCallback(async (dateFrom?: string, dateTo?: string) => {

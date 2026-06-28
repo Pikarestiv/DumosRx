@@ -43,7 +43,7 @@ class ApiClient extends BaseApiClient {
     });
   }
 
-  // StockBatch endpoints
+  // Stock Batch endpoints
   async getStockBatch(page = 1, limit = 50) {
     return this.request<any>(`/stock-batch?page=${page}&limit=${limit}`);
   }
@@ -78,9 +78,7 @@ class ApiClient extends BaseApiClient {
   }
 
   async getTopSellingProducts(limit = 10, days = 30) {
-    return this.request<any>(
-      `/sales/top-products?limit=${limit}&days=${days}`,
-    );
+    return this.request<any>(`/sales/top-products?limit=${limit}&days=${days}`);
   }
 
   // Customers endpoints
@@ -166,7 +164,11 @@ class ApiClient extends BaseApiClient {
   }
 
   // Sync Endpoints
-  async pushChanges(payload: { changes: any[] }, isManual: boolean = false, isSetup: boolean = false) {
+  async pushChanges(
+    payload: { changes: any[] },
+    isManual: boolean = false,
+    isSetup: boolean = false,
+  ) {
     let url = `/sync/push`;
     const params = new URLSearchParams();
     if (isManual) params.append("manual", "1");
@@ -179,7 +181,11 @@ class ApiClient extends BaseApiClient {
     });
   }
 
-  async pullChanges(payload: { last_synced: Record<string, string> }, isManual: boolean = false, isSetup: boolean = false) {
+  async pullChanges(
+    payload: { last_synced: Record<string, string> },
+    isManual: boolean = false,
+    isSetup: boolean = false,
+  ) {
     let url = `/sync/pull`;
     const params = new URLSearchParams();
     if (isManual) params.append("manual", "1");
@@ -205,8 +211,8 @@ class ApiClient extends BaseApiClient {
 
   // Stores
   async checkStoreSlug(slug: string, ignoreId?: string) {
-    const url = `/stores/check-slug?slug=${encodeURIComponent(slug)}${ignoreId ? `&ignore_id=${ignoreId}` : ''}`;
-    return this.request<{ available: boolean, slug: string }>(url);
+    const url = `/stores/check-slug?slug=${encodeURIComponent(slug)}${ignoreId ? `&ignore_id=${ignoreId}` : ""}`;
+    return this.request<{ available: boolean; slug: string }>(url);
   }
 }
 

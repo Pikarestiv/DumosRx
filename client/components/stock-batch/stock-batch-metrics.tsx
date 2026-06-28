@@ -1,11 +1,11 @@
 "use client";
 
 import { Card, CardContent } from "@/components/ui/card";
-import { 
-  DollarSign, 
-  AlertTriangle, 
-  TrendingDown, 
-  Calendar 
+import {
+  DollarSign,
+  AlertTriangle,
+  TrendingDown,
+  Calendar,
 } from "lucide-react";
 
 import { useStore } from "@/lib/context/store-context";
@@ -23,7 +23,7 @@ export function StockBatchMetrics({
   criticalItems,
   lowStockCount,
   expiringCount,
-  formatCurrency
+  formatCurrency,
 }: StockBatchMetricsProps) {
   const { storeProfile } = useStore();
   const expiryDays = storeProfile?.expiry_warning_days || 90;
@@ -35,7 +35,7 @@ export function StockBatchMetrics({
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground">
-                Total StockBatch Value
+                Total Stock Batch Value
               </p>
               <p className="text-2xl font-bold">
                 {formatCurrency(stock_batchValue)}

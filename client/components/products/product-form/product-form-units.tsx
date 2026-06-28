@@ -19,7 +19,7 @@ export function ProductFormUnits({
 }: ProductFormUnitsProps) {
   return (
     <div className="border-t pt-4 space-y-4">
-      <h4 className="font-medium text-sm">StockBatch Units (Conversions)</h4>
+      <h4 className="font-medium text-sm">Stock Batch Units (Conversions)</h4>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="space-y-2">
           <Label htmlFor="baseUnit">Base Unit *</Label>

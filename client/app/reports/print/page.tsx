@@ -116,7 +116,7 @@ function PrintReportContent() {
 
   const reportTitleMap: Record<string, string> = {
     "sales": "Sales Report",
-    "stock_batches": "StockBatch Valuation Report",
+    "stock_batches": "Stock Batch Valuation Report",
     "profit-loss": "Profit & Loss Summary",
     "customers": "Customer Loyalty Report",
     "expenses": "Expenses Report"

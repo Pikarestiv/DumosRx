@@ -348,7 +348,7 @@ export function POSSystem() {
         onSuccess={() => {
           refetchProducts();
           refetchSales();
-          toast.success("StockBatch updated after return");
+          toast.success("Stock Batch updated after return");
         }}
         currencyCode={storeProfile?.currency}
       />

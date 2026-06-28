@@ -59,18 +59,26 @@ export function PricingSection() {
       priceYearly: 0,
       description: "Ideal for single-operator standalone desktop use.",
       features: [
-        "Full POS & StockBatch tracking",
-        `${config?.tiers?.free?.limits?.staff === -1 ? 'Unlimited' : (config?.tiers?.free?.limits?.staff || 1)} User (Owner Only)`,
+        "Full POS & Stock Batch tracking",
+        `${config?.tiers?.free?.limits?.staff === -1 ? "Unlimited" : config?.tiers?.free?.limits?.staff || 1} User (Owner Only)`,
         "Local Database operation",
         "Expiry & Stock Reminders",
         "EOD Sales reports",
       ],
       exclusions: [
         "No Cloud Sync & Backups",
-        !config?.tiers?.free?.features?.web_dashboard ? "No Web Dashboard access" : "",
-        !config?.tiers?.free?.features?.mobile_app ? "No Mobile Companion app" : "",
-        !config?.tiers?.free?.features?.ecommerce ? "No custom store page / e-commerce" : "",
-        !config?.tiers?.free?.features?.custom_branding ? "Locked to Dumos Blue light theme" : "",
+        !config?.tiers?.free?.features?.web_dashboard
+          ? "No Web Dashboard access"
+          : "",
+        !config?.tiers?.free?.features?.mobile_app
+          ? "No Mobile Companion app"
+          : "",
+        !config?.tiers?.free?.features?.ecommerce
+          ? "No custom store page / e-commerce"
+          : "",
+        !config?.tiers?.free?.features?.custom_branding
+          ? "Locked to Dumos Blue light theme"
+          : "",
       ].filter(Boolean),
       badge: "Free Forever",
       buttonText: "Download Standalone",
@@ -85,16 +93,24 @@ export function PricingSection() {
       priceYearly: starterTier.price_yearly,
       description: "Cloud-connected for small growing retail teams.",
       features: [
-        `Up to ${config?.tiers?.starter?.limits?.staff === -1 ? 'Unlimited' : (config?.tiers?.starter?.limits?.staff || 3)} Staff Accounts`,
+        `Up to ${config?.tiers?.starter?.limits?.staff === -1 ? "Unlimited" : config?.tiers?.starter?.limits?.staff || 3} Staff Accounts`,
         "Cloud Database Backup",
         "6-Hour Scheduled Cloud Sync",
-        config?.tiers?.starter?.features?.web_dashboard ? "Full Web Dashboard" : "Restricted Web Dashboard",
+        config?.tiers?.starter?.features?.web_dashboard
+          ? "Full Web Dashboard"
+          : "Restricted Web Dashboard",
         "Prescriptions & Expenses",
       ],
       exclusions: [
-        !config?.tiers?.starter?.features?.mobile_app ? "No Mobile Companion app" : "",
-        !config?.tiers?.starter?.features?.ecommerce ? "No E-commerce Store URL" : "",
-        !config?.tiers?.starter?.features?.smart_pos ? "No Smart POS suggestions" : "",
+        !config?.tiers?.starter?.features?.mobile_app
+          ? "No Mobile Companion app"
+          : "",
+        !config?.tiers?.starter?.features?.ecommerce
+          ? "No E-commerce Store URL"
+          : "",
+        !config?.tiers?.starter?.features?.smart_pos
+          ? "No Smart POS suggestions"
+          : "",
       ].filter(Boolean),
       badge: "Trial Available",
       buttonText: "Start Free Trial",
@@ -109,15 +125,21 @@ export function PricingSection() {
       priceYearly: proTier.price_yearly,
       description: "Remote tracking and mobile-connected stores.",
       features: [
-        `Up to ${config?.tiers?.pro?.limits?.staff === -1 ? 'Unlimited' : (config?.tiers?.pro?.limits?.staff || 10)} Staff Accounts`,
+        `Up to ${config?.tiers?.pro?.limits?.staff === -1 ? "Unlimited" : config?.tiers?.pro?.limits?.staff || 10} Staff Accounts`,
         "30-Minute Automated Cloud Sync",
         "Full Web Dashboard Analytics",
         "Mobile App Companion access",
-        config?.tiers?.pro?.features?.smart_pos ? "Smart POS Suggestions & Receipts" : "",
-        config?.tiers?.pro?.features?.ecommerce ? "E-commerce Online Store URL" : "",
+        config?.tiers?.pro?.features?.smart_pos
+          ? "Smart POS Suggestions & Receipts"
+          : "",
+        config?.tiers?.pro?.features?.ecommerce
+          ? "E-commerce Online Store URL"
+          : "",
       ].filter(Boolean),
       exclusions: [
-        !config?.tiers?.pro?.features?.custom_branding ? "No Custom Branding" : ""
+        !config?.tiers?.pro?.features?.custom_branding
+          ? "No Custom Branding"
+          : "",
       ].filter(Boolean),
       badge: "Most Popular",
       buttonText: "Start Free Trial",
@@ -132,11 +154,13 @@ export function PricingSection() {
       priceYearly: enterpriseTier.price_yearly,
       description: "For multi-store chains and corporate networks.",
       features: [
-        `${config?.tiers?.enterprise?.limits?.stores === -1 ? 'Unlimited' : (config?.tiers?.enterprise?.limits?.stores || 'Unlimited')} Multi-Store Operations`,
-        `${config?.tiers?.enterprise?.limits?.staff === -1 ? 'Unlimited' : (config?.tiers?.enterprise?.limits?.staff || 'Unlimited')} Terminals & Users`,
+        `${config?.tiers?.enterprise?.limits?.stores === -1 ? "Unlimited" : config?.tiers?.enterprise?.limits?.stores || "Unlimited"} Multi-Store Operations`,
+        `${config?.tiers?.enterprise?.limits?.staff === -1 ? "Unlimited" : config?.tiers?.enterprise?.limits?.staff || "Unlimited"} Terminals & Users`,
         "15-Minute Automated Cloud Sync",
         "Central HQ Dashboard & Management",
-        config?.tiers?.enterprise?.features?.custom_branding ? "White-labeling & Custom Branding" : "",
+        config?.tiers?.enterprise?.features?.custom_branding
+          ? "White-labeling & Custom Branding"
+          : "",
         "Priority Email Notifications",
         "24/7 Priority Dedicated Support",
       ].filter(Boolean),
@@ -147,7 +171,7 @@ export function PricingSection() {
       buttonVariant: "outline" as const,
       popular: false,
     },
-  ].filter(p => config?.tiers?.[p.id]?.active !== false);
+  ].filter((p) => config?.tiers?.[p.id]?.active !== false);
 
   return (
     <section

@@ -79,7 +79,7 @@ export function StockBatchQuickActions({
             className="h-20 flex flex-col gap-2 bg-transparent"
           >
             <BarChart3 className="h-6 w-6 hover-rotate-icon" />
-            <span className="text-sm">StockBatch Report</span>
+            <span className="text-sm">Stock Batch Report</span>
           </Button>
         </div>
 

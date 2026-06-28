@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/context/auth-context";
 import { useStore } from "@/lib/context/store-context";
@@ -167,18 +167,29 @@ export function DashboardActionCenter({
     lowStockCount,
   ]);
 
-  // Auto-rotate logic
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+
+  // Auto-scroll logic for horizontal list
   useEffect(() => {
     if (alerts.length <= 1 || isPaused) return;
     const interval = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % alerts.length);
+      if (scrollRef.current) {
+        const container = scrollRef.current;
+        const scrollWidth = container.scrollWidth;
+        const clientWidth = container.clientWidth;
+        
+        let newScrollLeft = container.scrollLeft + clientWidth * 0.85;
+        if (newScrollLeft >= scrollWidth - clientWidth + 10) {
+          // Reset to start if at the end
+          newScrollLeft = 0;
+        }
+        container.scrollTo({ left: newScrollLeft, behavior: 'smooth' });
+      }
     }, 5000);
     return () => clearInterval(interval);
   }, [alerts.length, isPaused]);
 
   if (alerts.length === 0) return null;
-
-  const currentAlert = alerts[currentIndex];
 
   const getPriorityColors = (priority: AlertPriority) => {
     switch (priority) {
@@ -193,77 +204,60 @@ export function DashboardActionCenter({
     }
   };
 
-  const handleNext = () =>
-    setCurrentIndex((prev) => (prev + 1) % alerts.length);
-  const handlePrev = () =>
-    setCurrentIndex((prev) => (prev - 1 + alerts.length) % alerts.length);
+  const cardWidthClass = alerts.length === 1 
+    ? 'w-full min-w-full' 
+    : 'w-[90%] md:w-[85%] lg:w-[92%]';
 
   return (
-    <Card
-      className="border-border bg-card shadow-sm mb-6 overflow-hidden relative"
-      onMouseEnter={() => setIsPaused(true)}
-      onMouseLeave={() => setIsPaused(false)}
-    >
-      <div className="bg-muted/30 px-6 py-2.5 border-b border-border flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <BellRing className="h-4 w-4 text-primary" />
-          <h3 className="font-bold text-sm text-foreground">Action Center</h3>
-          <span className="bg-primary text-primary-foreground text-[10px] font-black px-2 py-0.5 rounded-full ml-2">
-            {currentIndex + 1} of {alerts.length}
-          </span>
-        </div>
+    <div className="mb-2">
+      <div className="flex items-center gap-2 mb-2 px-1">
+        <BellRing className="h-4 w-4 text-primary" />
+        <h3 className="font-bold text-sm text-foreground">Action Center</h3>
         {alerts.length > 1 && (
-          <div className="flex items-center gap-1">
-            <button
-              onClick={handlePrev}
-              className="p-1 hover:bg-accent rounded-md transition-colors text-muted-foreground hover:text-foreground"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <button
-              onClick={handleNext}
-              className="p-1 hover:bg-accent rounded-md transition-colors text-muted-foreground hover:text-foreground"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
+          <span className="bg-primary/10 text-primary text-[10px] font-black px-2 py-0.5 rounded-full ml-1">
+            {alerts.length} Items
+          </span>
         )}
       </div>
-      <CardContent className="p-0 bg-card">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={currentAlert.id}
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.2 }}
-            className="p-4 flex flex-col sm:flex-row sm:items-center gap-4 transition-colors"
+      <div 
+        ref={scrollRef}
+        className="flex overflow-x-auto snap-x snap-mandatory gap-3 pb-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] -mx-1 px-1"
+        onMouseEnter={() => setIsPaused(true)}
+        onMouseLeave={() => setIsPaused(false)}
+        onTouchStart={() => setIsPaused(true)}
+        onTouchEnd={() => setIsPaused(false)}
+      >
+        {alerts.map((alert) => (
+          <Card 
+            key={alert.id}
+            className={`shrink-0 snap-start border-border bg-card shadow-sm overflow-hidden ${cardWidthClass}`}
           >
-            <div
-              className={`p-3 rounded-2xl shrink-0 self-start ${getPriorityColors(currentAlert.priority)}`}
-            >
-              <currentAlert.icon className="h-5 w-5" />
+            <div className="p-3 flex flex-col sm:flex-row sm:items-center gap-3">
+              <div
+                className={`p-2.5 rounded-xl shrink-0 self-start ${getPriorityColors(alert.priority)}`}
+              >
+                <alert.icon className="h-4 w-4" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h4 className="font-bold text-sm text-foreground truncate">
+                  {alert.title}
+                </h4>
+                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                  {alert.description}
+                </p>
+              </div>
+              <Button
+                variant="default"
+                size="sm"
+                className="w-full sm:w-auto shrink-0 h-8 text-xs"
+                onClick={() => router.push(alert.actionRoute)}
+              >
+                {alert.actionLabel}
+              </Button>
             </div>
-            <div className="flex-1 min-w-0">
-              <h4 className="font-bold text-sm text-foreground">
-                {currentAlert.title}
-              </h4>
-              <p className="text-xs font-medium text-muted-foreground mt-0.5 pr-4 truncate sm:whitespace-normal">
-                {currentAlert.description}
-              </p>
-            </div>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => router.push(currentAlert.actionRoute)}
-              className="shrink-0 w-full sm:w-auto h-9 font-bold bg-background border-border hover:bg-accent hover:text-accent-foreground"
-            >
-              {currentAlert.actionLabel}
-              <ArrowRight className="h-3.5 w-3.5 ml-2" />
-            </Button>
-          </motion.div>
-        </AnimatePresence>
-      </CardContent>
-    </Card>
+          </Card>
+        ))}
+      </div>
+    </div>
   );
 }

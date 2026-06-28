@@ -109,6 +109,7 @@ export function DashboardOverview() {
       description: `Active ${t("products").toLowerCase()} in stock`,
       icon: Package,
       trend: "In database",
+      colorScheme: "blue" as const,
     },
     {
       title: "Daily Sales",
@@ -116,20 +117,23 @@ export function DashboardOverview() {
       description: "Today's revenue",
       icon: ShoppingCart,
       trend: "Today",
+      colorScheme: "green" as const,
     },
     {
       title: "Expiring Soon",
-      value: stats.expiringSoon.toString(),
+      value: String(stats.expiringSoon),
       description: `Items expiring in ${expiryDays} days`,
       icon: AlertTriangle,
       trend: stats.expiringSoon > 0 ? "Requires attention" : "All clear",
+      colorScheme: "red" as const,
     },
     {
       title: "Low Stock",
-      value: stats.lowStockCount.toString(),
+      value: String(stats.lowStockCount),
       description: "Items below reorder level",
       icon: TrendingUp,
       trend: stats.lowStockCount > 0 ? "Needs restock" : "Healthy",
+      colorScheme: "amber" as const,
     },
   ];
 
@@ -159,7 +163,7 @@ export function DashboardOverview() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div>
         <p className="text-primary font-medium mb-1">
           Welcome back, {user?.first_name || "User"}
@@ -167,7 +171,7 @@ export function DashboardOverview() {
         <h1 className="font-serif font-bold text-3xl text-foreground">
           Dashboard Overview
         </h1>
-        <p className="text-muted-foreground mt-2">
+        <p className="text-muted-foreground mt-1">
           Monitor your {t("store").toLowerCase()} operations and key metrics
         </p>
       </div>
@@ -177,9 +181,9 @@ export function DashboardOverview() {
         lowStockCount={stats.lowStockCount}
       />
 
-      <DashboardStats statsCards={statsCards} />
+      <DashboardStats statsCards={statsCards} isCompact={true} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <DashboardRecentActivity
           activities={activities}
           storeTerm={t("store")}

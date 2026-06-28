@@ -107,7 +107,7 @@ export function ProductCombobox({
   }, [inputValue, allSuggestions]);
 
   return (
-    <Popover open={open} onOpenChange={setOpen} modal={false}>
+    <Popover open={open} onOpenChange={setOpen} modal={true}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -123,7 +123,6 @@ export function ProductCombobox({
       <PopoverContent
         className="w-[--radix-popover-trigger-width] p-0"
         align="start"
-        onFocusOutside={(e) => e.preventDefault()}
       >
         <Command shouldFilter={false}>
           <CommandInput 

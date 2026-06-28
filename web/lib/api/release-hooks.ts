@@ -15,7 +15,7 @@ export interface ReleaseLinks {
 
 export const useLatestRelease = () => {
   return useQuery({
-    queryKey: ["github-latest-release"],
+    queryKey: ["latest-release"],
     queryFn: async (): Promise<ReleaseLinks> => {
       let version = APP_VERSION;
       try {

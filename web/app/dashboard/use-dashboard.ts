@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useDashboardSummary } from "@/lib/api/hooks";
-import { useLatestRelease } from "@/lib/api/github-hooks";
+import { useLatestRelease } from "@/lib/api/release-hooks";
 import { APP_VERSION } from "@/lib/constants";
 
 export function useDashboard() {

@@ -20,7 +20,7 @@ import {
   Smartphone,
 } from "lucide-react";
 import { ModeToggle } from "@/components/mode-toggle";
-import { useLatestRelease } from "@/lib/api/github-hooks";
+import { useLatestRelease } from "@/lib/api/release-hooks";
 
 export default function DownloadsPage() {
   const { data: links, isLoading } = useLatestRelease();

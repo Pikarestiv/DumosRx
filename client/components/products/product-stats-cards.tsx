@@ -6,6 +6,7 @@ interface ProductStatsCardsProps {
   totalCount: number;
   activeCount: number;
   lowStockCount: number;
+  outOfStockCount: number;
   expiredCount: number;
   productsLabel: string;
 }
@@ -14,11 +15,12 @@ export function ProductStatsCards({
   totalCount,
   activeCount,
   lowStockCount,
+  outOfStockCount,
   expiredCount,
   productsLabel,
 }: ProductStatsCardsProps) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
       <Card>
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
@@ -57,6 +59,20 @@ export function ProductStatsCards({
             <div>
               <p className="text-sm text-muted-foreground">Low Stock</p>
               <p className="text-2xl font-bold text-destructive">{lowStockCount}</p>
+            </div>
+            <div className="h-8 w-8 bg-destructive/10 rounded-full flex items-center justify-center">
+              <AlertTriangle className="h-4 w-4 text-destructive" />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">Out of Stock</p>
+              <p className="text-2xl font-bold text-destructive">{outOfStockCount}</p>
             </div>
             <div className="h-8 w-8 bg-destructive/10 rounded-full flex items-center justify-center">
               <AlertTriangle className="h-4 w-4 text-destructive" />

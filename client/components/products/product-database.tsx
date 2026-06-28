@@ -94,7 +94,7 @@ export function ProductDatabase() {
     ...(fetchedCategories.length > 0 ? fetchedCategories : defaultCategories),
   ];
 
-  const statuses = ["all", "active", "inactive", "expired", "low_stock"];
+  const statuses = ["all", "active", "inactive", "expired", "low_stock", "out_of_stock"];
 
   const handleAddProduct = async (payload: any, keepOpen?: boolean) => {
     try {
@@ -257,6 +257,10 @@ export function ProductDatabase() {
         variant = "outline";
         label = "Low Stock";
         break;
+      case "out_of_stock":
+        variant = "destructive";
+        label = "Out of Stock";
+        break;
     }
 
     return (
@@ -305,7 +309,10 @@ export function ProductDatabase() {
         totalCount={products.length}
         activeCount={products.filter((m) => m.status !== "expired").length}
         lowStockCount={
-          products.filter((m) => m.stockQuantity <= m.reorderLevel).length
+          products.filter((m) => m.stockQuantity > 0 && m.stockQuantity <= m.reorderLevel).length
+        }
+        outOfStockCount={
+          products.filter((m) => m.stockQuantity <= 0).length
         }
         expiredCount={
           products.filter(

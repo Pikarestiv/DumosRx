@@ -76,7 +76,7 @@ export function useProductDetails(
       ).toFixed(1)
     : "0.0";
 
-  const daysToExpiry = product
+  const daysToExpiry = product && product.expiryDate
     ? Math.ceil(
         (new Date(product.expiryDate).getTime() - new Date().getTime()) /
           (1000 * 60 * 60 * 24),

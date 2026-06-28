@@ -58,7 +58,11 @@ export function ProductDatabase() {
   const isStore = storeType === "pharmacy";
 
   const { data: products, refetch } = useLocalData<Product>(
-    `SELECT m.*, c.name as category_name, v.name as supplier_name
+    `SELECT m.*, c.name as category_name, v.name as supplier_name,
+       (SELECT SUM(quantity) FROM stock_batches WHERE product_id = m.id AND _deleted = 0 AND is_active = 1) as stock_quantity,
+       (SELECT cost_price FROM stock_batches WHERE product_id = m.id AND _deleted = 0 ORDER BY created_at DESC LIMIT 1) as cost_price,
+       (SELECT expiry_date FROM stock_batches WHERE product_id = m.id AND _deleted = 0 AND quantity > 0 ORDER BY expiry_date ASC LIMIT 1) as expiry_date,
+       (SELECT batch_number FROM stock_batches WHERE product_id = m.id AND _deleted = 0 AND quantity > 0 ORDER BY expiry_date ASC LIMIT 1) as batch_number
      FROM products m
      LEFT JOIN categories c ON m.category_id = c.id
      LEFT JOIN suppliers v ON m.supplier_id = v.id

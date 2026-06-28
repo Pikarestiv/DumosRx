@@ -543,6 +543,7 @@ class AdminService
                 'name' => $data['store_name'],
                 'device_id' => 'WEB-'.strtoupper(Str::random(8)),
                 'status' => 'Active',
+                'auto_sync_enabled' => true,
             ]);
 
             // Create trial subscription

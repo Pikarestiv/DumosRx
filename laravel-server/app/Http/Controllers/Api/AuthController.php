@@ -73,6 +73,7 @@ class AuthController extends Controller
                 'name' => $request->store_name,
                 'store_type' => $request->store_type ?? 'pharmacy',
                 'device_id' => 'WEB-' . strtoupper(Str::random(8)),
+                'auto_sync_enabled' => true,
             ]);
 
             // Create trial subscription

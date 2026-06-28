@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('stores', function (Blueprint $table) {
-            $table->boolean('auto_sync_enabled')->default(false)->after('device_id');
+            $table->boolean('auto_sync_enabled')->default(true)->after('device_id');
             $table->integer('auto_sync_interval')->default(15)->after('auto_sync_enabled');
         });
     }

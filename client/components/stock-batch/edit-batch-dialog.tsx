@@ -41,18 +41,13 @@ export function EditBatchDialog({ isOpen, onClose, batch, onSuccess }: EditBatch
     setLoading(true);
 
     try {
-      if (isTauri()) {
-        const { update } = await import("@/lib/db/local-database");
-        
-        await update("stock_batches", batch.id, {
-          batch_number: formData.batch_number,
-          expiry_date: formData.expiry_date,
-          quantity: formData.quantity,
-        });
-      } else {
-        // If web version, we would typically call an API.
-        // Assuming a mock or ignoring for now since the app is Tauri-centric.
-      }
+      const { update } = await import("@/lib/db/local-database");
+      
+      await update("stock_batches", batch.id, {
+        batch_number: formData.batch_number,
+        expiry_date: formData.expiry_date,
+        quantity: formData.quantity,
+      });
 
       toast.success("Batch details updated successfully");
       onSuccess();

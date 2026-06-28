@@ -210,6 +210,7 @@ export async function initDatabase(): Promise<any> {
         "ordered_by TEXT",
         "order_date TEXT",
         "order_number TEXT",
+        "supplier_id TEXT",
       ],
     },
     {

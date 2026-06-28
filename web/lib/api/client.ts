@@ -223,8 +223,13 @@ class WebApiClient {
   // ==========================================
 
   async getSystemConfig(key: string) {
-    const { data } = await apiClient.get(`/system-configs/${key}`);
-    return data.data; // returning the inner 'data' which contains the JSON
+    try {
+      const { data } = await apiClient.get(`/system-configs/${key}`);
+      return data.data; // returning the inner 'data' which contains the JSON
+    } catch (error) {
+      console.warn(`[WebApiClient] Failed to fetch system config for ${key}`, error);
+      return null;
+    }
   }
 
   async updateSystemConfig(key: string, value: any) {

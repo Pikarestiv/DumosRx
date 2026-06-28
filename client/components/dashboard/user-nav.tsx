@@ -20,7 +20,9 @@ export function UserNav() {
 
   if (!user) return null;
 
-  const initials = `${user.first_name?.[0] || ""}${user.last_name?.[0] || ""}`.toUpperCase() || "U";
+  const initials =
+    `${user.first_name?.[0] || ""}${user.last_name?.[0] || ""}`.toUpperCase() ||
+    "U";
 
   const handleSwitchAccount = () => {
     logout();
@@ -38,12 +40,13 @@ export function UserNav() {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-8 w-8 rounded-full">
           <Avatar className="h-8 w-8 border border-border">
-            <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
+            <AvatarFallback className="bg-primary/10 text-primary hover:text-accent-foreground text-xs font-semibold">
               {initials}
             </AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
+
       <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
@@ -56,12 +59,18 @@ export function UserNav() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleSwitchAccount} className="cursor-pointer">
+        <DropdownMenuItem
+          onClick={handleSwitchAccount}
+          className="cursor-pointer"
+        >
           <Repeat className="mr-2 h-4 w-4" />
           <span>Switch Account</span>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleFullLogout} className="cursor-pointer text-destructive focus:text-destructive">
+        <DropdownMenuItem
+          onClick={handleFullLogout}
+          className="cursor-pointer text-destructive focus:text-destructive"
+        >
           <LogOut className="mr-2 h-4 w-4" />
           <span>Log out completely</span>
         </DropdownMenuItem>

@@ -78,7 +78,19 @@ export function ProductFormStock({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="expiryDate">Expiry Date (DD/MM/YYYY)</Label>
+        <div className="flex items-center gap-2">
+          <Label htmlFor="expiryDate">Expiry Date (DD/MM/YYYY)</Label>
+          <TooltipProvider delayDuration={0}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>If the package only shows month and year, put 01 for the day.</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
         <Input
           id="expiryDate"
           type="text"

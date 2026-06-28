@@ -81,6 +81,10 @@ export function EditBatchDialog({
       <DialogContent 
         className="sm:max-w-[425px]"
         onPointerDownOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => {
+          e.preventDefault();
+          onClose();
+        }}
       >
         <DialogHeader>
           <DialogTitle>Edit Batch Details</DialogTitle>

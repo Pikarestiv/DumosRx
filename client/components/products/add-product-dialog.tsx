@@ -302,6 +302,10 @@ export function AddProductDialog({
       <DialogContent 
         className="max-w-2xl max-h-[90vh] overflow-y-auto"
         onPointerDownOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => {
+          e.preventDefault();
+          onOpenChange(false);
+        }}
       >
         <DialogHeader>
           <DialogTitle className="font-serif font-bold text-2xl">

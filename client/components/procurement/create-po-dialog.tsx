@@ -186,6 +186,10 @@ export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
       <DialogContent 
         className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col p-0 border-accent/20 bg-card/95 backdrop-blur-xl"
         onPointerDownOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => {
+          e.preventDefault();
+          setOpen(false);
+        }}
       >
         <DialogHeader className="p-6 border-b border-accent/10">
           <DialogTitle className="text-2xl font-serif font-bold">

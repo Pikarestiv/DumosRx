@@ -1,10 +1,22 @@
 "use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { SearchableInput } from "@/components/ui/searchable-input";
 import { ProductCombobox } from "@/components/ui/product-combobox";
@@ -19,14 +31,16 @@ interface AddStockAdjustmentFormProps {
     reason: string;
     notes: string;
   };
-  setNewAdjustment: React.Dispatch<React.SetStateAction<{
-    product: string;
-    batch_id: string;
-    adjustmentType: "increase" | "decrease";
-    quantity: number;
-    reason: string;
-    notes: string;
-  }>>;
+  setNewAdjustment: React.Dispatch<
+    React.SetStateAction<{
+      product: string;
+      batch_id: string;
+      adjustmentType: "increase" | "decrease";
+      quantity: number;
+      reason: string;
+      notes: string;
+    }>
+  >;
   onSubmit: (e: React.FormEvent) => void;
   onCancel: () => void;
   reasons: string[];
@@ -42,12 +56,16 @@ export function AddStockAdjustmentForm({
   availableBatches = [],
 }: AddStockAdjustmentFormProps) {
   const router = useRouter();
-  
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="font-serif font-semibold">New Stock Adjustment</CardTitle>
-        <CardDescription>Record stock_batch adjustments for audit purposes</CardDescription>
+        <CardTitle className="font-serif font-semibold">
+          New Stock Adjustment
+        </CardTitle>
+        <CardDescription>
+          Record stock batch adjustments for audit purposes
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={onSubmit} className="space-y-4">
@@ -57,9 +75,14 @@ export function AddStockAdjustmentForm({
               <ProductCombobox
                 value={newAdjustment.product}
                 onChange={(option) => {
-                  setNewAdjustment((prev) => ({ ...prev, product: option.name }));
+                  setNewAdjustment((prev) => ({
+                    ...prev,
+                    product: option.name,
+                  }));
                   if (option.source === "new" || option.source === "global") {
-                    router.push(`/inventory/products?add=true&name=${encodeURIComponent(option.name)}&source=${option.source}`);
+                    router.push(
+                      `/inventory/products?add=true&name=${encodeURIComponent(option.name)}&source=${option.source}`,
+                    );
                   }
                 }}
                 placeholder="Enter product name"
@@ -71,7 +94,10 @@ export function AddStockAdjustmentForm({
               <Select
                 value={newAdjustment.adjustmentType}
                 onValueChange={(value: "increase" | "decrease") =>
-                  setNewAdjustment((prev) => ({ ...prev, adjustmentType: value }))
+                  setNewAdjustment((prev) => ({
+                    ...prev,
+                    adjustmentType: value,
+                  }))
                 }
               >
                 <SelectTrigger>
@@ -97,17 +123,22 @@ export function AddStockAdjustmentForm({
                   <SelectValue placeholder="Select batch..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableBatches.map(batch => (
+                  {availableBatches.map((batch) => (
                     <SelectItem key={batch.id} value={batch.id}>
-                      {batch.batch_number} (Qty: {batch.quantity}, Exp: {batch.expiry_date ? new Date(batch.expiry_date).toLocaleDateString() : 'N/A'})
+                      {batch.batch_number} (Qty: {batch.quantity}, Exp:{" "}
+                      {batch.expiry_date
+                        ? new Date(batch.expiry_date).toLocaleDateString()
+                        : "N/A"}
+                      )
                     </SelectItem>
                   ))}
                   {newAdjustment.adjustmentType === "increase" && (
                     <SelectItem value="new">+ Create New Batch</SelectItem>
                   )}
-                  {newAdjustment.adjustmentType === "decrease" && availableBatches.length > 0 && (
-                     <SelectItem value="">Auto (FIFO Deduction)</SelectItem>
-                  )}
+                  {newAdjustment.adjustmentType === "decrease" &&
+                    availableBatches.length > 0 && (
+                      <SelectItem value="">Auto (FIFO Deduction)</SelectItem>
+                    )}
                 </SelectContent>
               </Select>
             </div>
@@ -117,7 +148,9 @@ export function AddStockAdjustmentForm({
               <Input
                 id="quantity"
                 type="number"
-                value={newAdjustment.quantity === 0 ? "" : newAdjustment.quantity}
+                value={
+                  newAdjustment.quantity === 0 ? "" : newAdjustment.quantity
+                }
                 onChange={(e) =>
                   setNewAdjustment((prev) => ({
                     ...prev,
@@ -135,7 +168,9 @@ export function AddStockAdjustmentForm({
               <Label htmlFor="reason">Reason *</Label>
               <SearchableInput
                 value={newAdjustment.reason}
-                onValueChange={(val) => setNewAdjustment((prev) => ({ ...prev, reason: val }))}
+                onValueChange={(val) =>
+                  setNewAdjustment((prev) => ({ ...prev, reason: val }))
+                }
                 options={reasons}
                 placeholder="Select or type reason"
               />
@@ -147,17 +182,27 @@ export function AddStockAdjustmentForm({
             <Textarea
               id="notes"
               value={newAdjustment.notes}
-              onChange={(e) => setNewAdjustment((prev) => ({ ...prev, notes: e.target.value }))}
+              onChange={(e) =>
+                setNewAdjustment((prev) => ({ ...prev, notes: e.target.value }))
+              }
               placeholder="Additional notes or explanation..."
               rows={3}
             />
           </div>
 
           <div className="flex gap-2">
-            <Button type="submit" className="bg-accent hover:bg-accent/90 cursor-pointer">
+            <Button
+              type="submit"
+              className="bg-accent hover:bg-accent/90 cursor-pointer"
+            >
               Submit Adjustment
             </Button>
-            <Button type="button" variant="outline" onClick={onCancel} className="cursor-pointer">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onCancel}
+              className="cursor-pointer"
+            >
               Cancel
             </Button>
           </div>

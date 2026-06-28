@@ -46,7 +46,7 @@ export function DashboardTour() {
     {
       target: "#tour-overview-stats",
       content:
-        "Get an instant snapshot of your sales, active staff, and stock_batch counts.",
+        "Get an instant snapshot of your sales, active staff, and inventory counts.",
       placement: "top",
     },
     {
@@ -82,7 +82,7 @@ export function DashboardTour() {
     /*
     {
       target: "#tour-nav-activities",
-      content: "Track staff activities, sales records, and stock_batch changes.",
+      content: "Track staff activities, sales records, and inventory changes.",
       placement: "right",
     },
     {

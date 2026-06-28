@@ -105,7 +105,7 @@ export function StockMovements() {
   const { results: filteredMovements, isFuzzyFallback } = genericFuzzySearch(
     searchTerm,
     preFilteredMovements,
-    ["product", "reference", "reason"]
+    ["product", "reference", "reason"],
   );
 
   function checkDateFilter(date: string, filter: string): boolean {
@@ -187,7 +187,7 @@ export function StockMovements() {
             Stock Movement History
           </CardTitle>
           <CardDescription>
-            Track all stock_batch movements and transactions
+            Track all stock batch movements and transactions
           </CardDescription>
         </CardHeader>
         <CardContent>

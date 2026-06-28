@@ -1,4 +1,10 @@
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Search } from "lucide-react";
@@ -23,7 +29,7 @@ export function StockAdjustmentFilters({
               Stock Adjustments
             </CardTitle>
             <CardDescription>
-              Track and manage stock_batch adjustments
+              Track and manage stock batch adjustments
             </CardDescription>
           </div>
           <Button

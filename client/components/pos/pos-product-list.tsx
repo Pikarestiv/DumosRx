@@ -1,10 +1,23 @@
 "use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PackageX, Plus, AlertCircle, Sparkles, Clock, Star } from "lucide-react";
+import {
+  PackageX,
+  Plus,
+  AlertCircle,
+  Sparkles,
+  Clock,
+  Star,
+} from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
 interface POSProductListProps {
@@ -30,7 +43,7 @@ export function POSProductList({
   isFuzzyFallback,
   suggestions = [],
   recentlySoldIds = [],
-  commonlySoldIds = []
+  commonlySoldIds = [],
 }: POSProductListProps) {
   // Segment the products for prioritization
   const suggestionsSet = new Set(suggestions.map((s) => s.id));
@@ -80,7 +93,9 @@ export function POSProductList({
             <AlertCircle className="h-5 w-5 shrink-0" />
             <div>
               <p className="font-bold text-sm">Did you mean?</p>
-              <p className="text-xs opacity-80">No exact matches found. Showing closest names.</p>
+              <p className="text-xs opacity-80">
+                No exact matches found. Showing closest names.
+              </p>
             </div>
           </div>
         )}
@@ -100,7 +115,8 @@ export function POSProductList({
             <PackageX className="h-12 w-12 mb-4" />
             <p className="font-medium">No {productTerm.toLowerCase()} found</p>
             <p className="text-sm">
-              Try a different search term or add {productTerm.toLowerCase()} to stock_batch.
+              Try a different search term or add {productTerm.toLowerCase()} to
+              stock batch.
             </p>
           </div>
         ) : (
@@ -116,7 +132,8 @@ export function POSProductList({
                     <span>Suggested</span>
                   </div>
                 );
-                cardStyle = "border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10";
+                cardStyle =
+                  "border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10";
               } else if (product.posGroup === "recent") {
                 indicator = (
                   <div className="flex items-center gap-0.5 text-[9px] font-semibold text-blue-600 bg-blue-500/10 px-1 py-0.5 rounded shadow-sm">
@@ -124,7 +141,8 @@ export function POSProductList({
                     <span>Recent</span>
                   </div>
                 );
-                cardStyle = "border-blue-500/25 bg-blue-500/5 hover:bg-blue-500/10";
+                cardStyle =
+                  "border-blue-500/25 bg-blue-500/5 hover:bg-blue-500/10";
               } else if (product.posGroup === "common") {
                 indicator = (
                   <div className="flex items-center gap-0.5 text-[9px] font-semibold text-yellow-700 bg-yellow-500/10 px-1 py-0.5 rounded shadow-sm">
@@ -132,7 +150,8 @@ export function POSProductList({
                     <span>Popular</span>
                   </div>
                 );
-                cardStyle = "border-yellow-500/25 bg-yellow-500/5 hover:bg-yellow-500/10";
+                cardStyle =
+                  "border-yellow-500/25 bg-yellow-500/5 hover:bg-yellow-500/10";
               }
 
               return (
@@ -141,14 +160,15 @@ export function POSProductList({
                   className={`relative p-3 border rounded-lg cursor-pointer transition-all duration-200 shadow-sm ${cardStyle}`}
                   onClick={() => addToCart(product)}
                 >
-                  <div className="absolute top-2 right-2 z-10">
-                    {indicator}
-                  </div>
+                  <div className="absolute top-2 right-2 z-10">{indicator}</div>
                   <div className="flex items-center justify-between">
                     <div className="flex-1 pr-14">
-                      <h4 className="font-medium text-sm truncate">{product.name}</h4>
+                      <h4 className="font-medium text-sm truncate">
+                        {product.name}
+                      </h4>
                       <p className="text-xs text-muted-foreground truncate">
-                        {product.brand || "Brand"} • {product.strength || "Strength"}
+                        {product.brand || "Brand"} •{" "}
+                        {product.strength || "Strength"}
                       </p>
                       <div className="flex items-center gap-2 mt-1">
                         <span className="font-bold text-accent">
@@ -168,7 +188,11 @@ export function POSProductList({
                         </Badge>
                       </div>
                     </div>
-                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0 shrink-0">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 w-8 p-0 shrink-0"
+                    >
                       <Plus className="h-4 w-4" />
                     </Button>
                   </div>

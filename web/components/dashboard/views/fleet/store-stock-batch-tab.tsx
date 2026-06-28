@@ -39,7 +39,7 @@ export function StoreStockBatchTab({ store }: { store: any }) {
       setExpiring(expRes || []);
       setTotalValue(valRes?.total_value || 0);
     } catch (err) {
-      console.error("Failed to fetch stock_batch", err);
+      console.error("Failed to fetch stock batches", err);
     } finally {
       setLoading(false);
     }
@@ -53,7 +53,7 @@ export function StoreStockBatchTab({ store }: { store: any }) {
     return (
       <div className="flex justify-center items-center py-20 text-muted-foreground">
         <RefreshCcw className="h-6 w-6 animate-spin mr-2" />
-        <span>Loading stock_batch...</span>
+        <span>Loading stock batches...</span>
       </div>
     );
   }
@@ -174,15 +174,15 @@ export function StoreStockBatchTab({ store }: { store: any }) {
                     {item.product?.category?.name || "Uncategorized"}
                   </TableCell>
                   <TableCell className="text-right">
-                      <span
-                        className={
-                          item.quantity <= item.reorder_level
-                            ? "text-destructive font-medium"
-                            : ""
-                        }
-                      >
-                        {item.quantity}
-                      </span>
+                    <span
+                      className={
+                        item.quantity <= item.reorder_level
+                          ? "text-destructive font-medium"
+                          : ""
+                      }
+                    >
+                      {item.quantity}
+                    </span>
                   </TableCell>
                   <TableCell className="text-right font-medium">
                     ₦{item.selling_price}

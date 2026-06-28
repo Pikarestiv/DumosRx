@@ -3,13 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { StoreModal } from "@/components/dashboard/store-modal";
-import { 
-  Plus,
-  Store,
-  Circle,
-  AlertTriangle,
-  Mail
-} from "lucide-react";
+import { Plus, Store, Circle, AlertTriangle, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -40,16 +34,24 @@ interface OverviewViewProps {
   onNavigate?: (tab: string) => void;
 }
 
-export function OverviewView({ stats, user, stores, onReset: _onReset, onNavigate: _onNavigate }: OverviewViewProps) {
+export function OverviewView({
+  stats,
+  user,
+  stores,
+  onReset: _onReset,
+  onNavigate: _onNavigate,
+}: OverviewViewProps) {
   const { data: subscription } = useSubscriptionStatus();
   const router = useRouter();
-  
+
   const syncInterval = subscription?.limits?.sync_interval ?? 0;
   const isDelayedSync = syncInterval > 0;
-  
+
   // We link the daily summary to the auto_backup / smart_suggestions tier
-  const canSendSummary = subscription?.features?.auto_backup ?? (subscription?.plan !== 'starter' && subscription?.plan !== 'free');
-  
+  const canSendSummary =
+    subscription?.features?.auto_backup ??
+    (subscription?.plan !== "starter" && subscription?.plan !== "free");
+
   const [isStoreModalOpen, setIsStoreModalOpen] = useState(false);
   const [isSendingSummary, setIsSendingSummary] = useState(false);
 
@@ -65,35 +67,40 @@ export function OverviewView({ stats, user, stores, onReset: _onReset, onNavigat
     }
   };
 
-
-
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <StoreModal 
-        isOpen={isStoreModalOpen} 
-        onClose={() => setIsStoreModalOpen(false)} 
-        onSuccess={() => {}} 
+      <StoreModal
+        isOpen={isStoreModalOpen}
+        onClose={() => setIsStoreModalOpen(false)}
+        onSuccess={() => {}}
       />
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight">Cloud Overview</h1>
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
+            Cloud Overview
+          </h1>
           <p className="text-muted-foreground">
-            Unified insights for <span className="font-bold text-foreground">{user.store_name}</span>
+            Unified insights for{" "}
+            <span className="font-bold text-foreground">{user.store_name}</span>
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
           {canSendSummary && (
-            <Button 
-              variant="outline" 
-              className="font-bold w-full sm:w-auto" 
-              onClick={handleSendSummary} 
+            <Button
+              variant="outline"
+              className="font-bold w-full sm:w-auto"
+              onClick={handleSendSummary}
               disabled={isSendingSummary}
             >
               <Mail className="h-4 w-4 mr-2" />
               {isSendingSummary ? "Sending..." : "Send Daily Summary"}
             </Button>
           )}
-          <Button id="tour-overview-add-store" className="font-bold w-full sm:w-auto" onClick={() => setIsStoreModalOpen(true)}>
+          <Button
+            id="tour-overview-add-store"
+            className="font-bold w-full sm:w-auto"
+            onClick={() => setIsStoreModalOpen(true)}
+          >
             <Plus className="h-4 w-4 mr-2" />
             Add New Store
           </Button>
@@ -104,9 +111,15 @@ export function OverviewView({ stats, user, stores, onReset: _onReset, onNavigat
         <div className="bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-200 p-4 rounded-xl flex items-start gap-3">
           <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0 text-amber-500" />
           <div className="space-y-1">
-            <p className="font-semibold text-amber-800 dark:text-amber-300">Delayed Dashboard Data</p>
+            <p className="font-semibold text-amber-800 dark:text-amber-300">
+              Delayed Dashboard Data
+            </p>
             <p className="text-sm opacity-90 text-amber-700 dark:text-amber-200">
-              Your current plan synchronizes cloud dashboard metrics every {syncInterval >= 60 ? Math.floor(syncInterval / 60) + ' hours' : syncInterval + ' minutes'}. Upgrade your plan for real-time reporting.
+              Your current plan synchronizes cloud dashboard metrics every{" "}
+              {syncInterval >= 60
+                ? Math.floor(syncInterval / 60) + " hours"
+                : syncInterval + " minutes"}
+              . Upgrade your plan for real-time reporting.
             </p>
           </div>
         </div>
@@ -117,13 +130,20 @@ export function OverviewView({ stats, user, stores, onReset: _onReset, onNavigat
       </div>
 
       <div className="grid lg:grid-cols-3 gap-8">
-        <Card id="tour-overview-stores" className="lg:col-span-2 border-none shadow-sm min-w-0 overflow-hidden">
+        <Card
+          id="tour-overview-stores"
+          className="lg:col-span-2 border-none shadow-sm min-w-0 overflow-hidden"
+        >
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle>Connected Stores</CardTitle>
-              <CardDescription>Real-time sync status for your local store instances.</CardDescription>
+              <CardDescription>
+                Real-time sync status for your local store instances.
+              </CardDescription>
             </div>
-            <Button variant="ghost" size="sm" className="font-bold">View All</Button>
+            <Button variant="ghost" size="sm" className="font-bold">
+              View All
+            </Button>
           </CardHeader>
           <CardContent className="p-0 sm:p-6">
             {!stores || stores.length === 0 ? (
@@ -131,11 +151,17 @@ export function OverviewView({ stats, user, stores, onReset: _onReset, onNavigat
                 <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
                   <Store className="h-8 w-8 text-muted-foreground" />
                 </div>
-                <h3 className="text-xl font-bold tracking-tight">No connected stores</h3>
+                <h3 className="text-xl font-bold tracking-tight">
+                  No connected stores
+                </h3>
                 <p className="text-sm text-muted-foreground mt-2 mb-6 max-w-sm">
-                  Get started by connecting your first terminal to sync data, track performance, and manage your stock_batch.
+                  Get started by connecting your first terminal to sync data,
+                  track performance, and manage your inventory.
                 </p>
-                <Button className="font-bold" onClick={() => setIsStoreModalOpen(true)}>
+                <Button
+                  className="font-bold"
+                  onClick={() => setIsStoreModalOpen(true)}
+                >
                   <Plus className="h-4 w-4 mr-2" />
                   Add First Store
                 </Button>
@@ -147,30 +173,44 @@ export function OverviewView({ stats, user, stores, onReset: _onReset, onNavigat
                     <TableHead className="pl-6">Store Name</TableHead>
                     <TableHead className="text-center">Status</TableHead>
                     <TableHead className="text-center">Last Sync</TableHead>
-                    <TableHead className="text-right pr-6">Total Sales</TableHead>
+                    <TableHead className="text-right pr-6">
+                      Total Sales
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {stores.map((store: any) => (
-                    <TableRow 
-                      key={store.id} 
+                    <TableRow
+                      key={store.id}
                       className="border-muted hover:bg-muted/30 cursor-pointer"
-                      onClick={() => router.push(`/dashboard/store-details/?id=${store.id}`)}
+                      onClick={() =>
+                        router.push(`/dashboard/store-details/?id=${store.id}`)
+                      }
                     >
                       <TableCell className="font-bold py-4 pl-6">
                         <div className="flex flex-col">
                           <span>{store.name}</span>
-                          <span className="text-[10px] font-mono text-muted-foreground">{store.id}</span>
+                          <span className="text-[10px] font-mono text-muted-foreground">
+                            {store.id}
+                          </span>
                         </div>
                       </TableCell>
                       <TableCell className="text-center">
                         <div className="flex items-center justify-center gap-2">
-                          <Circle className={`h-2 w-2 fill-current ${store.status === "online" ? "text-green-500" : "text-slate-300"}`} />
-                          <span className="text-sm capitalize font-medium">{store.status}</span>
+                          <Circle
+                            className={`h-2 w-2 fill-current ${store.status === "online" ? "text-green-500" : "text-slate-300"}`}
+                          />
+                          <span className="text-sm capitalize font-medium">
+                            {store.status}
+                          </span>
                         </div>
                       </TableCell>
-                      <TableCell className="text-center text-sm text-muted-foreground">{store.lastSync}</TableCell>
-                      <TableCell className="text-right font-black pr-6">{store.sales}</TableCell>
+                      <TableCell className="text-center text-sm text-muted-foreground">
+                        {store.lastSync}
+                      </TableCell>
+                      <TableCell className="text-right font-black pr-6">
+                        {store.sales}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -184,16 +224,26 @@ export function OverviewView({ stats, user, stores, onReset: _onReset, onNavigat
           <Card className="border-none shadow-sm bg-primary text-primary-foreground">
             <CardHeader>
               <CardTitle className="text-xl">Cloud Storage</CardTitle>
-              <CardDescription className="text-primary-foreground/70">Secure, encrypted cloud backup.</CardDescription>
+              <CardDescription className="text-primary-foreground/70">
+                Secure, encrypted cloud backup.
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
                 <div className="flex justify-between text-sm font-bold">
-                  <span>{stats?.cloud_storage?.used_gb || 0} GB / {stats?.cloud_storage?.limit_gb || 10} GB</span>
+                  <span>
+                    {stats?.cloud_storage?.used_gb || 0} GB /{" "}
+                    {stats?.cloud_storage?.limit_gb || 10} GB
+                  </span>
                   <span>{stats?.cloud_storage?.percentage || 0}%</span>
                 </div>
                 <div className="h-2 bg-white/20 rounded-full overflow-hidden">
-                  <div className="h-full bg-white" style={{ width: `${stats?.cloud_storage?.percentage || 0}%` }} />
+                  <div
+                    className="h-full bg-white"
+                    style={{
+                      width: `${stats?.cloud_storage?.percentage || 0}%`,
+                    }}
+                  />
                 </div>
               </div>
             </CardContent>

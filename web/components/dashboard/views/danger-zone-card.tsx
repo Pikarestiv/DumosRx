@@ -64,7 +64,7 @@ export function DangerZoneCard({
       stock_batches: {
         title: "Clear Stock Batch",
         description:
-          "Are you sure you want to wipe your online stock_batch stock? You will need to re-sync from your terminals.",
+          "Are you sure you want to wipe your online inventory stock? You will need to re-sync from your terminals.",
       },
       customers: {
         title: "Clear Customers",

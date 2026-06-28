@@ -287,7 +287,7 @@ export function ProductDatabase() {
             {t("products")} Database
           </h1>
           <p className="text-muted-foreground mt-2">
-            Manage your store's {t("products").toLowerCase()} stock_batch and
+            Manage your store's {t("products").toLowerCase()} inventory and
             information
           </p>
         </div>

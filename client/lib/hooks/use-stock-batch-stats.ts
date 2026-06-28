@@ -1,7 +1,7 @@
 /**
  * useStockBatchStats
  *
- * Single source of truth for all stock_batch stat cards across the app.
+ * Single source of truth for all inventory stat cards across the app.
  * All components showing "Total Products", "Active Products", "Low Stock",
  * "Expiring Soon", etc., should pull from this hook to stay consistent.
  *
@@ -49,7 +49,7 @@ export function useStockBatchStats(): StockBatchStats {
       WHERE _deleted = 0 OR _deleted IS NULL
       GROUP BY product_id
     ) sb ON p.id = sb.product_id
-    WHERE p._deleted = 0 OR p._deleted IS NULL`
+    WHERE p._deleted = 0 OR p._deleted IS NULL`,
   );
 
   const row = statsData?.[0];

@@ -11,12 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { 
-  Barcode as BarcodeIcon, 
-  Printer,
-  Minus,
-  Plus
-} from "lucide-react";
+import { Barcode as BarcodeIcon, Printer, Minus, Plus } from "lucide-react";
 import { printBarcodeLabels } from "@/lib/utils/barcode-generator";
 import { toast } from "sonner";
 import { useStore } from "@/lib/context/store-context";
@@ -34,7 +29,11 @@ interface BarcodePrintDialogProps {
   product: Product | null;
 }
 
-export function BarcodePrintDialog({ isOpen, onClose, product }: BarcodePrintDialogProps) {
+export function BarcodePrintDialog({
+  isOpen,
+  onClose,
+  product,
+}: BarcodePrintDialogProps) {
   const { storeProfile } = useStore();
   const [quantity, setQuantity] = useState(1);
 
@@ -42,13 +41,18 @@ export function BarcodePrintDialog({ isOpen, onClose, product }: BarcodePrintDia
     if (!product) return;
 
     try {
-      printBarcodeLabels([{
-        name: product.name,
-        price: product.unit_price,
-        barcode: product.barcode || product.id, // Fallback to ID if no barcode
-        currency: storeProfile?.currency || "NGN"
-      }], quantity);
-      
+      printBarcodeLabels(
+        [
+          {
+            name: product.name,
+            price: product.unit_price,
+            barcode: product.barcode || product.id, // Fallback to ID if no barcode
+            currency: storeProfile?.currency || "NGN",
+          },
+        ],
+        quantity,
+      );
+
       toast.success(`Printing ${quantity} labels for ${product.name}`);
       onClose();
     } catch (err) {
@@ -66,9 +70,11 @@ export function BarcodePrintDialog({ isOpen, onClose, product }: BarcodePrintDia
               <BarcodeIcon className="w-6 h-6" />
             </div>
             <div>
-              <DialogTitle className="text-xl font-serif">Print Barcode Labels</DialogTitle>
+              <DialogTitle className="text-xl font-serif">
+                Print Barcode Labels
+              </DialogTitle>
               <DialogDescription>
-                Print individual product labels for your stock_batch.
+                Print individual product labels for your inventory.
               </DialogDescription>
             </div>
           </div>
@@ -77,7 +83,9 @@ export function BarcodePrintDialog({ isOpen, onClose, product }: BarcodePrintDia
         {product && (
           <div className="py-6 space-y-6">
             <div className="p-4 rounded-2xl bg-muted/30 border border-accent/5">
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Product</p>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
+                Product
+              </p>
               <p className="font-bold text-lg">{product.name}</p>
             </div>
 
@@ -86,22 +94,22 @@ export function BarcodePrintDialog({ isOpen, onClose, product }: BarcodePrintDia
                 Number of Labels
               </Label>
               <div className="flex items-center justify-center gap-6">
-                <Button 
-                  variant="outline" 
-                  size="icon" 
+                <Button
+                  variant="outline"
+                  size="icon"
                   className="h-12 w-12 rounded-xl"
-                  onClick={() => setQuantity(prev => Math.max(1, prev - 1))}
+                  onClick={() => setQuantity((prev) => Math.max(1, prev - 1))}
                 >
                   <Minus className="w-5 h-5" />
                 </Button>
                 <div className="w-20 text-center">
                   <span className="text-3xl font-bold">{quantity}</span>
                 </div>
-                <Button 
-                  variant="outline" 
-                  size="icon" 
+                <Button
+                  variant="outline"
+                  size="icon"
                   className="h-12 w-12 rounded-xl"
-                  onClick={() => setQuantity(prev => prev + 1)}
+                  onClick={() => setQuantity((prev) => prev + 1)}
                 >
                   <Plus className="w-5 h-5" />
                 </Button>
@@ -109,14 +117,19 @@ export function BarcodePrintDialog({ isOpen, onClose, product }: BarcodePrintDia
             </div>
 
             <div className="p-4 rounded-xl border-2 border-dashed border-accent/10 flex flex-col items-center justify-center gap-3 bg-accent/5">
-                <div className="w-full h-8 bg-black/80 rounded flex items-center justify-center">
-                    <div className="w-full h-full flex items-center justify-around px-2">
-                        {[...Array(15)].map((_, i) => (
-                            <div key={i} className={`h-full bg-white/20 w-${Math.floor(Math.random() * 2) + 1}`} />
-                        ))}
-                    </div>
+              <div className="w-full h-8 bg-black/80 rounded flex items-center justify-center">
+                <div className="w-full h-full flex items-center justify-around px-2">
+                  {[...Array(15)].map((_, i) => (
+                    <div
+                      key={i}
+                      className={`h-full bg-white/20 w-${Math.floor(Math.random() * 2) + 1}`}
+                    />
+                  ))}
                 </div>
-                <p className="text-[10px] text-muted-foreground font-mono italic">Label Preview (50mm x 25mm)</p>
+              </div>
+              <p className="text-[10px] text-muted-foreground font-mono italic">
+                Label Preview (50mm x 25mm)
+              </p>
             </div>
           </div>
         )}
@@ -125,7 +138,7 @@ export function BarcodePrintDialog({ isOpen, onClose, product }: BarcodePrintDia
           <Button variant="ghost" onClick={onClose} className="cursor-pointer">
             Cancel
           </Button>
-          <Button 
+          <Button
             onClick={handlePrint}
             className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold cursor-pointer"
           >

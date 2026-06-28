@@ -30,14 +30,14 @@ export function StockBatchQuickActions({
   lowStockCount,
 }: StockBatchQuickActionsProps) {
   const { t } = useStore();
-  
+
   return (
     <Card>
       <CardHeader>
         <CardTitle className="font-serif font-semibold">
           Quick Actions
         </CardTitle>
-        <CardDescription>Common stock_batch management tasks</CardDescription>
+        <CardDescription>Common inventory management tasks</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">

@@ -32,9 +32,13 @@ export default function PrivacyPolicyPage() {
           <div className="p-6 border rounded-2xl bg-white dark:bg-slate-900 shadow-sm flex items-start gap-4">
             <ShieldAlert className="h-6 w-6 text-indigo-500 shrink-0 mt-1" />
             <div>
-              <h3 className="font-bold text-lg text-slate-900 dark:text-white">DumosRx Offline First Architecture</h3>
+              <h3 className="font-bold text-lg text-slate-900 dark:text-white">
+                DumosRx Offline First Architecture
+              </h3>
               <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-                Your medical stock_batch, customer records, and sales data are stored locally on your device. We do not inspect, sell, or run advertising targeting based on your local database.
+                Your stock inventory, customer records, and sales data are
+                stored locally on your device. We do not inspect, sell, or run
+                advertising targeting based on your local database.
               </p>
             </div>
           </div>
@@ -45,12 +49,22 @@ export default function PrivacyPolicyPage() {
               1. Information We Collect
             </h2>
             <p>
-              When you register a DumosRx account or use our cloud sync features, we collect the following basic information:
+              When you register a DumosRx account or use our cloud sync
+              features, we collect the following basic information:
             </p>
             <ul className="list-disc pl-6 space-y-1">
-              <li><strong>Account Credentials:</strong> Full name, business email, username, and hashed PIN/password.</li>
-              <li><strong>Business Information:</strong> Store/store name, location (city/state), phone number, and licensing credentials.</li>
-              <li><strong>Payment Information:</strong> Billing records, transaction identifiers, and subscription history.</li>
+              <li>
+                <strong>Account Credentials:</strong> Full name, business email,
+                username, and hashed PIN/password.
+              </li>
+              <li>
+                <strong>Business Information:</strong> Store/store name,
+                location (city/state), phone number, and licensing credentials.
+              </li>
+              <li>
+                <strong>Payment Information:</strong> Billing records,
+                transaction identifiers, and subscription history.
+              </li>
             </ul>
           </section>
 
@@ -59,14 +73,21 @@ export default function PrivacyPolicyPage() {
               <Globe className="h-5 w-5 text-indigo-500" />
               2. How We Use Information
             </h2>
-            <p>
-              We process information for the following specific purposes:
-            </p>
+            <p>We process information for the following specific purposes:</p>
             <ul className="list-disc pl-6 space-y-1">
               <li>To provision and manage your cloud backup capabilities.</li>
-              <li>To synchronize your offline databases across authorized client applications.</li>
-              <li>To verify compliance with our licensing parameters and prevent abusive behavior.</li>
-              <li>To process transaction invoices via our designated payment processors.</li>
+              <li>
+                To synchronize your offline databases across authorized client
+                applications.
+              </li>
+              <li>
+                To verify compliance with our licensing parameters and prevent
+                abusive behavior.
+              </li>
+              <li>
+                To process transaction invoices via our designated payment
+                processors.
+              </li>
             </ul>
           </section>
 
@@ -76,7 +97,11 @@ export default function PrivacyPolicyPage() {
               3. Data Security & Storage
             </h2>
             <p>
-              All remote data synchronization transmissions are encrypted using standard secure protocols. Databases backed up to our cloud endpoints are stored securely with restricted access controls. We strongly encourage all users to configure robust local PINs to protect client databases from unauthorized device access.
+              All remote data synchronization transmissions are encrypted using
+              standard secure protocols. Databases backed up to our cloud
+              endpoints are stored securely with restricted access controls. We
+              strongly encourage all users to configure robust local PINs to
+              protect client databases from unauthorized device access.
             </p>
           </section>
 
@@ -85,7 +110,15 @@ export default function PrivacyPolicyPage() {
               4. Contact Us
             </h2>
             <p>
-              If you have any questions or concerns regarding our privacy practices, please contact our support team at <a href="mailto:support@dumosrx.com" className="text-primary hover:underline">support@dumosrx.com</a>.
+              If you have any questions or concerns regarding our privacy
+              practices, please contact our support team at{" "}
+              <a
+                href="mailto:support@dumosrx.com"
+                className="text-primary hover:underline"
+              >
+                support@dumosrx.com
+              </a>
+              .
             </p>
           </section>
         </div>

@@ -13,11 +13,11 @@ const faqs = [
     questions: [
       {
         q: "What is DumosRx?",
-        a: "DumosRx is a comprehensive store management platform designed to streamline operations, manage stock_batch, and improve customer communication.",
+        a: "DumosRx is a comprehensive store management platform designed to streamline operations, manage inventory, and improve customer communication.",
       },
       {
         q: "How do I get started?",
-        a: "You can sign up for a free trial directly on our website. Once registered, you can dive right into setting up your store profile and initial stock_batch.",
+        a: "You can sign up for a free trial directly on our website. Once registered, you can dive right into setting up your store profile and initial inventory.",
       },
     ],
   },
@@ -73,11 +73,15 @@ export default function FAQPage() {
             Frequently Asked Questions
           </h1>
           <p className="text-lg text-muted-foreground">
-            Find answers to common questions about DumosRx, our features, and billing.
-            Can't find what you're looking for?{" "}
-            <Link href="/support" className="text-primary hover:underline font-medium">
+            Find answers to common questions about DumosRx, our features, and
+            billing. Can't find what you're looking for?{" "}
+            <Link
+              href="/support"
+              className="text-primary hover:underline font-medium"
+            >
               Contact our support team
-            </Link>.
+            </Link>
+            .
           </p>
         </div>
 
@@ -87,7 +91,11 @@ export default function FAQPage() {
               <h2 className="text-2xl font-bold text-slate-900 dark:text-white border-b pb-2">
                 {category.category}
               </h2>
-              <Accordion type="single" collapsible className="w-full bg-white dark:bg-slate-900 rounded-2xl border px-6 shadow-sm">
+              <Accordion
+                type="single"
+                collapsible
+                className="w-full bg-white dark:bg-slate-900 rounded-2xl border px-6 shadow-sm"
+              >
                 {category.questions.map((faq, qIndex) => (
                   <AccordionItem key={qIndex} value={`item-${index}-${qIndex}`}>
                     <AccordionTrigger className="text-left font-semibold text-base py-4 hover:no-underline hover:text-primary transition-colors">

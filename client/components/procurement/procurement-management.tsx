@@ -1,7 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getPurchaseOrders, receivePurchaseOrder, type PurchaseOrder } from "@/lib/db/local-database";
+import {
+  getPurchaseOrders,
+  receivePurchaseOrder,
+  type PurchaseOrder,
+} from "@/lib/db/local-database";
 import { genericFuzzySearch } from "@/lib/utils/search";
 import { toast } from "sonner";
 import { CreatePODialog } from "@/components/procurement/create-po-dialog";
@@ -44,7 +48,7 @@ export function ProcurementManagement() {
     }
   };
 
-  const preFilteredOrders = purchaseOrders.filter(po => {
+  const preFilteredOrders = purchaseOrders.filter((po) => {
     const matchesTab = activeTab === "all" || po.status === activeTab;
     return matchesTab;
   });
@@ -52,29 +56,37 @@ export function ProcurementManagement() {
   const { results: filteredOrders, isFuzzyFallback } = genericFuzzySearch(
     searchQuery,
     preFilteredOrders,
-    ["vendor_name", "id"]
+    ["vendor_name", "id"],
   );
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="font-serif font-bold text-3xl text-foreground">Procurement & Vendors</h1>
-          <p className="text-muted-foreground">Manage vendor purchase orders and stock_batch replenishment</p>
+          <h1 className="font-serif font-bold text-3xl text-foreground">
+            Procurement & Vendors
+          </h1>
+          <p className="text-muted-foreground">
+            Manage vendor purchase orders and stock batch replenishment
+          </p>
         </div>
         <CreatePODialog onPOCreated={fetchPurchaseOrders} />
       </div>
 
       <Tabs defaultValue="orders" className="space-y-6">
         <TabsList className="bg-muted/50 p-1 h-auto flex-wrap justify-start">
-          <TabsTrigger value="orders" className="px-4 py-2">Purchase Orders</TabsTrigger>
-          <TabsTrigger value="suppliers" className="px-4 py-2">Vendors Directory</TabsTrigger>
+          <TabsTrigger value="orders" className="px-4 py-2">
+            Purchase Orders
+          </TabsTrigger>
+          <TabsTrigger value="suppliers" className="px-4 py-2">
+            Vendors Directory
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="orders" className="space-y-6">
           <ProcurementStats purchaseOrders={purchaseOrders} />
-          
-          <PurchaseOrderTable 
+
+          <PurchaseOrderTable
             orders={filteredOrders}
             loading={loading}
             searchQuery={searchQuery}

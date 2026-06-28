@@ -84,14 +84,8 @@ export function DashboardActionCenter({
       }
 
       if (storeProfile) {
-        const fieldsToCheck = [
-          "name",
-          "address",
-          "phone",
-          "email",
-          "logo_url",
-        ];
-        
+        const fieldsToCheck = ["name", "address", "phone", "email", "logo_url"];
+
         if (storeProfile.store_type === "pharmacy") {
           fieldsToCheck.push("pcn_license");
         }
@@ -132,7 +126,7 @@ export function DashboardActionCenter({
         items.push({
           id: "expiring-soon",
           title: `${expiringCount} Items Expiring Soon`,
-          description: "Review your stock_batch to discount or remove items.",
+          description: "Review your stock batches to discount or remove items.",
           icon: Clock,
           priority: "warning",
           actionLabel: "Check Now",
@@ -177,13 +171,13 @@ export function DashboardActionCenter({
         const container = scrollRef.current;
         const scrollWidth = container.scrollWidth;
         const clientWidth = container.clientWidth;
-        
+
         let newScrollLeft = container.scrollLeft + clientWidth * 0.85;
         if (newScrollLeft >= scrollWidth - clientWidth + 10) {
           // Reset to start if at the end
           newScrollLeft = 0;
         }
-        container.scrollTo({ left: newScrollLeft, behavior: 'smooth' });
+        container.scrollTo({ left: newScrollLeft, behavior: "smooth" });
       }
     }, 5000);
     return () => clearInterval(interval);
@@ -204,9 +198,8 @@ export function DashboardActionCenter({
     }
   };
 
-  const cardWidthClass = alerts.length === 1 
-    ? 'w-full min-w-full' 
-    : 'w-[90%] md:w-[85%] lg:w-[92%]';
+  const cardWidthClass =
+    alerts.length === 1 ? "w-full min-w-full" : "w-[90%] md:w-[85%] lg:w-[92%]";
 
   return (
     <div className="mb-2">
@@ -219,7 +212,7 @@ export function DashboardActionCenter({
           </span>
         )}
       </div>
-      <div 
+      <div
         ref={scrollRef}
         className="flex overflow-x-auto snap-x snap-mandatory gap-3 pb-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] -mx-1 px-1"
         onMouseEnter={() => setIsPaused(true)}
@@ -228,7 +221,7 @@ export function DashboardActionCenter({
         onTouchEnd={() => setIsPaused(false)}
       >
         {alerts.map((alert) => (
-          <Card 
+          <Card
             key={alert.id}
             className={`shrink-0 snap-start border-border bg-card shadow-sm overflow-hidden ${cardWidthClass}`}
           >

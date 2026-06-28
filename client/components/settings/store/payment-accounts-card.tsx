@@ -61,7 +61,7 @@ export function PaymentAccountsCard() {
 
   const { storeProfile } = useStore();
   const { user, isAdmin } = useAuth();
-  const { setDefaultAccount } = useDefaultPaymentAccounts();
+  const { defaults, setDefaultAccount } = useDefaultPaymentAccounts();
 
   const activeStoreId = storeProfile?.id;
   const activeUserId = user?.id;
@@ -73,7 +73,6 @@ export function PaymentAccountsCard() {
   );
 
   const handleOpenDialog = (account?: PaymentAccount) => {
-    setSetAsDefault(false);
     if (account) {
       setEditingId(account.id);
       setFormData({
@@ -82,8 +81,11 @@ export function PaymentAccountsCard() {
         account_number: account.account_number || "",
         bank_name: account.bank_name || "",
       });
+      const method = account.account_type === "pos_terminal" ? "card" : "transfer";
+      setSetAsDefault(defaults[`${activeStoreId}_${method}`] === account.id);
     } else {
       setEditingId(null);
+      setSetAsDefault(false);
       setFormData({
         name: "",
         account_type: "bank",

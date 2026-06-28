@@ -48,11 +48,11 @@ export function UserNav() {
 
       <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
-          <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">
+          <div className="flex flex-col space-y-1 overflow-hidden">
+            <p className="text-sm font-medium leading-none truncate">
               {user.first_name} {user.last_name}
             </p>
-            <p className="text-xs leading-none text-muted-foreground capitalize">
+            <p className="text-xs leading-none text-muted-foreground capitalize truncate">
               {user.role.replace(/_/g, " ")}
             </p>
           </div>

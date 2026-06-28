@@ -41,6 +41,13 @@ export function useDailyCloseData() {
      WHERE date(r.created_at) = '${reportDate}' AND (ri._deleted = 0 OR ri._deleted IS NULL) AND (r._deleted = 0 OR r._deleted IS NULL)`,
   );
 
+  // 5. Fetch payment accounts for detailed breakdown
+  const { data: paymentAccounts } = useLocalData<any>(
+    storeProfile?.id 
+      ? `SELECT * FROM payment_accounts WHERE _deleted = 0 AND store_id = '${storeProfile.id}'`
+      : `SELECT * FROM payment_accounts WHERE _deleted = 0`
+  );
+
   const { aggregatedTotals, totalProfit, topSellingMeds } = useMemo(() => {
     const totals = {
       cash: 0,
@@ -49,30 +56,54 @@ export function useDailyCloseData() {
       credit: 0,
       total: 0,
       refunds: 0,
+      cardAccounts: {} as Record<string, {name: string; total: number}>,
+      transferAccounts: {} as Record<string, {name: string; total: number}>,
+    };
+
+    const addAccountTotal = (method: "card" | "transfer", accountId: string | null, amount: number) => {
+      const bucket = method === "card" ? totals.cardAccounts : totals.transferAccounts;
+      const key = accountId || "uncategorized";
+      if (!bucket[key]) {
+        const acc = paymentAccounts?.find((a: any) => a.id === key);
+        bucket[key] = { 
+          name: key === "uncategorized" ? `Uncategorized ${method === "card" ? "Card" : "Transfer"}` : (acc?.name || "Unknown Account"), 
+          total: 0 
+        };
+      }
+      bucket[key].total += amount;
     };
 
     salesToday.forEach((sale: any) => {
       totals.total += sale.total_amount;
       const method = sale.payment_method?.toLowerCase();
+      let parsedDetails: any = null;
 
-      if (method === "mixed" && sale.payment_details) {
-        try {
-          const details = JSON.parse(sale.payment_details);
-          if (details.splits && Array.isArray(details.splits)) {
-            details.splits.forEach((split: any) => {
-              const splitMethod = split.method?.toLowerCase();
-              if (totals[splitMethod as keyof typeof totals] !== undefined) {
-                totals[splitMethod as keyof typeof totals] += split.amount;
-              }
-            });
-          }
-        } catch (e) {
-          console.error("Error parsing mixed payment details", e);
+      try {
+        if (sale.payment_details) {
+          parsedDetails = JSON.parse(sale.payment_details);
         }
+      } catch (e) {
+        console.error("Error parsing payment details", e);
+      }
+
+      if (method === "mixed" && parsedDetails?.splits && Array.isArray(parsedDetails.splits)) {
+        parsedDetails.splits.forEach((split: any) => {
+          const splitMethod = split.method?.toLowerCase();
+          if (totals[splitMethod as keyof typeof totals] !== undefined) {
+            (totals as any)[splitMethod] += split.amount;
+            if (splitMethod === "card" || splitMethod === "transfer") {
+              addAccountTotal(splitMethod, split.accountId || null, split.amount);
+            }
+          }
+        });
       } else if (totals[method as keyof typeof totals] !== undefined) {
-        totals[method as keyof typeof totals] += sale.total_amount;
+        (totals as any)[method] += sale.total_amount;
+        if (method === "card" || method === "transfer") {
+          addAccountTotal(method, parsedDetails?.accountId || null, sale.total_amount);
+        }
       } else if (method === "mobile") {
         totals.transfer += sale.total_amount;
+        addAccountTotal("transfer", parsedDetails?.accountId || null, sale.total_amount);
       }
     });
 
@@ -131,7 +162,7 @@ export function useDailyCloseData() {
       totalProfit: calculatedProfit,
       topSellingMeds: topMeds,
     };
-  }, [salesToday, itemsToday, returnsToday, returnItemsToday]);
+  }, [salesToday, itemsToday, returnsToday, returnItemsToday, paymentAccounts]);
 
   const exportToCSV = () => {
     const csvContent = [
@@ -146,7 +177,9 @@ export function useDailyCloseData() {
       ["Method", "Amount"],
       ["Cash", aggregatedTotals.cash.toString()],
       ["Card / POS", aggregatedTotals.card.toString()],
+      ...Object.values(aggregatedTotals.cardAccounts).map(a => [`  - ${a.name}`, a.total.toString()]),
       ["Transfer / Mobile", aggregatedTotals.transfer.toString()],
+      ...Object.values(aggregatedTotals.transferAccounts).map(a => [`  - ${a.name}`, a.total.toString()]),
       ["Credit Sales", aggregatedTotals.credit.toString()],
       [],
       ["Highest Selling Products"],

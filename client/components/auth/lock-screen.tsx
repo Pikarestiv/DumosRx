@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Lock, ArrowLeft, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { PinPad } from "@/components/ui/pin-pad";
 import { useAuth } from "@/lib/context/auth-context";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -134,19 +136,40 @@ export function LockScreen({ recentUsers, onLoginAsOther, onUnlockSuccess }: Loc
                 <Label htmlFor="pin" className="sr-only">
                   PIN
                 </Label>
-                <div className="relative group">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-                  <Input
-                    id="pin"
-                    type="password"
-                    placeholder="••••"
-                    className="pl-10 h-12 text-center text-lg tracking-widest bg-background/50 border-border focus:border-primary/50 focus:ring-primary/20 transition-all"
-                    value={pin}
-                    onChange={(e) => setPin(e.target.value)}
-                    required
-                    autoFocus
-                  />
-                </div>
+                  <div className="flex justify-center mb-6">
+                    <InputOTP
+                      maxLength={4}
+                      value={pin}
+                      onChange={(value) => {
+                        setPin(value);
+                      }}
+                      onComplete={() => {
+                        // We don't auto-submit here because handleLogin expects an event, 
+                        // but we can simulate it or just let the button do it.
+                      }}
+                      autoFocus
+                      // Use inputMode none on mobile to prevent native keyboard from showing,
+                      // and numeric on desktop
+                      className="md:input-mode-numeric"
+                      containerClassName="gap-2"
+                    >
+                      <InputOTPGroup className="gap-2">
+                        <InputOTPSlot index={0} className="w-14 h-16 text-2xl rounded-md border" />
+                        <InputOTPSlot index={1} className="w-14 h-16 text-2xl rounded-md border" />
+                        <InputOTPSlot index={2} className="w-14 h-16 text-2xl rounded-md border" />
+                        <InputOTPSlot index={3} className="w-14 h-16 text-2xl rounded-md border" />
+                      </InputOTPGroup>
+                    </InputOTP>
+                  </div>
+                  
+                  {/* Custom Pin Pad specifically for touch/mobile devices */}
+                  <div className="md:hidden mt-6 mb-4">
+                    <PinPad 
+                      value={pin} 
+                      onChange={setPin} 
+                      maxLength={4}
+                    />
+                  </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3 pt-2">

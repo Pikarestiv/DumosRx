@@ -17,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Loader2, Info } from "lucide-react";
 import { toast } from "sonner";
 import { useMutateUser } from "@/lib/hooks/queries/use-users";
@@ -211,20 +212,26 @@ export function StaffFormDialog({
               <Label htmlFor="pin">
                 {isEditing ? "New Login PIN" : "Login PIN *"}
               </Label>
-              <Input
-                id="pin"
-                type="password"
-                placeholder="4-digit PIN"
-                maxLength={4}
-                value={formData.pin}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    pin: e.target.value.replace(/\D/g, ""),
-                  }))
-                }
-                required={!isEditing}
-              />
+              <div className="flex justify-start">
+                <InputOTP
+                  maxLength={4}
+                  value={formData.pin}
+                  onChange={(value) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      pin: value.replace(/\D/g, ""),
+                    }))
+                  }
+                  className="md:input-mode-numeric"
+                >
+                  <InputOTPGroup>
+                    <InputOTPSlot index={0} />
+                    <InputOTPSlot index={1} />
+                    <InputOTPSlot index={2} />
+                    <InputOTPSlot index={3} />
+                  </InputOTPGroup>
+                </InputOTP>
+              </div>
               {isEditing && (
                 <p className="text-[10px] text-muted-foreground mt-1">
                   Leave blank to keep existing PIN

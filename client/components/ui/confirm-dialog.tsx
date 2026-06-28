@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -68,16 +69,21 @@ export function ConfirmDialog({
         </DialogHeader>
 
         {requirePin && (
-          <div className="mt-4 space-y-2 w-full">
-            <Label htmlFor="confirmation-pin">Enter PIN to Confirm</Label>
-            <Input
-              id="confirmation-pin"
-              type="password"
-              placeholder="Your PIN"
+          <div className="mt-4 space-y-3 flex flex-col items-center">
+            <Label htmlFor="confirmation-pin" className="text-center w-full">Enter PIN to Confirm</Label>
+            <InputOTP
+              maxLength={4}
               value={pin}
-              onChange={(e) => setPin(e.target.value)}
-              className="w-full"
-            />
+              onChange={(value) => setPin(value)}
+              className="md:input-mode-numeric"
+            >
+              <InputOTPGroup>
+                <InputOTPSlot index={0} />
+                <InputOTPSlot index={1} />
+                <InputOTPSlot index={2} />
+                <InputOTPSlot index={3} />
+              </InputOTPGroup>
+            </InputOTP>
           </div>
         )}
 

@@ -61,9 +61,9 @@ export function UserNav() {
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onClick={handleSwitchAccount}
-          className="cursor-pointer"
+          className="cursor-pointer group"
         >
-          <Repeat className="mr-2 h-4 w-4" />
+          <Repeat className="mr-2 h-4 w-4 group-hover:text-white group-focus:text-white transition-colors" />
           <span>Switch Account</span>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
@@ -71,7 +71,7 @@ export function UserNav() {
           onClick={handleFullLogout}
           className="cursor-pointer text-destructive focus:text-destructive"
         >
-          <LogOut className="mr-2 h-4 w-4" />
+          <LogOut className="mr-2 h-4 w-4 text-destructive" />
           <span>Log out completely</span>
         </DropdownMenuItem>
       </DropdownMenuContent>

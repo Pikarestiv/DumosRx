@@ -33,6 +33,8 @@ import { toast } from "sonner";
 import { useLocalData } from "@/lib/db/hooks/useLocalData";
 import { insert, update, remove } from "@/lib/db/local-database";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { NIGERIAN_BANKS } from "@/lib/constants/suggestions";
+import { SearchableInput } from "@/components/ui/searchable-input";
 
 interface PaymentAccount {
   id: string;
@@ -264,10 +266,12 @@ export function PaymentAccountsCard() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Bank Name (Optional)</Label>
-                <Input 
+                <SearchableInput 
+                  id="bank_name"
                   placeholder="e.g. Zenith Bank" 
                   value={formData.bank_name}
-                  onChange={(e) => setFormData({...formData, bank_name: e.target.value})}
+                  onValueChange={(val) => setFormData({...formData, bank_name: val})}
+                  options={NIGERIAN_BANKS}
                 />
               </div>
               <div className="space-y-2">

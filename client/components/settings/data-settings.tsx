@@ -23,8 +23,15 @@ import { Separator } from "@/components/ui/separator";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { QuickBooksImportDialog } from "./quickbooks-import-dialog";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
+import { useAuth } from "@/lib/context/auth-context";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface DataSettingsProps {
   isCloudLinked: boolean;
@@ -55,7 +62,13 @@ export function DataSettings({
   handleSaveAutoSyncSettings,
   setSyncAfterLink,
 }: DataSettingsProps) {
-  const { canCloudSync, minimumSyncIntervalMinutes, withRestriction, getUpgradeMessage } = useFeatureGate();
+  const {
+    canCloudSync,
+    minimumSyncIntervalMinutes,
+    withRestriction,
+    getUpgradeMessage,
+  } = useFeatureGate();
+  const { verifyPin } = useAuth();
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showQBImport, setShowQBImport] = useState(false);
   const [iifContent, setIifContent] = useState<string | null>(null);
@@ -89,8 +102,12 @@ export function DataSettings({
               <div className="space-y-1">
                 <p className="font-medium text-sm">Cloud Sync is Disabled</p>
                 <p className="text-sm">
-                  Your current plan does not support cloud backups
-                  or multi-device sync. {getUpgradeMessage('cloud_sync', "Upgrade your plan to protect your data in the cloud.")}
+                  Your current plan does not support cloud backups or
+                  multi-device sync.{" "}
+                  {getUpgradeMessage(
+                    "cloud_sync",
+                    "Upgrade your plan to protect your data in the cloud.",
+                  )}
                 </p>
               </div>
             </div>
@@ -165,7 +182,11 @@ export function DataSettings({
                           <Info className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p>Automatically pushes your local sales and data to the cloud, and pulls any new changes made by other devices.</p>
+                          <p>
+                            Automatically pushes your local sales and data to
+                            the cloud, and pulls any new changes made by other
+                            devices.
+                          </p>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
@@ -190,7 +211,10 @@ export function DataSettings({
                           <Info className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p>How often (in minutes) the app should attempt to sync data with the cloud in the background.</p>
+                          <p>
+                            How often (in minutes) the app should attempt to
+                            sync data with the cloud in the background.
+                          </p>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
@@ -283,7 +307,7 @@ export function DataSettings({
                 <p className="text-sm font-semibold">QuickBooks Import</p>
                 <p className="text-xs text-muted-foreground">
                   Upload a QuickBooks Backup (.iif) to automatically import your
-                  stock_batch and customer lists.
+                  inventory and customer lists.
                 </p>
               </div>
               <div className="relative shrink-0">
@@ -338,7 +362,17 @@ export function DataSettings({
         title="Factory Reset"
         description="This will permanently delete all local data — products, sales, customers, and expenses. Your login account will remain. This cannot be undone."
         confirmLabel="Reset All Data"
-        onConfirm={() => {
+        requirePin={true}
+        onConfirm={async (pin) => {
+          if (!pin) {
+            toast.error("PIN is required");
+            return;
+          }
+          const isValid = await verifyPin(pin);
+          if (!isValid) {
+            toast.error("Invalid PIN");
+            return;
+          }
           handleResetDatabase();
           setShowResetConfirm(false);
         }}

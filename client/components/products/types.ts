@@ -19,7 +19,7 @@ export interface Product {
   baseUnit: string;
   bulkUnit: string;
   unitsPerBulk: number;
-  status: "active" | "inactive" | "expired" | "low_stock";
+  status: "active" | "inactive" | "expired" | "low_stock" | "out_of_stock";
   showOnline: boolean;
 }
 
@@ -55,6 +55,7 @@ export const transformProduct = (apiData: any): Product => ({
     const now = new Date();
 
     if (expiry && expiry < now) return "expired";
+    if (stock <= 0) return "out_of_stock";
     if (stock <= reorder) return "low_stock";
     return (apiData.status as any) || "active";
   })(),

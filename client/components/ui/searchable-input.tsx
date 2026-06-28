@@ -3,12 +3,6 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
-import {
-  Command,
-  CommandGroup,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command"
 
 export interface SearchOption {
   label: string;
@@ -35,10 +29,15 @@ export function SearchableInput({ options, value, onValueChange, className, ...p
 
   const [inputValue, setInputValue] = React.useState(getLabelForValue(value))
   const containerRef = React.useRef<HTMLDivElement>(null)
+  const [activeIndex, setActiveIndex] = React.useState(-1)
 
   React.useEffect(() => {
     setInputValue(getLabelForValue(value))
   }, [value, options])
+
+  React.useEffect(() => {
+    setActiveIndex(-1)
+  }, [inputValue, open])
 
   // Handle clicks outside to close the menu
   React.useEffect(() => {
@@ -74,32 +73,49 @@ export function SearchableInput({ options, value, onValueChange, className, ...p
         }}
         onFocus={() => setOpen(true)}
         onKeyDown={(e) => {
-          if (e.key === "Escape") setOpen(false)
+          if (e.key === "Escape") {
+            setOpen(false)
+          } else if (e.key === "ArrowDown") {
+            e.preventDefault()
+            if (!open) setOpen(true)
+            setActiveIndex((prev) => Math.min(prev + 1, filteredOptions.length - 1))
+          } else if (e.key === "ArrowUp") {
+            e.preventDefault()
+            setActiveIndex((prev) => Math.max(prev - 1, 0))
+          } else if (e.key === "Enter") {
+            if (open) {
+              e.preventDefault()
+              if (activeIndex >= 0 && activeIndex < filteredOptions.length) {
+                const selected = filteredOptions[activeIndex]
+                setInputValue(selected.label)
+                onValueChange(selected.value)
+              }
+              setOpen(false)
+            }
+          }
         }}
         className={cn("w-full", className)}
       />
       {open && filteredOptions.length > 0 && (
         <div className="absolute z-[999] w-full mt-1 bg-popover text-popover-foreground shadow-xl rounded-md border border-border outline-none animate-in fade-in-0 zoom-in-95 overflow-hidden">
-          <Command shouldFilter={false} className="bg-transparent">
-            <CommandList className="max-h-60 overflow-y-auto p-1">
-              <CommandGroup>
-                {filteredOptions.map((option) => (
-                  <CommandItem
-                    key={option.value}
-                    value={option.value}
-                    onSelect={() => {
-                      setInputValue(option.label)
-                      onValueChange(option.value)
-                      setOpen(false)
-                    }}
-                    className="cursor-pointer hover:bg-accent hover:text-accent-foreground px-2 py-1.5 rounded-sm text-sm"
-                  >
-                    {option.label}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            </CommandList>
-          </Command>
+          <div className="max-h-60 overflow-y-auto p-1">
+            {filteredOptions.map((option, index) => (
+              <div
+                key={option.value}
+                onClick={() => {
+                  setInputValue(option.label)
+                  onValueChange(option.value)
+                  setOpen(false)
+                }}
+                className={cn(
+                  "relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground",
+                  index === activeIndex && "bg-accent text-accent-foreground"
+                )}
+              >
+                {option.label}
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

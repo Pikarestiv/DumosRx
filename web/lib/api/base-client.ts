@@ -187,7 +187,8 @@ apiClient.interceptors.response.use(
           const tokenKey = isAdminPath ? "drx_admin_token" : "drx_token";
           localStorage.removeItem(tokenKey);
           if (!isAlreadyOnLoginPage) {
-            window.location.href = isAdminPath ? "/admin/login/" : "/login/";
+            const redirectParam = `?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+            window.location.href = isAdminPath ? `/admin/login${redirectParam}` : `/login${redirectParam}`;
           }
         }
       }

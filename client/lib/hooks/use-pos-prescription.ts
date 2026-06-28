@@ -60,7 +60,7 @@ export function usePOSPrescription({
             newParams.delete("dispense_rx");
             router.replace(`${pathname}?${newParams.toString()}`);
           } else {
-            toast.error("Could not match prescription items to stock_batch.");
+            toast.error("Could not match prescription items to stock batch.");
           }
         } catch (error) {
           console.error("Failed to load prescription to POS:", error);

@@ -20,7 +20,12 @@ import {
 import { Loader2, Info } from "lucide-react";
 import { toast } from "sonner";
 import { useMutateUser } from "@/lib/hooks/queries/use-users";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface StaffFormDialogProps {
   isOpen: boolean;
@@ -132,7 +137,7 @@ export function StaffFormDialog({
         toast.error(
           isEditing
             ? "Failed to update staff account"
-            : "Failed to create staff account"
+            : "Failed to create staff account",
         );
       }
     } finally {
@@ -248,7 +253,11 @@ export function StaffFormDialog({
                     <Info className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>Determines what the staff member can access. Cashiers can only make sales, Managers can view stock_batch, and Admins have full access.</p>
+                    <p>
+                      Determines what the staff member can access. Cashiers can
+                      only make sales, Managers can view stock batches, and
+                      Admins have full access.
+                    </p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>

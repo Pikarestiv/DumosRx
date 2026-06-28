@@ -50,9 +50,9 @@ export function DashboardClient({ view, subView }: { view: string, subView?: str
     refetch,
   } = useDashboard();
 
-  const resetAccountData = async (type: string = "all") => {
+  const resetAccountData = async (type: string = "all", password?: string) => {
     try {
-      const response = await webApiClient.resetData(type);
+      const response = await webApiClient.resetData(type, password);
       await refetch();
       return { success: true, message: response.message };
     } catch (error) {

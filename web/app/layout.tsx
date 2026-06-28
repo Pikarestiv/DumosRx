@@ -17,8 +17,15 @@ export const metadata: Metadata = {
     default: "DumosRx - NextGen Retail & Store OS",
     template: "%s | DumosRx",
   },
-  description: "Professional business management system for retail stores. Offline-first, cloud-synced, and built for growth.",
-  keywords: ["store management", "retail OS", "offline POS", "stock_batch management", "DumosRx"],
+  description:
+    "Professional business management system for retail stores. Offline-first, cloud-synced, and built for growth.",
+  keywords: [
+    "store management",
+    "retail OS",
+    "offline POS",
+    "inventory management",
+    "DumosRx",
+  ],
   authors: [{ name: "Dumos Technologies" }],
   creator: "Dumos Technologies",
   publisher: "Dumos Technologies",
@@ -27,7 +34,8 @@ export const metadata: Metadata = {
     locale: "en_US",
     url: "https://dumosrx.com",
     title: "DumosRx - NextGen Retail & Store OS",
-    description: "Professional business management system for retail stores. Offline-first, cloud-synced, and built for growth.",
+    description:
+      "Professional business management system for retail stores. Offline-first, cloud-synced, and built for growth.",
     siteName: "DumosRx",
     images: [
       {
@@ -41,7 +49,8 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "DumosRx - NextGen Retail & Store OS",
-    description: "Professional business management system for retail stores. Offline-first, cloud-synced, and built for growth.",
+    description:
+      "Professional business management system for retail stores. Offline-first, cloud-synced, and built for growth.",
     creator: "@dumosrx",
     images: ["https://dumosrx.com/og-image.jpg"],
   },

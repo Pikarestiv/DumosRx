@@ -90,7 +90,7 @@ export async function createSale(saleData: any, items: any[]) {
       sale_id: saleId,
     });
 
-    // Update stock_batch quantity
+    // Update stock batch quantity
     if (item.stock_batch_id) {
       await execute(
         "UPDATE stock_batches SET quantity = quantity - ? WHERE id = ?",

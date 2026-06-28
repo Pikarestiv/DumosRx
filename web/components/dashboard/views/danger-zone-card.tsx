@@ -18,6 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertTriangle, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -30,12 +31,13 @@ import { ConfirmationModal } from "@/components/dashboard/confirmation-modal";
 export function DangerZoneCard({
   onReset,
 }: {
-  onReset?: (type: string) => Promise<any>;
+  onReset?: (type: string, password?: string) => Promise<any>;
 }) {
   const { user, refetch } = useDashboard();
   const queryClient = useQueryClient();
   const [isDeletionDialogOpen, setIsDeletionDialogOpen] = useState(false);
   const [deletionReason, setDeletionReason] = useState("");
+  const [deletionPassword, setDeletionPassword] = useState("");
 
   const [resetConfig, setResetConfig] = useState<{
     isOpen: boolean;
@@ -64,7 +66,7 @@ export function DangerZoneCard({
       stock_batches: {
         title: "Clear Stock Batch",
         description:
-          "Are you sure you want to wipe your online stock_batch stock? You will need to re-sync from your terminals.",
+          "Are you sure you want to wipe your online inventory stock? You will need to re-sync from your terminals.",
       },
       customers: {
         title: "Clear Customers",
@@ -90,9 +92,9 @@ export function DangerZoneCard({
     });
   };
 
-  const confirmReset = async () => {
+  const confirmReset = async (password?: string) => {
     if (!onReset) return;
-    const res = await onReset(resetConfig.type);
+    const res = await onReset(resetConfig.type, password);
     setResetConfig((prev) => ({ ...prev, isOpen: false }));
     if (res.success) {
       toast.success(res.message || "Data reset successfully");
@@ -102,7 +104,7 @@ export function DangerZoneCard({
   };
 
   const deleteAccountMutation = useMutation({
-    mutationFn: (data: { reason: string }) =>
+    mutationFn: (data: { reason: string; password?: string }) =>
       webApiClient.requestAccountDeletion(data),
     onSuccess: () => {
       toast.success("Account Deletion Requested", {
@@ -110,6 +112,7 @@ export function DangerZoneCard({
       });
       setIsDeletionDialogOpen(false);
       setDeletionReason("");
+      setDeletionPassword("");
       queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
       refetch();
     },
@@ -291,6 +294,15 @@ export function DangerZoneCard({
                 rows={4}
               />
             </div>
+            <div className="space-y-2">
+              <Label>Password</Label>
+              <Input
+                type="password"
+                placeholder="Enter your password to confirm"
+                value={deletionPassword}
+                onChange={(e) => setDeletionPassword(e.target.value)}
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button
@@ -302,10 +314,10 @@ export function DangerZoneCard({
             <Button
               variant="destructive"
               disabled={
-                !deletionReason.trim() || deleteAccountMutation.isPending
+                !deletionReason.trim() || !deletionPassword.trim() || deleteAccountMutation.isPending
               }
               onClick={() =>
-                deleteAccountMutation.mutate({ reason: deletionReason })
+                deleteAccountMutation.mutate({ reason: deletionReason, password: deletionPassword })
               }
             >
               {deleteAccountMutation.isPending && (
@@ -324,6 +336,7 @@ export function DangerZoneCard({
         title={resetConfig.title}
         description={resetConfig.description}
         variant="destructive"
+        requirePassword={true}
       />
     </>
   );

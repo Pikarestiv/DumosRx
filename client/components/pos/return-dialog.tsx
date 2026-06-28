@@ -128,8 +128,6 @@ export function ReturnDialog({
           subtotal: item.unit_price * item.returnQuantity,
         });
 
-
-
         // Update stock_batch if applicable
         if (item.stock_batch_id) {
           const invs = await query<any>(
@@ -346,9 +344,9 @@ export function ReturnDialog({
             </div>
             <p className="text-xs text-muted-foreground pt-2">
               <strong>Consequences:</strong> The returned quantities will be
-              immediately restocked into stock_batch, and this sale will be marked
-              as returned in the transaction history. This action cannot be
-              undone.
+              immediately restocked into stock batch, and this sale will be
+              marked as returned in the transaction history. This action cannot
+              be undone.
             </p>
           </div>
         }

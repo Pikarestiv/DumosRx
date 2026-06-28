@@ -24,7 +24,7 @@ export interface Product {
   baseUnit: string;
   bulkUnit: string;
   unitsPerBulk: number;
-  status: "active" | "inactive" | "expired" | "low_stock";
+  status: "active" | "inactive" | "expired" | "low_stock" | "out_of_stock";
 }
 
 export function useProductDetails(
@@ -51,6 +51,7 @@ export function useProductDetails(
       inactive: "secondary",
       expired: "destructive",
       low_stock: "outline",
+      out_of_stock: "destructive",
     } as const;
 
     const labels = {
@@ -58,6 +59,7 @@ export function useProductDetails(
       inactive: "Inactive",
       expired: "Expired",
       low_stock: "Low Stock",
+      out_of_stock: "Out of Stock",
     };
 
     return (

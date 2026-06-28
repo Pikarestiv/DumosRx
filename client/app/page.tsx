@@ -59,8 +59,8 @@ export default function HomePage() {
               transition={{ delay: 0.4, duration: 0.8 }}
               className="text-xl text-muted-foreground max-w-lg leading-relaxed"
             >
-              Streamline your operations, manage stock_batch with precision, and
-              provide world-class service with DumosRx.
+              Streamline your operations, manage stock batches with precision,
+              and provide world-class service with DumosRx.
             </motion.p>
           </div>
 

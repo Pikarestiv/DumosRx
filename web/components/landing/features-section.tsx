@@ -1,5 +1,17 @@
-import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Zap, Shield, Smartphone, Globe, BarChart3, Database } from "lucide-react";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import {
+  Zap,
+  Shield,
+  Smartphone,
+  Globe,
+  BarChart3,
+  Database,
+} from "lucide-react";
 
 export function FeaturesSection() {
   return (
@@ -23,7 +35,7 @@ export function FeaturesSection() {
             {
               title: "Offline-First Sync",
               description:
-                "Sell and manage stock_batch even without internet. Data syncs automatically to the cloud when you're back online.",
+                "Sell and manage inventory even without internet. Data syncs automatically to the cloud when you're back online.",
               icon: Zap,
             },
             {
@@ -35,7 +47,7 @@ export function FeaturesSection() {
             {
               title: "Mobile Dashboard",
               description:
-                "Monitor your store sales, staff activity, and stock_batch levels from your phone, anywhere in the world.",
+                "Monitor your store sales, staff activity, and inventory levels from your phone, anywhere in the world.",
               icon: Smartphone,
             },
             {

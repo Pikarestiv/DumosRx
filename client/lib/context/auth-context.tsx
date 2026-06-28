@@ -31,6 +31,7 @@ interface AuthContextType {
   canManageStockBatch: boolean;
   canProcessSales: boolean;
   changePin: (currentPin: string, newPin: string) => Promise<{ success: boolean; message: string }>;
+  verifyPin: (pin: string) => Promise<boolean>;
   linkCloudAccount: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
   isCloudLinked: boolean;
 }
@@ -206,6 +207,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const verifyPin = async (pin: string) => {
+    if (!user) return false;
+    const users = await query<any>("SELECT pin FROM users WHERE id = ?", [user.id]);
+    if (users.length > 0) {
+      return users[0].pin === pin;
+    }
+    return false;
+  };
+
   const linkCloudAccount = async (email: string, password: string) => {
     try {
       const response = await apiClient.login(email, password);
@@ -244,6 +254,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         canManageStockBatch,
         canProcessSales,
         changePin,
+        verifyPin,
         linkCloudAccount,
         isCloudLinked,
       }}

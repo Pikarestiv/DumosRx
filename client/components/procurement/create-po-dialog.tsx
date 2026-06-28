@@ -196,7 +196,7 @@ export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
             Create Purchase Order
           </DialogTitle>
           <DialogDescription>
-            Draft a formal request for stock_batch replenishment
+            Draft a formal request for stock batch replenishment
           </DialogDescription>
         </DialogHeader>
 

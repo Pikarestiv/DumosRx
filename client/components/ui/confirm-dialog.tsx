@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -9,6 +10,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -19,7 +22,8 @@ interface ConfirmDialogProps {
   cancelLabel?: string;
   hideCancel?: boolean;
   variant?: "destructive" | "default";
-  onConfirm: () => void;
+  onConfirm: (pin?: string) => void;
+  requirePin?: boolean;
 }
 
 export function ConfirmDialog({
@@ -32,9 +36,25 @@ export function ConfirmDialog({
   hideCancel = false,
   variant = "destructive",
   onConfirm,
+  requirePin = false,
 }: ConfirmDialogProps) {
+  const [pin, setPin] = useState("");
+
+  const handleConfirm = () => {
+    onConfirm(requirePin ? pin : undefined);
+    setPin("");
+    onOpenChange(false);
+  };
+
+  const handleClose = () => {
+    setPin("");
+    onOpenChange(false);
+  };
+
+  const isConfirmDisabled = requirePin && !pin.trim();
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent showCloseButton={false}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
@@ -46,18 +66,31 @@ export function ConfirmDialog({
             </DialogDescription>
           )}
         </DialogHeader>
+
+        {requirePin && (
+          <div className="mt-4 space-y-2 w-full">
+            <Label htmlFor="confirmation-pin">Enter PIN to Confirm</Label>
+            <Input
+              id="confirmation-pin"
+              type="password"
+              placeholder="Your PIN"
+              value={pin}
+              onChange={(e) => setPin(e.target.value)}
+              className="w-full"
+            />
+          </div>
+        )}
+
         <DialogFooter>
           {!hideCancel && (
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
+            <Button variant="outline" onClick={handleClose}>
               {cancelLabel}
             </Button>
           )}
           <Button
             variant={variant === "destructive" ? "destructive" : "default"}
-            onClick={() => {
-              onConfirm();
-              onOpenChange(false);
-            }}
+            disabled={isConfirmDisabled}
+            onClick={handleConfirm}
           >
             {confirmLabel}
           </Button>

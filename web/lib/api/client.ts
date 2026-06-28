@@ -77,8 +77,8 @@ class WebApiClient {
     return data;
   }
 
-  async resetData(type: string = "all") {
-    const { data } = await apiClient.post("/dashboard/reset", { type });
+  async resetData(type: string = "all", password?: string) {
+    const { data } = await apiClient.post("/dashboard/reset", { type, password });
     return data;
   }
 
@@ -107,7 +107,7 @@ class WebApiClient {
     return data;
   }
 
-  async requestAccountDeletion(payload: { reason: string }) {
+  async requestAccountDeletion(payload: { reason: string; password?: string }) {
     const { data } = await apiClient.post("/profile/request-deletion", payload);
     return data;
   }
@@ -223,8 +223,13 @@ class WebApiClient {
   // ==========================================
 
   async getSystemConfig(key: string) {
-    const { data } = await apiClient.get(`/system-configs/${key}`);
-    return data.data; // returning the inner 'data' which contains the JSON
+    try {
+      const { data } = await apiClient.get(`/system-configs/${key}`);
+      return data.data; // returning the inner 'data' which contains the JSON
+    } catch (error) {
+      console.warn(`[WebApiClient] Failed to fetch system config for ${key}`, error);
+      return null;
+    }
   }
 
   async updateSystemConfig(key: string, value: any) {

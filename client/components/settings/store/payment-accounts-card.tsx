@@ -35,6 +35,7 @@ import { insert, update, remove } from "@/lib/db/local-database";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { NIGERIAN_BANKS } from "@/lib/constants/suggestions";
 import { SearchableInput } from "@/components/ui/searchable-input";
+import { useDefaultPaymentAccounts } from "@/lib/hooks/use-default-payment-accounts";
 
 interface PaymentAccount {
   id: string;
@@ -49,6 +50,7 @@ export function PaymentAccountsCard() {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [accountToDelete, setAccountToDelete] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [setAsDefault, setSetAsDefault] = useState(false);
   
   const [formData, setFormData] = useState({
     name: "",
@@ -59,6 +61,7 @@ export function PaymentAccountsCard() {
 
   const { storeProfile } = useStore();
   const { user, isAdmin } = useAuth();
+  const { setDefaultAccount } = useDefaultPaymentAccounts();
 
   const activeStoreId = storeProfile?.id;
   const activeUserId = user?.id;
@@ -70,6 +73,7 @@ export function PaymentAccountsCard() {
   );
 
   const handleOpenDialog = (account?: PaymentAccount) => {
+    setSetAsDefault(false);
     if (account) {
       setEditingId(account.id);
       setFormData({
@@ -106,9 +110,13 @@ export function PaymentAccountsCard() {
           updated_at: new Date().toISOString(),
         });
         toast.success("Account updated successfully");
+        if (setAsDefault && activeStoreId) {
+          setDefaultAccount(activeStoreId, formData.account_type === "pos_terminal" ? "card" : "transfer", editingId);
+        }
       } else {
+        const newId = `pa_${Date.now()}`;
         await insert("payment_accounts", {
-          id: `pa_${Date.now()}`,
+          id: newId,
           user_id: activeUserId,
           store_id: activeStoreId,
           name: formData.name,
@@ -119,6 +127,9 @@ export function PaymentAccountsCard() {
           updated_at: new Date().toISOString(),
         });
         toast.success("Account added successfully");
+        if (setAsDefault && activeStoreId) {
+          setDefaultAccount(activeStoreId, formData.account_type === "pos_terminal" ? "card" : "transfer", newId);
+        }
       }
       setIsDialogOpen(false);
       refetch();
@@ -282,6 +293,19 @@ export function PaymentAccountsCard() {
                   onChange={(e) => setFormData({...formData, account_number: e.target.value})}
                 />
               </div>
+            </div>
+            
+            <div className="flex items-center gap-2 pt-2">
+              <input 
+                type="checkbox" 
+                id="setAsDefaultNew"
+                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary accent-primary cursor-pointer"
+                checked={setAsDefault}
+                onChange={(e) => setSetAsDefault(e.target.checked)}
+              />
+              <label htmlFor="setAsDefaultNew" className="text-sm cursor-pointer select-none">
+                Set as default for {formData.account_type === "pos_terminal" ? "Card" : "Transfer"} on this device
+              </label>
             </div>
           </div>
           <DialogFooter>

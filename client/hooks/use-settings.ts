@@ -289,8 +289,8 @@ export function useSettings() {
     }
   };
 
-  const handleSync = async () => {
-    if (!isCloudLinked) {
+  const handleSync = async (forceStart?: boolean | any) => {
+    if (!isCloudLinked && forceStart !== true) {
       setIsCloudLinkOpen(true);
       return;
     }

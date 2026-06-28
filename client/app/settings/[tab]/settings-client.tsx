@@ -315,7 +315,7 @@ export default function SettingsPage() {
       <CloudLinkDialog
         open={isCloudLinkOpen}
         onOpenChange={setIsCloudLinkOpen}
-        onSuccess={handleSync}
+        onSuccess={() => handleSync(true)}
       />
     </DashboardLayout>
   );

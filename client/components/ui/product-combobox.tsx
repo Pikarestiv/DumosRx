@@ -6,12 +6,6 @@ import { Check, ChevronsUpDown, Database, Globe, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Command,
-  CommandGroup,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
 import { useLocalData } from "@/lib/db/hooks/useLocalData";
 import { FORM_SUGGESTIONS } from "@/lib/constants/suggestions";
 import { useStore } from "@/lib/context/store-context";
@@ -44,6 +38,11 @@ export function ProductCombobox({
 }: ProductComboboxProps) {
   const [open, setOpen] = React.useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
+  const [activeIndex, setActiveIndex] = React.useState(-1);
+
+  React.useEffect(() => {
+    setActiveIndex(-1);
+  }, [value, open]);
 
   const { storeProfile } = useStore();
   const isPharmacy = storeProfile?.store_type === "pharmacy";
@@ -117,7 +116,24 @@ export function ProductCombobox({
         }}
         onFocus={() => setOpen(true)}
         onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-          if (e.key === "Escape") setOpen(false);
+          if (e.key === "Escape") {
+            setOpen(false);
+          } else if (e.key === "ArrowDown") {
+            e.preventDefault();
+            if (!open) setOpen(true);
+            setActiveIndex((prev) => Math.min(prev + 1, filteredOptions.length - 1));
+          } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            setActiveIndex((prev) => Math.max(prev - 1, 0));
+          } else if (e.key === "Enter") {
+            if (open) {
+              e.preventDefault();
+              if (activeIndex >= 0 && activeIndex < filteredOptions.length) {
+                onChange(filteredOptions[activeIndex]);
+              }
+              setOpen(false);
+            }
+          }
         }}
         placeholder={placeholder}
         disabled={disabled}
@@ -127,48 +143,62 @@ export function ProductCombobox({
       
       {open && filteredOptions.length > 0 && (
         <div className="absolute z-[999] w-full mt-1 bg-popover text-popover-foreground shadow-xl rounded-md border border-border outline-none animate-in fade-in-0 zoom-in-95 overflow-hidden">
-          <Command shouldFilter={false} className="bg-transparent">
-            <CommandList className="max-h-[300px] overflow-y-auto p-1">
-              <CommandGroup>
-                {filteredOptions.map((option, idx) => (
-                  <CommandItem
-                    key={`${option.source}_${option.name}_${idx}`}
-                    value={option.name}
-                    onSelect={() => {
-                      onChange(option);
-                      setOpen(false);
-                    }}
-                    className="cursor-pointer flex flex-col items-start py-2 px-2 group"
-                  >
-                    <div className="flex items-center w-full">
-                      <Check
-                        className={cn(
-                          "mr-2 h-4 w-4 shrink-0",
-                          value === option.name ? "opacity-100" : "opacity-0"
-                        )}
-                      />
-                      <span className="truncate flex-1 font-medium">{option.name}</span>
-                      {option.source === "local" ? (
-                        <Database className="h-3 w-3 text-emerald-500 group-data-[selected='true']:text-accent-foreground ml-2 shrink-0" />
-                      ) : (
-                        <Globe className="h-3 w-3 text-blue-500 group-data-[selected='true']:text-accent-foreground ml-2 shrink-0" />
-                      )}
-                    </div>
-                    {option.source === "local" && (
-                      <div className="text-xs text-muted-foreground group-data-[selected='true']:text-accent-foreground/80 ml-6 mt-0.5 line-clamp-1">
-                        In Catalog • {option.generic_name || option.brand_name || "Local Product"}
-                      </div>
+          <div className="max-h-[300px] overflow-y-auto p-1">
+            {filteredOptions.map((option, idx) => (
+              <div
+                key={`${option.source}_${option.name}_${idx}`}
+                onClick={() => {
+                  onChange(option);
+                  setOpen(false);
+                }}
+                className={cn(
+                  "relative flex cursor-pointer select-none flex-col items-start rounded-sm py-2 px-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground group",
+                  idx === activeIndex && "bg-accent text-accent-foreground"
+                )}
+              >
+                <div className="flex items-center w-full">
+                  <Check
+                    className={cn(
+                      "mr-2 h-4 w-4 shrink-0",
+                      value === option.name ? "opacity-100" : "opacity-0"
                     )}
-                    {option.source === "global" && (
-                      <div className="text-xs text-muted-foreground group-data-[selected='true']:text-accent-foreground/80 ml-6 mt-0.5 line-clamp-1">
-                        Global Suggestion
-                      </div>
+                  />
+                  <span className="truncate flex-1 font-medium">{option.name}</span>
+                  {option.source === "local" ? (
+                    <Database className={cn("h-3 w-3 ml-2 shrink-0", idx === activeIndex ? "text-accent-foreground" : "text-emerald-500 group-hover:text-accent-foreground")} />
+                  ) : option.source === "global" ? (
+                    <Globe className={cn("h-3 w-3 ml-2 shrink-0", idx === activeIndex ? "text-accent-foreground" : "text-blue-500 group-hover:text-accent-foreground")} />
+                  ) : null}
+                </div>
+                {(option.generic_name || option.brand_name) && (
+                  <div className="pl-6 text-xs text-muted-foreground mt-0.5 w-full truncate">
+                    {option.generic_name && (
+                      <span className="italic">{option.generic_name}</span>
                     )}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            </CommandList>
-          </Command>
+                    {option.generic_name && option.brand_name && (
+                      <span className="mx-1">•</span>
+                    )}
+                    {option.brand_name && <span>{option.brand_name}</span>}
+                  </div>
+                )}
+              </div>
+            ))}
+            {value && filteredOptions.length === 0 && (
+              <div
+                onClick={() => {
+                  onChange({ name: value, source: "new" });
+                  setOpen(false);
+                }}
+                className={cn(
+                  "relative flex cursor-pointer select-none items-center rounded-sm py-2 px-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground",
+                  activeIndex === filteredOptions.length && "bg-accent text-accent-foreground"
+                )}
+              >
+                <Plus className="mr-2 h-4 w-4 shrink-0" />
+                Add "{value}" as new product
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

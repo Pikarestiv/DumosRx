@@ -2,8 +2,6 @@ import type React from "react";
 import { useState, useEffect } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { toast } from "sonner";
-import { apiClient } from "@/lib/api/client";
-import { isTauri } from "@/lib/db/local-database";
 
 export interface StockAdjustment {
   id: string;
@@ -25,7 +23,7 @@ export function useStockAdjustments() {
   const [adjustments, setAdjustments] = useState<StockAdjustment[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(
-    searchParams.get("action") === "adjust"
+    searchParams.get("action") === "adjust",
   );
   const [searchTerm, setSearchTerm] = useState("");
   const [newAdjustment, setNewAdjustment] = useState({
@@ -54,32 +52,32 @@ export function useStockAdjustments() {
       setAvailableBatches([]);
       return;
     }
-    
+
     async function fetchBatches() {
       try {
         const { query } = await import("@/lib/db/core");
         const med = await query<any>(
           "SELECT id FROM products WHERE name = ? LIMIT 1",
-          [newAdjustment.product]
+          [newAdjustment.product],
         );
         if (med && med.length > 0) {
           const batches = await query<any>(
             "SELECT * FROM stock_batches WHERE product_id = ? AND _deleted = 0 AND quantity > 0 ORDER BY expiry_date ASC",
-            [med[0].id]
+            [med[0].id],
           );
           setAvailableBatches(batches);
-          
+
           if (batches.length === 1) {
-             setNewAdjustment(prev => ({ ...prev, batch_id: batches[0].id }));
+            setNewAdjustment((prev) => ({ ...prev, batch_id: batches[0].id }));
           } else {
-             setNewAdjustment(prev => ({ ...prev, batch_id: "" }));
+            setNewAdjustment((prev) => ({ ...prev, batch_id: "" }));
           }
         }
       } catch (err) {
         console.error(err);
       }
     }
-    
+
     fetchBatches();
   }, [newAdjustment.product]);
 
@@ -98,9 +96,8 @@ export function useStockAdjustments() {
     async function fetchAdjustments() {
       setLoading(true);
       try {
-        let res;
         const { getStockAdjustments } = await import("@/lib/db/local-database");
-        res = await getStockAdjustments(1, 100);
+        const res = await getStockAdjustments(1, 100);
 
         const items = (res.data || []).map((a: any) => ({
           id: a.id,
@@ -171,33 +168,42 @@ export function useStockAdjustments() {
         );
 
         // Adjust stock_batches
-        if (newAdjustment.batch_id === "new" || (!newAdjustment.batch_id && calculatedQty > 0)) {
+        if (
+          newAdjustment.batch_id === "new" ||
+          (!newAdjustment.batch_id && calculatedQty > 0)
+        ) {
           // Increase: Add to an 'ADJUSTMENT' batch
           const batchId = crypto.randomUUID();
           await execute(
             "INSERT INTO stock_batches (id, product_id, batch_number, quantity, is_active, created_at, updated_at) VALUES (?, ?, 'ADJUSTMENT', ?, 1, ?, ?)",
-            [batchId, productId, Math.abs(calculatedQty), new Date().toISOString(), new Date().toISOString()]
+            [
+              batchId,
+              productId,
+              Math.abs(calculatedQty),
+              new Date().toISOString(),
+              new Date().toISOString(),
+            ],
           );
-          
+
           await execute(
-             "UPDATE stock_movements SET stock_batch_id = ? WHERE id = ?",
-             [batchId, uuid]
+            "UPDATE stock_movements SET stock_batch_id = ? WHERE id = ?",
+            [batchId, uuid],
           );
         } else if (newAdjustment.batch_id) {
-           await execute(
-              "UPDATE stock_batches SET quantity = quantity + ?, updated_at = ? WHERE id = ?",
-              [calculatedQty, new Date().toISOString(), newAdjustment.batch_id]
-           );
-           
-           await execute(
-             "UPDATE stock_movements SET stock_batch_id = ? WHERE id = ?",
-             [newAdjustment.batch_id, uuid]
-           );
+          await execute(
+            "UPDATE stock_batches SET quantity = quantity + ?, updated_at = ? WHERE id = ?",
+            [calculatedQty, new Date().toISOString(), newAdjustment.batch_id],
+          );
+
+          await execute(
+            "UPDATE stock_movements SET stock_batch_id = ? WHERE id = ?",
+            [newAdjustment.batch_id, uuid],
+          );
         } else if (calculatedQty < 0) {
           // Fallback FIFO
           const batches = await query<any>(
             "SELECT * FROM stock_batches WHERE product_id = ? AND _deleted = 0 AND quantity > 0 ORDER BY expiry_date ASC, created_at ASC",
-            [productId]
+            [productId],
           );
           let remainingToDeduct = Math.abs(calculatedQty);
           for (const batch of batches) {
@@ -205,7 +211,7 @@ export function useStockAdjustments() {
             const deduction = Math.min(batch.quantity, remainingToDeduct);
             await execute(
               "UPDATE stock_batches SET quantity = quantity - ?, updated_at = ? WHERE id = ?",
-              [deduction, new Date().toISOString(), batch.id]
+              [deduction, new Date().toISOString(), batch.id],
             );
             remainingToDeduct -= deduction;
           }

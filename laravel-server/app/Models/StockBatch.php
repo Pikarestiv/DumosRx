@@ -14,7 +14,7 @@ class StockBatch extends Model
 
     protected $fillable = [
         'product_id', 'batch_number', 'quantity', 'quantity_reserved',
-        'reorder_level', 'max_stock_level', 'cost_price', 'selling_price',
+        'reorder_level', 'max_stock_level', 'cost_price',
         'manufacture_date', 'expiry_date', 'supplier_id', 'location', 'status',
     ];
 
@@ -22,7 +22,6 @@ class StockBatch extends Model
         'manufacture_date' => 'date',
         'expiry_date' => 'date',
         'cost_price' => 'decimal:2',
-        'selling_price' => 'decimal:2',
     ];
 
     public function product()

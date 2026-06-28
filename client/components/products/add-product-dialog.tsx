@@ -12,11 +12,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { useStore } from "@/lib/context/store-context";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { FORM_SUGGESTIONS } from "@/lib/constants/suggestions";
 import { Product } from "./types";
 import { ProductFormFields } from "./product-form-fields";
+import { ProductCombobox } from "@/components/ui/product-combobox";
 
 interface AddProductDialogProps {
   open: boolean;
@@ -86,12 +88,15 @@ export function AddProductDialog({
         status: editingProduct.status || "active",
         showOnline: editingProduct.showOnline || false,
       });
-      
+
       // Format YYYY-MM-DD to DD/MM/YYYY for the frontend if necessary
-      if (editingProduct.expiryDate && editingProduct.expiryDate.includes('-')) {
-        setFormData(prev => ({
+      if (
+        editingProduct.expiryDate &&
+        editingProduct.expiryDate.includes("-")
+      ) {
+        setFormData((prev) => ({
           ...prev,
-          expiryDate: editingProduct.expiryDate.split('-').reverse().join('/')
+          expiryDate: editingProduct.expiryDate.split("-").reverse().join("/"),
         }));
       }
     } else if (!editingProduct && open) {
@@ -124,7 +129,9 @@ export function AddProductDialog({
 
   const isPharmacy = storeType === "pharmacy";
 
-  const [suggestions, setSuggestions] = useState<any>(isPharmacy ? FORM_SUGGESTIONS.store : FORM_SUGGESTIONS.retail);
+  const [suggestions, setSuggestions] = useState<any>(
+    isPharmacy ? FORM_SUGGESTIONS.store : FORM_SUGGESTIONS.retail,
+  );
 
   useEffect(() => {
     let baseSuggestions = FORM_SUGGESTIONS;
@@ -149,8 +156,14 @@ export function AddProductDialog({
         setSuggestions({
           names: mergeAndUnique(pharmList.names, retailList.names),
           generics: pharmList.generics || [],
-          categories: mergeAndUnique(pharmList.categories, retailList.categories),
-          manufacturers: mergeAndUnique(pharmList.manufacturers, retailList.manufacturers),
+          categories: mergeAndUnique(
+            pharmList.categories,
+            retailList.categories,
+          ),
+          manufacturers: mergeAndUnique(
+            pharmList.manufacturers,
+            retailList.manufacturers,
+          ),
           strengths: pharmList.strengths || [],
           dosageForms: pharmList.dosageForms || [],
         });
@@ -184,16 +197,18 @@ export function AddProductDialog({
     let formattedExpiry = formData.expiryDate;
     if (formattedExpiry) {
       if (formattedExpiry.length !== 10) {
-        setAlertMessage("Please enter a complete expiry date (DD/MM/YYYY) or leave it blank.");
+        setAlertMessage(
+          "Please enter a complete expiry date (DD/MM/YYYY) or leave it blank.",
+        );
         return;
       }
-      
-      const parts = formattedExpiry.split('/');
+
+      const parts = formattedExpiry.split("/");
       if (parts.length === 3) {
         const day = parseInt(parts[0], 10);
         const month = parseInt(parts[1], 10);
         const year = parseInt(parts[2], 10);
-        
+
         // Basic check for a realistic year (e.g., no 9999 or 1000)
         if (year < 2000 || year > 2100) {
           setAlertMessage("Please enter a realistic expiry year (e.g., 2024).");
@@ -201,7 +216,11 @@ export function AddProductDialog({
         }
 
         const date = new Date(year, month - 1, day);
-        if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
+        if (
+          date.getFullYear() !== year ||
+          date.getMonth() !== month - 1 ||
+          date.getDate() !== day
+        ) {
           setAlertMessage("The expiry date entered is not a valid date.");
           return;
         }
@@ -284,7 +303,9 @@ export function AddProductDialog({
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-serif font-bold text-2xl">
-            {editingProduct ? `Edit ${t("product")}` : `Add New ${t("product")}`}
+            {editingProduct
+              ? `Edit ${t("product")}`
+              : `Add New ${t("product")}`}
           </DialogTitle>
           <DialogDescription>
             {editingProduct
@@ -294,6 +315,29 @@ export function AddProductDialog({
         </DialogHeader>
 
         <form onSubmit={withRestriction(handleSubmit)} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Product Name *</Label>
+              <ProductCombobox
+                value={formData.name}
+                onChange={(option) => {
+                  setFormData({
+                    ...formData,
+                    name: option.name,
+                    ...(option.source === "local"
+                      ? {
+                          brand: option.brand_name || "",
+                          genericName: option.generic_name || "",
+                          manufacturer: option.manufacturer || "",
+                          // Note: We don't overwrite stock or expiry for local products
+                        }
+                      : {}),
+                  });
+                }}
+                placeholder="Enter product name"
+              />
+            </div>
+          </div>
           <ProductFormFields
             formData={formData}
             onInputChange={handleInputChange}
@@ -312,14 +356,18 @@ export function AddProductDialog({
               Cancel
             </Button>
             <Button type="submit" className="bg-accent hover:bg-accent/90">
-              {editingProduct ? `Update ${t("product")}` : `Add ${t("product")}`}
+              {editingProduct
+                ? `Update ${t("product")}`
+                : `Add ${t("product")}`}
             </Button>
           </DialogFooter>
         </form>
       </DialogContent>
       <ConfirmDialog
         open={!!alertMessage}
-        onOpenChange={(open) => { if (!open) setAlertMessage(null); }}
+        onOpenChange={(open) => {
+          if (!open) setAlertMessage(null);
+        }}
         title="Validation Error"
         description={alertMessage || ""}
         confirmLabel="OK"

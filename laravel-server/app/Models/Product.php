@@ -17,7 +17,7 @@ class Product extends Model
         'supplier_id', 'nafdac_number', 'dosage_form', 'strength', 'pack_size',
         'unit_of_measure', 'description', 'indications', 'contraindications',
         'side_effects', 'storage_conditions', 'requires_prescription',
-        'is_controlled', 'is_active', 'show_online', 'cost_price', 'selling_price',
+        'is_controlled', 'is_active', 'show_online', 'selling_price',
         'markup_percentage', 'barcode', 'stock_quantity', 'reorder_level'
     ];
 
@@ -26,7 +26,6 @@ class Product extends Model
         'is_controlled' => 'boolean',
         'is_active' => 'boolean',
         'show_online' => 'boolean',
-        'cost_price' => 'decimal:2',
         'selling_price' => 'decimal:2',
         'markup_percentage' => 'decimal:2',
     ];

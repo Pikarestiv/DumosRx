@@ -1,6 +1,4 @@
 import { useState, useEffect } from "react";
-import { apiClient } from "@/lib/api/client";
-import { isTauri } from "@/lib/db/local-database";
 
 export interface PurchaseOrder {
   id: string;
@@ -22,9 +20,8 @@ export function usePurchaseOrders() {
     async function fetchOrders() {
       setLoading(true);
       try {
-        let res;
         const { getPurchaseOrders } = await import("@/lib/db/local-database");
-        res = await getPurchaseOrders(1, 100);
+        const res = await getPurchaseOrders(1, 100);
 
         const items = (res.data || []).map((o: any) => ({
           id: o.id,

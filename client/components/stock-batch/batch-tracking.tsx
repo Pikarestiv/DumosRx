@@ -46,7 +46,7 @@ export function BatchTracking() {
   const { data: batches, loading } = useLocalData<any>(
     `SELECT 
       sb.id, p.name as product_name, p.brand_name as product_brand,
-      sb.batch_number, sb.expiry_date, sb.quantity
+      sb.batch_number, sb.expiry_date, sb.quantity, sb.cost_price
      FROM stock_batches sb
      JOIN products p ON sb.product_id = p.id
      WHERE sb._deleted = 0 AND p._deleted = 0
@@ -134,6 +134,7 @@ export function BatchTracking() {
                 <TableHead>Product</TableHead>
                 <TableHead>Batch Number</TableHead>
                 <TableHead>Quantity</TableHead>
+                <TableHead>Cost Price</TableHead>
                 <TableHead>Expiry Date</TableHead>
                 <TableHead>Status</TableHead>
                 {isAdmin && <TableHead className="text-right">Action</TableHead>}
@@ -159,6 +160,7 @@ export function BatchTracking() {
                       </TableCell>
                       <TableCell className="font-mono">{batch.batch_number}</TableCell>
                       <TableCell>{batch.quantity}</TableCell>
+                      <TableCell>₦{batch.cost_price?.toLocaleString() || "0.00"}</TableCell>
                       <TableCell>{formatDateToDDMMYYYY(batch.expiry_date)}</TableCell>
                       <TableCell>
                         <Badge variant={status.variant}>{status.label}</Badge>

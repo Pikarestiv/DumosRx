@@ -172,7 +172,6 @@ export function ProductDatabase() {
             product_id: productId,
             quantity: initialStock,
             cost_price: localPayload.cost_price || 0,
-            selling_price: localPayload.selling_price || 0,
             batch_number: initialBatch || "INITIAL",
             expiry_date:
               initialExpiry ||

@@ -1,13 +1,19 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { toast } from "sonner";
-import { isTauri } from "@/lib/db/local-database";
 import { useAuth } from "@/lib/context/auth-context";
 
 interface EditBatchDialogProps {
@@ -17,21 +23,30 @@ interface EditBatchDialogProps {
   onSuccess: () => void;
 }
 
-export function EditBatchDialog({ isOpen, onClose, batch, onSuccess }: EditBatchDialogProps) {
+export function EditBatchDialog({
+  isOpen,
+  onClose,
+  batch,
+  onSuccess,
+}: EditBatchDialogProps) {
   const [loading, setLoading] = useState(false);
   const { isAdmin } = useAuth();
   const [formData, setFormData] = useState({
     batch_number: "",
     expiry_date: "",
     quantity: 0,
+    cost_price: 0,
   });
 
   useEffect(() => {
     if (batch) {
       setFormData({
         batch_number: batch.batch_number || "",
-        expiry_date: batch.expiry_date ? new Date(batch.expiry_date).toISOString().split("T")[0] : "",
+        expiry_date: batch.expiry_date
+          ? new Date(batch.expiry_date).toISOString().split("T")[0]
+          : "",
         quantity: batch.quantity || 0,
+        cost_price: batch.cost_price || 0,
       });
     }
   }, [batch]);
@@ -42,11 +57,12 @@ export function EditBatchDialog({ isOpen, onClose, batch, onSuccess }: EditBatch
 
     try {
       const { update } = await import("@/lib/db/local-database");
-      
+
       await update("stock_batches", batch.id, {
         batch_number: formData.batch_number,
         expiry_date: formData.expiry_date,
         quantity: formData.quantity,
+        cost_price: formData.cost_price,
       });
 
       toast.success("Batch details updated successfully");
@@ -66,7 +82,8 @@ export function EditBatchDialog({ isOpen, onClose, batch, onSuccess }: EditBatch
         <DialogHeader>
           <DialogTitle>Edit Batch Details</DialogTitle>
           <DialogDescription>
-            Update batch number, expiry date, and quantity for {batch?.product_name}.
+            Update batch number, expiry date, and quantity for{" "}
+            {batch?.product_name}.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
@@ -75,11 +92,13 @@ export function EditBatchDialog({ isOpen, onClose, batch, onSuccess }: EditBatch
             <Input
               id="batch_number"
               value={formData.batch_number}
-              onChange={(e) => setFormData({ ...formData, batch_number: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, batch_number: e.target.value })
+              }
               placeholder="Enter batch number"
             />
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="expiry_date">Expiry Date</Label>
             <DatePickerInput
@@ -94,8 +113,29 @@ export function EditBatchDialog({ isOpen, onClose, batch, onSuccess }: EditBatch
               id="quantity"
               type="number"
               value={formData.quantity}
-              onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 0 })}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  quantity: parseInt(e.target.value) || 0,
+                })
+              }
               disabled={!isAdmin}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="cost_price">Cost Price (₦)</Label>
+            <Input
+              id="cost_price"
+              type="number"
+              step="0.01"
+              value={formData.cost_price}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  cost_price: parseFloat(e.target.value) || 0,
+                })
+              }
             />
           </div>
 

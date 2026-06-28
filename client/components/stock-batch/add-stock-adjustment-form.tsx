@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { SearchableInput } from "@/components/ui/searchable-input";
-import { FORM_SUGGESTIONS } from "@/lib/constants/suggestions";
+import { ProductCombobox } from "@/components/ui/product-combobox";
+import { useRouter } from "next/navigation";
 
 interface AddStockAdjustmentFormProps {
   newAdjustment: {
@@ -40,6 +41,8 @@ export function AddStockAdjustmentForm({
   reasons,
   availableBatches = [],
 }: AddStockAdjustmentFormProps) {
+  const router = useRouter();
+  
   return (
     <Card>
       <CardHeader>
@@ -51,13 +54,15 @@ export function AddStockAdjustmentForm({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="product">Product *</Label>
-              <SearchableInput
-                id="product"
+              <ProductCombobox
                 value={newAdjustment.product}
-                onValueChange={(val) => setNewAdjustment((prev) => ({ ...prev, product: val }))}
-                options={FORM_SUGGESTIONS.store.names}
+                onChange={(option) => {
+                  setNewAdjustment((prev) => ({ ...prev, product: option.name }));
+                  if (option.source === "new" || option.source === "global") {
+                    router.push(`/inventory/products?add=true&name=${encodeURIComponent(option.name)}&source=${option.source}`);
+                  }
+                }}
                 placeholder="Enter product name"
-                required
               />
             </div>
 

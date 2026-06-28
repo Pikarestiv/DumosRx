@@ -194,7 +194,7 @@ export function BatchTracking() {
           setSelectedBatch(null);
         }}
         batch={selectedBatch}
-        onSuccess={() => window.location.reload()}
+        onSuccess={() => {}}
       />
     </div>
   );

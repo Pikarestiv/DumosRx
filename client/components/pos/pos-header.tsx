@@ -1,7 +1,6 @@
 import { Button } from "@/components/ui/button";
-import { Zap, LogOut, PauseCircle, Clock, User } from "lucide-react";
+import { Zap, PauseCircle, Clock } from "lucide-react";
 import { useStore } from "@/lib/context/store-context";
-import { useAuth } from "@/lib/context/auth-context";
 import {
   Tooltip,
   TooltipContent,
@@ -25,7 +24,6 @@ export function POSHeader({
   setShowHeldDialog,
 }: POSHeaderProps) {
   const { t } = useStore();
-  const { user, logout } = useAuth();
 
   return (
     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
@@ -103,25 +101,7 @@ export function POSHeader({
               </TooltipTrigger>
               <TooltipContent>View and resume previously held transactions</TooltipContent>
             </Tooltip>
-            <div className="flex items-center gap-2 px-3 py-1 bg-muted rounded-full border shrink-0">
-              <User className="h-3 w-3 text-muted-foreground" />
-              <span className="text-xs font-medium max-w-[80px] truncate cursor-default">
-                {user?.first_name || user?.username}
-              </span>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-5 w-5 p-0 ml-1 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                    onClick={logout}
-                  >
-                    <LogOut className="h-3 w-3" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Sign out of POS</TooltipContent>
-              </Tooltip>
-            </div>
+
           </div>
         </TooltipProvider>
       </div>

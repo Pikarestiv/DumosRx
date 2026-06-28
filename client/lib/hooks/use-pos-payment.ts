@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { insert, update } from "@/lib/db/local-database";
+import { insert, update, query } from "@/lib/db/local-database";
 import { CartItem } from "./use-pos-cart";
 import { calculateEarnedPoints } from "@/lib/utils/loyalty-calculator";
 

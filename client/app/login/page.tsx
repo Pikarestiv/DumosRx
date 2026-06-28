@@ -22,6 +22,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { query } from "@/lib/db/local-database";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { LockScreen } from "@/components/auth/lock-screen";
+import { RecentUser } from "@/lib/context/auth-context";
 
 export default function LoginPage() {
   const [username, setUsername] = useState("");
@@ -29,12 +31,22 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isCheckingStatus, setIsCheckingStatus] = useState(true);
   const [userCount, setUserCount] = useState(0);
+  const [recentUsers, setRecentUsers] = useState<RecentUser[]>([]);
+  const [showTraditionalLogin, setShowTraditionalLogin] = useState(false);
 
   const { login } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
     checkStatus();
+    const storedUsers = localStorage.getItem("dumos_recent_users");
+    if (storedUsers) {
+      try {
+        setRecentUsers(JSON.parse(storedUsers));
+      } catch (e) {
+        console.error("Failed to parse recent users", e);
+      }
+    }
   }, []);
 
   const checkStatus = async () => {
@@ -176,6 +188,13 @@ export default function LoginPage() {
                   Sync Now
                 </Link>
               </div>
+            </CardContent>
+          ) : recentUsers.length > 0 && !showTraditionalLogin ? (
+            <CardContent className="pt-6 pb-6 px-6">
+              <LockScreen 
+                recentUsers={recentUsers} 
+                onLoginAsOther={() => setShowTraditionalLogin(true)} 
+              />
             </CardContent>
           ) : (
             <form onSubmit={handleLogin}>

@@ -77,8 +77,8 @@ class WebApiClient {
     return data;
   }
 
-  async resetData(type: string = "all") {
-    const { data } = await apiClient.post("/dashboard/reset", { type });
+  async resetData(type: string = "all", password?: string) {
+    const { data } = await apiClient.post("/dashboard/reset", { type, password });
     return data;
   }
 
@@ -107,7 +107,7 @@ class WebApiClient {
     return data;
   }
 
-  async requestAccountDeletion(payload: { reason: string }) {
+  async requestAccountDeletion(payload: { reason: string; password?: string }) {
     const { data } = await apiClient.post("/profile/request-deletion", payload);
     return data;
   }

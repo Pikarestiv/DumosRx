@@ -23,6 +23,8 @@ import { Separator } from "@/components/ui/separator";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { QuickBooksImportDialog } from "./quickbooks-import-dialog";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
+import { useAuth } from "@/lib/context/auth-context";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import {
   Tooltip,
@@ -66,6 +68,7 @@ export function DataSettings({
     withRestriction,
     getUpgradeMessage,
   } = useFeatureGate();
+  const { verifyPin } = useAuth();
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showQBImport, setShowQBImport] = useState(false);
   const [iifContent, setIifContent] = useState<string | null>(null);
@@ -359,7 +362,17 @@ export function DataSettings({
         title="Factory Reset"
         description="This will permanently delete all local data — products, sales, customers, and expenses. Your login account will remain. This cannot be undone."
         confirmLabel="Reset All Data"
-        onConfirm={() => {
+        requirePin={true}
+        onConfirm={async (pin) => {
+          if (!pin) {
+            toast.error("PIN is required");
+            return;
+          }
+          const isValid = await verifyPin(pin);
+          if (!isValid) {
+            toast.error("Invalid PIN");
+            return;
+          }
           handleResetDatabase();
           setShowResetConfirm(false);
         }}

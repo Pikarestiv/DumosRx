@@ -65,6 +65,8 @@ export async function initDatabase(): Promise<any> {
         "_synced INTEGER DEFAULT 0",
         "_synced_at TEXT",
         "_deleted INTEGER DEFAULT 0",
+        "supplier_id TEXT",
+        "manufacture_date TEXT",
       ],
     },
     {
@@ -382,6 +384,39 @@ export async function initDatabase(): Promise<any> {
         }
       }
 
+      // One-off data clearing for legacy transactions (retaining products, batches, users, and settings)
+      try {
+        const hasClearedLegacy = typeof window !== "undefined" && window.localStorage
+          ? window.localStorage.getItem("dumosrx_cleared_legacy_v2")
+          : "true";
+        if (!hasClearedLegacy) {
+          const tablesToClear = [
+            "sales",
+            "sale_items",
+            "stock_movements",
+            "returns",
+            "return_items",
+            "prescriptions",
+            "prescription_items",
+            "expenses",
+            "purchase_orders",
+            "purchase_order_items",
+            "audit_logs",
+            "_sync_queue"
+          ];
+          for (const table of tablesToClear) {
+            try {
+              await db.execute(`DELETE FROM ${table}`);
+            } catch (_e) { }
+          }
+          if (typeof window !== "undefined" && window.localStorage) {
+            window.localStorage.setItem("dumosrx_cleared_legacy_v2", "true");
+          }
+        }
+      } catch (e) {
+        console.error("Failed to clear legacy transactions in Tauri", e);
+      }
+
       return db;
     } catch (err) {
       console.error("Failed to init Tauri DB", err);
@@ -481,6 +516,40 @@ export async function initDatabase(): Promise<any> {
           // Column likely already exists; ignore
         }
       }
+    }
+
+    // One-off data clearing for legacy transactions (retaining products, batches, users, and settings)
+    try {
+      const hasClearedLegacy = typeof window !== "undefined" && window.localStorage
+        ? window.localStorage.getItem("dumosrx_cleared_legacy_v2")
+        : "true";
+      if (!hasClearedLegacy) {
+        const tablesToClear = [
+          "sales",
+          "sale_items",
+          "stock_movements",
+          "returns",
+          "return_items",
+          "prescriptions",
+          "prescription_items",
+          "expenses",
+          "purchase_orders",
+          "purchase_order_items",
+          "audit_logs",
+          "_sync_queue"
+        ];
+        for (const table of tablesToClear) {
+          try {
+            db.run(`DELETE FROM ${table}`);
+          } catch (_e) { }
+        }
+        if (typeof window !== "undefined" && window.localStorage) {
+          window.localStorage.setItem("dumosrx_cleared_legacy_v2", "true");
+        }
+        saveDatabase();
+      }
+    } catch (e) {
+      console.error("Failed to clear legacy transactions in Web", e);
     }
 
     return db;

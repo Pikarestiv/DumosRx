@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import { toast } from "sonner";
 import { useStore } from "@/lib/context/store-context";
 
@@ -23,10 +25,41 @@ export interface CartItem extends Product {
   subtotal: number;
 }
 
+interface POSCartState {
+  cart: CartItem[];
+  discount: number;
+  setCart: (cart: CartItem[] | ((prev: CartItem[]) => CartItem[])) => void;
+  setDiscount: (discount: number) => void;
+}
+
+export const usePOSCartStore = create<POSCartState>()(
+  persist(
+    (set) => ({
+      cart: [],
+      discount: 0,
+      setCart: (updater) =>
+        set((state) => ({
+          cart: typeof updater === "function" ? updater(state.cart) : updater,
+        })),
+      setDiscount: (discount) => set({ discount }),
+    }),
+    {
+      name: "pos-cart-storage",
+    }
+  )
+);
+
 export function usePOSCart(products: Product[]) {
   const { vatPercentage } = useStore();
-  const [cart, setCart] = useState<CartItem[]>([]);
-  const [discount, setDiscount] = useState(0);
+  const cart = usePOSCartStore((state) => state.cart);
+  const setCart = usePOSCartStore((state) => state.setCart);
+  const discount = usePOSCartStore((state) => state.discount);
+  const setDiscount = usePOSCartStore((state) => state.setDiscount);
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
 
   const subtotal = useMemo(
     () => cart.reduce((sum, item) => sum + item.subtotal, 0),
@@ -99,16 +132,16 @@ export function usePOSCart(products: Product[]) {
   };
 
   return {
-    cart,
+    cart: isHydrated ? cart : [],
     addToCart,
     updateQuantity,
     removeFromCart,
     clearCart,
     restoreCart,
-    subtotal,
-    tax,
-    total,
-    discount,
+    subtotal: isHydrated ? subtotal : 0,
+    tax: isHydrated ? tax : 0,
+    total: isHydrated ? total : 0,
+    discount: isHydrated ? discount : 0,
     setDiscount,
   };
 }

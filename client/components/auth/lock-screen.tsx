@@ -27,7 +27,7 @@ export function LockScreen({ recentUsers, onLoginAsOther }: LockScreenProps) {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedUser) return;
-    
+
     setIsLoading(true);
     try {
       const success = await login(selectedUser.username, pin);
@@ -56,27 +56,32 @@ export function LockScreen({ recentUsers, onLoginAsOther }: LockScreenProps) {
             className="space-y-6"
           >
             <div className="text-center space-y-2">
-              <h2 className="text-2xl font-bold tracking-tight">Select your account</h2>
+              <h2 className="text-2xl font-bold tracking-tight">
+                Select your account
+              </h2>
               <p className="text-sm text-muted-foreground">
                 Choose an account to quickly unlock the register
               </p>
             </div>
-            
+
             <div className="grid grid-cols-2 gap-4">
               {recentUsers.map((user) => (
                 <Button
                   key={user.id}
                   variant="outline"
-                  className="h-auto p-4 flex flex-col items-center justify-center gap-3 hover:border-primary hover:bg-primary/5 transition-all"
+                  className="h-auto p-4 flex flex-col items-center justify-center gap-3 hover:border-2 hover:border-primary hover:bg-primary/5 hover:text-foreground transition-all"
                   onClick={() => setSelectedUser(user)}
                 >
                   <Avatar className="h-12 w-12 border-2 border-background shadow-sm">
                     <AvatarFallback className="bg-primary/10 text-primary text-lg">
-                      {user.first_name?.[0]}{user.last_name?.[0]}
+                      {user.first_name?.[0]}
+                      {user.last_name?.[0]}
                     </AvatarFallback>
                   </Avatar>
                   <div className="text-center w-full overflow-hidden">
-                    <p className="font-semibold truncate">{user.first_name} {user.last_name}</p>
+                    <p className="font-semibold truncate">
+                      {user.first_name} {user.last_name}
+                    </p>
                     <p className="text-xs text-muted-foreground capitalize truncate">
                       {user.role.replace(/_/g, " ")}
                     </p>
@@ -86,7 +91,11 @@ export function LockScreen({ recentUsers, onLoginAsOther }: LockScreenProps) {
             </div>
 
             <div className="pt-4 flex justify-center border-t">
-              <Button variant="ghost" className="text-sm" onClick={onLoginAsOther}>
+              <Button
+                variant="ghost"
+                className="text-sm"
+                onClick={onLoginAsOther}
+              >
                 Log in as someone else
               </Button>
             </div>
@@ -102,18 +111,25 @@ export function LockScreen({ recentUsers, onLoginAsOther }: LockScreenProps) {
             <div className="flex flex-col items-center space-y-4">
               <Avatar className="h-16 w-16 border-4 border-background shadow-md">
                 <AvatarFallback className="bg-primary/10 text-primary text-xl">
-                  {selectedUser.first_name?.[0]}{selectedUser.last_name?.[0]}
+                  {selectedUser.first_name?.[0]}
+                  {selectedUser.last_name?.[0]}
                 </AvatarFallback>
               </Avatar>
               <div className="text-center space-y-1">
-                <h2 className="text-xl font-bold">Welcome back, {selectedUser.first_name}</h2>
-                <p className="text-sm text-muted-foreground">Enter your PIN to unlock</p>
+                <h2 className="text-xl font-bold">
+                  Welcome back, {selectedUser.first_name}
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Enter your PIN to unlock
+                </p>
               </div>
             </div>
 
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="pin" className="sr-only">PIN</Label>
+                <Label htmlFor="pin" className="sr-only">
+                  PIN
+                </Label>
                 <div className="relative group">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                   <Input
@@ -130,10 +146,10 @@ export function LockScreen({ recentUsers, onLoginAsOther }: LockScreenProps) {
               </div>
 
               <div className="grid grid-cols-2 gap-3 pt-2">
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  className="h-11" 
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-11"
                   onClick={() => {
                     setSelectedUser(null);
                     setPin("");
@@ -142,12 +158,16 @@ export function LockScreen({ recentUsers, onLoginAsOther }: LockScreenProps) {
                 >
                   <ArrowLeft className="mr-2 h-4 w-4" /> Back
                 </Button>
-                <Button 
-                  type="submit" 
-                  className="h-11" 
+                <Button
+                  type="submit"
+                  className="h-11"
                   disabled={isLoading || pin.length < 4}
                 >
-                  {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Unlock"}
+                  {isLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    "Unlock"
+                  )}
                 </Button>
               </div>
             </form>

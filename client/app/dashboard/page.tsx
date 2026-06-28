@@ -15,11 +15,6 @@ export default function DashboardPage() {
     setMounted(true);
   }, []);
 
-  useEffect(() => {
-    if (mounted && !isAuthenticated) {
-      router.push("/");
-    }
-  }, [isAuthenticated, mounted, router]);
 
   if (!mounted) {
     return (

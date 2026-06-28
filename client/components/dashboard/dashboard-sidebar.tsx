@@ -74,7 +74,7 @@ export function DashboardSidebar({
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     {
       name: `${t("products")} & Batches`,
-      href: "/stock-batch",
+      href: "/inventory",
       icon: storeType === "pharmacy" ? Pill : ShoppingBasket,
     },
     { name: "Point of Sale", href: "/pos", icon: ShoppingCart },

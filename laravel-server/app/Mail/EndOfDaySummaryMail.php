@@ -3,7 +3,6 @@
 namespace App\Mail;
 
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
@@ -13,7 +12,7 @@ use App\Models\Subscription;
 use App\Models\Sale;
 use App\Models\Expense;
 use App\Models\Prescription;
-use App\Models\Inventory;
+use App\Models\StockBatch;
 use Carbon\Carbon;
 
 class EndOfDaySummaryMail extends Mailable
@@ -47,7 +46,7 @@ class EndOfDaySummaryMail extends Mailable
             ->whereDate('created_at', $today)
             ->count();
             
-        $lowStockCount = Inventory::where('user_id', $user->id)
+        $lowStockCount = StockBatch::where('user_id', $user->id)
             ->whereColumn('quantity', '<=', 'reorder_level')
             ->count();
 

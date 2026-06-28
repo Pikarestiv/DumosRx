@@ -14,30 +14,14 @@ import { ExpiringBatchesAlert } from "./expiring-batches-alert"
 import { useStore } from "@/lib/context/store-context"
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate"
 import { useAuth } from "@/lib/context/auth-context"
+import { useRouter } from "next/navigation"
 
-export function StockBatchManagement() {
+export function StockBatchManagement({ currentTab = "overview" }: { currentTab?: string }) {
   const [isAuditOpen, setIsAuditOpen] = useState(false)
   const { t } = useStore()
   const { isAdmin } = useAuth()
-  const searchParams = useSearchParams()
+  const router = useRouter()
   const { canUseAuditMode, withRestriction } = useFeatureGate()
-
-  // If navigated here with ?action=add or ?status=low_stock, land on the products tab
-  const hasProductsParam = searchParams.get("action") === "add" || !!searchParams.get("status")
-  const defaultTab = searchParams.get("tab") || (hasProductsParam ? "products" : "overview")
-  const [activeTab, setActiveTab] = useState(defaultTab)
-  
-  useEffect(() => {
-    const tab = searchParams.get("tab")
-    const action = searchParams.get("action")
-    const status = searchParams.get("status")
-    
-    if (tab) {
-      setActiveTab(tab)
-    } else if (action === "add" || !!status) {
-      setActiveTab("products")
-    }
-  }, [searchParams])
 
   return (
     <div className="space-y-6">
@@ -70,7 +54,7 @@ export function StockBatchManagement() {
         onClose={() => setIsAuditOpen(false)} 
       />
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+      <Tabs value={currentTab} onValueChange={(val) => router.push(`/inventory/${val}`)} className="space-y-6">
         <TabsList className="bg-muted/50 p-1 h-auto flex-wrap justify-start">
           <TabsTrigger value="overview" className="px-4 py-2">Overview</TabsTrigger>
           <TabsTrigger value="products" className="px-4 py-2 capitalize">{t('products')} Database</TabsTrigger>

@@ -40,7 +40,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
 
-  const tabs = ["/dashboard", "/pos", "/stock-batch", "/customers"];
+  const tabs = ["/dashboard", "/pos", "/inventory", "/customers"];
   const currentIndex = tabs.findIndex(t => pathname.startsWith(t));
   const prevIndexRef = useRef(currentIndex);
   

@@ -45,19 +45,19 @@ class ApiClient extends BaseApiClient {
 
   // Stock Batch endpoints
   async getStockBatch(page = 1, limit = 50) {
-    return this.request<any>(`/stock-batch?page=${page}&limit=${limit}`);
+    return this.request<any>(`/stock-batches?page=${page}&limit=${limit}`);
   }
 
   async getLowStockItems() {
-    return this.request<any>("/stock-batch/low-stock");
+    return this.request<any>("/stock-batches/low-stock");
   }
 
   async getExpiringItems(days = 90) {
-    return this.request<any>(`/stock-batch/expiring?days=${days}`);
+    return this.request<any>(`/stock-batches/expiring?days=${days}`);
   }
 
   async getStockBatchValue() {
-    return this.request<any>("/stock-batch/value");
+    return this.request<any>("/stock-batches/value");
   }
 
   // Sales endpoints

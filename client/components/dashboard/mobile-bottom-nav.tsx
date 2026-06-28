@@ -29,7 +29,7 @@ export function MobileBottomNav({ onOpenFeedback }: MobileBottomNavProps) {
     { name: "POS", href: "/pos", icon: ShoppingCart },
     {
       name: t("products"),
-      href: "/stock-batch",
+      href: "/inventory",
       icon: storeType === "pharmacy" ? Pill : ShoppingBasket,
     },
     { name: "Customers", href: "/customers", icon: Users },

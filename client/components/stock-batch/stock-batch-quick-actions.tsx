@@ -46,7 +46,7 @@ export function StockBatchQuickActions({
             className="h-20 flex flex-col gap-2 bg-primary/5 hover:bg-primary/10 border-primary/20"
             asChild
           >
-            <Link href="/stock-batch?action=add">
+            <Link href="/inventory/products">
               <PlusCircle className="h-6 w-6 text-primary hover-rotate-icon" />
               <span className="text-sm font-medium text-primary capitalize">
                 Add {t("product")}

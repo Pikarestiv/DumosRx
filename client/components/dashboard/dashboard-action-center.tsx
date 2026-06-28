@@ -136,7 +136,7 @@ export function DashboardActionCenter({
           icon: Clock,
           priority: "warning",
           actionLabel: "Check Now",
-          actionRoute: "/stock-batch?filter=expiring",
+          actionRoute: "/inventory/batches",
         });
       }
 
@@ -149,7 +149,7 @@ export function DashboardActionCenter({
           icon: PackageX,
           priority: "warning",
           actionLabel: "View Needs",
-          actionRoute: "/stock-batch?filter=low-stock",
+          actionRoute: "/inventory/products?status=low_stock",
         });
       }
     }

@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { LogOut, Repeat, User } from "lucide-react";
+import { getUserInitials } from "@/lib/utils";
 
 export function UserNav() {
   const { user, logout } = useAuth();
@@ -20,9 +21,7 @@ export function UserNav() {
 
   if (!user) return null;
 
-  const initials =
-    `${user.first_name?.[0] || ""}${user.last_name?.[0] || ""}`.toUpperCase() ||
-    "U";
+  const initials = getUserInitials(user.first_name, user.last_name);
 
   const handleSwitchAccount = () => {
     logout();

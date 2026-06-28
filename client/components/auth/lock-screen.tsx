@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { RecentUser } from "@/lib/context/auth-context";
+import { getUserInitials } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -73,9 +74,8 @@ export function LockScreen({ recentUsers, onLoginAsOther }: LockScreenProps) {
                   onClick={() => setSelectedUser(user)}
                 >
                   <Avatar className="h-12 w-12 border-2 border-background shadow-sm">
-                    <AvatarFallback className="bg-primary/10 text-primary text-lg">
-                      {user.first_name?.[0]}
-                      {user.last_name?.[0]}
+                    <AvatarFallback className="bg-primary/10 text-primary text-xl font-semibold">
+                      {getUserInitials(user.first_name, user.last_name)}
                     </AvatarFallback>
                   </Avatar>
                   <div className="text-center w-full overflow-hidden">
@@ -111,8 +111,7 @@ export function LockScreen({ recentUsers, onLoginAsOther }: LockScreenProps) {
             <div className="flex flex-col items-center space-y-4">
               <Avatar className="h-16 w-16 border-4 border-background shadow-md">
                 <AvatarFallback className="bg-primary/10 text-primary text-xl">
-                  {selectedUser.first_name?.[0]}
-                  {selectedUser.last_name?.[0]}
+                  {getUserInitials(selectedUser.first_name, selectedUser.last_name)}
                 </AvatarFallback>
               </Avatar>
               <div className="text-center space-y-1">

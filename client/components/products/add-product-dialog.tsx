@@ -299,7 +299,7 @@ export function AddProductDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent 
+      <DialogContent
         className="sm:max-w-3xl max-h-[90vh] overflow-y-auto"
         onPointerDownOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => {
@@ -321,7 +321,6 @@ export function AddProductDialog({
         </DialogHeader>
 
         <form onSubmit={withRestriction(handleSubmit)} className="space-y-4">
-
           <ProductFormFields
             formData={formData}
             onInputChange={handleInputChange}
@@ -340,10 +339,10 @@ export function AddProductDialog({
               Cancel
             </Button>
             <div className="flex gap-2">
-              <Button 
+              <Button
                 type="button"
                 variant="outline"
-                className="border-accent text-accent hover:bg-accent/10"
+                className="border-accent text-accent hover:bg-accent/10 hover:text-primary"
                 onClick={withRestriction((e: any) => handleSubmit(e, true))}
               >
                 {editingProduct ? `Update & Add Another` : `Save & Add Another`}

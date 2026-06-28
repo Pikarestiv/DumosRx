@@ -233,7 +233,7 @@ export function POSPaymentDialog({
                     onChange={handleSetDefaultToggle}
                   />
                   <label htmlFor="setDefaultToggle" className="text-xs text-muted-foreground cursor-pointer select-none">
-                    Set as default for {paymentMethod === "card" ? "Card" : "Transfer"} on this device
+                    Set as default for <span className="font-bold">{paymentMethod === "card" ? "Card" : "Transfer"}</span> on this device
                   </label>
                 </div>
               )}

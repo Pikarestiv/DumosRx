@@ -194,9 +194,9 @@ export function PaymentAccountsCard() {
             )}
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className={`grid gap-3 ${accounts.length === 1 ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2"}`}>
             {accounts.map((account) => (
-              <div key={account.id} className="p-4 border rounded-lg hover:bg-muted/30 transition-colors">
+              <div key={account.id} className="flex flex-col justify-between p-4 border rounded-lg hover:bg-muted/30 transition-colors">
                 <div className="flex items-center gap-4">
                   <div className="p-2 bg-muted rounded-full">
                     {getIcon(account.account_type)}
@@ -304,7 +304,7 @@ export function PaymentAccountsCard() {
                 onChange={(e) => setSetAsDefault(e.target.checked)}
               />
               <label htmlFor="setAsDefaultNew" className="text-sm cursor-pointer select-none">
-                Set as default for {formData.account_type === "pos_terminal" ? "Card" : "Transfer"} on this device
+                Set as default for <span className="font-bold">{formData.account_type === "pos_terminal" ? "Card" : "Transfer"}</span> on this device
               </label>
             </div>
           </div>

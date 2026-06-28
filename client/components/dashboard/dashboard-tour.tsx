@@ -8,7 +8,11 @@ export function DashboardTour() {
 
   useEffect(() => {
     const hasSeenTour = localStorage.getItem("dumos_client_tour_completed");
-    if (!hasSeenTour) {
+    const snoozedUntil = localStorage.getItem("dumos_client_tour_snoozed_until");
+    
+    const isSnoozed = snoozedUntil && parseInt(snoozedUntil, 10) > Date.now();
+
+    if (!hasSeenTour && !isSnoozed) {
       // Small delay to ensure the DOM is fully rendered
       const timer = setTimeout(() => {
         setRun(true);
@@ -81,12 +85,17 @@ export function DashboardTour() {
   ];
 
   const handleJoyrideEvent = (data: EventData) => {
-    const { status } = data;
+    const { status, action } = data;
     const finishedStatuses: string[] = [STATUS.FINISHED, STATUS.SKIPPED];
 
     if (finishedStatuses.includes(status)) {
       setRun(false);
       localStorage.setItem("dumos_client_tour_completed", "true");
+    } else if (action === "close") {
+      setRun(false);
+      // Snooze for 24 hours (24 * 60 * 60 * 1000 ms)
+      const snoozeTime = Date.now() + 24 * 60 * 60 * 1000;
+      localStorage.setItem("dumos_client_tour_snoozed_until", snoozeTime.toString());
     }
   };
 

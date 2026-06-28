@@ -183,7 +183,10 @@ export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
           <Plus className="w-4 h-4 mr-2" /> New Purchase Order
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col p-0 border-accent/20 bg-card/95 backdrop-blur-xl">
+      <DialogContent 
+        className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col p-0 border-accent/20 bg-card/95 backdrop-blur-xl"
+        onPointerDownOutside={(e) => e.preventDefault()}
+      >
         <DialogHeader className="p-6 border-b border-accent/10">
           <DialogTitle className="text-2xl font-serif font-bold">
             Create Purchase Order

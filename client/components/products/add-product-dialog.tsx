@@ -18,7 +18,6 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { FORM_SUGGESTIONS } from "@/lib/constants/suggestions";
 import { Product } from "./types";
 import { ProductFormFields } from "./product-form-fields";
-import { ProductCombobox } from "@/components/ui/product-combobox";
 
 interface AddProductDialogProps {
   open: boolean;
@@ -318,29 +317,7 @@ export function AddProductDialog({
         </DialogHeader>
 
         <form onSubmit={withRestriction(handleSubmit)} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Product Name *</Label>
-              <ProductCombobox
-                value={formData.name}
-                onChange={(option) => {
-                  setFormData({
-                    ...formData,
-                    name: option.name,
-                    ...(option.source === "local"
-                      ? {
-                          brand: option.brand_name || "",
-                          genericName: option.generic_name || "",
-                          manufacturer: option.manufacturer || "",
-                          // Note: We don't overwrite stock or expiry for local products
-                        }
-                      : {}),
-                  });
-                }}
-                placeholder="Enter product name"
-              />
-            </div>
-          </div>
+
           <ProductFormFields
             formData={formData}
             onInputChange={handleInputChange}

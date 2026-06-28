@@ -1,6 +1,7 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SearchableInput } from "@/components/ui/searchable-input";
+import { ProductCombobox } from "@/components/ui/product-combobox";
 import type { Product } from "../types";
 
 interface ProductFormBasicProps {
@@ -29,14 +30,26 @@ export function ProductFormBasic({
     <>
       <div className="space-y-2">
         <Label htmlFor="name">{t("product")} Name *</Label>
-        <SearchableInput
+        <ProductCombobox
+          value={formData.name}
+          onChange={(option) => {
+            onInputChange("name", option.name);
+            if (option.source === "local") {
+              onInputChange("brand", option.brand_name || "");
+              onInputChange("genericName", option.generic_name || "");
+              onInputChange("manufacturer", option.manufacturer || "");
+            }
+          }}
+          placeholder={`e.g., ${isPharmacy ? "Paracetamol" : "Product Name"}`}
+        />
+        {/* <SearchableInput
           id="name"
           value={formData.name}
           onValueChange={(val) => onInputChange("name", val)}
           options={suggestions.names}
           placeholder={`e.g., ${isPharmacy ? "Paracetamol" : "Product Name"}`}
           required
-        />
+        /> */}
       </div>
 
       {isPharmacy && (

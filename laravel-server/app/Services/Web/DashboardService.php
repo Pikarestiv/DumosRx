@@ -59,7 +59,7 @@ class DashboardService
         try {
             $inventoryStats = DB::table('stock_batches')
                 ->whereIn('user_id', $userIds)
-                ->select(DB::raw('SUM(quantity_in_stock * cost_price) as total_value'))
+                ->select(DB::raw('SUM(quantity * cost_price) as total_value'))
                 ->first();
             $inventoryValue = (float) ($inventoryStats->total_value ?? 0);
         } catch (\Exception $e) {
@@ -132,7 +132,7 @@ class DashboardService
                 ->whereIn('products.user_id', $cashierIds)
                 ->whereNull('products.deleted_at')
                 ->leftJoin('stock_batches', 'products.id', '=', 'stock_batches.product_id')
-                ->select('products.id', 'products.reorder_level', DB::raw('SUM(COALESCE(stock_batches.quantity_in_stock, 0)) as total_stock'))
+                ->select('products.id', 'products.reorder_level', DB::raw('SUM(COALESCE(stock_batches.quantity, 0)) as total_stock'))
                 ->groupBy('products.id', 'products.reorder_level')
                 ->get()
                 ->filter(function ($product) {
@@ -144,7 +144,7 @@ class DashboardService
             $warningDays = $store->expiry_warning_days ?? 90;
             $expiringItems = DB::table('stock_batches')
                 ->whereIn('user_id', $cashierIds)
-                ->where('quantity_in_stock', '>', 0)
+                ->where('quantity', '>', 0)
                 ->where('expiry_date', '<=', now()->addDays($warningDays))
                 ->where('expiry_date', '>=', now()->toDateString())
                 ->count();

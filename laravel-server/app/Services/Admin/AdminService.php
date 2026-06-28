@@ -227,7 +227,7 @@ class AdminService
         return [
             'data' => collect($paginator->items())->map(function ($product) {
                 $inventory = DB::table('stock_batches')->where('product_id', $product->id);
-                $totalStock = $inventory->sum('quantity_in_stock');
+                $totalStock = $inventory->sum('quantity');
                 $avgReorder = 10; // Default reorder level fallback
                 if ($product->reorder_level) {
                     $avgReorder = $product->reorder_level;
@@ -290,7 +290,7 @@ class AdminService
         $growth = $this->calculateChange($thisMonth, $lastMonth);
 
         // Stock alerts
-        $lowStockCount = DB::table('stock_batches')->where('quantity_in_stock', '<', 10)->count();
+        $lowStockCount = DB::table('stock_batches')->where('quantity', '<', 10)->count();
 
         // PCN Compliance
         $compliantCount = Product::whereNotNull('nafdac_number')->where('nafdac_number', '!=', '')->count();

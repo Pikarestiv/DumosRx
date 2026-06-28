@@ -174,15 +174,15 @@ export function StoreStockBatchTab({ store }: { store: any }) {
                     {item.product?.category?.name || "Uncategorized"}
                   </TableCell>
                   <TableCell className="text-right">
-                    <span
-                      className={
-                        item.quantity_in_stock <= item.reorder_level
-                          ? "text-red-600 font-bold"
-                          : ""
-                      }
-                    >
-                      {item.quantity_in_stock}
-                    </span>
+                      <span
+                        className={
+                          item.quantity <= item.reorder_level
+                            ? "text-destructive font-medium"
+                            : ""
+                        }
+                      >
+                        {item.quantity}
+                      </span>
                   </TableCell>
                   <TableCell className="text-right font-medium">
                     ₦{item.selling_price}

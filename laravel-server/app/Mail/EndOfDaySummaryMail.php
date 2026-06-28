@@ -48,7 +48,7 @@ class EndOfDaySummaryMail extends Mailable
             ->count();
             
         $lowStockCount = Inventory::where('user_id', $user->id)
-            ->whereColumn('quantity_in_stock', '<=', 'reorder_level')
+            ->whereColumn('quantity', '<=', 'reorder_level')
             ->count();
 
         $grossSales = $sales->sum('total_amount');

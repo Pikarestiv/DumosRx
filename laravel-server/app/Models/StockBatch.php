@@ -13,7 +13,7 @@ class StockBatch extends Model
     protected $table = 'stock_batches';
 
     protected $fillable = [
-        'product_id', 'batch_number', 'quantity_in_stock', 'quantity_reserved',
+        'product_id', 'batch_number', 'quantity', 'quantity_reserved',
         'reorder_level', 'max_stock_level', 'cost_price', 'selling_price',
         'manufacture_date', 'expiry_date', 'supplier_id', 'location', 'status',
     ];

@@ -97,12 +97,6 @@ class SyncController extends Controller
                     unset($payload['user_id']);
                 }
 
-                // Map quantity to quantity_in_stock for inventory
-                if ($change['table_name'] === 'stock_batches' && isset($payload['quantity'])) {
-                    $payload['quantity_in_stock'] = $payload['quantity'];
-                    unset($payload['quantity']);
-                }
-
                 // Map vendor_id to supplier_id for purchase orders
                 if ($change['table_name'] === 'purchase_orders') {
                     if (isset($payload['vendor_id'])) {

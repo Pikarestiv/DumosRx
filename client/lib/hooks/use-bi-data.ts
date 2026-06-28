@@ -84,7 +84,7 @@ export function useBIData(externalTimeRange?: string) {
   // 5. Stock Batch Value (local uses quantity column)
   const { data: stock_batchValueData } = useLocalData<{ value: number }>(
     `SELECT SUM(inv.cost_price * inv.quantity) as value
-     FROM stock_batches inv WHERE inv._deleted = 0`,
+     FROM stock_batches inv WHERE inv._deleted = 0 OR inv._deleted IS NULL`,
   );
   const stock_batchValue = stock_batchValueData[0]?.value || 0;
 

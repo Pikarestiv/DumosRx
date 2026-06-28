@@ -48,13 +48,22 @@ export function useLocalData<T = Record<string, unknown>>(
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['localData', sql, params],
     queryFn: async () => {
-      await initDatabase(); // Ensure DB is initialized before querying
-      const results = await query<Record<string, unknown>>(sql, params);
-      if (transform) {
-        return results.map(transform);
+      if (!sql || sql.trim() === "") {
+        return [];
       }
-      return results as unknown as T[];
+      await initDatabase(); // Ensure DB is initialized before querying
+      try {
+        const results = await query<Record<string, unknown>>(sql, params);
+        if (transform) {
+          return results.map(transform);
+        }
+        return results as unknown as T[];
+      } catch (err) {
+        console.error("useLocalData query error:", err, "SQL:", sql);
+        throw err;
+      }
     },
+    enabled: !!sql && sql.trim() !== "",
     refetchInterval: refreshInterval > 0 ? refreshInterval : false,
   });
 

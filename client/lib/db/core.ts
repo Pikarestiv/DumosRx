@@ -67,6 +67,13 @@ export async function initDatabase(): Promise<any> {
         "_deleted INTEGER DEFAULT 0",
         "supplier_id TEXT",
         "manufacture_date TEXT",
+        "batch_number TEXT",
+        "quantity INTEGER DEFAULT 0",
+        "cost_price REAL DEFAULT 0",
+        "selling_price REAL DEFAULT 0",
+        "expiry_date TEXT",
+        "received_date TEXT",
+        "notes TEXT",
       ],
     },
     {

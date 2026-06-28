@@ -25,7 +25,7 @@ class StockBatchController extends Controller
     {
         $inventory = StockBatch::where('user_id', $request->user()->id)
             ->with('medicine')
-            ->whereColumn('quantity_in_stock', '<=', 'reorder_level')
+            ->whereColumn('quantity', '<=', 'reorder_level')
             ->get();
 
         return response()->json($inventory);
@@ -50,7 +50,7 @@ class StockBatchController extends Controller
     {
         $totalValue = DB::table('stock_batches')
             ->where('user_id', $request->user()->id)
-            ->select(DB::raw('SUM(quantity_in_stock * cost_price) as total_value'))
+            ->select(DB::raw('SUM(quantity * cost_price) as total_value'))
             ->value('total_value');
 
         return response()->json(['total_value' => $totalValue ?? 0]);

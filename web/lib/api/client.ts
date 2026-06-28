@@ -237,23 +237,23 @@ class WebApiClient {
   }
   async getStockBatch(_storeId?: string, page: number = 1, limit: number = 50) {
     const query = new URLSearchParams({ page: page.toString(), limit: limit.toString() });
-    const { data } = await apiClient.get(`/app/stock-batch?${query.toString()}`);
+    const { data } = await apiClient.get(`/app/stock-batches?${query.toString()}`);
     return data;
   }
 
   async getLowStockStockBatch(_storeId?: string) {
-    const { data } = await apiClient.get(`/app/stock-batch/low-stock`);
+    const { data } = await apiClient.get(`/app/stock-batches/low-stock`);
     return data;
   }
 
   async getExpiringStockBatch(_storeId?: string, days: number = 90) {
     const query = new URLSearchParams({ days: days.toString() });
-    const { data } = await apiClient.get(`/app/stock-batch/expiring?${query.toString()}`);
+    const { data } = await apiClient.get(`/app/stock-batches/expiring?${query.toString()}`);
     return data;
   }
 
   async getStockBatchValue(_storeId?: string) {
-    const { data } = await apiClient.get(`/app/stock-batch/value`);
+    const { data } = await apiClient.get(`/app/stock-batches/value`);
     return data;
   }
 }

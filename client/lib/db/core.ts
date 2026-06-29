@@ -4,6 +4,7 @@
 
 import initSqlJs, { Database, SqlJsStatic } from "sql.js";
 import { APP_NAME } from "@/lib/constants";
+import { get, set } from "idb-keyval";
 /* eslint-disable max-lines */
 import { SCHEMA_SQL } from "./schema";
 
@@ -439,11 +440,25 @@ export async function initDatabase(): Promise<any> {
       });
     }
 
-    const savedData = localStorage.getItem(`${APP_NAME.toLowerCase()}_db`);
+    let savedData: Uint8Array | undefined = await get(`${APP_NAME.toLowerCase()}_db`);
+
+    // Migration from legacy localStorage to IndexedDB
+    if (!savedData) {
+      const legacySavedData = localStorage.getItem(`${APP_NAME.toLowerCase()}_db`);
+      if (legacySavedData) {
+        try {
+          savedData = new Uint8Array(JSON.parse(legacySavedData));
+          await set(`${APP_NAME.toLowerCase()}_db`, savedData);
+          localStorage.removeItem(`${APP_NAME.toLowerCase()}_db`);
+        } catch (e) {
+          console.error("Failed to migrate legacy db", e);
+        }
+      }
+    }
+
     if (savedData) {
       try {
-        const data = new Uint8Array(JSON.parse(savedData));
-        db = new SQL.Database(data);
+        db = new SQL.Database(savedData);
         
         // Rename stock_batch to stock_batches if the old table exists
         try {
@@ -570,8 +585,9 @@ export async function initDatabase(): Promise<any> {
 export function saveDatabase(): void {
   if (!db) return;
   const data = db.export();
-  const arr = Array.from(data);
-  localStorage.setItem(`${APP_NAME.toLowerCase()}_db`, JSON.stringify(arr));
+  set(`${APP_NAME.toLowerCase()}_db`, data).catch(err => {
+    console.error("Failed to save DB to IndexedDB", err);
+  });
 }
 
 export async function query<T = Record<string, unknown>>(

@@ -25,8 +25,12 @@ export const useAutoLockStore = create<AutoLockState>()(
     {
       name: "dumos_autolock",
       storage: createJSONStorage(() => localStorage),
-      // We only want to persist the duration, not the locked state or lastActivity
-      partialize: (state) => ({ duration: state.duration }),
+      // We want to persist the duration, the locked state, and the lastActivity timestamp to survive page reloads
+      partialize: (state) => ({ 
+        duration: state.duration, 
+        isLocked: state.isLocked,
+        lastActivity: state.lastActivity 
+      }),
     }
   )
 );

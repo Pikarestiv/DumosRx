@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
 import { DashboardOverview } from "@/components/dashboard/dashboard-overview";
 import { useAuth } from "@/lib/context/auth-context";
 
 export default function DashboardPage() {
   const { isAuthenticated, user: _user } = useAuth();
-  const router = useRouter();
+
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {

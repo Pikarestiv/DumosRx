@@ -12,13 +12,10 @@ import {
   BellRing,
   PackageX,
   Clock,
-  ArrowRight,
-  ChevronLeft,
-  ChevronRight,
 } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AnimatePresence, motion } from "framer-motion";
+
 
 export interface ActionCenterProps {
   expiringCount: number;
@@ -44,7 +41,7 @@ export function DashboardActionCenter({
   const router = useRouter();
   const { isAuthenticated, isAdmin } = useAuth();
   const { storeProfile } = useStore();
-  const [currentIndex, setCurrentIndex] = useState(0);
+
   const [isPaused, setIsPaused] = useState(false);
 
   const { data: staffData } = useLocalData<{ count: number }>(

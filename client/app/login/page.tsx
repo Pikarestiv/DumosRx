@@ -147,9 +147,9 @@ export default function LoginPage() {
               />
             </motion.div>
 
-            {userCount === 0 ? (
+            {userCount === 0 && (
               <>
-                <CardTitle className="text-xl font-bold">
+                <CardTitle className="text-xl font-bold mt-2">
                   No Local Accounts Found
                 </CardTitle>
                 <CardDescription className="text-muted-foreground mt-2">
@@ -157,10 +157,6 @@ export default function LoginPage() {
                   new store or restore from a backup?
                 </CardDescription>
               </>
-            ) : (
-              <CardDescription className="text-muted-foreground">
-                Terminal Access • Secure Login
-              </CardDescription>
             )}
           </CardHeader>
 
@@ -190,10 +186,10 @@ export default function LoginPage() {
               </div>
             </CardContent>
           ) : recentUsers.length > 0 && !showTraditionalLogin ? (
-            <CardContent className="pt-6 pb-6 px-6">
-              <LockScreen 
-                recentUsers={recentUsers} 
-                onLoginAsOther={() => setShowTraditionalLogin(true)} 
+            <CardContent className="pt-1 pb-6 px-6">
+              <LockScreen
+                recentUsers={recentUsers}
+                onLoginAsOther={() => setShowTraditionalLogin(true)}
               />
             </CardContent>
           ) : (
@@ -266,6 +262,13 @@ export default function LoginPage() {
             </form>
           )}
         </Card>
+
+        {userCount > 0 && (
+          <div className="mt-8 flex items-center justify-center gap-2 text-xs font-medium text-muted-foreground/60 uppercase tracking-widest">
+            <Lock className="w-3 h-3" />
+            Terminal Access • Secure Login
+          </div>
+        )}
       </motion.div>
     </div>
   );

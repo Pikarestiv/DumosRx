@@ -4,6 +4,7 @@ import type React from "react";
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { ThemeCustomizer } from "@/components/ui/theme-customizer";
@@ -18,7 +19,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ChevronDown, Store as StoreIcon } from "lucide-react";
+import { ChevronDown, Store as StoreIcon, Lock } from "lucide-react";
 import { BroadcastBanner } from "./broadcast-banner";
 import { DashboardSidebar } from "./dashboard-sidebar";
 import { MobileBottomNav } from "./mobile-bottom-nav";
@@ -166,17 +167,59 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
     <div className="min-h-screen bg-background relative">
       {isLocked && (
-        <div className="fixed inset-0 z-[99999] bg-background flex flex-col items-center justify-center p-4 sm:p-8">
-          <div className="w-full max-w-md bg-card p-6 sm:p-8 rounded-xl shadow-xl border border-border">
-            <LockScreen 
-              recentUsers={recentUsers} 
-              onLoginAsOther={() => {
-                unlock();
-                router.push("/login");
-              }}
-              onUnlockSuccess={() => unlock()}
-            />
+        <div className="fixed inset-0 z-[99999] bg-background flex flex-col items-center justify-center p-4 overflow-hidden">
+          <div className="absolute inset-0 z-0">
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent to-background/60" />
           </div>
+          
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5 }}
+            className="w-full max-w-md z-10"
+          >
+            <div className="rounded-xl border border-border shadow-2xl bg-card/60 backdrop-blur-2xl text-card-foreground">
+              <div className="space-y-1 flex flex-col items-center text-center pb-2 p-6">
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{
+                    type: "spring",
+                    stiffness: 260,
+                    damping: 20,
+                    delay: 0.2,
+                  }}
+                  className="mb-6 overflow-hidden"
+                >
+                  <Image
+                    src="/logo.png"
+                    alt="Logo"
+                    width={180}
+                    height={70}
+                    className="object-contain"
+                    style={{ filter: "var(--logo-filter)", height: "auto" }}
+                  />
+                </motion.div>
+              </div>
+
+              <div className="pt-1 pb-6 px-6">
+                <LockScreen 
+                  recentUsers={recentUsers} 
+                  defaultUser={user ? { ...user, last_login: new Date().toISOString() } : undefined}
+                  onLoginAsOther={() => {
+                    unlock();
+                    router.push("/login");
+                  }}
+                  onUnlockSuccess={() => unlock()}
+                />
+              </div>
+            </div>
+            
+            <div className="mt-8 flex items-center justify-center gap-2 text-xs font-medium text-muted-foreground/60 uppercase tracking-widest">
+              <Lock className="w-3 h-3" />
+              Terminal Access • Secure Login
+            </div>
+          </motion.div>
         </div>
       )}
 
@@ -204,7 +247,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
         {/* Top header */}
         <header
-          className="h-16 bg-background border-b border-border flex items-center justify-between px-6 sticky z-40"
+          className="h-16 bg-background border-b border-border flex items-center justify-between px-4 sm:px-6 sticky z-40"
           style={{ top: "var(--tauri-top, 0px)" }}
         >
           <div className="flex items-center gap-4">
@@ -260,7 +303,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               transition={{ duration: 0.2, ease: "easeInOut" }}
               className="w-full h-full"
             >
-              <main className="p-6">{children}</main>
+              <main className="p-4 sm:p-6">{children}</main>
             </motion.div>
           </AnimatePresence>
         </div>

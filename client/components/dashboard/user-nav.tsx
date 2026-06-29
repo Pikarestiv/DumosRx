@@ -2,6 +2,9 @@
 
 import { useAuth } from "@/lib/context/auth-context";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { useLocalData } from "@/lib/db/hooks/useLocalData";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,29 +15,47 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { LogOut, Repeat, User } from "lucide-react";
+import { LogOut, Repeat } from "lucide-react";
 import { getUserInitials } from "@/lib/utils";
 
 export function UserNav() {
   const { user, logout } = useAuth();
   const router = useRouter();
 
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [pendingLogoutType, setPendingLogoutType] = useState<"switch" | "full" | null>(null);
+
+  const { data: queueData } = useLocalData<{ count: number }>(
+    "SELECT COUNT(*) as count FROM _sync_queue"
+  );
+  const pendingCount = queueData?.[0]?.count || 0;
+
   if (!user) return null;
 
   const initials = getUserInitials(user.first_name, user.last_name);
 
-  const handleSwitchAccount = () => {
+  const performLogout = (type: "switch" | "full") => {
+    if (type === "full") {
+      localStorage.removeItem("dumos_recent_users"); // Clear lock screen history
+    }
     logout();
     router.push("/login");
   };
 
-  const handleFullLogout = () => {
-    localStorage.removeItem("dumos_recent_users"); // Clear lock screen history
-    logout();
-    router.push("/login");
+  const handleLogoutAttempt = (type: "switch" | "full") => {
+    if (pendingCount > 0) {
+      setPendingLogoutType(type);
+      setShowLogoutConfirm(true);
+    } else {
+      performLogout(type);
+    }
   };
+
+  const handleSwitchAccount = () => handleLogoutAttempt("switch");
+  const handleFullLogout = () => handleLogoutAttempt("full");
 
   return (
+    <>
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-8 w-8 rounded-full">
@@ -75,5 +96,20 @@ export function UserNav() {
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+
+    <ConfirmDialog
+      open={showLogoutConfirm}
+      onOpenChange={setShowLogoutConfirm}
+      title="Unsynced Changes Detected"
+      description={`You have ${pendingCount} offline transaction${pendingCount > 1 ? "s" : ""} pending sync. If you log out now, another user logging into this device will sync them on their account. Are you sure you want to sign out?`}
+      confirmLabel="Sign Out Anyway"
+      variant="destructive"
+      onConfirm={() => {
+        if (pendingLogoutType) {
+          performLogout(pendingLogoutType);
+        }
+      }}
+    />
+    </>
   );
 }

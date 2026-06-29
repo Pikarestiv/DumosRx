@@ -33,7 +33,7 @@ export function StockBatchManagement({
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <h1 className="font-serif font-bold text-3xl text-foreground capitalize">
-            {t("products")} & StockBatch
+            {t("products")} & Inventory
           </h1>
           <p className="text-muted-foreground mt-2">
             Manage your product catalog, monitor stock levels, and track
@@ -68,25 +68,27 @@ export function StockBatchManagement({
         onValueChange={(val) => router.push(`/inventory/${val}`)}
         className="space-y-6"
       >
-        <TabsList className="bg-muted/50 p-1 h-auto flex-wrap justify-start">
-          <TabsTrigger value="overview" className="px-4 py-2">
-            Overview
-          </TabsTrigger>
-          <TabsTrigger value="products" className="px-4 py-2 capitalize">
-            {t("products")} Database
-          </TabsTrigger>
-          <TabsTrigger value="batches" className="px-4 py-2">
-            Batches & Expiry
-          </TabsTrigger>
-          <TabsTrigger value="movements" className="px-4 py-2">
-            Stock Movements
-          </TabsTrigger>
-          {isAdmin && (
-            <TabsTrigger value="adjustments" className="px-4 py-2">
-              Adjustments
+        <div className="w-full overflow-x-auto scrollbar-none pb-1">
+          <TabsList className="bg-muted/50 p-1 h-auto w-max flex justify-start">
+            <TabsTrigger value="overview" className="px-4 py-2 shrink-0">
+              Overview
             </TabsTrigger>
-          )}
-        </TabsList>
+            <TabsTrigger value="products" className="px-4 py-2 capitalize shrink-0">
+              {t("products")} Database
+            </TabsTrigger>
+            <TabsTrigger value="batches" className="px-4 py-2 shrink-0">
+              Batches & Expiry
+            </TabsTrigger>
+            <TabsTrigger value="movements" className="px-4 py-2 shrink-0">
+              Stock Movements
+            </TabsTrigger>
+            {isAdmin && (
+              <TabsTrigger value="adjustments" className="px-4 py-2 shrink-0">
+                Adjustments
+              </TabsTrigger>
+            )}
+          </TabsList>
+        </div>
 
         <TabsContent value="products">
           <ProductDatabase />

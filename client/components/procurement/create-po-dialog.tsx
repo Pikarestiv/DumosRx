@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Trash2, ShoppingCart, Package, Info, Pill } from "lucide-react";
+import { Plus, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -11,12 +11,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -26,12 +21,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ProductCombobox } from "@/components/ui/product-combobox";
+import { POAddItemForm } from "./po-add-item-form";
+import { POLineItemsList } from "./po-line-items-list";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { query, createPurchaseOrder } from "@/lib/db/local-database";
 import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
+
 import { useStore } from "@/lib/context/store-context";
 
 interface CreatePODialogProps {
@@ -53,7 +49,7 @@ interface Product {
 }
 
 export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
-  const { t, storeType } = useStore();
+  const { storeType } = useStore();
   const [open, setOpen] = useState(false);
   const [suppliers, setSuppliers] = useState<Vendor[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -62,14 +58,7 @@ export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
   const [items, setItems] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const ProductIcon = storeType === "pharmacy" ? Pill : Package;
-
-  // New item state
-  const [currentProductId, setCurrentProductId] = useState("");
-  const [currentProductName, setCurrentProductName] = useState("");
-  const [currentBulkQty, setCurrentBulkQty] = useState(1);
-  const [currentUoM, setCurrentUoM] = useState(1);
-  const [currentCost, setCurrentCost] = useState(0);
+  // New item state managed by POAddItemForm now
 
   useEffect(() => {
     if (open) {
@@ -92,37 +81,8 @@ export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
     }
   };
 
-  const handleAddLineItem = () => {
-    if (!currentProductId) {
-      if (currentProductName) {
-        toast.error("Please add this product to your database first.");
-      } else {
-        toast.error("Please select a product");
-      }
-      return;
-    }
-
-    const product = products.find((m) => m.id === currentProductId);
-    if (!product) return;
-
-    const newItem = {
-      product_id: currentProductId,
-      product_name: product.name,
-      bulk_unit: product.bulk_unit || "Carton",
-      bulk_quantity: currentBulkQty,
-      units_per_bulk: currentUoM,
-      unit_cost: currentCost,
-      subtotal: currentBulkQty * currentCost,
-    };
-
+  const handleAddLineItem = (newItem: any) => {
     setItems([...items, newItem]);
-
-    // Reset item state
-    setCurrentProductId("");
-    setCurrentProductName("");
-    setCurrentBulkQty(1);
-    setCurrentUoM(1);
-    setCurrentCost(0);
   };
 
   const removeLineItem = (index: number) => {
@@ -157,22 +117,6 @@ export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
       toast.error("Error creating purchase order");
     } finally {
       setIsSubmitting(false);
-    }
-  };
-
-  const handleProductChange = (option: any) => {
-    setCurrentProductName(option.name);
-    if (option.source === "local" && option.localId) {
-      setCurrentProductId(option.localId);
-      const product = products.find((m) => m.id === option.localId);
-      if (product) {
-        setCurrentUoM(product.units_per_bulk || 1);
-        setCurrentCost(product.cost_price * (product.units_per_bulk || 1));
-      }
-    } else {
-      setCurrentProductId("");
-      setCurrentUoM(1);
-      setCurrentCost(0);
     }
   };
 
@@ -239,78 +183,10 @@ export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-4 space-y-4">
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label className="text-[10px] uppercase font-bold text-muted-foreground">
-                    {t("product")}
-                  </Label>
-                  <ProductCombobox
-                    value={currentProductName}
-                    onChange={handleProductChange}
-                    placeholder="Search product..."
-                  />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-                  <div className="md:col-span-3 space-y-2">
-                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">
-                      Qty (Bulk)
-                    </Label>
-                    <Input
-                      type="number"
-                      className="bg-card border-accent/10 h-10"
-                      value={currentBulkQty}
-                      onChange={(e) =>
-                        setCurrentBulkQty(Number(e.target.value))
-                      }
-                    />
-                  </div>
-                  <div className="md:col-span-3 space-y-2">
-                    <Label className="text-[10px] uppercase font-bold text-muted-foreground flex items-center gap-1">
-                      Conversion
-                      <TooltipProvider delayDuration={0}>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Info className="w-3 h-3 opacity-50 cursor-pointer" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Number of base units inside one bulk unit</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </Label>
-                    <Input
-                      type="number"
-                      className="bg-card border-accent/10 h-10"
-                      value={currentUoM}
-                      onChange={(e) => setCurrentUoM(Number(e.target.value))}
-                      placeholder="E.g. 20"
-                    />
-                  </div>
-                  <div className="md:col-span-4 space-y-2">
-                    <Label className="text-[10px] uppercase font-bold text-primary">
-                      Bulk Cost (
-                      {products.find((m) => m.id === currentProductId)
-                        ?.bulk_unit || "Unit"}
-                      )
-                    </Label>
-                    <Input
-                      type="number"
-                      className="bg-card border-accent/10 h-10"
-                      value={currentCost}
-                      onChange={(e) => setCurrentCost(Number(e.target.value))}
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <Button
-                      type="button"
-                      onClick={handleAddLineItem}
-                      className="w-full h-10 px-0"
-                    >
-                      <Plus className="w-5 h-5" /> Add
-                    </Button>
-                  </div>
-                </div>
-              </div>
+              <POAddItemForm
+                products={products}
+                onAddItem={handleAddLineItem}
+              />
             </CardContent>
           </Card>
 
@@ -319,55 +195,11 @@ export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
               Order Details
               <span className="text-primary">{items.length} line items</span>
             </h3>
-            {items.length === 0 ? (
-              <div className="py-12 text-center text-muted-foreground border-2 border-dashed border-accent/10 rounded-xl">
-                No items added to the purchase order yet.
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {items.map((item, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between p-3 rounded-lg border border-accent/10 bg-muted/20 hover:bg-muted/30 transition-colors group"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                        <ProductIcon className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <p className="font-bold text-sm">{item.product_name}</p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <Badge variant="outline" className="text-[10px] h-4">
-                            {item.bulk_quantity} {item.bulk_unit}(s)
-                          </Badge>
-                          <span className="text-[10px] text-muted-foreground italic">
-                            ({item.units_per_bulk} per unit)
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-6">
-                      <div className="text-right">
-                        <p className="text-xs text-muted-foreground">
-                          {formatCurrency(item.unit_cost)} / bulk
-                        </p>
-                        <p className="font-bold text-sm">
-                          {formatCurrency(item.subtotal)}
-                        </p>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={() => removeLineItem(index)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            <POLineItemsList
+              items={items}
+              onRemoveItem={removeLineItem}
+              storeType={storeType}
+            />
           </div>
         </div>
 

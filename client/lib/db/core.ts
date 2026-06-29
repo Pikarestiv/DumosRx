@@ -162,6 +162,12 @@ export async function initDatabase(): Promise<any> {
         "refills_used INTEGER DEFAULT 0",
         "refill_interval_days INTEGER DEFAULT 30",
         "next_refill_date TEXT",
+        "product_name TEXT DEFAULT ''",
+        "strength TEXT",
+        "dosage TEXT",
+        "quantity INTEGER DEFAULT 0",
+        "instructions TEXT",
+        "cost REAL DEFAULT 0",
       ],
     },
     {

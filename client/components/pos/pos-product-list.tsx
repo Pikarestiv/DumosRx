@@ -79,12 +79,9 @@ function POSProductCard({
       <div className="absolute top-2 right-2 z-10">{indicator}</div>
       <div className="flex items-center justify-between">
         <div className="flex-1 min-w-0 pr-14">
-          <h4 className="font-medium text-sm truncate">
-            {product.name}
-          </h4>
+          <h4 className="font-medium text-sm truncate">{product.name}</h4>
           <p className="text-xs text-muted-foreground truncate">
-            {product.brand || "Brand"} •{" "}
-            {product.strength || "Strength"}
+            {product.brand || "Brand"} • {product.strength || "Strength"}
           </p>
           <div className="flex items-center gap-2 mt-1">
             <span className="font-bold text-accent">
@@ -104,11 +101,7 @@ function POSProductCard({
             </Badge>
           </div>
         </div>
-        <Button
-          size="sm"
-          variant="ghost"
-          className="h-8 w-8 p-0 shrink-0"
-        >
+        <Button size="sm" variant="ghost" className="h-8 w-8 p-0 shrink-0">
           <Plus className="h-4 w-4" />
         </Button>
       </div>
@@ -203,7 +196,7 @@ export function POSProductList({
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 max-h-[28rem] overflow-y-auto pr-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[28rem] overflow-y-auto pr-1">
             {sortedProducts.map((product) => (
               <POSProductCard
                 key={product.id}

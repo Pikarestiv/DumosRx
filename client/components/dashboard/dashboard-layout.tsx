@@ -204,7 +204,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
         {/* Top header */}
         <header
-          className="h-16 bg-background border-b border-border flex items-center justify-between px-6 sticky z-40"
+          className="h-16 bg-background border-b border-border flex items-center justify-between px-4 sm:px-6 sticky z-40"
           style={{ top: "var(--tauri-top, 0px)" }}
         >
           <div className="flex items-center gap-4">
@@ -260,7 +260,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               transition={{ duration: 0.2, ease: "easeInOut" }}
               className="w-full h-full"
             >
-              <main className="p-6">{children}</main>
+              <main className="p-4 sm:p-6">{children}</main>
             </motion.div>
           </AnimatePresence>
         </div>

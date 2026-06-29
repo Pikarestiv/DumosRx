@@ -1,10 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { Check, ChevronsUpDown, Database, Globe, Plus } from "lucide-react";
+import { Check, Database, Globe, Plus } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+
 import { Input } from "@/components/ui/input";
 import { useLocalData } from "@/lib/db/hooks/useLocalData";
 import { FORM_SUGGESTIONS } from "@/lib/constants/suggestions";

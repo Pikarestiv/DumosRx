@@ -1,12 +1,11 @@
 "use client";
 
-import { useState } from "react";
+
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { useLocalData } from "@/lib/db/hooks/useLocalData";
+
 import {
   Tooltip,
   TooltipContent,
@@ -23,7 +22,6 @@ import {
   Users,
   BarChart3,
   Settings,
-  LogOut,
   Pill,
   ShoppingBasket,
   Wallet,
@@ -48,7 +46,7 @@ export function DashboardSidebar({
 }: DashboardSidebarProps) {
   const pathname = usePathname();
   const { storeType, t } = useStore();
-  const { logout, isAdmin, canManageStockBatch } = useAuth();
+  const { isAdmin, canManageStockBatch } = useAuth();
   const { currentTier } = useFeatureGate();
 
   const isLocked = (href: string) => {

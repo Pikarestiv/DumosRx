@@ -15,16 +15,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { LogOut, Repeat, User } from "lucide-react";
+import { LogOut, Repeat } from "lucide-react";
 import { getUserInitials } from "@/lib/utils";
 
 export function UserNav() {
   const { user, logout } = useAuth();
   const router = useRouter();
-
-  if (!user) return null;
-
-  const initials = getUserInitials(user.first_name, user.last_name);
 
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [pendingLogoutType, setPendingLogoutType] = useState<"switch" | "full" | null>(null);
@@ -33,6 +29,10 @@ export function UserNav() {
     "SELECT COUNT(*) as count FROM _sync_queue"
   );
   const pendingCount = queueData?.[0]?.count || 0;
+
+  if (!user) return null;
+
+  const initials = getUserInitials(user.first_name, user.last_name);
 
   const performLogout = (type: "switch" | "full") => {
     if (type === "full") {

@@ -14,6 +14,7 @@ import {
   MessageSquare,
   Settings,
   Megaphone,
+  Download,
 } from "lucide-react";
 import { useAdminAuthStore } from "@/lib/store/use-admin-auth-store";
 import { useAdminSummary } from "@/lib/api/admin-hooks";
@@ -53,6 +54,12 @@ export const sidebarItems = [
     name: "Platform Settings",
     icon: Settings,
     href: "/admin/settings",
+  },
+  {
+    id: "downloads",
+    name: "System Downloads",
+    icon: Download,
+    href: "/admin/downloads",
   },
 ];
 

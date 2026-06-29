@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Card,
   CardContent,
@@ -12,12 +11,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search } from "lucide-react";
-import { toast } from "sonner";
-import { SearchableInput } from "@/components/ui/searchable-input";
+import { Plus } from "lucide-react";
+import { ProductDatabaseFilters } from "./product-database-filters";
 import { AddProductDialog } from "./add-product-dialog";
 import { ProductDetailsDialog } from "./product-details-dialog";
-import { insert, update, query } from "@/lib/db/local-database";
+import { useAddProduct } from "./use-add-product";
 import { useLocalData } from "@/lib/db/hooks/useLocalData";
 import { useStore } from "@/lib/context/store-context";
 import { genericFuzzySearch } from "@/lib/utils/search";
@@ -94,110 +92,20 @@ export function ProductDatabase() {
     ...(fetchedCategories.length > 0 ? fetchedCategories : defaultCategories),
   ];
 
-  const statuses = ["all", "active", "inactive", "expired", "low_stock", "out_of_stock"];
+  const statuses = [
+    "all",
+    "active",
+    "inactive",
+    "expired",
+    "low_stock",
+    "out_of_stock",
+  ];
 
-  const handleAddProduct = async (payload: any, keepOpen?: boolean) => {
-    try {
-      const isEditing = !!payload.id;
-
-      // Create locally
-      const localPayload: any = {
-        ...payload,
-        is_active: payload.status === "inactive" ? 0 : 1,
-      };
-      delete localPayload.status;
-
-      // Resolve category string to UUID
-      if (payload.category_id) {
-        const categoryName = payload.category_id.trim();
-        const existing = await query<any>(
-          "SELECT id FROM categories WHERE name = ? AND _deleted = 0",
-          [categoryName],
-        );
-        if (existing && existing.length > 0) {
-          localPayload.category_id = existing[0].id;
-        } else {
-          const newId = crypto.randomUUID();
-          await insert("categories", {
-            id: newId,
-            name: categoryName,
-            is_active: 1,
-            created_at: new Date().toISOString(),
-          });
-          localPayload.category_id = newId;
-        }
-      } else {
-        localPayload.category_id = null;
-      }
-
-      // Resolve supplier string to UUID (maps to client suppliers table)
-      if (payload.supplier_id) {
-        const supplierName = payload.supplier_id.trim();
-        const existing = await query<any>(
-          "SELECT id FROM suppliers WHERE name = ? AND _deleted = 0",
-          [supplierName],
-        );
-        if (existing && existing.length > 0) {
-          localPayload.supplier_id = existing[0].id;
-        } else {
-          const newId = crypto.randomUUID();
-          await insert("suppliers", {
-            id: newId,
-            name: supplierName,
-            is_active: 1,
-            created_at: new Date().toISOString(),
-          });
-          localPayload.supplier_id = newId;
-        }
-      } else {
-        localPayload.supplier_id = null;
-      }
-
-      const initialStock = localPayload.stock_quantity;
-      const initialExpiry = localPayload.expiry_date;
-      const initialBatch = localPayload.batch_number;
-
-      delete localPayload.stock_quantity;
-      delete localPayload.expiry_date;
-      delete localPayload.batch_number;
-
-      if (isEditing) {
-        const id = localPayload.id;
-        delete localPayload.id;
-        // Use generic update from base-helpers (which is re-exported by local-database)
-        await update("products", id, localPayload);
-        toast.success(`${t("product")} updated successfully`);
-      } else {
-        const productId = await insert("products", localPayload);
-
-        // Also create an initial stock batch if there's stock
-        if (initialStock > 0) {
-          await insert("stock_batches", {
-            product_id: productId,
-            quantity: initialStock,
-            cost_price: localPayload.cost_price || 0,
-            batch_number: initialBatch || "INITIAL",
-            expiry_date:
-              initialExpiry ||
-              new Date(Date.now() + 365 * 2 * 24 * 60 * 60 * 1000)
-                .toISOString()
-                .split("T")[0],
-            is_active: 1,
-          });
-        }
-        toast.success(`${t("product")} added successfully`);
-      }
-
-      refetch();
-      if (!keepOpen) {
-        setShowAddDialog(false);
-      }
-      setSelectedProduct(null);
-    } catch (error) {
-      console.error(`Failed to save ${t("product")}:`, error);
-      toast.error(`Failed to save ${t("product")}.`);
-    }
-  };
+  const { handleAddProduct } = useAddProduct({
+    refetch,
+    setShowAddDialog,
+    setSelectedProduct,
+  });
 
   const handleEditProduct = (product: Product) => {
     setSelectedProduct(product);
@@ -309,11 +217,11 @@ export function ProductDatabase() {
         totalCount={products.length}
         activeCount={products.filter((m) => m.status !== "expired").length}
         lowStockCount={
-          products.filter((m) => m.stockQuantity > 0 && m.stockQuantity <= m.reorderLevel).length
+          products.filter(
+            (m) => m.stockQuantity > 0 && m.stockQuantity <= m.reorderLevel,
+          ).length
         }
-        outOfStockCount={
-          products.filter((m) => m.stockQuantity <= 0).length
-        }
+        outOfStockCount={products.filter((m) => m.stockQuantity <= 0).length}
         expiredCount={
           products.filter(
             (m) => m.expiryDate && new Date(m.expiryDate) < new Date(),
@@ -323,64 +231,16 @@ export function ProductDatabase() {
       />
 
       {/* Search and Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="font-serif font-semibold">
-            Search & Filter
-          </CardTitle>
-          <CardDescription>
-            Find {t("products").toLowerCase()} by name, brand,{" "}
-            {t("registration_number").toLowerCase()}, or other criteria
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                <Input
-                  placeholder={`Search ${t("products").toLowerCase()}, brands, ${t("registration_number").toLowerCase()}...`}
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
-            <div className="w-full md:w-56">
-              <SearchableInput
-                options={categories.map((c) => ({
-                  label: c === "all" ? `All ${t("category")}s` : c,
-                  value: c,
-                }))}
-                value={categoryFilter}
-                onValueChange={setCategoryFilter}
-                placeholder={`All ${t("category")}s`}
-              />
-            </div>
-            <div className="w-full md:w-56">
-              <SearchableInput
-                options={statuses.map((s) => ({
-                  label:
-                    s === "all"
-                      ? "All Status"
-                      : s
-                          .replace("_", " ")
-                          .split(" ")
-                          .map(
-                            (word) =>
-                              word.charAt(0).toUpperCase() + word.slice(1),
-                          )
-                          .join(" "),
-                  value: s,
-                }))}
-                value={statusFilter}
-                onValueChange={setStatusFilter}
-                placeholder="All Status"
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <ProductDatabaseFilters
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+        categoryFilter={categoryFilter}
+        setCategoryFilter={setCategoryFilter}
+        statusFilter={statusFilter}
+        setStatusFilter={setStatusFilter}
+        categories={categories}
+        statuses={statuses}
+      />
 
       {/* Product Table */}
       <Card>

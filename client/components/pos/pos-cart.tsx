@@ -1,6 +1,7 @@
 "use client";
 
-import { ShoppingCart, Minus, Plus, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { ShoppingCart, Minus, Plus, Trash2, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -41,6 +42,8 @@ export function POSCart({
   clearCart,
   onCheckout
 }: POSCartProps) {
+  const [showDiscount, setShowDiscount] = useState(false);
+
   return (
     <Card>
       <CardHeader>
@@ -121,26 +124,51 @@ export function POSCart({
                 <span>VAT ({vatPercentage}%):</span>
                 <span>{formatCurrency(tax, currencyCode)}</span>
               </div>
-              <div className="flex justify-between text-sm items-center gap-2">
-                <span>Discount:</span>
-                <div className="flex gap-1 items-center flex-1 max-w-[200px] justify-end">
-                  <input
-                    type="number"
-                    className="flex h-7 w-20 rounded-md border border-input bg-transparent px-2 py-1 text-xs text-right shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                    value={discount || ""}
-                    placeholder="0"
-                    onChange={(e) => setDiscount?.(parseFloat(e.target.value) || 0)}
-                  />
-                  <select
-                    className="flex h-7 rounded-md border border-input bg-transparent px-1 py-1 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                    value={discountType}
-                    onChange={(e) => setDiscountType?.(e.target.value as "fixed" | "percentage")}
-                  >
-                    <option value="fixed">Fixed</option>
-                    <option value="percentage">%</option>
-                  </select>
+              {showDiscount || discount > 0 ? (
+                <div className="flex justify-between text-sm items-center gap-2">
+                  <span>Discount:</span>
+                  <div className="flex gap-1 items-center flex-1 max-w-[200px] justify-end">
+                    <input
+                      type="number"
+                      className="flex h-7 w-20 rounded-md border border-input bg-transparent px-2 py-1 text-xs text-right shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      value={discount || ""}
+                      placeholder="0"
+                      onChange={(e) => setDiscount?.(parseFloat(e.target.value) || 0)}
+                    />
+                    <select
+                      className="flex h-7 rounded-md border border-input bg-transparent px-1 py-1 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      value={discountType}
+                      onChange={(e) => setDiscountType?.(e.target.value as "fixed" | "percentage")}
+                    >
+                      <option value="fixed">Fixed</option>
+                      <option value="percentage">%</option>
+                    </select>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-7 w-7 p-0" 
+                      onClick={() => {
+                        setShowDiscount(false);
+                        setDiscount?.(0);
+                      }}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="flex justify-end text-sm">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-7 text-xs text-muted-foreground" 
+                    onClick={() => setShowDiscount(true)}
+                  >
+                    <Tag className="h-3 w-3 mr-1" />
+                    Add Discount
+                  </Button>
+                </div>
+              )}
               {calculatedDiscount > 0 && (
                 <div className="flex justify-end text-xs text-accent">
                   <span>-{formatCurrency(calculatedDiscount, currencyCode)}</span>

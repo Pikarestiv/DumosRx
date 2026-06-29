@@ -2,11 +2,12 @@ import { Trash2, Package, Pill } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/utils";
+import { StoreType } from "@/lib/context/store-context";
 
 interface POLineItemsListProps {
   items: any[];
   onRemoveItem: (index: number) => void;
-  storeType: string;
+  storeType: StoreType;
 }
 
 export function POLineItemsList({ items, onRemoveItem, storeType }: POLineItemsListProps) {

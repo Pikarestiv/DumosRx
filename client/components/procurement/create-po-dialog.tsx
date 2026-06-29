@@ -49,7 +49,7 @@ interface Product {
 }
 
 export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
-  const { t, storeType } = useStore();
+  const { storeType } = useStore();
   const [open, setOpen] = useState(false);
   const [suppliers, setSuppliers] = useState<Vendor[]>([]);
   const [products, setProducts] = useState<Product[]>([]);

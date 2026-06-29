@@ -11,13 +11,22 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('products', function (Blueprint $table) {
-            $table->dropColumn('cost_price');
-        });
+        // Fallback rename just in case the previous migration failed silently
+        if (Schema::hasTable('inventories') && !Schema::hasTable('stock_batches')) {
+            Schema::rename('inventories', 'stock_batches');
+        }
 
-        Schema::table('stock_batches', function (Blueprint $table) {
-            $table->dropColumn('selling_price');
-        });
+        if (Schema::hasTable('products') && Schema::hasColumn('products', 'cost_price')) {
+            Schema::table('products', function (Blueprint $table) {
+                $table->dropColumn('cost_price');
+            });
+        }
+
+        if (Schema::hasTable('stock_batches') && Schema::hasColumn('stock_batches', 'selling_price')) {
+            Schema::table('stock_batches', function (Blueprint $table) {
+                $table->dropColumn('selling_price');
+            });
+        }
     }
 
     /**

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { insert, update, query } from "@/lib/db/local-database";
 import { CartItem } from "./use-pos-cart";
@@ -56,6 +56,15 @@ export function usePOSPayment({
   const [completedTransaction, setCompletedTransaction] = useState<any>(null);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [showReceiptDialog, setShowReceiptDialog] = useState(false);
+
+  useEffect(() => {
+    if (cart.length === 0) {
+      setPaymentMethod("cash");
+      setAmountPaid("");
+      setSelectedAccountId("");
+      setPaymentSplits([]);
+    }
+  }, [cart.length]);
 
   const handlePayment = async () => {
     if (!paymentMethod) {

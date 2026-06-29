@@ -21,6 +21,8 @@ interface UsePOSPaymentProps {
   tax: number;
   total: number;
   discount: number;
+  rawDiscount?: number;
+  discountType?: "fixed" | "percentage";
   selectedCustomer: Customer | null;
   clearCart: () => void;
   refetchProducts: () => void;
@@ -36,6 +38,8 @@ export function usePOSPayment({
   tax,
   total,
   discount,
+  rawDiscount = 0,
+  discountType = "fixed",
   selectedCustomer,
   clearCart,
   refetchProducts,
@@ -100,7 +104,9 @@ export function usePOSPayment({
         user_id: cashierId,
         subtotal,
         discount_total: discount,
-        discount_percentage: 0,
+        discount_amount: rawDiscount,
+        discount_percentage: discountType === "percentage" ? rawDiscount : 0,
+        discount_type: discountType,
         tax_amount: tax,
         tax_percentage: 7.5,
         total_amount: total,

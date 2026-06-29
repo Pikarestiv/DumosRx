@@ -31,6 +31,8 @@ export function ProductDatabase() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 50;
 
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -52,6 +54,10 @@ export function ProductDatabase() {
       setStatusFilter(status);
     }
   }, [searchParams, router]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, categoryFilter, statusFilter]);
 
   const isStore = storeType === "pharmacy";
 
@@ -141,6 +147,12 @@ export function ProductDatabase() {
     searchTerm,
     preFilteredProducts,
     ["name", "genericName", "brand", "nafdacNumber"],
+  );
+
+  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / itemsPerPage));
+  const paginatedProducts = filteredProducts.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
   );
 
   const getStatusBadge = (status: Product["status"]) => {
@@ -253,9 +265,9 @@ export function ProductDatabase() {
             {t("products").toLowerCase()}
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <ProductTable
-            filteredProducts={filteredProducts}
+            filteredProducts={paginatedProducts}
             totalCount={products.length}
             isFuzzyFallback={isFuzzyFallback}
             isStore={isStore}
@@ -269,6 +281,38 @@ export function ProductDatabase() {
             categoryLabel={t("category")}
             regNumLabel={t("registration_number")}
           />
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-muted-foreground">
+                Showing {(currentPage - 1) * itemsPerPage + 1} to{" "}
+                {Math.min(currentPage * itemsPerPage, filteredProducts.length)} of{" "}
+                {filteredProducts.length} entries
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  Previous
+                </Button>
+                <div className="flex items-center justify-center text-sm font-medium px-4">
+                  Page {currentPage} of {totalPages}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

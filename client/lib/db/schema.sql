@@ -109,6 +109,8 @@ CREATE TABLE IF NOT EXISTS sales (
   staff_id TEXT,
   subtotal REAL DEFAULT 0,
   discount REAL DEFAULT 0,
+  discount_amount REAL DEFAULT 0,
+  discount_type TEXT DEFAULT 'fixed',
   vat REAL DEFAULT 0,
   total REAL DEFAULT 0,
   payment_method TEXT,

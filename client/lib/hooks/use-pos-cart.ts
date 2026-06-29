@@ -28,8 +28,10 @@ export interface CartItem extends Product {
 interface POSCartState {
   cart: CartItem[];
   discount: number;
+  discountType: "fixed" | "percentage";
   setCart: (cart: CartItem[] | ((prev: CartItem[]) => CartItem[])) => void;
   setDiscount: (discount: number) => void;
+  setDiscountType: (type: "fixed" | "percentage") => void;
 }
 
 export const usePOSCartStore = create<POSCartState>()(
@@ -37,11 +39,13 @@ export const usePOSCartStore = create<POSCartState>()(
     (set) => ({
       cart: [],
       discount: 0,
+      discountType: "fixed",
       setCart: (updater) =>
         set((state) => ({
           cart: typeof updater === "function" ? updater(state.cart) : updater,
         })),
       setDiscount: (discount) => set({ discount }),
+      setDiscountType: (discountType) => set({ discountType }),
     }),
     {
       name: "pos-cart-storage",
@@ -55,6 +59,8 @@ export function usePOSCart(products: Product[]) {
   const setCart = usePOSCartStore((state) => state.setCart);
   const discount = usePOSCartStore((state) => state.discount);
   const setDiscount = usePOSCartStore((state) => state.setDiscount);
+  const discountType = usePOSCartStore((state) => state.discountType);
+  const setDiscountType = usePOSCartStore((state) => state.setDiscountType);
   const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
@@ -67,7 +73,13 @@ export function usePOSCart(products: Product[]) {
   );
 
   const tax = useMemo(() => subtotal * (vatPercentage / 100), [subtotal, vatPercentage]);
-  const total = useMemo(() => subtotal + tax - discount, [subtotal, tax, discount]);
+  const calculatedDiscount = useMemo(() => {
+    if (discountType === "percentage") {
+      return subtotal * (discount / 100);
+    }
+    return discount;
+  }, [subtotal, discount, discountType]);
+  const total = useMemo(() => subtotal + tax - calculatedDiscount, [subtotal, tax, calculatedDiscount]);
 
   const addToCart = (product: Product) => {
     const existingItem = cart.find((item) => item.id === product.id);
@@ -142,6 +154,9 @@ export function usePOSCart(products: Product[]) {
     tax: isHydrated ? tax : 0,
     total: isHydrated ? total : 0,
     discount: isHydrated ? discount : 0,
+    discountType: isHydrated ? discountType : "fixed",
+    calculatedDiscount: isHydrated ? calculatedDiscount : 0,
     setDiscount,
+    setDiscountType,
   };
 }

@@ -125,6 +125,8 @@ export async function initDatabase(): Promise<any> {
         "change_given REAL DEFAULT 0",
         "tax_percentage REAL DEFAULT 0",
         "discount_percentage REAL DEFAULT 0",
+        "discount_amount REAL DEFAULT 0",
+        "discount_type TEXT DEFAULT 'fixed'",
         "points_earned REAL DEFAULT 0",
         "points_redeemed REAL DEFAULT 0",
         "cashier_id TEXT",

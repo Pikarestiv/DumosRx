@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import SettingsClient from "./settings-client";
 
 export function generateStaticParams() {
@@ -16,5 +17,9 @@ export function generateStaticParams() {
 }
 
 export default function SettingsPage() {
-  return <SettingsClient />;
+  return (
+    <Suspense fallback={<div className="p-8 flex items-center justify-center min-h-screen">Loading settings...</div>}>
+      <SettingsClient />
+    </Suspense>
+  );
 }

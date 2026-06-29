@@ -12,6 +12,10 @@ interface POSCartProps {
   tax: number;
   total: number;
   discount: number;
+  calculatedDiscount?: number;
+  discountType?: "fixed" | "percentage";
+  setDiscount?: (discount: number) => void;
+  setDiscountType?: (type: "fixed" | "percentage") => void;
   vatPercentage: number;
   currencyCode?: string;
   updateQuantity: (id: string, quantity: number) => void;
@@ -26,6 +30,10 @@ export function POSCart({
   tax,
   total,
   discount,
+  calculatedDiscount = 0,
+  discountType = "fixed",
+  setDiscount,
+  setDiscountType,
   vatPercentage,
   currencyCode,
   updateQuantity,
@@ -113,10 +121,29 @@ export function POSCart({
                 <span>VAT ({vatPercentage}%):</span>
                 <span>{formatCurrency(tax, currencyCode)}</span>
               </div>
-              {discount > 0 && (
-                <div className="flex justify-between text-sm text-accent">
-                  <span>Loyalty Discount:</span>
-                  <span>-{formatCurrency(discount, currencyCode)}</span>
+              <div className="flex justify-between text-sm items-center gap-2">
+                <span>Discount:</span>
+                <div className="flex gap-1 items-center flex-1 max-w-[200px] justify-end">
+                  <input
+                    type="number"
+                    className="flex h-7 w-20 rounded-md border border-input bg-transparent px-2 py-1 text-xs text-right shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    value={discount || ""}
+                    placeholder="0"
+                    onChange={(e) => setDiscount?.(parseFloat(e.target.value) || 0)}
+                  />
+                  <select
+                    className="flex h-7 rounded-md border border-input bg-transparent px-1 py-1 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    value={discountType}
+                    onChange={(e) => setDiscountType?.(e.target.value as "fixed" | "percentage")}
+                  >
+                    <option value="fixed">Fixed</option>
+                    <option value="percentage">%</option>
+                  </select>
+                </div>
+              </div>
+              {calculatedDiscount > 0 && (
+                <div className="flex justify-end text-xs text-accent">
+                  <span>-{formatCurrency(calculatedDiscount, currencyCode)}</span>
                 </div>
               )}
               <Separator />

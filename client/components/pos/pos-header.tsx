@@ -7,6 +7,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useLocalData } from "@/lib/db/hooks/useLocalData";
+import { Badge } from "@/components/ui/badge";
 
 interface POSHeaderProps {
   posMode: "standard" | "speed";
@@ -24,6 +26,11 @@ export function POSHeader({
   setShowHeldDialog,
 }: POSHeaderProps) {
   const { t } = useStore();
+
+  const { data: heldData } = useLocalData<{ count: number }>(
+    "SELECT COUNT(*) as count FROM held_transactions",
+  );
+  const heldSalesCount = heldData?.[0]?.count || 0;
 
   return (
     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
@@ -51,7 +58,9 @@ export function POSHeader({
                   Standard View
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Detailed view with full product search</TooltipContent>
+              <TooltipContent>
+                Detailed view with full product search
+              </TooltipContent>
             </Tooltip>
 
             <Tooltip>
@@ -66,11 +75,13 @@ export function POSHeader({
                   Retail Speed
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Optimized for barcode scanning and fast checkout</TooltipContent>
+              <TooltipContent>
+                Optimized for barcode scanning and fast checkout
+              </TooltipContent>
             </Tooltip>
-            
+
             <div className="w-px h-6 bg-border mx-0.5 shrink-0" />
-            
+
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -84,24 +95,35 @@ export function POSHeader({
                   Hold Sale
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Suspend this transaction to recall later</TooltipContent>
+              <TooltipContent>
+                Suspend this transaction to recall later
+              </TooltipContent>
             </Tooltip>
 
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                  variant="outline"
+                  variant={heldSalesCount > 0 ? "secondary" : "outline"}
                   size="sm"
                   onClick={() => setShowHeldDialog(true)}
-                  className="cursor-pointer flex items-center gap-1.5 shrink-0"
+                  className={`cursor-pointer flex items-center gap-1.5 shrink-0 relative ${heldSalesCount > 0 ? "bg-secondary border-secondary" : ""}`}
                 >
                   <Clock className="h-4 w-4" />
                   Held Sales
+                  {heldSalesCount > 0 && (
+                    <Badge
+                      variant="destructive"
+                      className="ml-1 h-5 px-1.5 text-xs font-semibold tabular-nums"
+                    >
+                      {heldSalesCount}
+                    </Badge>
+                  )}
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>View and resume previously held transactions</TooltipContent>
+              <TooltipContent>
+                View and resume previously held transactions
+              </TooltipContent>
             </Tooltip>
-
           </div>
         </TooltipProvider>
       </div>

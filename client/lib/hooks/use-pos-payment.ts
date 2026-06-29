@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { insert, update, query } from "@/lib/db/local-database";
 import { CartItem } from "./use-pos-cart";
@@ -21,6 +21,8 @@ interface UsePOSPaymentProps {
   tax: number;
   total: number;
   discount: number;
+  rawDiscount?: number;
+  discountType?: "fixed" | "percentage";
   selectedCustomer: Customer | null;
   clearCart: () => void;
   refetchProducts: () => void;
@@ -36,6 +38,8 @@ export function usePOSPayment({
   tax,
   total,
   discount,
+  rawDiscount = 0,
+  discountType = "fixed",
   selectedCustomer,
   clearCart,
   refetchProducts,
@@ -52,6 +56,15 @@ export function usePOSPayment({
   const [completedTransaction, setCompletedTransaction] = useState<any>(null);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [showReceiptDialog, setShowReceiptDialog] = useState(false);
+
+  useEffect(() => {
+    if (cart.length === 0) {
+      setPaymentMethod("cash");
+      setAmountPaid("");
+      setSelectedAccountId("");
+      setPaymentSplits([]);
+    }
+  }, [cart.length]);
 
   const handlePayment = async () => {
     if (!paymentMethod) {
@@ -100,7 +113,9 @@ export function usePOSPayment({
         user_id: cashierId,
         subtotal,
         discount_total: discount,
-        discount_percentage: 0,
+        discount_amount: rawDiscount,
+        discount_percentage: discountType === "percentage" ? rawDiscount : 0,
+        discount_type: discountType,
         tax_amount: tax,
         tax_percentage: 7.5,
         total_amount: total,

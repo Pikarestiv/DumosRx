@@ -53,7 +53,6 @@ export function LoginForm() {
       router.push("/dashboard");
     } catch (err: any) {
       setError(err.message || "Invalid credentials. Please try again.");
-    } finally {
       setIsLoading(false);
     }
   };

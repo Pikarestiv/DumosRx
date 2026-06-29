@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import {
   Loader2,
+  Info,
 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -266,6 +267,33 @@ export function SubscriptionPlans() {
             onChange={(e) => setUseCredits(e.target.checked)}
             className="h-4 w-4 rounded border-input bg-background text-primary focus:ring-ring"
           />
+        </div>
+      )}
+
+      {config?.enable_manual_payment && (
+        <div className="max-w-3xl mx-auto mb-8 bg-blue-50 dark:bg-blue-900/20 p-6 rounded-xl border border-blue-200 dark:border-blue-800">
+          <h3 className="text-lg font-bold text-blue-800 dark:text-blue-300 mb-2">Prefer to pay via Direct Transfer?</h3>
+          <p className="text-sm text-blue-700 dark:text-blue-400 mb-4">
+            If you're having trouble with the online payment gateway, you can transfer directly to our corporate bank account. Your account will be upgraded manually after verification.
+          </p>
+          <div className="bg-white dark:bg-slate-900 p-4 rounded-lg border flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-1">Bank</p>
+              <p className="font-bold">{config.manual_payment_bank || "Moniepoint"}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-1">Account Number</p>
+              <p className="font-bold text-xl tracking-wider text-primary">{config.manual_payment_account_number || "6656081317"}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-1">Account Name</p>
+              <p className="font-bold">{config.manual_payment_account_name || "Dumos Technologies"}</p>
+            </div>
+          </div>
+          <p className="text-xs text-blue-600 dark:text-blue-400 mt-4 font-medium flex items-center gap-1">
+            <Info className="w-4 h-4" />
+            After payment, please send your receipt to support@dumosrx.com or contact our support team.
+          </p>
         </div>
       )}
 

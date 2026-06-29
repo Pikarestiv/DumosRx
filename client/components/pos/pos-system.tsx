@@ -83,6 +83,10 @@ export function POSSystem() {
     tax,
     total,
     discount,
+    discountType,
+    calculatedDiscount,
+    setDiscount,
+    setDiscountType,
   } = usePOSCart(products);
 
   // 3. Suggestions
@@ -132,7 +136,9 @@ export function POSSystem() {
     subtotal,
     tax,
     total,
-    discount,
+    discount: calculatedDiscount,
+    rawDiscount: discount,
+    discountType,
     selectedCustomer,
     clearCart,
     refetchProducts,
@@ -303,6 +309,10 @@ export function POSSystem() {
               tax={tax}
               total={total}
               discount={discount}
+              calculatedDiscount={calculatedDiscount}
+              discountType={discountType}
+              setDiscount={setDiscount}
+              setDiscountType={setDiscountType}
               vatPercentage={vatPercentage}
               currencyCode={storeProfile?.currency}
               updateQuantity={updateQuantity}

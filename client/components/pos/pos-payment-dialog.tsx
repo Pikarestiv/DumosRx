@@ -99,13 +99,48 @@ export function POSPaymentDialog({
   const handleAddSplit = (method: string) => {
     if (!setPaymentSplits || !paymentSplits) return;
     const remaining = Math.max(0, total - paymentSplits.reduce((acc, s) => acc + (s.amount || 0), 0));
-    setPaymentSplits([...paymentSplits, { method, amount: remaining }]);
+    
+    let defaultAccountId = undefined;
+    if ((method === "card" || method === "transfer") && storeProfile?.id) {
+      const defaultId = defaults[`${storeProfile.id}_${method}`];
+      if (defaultId) {
+        const isValid = paymentAccounts?.find(a => 
+          a.id === defaultId && 
+          (method === "card" ? a.account_type === "pos_terminal" : a.account_type !== "pos_terminal")
+        );
+        if (isValid) defaultAccountId = defaultId;
+      }
+    }
+    
+    setPaymentSplits([...paymentSplits, { method, amount: remaining, accountId: defaultAccountId }]);
   };
 
   const updateSplit = (index: number, field: string, value: any) => {
     if (!setPaymentSplits || !paymentSplits) return;
     const newSplits = [...paymentSplits];
     newSplits[index] = { ...newSplits[index], [field]: value };
+    
+    if (field === "method") {
+      if ((value === "card" || value === "transfer") && storeProfile?.id) {
+        const defaultId = defaults[`${storeProfile.id}_${value}`];
+        if (defaultId) {
+          const isValid = paymentAccounts?.find(a => 
+            a.id === defaultId && 
+            (value === "card" ? a.account_type === "pos_terminal" : a.account_type !== "pos_terminal")
+          );
+          if (isValid) {
+            newSplits[index].accountId = defaultId;
+          } else {
+            delete newSplits[index].accountId;
+          }
+        } else {
+          delete newSplits[index].accountId;
+        }
+      } else {
+        delete newSplits[index].accountId;
+      }
+    }
+    
     setPaymentSplits(newSplits);
   };
 
@@ -265,15 +300,15 @@ export function POSPaymentDialog({
                         onChange={(e) => updateSplit(index, "amount", parseFloat(e.target.value) || 0)}
                         onFocus={(e) => e.target.select()}
                       />
-                      {(split.method === "card" || split.method === "transfer") && requirePaymentAccount && (
+                      {(split.method === "card" || split.method === "transfer") && (paymentAccounts && paymentAccounts.length > 0) && (
                         <select
                           className="flex h-8 w-full items-center justify-between rounded-md border border-input bg-background px-2 py-1 text-xs"
                           value={split.accountId || ""}
                           onChange={(e) => updateSplit(index, "accountId", e.target.value)}
                         >
-                          <option value="" disabled>Select Account</option>
+                          <option value="" disabled>Select Account {requirePaymentAccount ? '*' : ''}</option>
                           {paymentAccounts?.filter(a => split.method === "card" ? a.account_type === "pos_terminal" : a.account_type !== "pos_terminal").map(acc => (
-                            <option key={acc.id} value={acc.id}>{acc.name}</option>
+                            <option key={acc.id} value={acc.id}>{acc.name} {acc.bank_name ? `(${acc.bank_name})` : ''}</option>
                           ))}
                         </select>
                       )}
@@ -300,11 +335,19 @@ export function POSPaymentDialog({
               </div>
 
               {paymentSplits && (
-                <div className="flex justify-between font-medium">
-                  <span>Total Split: {formatCurrency(paymentSplits.reduce((acc, s) => acc + (s.amount || 0), 0), currencyCode)}</span>
-                  <span className={paymentSplits.reduce((acc, s) => acc + (s.amount || 0), 0) < total ? "text-destructive" : "text-green-600"}>
-                    {paymentSplits.reduce((acc, s) => acc + (s.amount || 0), 0) >= total ? "Fully Covered" : "Short"}
-                  </span>
+                <div className="flex flex-col font-medium">
+                  <div className="flex justify-between">
+                    <span>Total Split: {formatCurrency(paymentSplits.reduce((acc, s) => acc + (s.amount || 0), 0), currencyCode)}</span>
+                    <span className={paymentSplits.reduce((acc, s) => acc + (s.amount || 0), 0) < total ? "text-destructive" : "text-green-600"}>
+                      {paymentSplits.reduce((acc, s) => acc + (s.amount || 0), 0) >= total ? "Fully Covered" : "Short"}
+                    </span>
+                  </div>
+                  {paymentSplits.reduce((acc, s) => acc + (s.amount || 0), 0) > total && (
+                    <div className="flex justify-between mt-1 text-sm text-muted-foreground">
+                      <span>Change:</span>
+                      <span>{formatCurrency(paymentSplits.reduce((acc, s) => acc + (s.amount || 0), 0) - total, currencyCode)}</span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

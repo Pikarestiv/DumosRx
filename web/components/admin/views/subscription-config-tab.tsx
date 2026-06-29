@@ -25,6 +25,10 @@ export function SubscriptionConfigTab() {
     grace_period_days: 3,
     enable_paystack: true,
     enable_flutterwave: true,
+    enable_manual_payment: true,
+    manual_payment_bank: "Moniepoint",
+    manual_payment_account_number: "6656081317",
+    manual_payment_account_name: "Dumos Technologies",
     tiers: {
       free: { price_monthly: 0, price_yearly: 0, active: true, limits: { staff: 1, stores: 1, sync_interval: 360 }, features: { cloud_sync: false, web_dashboard: false, mobile_app: false, ecommerce: false, smart_pos: true, custom_branding: false, broadcast_create: false, auto_backup: false, multi_store: false, procurement: false, prescriptions: false, expenses: false, audit_mode: false, dark_mode: true, smart_suggestions: false, auto_lock: true, barcode_generation: false, loyalty_program: false } },
       starter: { price_monthly: 3000, price_yearly: 30000, active: true, limits: { staff: 3, stores: 1, sync_interval: 180 }, features: { cloud_sync: true, web_dashboard: true, mobile_app: false, ecommerce: false, smart_pos: true, custom_branding: false, broadcast_create: false, auto_backup: false, multi_store: false, procurement: true, prescriptions: true, expenses: true, audit_mode: false, dark_mode: true, smart_suggestions: false, auto_lock: true, barcode_generation: true, loyalty_program: false } },
@@ -53,6 +57,10 @@ export function SubscriptionConfigTab() {
       setConfig({
         ...serverConfig,
         enable_flutterwave: serverConfig.enable_flutterwave ?? true,
+        enable_manual_payment: serverConfig.enable_manual_payment ?? true,
+        manual_payment_bank: serverConfig.manual_payment_bank ?? "Moniepoint",
+        manual_payment_account_number: serverConfig.manual_payment_account_number ?? "6656081317",
+        manual_payment_account_name: serverConfig.manual_payment_account_name ?? "Dumos Technologies",
         trial_plan: serverConfig.trial_plan ?? "pro",
         tiers: {
           free: {
@@ -237,6 +245,42 @@ export function SubscriptionConfigTab() {
                    />
                  </div>
                  <p className="text-xs text-muted-foreground">If disabled, checkout buttons will be hidden.</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 mt-4">
+              <h4 className="font-bold pt-2">Manual Payment Configuration</h4>
+              <div className="space-y-4 p-4 border rounded-lg bg-white dark:bg-slate-900">
+                 <div className="flex items-center justify-between">
+                   <Label className="font-bold">Enable Manual Payment</Label>
+                   <Switch 
+                     checked={config.enable_manual_payment} 
+                     onCheckedChange={(c) => setConfig({ ...config, enable_manual_payment: c })}
+                   />
+                 </div>
+                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+                   <div className="space-y-2">
+                     <Label>Bank Name</Label>
+                     <Input 
+                       value={config.manual_payment_bank} 
+                       onChange={(e) => setConfig({ ...config, manual_payment_bank: e.target.value })}
+                     />
+                   </div>
+                   <div className="space-y-2">
+                     <Label>Account Number</Label>
+                     <Input 
+                       value={config.manual_payment_account_number} 
+                       onChange={(e) => setConfig({ ...config, manual_payment_account_number: e.target.value })}
+                     />
+                   </div>
+                   <div className="space-y-2">
+                     <Label>Account Name</Label>
+                     <Input 
+                       value={config.manual_payment_account_name} 
+                       onChange={(e) => setConfig({ ...config, manual_payment_account_name: e.target.value })}
+                     />
+                   </div>
+                 </div>
               </div>
             </div>
           </div>

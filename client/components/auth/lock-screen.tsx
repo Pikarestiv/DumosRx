@@ -41,6 +41,7 @@ export function LockScreen({ recentUsers, onLoginAsOther, onUnlockSuccess, defau
         toast.success(`Welcome back, ${selectedUser.first_name}!`);
         if (onUnlockSuccess) {
           onUnlockSuccess();
+          setIsLoading(false);
         } else {
           router.push("/dashboard");
         }
@@ -49,10 +50,10 @@ export function LockScreen({ recentUsers, onLoginAsOther, onUnlockSuccess, defau
         setHasError(true);
         setTimeout(() => setHasError(false), 500);
         toast.error("Invalid PIN. Please try again.");
+        setIsLoading(false);
       }
     } catch {
       toast.error("Login failed. Database might not be initialized.");
-    } finally {
       setIsLoading(false);
     }
   };

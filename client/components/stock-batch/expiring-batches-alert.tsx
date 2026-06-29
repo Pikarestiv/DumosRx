@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { AlertTriangle, ChevronRight, Pill, X } from "lucide-react";
 import { query } from "@/lib/db/core";
 import { getDaysToExpiry } from "@/lib/utils/date-utils";
@@ -17,6 +18,7 @@ interface ExpiringItem {
 }
 
 export function ExpiringBatchesAlert() {
+  const router = useRouter();
   const { expiryDays } = useSettings();
   const [items, setItems] = useState<ExpiringItem[]>([]);
   const [dismissed, setDismissed] = useState(false);
@@ -101,6 +103,7 @@ export function ExpiringBatchesAlert() {
 
       <Button
         variant="link"
+        onClick={() => router.push("/inventory/batches")}
         className="mt-2 p-0 h-auto text-xs text-amber-600 font-bold group-hover:translate-x-1 transition-transform"
       >
         Manage Expiring Batches <ChevronRight className="w-3 h-3 ml-1" />

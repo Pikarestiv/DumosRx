@@ -26,6 +26,7 @@ export function LockScreen({ recentUsers, onLoginAsOther, onUnlockSuccess, defau
   const [selectedUser, setSelectedUser] = useState<RecentUser | null>(defaultUser || null);
   const [pin, setPin] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [hasError, setHasError] = useState(false);
   const { login } = useAuth();
   const router = useRouter();
 
@@ -44,6 +45,9 @@ export function LockScreen({ recentUsers, onLoginAsOther, onUnlockSuccess, defau
           router.push("/dashboard");
         }
       } else {
+        setPin("");
+        setHasError(true);
+        setTimeout(() => setHasError(false), 500);
         toast.error("Invalid PIN. Please try again.");
       }
     } catch {
@@ -135,7 +139,11 @@ export function LockScreen({ recentUsers, onLoginAsOther, onUnlockSuccess, defau
                 <Label htmlFor="pin" className="sr-only">
                   PIN
                 </Label>
-                  <div className="flex justify-center mb-6">
+                  <motion.div 
+                    className="flex justify-center mb-6"
+                    animate={hasError ? { x: [-10, 10, -10, 10, -5, 5, 0] } : {}}
+                    transition={{ duration: 0.4 }}
+                  >
                     <InputOTP
                       maxLength={4}
                       pattern="^[0-9]+$"
@@ -160,7 +168,7 @@ export function LockScreen({ recentUsers, onLoginAsOther, onUnlockSuccess, defau
                         <InputOTPSlot index={3} className="w-14 h-16 text-2xl font-semibold rounded-xl border border-border/60 shadow-sm transition-all focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary" />
                       </InputOTPGroup>
                     </InputOTP>
-                  </div>
+                  </motion.div>
                   
                   {/* Custom Pin Pad specifically for touch/mobile devices */}
                   <div className="md:hidden mt-6 mb-4">

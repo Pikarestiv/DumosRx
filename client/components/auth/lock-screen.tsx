@@ -19,10 +19,11 @@ interface LockScreenProps {
   recentUsers: RecentUser[];
   onLoginAsOther: () => void;
   onUnlockSuccess?: () => void;
+  defaultUser?: RecentUser | null;
 }
 
-export function LockScreen({ recentUsers, onLoginAsOther, onUnlockSuccess }: LockScreenProps) {
-  const [selectedUser, setSelectedUser] = useState<RecentUser | null>(null);
+export function LockScreen({ recentUsers, onLoginAsOther, onUnlockSuccess, defaultUser }: LockScreenProps) {
+  const [selectedUser, setSelectedUser] = useState<RecentUser | null>(defaultUser || null);
   const [pin, setPin] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
@@ -137,6 +138,7 @@ export function LockScreen({ recentUsers, onLoginAsOther, onUnlockSuccess }: Loc
                   <div className="flex justify-center mb-6">
                     <InputOTP
                       maxLength={4}
+                      pattern="^[0-9]+$"
                       value={pin}
                       onChange={(value) => {
                         setPin(value);

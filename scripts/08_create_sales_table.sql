@@ -8,7 +8,9 @@ CREATE TABLE IF NOT EXISTS sales (
   
   -- Transaction details
   subtotal DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  discount_total DECIMAL(10,2) DEFAULT 0.00,
   discount_amount DECIMAL(10,2) DEFAULT 0.00,
+  discount_type VARCHAR(20) DEFAULT 'fixed',
   discount_percentage DECIMAL(5,2) DEFAULT 0.00,
   tax_amount DECIMAL(10,2) DEFAULT 0.00,
   tax_percentage DECIMAL(5,2) DEFAULT 7.5, -- Nigerian VAT rate

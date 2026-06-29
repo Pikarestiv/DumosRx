@@ -14,7 +14,7 @@ class Sale extends Model
 
     protected $fillable = [
         'transaction_number', 'customer_id', 'cashier_id', 'prescription_id',
-        'subtotal', 'discount_amount', 'discount_percentage', 'tax_amount',
+        'subtotal', 'discount_total', 'discount_amount', 'discount_percentage', 'discount_type', 'tax_amount',
         'tax_percentage', 'total_amount', 'payment_method', 'payment_status',
         'amount_paid', 'change_given', 'points_earned', 'points_redeemed',
         'transaction_date', 'notes', 'receipt_printed', 'payment_details'

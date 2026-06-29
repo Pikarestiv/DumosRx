@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { RecentUser } from "@/lib/context/auth-context";
-import { getUserInitials } from "@/lib/utils";
+import { getUserInitials, cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -72,7 +72,7 @@ export function LockScreen({ recentUsers, onLoginAsOther, onUnlockSuccess }: Loc
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className={cn("grid gap-4", recentUsers.length === 1 ? "grid-cols-1 max-w-[240px] mx-auto" : "grid-cols-2")}>
               {recentUsers.map((user) => (
                 <Button
                   key={user.id}

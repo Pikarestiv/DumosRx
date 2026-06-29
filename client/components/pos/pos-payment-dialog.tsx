@@ -99,13 +99,48 @@ export function POSPaymentDialog({
   const handleAddSplit = (method: string) => {
     if (!setPaymentSplits || !paymentSplits) return;
     const remaining = Math.max(0, total - paymentSplits.reduce((acc, s) => acc + (s.amount || 0), 0));
-    setPaymentSplits([...paymentSplits, { method, amount: remaining }]);
+    
+    let defaultAccountId = undefined;
+    if ((method === "card" || method === "transfer") && storeProfile?.id) {
+      const defaultId = defaults[`${storeProfile.id}_${method}`];
+      if (defaultId) {
+        const isValid = paymentAccounts?.find(a => 
+          a.id === defaultId && 
+          (method === "card" ? a.account_type === "pos_terminal" : a.account_type !== "pos_terminal")
+        );
+        if (isValid) defaultAccountId = defaultId;
+      }
+    }
+    
+    setPaymentSplits([...paymentSplits, { method, amount: remaining, accountId: defaultAccountId }]);
   };
 
   const updateSplit = (index: number, field: string, value: any) => {
     if (!setPaymentSplits || !paymentSplits) return;
     const newSplits = [...paymentSplits];
     newSplits[index] = { ...newSplits[index], [field]: value };
+    
+    if (field === "method") {
+      if ((value === "card" || value === "transfer") && storeProfile?.id) {
+        const defaultId = defaults[`${storeProfile.id}_${value}`];
+        if (defaultId) {
+          const isValid = paymentAccounts?.find(a => 
+            a.id === defaultId && 
+            (value === "card" ? a.account_type === "pos_terminal" : a.account_type !== "pos_terminal")
+          );
+          if (isValid) {
+            newSplits[index].accountId = defaultId;
+          } else {
+            delete newSplits[index].accountId;
+          }
+        } else {
+          delete newSplits[index].accountId;
+        }
+      } else {
+        delete newSplits[index].accountId;
+      }
+    }
+    
     setPaymentSplits(newSplits);
   };
 

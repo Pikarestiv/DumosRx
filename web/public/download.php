@@ -7,7 +7,7 @@
 $os = isset($_GET['os']) ? $_GET['os'] : 'windows';
 
 // Default version if updater.json is missing or fails
-$version = "0.0.20"; 
+$version = "0.0.21"; 
 $downloadUrl = "";
 
 // Fetch latest release data from DumosRx Server

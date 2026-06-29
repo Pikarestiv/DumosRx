@@ -38,8 +38,8 @@ export default function DownloadsPage() {
   };
 
   const currentLinks = links || defaultLinks;
-  const linuxAssetExists = currentLinks.linux && currentLinks.linux.includes("/download/");
-  const androidAssetExists = currentLinks.android && currentLinks.android.includes("/download/");
+  const linuxAssetExists = !!currentLinks.linux;
+  const androidAssetExists = !!currentLinks.android;
 
   return (
     <div className="flex flex-col min-h-screen bg-background">

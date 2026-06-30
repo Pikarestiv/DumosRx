@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Eye, EyeOff } from "lucide-react";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { useAuth } from "@/lib/context/auth-context";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -113,32 +113,20 @@ export function LoginForm() {
         }}
         className="space-y-2"
       >
-        <Label htmlFor="password">Password</Label>
-        <div className="relative">
-          <Input
-            id="password"
-            type={showPassword ? "text" : "password"}
-            placeholder="Enter your password"
+        <Label htmlFor="password">Secure PIN</Label>
+        <div className="flex justify-center pt-2 pb-4">
+          <InputOTP
+            maxLength={4}
             value={formData.password}
-            onChange={(e) =>
-              setFormData((prev) => ({ ...prev, password: e.target.value }))
-            }
-            className="bg-input border-border focus:ring-accent pr-10"
-            required
-          />
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-            onClick={() => setShowPassword(!showPassword)}
+            onChange={(value) => setFormData((prev) => ({ ...prev, password: value }))}
           >
-            {showPassword ? (
-              <EyeOff className="h-4 w-4 text-muted-foreground" />
-            ) : (
-              <Eye className="h-4 w-4 text-muted-foreground" />
-            )}
-          </Button>
+            <InputOTPGroup className="gap-2">
+              <InputOTPSlot index={0} className="w-12 h-11 text-xl font-semibold rounded-md border border-input bg-background/50 transition-all focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary shadow-sm" />
+              <InputOTPSlot index={1} className="w-12 h-11 text-xl font-semibold rounded-md border border-input bg-background/50 transition-all focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary shadow-sm" />
+              <InputOTPSlot index={2} className="w-12 h-11 text-xl font-semibold rounded-md border border-input bg-background/50 transition-all focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary shadow-sm" />
+              <InputOTPSlot index={3} className="w-12 h-11 text-xl font-semibold rounded-md border border-input bg-background/50 transition-all focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary shadow-sm" />
+            </InputOTPGroup>
+          </InputOTP>
         </div>
       </motion.div>
 

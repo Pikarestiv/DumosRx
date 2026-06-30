@@ -83,52 +83,21 @@ export function AdminSidebar() {
   const email = user ? user.email : "admin@dumosrx.com";
 
   return (
-    <aside className="hidden lg:flex w-72 flex-col bg-slate-950 text-slate-200 border-r border-slate-800">
-      <div className="p-8">
-        <Link
-          href="/admin"
-          id="tour-brand"
-          className="flex flex-col items-center gap-2 group transition-transform hover:scale-105"
-        >
-          <Image
-            src="/logo.png"
-            alt="DumosRx Logo"
-            width={80}
-            height={24}
-            className="h-10 w-auto object-contain brightness-0 invert"
-            priority
-          />
-          <div className="flex flex-col items-center text-center">
-            <span className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.3em] leading-none">
-              Admin
-            </span>
-            <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest mt-1">
-              Control Center
-            </span>
-          </div>
-        </Link>
-      </div>
-
-      <div className="px-4 mb-4">
-        <div id="tour-status" className="bg-slate-900/50 rounded-2xl p-4 border border-slate-800/50 flex items-center gap-3">
-          <div
-            className={`h-3 w-3 rounded-full ${error ? "bg-rose-500" : isLoading ? "bg-amber-500 animate-pulse" : "bg-green-500 animate-pulse"}`}
-          />
-          <div className="flex-1">
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-              System Status
-            </p>
-            <p className="text-sm font-bold text-slate-100">
-              {error
-                ? "Nodes Degrading"
-                : isLoading
-                  ? "Synchronizing..."
-                  : "All Nodes Healthy"}
-            </p>
-          </div>
-          <Activity className="h-4 w-4 text-indigo-400" />
-        </div>
-      </div>
+    <aside className="hidden lg:flex w-64 flex-col bg-slate-950 text-slate-200 border-r border-slate-800">
+      <Link
+        href="/admin"
+        id="tour-brand"
+        className="flex flex-col items-center gap-2 group transition-transform hover:scale-105 pt-8 px-8 self-start"
+      >
+        <Image
+          src="/logo.png"
+          alt="DumosRx Logo"
+          width={80}
+          height={24}
+          className="h-10 w-auto object-contain brightness-0 invert"
+          priority
+        />
+      </Link>
 
       <nav className="flex-1 px-4 py-4 space-y-1">
         {sidebarItems.map((item) => {
@@ -169,7 +138,10 @@ export function AdminSidebar() {
       </nav>
 
       <div className="p-4 border-t border-slate-800">
-        <div id="tour-profile" className="bg-slate-900 rounded-2xl p-4 flex items-center gap-3 border border-slate-800/50">
+        <div
+          id="tour-profile"
+          className="bg-slate-900 rounded-2xl p-4 flex items-center gap-3 border border-slate-800/50"
+        >
           <div className="h-10 w-10 rounded-xl bg-indigo-600/10 flex items-center justify-center font-bold text-indigo-400 border border-indigo-600/20 uppercase">
             {userInitials}
           </div>

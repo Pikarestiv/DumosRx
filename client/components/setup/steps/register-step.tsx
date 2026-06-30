@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import {
   Card,
   CardContent,
@@ -133,16 +134,21 @@ export function RegisterStep({ onRegister, isLoading, isCloudLinked, existingSto
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="reg-pin">Secure PIN / Password</Label>
-              <Input
-                id="reg-pin"
-                type="password"
-                placeholder="••••"
-                className="bg-background/50"
-                value={pin}
-                onChange={(e) => setPin(e.target.value)}
-                required
-              />
+              <Label htmlFor="reg-pin">Secure PIN</Label>
+              <div className="flex justify-start">
+                <InputOTP
+                  maxLength={4}
+                  value={pin}
+                  onChange={(value) => setPin(value)}
+                >
+                  <InputOTPGroup className="gap-2">
+                    <InputOTPSlot index={0} className="w-12 h-11 text-xl font-semibold rounded-md border border-input bg-background/50 transition-all focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary shadow-sm" />
+                    <InputOTPSlot index={1} className="w-12 h-11 text-xl font-semibold rounded-md border border-input bg-background/50 transition-all focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary shadow-sm" />
+                    <InputOTPSlot index={2} className="w-12 h-11 text-xl font-semibold rounded-md border border-input bg-background/50 transition-all focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary shadow-sm" />
+                    <InputOTPSlot index={3} className="w-12 h-11 text-xl font-semibold rounded-md border border-input bg-background/50 transition-all focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary shadow-sm" />
+                  </InputOTPGroup>
+                </InputOTP>
+              </div>
             </div>
           </CardContent>
           <CardFooter className="flex flex-col space-y-4 pt-6 pb-8">

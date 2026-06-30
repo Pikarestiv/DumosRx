@@ -193,7 +193,7 @@ export function DevSeedButton() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-2 py-2">
+          <div className="space-y-2 py-2 max-h-[60vh] overflow-y-auto pr-2">
             {SEED_CATEGORIES.map((cat) => {
               const isSeeding = seeding[cat.key];
               const isDone = done[cat.key];
@@ -261,7 +261,7 @@ export function DevSeedButton() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-2 py-2">
+          <div className="space-y-2 py-2 max-h-[60vh] overflow-y-auto pr-2">
             {SEED_CATEGORIES.map((cat) => {
               const isResetting = resetting[cat.key];
               const isDone = resetDone[cat.key];

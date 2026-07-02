@@ -24,7 +24,8 @@ The desktop application is built for speed, reliability, and ease of use. It con
 *   **Fast Checkout:** Quickly search your catalog or use a barcode scanner to ring up items.
 *   **Split Payments:** Customers can pay with a mix of Cash, Card, and Bank Transfers on a single receipt. The system automatically calculates any exact change needed.
 *   **Smart Suggestions:** The system intelligently recommends related products (like suggesting Vitamin C when a customer buys Antibiotics) to help increase your sales.
-*   **Customer Profiles:** Save customer details, track chronic conditions, and build loyalty.
+*   **Customer Profiles & Loyalty System:** Save customer details, track chronic conditions, and automatically award points using our built-in **Customer Loyalty Program** (e.g. earn 1 point for every ₦1000 spent).
+*   **Customer Debt Ledger:** A dedicated dashboard to track sales made on credit to trusted customers, including a repayment logging system.
 *   **Park Transactions:** Put a customer's cart on "Hold" if they need to grab another item, allowing you to serve the next person in line.
 *   **Custom Receipts:** Print thermal receipts customized with your store's logo and details.
 

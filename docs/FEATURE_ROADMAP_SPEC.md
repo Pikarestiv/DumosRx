@@ -108,39 +108,25 @@ These features are our active development targets for the next major release.
 
 ---
 
-
-
 ## 🎯 Mentor Feature Expansion (Pending Features)
 
 This section tracks high-value features derived from recent commercial strategy sessions.
 
-### 📥 1. Missing Product Log ("Request Item")
-- **Description:** A simple "Request Item" button on the POS interface. If a customer asks for a product that isn't in the catalog, the cashier logs it.
-- **Value:** The "Procurement & Vendors" dashboard will feature a new tab ("Requested Products") that tallies these requests. Store owners will immediately see missed revenue opportunities and know exactly what to buy on their next procurement run.
-- **Auto-Suggest:** Once an item is logged, it will appear in auto-suggest inputs to avoid duplicate manual entries.
+### 🏦 1. Open Banking Transaction Reconciliation
 
-### 🏦 2. Open Banking Transaction Reconciliation
 - **Description:** Integration with Nigerian Open Banking APIs (e.g., Mono, Okra).
 - **Value:** Allows the store owner to link their corporate bank account. When a cashier logs a "Bank Transfer" payment on the POS, the system automatically checks the bank API to ensure the credit actually hit the account. This completely eliminates "fake transfer" fraud.
 
-### 🛡️ 3. Tauri Rust-Level Security Hardening
+### 🛡️ 2. Tauri Rust-Level Security Hardening
+
 - **Description:** Moving all JWT license validation and decryption logic away from the React/Javascript frontend into the compiled Rust backend.
 - **Value:** Ensures hackers cannot easily bypass the subscription lock. If a user tries to modify the frontend code to bypass the license check, the Rust core will refuse to allow access to the SQLite database.
 
-### 💸 4. SMS Aggregator Top-Up Wallet
+### 💸 3. SMS Aggregator Top-Up Wallet
+
 - **Description:** Integrate with a Nigerian bulk SMS aggregator (like Termii or BulkSMSNigeria, rather than MTN's direct high-cost API) to power transactional SMS.
 - **Value:** Store owners can "top up" their SMS wallet directly within DumosRx using Paystack to send receipts or refill reminders. This creates an additional passive revenue stream for the platform.
 
-### 📦 5. Supplier Debt Ledger
-- **Description:** A dedicated ledger to track goods received on credit from suppliers and when payments are due.
-- **Value:** Helps store owners manage their cash flow and maintain good relationships with suppliers.
-
-### 💾 6. Instant Local Backup Button
-- **Description:** Add a quick "Download Database Backup" button specifically to the End of Day (EOD) shift closure screen.
-- **Value:** Encourages daily local backups by cashiers, ensuring no data is ever lost due to unexpected hardware crashes before a cloud sync happens.
-
-### 🔄 7. Over-The-Air (OTA) Patch Updates
-- **Description:** Use Tauri's built-in updater so the *desktop app* can download and apply minor bug fixes and patches in the background, similar to Google Chrome. *(Note: This applies to the PC desktop app only, not mobile web).*
 
 ---
 
@@ -181,7 +167,6 @@ These change the core business model. Hold until core ERP/POS is dominant.
 - **Why deferred:** The custom `error-logger.ts` + `GlobalErrorListener` pipeline already captures crashes to SQLite → syncs to backend. Sentry adds developer-quality-of-life (dashboards, alerts, deduplication) but is not user-facing.
 - **Cost:** Sentry free tier: 5k errors/mo. PostHog free tier: 1M events/mo.
 - **Effort:** ~half a day
-
 
 **Strategic Outcome Goal:**
 A store operating system that doesn't just record operations, but actively runs and optimizes them.

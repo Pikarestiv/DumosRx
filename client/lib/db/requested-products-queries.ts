@@ -1,4 +1,4 @@
-import { query, execute } from "./core";
+import { query } from "./core";
 import { insert, update, softDelete } from "./base-helpers";
 
 export interface RequestedProduct {
@@ -12,7 +12,6 @@ export interface RequestedProduct {
 }
 
 export async function logRequestedProduct(product_name: string, requested_by_customer?: string): Promise<string> {
-  const now = new Date().toISOString();
   
   // Check if a pending request for this product already exists
   const existing = await query<RequestedProduct>(

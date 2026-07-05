@@ -50,6 +50,8 @@ The desktop application is built for speed, reliability, and ease of use. It con
 
 **Procurement:** Generate Purchase Orders for your suppliers. When the goods arrive, the system automatically updates your stock levels.
 
+**Supplier Debt Ledger:** Track goods received on credit from your suppliers, manage your business cash flow, and log partial or full payments against outstanding purchase orders.
+
 ### 🏥 Clinical Prescriptions (For Pharmacies)
 
 **Prescription Registry:** Digitally record and track customer prescriptions.
@@ -105,6 +107,8 @@ We take the safety of your business data seriously.
 **Cloud Backups:** Your data is continuously backed up to our secure cloud servers, protecting you against hardware failure or theft at the store.
 
 **Instant Broadcasts:** Receive important alerts, updates, and maintenance notices directly on your store's screens.
+
+**Over-The-Air (OTA) Updates:** The system intelligently manages software updates. Minor patches and bug fixes are downloaded automatically in the background without interrupting your workflow, while major new versions will prompt you for installation. Mobile users are seamlessly directed to their respective app stores.
 
 ---
 

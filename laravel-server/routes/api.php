@@ -47,6 +47,7 @@ Route::prefix('v1')->group(function () {
 
     // Public Storefront
     Route::get('/storefront/{store_slug}', [\App\Http\Controllers\Api\Public\StorefrontController::class, 'show']);
+    Route::post('/storefront/{store_slug}/checkout', [\App\Http\Controllers\Api\Public\StorefrontController::class, 'checkout']);
 
     // Webhooks (Public)
     Route::post('/webhooks/paystack', [\App\Http\Controllers\Api\Web\PaymentController::class, 'handlePaystack']);
@@ -205,6 +206,10 @@ Route::prefix('v1')->group(function () {
             Route::apiResource('customers', CustomerController::class);
             Route::apiResource('suppliers', SupplierController::class);
             Route::apiResource('categories', CategoryController::class);
+
+            // Online Orders
+            Route::get('/online-orders', [\App\Http\Controllers\Api\OnlineOrderController::class, 'index']);
+            Route::post('/online-orders/{id}/fulfill', [\App\Http\Controllers\Api\OnlineOrderController::class, 'markFulfilled']);
 
             // Sync
             Route::post('/sync/push', [SyncController::class, 'push']);

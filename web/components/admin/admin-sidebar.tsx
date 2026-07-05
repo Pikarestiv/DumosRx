@@ -10,14 +10,12 @@ import {
   Package,
   LogOut,
   ChevronRight,
-  Activity,
   MessageSquare,
   Settings,
   Megaphone,
   Download,
 } from "lucide-react";
 import { useAdminAuthStore } from "@/lib/store/use-admin-auth-store";
-import { useAdminSummary } from "@/lib/api/admin-hooks";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { APP_VERSION } from "@/lib/constants";
@@ -67,7 +65,6 @@ export function AdminSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAdminAuthStore();
-  const { isLoading, error } = useAdminSummary();
 
   const handleLogout = () => {
     logout();

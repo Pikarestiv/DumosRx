@@ -45,6 +45,7 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           server-dir: /dev.dumosrx.com/
           local-dir: ./web/out/
+          timeout: 1200000
           state-name: .ftp-deploy-sync-state-v2.json
           exclude: |
             **/.git*
@@ -87,6 +88,7 @@ jobs:
           # The directory on the server for api dev
           server-dir: /api.dev.dumosrx.com/
           local-dir: ./laravel-server/
+          timeout: 1200000
           exclude: |
             **/.git*
             **/.git*/**

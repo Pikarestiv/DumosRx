@@ -24,6 +24,7 @@ Whenever you implement a new feature, change an architectural pattern, or modify
 
 DumosRx is an offline-first application (SQLite local, Laravel MySQL cloud) connected by a bidirectional Sync Engine.
 
+- **Sync Coverage:** Remember to always make sure new tables or columns created are taken cognizance of in the sync feature, local db, indexed db and online db so the data won't be ignored during syncs and backups.
 - **NEVER** perform direct `db.run()` calls for data mutations.
 
 - **ALWAYS** use the `insert()`, `update()`, and `softDelete()` helpers in `local-database.ts`. This ensures the `_sync_queue` is properly populated and the `_version` / `_synced` flags are respected.

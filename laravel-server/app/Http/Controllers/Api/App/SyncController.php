@@ -432,7 +432,7 @@ class SyncController extends Controller
         $changes = [];
         $serverTimestamp = now()->toIso8601String();
 
-        $tables = ['products', 'stock_batches', 'categories', 'customers', 'suppliers', 'sales', 'stores', 'users', 'stock_movements', 'purchase_orders', 'purchase_order_items', 'expenses', 'payment_accounts', 'requested_products'];
+        $tables = ['products', 'stock_batches', 'categories', 'customers', 'suppliers', 'sales', 'stores', 'users', 'stock_movements', 'purchase_orders', 'purchase_order_items', 'expenses', 'payment_accounts', 'requested_products', 'supplier_payments'];
 
         foreach ($tables as $table) {
             $lastSynced = $lastSyncedMap[$table] ?? null;
@@ -478,6 +478,9 @@ class SyncController extends Controller
                 } elseif ($table === 'stock_batches') {
                     $medicineIds = Product::where('user_id', $ownerId)->pluck('id')->toArray();
                     $query->whereIn('product_id', $medicineIds);
+                } elseif ($table === 'supplier_payments') {
+                    $supplierIds = Supplier::where('user_id', $ownerId)->pluck('id')->toArray();
+                    $query->whereIn('supplier_id', $supplierIds);
                 } else {
                     // Default to filtering by owner_id for products, customers, suppliers
                     $query->where('user_id', $ownerId);
@@ -603,6 +606,7 @@ class SyncController extends Controller
             'returns' => \App\Models\SaleReturn::class,
             'return_items' => \App\Models\SaleReturnItem::class,
             'requested_products' => RequestedProduct::class,
+            'supplier_payments' => \App\Models\SupplierPayment::class,
         ];
         return $map[$tableName] ?? null;
     }

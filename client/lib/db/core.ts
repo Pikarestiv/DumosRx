@@ -220,6 +220,9 @@ export async function initDatabase(): Promise<any> {
         "order_date TEXT",
         "order_number TEXT",
         "supplier_id TEXT",
+        "payment_status TEXT DEFAULT 'unpaid'",
+        "amount_paid REAL DEFAULT 0",
+        "due_date TEXT",
       ],
     },
     {
@@ -321,6 +324,15 @@ export async function initDatabase(): Promise<any> {
     { table: "payment_accounts", columns: ["user_id TEXT", "store_id TEXT"] },
     {
       table: "requested_products",
+      columns: [
+        "_version INTEGER DEFAULT 1",
+        "_synced INTEGER DEFAULT 0",
+        "_synced_at TEXT",
+        "_deleted INTEGER DEFAULT 0",
+      ],
+    },
+    {
+      table: "supplier_payments",
       columns: [
         "_version INTEGER DEFAULT 1",
         "_synced INTEGER DEFAULT 0",

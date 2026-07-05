@@ -14,6 +14,9 @@ export interface PurchaseOrder {
   created_at: string;
   received_at?: string;
   vendor_name: string;
+  payment_status: string;
+  amount_paid: number;
+  due_date?: string;
 }
 
 export interface PurchaseOrderItem {
@@ -65,7 +68,14 @@ export async function getPurchaseOrderById(id: string) {
   return { ...po[0], items };
 }
 
-export async function createPurchaseOrder(supplierId: string, notes: string, items: any[]) {
+export async function createPurchaseOrder(
+  supplierId: string, 
+  notes: string, 
+  items: any[],
+  paymentStatus: string = 'unpaid',
+  amountPaid: number = 0,
+  dueDate: string | null = null
+) {
   const poId = generateId();
   const now = new Date().toISOString();
   let totalAmount = 0;
@@ -78,6 +88,9 @@ export async function createPurchaseOrder(supplierId: string, notes: string, ite
     id: poId,
     supplier_id: supplierId,
     status: "draft",
+    payment_status: paymentStatus,
+    amount_paid: amountPaid,
+    due_date: dueDate,
     total_amount: totalAmount,
     notes,
     created_at: now

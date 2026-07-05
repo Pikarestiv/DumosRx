@@ -57,6 +57,9 @@ export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState("unpaid");
+  const [amountPaid, setAmountPaid] = useState("");
+  const [dueDate, setDueDate] = useState("");
 
   // New item state managed by POAddItemForm now
 
@@ -104,7 +107,14 @@ export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
 
     setIsSubmitting(true);
     try {
-      await createPurchaseOrder(selectedSupplierId, notes, items);
+      await createPurchaseOrder(
+        selectedSupplierId, 
+        notes, 
+        items,
+        paymentStatus,
+        paymentStatus !== 'unpaid' ? (Number(amountPaid) || 0) : 0,
+        dueDate || null
+      );
       toast.success("Purchase Order created successfully");
       setOpen(false);
       onPOCreated();
@@ -112,6 +122,9 @@ export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
       setItems([]);
       setSelectedSupplierId("");
       setNotes("");
+      setPaymentStatus("unpaid");
+      setAmountPaid("");
+      setDueDate("");
     } catch (error) {
       console.error("Failed to create PO:", error);
       toast.error("Error creating purchase order");
@@ -171,6 +184,44 @@ export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
                 className="bg-muted/30 border-accent/10"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Payment Status</Label>
+              <Select value={paymentStatus} onValueChange={setPaymentStatus}>
+                <SelectTrigger className="bg-muted/30 border-accent/10">
+                  <SelectValue placeholder="Select status..." />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-accent/20">
+                  <SelectItem value="unpaid">Unpaid (Full Credit)</SelectItem>
+                  <SelectItem value="partial">Partial Payment</SelectItem>
+                  <SelectItem value="paid">Fully Paid</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {paymentStatus !== "unpaid" && (
+              <div className="space-y-2">
+                <Label>Amount Paid ({paymentStatus === "paid" ? "Total" : "Initial Payment"})</Label>
+                <Input
+                  type="number"
+                  placeholder="0.00"
+                  className="bg-muted/30 border-accent/10"
+                  value={paymentStatus === "paid" ? totalAmount : amountPaid}
+                  onChange={(e) => setAmountPaid(e.target.value)}
+                  disabled={paymentStatus === "paid"}
+                />
+              </div>
+            )}
+            
+            <div className="space-y-2">
+              <Label>Due Date (Optional)</Label>
+              <Input
+                type="date"
+                className="bg-muted/30 border-accent/10"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
               />
             </div>
           </div>

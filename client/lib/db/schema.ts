@@ -359,6 +359,9 @@ CREATE TABLE IF NOT EXISTS purchase_orders (
   ordered_by TEXT,
   order_date TEXT,
   status TEXT DEFAULT 'draft',
+  payment_status TEXT DEFAULT 'unpaid',
+  amount_paid REAL DEFAULT 0,
+  due_date TEXT,
   total_amount REAL DEFAULT 0,
   notes TEXT,
   created_at TEXT,
@@ -513,6 +516,22 @@ CREATE TABLE IF NOT EXISTS requested_products (
   requested_by_customer TEXT,
   request_count INTEGER DEFAULT 1,
   status TEXT DEFAULT 'pending',
+  created_at TEXT,
+  updated_at TEXT,
+  _version INTEGER DEFAULT 1,
+  _synced INTEGER DEFAULT 0,
+  _synced_at TEXT,
+  _deleted INTEGER DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS supplier_payments (
+  id TEXT PRIMARY KEY,
+  supplier_id TEXT NOT NULL,
+  po_id TEXT,
+  amount REAL NOT NULL,
+  payment_date TEXT NOT NULL,
+  payment_method TEXT,
+  reference_note TEXT,
   created_at TEXT,
   updated_at TEXT,
   _version INTEGER DEFAULT 1,

@@ -50,6 +50,8 @@ The desktop application is built for speed, reliability, and ease of use. It con
 
 **Procurement:** Generate Purchase Orders for your suppliers. When the goods arrive, the system automatically updates your stock levels.
 
+**Supplier Debt Ledger:** Track goods received on credit from your suppliers, manage your business cash flow, and log partial or full payments against outstanding purchase orders.
+
 ### 🏥 Clinical Prescriptions (For Pharmacies)
 
 **Prescription Registry:** Digitally record and track customer prescriptions.

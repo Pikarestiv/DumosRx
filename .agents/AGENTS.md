@@ -19,6 +19,7 @@ Whenever you implement a new feature, change an architectural pattern, or modify
 - **Frontend (Next.js/Tauri):** Strictly separate business logic (Custom Hooks, Zustand, TanStack Query, Services) from UI logic (Shadcn components).
 - **Backend (Laravel 11):** Strictly separate Controllers (routing/HTTP layer) from Services (business logic layer).
 - **File Constraints:** Keep files strictly below 350 lines. Break them down if they get too large. Code must be highly modular, DRY, and clean (no unused variables or imports).
+- **No Hardcoded URLs:** Never hardcode external links or API endpoints (e.g., `https://downloads.dumosrx.com/...`) directly in UI components. Always import them from `constants.ts` or environment variables (e.g., `process.env.NEXT_PUBLIC_...`).
 
 ## 4. 📴 Offline-First Sync Engine & Database Hygiene
 

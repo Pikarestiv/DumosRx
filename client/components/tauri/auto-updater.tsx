@@ -1,29 +1,64 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { DownloadCloud, RefreshCw, CheckCircle2, AlertCircle, X, Sparkles } from "lucide-react";
+import { DownloadCloud, RefreshCw, CheckCircle2, AlertCircle, X, Sparkles, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { isTauri } from "@/lib/db/core";
+import { DOWNLOAD_URL, UPDATER_JSON_URL } from "@/lib/constants";
 
-type UpdateStatus = "idle" | "checking" | "available" | "downloading" | "error" | "up-to-date";
+type UpdateStatus = "idle" | "checking" | "available" | "downloading" | "downloading-silent" | "ready-to-restart" | "error" | "up-to-date" | "mobile-available";
 
 export function AutoUpdater() {
   const [status, setStatus] = useState<UpdateStatus>("idle");
   const [updateInfo, setUpdateInfo] = useState<any>(null);
   const [progress, setProgress] = useState(0);
-  const [isDesktop, setIsDesktop] = useState(false);
+  const [isApp, setIsApp] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
-    setIsDesktop(isTauri());
+    setIsApp(isTauri());
     if (isTauri()) {
-      // Check for updates in the background on mount
-      checkForUpdates(true);
+      // Determine if we are on mobile using plugin-os
+      import("@tauri-apps/plugin-os").then(({ type }) => {
+        const osType = type();
+        const mobile = osType === 'ios' || osType === 'android';
+        setIsMobile(mobile);
+        
+        if (mobile) {
+          checkMobileUpdate();
+        } else {
+          checkForUpdates(true);
+        }
+      }).catch((e) => {
+        console.error("Failed to load plugin-os", e);
+        // Fallback to desktop check
+        checkForUpdates(true);
+      });
     }
   }, []);
 
+  const checkMobileUpdate = async () => {
+    try {
+      // For mobile, manually fetch the updater.json to see if a newer version exists
+      const response = await fetch(UPDATER_JSON_URL);
+      if (response.ok) {
+        const data = await response.json();
+        const { getVersion } = await import("@tauri-apps/api/app");
+        const currentVersion = await getVersion();
+        
+        if (data.version && data.version !== currentVersion) {
+          setUpdateInfo(data);
+          setStatus("mobile-available");
+        }
+      }
+    } catch (error) {
+      console.error("Failed to check mobile updates", error);
+    }
+  };
+
   const checkForUpdates = async (silent = false) => {
-    if (!isTauri()) return;
+    if (!isTauri() || isMobile) return;
     
     try {
       if (!silent) setStatus("checking");
@@ -33,7 +68,21 @@ export function AutoUpdater() {
       
       if (update) {
         setUpdateInfo(update);
-        setStatus("available");
+        
+        const { getVersion } = await import("@tauri-apps/api/app");
+        const currentVersion = await getVersion();
+        
+        const currentMajor = parseInt(currentVersion.split('.')[0] || "0");
+        const newMajor = parseInt(update.version.split('.')[0] || "0");
+        
+        if (newMajor > currentMajor) {
+          // Major update: require explicit user consent
+          setStatus("available");
+        } else {
+          // Minor/Patch update: silent background download
+          setStatus("downloading-silent");
+          installUpdate(update, true);
+        }
       } else {
         if (!silent) {
           setStatus("up-to-date");
@@ -49,49 +98,68 @@ export function AutoUpdater() {
     }
   };
 
-  const installUpdate = async () => {
-    if (!updateInfo) return;
+  const installUpdate = async (updateToInstall: any = updateInfo, silent = false) => {
+    if (!updateToInstall) return;
     
     try {
-      setStatus("downloading");
+      if (!silent) setStatus("downloading");
       let downloaded = 0;
       let totalLength = 0;
       
-      await updateInfo.downloadAndInstall((event: any) => {
+      await updateToInstall.downloadAndInstall((event: any) => {
         switch (event.event) {
           case 'Started':
             totalLength = event.data.contentLength || 0;
             break;
           case 'Progress':
             downloaded += event.data.chunkLength;
-            if (totalLength > 0) {
+            if (totalLength > 0 && !silent) {
               setProgress(Math.round((downloaded / totalLength) * 100));
             }
             break;
           case 'Finished':
-            setProgress(100);
+            if (!silent) setProgress(100);
             break;
         }
       });
       
-      toast.success("Update installed successfully. Restarting application...");
-      
-      setTimeout(async () => {
-        const { relaunch } = await import("@tauri-apps/plugin-process");
-        await relaunch();
-      }, 1500);
-      
+      if (silent) {
+        setStatus("ready-to-restart");
+      } else {
+        toast.success("Update installed successfully. Restarting application...");
+        setTimeout(async () => {
+          const { relaunch } = await import("@tauri-apps/plugin-process");
+          await relaunch();
+        }, 1500);
+      }
     } catch (error) {
       console.error("Failed to install update", error);
-      toast.error("Failed to install the update.");
+      if (!silent) toast.error("Failed to install the update.");
       setStatus("error");
       setTimeout(() => setStatus("idle"), 5000);
     }
   };
 
-  if (!isDesktop) return null;
+  const performRestart = async () => {
+    try {
+      const { relaunch } = await import("@tauri-apps/plugin-process");
+      await relaunch();
+    } catch (error) {
+      console.error("Failed to restart", error);
+    }
+  };
 
-  if (status === "idle" || status === "up-to-date" || status === "error") {
+  const openDownloadLink = () => {
+    window.open(DOWNLOAD_URL, "_blank");
+    setStatus("idle");
+  };
+
+  if (!isApp) return null;
+
+  if (status === "idle" || status === "up-to-date" || status === "error" || status === "downloading-silent") {
+    // Only show the manual check button if we are not on mobile
+    if (isMobile) return null;
+    
     return (
       <div className="fixed bottom-6 right-6 z-50 group">
         <button 
@@ -102,6 +170,8 @@ export function AutoUpdater() {
             <><CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> Up to date</>
           ) : status === "error" ? (
             <><AlertCircle className="h-3.5 w-3.5 text-rose-500" /> Update failed</>
+          ) : status === "downloading-silent" ? (
+            <><DownloadCloud className="h-3.5 w-3.5 animate-pulse text-primary" /> Downloading patch...</>
           ) : (
             <><RefreshCw className="h-3.5 w-3.5" /> Check for updates</>
           )}
@@ -117,11 +187,14 @@ export function AutoUpdater() {
           {status === "checking" && (
             <><RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" /> Checking for updates...</>
           )}
-          {status === "available" && (
+          {(status === "available" || status === "mobile-available") && (
             <><Sparkles className="h-5 w-5 text-primary animate-pulse" /> New Update Available!</>
           )}
           {status === "downloading" && (
             <><DownloadCloud className="h-5 w-5 text-primary animate-bounce" /> Installing Update...</>
+          )}
+          {status === "ready-to-restart" && (
+            <><CheckCircle2 className="h-5 w-5 text-emerald-500" /> Update Ready to Apply</>
           )}
         </div>
         {status !== "downloading" && (
@@ -137,12 +210,40 @@ export function AutoUpdater() {
       {status === "available" && updateInfo && (
         <div className="space-y-3">
           <p className="text-xs text-muted-foreground leading-relaxed">
-            Version <span className="font-bold text-foreground">{updateInfo.version}</span> is ready to install. Update now to enjoy the latest features and improvements!
+            Version <span className="font-bold text-foreground">{updateInfo.version}</span> is ready to install. This is a major update featuring new improvements!
           </p>
           <div className="flex gap-2 justify-end pt-1">
             <Button size="sm" variant="ghost" onClick={() => setStatus("idle")} className="text-xs">Later</Button>
-            <Button size="sm" onClick={installUpdate} className="text-xs font-bold px-4">
+            <Button size="sm" onClick={() => installUpdate()} className="text-xs font-bold px-4">
               Update Now
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {status === "ready-to-restart" && (
+        <div className="space-y-3">
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            A new patch has been downloaded securely in the background. Restart the application to apply the fixes.
+          </p>
+          <div className="flex gap-2 justify-end pt-1">
+            <Button size="sm" variant="ghost" onClick={() => setStatus("idle")} className="text-xs">Later</Button>
+            <Button size="sm" onClick={performRestart} className="text-xs font-bold px-4 bg-emerald-600 hover:bg-emerald-700">
+              Restart to Apply
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {status === "mobile-available" && updateInfo && (
+        <div className="space-y-3">
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Version <span className="font-bold text-foreground">{updateInfo.version}</span> is available for DumosRx. Please download the latest update from your app store or our website.
+          </p>
+          <div className="flex gap-2 justify-end pt-1">
+            <Button size="sm" variant="ghost" onClick={() => setStatus("idle")} className="text-xs">Later</Button>
+            <Button size="sm" onClick={openDownloadLink} className="text-xs font-bold px-4 flex items-center gap-1.5">
+              <ExternalLink className="w-3.5 h-3.5" /> Download Update
             </Button>
           </div>
         </div>

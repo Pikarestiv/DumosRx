@@ -127,9 +127,6 @@ This section tracks high-value features derived from recent commercial strategy 
 - **Description:** Integrate with a Nigerian bulk SMS aggregator (like Termii or BulkSMSNigeria, rather than MTN's direct high-cost API) to power transactional SMS.
 - **Value:** Store owners can "top up" their SMS wallet directly within DumosRx using Paystack to send receipts or refill reminders. This creates an additional passive revenue stream for the platform.
 
-### 🔄 4. Over-The-Air (OTA) Patch Updates
-
-- **Description:** Use Tauri's built-in updater so the *desktop app* can download and apply minor bug fixes and patches in the background, similar to Google Chrome. *(Note: This applies to the PC desktop app only, not mobile web).*
 
 ---
 

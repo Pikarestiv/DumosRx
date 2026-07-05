@@ -108,6 +108,8 @@ We take the safety of your business data seriously.
 
 **Instant Broadcasts:** Receive important alerts, updates, and maintenance notices directly on your store's screens.
 
+**Over-The-Air (OTA) Updates:** The system intelligently manages software updates. Minor patches and bug fixes are downloaded automatically in the background without interrupting your workflow, while major new versions will prompt you for installation. Mobile users are seamlessly directed to their respective app stores.
+
 ---
 
 *DumosRx - Modernizing retail operations, one transaction at a time.*

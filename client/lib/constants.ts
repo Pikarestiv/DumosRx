@@ -3,3 +3,5 @@ export const APP_VERSION = "0.0.21"; // DumosRx current version (update when bum
 
 export const WEB_APP_URL = "https://dumosrx.com";
 export const API_BASE_URL = "https://api.dumosrx.com/api/v1";
+export const DOWNLOAD_URL = process.env.NEXT_PUBLIC_DOWNLOAD_URL || "https://downloads.dumosrx.com";
+export const UPDATER_JSON_URL = `${DOWNLOAD_URL}/updater.json`;

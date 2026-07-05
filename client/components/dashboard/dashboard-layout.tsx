@@ -9,10 +9,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { ThemeCustomizer } from "@/components/ui/theme-customizer";
 import { UserNav } from "@/components/dashboard/user-nav";
+import { NotificationBell } from "@/components/dashboard/notification-bell";
 import { useAuth } from "@/lib/context/auth-context";
 import { useStore } from "@/lib/context/store-context";
 import { APP_NAME } from "@/lib/constants";
 import { FeedbackForm } from "@/components/feedback/feedback-form";
+import { OnlineOrdersModal } from "@/components/pos/online-orders-modal";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -232,6 +234,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       <MobileBottomNav onOpenFeedback={() => setFeedbackOpen(true)} />
 
       <FeedbackForm open={feedbackOpen} onOpenChange={setFeedbackOpen} />
+      <OnlineOrdersModal />
 
       {/* Main content — shifts right to clear the sidebar */}
       <div
@@ -284,6 +287,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
 
           <div className="flex items-center gap-2">
+            <NotificationBell />
             <ThemeToggle />
             <ThemeCustomizer />
             <UserNav />

@@ -214,6 +214,29 @@ class ApiClient extends BaseApiClient {
     const url = `/stores/check-slug?slug=${encodeURIComponent(slug)}${ignoreId ? `&ignore_id=${ignoreId}` : ""}`;
     return this.request<{ available: boolean; slug: string }>(url);
   }
+
+  // Notifications
+  async getNotifications() {
+    return this.request<any>("/alerts");
+  }
+
+  async markNotificationRead(id: string) {
+    return this.request<any>(`/alerts/${id}/read`, {
+      method: "POST",
+    });
+  }
+
+  // Online Orders
+  async getOnlineOrders() {
+    return this.request<any>("/online-orders");
+  }
+
+  async fulfillOnlineOrder(id: string) {
+    return this.request<any>(`/online-orders/${id}/fulfill`, {
+      method: "POST",
+      body: JSON.stringify({ status: "fulfilled" }),
+    });
+  }
 }
 
 export const apiClient = new ApiClient();

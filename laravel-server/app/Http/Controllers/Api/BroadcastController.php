@@ -12,11 +12,33 @@ class BroadcastController extends Controller
     /**
      * Get all active broadcasts (for clients)
      */
-    public function index()
+    public function index(Request $request)
     {
-        $broadcasts = Broadcast::active()
-            ->orderBy('created_at', 'desc')
-            ->get();
+        $user = $request->user();
+
+        $query = Broadcast::active()->orderBy('created_at', 'desc');
+
+        if ($user) {
+            $query->where(function ($q) use ($user) {
+                // Show to all users
+                $q->where('target_type', 'all');
+
+                // Show to specific users
+                $q->orWhere(function ($q2) use ($user) {
+                    $q2->where('target_type', 'specific')
+                       ->whereJsonContains('user_ids', $user->id);
+                });
+
+                // Show to store owners (admin/store_owner)
+                if ($user->hasRole('store_owner') || $user->hasRole('admin')) {
+                    $q->orWhereIn('target_type', ['pharmacies', 'stores']);
+                }
+            });
+        } else {
+            $query->where('target_type', 'all');
+        }
+
+        $broadcasts = $query->get();
 
         return response()->json([
             'success' => true,

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AlertTriangle, ChevronRight, Pill, X } from "lucide-react";
 import { query } from "@/lib/db/core";
@@ -19,7 +18,6 @@ interface ExpiringItem {
 }
 
 export function ExpiringBatchesAlert() {
-  const router = useRouter();
   const { expiryDays } = useSettings();
   const [items, setItems] = useState<ExpiringItem[]>([]);
   const [dismissed, setDismissed] = useState(false);

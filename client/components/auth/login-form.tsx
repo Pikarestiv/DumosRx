@@ -30,7 +30,6 @@ export function LoginForm() {
     password: "",
     role: "",
   });
-  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
 
   const { login } = useAuth();

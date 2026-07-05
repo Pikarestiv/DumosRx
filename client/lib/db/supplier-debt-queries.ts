@@ -1,4 +1,4 @@
-import { query, execute, generateId } from "./core";
+import { query, generateId } from "./core";
 import { insert, update } from "./base-helpers";
 
 export interface SupplierDebtBalance {

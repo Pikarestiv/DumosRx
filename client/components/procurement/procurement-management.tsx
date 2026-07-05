@@ -13,6 +13,7 @@ import { ProcurementStats } from "./procurement-stats";
 import { PurchaseOrderTable } from "./purchase-order-table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SupplierManagement } from "@/components/stock-batch/supplier-management";
+import { RequestedProductsTab } from "./requested-products-tab";
 
 export function ProcurementManagement() {
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
@@ -78,6 +79,9 @@ export function ProcurementManagement() {
           <TabsTrigger value="orders" className="px-4 py-2">
             Purchase Orders
           </TabsTrigger>
+          <TabsTrigger value="requests" className="px-4 py-2">
+            Requested Products
+          </TabsTrigger>
           <TabsTrigger value="suppliers" className="px-4 py-2">
             Vendors Directory
           </TabsTrigger>
@@ -100,6 +104,10 @@ export function ProcurementManagement() {
 
         <TabsContent value="suppliers">
           <SupplierManagement />
+        </TabsContent>
+
+        <TabsContent value="requests">
+          <RequestedProductsTab />
         </TabsContent>
       </Tabs>
     </div>

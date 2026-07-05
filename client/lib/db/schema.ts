@@ -506,5 +506,19 @@ CREATE TABLE IF NOT EXISTS system_configs (
   value TEXT NOT NULL,
   updated_at TEXT
 );
+
+CREATE TABLE IF NOT EXISTS requested_products (
+  id TEXT PRIMARY KEY,
+  product_name TEXT NOT NULL,
+  requested_by_customer TEXT,
+  request_count INTEGER DEFAULT 1,
+  status TEXT DEFAULT 'pending',
+  created_at TEXT,
+  updated_at TEXT,
+  _version INTEGER DEFAULT 1,
+  _synced INTEGER DEFAULT 0,
+  _synced_at TEXT,
+  _deleted INTEGER DEFAULT 0
+);
 `;
 

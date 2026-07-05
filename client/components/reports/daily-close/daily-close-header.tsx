@@ -1,6 +1,8 @@
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
-import { CheckCircle2, CalendarIcon } from "lucide-react";
+import { CheckCircle2, CalendarIcon, Save, CloudUpload } from "lucide-react";
+import { useSettings } from "@/hooks/use-settings";
+import { Button } from "@/components/ui/button";
 
 interface DailyCloseHeaderProps {
   reportDate: string;
@@ -11,14 +13,28 @@ export function DailyCloseHeader({
   reportDate,
   setReportDate,
 }: DailyCloseHeaderProps) {
+  const { handleDownloadBackup, handleSync } = useSettings();
+
   return (
     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
       <Alert className="bg-primary/5 border-primary/20 flex-1">
         <CheckCircle2 className="h-4 w-4 text-primary" />
         <AlertTitle>Daily Close Ready</AlertTitle>
-        <AlertDescription>
-          This report aggregates all transactions made on {reportDate}. Use this
-          for end of day reconciliation.
+        <AlertDescription className="flex items-center justify-between flex-wrap gap-2">
+          <span>
+            This report aggregates all transactions made on {reportDate}. Use this
+            for end of day reconciliation.
+          </span>
+          <div className="flex items-center gap-2 mt-2 sm:mt-0">
+            <Button variant="outline" size="sm" onClick={handleDownloadBackup} className="h-8">
+              <Save className="h-4 w-4 mr-2" />
+              Download Local Backup
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => handleSync(true)} className="h-8">
+              <CloudUpload className="h-4 w-4 mr-2" />
+              Cloud Sync Now
+            </Button>
+          </div>
         </AlertDescription>
       </Alert>
 

@@ -319,6 +319,15 @@ export async function initDatabase(): Promise<any> {
       ],
     },
     { table: "payment_accounts", columns: ["user_id TEXT", "store_id TEXT"] },
+    {
+      table: "requested_products",
+      columns: [
+        "_version INTEGER DEFAULT 1",
+        "_synced INTEGER DEFAULT 0",
+        "_synced_at TEXT",
+        "_deleted INTEGER DEFAULT 0",
+      ],
+    },
   ];
 
   if (isTauri()) {
@@ -704,6 +713,7 @@ export async function resetDatabase(): Promise<void> {
     "stock_audits",
     "held_transactions",
     "loyalty_transactions",
+    "requested_products",
     "_sync_state",
     "_sync_queue",
   ];

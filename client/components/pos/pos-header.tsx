@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useLocalData } from "@/lib/db/hooks/useLocalData";
 import { Badge } from "@/components/ui/badge";
+import { RequestItemDialog } from "./request-item-dialog";
 
 interface POSHeaderProps {
   posMode: "standard" | "speed";
@@ -79,6 +80,10 @@ export function POSHeader({
                 Optimized for barcode scanning and fast checkout
               </TooltipContent>
             </Tooltip>
+
+            <div className="w-px h-6 bg-border mx-0.5 shrink-0" />
+
+            <RequestItemDialog />
 
             <div className="w-px h-6 bg-border mx-0.5 shrink-0" />
 

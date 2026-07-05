@@ -20,6 +20,7 @@ use App\Models\Expense;
 use App\Models\StockMovement;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
+use App\Models\RequestedProduct;
 use App\Services\Web\SyncPayloadMapper;
 
 class SyncController extends Controller
@@ -139,7 +140,7 @@ class SyncController extends Controller
                 $tablesWithUserId = [
                     'sales', 'customers', 'products', 'stock_batches', 
                     'subscriptions', 'payment_transactions', 'categories', 
-                    'suppliers', 'prescriptions', 'stores'
+                    'suppliers', 'prescriptions', 'stores', 'requested_products'
                 ];
                 if (in_array($change['table_name'], $tablesWithUserId)) {
                     if (!isset($payload['user_id']) || empty($payload['user_id'])) {
@@ -431,7 +432,7 @@ class SyncController extends Controller
         $changes = [];
         $serverTimestamp = now()->toIso8601String();
 
-        $tables = ['products', 'stock_batches', 'categories', 'customers', 'suppliers', 'sales', 'stores', 'users', 'stock_movements', 'purchase_orders', 'purchase_order_items', 'expenses', 'payment_accounts'];
+        $tables = ['products', 'stock_batches', 'categories', 'customers', 'suppliers', 'sales', 'stores', 'users', 'stock_movements', 'purchase_orders', 'purchase_order_items', 'expenses', 'payment_accounts', 'requested_products'];
 
         foreach ($tables as $table) {
             $lastSynced = $lastSyncedMap[$table] ?? null;
@@ -601,6 +602,7 @@ class SyncController extends Controller
             'payment_accounts' => \App\Models\PaymentAccount::class,
             'returns' => \App\Models\SaleReturn::class,
             'return_items' => \App\Models\SaleReturnItem::class,
+            'requested_products' => RequestedProduct::class,
         ];
         return $map[$tableName] ?? null;
     }

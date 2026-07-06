@@ -27,11 +27,11 @@ export function CloudAuth({ form, itemVariant }: CloudAuthProps) {
               <FormLabel className="text-gray-300">Password</FormLabel>
               <FormControl>
                 <div className="relative group">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 group-focus-within:text-accent transition-colors" />
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 group-focus-within:text-primary transition-colors" />
                   <Input
                     type="password"
                     placeholder="******"
-                    className="pl-10 bg-white/5 border-white/10 text-white focus:border-accent/50 focus:ring-accent/20 h-11"
+                    className="pl-10 bg-white/5 border-white/10 text-white focus:border-primary/50 focus:ring-primary/20 h-11"
                     {...field}
                   />
                 </div>
@@ -51,11 +51,11 @@ export function CloudAuth({ form, itemVariant }: CloudAuthProps) {
               <FormLabel className="text-gray-300">Confirm Password</FormLabel>
               <FormControl>
                 <div className="relative group">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 group-focus-within:text-accent transition-colors" />
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 group-focus-within:text-primary transition-colors" />
                   <Input
                     type="password"
                     placeholder="******"
-                    className="pl-10 bg-white/5 border-white/10 text-white focus:border-accent/50 focus:ring-accent/20 h-11"
+                    className="pl-10 bg-white/5 border-white/10 text-white focus:border-primary/50 focus:ring-primary/20 h-11"
                     {...field}
                   />
                 </div>

@@ -29,10 +29,10 @@ export function StoreDetails({ form, itemVariant }: StoreDetailsProps) {
               </FormLabel>
               <FormControl>
                 <div className="relative group">
-                  <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 group-focus-within:text-accent transition-colors" />
+                  <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 group-focus-within:text-primary transition-colors" />
                   <Input
                     placeholder="Dumos Store"
-                    className="pl-10 bg-white/5 border-white/10 text-white focus:border-accent/50 focus:ring-accent/20 h-11"
+                    className="pl-10 bg-white/5 border-white/10 text-white focus:border-primary/50 focus:ring-primary/20 h-11"
                     {...field}
                   />
                 </div>
@@ -52,7 +52,7 @@ export function StoreDetails({ form, itemVariant }: StoreDetailsProps) {
               <FormLabel className="text-gray-300">Store Type</FormLabel>
               <FormControl>
                 <select
-                  className="flex h-11 w-full rounded-md bg-white/5 border border-white/10 px-3 py-2 text-sm text-white focus:border-accent/50 focus:ring-accent/20 focus:outline-none transition-colors"
+                  className="flex h-11 w-full rounded-md bg-white/5 border border-white/10 px-3 py-2 text-sm text-white focus:border-primary/50 focus:ring-primary/20 focus:outline-none transition-colors"
                   {...field}
                 >
                   <option value="pharmacy" className="text-gray-900">

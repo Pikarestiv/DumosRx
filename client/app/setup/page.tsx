@@ -42,7 +42,10 @@ export default function SetupPage() {
   const fromLogin = searchParams.get("from") === "login";
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden bg-background">
+    <div
+      className="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden bg-background"
+      style={{ paddingTop: "calc(var(--tauri-top, 0px) + 1rem)" }}
+    >
       {/* Premium Background Effects */}
       <div className="absolute inset-0 z-0">
         <div className="absolute inset-0 bg-gradient-to-tr from-primary/5 via-transparent to-accent/5 dark:from-primary/10 dark:to-accent/10" />
@@ -109,8 +112,8 @@ export default function SetupPage() {
           )}
 
           {onboardingStep === "backup" && (
-            <BackupStep 
-              onCancel={() => setStep("welcome")} 
+            <BackupStep
+              onCancel={() => setStep("welcome")}
               onRestore={handleLocalRestore}
               isLoading={isLoading}
             />

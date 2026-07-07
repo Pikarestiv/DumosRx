@@ -98,7 +98,10 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden bg-background">
+    <div
+      className="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden bg-background"
+      style={{ paddingTop: "calc(var(--tauri-top, 0px) + 1rem)" }}
+    >
       <div className="absolute inset-0 z-0">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent to-background/60" />
       </div>
@@ -225,15 +228,13 @@ export default function LoginPage() {
                   </div>
                 </div>
 
-                <div className="pt-2 text-center">
+                <div className="pt-2 text-center text-xs text-muted-foreground">
+                  Moving from another device?{" "}
                   <Link
                     href="/setup?step=backup&from=login"
-                    className="text-xs text-muted-foreground hover:text-primary transition-colors"
+                    className="font-semibold hover:underline hover:text-primary transition-colors"
                   >
-                    Moving from another device?{" "}
-                    <span className="font-semibold underline">
-                      Restore from Backup
-                    </span>
+                    Restore from Backup
                   </Link>
                 </div>
               </CardContent>

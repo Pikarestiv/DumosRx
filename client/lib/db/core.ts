@@ -738,10 +738,18 @@ export async function resetDatabase(): Promise<void> {
 
   for (const table of tablesToClear) {
     try {
-      await execute(`DELETE FROM ${table}`);
+      if (isTauri()) {
+        await execute(`DELETE FROM ${table}`);
+      } else {
+        db.run(`DELETE FROM ${table}`);
+      }
     } catch (_e) {
       console.warn(`Failed to clear table ${table}`, _e);
     }
+  }
+
+  if (!isTauri()) {
+    saveDatabase();
   }
 
   if (typeof window !== "undefined") {
@@ -790,10 +798,18 @@ export async function clearDatabaseForNewStore(): Promise<void> {
 
   for (const table of tablesToClear) {
     try {
-      await execute(`DELETE FROM ${table}`);
+      if (isTauri()) {
+        await execute(`DELETE FROM ${table}`);
+      } else {
+        db.run(`DELETE FROM ${table}`);
+      }
     } catch (_e) {
       console.warn(`Failed to clear table ${table} during store transition`, _e);
     }
+  }
+
+  if (!isTauri()) {
+    saveDatabase();
   }
 
   if (typeof window !== "undefined") {

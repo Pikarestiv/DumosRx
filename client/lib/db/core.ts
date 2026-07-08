@@ -738,13 +738,12 @@ export async function resetDatabase(): Promise<void> {
 
   for (const table of tablesToClear) {
     try {
-      db.run(`DELETE FROM ${table}`);
+      await execute(`DELETE FROM ${table}`);
     } catch (_e) {
       console.warn(`Failed to clear table ${table}`, _e);
     }
   }
 
-  saveDatabase();
   if (typeof window !== "undefined") {
     localStorage.removeItem("last_sync_time");
     window.location.reload();
@@ -791,13 +790,12 @@ export async function clearDatabaseForNewStore(): Promise<void> {
 
   for (const table of tablesToClear) {
     try {
-      db.run(`DELETE FROM ${table}`);
+      await execute(`DELETE FROM ${table}`);
     } catch (_e) {
       console.warn(`Failed to clear table ${table} during store transition`, _e);
     }
   }
 
-  saveDatabase();
   if (typeof window !== "undefined") {
     localStorage.removeItem("last_sync_time");
   }

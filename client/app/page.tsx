@@ -16,7 +16,10 @@ import Link from "next/link";
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-background text-foreground transition-colors duration-500">
+    <div
+      className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-background text-foreground transition-colors duration-500"
+      style={{ paddingTop: "calc(var(--tauri-top, 0px) + 1rem)" }}
+    >
       {/* Premium Background Effects */}
       <div className="absolute inset-0 z-0">
         {/* Animated Mesh Gradient Overlay */}

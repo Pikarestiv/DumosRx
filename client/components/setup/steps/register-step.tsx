@@ -44,27 +44,27 @@ export function RegisterStep({ onRegister, isLoading, isCloudLinked, existingSto
       exit={{ opacity: 0, x: -20 }}
     >
       <Card className="border-border shadow-2xl bg-card/60 backdrop-blur-2xl">
-        <CardHeader className="space-y-1 flex flex-col items-center text-center pb-2">
-          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
-            <UserPlus className="h-6 w-6 text-primary" />
+        <CardHeader className="space-y-1 flex flex-col items-center text-center pb-1 pt-4">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-2">
+            <UserPlus className="h-5 w-5 text-primary" />
           </div>
-          <CardTitle className="text-2xl font-bold">
+          <CardTitle className="text-xl font-bold">
             {isCloudLinked ? "Cloud Setup" : "New Administrator"}
           </CardTitle>
-          <CardDescription className="text-muted-foreground">
+          <CardDescription className="text-muted-foreground text-xs">
             {isCloudLinked 
               ? "Account linked! Now create your local master login." 
               : "Create your master local account"}
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-4 pt-6">
+          <CardContent className="space-y-2.5 pt-3 pb-3">
             {existingStores.length > 0 && (
-              <div className="space-y-2">
-                <Label htmlFor="store-select">Assign to Shop</Label>
+              <div className="space-y-1">
+                <Label htmlFor="store-select" className="text-xs">Assign to Shop</Label>
                 <select 
                   id="store-select"
-                  className="w-full h-11 bg-background/50 border border-input rounded-md px-3 text-sm font-bold focus:ring-2 focus:ring-primary outline-none transition-all"
+                  className="w-full h-10 bg-background/50 border border-input rounded-md px-3 text-sm font-bold focus:ring-2 focus:ring-primary outline-none transition-all"
                   value={selectedStoreId}
                   onChange={(e) => {
                     setSelectedStoreId(e.target.value);
@@ -84,57 +84,58 @@ export function RegisterStep({ onRegister, isLoading, isCloudLinked, existingSto
               </div>
             )}
 
-            <div className="space-y-2">
-              <Label htmlFor="store-name">
+            <div className="space-y-1">
+              <Label htmlFor="store-name" className="text-xs">
                 {selectedStoreId === "new" ? "New Store / Store Name" : "Shop Name (Selected)"}
               </Label>
               <Input
                 id="store-name"
                 placeholder="e.g. Dumos Health Store"
-                className="bg-background/50 font-bold border-primary/20 focus:border-primary disabled:opacity-80"
+                className="bg-background/50 font-bold border-primary/20 focus:border-primary disabled:opacity-80 h-10"
                 value={storeName}
                 onChange={(e) => setStoreName(e.target.value)}
                 required
                 disabled={selectedStoreId !== "new"}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="first_name">First Name</Label>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="first_name" className="text-xs">First Name</Label>
                 <Input
                   id="first_name"
                   placeholder="e.g. John"
-                  className="bg-background/50"
+                  className="bg-background/50 h-10"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
                   required
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="last_name">Last Name</Label>
+              <div className="space-y-1">
+                <Label htmlFor="last_name" className="text-xs">Last Name</Label>
                 <Input
                   id="last_name"
                   placeholder="e.g. Doe"
-                  className="bg-background/50"
+                  className="bg-background/50 h-10"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
                   required
                 />
               </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="reg-username">Username</Label>
+            <div className="space-y-1">
+              <Label htmlFor="reg-username" className="text-xs">Username</Label>
               <Input
                 id="reg-username"
                 placeholder="admin"
-                className="bg-background/50"
+                className="bg-background/50 h-10"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="reg-pin">Secure PIN</Label>
+            <div className="space-y-1">
+              <Label htmlFor="reg-pin" className="text-xs">Secure PIN</Label>
               <div className="flex justify-start">
                 <InputOTP
                   maxLength={4}
@@ -142,19 +143,19 @@ export function RegisterStep({ onRegister, isLoading, isCloudLinked, existingSto
                   onChange={(value) => setPin(value)}
                 >
                   <InputOTPGroup className="gap-2">
-                    <InputOTPSlot index={0} className="w-12 h-11 text-xl font-semibold rounded-md border border-input bg-background/50 transition-all focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary shadow-sm" />
-                    <InputOTPSlot index={1} className="w-12 h-11 text-xl font-semibold rounded-md border border-input bg-background/50 transition-all focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary shadow-sm" />
-                    <InputOTPSlot index={2} className="w-12 h-11 text-xl font-semibold rounded-md border border-input bg-background/50 transition-all focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary shadow-sm" />
-                    <InputOTPSlot index={3} className="w-12 h-11 text-xl font-semibold rounded-md border border-input bg-background/50 transition-all focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary shadow-sm" />
+                    <InputOTPSlot index={0} className="w-10 h-10 text-lg font-semibold rounded-md border border-input bg-background/50 transition-all focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary shadow-sm" />
+                    <InputOTPSlot index={1} className="w-10 h-10 text-lg font-semibold rounded-md border border-input bg-background/50 transition-all focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary shadow-sm" />
+                    <InputOTPSlot index={2} className="w-10 h-10 text-lg font-semibold rounded-md border border-input bg-background/50 transition-all focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary shadow-sm" />
+                    <InputOTPSlot index={3} className="w-10 h-10 text-lg font-semibold rounded-md border border-input bg-background/50 transition-all focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary shadow-sm" />
                   </InputOTPGroup>
                 </InputOTP>
               </div>
             </div>
           </CardContent>
-          <CardFooter className="flex flex-col space-y-4 pt-6 pb-8">
+          <CardFooter className="flex flex-col space-y-4 pt-3 pb-5">
             <Button
               type="submit"
-              className="w-full h-12 text-lg font-bold shadow-lg"
+              className="w-full h-11 text-base font-bold shadow-lg"
               disabled={isLoading}
             >
               {isLoading ? (

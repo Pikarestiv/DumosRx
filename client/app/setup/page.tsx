@@ -67,17 +67,16 @@ export default function SetupPage() {
         className="w-full max-w-md z-10"
       >
         {onboardingStep !== "syncing" && (
-          <div className="flex items-center justify-between mb-8">
-            <Button
-              variant="ghost"
-              className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors group p-0"
+          <div className="flex items-center justify-between mb-4">
+            <button
+              className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors group cursor-pointer outline-none bg-transparent border-0 p-0"
               onClick={goBack}
             >
               <ArrowLeft className="h-4 w-4 mr-2 transform group-hover:-translate-x-1 transition-transform" />
               {fromLogin || onboardingStep === "welcome"
                 ? "Back to Login"
                 : "Back to Setup"}
-            </Button>
+            </button>
 
             <Button
               variant="ghost"

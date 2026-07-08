@@ -19,7 +19,7 @@ class ApiClient extends BaseApiClient {
   }
 
   async getProfile() {
-    return this.request<any>("/auth/profile");
+    return this.request<any>("/user");
   }
 
   // Products endpoints

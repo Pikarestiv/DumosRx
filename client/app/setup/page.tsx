@@ -6,6 +6,7 @@ import { ArrowLeft, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useOnboarding } from "./use-onboarding";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 // Steps Components
 import { WelcomeStep } from "@/components/setup/steps/welcome-step";
@@ -29,6 +30,10 @@ export default function SetupPage() {
     isCloudLinked,
     existingStores,
     searchParams,
+    showConfirmSwitch,
+    pendingStoreName,
+    confirmCloudRestoreSwitch,
+    cancelCloudRestoreSwitch,
   } = useOnboarding();
 
   if (isCheckingStatus) {
@@ -123,6 +128,34 @@ export default function SetupPage() {
           )}
         </AnimatePresence>
       </motion.div>
+
+      <ConfirmDialog
+        open={showConfirmSwitch}
+        onOpenChange={(open) => {
+          if (!open) {
+            cancelCloudRestoreSwitch();
+          }
+        }}
+        title="Confirm Store Switch"
+        description={
+          <div className="space-y-3 text-sm leading-relaxed text-muted-foreground">
+            <p>
+              This device is already configured with local data for{" "}
+              <strong className="text-foreground font-semibold">&ldquo;{pendingStoreName}&rdquo;</strong>.
+            </p>
+            <p>
+              Syncing a different store will{" "}
+              <strong className="text-destructive font-semibold">permanently DELETE</strong>{" "}
+              all current local data (products, batches, sales, and accounts) and replace it with the new store&apos;s data.
+            </p>
+            <p className="font-semibold text-foreground mt-2">Do you want to proceed?</p>
+          </div>
+        }
+        confirmLabel="Wipe & Sync New Store"
+        cancelLabel="Keep Current Store"
+        variant="destructive"
+        onConfirm={confirmCloudRestoreSwitch}
+      />
     </div>
   );
 }

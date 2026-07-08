@@ -708,24 +708,30 @@ export async function resetDatabase(): Promise<void> {
   if (!db) await initDatabase();
 
   const tablesToClear = [
-    "products",
-    "stock_batches",
-    "sales",
-    "sale_items",
-    "customers",
-    "expenses",
-    
-    "categories",
+    "prescription_items",
     "prescriptions",
-    "audit_logs",
+    "return_items",
     "returns",
-    "purchase_orders",
+    "sale_items",
+    "sales",
     "purchase_order_items",
+    "purchase_orders",
+    "customer_payments",
+    "customers",
+    "supplier_payments",
     "suppliers",
     "stock_audits",
+    "stock_movements",
+    "stock_batches",
+    "products",
+    "categories",
+    "expenses",
+    "audit_logs",
     "held_transactions",
     "loyalty_transactions",
     "requested_products",
+    "feedback",
+    "payment_accounts",
     "_sync_state",
     "_sync_queue",
   ];
@@ -742,6 +748,58 @@ export async function resetDatabase(): Promise<void> {
   if (typeof window !== "undefined") {
     localStorage.removeItem("last_sync_time");
     window.location.reload();
+  }
+}
+
+/**
+ * Wipes all local store tables (including users and stores) without page reload.
+ * Used when linking a new cloud store on an already-configured device.
+ */
+export async function clearDatabaseForNewStore(): Promise<void> {
+  if (!db) await initDatabase();
+
+  const tablesToClear = [
+    "prescription_items",
+    "prescriptions",
+    "return_items",
+    "returns",
+    "sale_items",
+    "sales",
+    "purchase_order_items",
+    "purchase_orders",
+    "customer_payments",
+    "customers",
+    "supplier_payments",
+    "suppliers",
+    "stock_audits",
+    "stock_movements",
+    "stock_batches",
+    "products",
+    "categories",
+    "expenses",
+    "audit_logs",
+    "held_transactions",
+    "loyalty_transactions",
+    "requested_products",
+    "feedback",
+    "payment_accounts",
+    "_sync_state",
+    "_sync_queue",
+    "stores",
+    "users",
+  ];
+
+  for (const table of tablesToClear) {
+    try {
+      db.run(`DELETE FROM ${table}`);
+    } catch (_e) {
+      console.warn(`Failed to clear table ${table} during store transition`, _e);
+    }
+  }
+
+  saveDatabase();
+  if (typeof window !== "undefined") {
+    localStorage.removeItem("last_sync_time");
   }
 }
 

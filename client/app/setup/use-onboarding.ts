@@ -5,7 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/context/auth-context";
 import { query, execute, generateId } from "@/lib/db/local-database";
 import { sync } from "@/lib/db/sync-engine";
-import { restoreDatabase } from "@/lib/db/core";
+import { restoreDatabase, clearDatabaseForNewStore } from "@/lib/db/core";
+import { apiClient } from "@/lib/api/client";
 import { toast } from "sonner";
 
 export type OnboardingStep = "welcome" | "register" | "cloud" | "backup" | "syncing";
@@ -17,8 +18,13 @@ export function useOnboarding() {
   const [syncProgress, setSyncProgress] = useState(0);
   const [syncStatus, setSyncStatus] = useState("Initializing sync...");
   const [existingStores, setExistingStores] = useState<any[]>([]);
+  
+  // Custom modal confirmation states
+  const [showConfirmSwitch, setShowConfirmSwitch] = useState(false);
+  const [pendingStoreName, setPendingStoreName] = useState("");
+  const [pendingEmail, setPendingEmail] = useState("");
 
-  const { login, linkCloudAccount, isCloudLinked } = useAuth();
+  const { login, linkCloudAccount, isCloudLinked, logout } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -121,16 +127,53 @@ export function useOnboarding() {
     try {
       const result = await linkCloudAccount(email, pass);
       if (result.success) {
+        // 1. Fetch user profile from the cloud to get their store ID
+        const profile = await apiClient.getProfile();
+        const cloudStoreId = profile?.store_id;
+
+        // 2. Check if a local store is already initialized
+        const localStores = await query<any>("SELECT id, name FROM stores");
+        
+        if (localStores.length > 0 && cloudStoreId && localStores[0].id !== cloudStoreId) {
+          setPendingStoreName(localStores[0].name);
+          setPendingEmail(email);
+          setShowConfirmSwitch(true);
+          setIsLoading(false);
+          return;
+        }
+
         setStep("syncing");
         startSyncProcess(email);
       } else {
         toast.error(result.message);
       }
     } catch (_err) {
+      console.error("Cloud restore failed", _err);
       toast.error("Cloud connection failed");
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const confirmCloudRestoreSwitch = async () => {
+    setShowConfirmSwitch(false);
+    setIsLoading(true);
+    try {
+      // Wipe the local database to prepare for a clean initial sync of the new store
+      await clearDatabaseForNewStore();
+      setStep("syncing");
+      startSyncProcess(pendingEmail);
+    } catch (_err) {
+      console.error("Cloud restore switch failed", _err);
+      toast.error("Failed to clear database for new store");
+      setIsLoading(false);
+    }
+  };
+
+  const cancelCloudRestoreSwitch = async () => {
+    setShowConfirmSwitch(false);
+    await logout();
+    setIsLoading(false);
   };
 
   const startSyncProcess = async (email?: string) => {
@@ -228,5 +271,10 @@ export function useOnboarding() {
     goBack, isCloudLinked,
     existingStores,
     searchParams,
+    showConfirmSwitch,
+    setShowConfirmSwitch,
+    pendingStoreName,
+    confirmCloudRestoreSwitch,
+    cancelCloudRestoreSwitch,
   };
 }

@@ -175,8 +175,17 @@ class ApiClient extends BaseApiClient {
     if (isSetup) params.append("setup", "1");
     if (params.toString()) url += `?${params.toString()}`;
 
+    const headers: Record<string, string> = {};
+    if (typeof window !== "undefined") {
+      const activeStoreId = localStorage.getItem("dumos_active_store_id");
+      if (activeStoreId) {
+        headers["X-Store-Id"] = activeStoreId;
+      }
+    }
+
     return this.request(url, {
       method: "POST",
+      headers,
       body: JSON.stringify(payload),
     });
   }
@@ -192,8 +201,17 @@ class ApiClient extends BaseApiClient {
     if (isSetup) params.append("setup", "1");
     if (params.toString()) url += `?${params.toString()}`;
 
+    const headers: Record<string, string> = {};
+    if (typeof window !== "undefined") {
+      const activeStoreId = localStorage.getItem("dumos_active_store_id");
+      if (activeStoreId) {
+        headers["X-Store-Id"] = activeStoreId;
+      }
+    }
+
     return this.request(url, {
       method: "POST",
+      headers,
       body: JSON.stringify(payload),
     });
   }
@@ -210,6 +228,10 @@ class ApiClient extends BaseApiClient {
   }
 
   // Stores
+  async getStores() {
+    return this.request<any[]>("/stores");
+  }
+
   async checkStoreSlug(slug: string, ignoreId?: string) {
     const url = `/stores/check-slug?slug=${encodeURIComponent(slug)}${ignoreId ? `&ignore_id=${ignoreId}` : ""}`;
     return this.request<{ available: boolean; slug: string }>(url);

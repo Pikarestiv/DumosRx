@@ -14,6 +14,7 @@ import { RegisterStep } from "@/components/setup/steps/register-step";
 import { CloudStep } from "@/components/setup/steps/cloud-step";
 import { BackupStep } from "@/components/setup/steps/backup-step";
 import { SyncingStep } from "@/components/setup/steps/syncing-step";
+import { SelectStoreStep } from "@/components/setup/steps/select-store-step";
 
 export default function SetupPage() {
   const {
@@ -34,6 +35,10 @@ export default function SetupPage() {
     pendingStoreName,
     confirmCloudRestoreSwitch,
     cancelCloudRestoreSwitch,
+    cloudStores,
+    selectedStoreId,
+    setSelectedStoreId,
+    handleSelectStoreConfirm,
   } = useOnboarding();
 
   if (isCheckingStatus) {
@@ -125,6 +130,17 @@ export default function SetupPage() {
 
           {onboardingStep === "syncing" && (
             <SyncingStep progress={syncProgress} status={syncStatus} />
+          )}
+
+          {onboardingStep === "select-store" && (
+            <SelectStoreStep
+              stores={cloudStores}
+              selectedStoreId={selectedStoreId}
+              setSelectedStoreId={setSelectedStoreId}
+              onConfirm={handleSelectStoreConfirm}
+              onCancel={() => setStep("cloud")}
+              isLoading={isLoading}
+            />
           )}
         </AnimatePresence>
       </motion.div>

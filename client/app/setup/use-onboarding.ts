@@ -9,7 +9,7 @@ import { restoreDatabase, clearDatabaseForNewStore } from "@/lib/db/core";
 import { apiClient } from "@/lib/api/client";
 import { toast } from "sonner";
 
-export type OnboardingStep = "welcome" | "register" | "cloud" | "backup" | "syncing";
+export type OnboardingStep = "welcome" | "register" | "cloud" | "backup" | "syncing" | "select-store";
 
 export function useOnboarding() {
   const [onboardingStep, setOnboardingStep] = useState<OnboardingStep>("welcome");
@@ -24,13 +24,17 @@ export function useOnboarding() {
   const [pendingStoreName, setPendingStoreName] = useState("");
   const [pendingEmail, setPendingEmail] = useState("");
 
+  // Store selection states
+  const [cloudStores, setCloudStores] = useState<any[]>([]);
+  const [selectedStoreId, setSelectedStoreId] = useState<string>("");
+
   const { login, linkCloudAccount, isCloudLinked, logout } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
 
   useEffect(() => {
     const step = searchParams.get("step") as OnboardingStep;
-    if (step && ["welcome", "register", "cloud", "backup", "syncing"].includes(step)) {
+    if (step && ["welcome", "register", "cloud", "backup", "syncing", "select-store"].includes(step)) {
       setOnboardingStep(step);
     } else {
       setOnboardingStep("welcome");
@@ -127,23 +131,42 @@ export function useOnboarding() {
     try {
       const result = await linkCloudAccount(email, pass);
       if (result.success) {
-        // 1. Fetch user profile from the cloud to get their store ID
+        // Fetch user profile and available stores from cloud
         const profile = await apiClient.getProfile();
-        const cloudStoreId = profile?.store_id;
+        const stores = await apiClient.getStores();
 
-        // 2. Check if a local store is already initialized
-        const localStores = await query<any>("SELECT id, name FROM stores");
-        
-        if (localStores.length > 0 && cloudStoreId && localStores[0].id !== cloudStoreId) {
-          setPendingStoreName(localStores[0].name);
-          setPendingEmail(email);
-          setShowConfirmSwitch(true);
+        if (stores.length === 0) {
+          toast.error("No stores found on your cloud account. Please register a store first.");
           setIsLoading(false);
           return;
         }
 
-        setStep("syncing");
-        startSyncProcess(email);
+        const localStores = await query<any>("SELECT id, name FROM stores");
+
+        if (stores.length === 1) {
+          // Exactly one store, auto-select it
+          const store = stores[0];
+          setSelectedStoreId(store.id);
+          setPendingEmail(email);
+
+          if (localStores.length > 0 && localStores[0].id !== store.id) {
+            setPendingStoreName(localStores[0].name);
+            setShowConfirmSwitch(true);
+            setIsLoading(false);
+            return;
+          }
+
+          localStorage.setItem("dumos_active_store_id", store.id);
+          setStep("syncing");
+          startSyncProcess(email);
+        } else {
+          // Multiple stores, transition to select-store step
+          setCloudStores(stores);
+          setSelectedStoreId(stores[0].id);
+          setPendingEmail(email);
+          setStep("select-store");
+          setIsLoading(false);
+        }
       } else {
         toast.error(result.message);
       }
@@ -155,12 +178,40 @@ export function useOnboarding() {
     }
   };
 
+  const handleSelectStoreConfirm = async () => {
+    setIsLoading(true);
+    const selectedStore = cloudStores.find(s => s.id === selectedStoreId);
+    if (!selectedStore) {
+      toast.error("Selected store not found");
+      setIsLoading(false);
+      return;
+    }
+
+    const localStores = await query<any>("SELECT id, name FROM stores");
+    if (localStores.length > 0 && localStores[0].id !== selectedStoreId) {
+      setPendingStoreName(localStores[0].name);
+      setShowConfirmSwitch(true);
+      setIsLoading(false);
+      return;
+    }
+
+    localStorage.setItem("dumos_active_store_id", selectedStoreId);
+    setStep("syncing");
+    startSyncProcess(pendingEmail);
+  };
+
   const confirmCloudRestoreSwitch = async () => {
     setShowConfirmSwitch(false);
     setIsLoading(true);
     try {
       // Wipe the local database to prepare for a clean initial sync of the new store
       await clearDatabaseForNewStore();
+
+      const targetStoreId = selectedStoreId || (cloudStores.length === 1 ? cloudStores[0].id : "");
+      if (targetStoreId) {
+        localStorage.setItem("dumos_active_store_id", targetStoreId);
+      }
+
       setStep("syncing");
       startSyncProcess(pendingEmail);
     } catch (_err) {
@@ -237,6 +288,8 @@ export function useOnboarding() {
     const fromLogin = searchParams.get("from") === "login";
     if (fromLogin || onboardingStep === "welcome") {
       router.push("/login");
+    } else if (onboardingStep === "select-store") {
+      setStep("cloud");
     } else {
       setStep("welcome");
     }
@@ -276,5 +329,9 @@ export function useOnboarding() {
     pendingStoreName,
     confirmCloudRestoreSwitch,
     cancelCloudRestoreSwitch,
+    cloudStores,
+    selectedStoreId,
+    setSelectedStoreId,
+    handleSelectStoreConfirm,
   };
 }

@@ -140,7 +140,7 @@ class SyncController extends Controller
                 $tablesWithUserId = [
                     'sales', 'customers', 'products', 'stock_batches', 
                     'subscriptions', 'payment_transactions', 'categories', 
-                    'suppliers', 'prescriptions', 'stores', 'requested_products'
+                    'suppliers', 'prescriptions', 'stores'
                 ];
                 if (in_array($change['table_name'], $tablesWithUserId)) {
                     if (!isset($payload['user_id']) || empty($payload['user_id'])) {
@@ -155,6 +155,14 @@ class SyncController extends Controller
                         $payload['device_id'] = $request->header('X-Device-Id') ?? 'web-client';
                     }
                 }
+                }
+
+                // Inject store_id if missing and table supports it
+                $tablesWithStoreId = ['requested_products', 'payment_accounts'];
+                if (in_array($change['table_name'], $tablesWithStoreId) && $currentStoreId) {
+                    if (empty($payload['store_id'])) {
+                        $payload['store_id'] = $currentStoreId;
+                    }
                 }
 
                 // Prevent NULL constraint violations for products
@@ -481,6 +489,8 @@ class SyncController extends Controller
                 } elseif ($table === 'supplier_payments') {
                     $supplierIds = Supplier::where('user_id', $ownerId)->pluck('id')->toArray();
                     $query->whereIn('supplier_id', $supplierIds);
+                } elseif ($table === 'requested_products') {
+                    $query->whereIn('store_id', $storeIds);
                 } else {
                     // Default to filtering by owner_id for products, customers, suppliers
                     $query->where('user_id', $ownerId);

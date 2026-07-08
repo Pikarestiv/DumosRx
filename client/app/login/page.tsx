@@ -228,14 +228,23 @@ export default function LoginPage() {
                   </div>
                 </div>
 
-                <div className="pt-1 text-center text-xs text-muted-foreground">
-                  Moving from another device?{" "}
-                  <Link
-                    href="/setup?step=backup&from=login"
-                    className="font-semibold hover:underline hover:text-primary transition-colors"
-                  >
-                    Restore from Backup
-                  </Link>
+                <div className="pt-1 text-center text-xs text-muted-foreground flex flex-col items-center gap-1">
+                  <span>Moving from another device?</span>
+                  <div className="flex items-center gap-2">
+                    <Link
+                      href="/setup?step=backup&from=login"
+                      className="font-semibold hover:underline hover:text-primary transition-colors"
+                    >
+                      Restore from Backup
+                    </Link>
+                    <span>•</span>
+                    <Link
+                      href="/setup?step=cloud&from=login"
+                      className="font-semibold hover:underline hover:text-primary transition-colors"
+                    >
+                      Sync from Cloud
+                    </Link>
+                  </div>
                 </div>
               </CardContent>
               <CardFooter className="flex flex-col space-y-4 pt-4 pb-6">

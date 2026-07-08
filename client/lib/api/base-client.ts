@@ -73,14 +73,15 @@ export class BaseApiClient {
     const url = `${this.baseURL}${endpoint}`;
     const currentToken = getToken();
 
+    const { headers: customHeaders, ...restOptions } = options;
     const config: RequestInit = {
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json",
         ...(currentToken && { Authorization: `Bearer ${currentToken}` }),
-        ...options.headers,
+        ...customHeaders,
       },
-      ...options,
+      ...restOptions,
     };
 
     const startTime = Date.now();

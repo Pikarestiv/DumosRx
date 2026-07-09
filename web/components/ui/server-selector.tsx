@@ -30,7 +30,7 @@ const ENVIRONMENTS = [
     name: "Local Development Server (Herd)",
     url:
       process.env.NEXT_PUBLIC_API_URL_LOCAL_HERD ||
-      "http://dumosrx.test/api/v1",
+      "https://dumosrx.test/api/v1",
   },
   {
     name: "Local Development Server (localhost)",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,9 +15,11 @@ import {
   Banknote,
   Zap,
   Package,
-  AlertCircle
+  AlertCircle,
+  Scan
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import { CameraScannerDialog } from "./camera-scanner-dialog";
 
 interface RetailSpeedPOSProps {
   cart: any[];
@@ -37,6 +39,7 @@ interface RetailSpeedPOSProps {
   setPaymentMethod: (method: any) => void;
   setShowPaymentDialog: (show: boolean) => void;
   isFuzzyFallback?: boolean;
+  onScanSuccess?: (barcode: string) => void;
 }
 
 export function RetailSpeedPOS({
@@ -57,8 +60,10 @@ export function RetailSpeedPOS({
   setPaymentMethod,
   setShowPaymentDialog,
   isFuzzyFallback,
+  onScanSuccess,
 }: RetailSpeedPOSProps) {
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
 
   useEffect(() => {
     // Auto-focus search on mount
@@ -66,9 +71,9 @@ export function RetailSpeedPOS({
   }, []);
 
   return (
-    <div className="grid grid-cols-12 gap-4 h-[calc(100vh-12rem)] overflow-hidden">
+    <div className="flex flex-col-reverse lg:grid lg:grid-cols-12 gap-4 h-[calc(100vh-8rem)] lg:h-[calc(100vh-12rem)] overflow-y-auto lg:overflow-hidden pb-10 lg:pb-0">
       {/* Left Column: Cart (Compact) */}
-      <Card className="col-span-4 flex flex-col h-full overflow-hidden border-accent/20">
+      <Card className="lg:col-span-4 flex flex-col h-[60vh] lg:h-full overflow-hidden border-accent/20 shrink-0">
         <CardHeader className="py-3 px-4 border-b bg-accent/5">
           <CardTitle className="text-lg flex items-center gap-2">
             <ShoppingCart className="h-4 w-4" />
@@ -122,22 +127,32 @@ export function RetailSpeedPOS({
       </Card>
 
       {/* Right Column: Search & Quick Actions */}
-      <div className="col-span-8 flex flex-col gap-4 overflow-hidden">
+      <div className="lg:col-span-8 flex flex-col gap-4 overflow-visible lg:overflow-hidden shrink-0 min-h-[50vh] lg:min-h-0">
         {/* Search Bar */}
         <Card className="border-accent/30 shadow-md">
           <CardContent className="p-3">
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-accent pointer-events-none" />
-              <Input
-                ref={searchInputRef}
-                placeholder="READY TO SCAN / SEARCH (F1)"
-                className="pl-12 h-14 text-xl font-bold bg-accent/5 border-2 border-accent/20 focus-visible:ring-accent"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-              <div className="absolute right-4 top-1/2 -translate-y-1/2 flex gap-2">
-                <Badge variant="outline" className="bg-background">Alt + S</Badge>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-accent pointer-events-none" />
+                <Input
+                  ref={searchInputRef}
+                  placeholder="READY TO SCAN / SEARCH"
+                  className="pl-12 h-14 text-sm sm:text-xl font-bold bg-accent/5 border-2 border-accent/20 focus-visible:ring-accent"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 hidden sm:flex gap-2">
+                  <Badge variant="outline" className="bg-background">Alt + S</Badge>
+                </div>
               </div>
+              <Button
+                variant="outline"
+                className="h-14 px-4 sm:px-6 flex items-center justify-center shrink-0 border-accent/20"
+                onClick={() => setIsScannerOpen(true)}
+              >
+                <Scan className="h-5 w-5 sm:mr-2" />
+                <span className="hidden sm:inline font-bold text-sm">Scan</span>
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -201,8 +216,8 @@ export function RetailSpeedPOS({
           </CardContent>
         </Card>
 
-        {/* Payment Shortcut Bar */}
-        <div className="grid grid-cols-5 gap-4">
+        {/* Quick Actions / Shortcuts */}
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 shrink-0">
           <Button 
             className="h-16 text-lg font-bold bg-green-600 hover:bg-green-700 shadow-lg"
             disabled={cart.length === 0}
@@ -211,8 +226,8 @@ export function RetailSpeedPOS({
               setShowPaymentDialog(true);
             }}
           >
-            <Banknote className="mr-2 h-6 w-6" />
-            CASH (F2)
+            <Banknote className="mr-2 h-6 w-6 hidden sm:block" />
+            CASH <span className="hidden sm:inline">&nbsp;(F2)</span>
           </Button>
           <Button 
             className="h-16 text-lg font-bold bg-blue-600 hover:bg-blue-700 shadow-lg"
@@ -222,8 +237,8 @@ export function RetailSpeedPOS({
               setShowPaymentDialog(true);
             }}
           >
-            <CreditCard className="mr-2 h-6 w-6" />
-            CARD (F3)
+            <CreditCard className="mr-2 h-6 w-6 hidden sm:block" />
+            CARD <span className="hidden sm:inline">&nbsp;(F3)</span>
           </Button>
           <Button 
             className="h-16 text-lg font-bold bg-purple-600 hover:bg-purple-700 shadow-lg"
@@ -233,8 +248,8 @@ export function RetailSpeedPOS({
               setShowPaymentDialog(true);
             }}
           >
-            <User className="mr-2 h-6 w-6" />
-            DEBT (F4)
+            <User className="mr-2 h-6 w-6 hidden sm:block" />
+            DEBT <span className="hidden sm:inline">&nbsp;(F4)</span>
           </Button>
           <Button 
             className="h-16 text-lg font-bold bg-amber-600 hover:bg-amber-700 shadow-lg"
@@ -244,8 +259,8 @@ export function RetailSpeedPOS({
               setShowPaymentDialog(true);
             }}
           >
-            <Banknote className="mr-2 h-6 w-6" />
-            MIX (F5)
+            <Banknote className="mr-2 h-6 w-6 hidden sm:block" />
+            MIX <span className="hidden sm:inline">&nbsp;(F5)</span>
           </Button>
           <Button 
             variant="outline" 
@@ -253,10 +268,18 @@ export function RetailSpeedPOS({
             onClick={clearCart}
             disabled={cart.length === 0}
           >
-            CLEAR (Esc)
+            CLEAR <span className="hidden sm:inline">&nbsp;(Esc)</span>
           </Button>
         </div>
       </div>
+      <CameraScannerDialog 
+        isOpen={isScannerOpen} 
+        onClose={() => setIsScannerOpen(false)} 
+        onScanSuccess={(code) => {
+          setIsScannerOpen(false);
+          if (onScanSuccess) onScanSuccess(code);
+        }} 
+      />
     </div>
   );
 }

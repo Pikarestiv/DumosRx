@@ -85,29 +85,32 @@ export function TransactionDetailsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-2xl w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto p-4 sm:p-6">
         <DialogHeader>
-          <DialogTitle className="font-serif text-2xl">
+          <DialogTitle className="font-serif text-xl sm:text-2xl text-center sm:text-left">
             Transaction Details
           </DialogTitle>
-          <DialogDescription>
-            Reference: {sale.transaction_number} •{" "}
-            {new Date(sale.created_at).toLocaleString()}
+          <DialogDescription className="text-center sm:text-left text-xs sm:text-sm">
+            <span>Reference: {sale.transaction_number}</span>
+            <span className="hidden sm:inline"> • </span>
+            <span className="block sm:inline mt-1 sm:mt-0 text-muted-foreground/80 sm:text-muted-foreground">
+              {new Date(sale.created_at).toLocaleString()}
+            </span>
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-2 gap-4 mt-4 p-4 bg-muted/30 rounded-lg">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 mt-4 p-3 sm:p-4 bg-muted/30 rounded-lg">
           <div>
-            <p className="text-sm text-muted-foreground">Customer</p>
-            <p className="font-medium">{sale.customer_name || "Walk-in"}</p>
+            <p className="text-xs sm:text-sm text-muted-foreground">Customer</p>
+            <p className="font-medium text-sm sm:text-base">{sale.customer_name || "Walk-in"}</p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">Payment Method</p>
-            <p className="font-medium capitalize">{sale.payment_method}</p>
+            <p className="text-xs sm:text-sm text-muted-foreground">Payment Method</p>
+            <p className="font-medium capitalize text-sm sm:text-base">{sale.payment_method}</p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">Total Sale Amount</p>
-            <p className="font-medium text-lg text-primary">
+            <p className="text-xs sm:text-sm text-muted-foreground">Total Sale Amount</p>
+            <p className="font-medium text-base sm:text-lg text-primary">
               {formatCurrency(sale.total_amount, currencyCode)}
             </p>
             {totalRefunded > 0 && (
@@ -117,9 +120,9 @@ export function TransactionDetailsDialog({
             )}
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">Total Profit</p>
+            <p className="text-xs sm:text-sm text-muted-foreground">Total Profit</p>
             <p
-              className={`font-medium text-lg ${profit >= 0 ? "text-green-600" : "text-red-600"}`}
+              className={`font-medium text-base sm:text-lg ${profit >= 0 ? "text-green-600" : "text-red-600"}`}
             >
               {formatCurrency(profit, currencyCode)}
             </p>

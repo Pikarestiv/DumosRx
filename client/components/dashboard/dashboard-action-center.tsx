@@ -16,7 +16,6 @@ import {
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
-
 export interface ActionCenterProps {
   expiringCount: number;
   lowStockCount: number;
@@ -220,11 +219,11 @@ export function DashboardActionCenter({
         {alerts.map((alert) => (
           <Card
             key={alert.id}
-            className={`shrink-0 snap-start border-border bg-card shadow-sm overflow-hidden ${cardWidthClass}`}
+            className={`shrink-0 py-0 md:py-4  snap-start border-border bg-card shadow-sm overflow-hidden ${cardWidthClass}`}
           >
-            <div className="p-3 flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="p-3 flex flex-col sm:flex-row sm:items-center gap-2.5 md:gap-3">
               <div
-                className={`p-2.5 rounded-xl shrink-0 self-start ${getPriorityColors(alert.priority)}`}
+                className={`p-1.5 md:p-2.5 rounded-lg sm:rounded-xl shrink-0 self-start ${getPriorityColors(alert.priority)}`}
               >
                 <alert.icon className="h-4 w-4" />
               </div>

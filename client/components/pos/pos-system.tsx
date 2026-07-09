@@ -234,6 +234,7 @@ export function POSSystem() {
           selectedCustomer={selectedCustomer}
           setPaymentMethod={setPaymentMethod}
           setShowPaymentDialog={setShowPaymentDialog}
+          onScanSuccess={handleScanSuccess}
         />
       ) : (
         <div className="flex flex-col lg:grid lg:grid-cols-3 gap-4 lg:gap-6">

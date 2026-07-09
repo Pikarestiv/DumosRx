@@ -25,12 +25,12 @@ export function DailyCloseHeader({
             This report aggregates all transactions made on {reportDate}. Use this
             for end of day reconciliation.
           </span>
-          <div className="flex items-center gap-2 mt-2 sm:mt-0">
-            <Button variant="outline" size="sm" onClick={handleDownloadBackup} className="h-8">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto mt-2 sm:mt-0">
+            <Button variant="outline" size="sm" onClick={handleDownloadBackup} className="h-8 w-full sm:w-auto">
               <Save className="h-4 w-4 mr-2" />
               Download Local Backup
             </Button>
-            <Button variant="outline" size="sm" onClick={() => handleSync(true)} className="h-8">
+            <Button variant="outline" size="sm" onClick={() => handleSync(true)} className="h-8 w-full sm:w-auto">
               <CloudUpload className="h-4 w-4 mr-2" />
               Cloud Sync Now
             </Button>

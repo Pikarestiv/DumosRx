@@ -70,6 +70,7 @@ jobs:
           releaseDraft: false
           prerelease: false
           includeRelease: true
+          includeUpdaterJson: true
 
   release-android:
     runs-on: ubuntu-latest
@@ -179,15 +180,18 @@ jobs:
       - name: Rewrite updater JSON URLs to Namecheap
         run: |
           cd release-assets
-          # Tauri action might name it latest.json or updater.json depending on the version
-          if [ -f "latest.json" ]; then
-            UPDATER_FILE="latest.json"
-          elif [ -f "updater.json" ]; then
-            UPDATER_FILE="updater.json"
-          else
+          # Tauri action might name it latest.json, updater.json, or DumosRx.json depending on the version
+          UPDATER_FILE=$(find . -maxdepth 1 -name "*.json" | head -n 1)
+          if [ -z "$UPDATER_FILE" ]; then
             echo "No updater json found!"
             exit 0
           fi
+          
+          # Normalize name to updater.json for the rest of the script
+          if [ "$UPDATER_FILE" != "./updater.json" ] && [ "$UPDATER_FILE" != "updater.json" ]; then
+            mv "$UPDATER_FILE" "updater.json"
+          fi
+          UPDATER_FILE="updater.json"
           
           # Replace GitHub release URLs with Namecheap subdomain URLs
           # from https://github.com/Pikarestiv/DumosRx/releases/download/v0.0.18/DumosRx_0.0.18_x64_en-US.msi.zip

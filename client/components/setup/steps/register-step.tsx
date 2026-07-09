@@ -135,9 +135,9 @@ export function RegisterStep({ onRegister, isLoading, isCloudLinked, existingSto
               <Input
                 id="reg-username"
                 placeholder="admin"
-                className="bg-background/50 h-10"
+                className="bg-background/50 h-10 lowercase"
                 value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                onChange={(e) => setUsername(e.target.value.toLowerCase())}
                 required
               />
             </div>

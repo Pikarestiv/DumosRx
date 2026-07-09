@@ -81,10 +81,11 @@ export function CloudLinkDialog({ open, onOpenChange, onSuccess }: CloudLinkDial
               <Label htmlFor="cloud-email">Cloud Email</Label>
               <Input
                 id="cloud-email"
+                className="lowercase"
                 type="email"
                 placeholder="admin@store.com"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => setEmail(e.target.value.toLowerCase())}
                 disabled={isLoading}
               />
             </div>

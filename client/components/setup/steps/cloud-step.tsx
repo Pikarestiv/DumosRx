@@ -55,9 +55,9 @@ export function CloudStep({ onCloudRestore, isLoading }: CloudStepProps) {
                 id="cloud-email"
                 type="email"
                 placeholder="your@email.com"
-                className="bg-background/50"
+                className="bg-background/50 lowercase"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => setEmail(e.target.value.toLowerCase())}
                 required
               />
             </div>

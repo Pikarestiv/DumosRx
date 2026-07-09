@@ -206,9 +206,9 @@ export default function LoginPage() {
                     <Input
                       id="username"
                       placeholder="admin"
-                      className="pl-10 bg-background/50 border-border focus:border-primary/50 focus:ring-primary/20 transition-all"
+                      className="pl-10 bg-background/50 border-border focus:border-primary/50 focus:ring-primary/20 transition-all lowercase"
                       value={username}
-                      onChange={(e) => setUsername(e.target.value)}
+                      onChange={(e) => setUsername(e.target.value.toLowerCase())}
                       required
                     />
                   </div>

@@ -17,19 +17,26 @@ import { toast } from "sonner";
 const ENVIRONMENTS = [
   {
     name: "Production Server",
-    url: process.env.NEXT_PUBLIC_API_URL_PROD || "https://api.dumosrx.com/api/v1",
+    url:
+      process.env.NEXT_PUBLIC_API_URL_PROD || "https://api.dumosrx.com/api/v1",
   },
   {
     name: "Staging / Dev Server",
-    url: process.env.NEXT_PUBLIC_API_URL_STAGING || "https://api.dev.dumosrx.com/api/v1",
+    url:
+      process.env.NEXT_PUBLIC_API_URL_STAGING ||
+      "https://api.dev.dumosrx.com/api/v1",
   },
   {
     name: "Local Development Server (Herd)",
-    url: process.env.NEXT_PUBLIC_API_URL_LOCAL_HERD || "http://dumosrx-laravel-server.test/api/v1",
+    url:
+      process.env.NEXT_PUBLIC_API_URL_LOCAL_HERD ||
+      "http://dumosrx.test/api/v1",
   },
   {
     name: "Local Development Server (localhost)",
-    url: process.env.NEXT_PUBLIC_API_URL_LOCAL_NODE || "http://localhost:8000/api/v1",
+    url:
+      process.env.NEXT_PUBLIC_API_URL_LOCAL_NODE ||
+      "http://localhost:8000/api/v1",
   },
 ];
 

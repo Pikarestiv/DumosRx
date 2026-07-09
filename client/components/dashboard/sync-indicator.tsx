@@ -217,7 +217,7 @@ export function SyncIndicator({ collapsed = false }: { collapsed?: boolean }) {
                     >
                       <RefreshCw
                         className={cn(
-                          "h-3 w-3 text-sidebar-foreground/60 !flex",
+                          "h-3 w-3 text-secondary-foreground !flex",
                           isSyncInProgress && "animate-spin",
                         )}
                       />

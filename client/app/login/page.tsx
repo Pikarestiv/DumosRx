@@ -75,7 +75,8 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const success = await login(username, pin);
+      const cleanUsername = username.trim().toLowerCase();
+      const success = await login(cleanUsername, pin);
       if (success) {
         toast.success("Welcome back!");
         router.push("/dashboard");

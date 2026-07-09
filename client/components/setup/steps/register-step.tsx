@@ -33,7 +33,14 @@ export function RegisterStep({ onRegister, isLoading, isCloudLinked, existingSto
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onRegister(firstName, lastName, username, pin, storeName, selectedStoreId === "new" ? undefined : selectedStoreId);
+    onRegister(
+      firstName.trim(),
+      lastName.trim(),
+      username.trim().toLowerCase(),
+      pin,
+      storeName.trim(),
+      selectedStoreId === "new" ? undefined : selectedStoreId
+    );
   };
 
   return (

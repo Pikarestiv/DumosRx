@@ -57,7 +57,19 @@ class SyncController extends Controller
         $currentUser = $request->user();
         $currentStoreId = null;
         if ($currentUser) {
-            $currentStoreId = $currentUser->store_id ?? Store::where('user_id', $currentUser->id)->value('id');
+            $requestedStoreId = $request->header('X-Store-Id') ?? $request->input('store_id');
+            if ($requestedStoreId) {
+                $ownerId = $currentUser->store_id 
+                    ? Store::where('id', $currentUser->store_id)->value('user_id') 
+                    : $currentUser->id;
+                $ownsStore = Store::where('id', $requestedStoreId)->where('user_id', $ownerId)->exists();
+                if ($ownsStore) {
+                    $currentStoreId = $requestedStoreId;
+                }
+            }
+            if (!$currentStoreId) {
+                $currentStoreId = $currentUser->store_id ?? Store::where('user_id', $currentUser->id)->value('id');
+            }
         }
 
         try {
@@ -140,7 +152,7 @@ class SyncController extends Controller
                 $tablesWithUserId = [
                     'sales', 'customers', 'products', 'stock_batches', 
                     'subscriptions', 'payment_transactions', 'categories', 
-                    'suppliers', 'prescriptions', 'stores', 'requested_products'
+                    'suppliers', 'prescriptions', 'stores'
                 ];
                 if (in_array($change['table_name'], $tablesWithUserId)) {
                     if (!isset($payload['user_id']) || empty($payload['user_id'])) {
@@ -155,6 +167,14 @@ class SyncController extends Controller
                         $payload['device_id'] = $request->header('X-Device-Id') ?? 'web-client';
                     }
                 }
+                }
+
+                // Inject store_id if missing and table supports it
+                $tablesWithStoreId = ['requested_products', 'payment_accounts'];
+                if (in_array($change['table_name'], $tablesWithStoreId) && $currentStoreId) {
+                    if (empty($payload['store_id'])) {
+                        $payload['store_id'] = $currentStoreId;
+                    }
                 }
 
                 // Prevent NULL constraint violations for products
@@ -452,20 +472,26 @@ class SyncController extends Controller
                     ? Store::where('id', $user->store_id)->value('user_id') 
                     : $user->id;
                 
-                $storeIds = $user->store_id 
-                    ? [$user->store_id] 
-                    : Store::where('user_id', $ownerId)->pluck('id')->toArray();
+                $requestedStoreId = $request->header('X-Store-Id') ?? $request->input('store_id');
+                if ($requestedStoreId) {
+                    $ownsStore = Store::where('id', $requestedStoreId)->where('user_id', $ownerId)->exists();
+                    if ($ownsStore) {
+                        $storeIds = [$requestedStoreId];
+                    } else {
+                        $storeIds = [];
+                    }
+                } else {
+                    $storeIds = $user->store_id 
+                        ? [$user->store_id] 
+                        : Store::where('user_id', $ownerId)->pluck('id')->toArray();
+                }
                     
                 $userIds = User::whereIn('store_id', $storeIds)->pluck('id')->push($ownerId)->toArray();
 
                 if ($table === 'users') {
                     $query->whereIn('id', $userIds);
                 } elseif ($table === 'stores') {
-                    if ($user->store_id) {
-                        $query->where('id', $user->store_id)->with(['user.subscriptions']);
-                    } else {
-                        $query->where('user_id', $ownerId)->with(['user.subscriptions']);
-                    }
+                    $query->whereIn('id', $storeIds)->with(['user.subscriptions']);
                 } elseif ($table === 'sales') {
                     $query->whereIn('cashier_id', $userIds);
                 } elseif ($table === 'purchase_orders') {
@@ -481,6 +507,8 @@ class SyncController extends Controller
                 } elseif ($table === 'supplier_payments') {
                     $supplierIds = Supplier::where('user_id', $ownerId)->pluck('id')->toArray();
                     $query->whereIn('supplier_id', $supplierIds);
+                } elseif ($table === 'requested_products') {
+                    $query->whereIn('store_id', $storeIds);
                 } else {
                     // Default to filtering by owner_id for products, customers, suppliers
                     $query->where('user_id', $ownerId);

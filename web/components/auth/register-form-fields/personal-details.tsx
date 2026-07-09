@@ -29,7 +29,7 @@ export function PersonalDetails({ form, itemVariant }: PersonalDetailsProps) {
                 <FormControl>
                   <Input
                     placeholder="John"
-                    className="bg-white/5 border-white/10 text-white focus:border-accent/50 focus:ring-accent/20 h-11"
+                    className="bg-white/5 border-white/10 text-white focus:border-primary/50 focus:ring-primary/20 h-11"
                     {...field}
                   />
                 </FormControl>
@@ -49,7 +49,7 @@ export function PersonalDetails({ form, itemVariant }: PersonalDetailsProps) {
                 <FormControl>
                   <Input
                     placeholder="Doe"
-                    className="bg-white/5 border-white/10 text-white focus:border-accent/50 focus:ring-accent/20 h-11"
+                    className="bg-white/5 border-white/10 text-white focus:border-primary/50 focus:ring-primary/20 h-11"
                     {...field}
                   />
                 </FormControl>
@@ -70,11 +70,11 @@ export function PersonalDetails({ form, itemVariant }: PersonalDetailsProps) {
                 <FormLabel className="text-gray-300">Email Address</FormLabel>
                 <FormControl>
                   <div className="relative group">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 group-focus-within:text-accent transition-colors" />
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 group-focus-within:text-primary transition-colors" />
                     <Input
                       placeholder="name@example.com"
                       type="email"
-                      className="pl-10 bg-white/5 border-white/10 text-white focus:border-accent/50 focus:ring-accent/20 h-11"
+                      className="pl-10 bg-white/5 border-white/10 text-white focus:border-primary/50 focus:ring-primary/20 h-11"
                       {...field}
                     />
                   </div>
@@ -94,11 +94,11 @@ export function PersonalDetails({ form, itemVariant }: PersonalDetailsProps) {
                 <FormLabel className="text-gray-300">Phone Number</FormLabel>
                 <FormControl>
                   <div className="relative group">
-                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 group-focus-within:text-accent transition-colors" />
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 group-focus-within:text-primary transition-colors" />
                     <Input
                       placeholder="08012345678"
                       type="tel"
-                      className="pl-10 bg-white/5 border-white/10 text-white focus:border-accent/50 focus:ring-accent/20 h-11"
+                      className="pl-10 bg-white/5 border-white/10 text-white focus:border-primary/50 focus:ring-primary/20 h-11"
                       {...field}
                     />
                   </div>

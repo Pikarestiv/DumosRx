@@ -242,8 +242,10 @@ export function AutoUpdater() {
           </p>
           <div className="flex gap-2 justify-end pt-1">
             <Button size="sm" variant="ghost" onClick={() => setStatus("idle")} className="text-xs">Later</Button>
-            <Button size="sm" onClick={openDownloadLink} className="text-xs font-bold px-4 flex items-center gap-1.5">
-              <ExternalLink className="w-3.5 h-3.5" /> Download Update
+            <Button size="sm" className="text-xs font-bold px-4 flex items-center gap-1.5" asChild onClick={() => setStatus("idle")}>
+              <a href={DOWNLOAD_URL} target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="w-3.5 h-3.5" /> Download Update
+              </a>
             </Button>
           </div>
         </div>

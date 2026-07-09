@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogFooter, 
-  DialogHeader, 
-  DialogTitle 
+import { useState, useEffect } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +17,6 @@ import { useStore } from "@/lib/context/store-context";
 import { toast } from "sonner";
 import { Cloud, Loader2, AlertTriangle } from "lucide-react";
 import { WEB_APP_URL } from "@/lib/constants";
-import { useEffect } from "react";
 
 interface CloudLinkDialogProps {
   open: boolean;
@@ -47,7 +46,7 @@ export function CloudLinkDialog({ open, onOpenChange, onSuccess }: CloudLinkDial
 
     setIsLoading(true);
     try {
-      const result = await linkCloudAccount(email, password);
+      const result = await linkCloudAccount(email.trim().toLowerCase(), password);
       if (result.success) {
         toast.success(result.message);
         setEmail("");
@@ -82,10 +81,11 @@ export function CloudLinkDialog({ open, onOpenChange, onSuccess }: CloudLinkDial
               <Label htmlFor="cloud-email">Cloud Email</Label>
               <Input
                 id="cloud-email"
+                className="lowercase"
                 type="email"
                 placeholder="admin@store.com"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => setEmail(e.target.value.toLowerCase())}
                 disabled={isLoading}
               />
             </div>
@@ -103,7 +103,7 @@ export function CloudLinkDialog({ open, onOpenChange, onSuccess }: CloudLinkDial
               <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-md text-xs">
                 <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
                 <p>
-                  <strong>Warning:</strong> You are linking an email that differs from your store profile ({storeProfile.email}). 
+                  <strong>Warning:</strong> You are linking an email that differs from your store profile ({storeProfile.email}).
                   Syncing to a different cloud account could overwrite data if the accounts belong to different stores.
                 </p>
               </div>
@@ -112,9 +112,9 @@ export function CloudLinkDialog({ open, onOpenChange, onSuccess }: CloudLinkDial
           <div className="text-center pb-2">
             <p className="text-xs text-muted-foreground">
               Don't have a web dashboard account yet?{" "}
-              <a 
-                href={`${WEB_APP_URL}/register`} 
-                target="_blank" 
+              <a
+                href={`${WEB_APP_URL}/register`}
+                target="_blank"
                 rel="noopener noreferrer"
                 className="text-primary font-bold hover:underline"
               >
@@ -123,9 +123,9 @@ export function CloudLinkDialog({ open, onOpenChange, onSuccess }: CloudLinkDial
             </p>
           </div>
           <DialogFooter>
-            <Button 
-              type="button" 
-              variant="outline" 
+            <Button
+              type="button"
+              variant="outline"
               onClick={() => onOpenChange(false)}
               disabled={isLoading}
             >

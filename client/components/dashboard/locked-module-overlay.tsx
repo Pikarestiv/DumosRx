@@ -3,6 +3,7 @@
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { WEB_APP_URL } from "@/lib/constants";
 
 interface LockedModuleOverlayProps {
   featureName: string;
@@ -40,11 +41,15 @@ export function LockedModuleOverlay({ featureName, featureKey }: LockedModuleOve
         </div>
         <Button 
           className="w-full bg-primary hover:bg-primary/95 text-primary-foreground font-bold shadow-lg shadow-primary/20 h-11" 
-          onClick={() => {
-            window.open("https://dumosrx.com/dashboard/billing", "_blank", "noreferrer");
-          }}
+          asChild
         >
-          Upgrade Plan
+          <a
+            href={`${WEB_APP_URL}/dashboard/billing`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Upgrade Plan
+          </a>
         </Button>
       </div>
     </div>

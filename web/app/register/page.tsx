@@ -58,7 +58,7 @@ export default function RegisterPage() {
           Back to Home
         </Link>
 
-        <div className="bg-black/60 backdrop-blur-2xl border border-white/10 rounded-3xl p-8 shadow-2xl relative group">
+        <div className="bg-black/60 backdrop-blur-2xl border border-white/10 rounded-3xl p-8 shadow-2xl relative">
           <div className="flex flex-col items-center text-center space-y-2 mb-8">
             <motion.div
               initial={{ scale: 0 }}

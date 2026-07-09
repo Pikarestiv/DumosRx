@@ -5,10 +5,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/context/auth-context";
 import { query, execute, generateId } from "@/lib/db/local-database";
 import { sync } from "@/lib/db/sync-engine";
-import { restoreDatabase } from "@/lib/db/core";
+import { restoreDatabase, clearDatabaseForNewStore } from "@/lib/db/core";
+import { apiClient } from "@/lib/api/client";
 import { toast } from "sonner";
 
-export type OnboardingStep = "welcome" | "register" | "cloud" | "backup" | "syncing";
+export type OnboardingStep = "welcome" | "register" | "cloud" | "backup" | "syncing" | "select-store";
 
 export function useOnboarding() {
   const [onboardingStep, setOnboardingStep] = useState<OnboardingStep>("welcome");
@@ -17,14 +18,23 @@ export function useOnboarding() {
   const [syncProgress, setSyncProgress] = useState(0);
   const [syncStatus, setSyncStatus] = useState("Initializing sync...");
   const [existingStores, setExistingStores] = useState<any[]>([]);
+  
+  // Custom modal confirmation states
+  const [showConfirmSwitch, setShowConfirmSwitch] = useState(false);
+  const [pendingStoreName, setPendingStoreName] = useState("");
+  const [pendingEmail, setPendingEmail] = useState("");
 
-  const { login, linkCloudAccount, isCloudLinked } = useAuth();
+  // Store selection states
+  const [cloudStores, setCloudStores] = useState<any[]>([]);
+  const [selectedStoreId, setSelectedStoreId] = useState<string>("");
+
+  const { login, linkCloudAccount, isCloudLinked, logout } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
 
   useEffect(() => {
     const step = searchParams.get("step") as OnboardingStep;
-    if (step && ["welcome", "register", "cloud", "backup", "syncing"].includes(step)) {
+    if (step && ["welcome", "register", "cloud", "backup", "syncing", "select-store"].includes(step)) {
       setOnboardingStep(step);
     } else {
       setOnboardingStep("welcome");
@@ -121,16 +131,100 @@ export function useOnboarding() {
     try {
       const result = await linkCloudAccount(email, pass);
       if (result.success) {
-        setStep("syncing");
-        startSyncProcess(email);
+        // Fetch user profile and available stores from cloud
+        const profile = await apiClient.getProfile();
+        const stores = await apiClient.getStores();
+
+        if (stores.length === 0) {
+          toast.error("No stores found on your cloud account. Please register a store first.");
+          setIsLoading(false);
+          return;
+        }
+
+        const localStores = await query<any>("SELECT id, name FROM stores");
+
+        if (stores.length === 1) {
+          // Exactly one store, auto-select it
+          const store = stores[0];
+          setSelectedStoreId(store.id);
+          setPendingEmail(email);
+
+          if (localStores.length > 0 && localStores[0].id !== store.id) {
+            setPendingStoreName(localStores[0].name);
+            setShowConfirmSwitch(true);
+            setIsLoading(false);
+            return;
+          }
+
+          localStorage.setItem("dumos_active_store_id", store.id);
+          setStep("syncing");
+          startSyncProcess(email);
+        } else {
+          // Multiple stores, transition to select-store step
+          setCloudStores(stores);
+          setSelectedStoreId(stores[0].id);
+          setPendingEmail(email);
+          setStep("select-store");
+          setIsLoading(false);
+        }
       } else {
         toast.error(result.message);
       }
     } catch (_err) {
+      console.error("Cloud restore failed", _err);
       toast.error("Cloud connection failed");
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleSelectStoreConfirm = async () => {
+    setIsLoading(true);
+    const selectedStore = cloudStores.find(s => s.id === selectedStoreId);
+    if (!selectedStore) {
+      toast.error("Selected store not found");
+      setIsLoading(false);
+      return;
+    }
+
+    const localStores = await query<any>("SELECT id, name FROM stores");
+    if (localStores.length > 0 && localStores[0].id !== selectedStoreId) {
+      setPendingStoreName(localStores[0].name);
+      setShowConfirmSwitch(true);
+      setIsLoading(false);
+      return;
+    }
+
+    localStorage.setItem("dumos_active_store_id", selectedStoreId);
+    setStep("syncing");
+    startSyncProcess(pendingEmail);
+  };
+
+  const confirmCloudRestoreSwitch = async () => {
+    setShowConfirmSwitch(false);
+    setIsLoading(true);
+    try {
+      // Wipe the local database to prepare for a clean initial sync of the new store
+      await clearDatabaseForNewStore();
+
+      const targetStoreId = selectedStoreId || (cloudStores.length === 1 ? cloudStores[0].id : "");
+      if (targetStoreId) {
+        localStorage.setItem("dumos_active_store_id", targetStoreId);
+      }
+
+      setStep("syncing");
+      startSyncProcess(pendingEmail);
+    } catch (_err) {
+      console.error("Cloud restore switch failed", _err);
+      toast.error("Failed to clear database for new store");
+      setIsLoading(false);
+    }
+  };
+
+  const cancelCloudRestoreSwitch = async () => {
+    setShowConfirmSwitch(false);
+    await logout();
+    setIsLoading(false);
   };
 
   const startSyncProcess = async (email?: string) => {
@@ -194,6 +288,8 @@ export function useOnboarding() {
     const fromLogin = searchParams.get("from") === "login";
     if (fromLogin || onboardingStep === "welcome") {
       router.push("/login");
+    } else if (onboardingStep === "select-store") {
+      setStep("cloud");
     } else {
       setStep("welcome");
     }
@@ -228,5 +324,14 @@ export function useOnboarding() {
     goBack, isCloudLinked,
     existingStores,
     searchParams,
+    showConfirmSwitch,
+    setShowConfirmSwitch,
+    pendingStoreName,
+    confirmCloudRestoreSwitch,
+    cancelCloudRestoreSwitch,
+    cloudStores,
+    selectedStoreId,
+    setSelectedStoreId,
+    handleSelectStoreConfirm,
   };
 }

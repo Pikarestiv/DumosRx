@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +14,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { CloudDownload, Loader2 } from "lucide-react";
-import { useState } from "react";
+import { WEB_APP_URL } from "@/lib/constants";
 
 interface CloudStepProps {
   onCloudRestore: (email: string, pass: string) => Promise<void>;
@@ -88,13 +89,14 @@ export function CloudStep({ onCloudRestore, isLoading }: CloudStepProps) {
             <div className="text-center pt-2">
               <p className="text-sm text-muted-foreground">
                 Don't have a cloud account?{" "}
-                <button
-                  type="button"
-                  onClick={() => window.open((process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3002") + "/register", "_blank")}
-                  className="text-primary hover:underline font-semibold"
+                <a
+                  href={`${WEB_APP_URL}/register`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline font-semibold animate-pulse hover:animate-none"
                 >
                   Create one here
-                </button>
+                </a>
               </p>
             </div>
           </CardFooter>

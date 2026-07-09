@@ -75,7 +75,8 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const success = await login(username, pin);
+      const cleanUsername = username.trim().toLowerCase();
+      const success = await login(cleanUsername, pin);
       if (success) {
         toast.success("Welcome back!");
         router.push("/dashboard");
@@ -205,15 +206,15 @@ export default function LoginPage() {
                     <Input
                       id="username"
                       placeholder="admin"
-                      className="pl-10 bg-background/50 border-border focus:border-primary/50 focus:ring-primary/20 transition-all"
+                      className="pl-10 bg-background/50 border-border focus:border-primary/50 focus:ring-primary/20 transition-all lowercase"
                       value={username}
-                      onChange={(e) => setUsername(e.target.value)}
+                      onChange={(e) => setUsername(e.target.value.toLowerCase())}
                       required
                     />
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="pin">PIN / Password</Label>
+                  <Label htmlFor="pin">PIN</Label>
                   <div className="relative group">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                     <Input

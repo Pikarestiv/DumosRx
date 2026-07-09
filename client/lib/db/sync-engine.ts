@@ -186,8 +186,9 @@ export async function pullChanges(isManual: boolean = false, isSetup: boolean = 
                 rawDb.run(sql, params);
               }
             } catch (err: any) {
-              if (err?.message && err.message.includes("UNIQUE constraint failed")) {
-                console.warn(`[Sync] Skipped updating/inserting record in ${table} due to unique constraint:`, id, err.message);
+              const errMsg = typeof err === "string" ? err : err?.message || String(err);
+              if (errMsg.includes("UNIQUE constraint failed")) {
+                console.warn(`[Sync] Skipped updating record in ${table} due to unique constraint:`, id, errMsg);
               } else {
                 throw err;
               }
@@ -212,8 +213,9 @@ export async function pullChanges(isManual: boolean = false, isSetup: boolean = 
                 rawDb.run(sql, params);
               }
             } catch (err: any) {
-              if (err?.message && err.message.includes("UNIQUE constraint failed")) {
-                console.warn(`[Sync] Skipped inserting record in ${table} due to unique constraint:`, id, err.message);
+              const errMsg = typeof err === "string" ? err : err?.message || String(err);
+              if (errMsg.includes("UNIQUE constraint failed")) {
+                console.warn(`[Sync] Skipped inserting record in ${table} due to unique constraint:`, id, errMsg);
               } else {
                 throw err;
               }

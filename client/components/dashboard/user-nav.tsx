@@ -16,6 +16,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { LogOut, Repeat } from "lucide-react";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { ThemeCustomizer } from "@/components/ui/theme-customizer";
 import { getUserInitials } from "@/lib/utils";
 
 export function UserNav() {
@@ -79,6 +81,14 @@ export function UserNav() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <div className="sm:hidden px-2 py-2 flex items-center justify-between">
+          <span className="text-xs text-muted-foreground px-2">Appearance</span>
+          <div className="flex items-center gap-1">
+            <ThemeToggle />
+            <ThemeCustomizer />
+          </div>
+        </div>
+        <DropdownMenuSeparator className="sm:hidden" />
         <DropdownMenuItem
           onClick={handleSwitchAccount}
           className="cursor-pointer group"

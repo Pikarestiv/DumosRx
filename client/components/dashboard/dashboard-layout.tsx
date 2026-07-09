@@ -288,8 +288,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
           <div className="flex items-center gap-2">
             <NotificationBell />
-            <ThemeToggle />
-            <ThemeCustomizer />
+            <div className="hidden sm:flex items-center gap-2">
+              <ThemeToggle />
+              <ThemeCustomizer />
+            </div>
             <UserNav />
           </div>
         </header>

@@ -239,10 +239,13 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* Main content — shifts right to clear the sidebar */}
       <div
         className={cn(
-          "flex flex-col min-h-screen transition-all duration-300 pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0",
+          "flex flex-col min-h-screen transition-all duration-300",
           sidebarCollapsed ? "lg:pl-[68px]" : "lg:pl-64",
         )}
-        style={{ paddingTop: "var(--tauri-top, 0px)" }}
+        style={{ 
+          paddingTop: "var(--tauri-top, 0px)",
+          paddingBottom: "calc(4rem + var(--tauri-bottom, env(safe-area-inset-bottom)))"
+        }}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >

@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 export function useTauriWindow() {
   const [isTauri, setIsTauri] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const [platform, setPlatform] = useState<string>("windows");
   const [appWindow, setAppWindow] = useState<any>(null);
 
@@ -19,19 +21,27 @@ export function useTauriWindow() {
 
           const win = getCurrentWindow();
           setAppWindow(win);
-          setPlatform(type());
+          
+          const osType = type();
+          setPlatform(osType);
+          
+          const isDesk = ["windows", "macos", "darwin", "linux"].includes(osType.toLowerCase());
+          setIsDesktop(isDesk);
+          setIsMobile(!isDesk);
 
-          const maximized = await win.isMaximized();
-          setIsMaximized(maximized);
+          if (isDesk) {
+            const maximized = await win.isMaximized();
+            setIsMaximized(maximized);
 
-          const unlisten = await win.onResized(async () => {
-            const isMax = await win.isMaximized();
-            setIsMaximized(isMax);
-          });
+            const unlisten = await win.onResized(async () => {
+              const isMax = await win.isMaximized();
+              setIsMaximized(isMax);
+            });
 
-          return () => {
-            unlisten();
-          };
+            return () => {
+              unlisten();
+            };
+          }
         } catch (e) {
           console.error("Tauri API error:", e);
         }
@@ -42,11 +52,18 @@ export function useTauriWindow() {
 
   useEffect(() => {
     if (isTauri) {
-      document.body.style.setProperty("--tauri-top", "40px");
+      if (isDesktop) {
+        document.body.style.setProperty("--tauri-top", "40px");
+        document.body.style.setProperty("--tauri-bottom", "0px");
+      } else if (isMobile) {
+        document.body.style.setProperty("--tauri-top", "env(safe-area-inset-top, 24px)");
+        document.body.style.setProperty("--tauri-bottom", "env(safe-area-inset-bottom, 24px)");
+      }
     } else {
       document.body.style.setProperty("--tauri-top", "0px");
+      document.body.style.setProperty("--tauri-bottom", "0px");
     }
-  }, [isTauri]);
+  }, [isTauri, isDesktop, isMobile]);
 
   const handleMinimize = async () => {
     if (!appWindow) return;
@@ -81,6 +98,7 @@ export function useTauriWindow() {
 
   return {
     isTauri,
+    isDesktop,
     isMaximized,
     isMac,
     handleMinimize,

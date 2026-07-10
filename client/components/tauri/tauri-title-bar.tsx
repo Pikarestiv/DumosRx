@@ -9,6 +9,7 @@ import { WindowsWindowControls } from "./windows-window-controls";
 export function TauriTitleBar() {
   const {
     isTauri,
+    isDesktop,
     isMaximized,
     isMac,
     handleMinimize,
@@ -17,7 +18,7 @@ export function TauriTitleBar() {
     handleMouseDown,
   } = useTauriWindow();
 
-  if (!isTauri) return null;
+  if (!isTauri || !isDesktop) return null;
 
   return (
     <div

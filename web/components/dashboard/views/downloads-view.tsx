@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { DOWNLOAD_URL } from "@/lib/constants";
 
 interface DownloadsViewProps {
   releaseLinks: any;
@@ -227,7 +228,7 @@ export function DownloadsView({
             <span>Verify Email to Browse</span>
           ) : (
             <a
-              href="https://downloads.dumosrx.com"
+              href={DOWNLOAD_URL}
               target="_blank"
               rel="noopener noreferrer"
             >

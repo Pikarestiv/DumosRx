@@ -2,6 +2,8 @@
  * Global Crash & Error Logger
  */
 
+import { SYSTEM_EMAIL } from "@/lib/constants";
+
 interface CrashInfo {
   message: string;
   stack?: string;
@@ -80,7 +82,7 @@ export async function logCrash(error: any, isFatal = false) {
       user_id: userId,
       type: "bug",
       content: `[CRASH] [${info.platform?.toUpperCase()}] ${isFatal ? 'FATAL: ' : ''}${message}\n\nStack:\n${stack}\n\nUA: ${info.userAgent}\nURL: ${info.url}`,
-      contact_email: "system-logs@dumosrx.com",
+      contact_email: SYSTEM_EMAIL,
       status: "pending",
       created_at: timestamp,
       _synced: 0
@@ -122,7 +124,7 @@ export async function flushPendingCrashes() {
         user_id: userId,
         type: "bug",
         content: `[QUEUED CRASH] [${info.platform?.toUpperCase()}] ${info.isFatal ? 'FATAL: ' : ''}${info.message}\n\nStack:\n${info.stack}\n\nUA: ${info.userAgent}\nURL: ${info.url}`,
-        contact_email: "system-logs@dumosrx.com",
+        contact_email: SYSTEM_EMAIL,
         status: "pending",
         created_at: info.timestamp,
         _synced: 0

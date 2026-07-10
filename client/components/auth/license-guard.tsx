@@ -25,6 +25,7 @@ import {
 import { useStore } from "@/lib/context/store-context";
 import { useAuth } from "@/lib/context/auth-context";
 import { usePathname } from "next/navigation";
+import { WEB_APP_DASHBOARD_URL } from "@/lib/constants";
 import { useTheme } from "@/components/theme-provider";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { isMobileDevice } from "@/lib/utils";
@@ -276,7 +277,7 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
               </Button>
               <Button variant="outline" className="w-full" asChild>
                 <a
-                  href="https://app.dumosrx.com/dashboard/billing"
+                  href={`${WEB_APP_DASHBOARD_URL}/billing`}
                   target="_blank"
                   rel="noreferrer"
                 >

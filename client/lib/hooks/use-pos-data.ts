@@ -34,7 +34,7 @@ export function usePOSData() {
     loading: loadingProducts,
     refetch: refetchProducts,
   } = useLocalData<Product>(
-    "SELECT p.*, COALESCE(SUM(sb.quantity), 0) as stock_quantity, GROUP_CONCAT(sb.batch_number, ', ') as batch_number FROM products p LEFT JOIN stock_batches sb ON p.id = sb.product_id AND sb._deleted = 0 AND sb.is_active = 1 WHERE p._deleted = 0 GROUP BY p.id ORDER BY p.name ASC",
+    "SELECT p.*, COALESCE(SUM(sb.quantity), 0) as stock_quantity, GROUP_CONCAT(sb.batch_number, ', ') as batch_number, AVG(sb.cost_price) as avg_cost_price FROM products p LEFT JOIN stock_batches sb ON p.id = sb.product_id AND sb._deleted = 0 AND sb.is_active = 1 WHERE p._deleted = 0 GROUP BY p.id ORDER BY p.name ASC",
     [],
     {
       transform: (m: any) => ({
@@ -45,7 +45,7 @@ export function usePOSData() {
         strength: m.strength || "",
         unit_price: m.selling_price || 0,
         stock: m.stock_quantity || 0,
-        cost_price: m.cost_price || 0,
+        cost_price: m.avg_cost_price || 0,
         barcode: m.barcode || "",
         batch_number: m.batch_number || "",
         category_id: m.category_id || "",

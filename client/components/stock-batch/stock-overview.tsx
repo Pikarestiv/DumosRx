@@ -35,7 +35,8 @@ export function StockOverview() {
   // Stock list — read aggregated batch details
   const { data: stockData, loading: stockLoading } = useLocalData<any>(
     `SELECT 
-      p.id, p.name as product_name, p.brand_name, p.reorder_level, p.cost_price, p.selling_price, p.barcode,
+      p.id, p.name as product_name, p.brand_name, p.reorder_level, p.selling_price, p.barcode,
+      sb.avg_cost as cost_price,
       COALESCE(sb.total_qty, 0) as quantity,
       sb.earliest_expiry as expiry_date,
       sb.batches as batch_number
@@ -43,6 +44,7 @@ export function StockOverview() {
      LEFT JOIN (
        SELECT product_id, 
               SUM(quantity) as total_qty,
+              AVG(cost_price) as avg_cost,
               MIN(expiry_date) as earliest_expiry,
               GROUP_CONCAT(batch_number, ', ') as batches
        FROM stock_batches 

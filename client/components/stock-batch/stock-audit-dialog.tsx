@@ -67,7 +67,7 @@ export function StockAuditDialog({
   const loadProducts = async () => {
     try {
       const res = await query<Product>(`
-        SELECT p.id, p.name, p.base_unit, p.cost_price, p.selling_price, COALESCE(SUM(sb.quantity), 0) as stock_quantity 
+        SELECT p.id, p.name, p.base_unit, AVG(sb.cost_price) as cost_price, p.selling_price, COALESCE(SUM(sb.quantity), 0) as stock_quantity 
         FROM products p 
         LEFT JOIN stock_batches sb ON p.id = sb.product_id AND sb._deleted = 0 AND sb.is_active = 1 
         WHERE p.is_active = 1 AND p._deleted = 0

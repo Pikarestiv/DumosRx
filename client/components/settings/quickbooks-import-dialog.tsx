@@ -107,7 +107,6 @@ export function QuickBooksImportDialog({
               brand_name: med.brand || "",
               strength: med.strength || "",
               selling_price: med.unit_price,
-              cost_price: med.unit_price * 0.8,
               barcode: med.barcode || "",
               created_at: now,
               updated_at: now,

@@ -17,7 +17,7 @@ export function useDailyCloseData() {
 
   // 2. Fetch sale items to calculate profit and top sellers
   const { data: itemsToday } = useLocalData<any>(
-    `SELECT si.*, m.name as product_name, m.cost_price as med_cost_price 
+    `SELECT si.*, m.name as product_name, si.cost_price as med_cost_price 
      FROM sale_items si 
      JOIN sales s ON si.sale_id = s.id 
      LEFT JOIN products m ON si.product_id = m.id 
@@ -34,7 +34,7 @@ export function useDailyCloseData() {
 
   // 4. Fetch return items for cost adjustment
   const { data: returnItemsToday } = useLocalData<any>(
-    `SELECT ri.*, m.cost_price as med_cost_price
+    `SELECT ri.*, IFNULL((SELECT AVG(cost_price) FROM stock_batches WHERE product_id = ri.product_id AND is_active = 1), 0) as med_cost_price
      FROM return_items ri
      JOIN returns r ON ri.return_id = r.id
      LEFT JOIN products m ON ri.product_id = m.id

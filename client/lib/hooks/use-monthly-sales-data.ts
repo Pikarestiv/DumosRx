@@ -29,7 +29,7 @@ export function useMonthlySalesData(dateFilter: string) {
     `SELECT
       strftime('%Y-%m', r.created_at) as month,
       SUM(r.total_refunded) as refunds,
-      SUM(ri.quantity * m.cost_price) as returned_cogs
+      SUM(ri.quantity * IFNULL((SELECT AVG(cost_price) FROM stock_batches WHERE product_id = m.id AND is_active = 1), 0)) as returned_cogs
      FROM returns r
      LEFT JOIN return_items ri ON ri.return_id = r.id
      LEFT JOIN products m ON ri.product_id = m.id

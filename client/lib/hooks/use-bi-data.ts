@@ -56,7 +56,7 @@ export function useBIData(externalTimeRange?: string) {
     [dateFilter],
   );
   const { data: returnedCogsData } = useLocalData<{ total: number }>(
-    `SELECT SUM(ri.quantity * m.cost_price) as total FROM return_items ri
+    `SELECT SUM(ri.quantity * IFNULL((SELECT AVG(cost_price) FROM stock_batches WHERE product_id = m.id AND is_active = 1), 0)) as total FROM return_items ri
      JOIN returns r ON ri.return_id = r.id
      LEFT JOIN products m ON ri.product_id = m.id
      WHERE r.created_at >= ? AND (r._deleted = 0 OR r._deleted IS NULL)`,

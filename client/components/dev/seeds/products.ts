@@ -36,10 +36,12 @@ export async function seedProducts() {
 
   const nowString = today.toISOString();
 
-  // Helper to insert product and its batch stock_batch
   const addMed = async (med: any, batches: any[]) => {
+    const medPayload = { ...med };
+    delete medPayload.cost_price; // products table no longer has cost_price
+
     await insert("products", {
-      ...med,
+      ...medPayload,
       created_at: nowString,
       updated_at: nowString,
       is_active: 1,

@@ -80,6 +80,8 @@ export function useAddProduct({
       delete localPayload.stock_quantity;
       delete localPayload.expiry_date;
       delete localPayload.batch_number;
+      const initialCostPrice = localPayload.cost_price;
+      delete localPayload.cost_price;
 
       if (isEditing) {
         const id = localPayload.id;
@@ -95,7 +97,7 @@ export function useAddProduct({
           await insert("stock_batches", {
             product_id: productId,
             quantity: initialStock,
-            cost_price: localPayload.cost_price || 0,
+            cost_price: initialCostPrice || 0,
             batch_number: initialBatch || "INITIAL",
             expiry_date:
               initialExpiry ||

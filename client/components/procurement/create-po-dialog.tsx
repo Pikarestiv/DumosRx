@@ -75,7 +75,7 @@ export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
         "SELECT id, name FROM suppliers WHERE _deleted = 0",
       );
       const productData = await query<Product>(
-        "SELECT id, name, bulk_unit, base_unit, units_per_bulk, cost_price FROM products WHERE _deleted = 0",
+        "SELECT p.id, p.name, p.bulk_unit, p.base_unit, p.units_per_bulk, (SELECT cost_price FROM stock_batches WHERE product_id = p.id AND _deleted = 0 ORDER BY created_at DESC LIMIT 1) as cost_price FROM products p WHERE p._deleted = 0",
       );
       setSuppliers(vendorData);
       setProducts(productData);

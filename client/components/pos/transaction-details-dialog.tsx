@@ -42,7 +42,7 @@ export function TransactionDetailsDialog({
       ? `SELECT 
           si.*, 
           m.name as product_name, 
-          m.cost_price as med_cost_price,
+          si.cost_price as med_cost_price,
           COALESCE((
             SELECT SUM(ri.quantity) 
             FROM return_items ri 

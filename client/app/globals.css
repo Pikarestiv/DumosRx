@@ -175,7 +175,7 @@
 }
 
 .hover-scale:hover {
-  transform: scale(1.02) !important;
+  transform: scale(1.01) !important;
 }
 
 /* Brute-force rotation for all icons inside buttons/groups */

@@ -179,9 +179,10 @@ function ActionCenterCard({ alert, cardWidthClass }: ActionCenterCardProps) {
   const router = useRouter();
 
   return (
-    <Card
-      className={`shrink-0 py-0 md:py-4 snap-start border-border bg-card shadow-sm overflow-hidden ${cardWidthClass}`}
-    >
+    <div className={`shrink-0 snap-start p-1.5 flex ${cardWidthClass}`}>
+      <Card
+        className="w-full h-full py-0 md:py-4 border-border bg-card shadow-sm overflow-hidden"
+      >
       <div className="p-3 flex flex-col sm:flex-row sm:items-center gap-2.5 md:gap-3">
         <div
           className={`p-1.5 md:p-2.5 rounded-lg sm:rounded-xl shrink-0 self-start ${getPriorityColors(alert.priority)}`}
@@ -205,7 +206,8 @@ function ActionCenterCard({ alert, cardWidthClass }: ActionCenterCardProps) {
           {alert.actionLabel}
         </Button>
       </div>
-    </Card>
+      </Card>
+    </div>
   );
 }
 
@@ -256,7 +258,7 @@ export function DashboardActionCenter({
       </div>
       <div
         ref={scrollRef}
-        className="flex overflow-x-auto snap-x snap-mandatory gap-3 pb-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] -mx-1 px-1"
+        className="flex overflow-x-auto snap-x snap-mandatory pb-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] -mx-1 px-1"
         onMouseEnter={() => setIsPaused(true)}
         onMouseLeave={() => setIsPaused(false)}
         onTouchStart={() => setIsPaused(true)}

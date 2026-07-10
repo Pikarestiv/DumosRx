@@ -357,6 +357,10 @@ export async function sync(
       if (pullResult.updatedTables && pullResult.updatedTables.length > 0) {
         pullResult.updatedTables.forEach((table) => {
           queryClient.invalidateQueries({ queryKey: [table] });
+          if (table === "stores") {
+            queryClient.invalidateQueries({ queryKey: ["storeProfile"] });
+            window.dispatchEvent(new CustomEvent("dumos_subscription_updated"));
+          }
         });
         // Globally invalidate localData abstraction queries
         queryClient.invalidateQueries({ queryKey: ["localData"] });

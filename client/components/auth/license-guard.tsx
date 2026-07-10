@@ -212,7 +212,7 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
   // Reactive to local SQLite store profile status changes
   useEffect(() => {
     performCheck();
-  }, [storeProfile?.status, storeProfile?.suspension_reason]);
+  }, [storeProfile?.status, storeProfile?.suspension_reason, storeProfile?.subscription_tier]);
 
   if (loading) {
     return <SplashScreen />;

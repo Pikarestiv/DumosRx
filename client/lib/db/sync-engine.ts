@@ -1,7 +1,4 @@
-import {
-  getPendingSyncItems,
-  markSynced,
-} from "./local-database";
+import { getPendingSyncItems, markSynced } from "./local-database";
 import { execute, query } from "./core";
 import { isTauri } from "./local-database";
 import { apiClient } from "@/lib/api/client";
@@ -43,7 +40,10 @@ export function isSyncing(): boolean {
 /**
  * Push local changes to server
  */
-export async function pushChanges(isManual: boolean = false, isSetup: boolean = false): Promise<{ pushed: number }> {
+export async function pushChanges(
+  isManual: boolean = false,
+  isSetup: boolean = false,
+): Promise<{ pushed: number }> {
   const pending = await getPendingSyncItems();
 
   if (pending.length === 0) return { pushed: 0 };
@@ -65,9 +65,13 @@ export async function pushChanges(isManual: boolean = false, isSetup: boolean = 
         };
       });
 
-      const response = (await apiClient.pushChanges({
-        changes,
-      }, isManual, isSetup)) as PushResponse;
+      const response = (await apiClient.pushChanges(
+        {
+          changes,
+        },
+        isManual,
+        isSetup,
+      )) as PushResponse;
 
       // If successful, mark as synced
       if (response.success) {
@@ -88,16 +92,20 @@ export async function pushChanges(isManual: boolean = false, isSetup: boolean = 
 /**
  * Pull changes from server
  */
-export async function pullChanges(isManual: boolean = false, isSetup: boolean = false): Promise<{
+export async function pullChanges(
+  isManual: boolean = false,
+  isSetup: boolean = false,
+): Promise<{
   pulled: number;
   updatedTables?: string[];
   error?: unknown;
 }> {
   try {
     // Get last sync timestamp for each table
-    const syncState = await query<{ table_name: string; last_synced_at: string }>(
-      "SELECT table_name, last_synced_at FROM _sync_state",
-    );
+    const syncState = await query<{
+      table_name: string;
+      last_synced_at: string;
+    }>("SELECT table_name, last_synced_at FROM _sync_state");
 
     // Map to object { table: timestamp }
     const lastSyncedMap = syncState.reduce(
@@ -109,9 +117,13 @@ export async function pullChanges(isManual: boolean = false, isSetup: boolean = 
     );
 
     // Fetch changes from server
-    const response = (await apiClient.pullChanges({
-      last_synced: lastSyncedMap,
-    }, isManual, isSetup)) as PullResponse;
+    const response = (await apiClient.pullChanges(
+      {
+        last_synced: lastSyncedMap,
+      },
+      isManual,
+      isSetup,
+    )) as PullResponse;
     const { changes, server_timestamp } = response;
 
     if (!changes || Object.keys(changes).length === 0) {
@@ -123,7 +135,7 @@ export async function pullChanges(isManual: boolean = false, isSetup: boolean = 
     // Apply changes transactionally
     try {
       const rawDb = isTauri() ? null : (await import("./core")).getDatabase();
-      
+
       if (!isTauri() && rawDb) {
         rawDb.run("BEGIN");
       }
@@ -138,7 +150,9 @@ export async function pullChanges(isManual: boolean = false, isSetup: boolean = 
 
         // Fetch local table columns to avoid "no such column" errors, with caching
         if (!schemaCache[table]) {
-          const tableInfo = await query<{ name: string }>(`PRAGMA table_info(${table})`);
+          const tableInfo = await query<{ name: string }>(
+            `PRAGMA table_info(${table})`,
+          );
           schemaCache[table] = new Set(tableInfo.map((c) => c.name));
         }
         const validColumns = schemaCache[table];
@@ -163,8 +177,11 @@ export async function pullChanges(isManual: boolean = false, isSetup: boolean = 
           });
 
           // Check if record already exists to preserve local-only columns (e.g. is_initialized, theme, license_token)
-          const exists = await query<any>(`SELECT 1 FROM ${table} WHERE id = ?`, [id]);
-          
+          const exists = await query<any>(
+            `SELECT 1 FROM ${table} WHERE id = ?`,
+            [id],
+          );
+
           if (exists.length > 0) {
             // Update only columns returned by server to preserve local columns
             const setClause = [...columns, "_synced", "_version", "_deleted"]
@@ -178,7 +195,7 @@ export async function pullChanges(isManual: boolean = false, isSetup: boolean = 
               _deleted ? 1 : 0,
               id,
             ];
-            
+
             try {
               if (isTauri()) {
                 await execute(sql, params);
@@ -186,16 +203,27 @@ export async function pullChanges(isManual: boolean = false, isSetup: boolean = 
                 rawDb.run(sql, params);
               }
             } catch (err: any) {
-              const errMsg = typeof err === "string" ? err : err?.message || String(err);
+              const errMsg =
+                typeof err === "string" ? err : err?.message || String(err);
               if (errMsg.includes("UNIQUE constraint failed")) {
-                console.warn(`[Sync] Skipped updating record in ${table} due to unique constraint:`, id, errMsg);
+                console.warn(
+                  `[Sync] Skipped updating record in ${table} due to unique constraint:`,
+                  id,
+                  errMsg,
+                );
               } else {
                 throw err;
               }
             }
           } else {
             // Insert new record
-            const allCols = ["id", ...columns, "_synced", "_version", "_deleted"];
+            const allCols = [
+              "id",
+              ...columns,
+              "_synced",
+              "_version",
+              "_deleted",
+            ];
             const allPlaceholders = allCols.map(() => "?");
             const sql = `INSERT INTO ${table} (${allCols.join(", ")}) VALUES (${allPlaceholders.join(", ")})`;
             const params = [
@@ -205,7 +233,7 @@ export async function pullChanges(isManual: boolean = false, isSetup: boolean = 
               (record as any)._version || 1,
               _deleted ? 1 : 0,
             ];
-            
+
             try {
               if (isTauri()) {
                 await execute(sql, params);
@@ -213,9 +241,14 @@ export async function pullChanges(isManual: boolean = false, isSetup: boolean = 
                 rawDb.run(sql, params);
               }
             } catch (err: any) {
-              const errMsg = typeof err === "string" ? err : err?.message || String(err);
+              const errMsg =
+                typeof err === "string" ? err : err?.message || String(err);
               if (errMsg.includes("UNIQUE constraint failed")) {
-                console.warn(`[Sync] Skipped inserting record in ${table} due to unique constraint:`, id, errMsg);
+                console.warn(
+                  `[Sync] Skipped inserting record in ${table} due to unique constraint:`,
+                  id,
+                  errMsg,
+                );
               } else {
                 throw err;
               }
@@ -225,9 +258,10 @@ export async function pullChanges(isManual: boolean = false, isSetup: boolean = 
           pulledCount++;
         }
 
-        const syncSql = "INSERT OR REPLACE INTO _sync_state (table_name, last_synced_at) VALUES (?, ?)";
+        const syncSql =
+          "INSERT OR REPLACE INTO _sync_state (table_name, last_synced_at) VALUES (?, ?)";
         const syncParams = [table, server_timestamp];
-        
+
         if (isTauri()) {
           await execute(syncSql, syncParams);
         } else if (rawDb) {
@@ -264,18 +298,27 @@ export async function pullChanges(isManual: boolean = false, isSetup: boolean = 
 /**
  * Main Sync Function
  */
-export async function sync(isManual: boolean = false, isSetup: boolean = false): Promise<SyncResult> {
+export async function sync(
+  isManual: boolean = false,
+  isSetup: boolean = false,
+): Promise<SyncResult> {
   if (isSyncInProgress) {
-    return { success: false, pushed: 0, pulled: 0, error: "Sync already in progress" };
+    return {
+      success: false,
+      pushed: 0,
+      pulled: 0,
+      error: "Sync already in progress",
+    };
   }
 
-  const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+  const token =
+    typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
   if (!token) {
-    return { 
-      success: false, 
-      pushed: 0, 
-      pulled: 0, 
-      error: "Unauthenticated. Please link your cloud account in settings." 
+    return {
+      success: false,
+      pushed: 0,
+      pulled: 0,
+      error: "Unauthenticated. Please link your cloud account in settings.",
     };
   }
 
@@ -285,11 +328,15 @@ export async function sync(isManual: boolean = false, isSetup: boolean = false):
     const pullResult = await pullChanges(isManual, isSetup);
 
     if (pushResult.pushed > 0 || pullResult.pulled > 0) {
-      console.log(`Sync completed: Pushed ${pushResult.pushed}, Pulled ${pullResult.pulled}`);
+      console.log(
+        `Sync completed: Pushed ${pushResult.pushed}, Pulled ${pullResult.pulled}`,
+      );
     }
 
     try {
-      const suggestionsConfig = await apiClient.getSystemConfig("global_suggestions").catch(() => null);
+      const suggestionsConfig = await apiClient
+        .getSystemConfig("global_suggestions")
+        .catch(() => null);
       if (suggestionsConfig && suggestionsConfig.success) {
         const value = suggestionsConfig.data;
         if (typeof value === "string") {
@@ -312,12 +359,14 @@ export async function sync(isManual: boolean = false, isSetup: boolean = false):
           queryClient.invalidateQueries({ queryKey: [table] });
         });
         // Globally invalidate localData abstraction queries
-        queryClient.invalidateQueries({ queryKey: ['localData'] });
+        queryClient.invalidateQueries({ queryKey: ["localData"] });
       }
 
-      window.dispatchEvent(new CustomEvent("dumos_sync_completed", { 
-        detail: { updatedTables: pullResult.updatedTables || [] }
-      }));
+      window.dispatchEvent(
+        new CustomEvent("dumos_sync_completed", {
+          detail: { updatedTables: pullResult.updatedTables || [] },
+        }),
+      );
     }
 
     return {
@@ -340,17 +389,27 @@ export async function sync(isManual: boolean = false, isSetup: boolean = false):
 
 /**
  * Privileged Subscription Status Sync
- * 
+ *
  * This runs regardless of the user's plan tier. It pulls ONLY the `stores`
  * table from the server so the local app always has the latest
  * subscription_tier, status, suspension_reason and license_token.
- * 
+ *
  * This ensures that plan downgrades, suspensions and renewals are reflected
  * locally even when full cloud sync is disabled for free-tier users.
  */
-export async function syncSubscriptionStatus(): Promise<{ success: boolean; updated: boolean }> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+export async function syncSubscriptionStatus(): Promise<{
+  success: boolean;
+  updated: boolean;
+}> {
+  console.log("Syncing sub");
+
+  const token =
+    typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+  console.log("Token", token);
+
   if (!token || !navigator.onLine) {
+    console.log("No token");
+
     return { success: false, updated: false };
   }
 
@@ -359,9 +418,13 @@ export async function syncSubscriptionStatus(): Promise<{ success: boolean; upda
     // record regardless of when the last sync happened. This ensures that
     // plan downgrades/upgrades written on the server are never missed due
     // to timestamp delta logic.
-    const response = (await apiClient.pullChanges({
-      last_synced: { stores: "" },
-    })) as PullResponse;
+    // We pass isSetup=true as the 3rd arg to bypass the backend sync block for free tier.
+    const response = (await apiClient.pullChanges(
+      { last_synced: { stores: "" } },
+      false,
+      true
+    )) as PullResponse;
+    console.log("🚀 ~ syncSubscriptionStatus ~ response:", response);
 
     const storeRecords = response?.changes?.stores;
     if (!storeRecords || storeRecords.length === 0) {
@@ -370,7 +433,9 @@ export async function syncSubscriptionStatus(): Promise<{ success: boolean; upda
 
     // Fetch valid columns for the stores table (with caching)
     if (!schemaCache["stores"]) {
-      const tableInfo = await query<{ name: string }>(`PRAGMA table_info(stores)`);
+      const tableInfo = await query<{ name: string }>(
+        `PRAGMA table_info(stores)`,
+      );
       schemaCache["stores"] = new Set(tableInfo.map((c) => c.name));
     }
     const validColumns = schemaCache["stores"];
@@ -383,6 +448,10 @@ export async function syncSubscriptionStatus(): Promise<{ success: boolean; upda
       "license_token",
       "updated_at",
     ]);
+    console.log(
+      "🚀 ~ syncSubscriptionStatus ~ SUBSCRIPTION_FIELDS:",
+      SUBSCRIPTION_FIELDS,
+    );
 
     for (const record of storeRecords) {
       const { id, _deleted, ...rawData } = record as any;
@@ -400,11 +469,13 @@ export async function syncSubscriptionStatus(): Promise<{ success: boolean; upda
       const setClause = columns.map((c) => `${c} = ?`).join(", ");
       const values = columns.map((c) => data[c]);
 
-      const exists = await query<any>(`SELECT 1 FROM stores WHERE id = ?`, [id]);
+      const exists = await query<any>(`SELECT 1 FROM stores WHERE id = ?`, [
+        id,
+      ]);
       if (exists.length > 0) {
         await execute(
           `UPDATE stores SET ${setClause}, _synced = 1 WHERE id = ?`,
-          [...values, id]
+          [...values, id],
         );
       }
     }
@@ -412,13 +483,14 @@ export async function syncSubscriptionStatus(): Promise<{ success: boolean; upda
     // Update the sync state timestamp for the stores table
     await execute(
       "INSERT OR REPLACE INTO _sync_state (table_name, last_synced_at) VALUES (?, ?)",
-      ["stores", response.server_timestamp]
+      ["stores", response.server_timestamp],
     );
 
     // Invalidate React Query cache so UI re-renders with new tier/status
     if (typeof window !== "undefined") {
       queryClient.invalidateQueries({ queryKey: ["localData"] });
       queryClient.invalidateQueries({ queryKey: ["stores"] });
+      queryClient.invalidateQueries({ queryKey: ["storeProfile"] });
       window.dispatchEvent(new CustomEvent("dumos_subscription_updated"));
     }
 

@@ -34,19 +34,14 @@ interface AlertItem {
   actionRoute: string;
 }
 
-export function DashboardActionCenter({
-  expiringCount,
-  lowStockCount,
-}: ActionCenterProps) {
-  const router = useRouter();
+// --- Extracted Hook for Logic ---
+function useActionCenterAlerts(expiringCount: number, lowStockCount: number) {
   const { isAuthenticated, isAdmin } = useAuth();
   const { storeProfile } = useStore();
 
-  const [isPaused, setIsPaused] = useState(false);
-
   const { data: staffCountData } = useQuery({
-    queryKey: ['staffCount'],
-    queryFn: () => getStaffCount()
+    queryKey: ["staffCount"],
+    queryFn: () => getStaffCount(),
   });
 
   const staffCount = staffCountData || 0;
@@ -83,7 +78,6 @@ export function DashboardActionCenter({
 
       if (storeProfile) {
         const fieldsToCheck = ["name", "address", "phone", "email", "logo_url"];
-
         if (storeProfile.store_type === "pharmacy") {
           fieldsToCheck.push("pcn_license");
         }
@@ -159,6 +153,69 @@ export function DashboardActionCenter({
     lowStockCount,
   ]);
 
+  return alerts;
+}
+
+// --- Extracted Component for Alert Card ---
+const getPriorityColors = (priority: AlertPriority) => {
+  switch (priority) {
+    case "critical":
+      return "bg-destructive/10 border-destructive/20 text-destructive";
+    case "warning":
+      return "bg-amber-500/10 border-amber-500/20 text-amber-500 dark:bg-amber-500/20";
+    case "info":
+      return "bg-primary/10 border-primary/20 text-primary";
+    case "success":
+      return "bg-emerald-500/10 border-emerald-500/20 text-emerald-500 dark:bg-emerald-500/20";
+  }
+};
+
+interface ActionCenterCardProps {
+  alert: AlertItem;
+  cardWidthClass: string;
+}
+
+function ActionCenterCard({ alert, cardWidthClass }: ActionCenterCardProps) {
+  const router = useRouter();
+
+  return (
+    <Card
+      className={`shrink-0 py-0 md:py-4 snap-start border-border bg-card shadow-sm overflow-hidden ${cardWidthClass}`}
+    >
+      <div className="p-3 flex flex-col sm:flex-row sm:items-center gap-2.5 md:gap-3">
+        <div
+          className={`p-1.5 md:p-2.5 rounded-lg sm:rounded-xl shrink-0 self-start ${getPriorityColors(alert.priority)}`}
+        >
+          <alert.icon className="h-4 w-4" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h4 className="font-bold text-sm text-foreground truncate">
+            {alert.title}
+          </h4>
+          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+            {alert.description}
+          </p>
+        </div>
+        <Button
+          variant="default"
+          size="sm"
+          className="w-full sm:w-auto shrink-0 h-8 text-xs"
+          onClick={() => router.push(alert.actionRoute)}
+        >
+          {alert.actionLabel}
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
+// --- Main Container Component ---
+export function DashboardActionCenter({
+  expiringCount,
+  lowStockCount,
+}: ActionCenterProps) {
+  const alerts = useActionCenterAlerts(expiringCount, lowStockCount);
+  const [isPaused, setIsPaused] = useState(false);
   const scrollRef = React.useRef<HTMLDivElement>(null);
 
   // Auto-scroll logic for horizontal list
@@ -183,19 +240,6 @@ export function DashboardActionCenter({
 
   if (alerts.length === 0) return null;
 
-  const getPriorityColors = (priority: AlertPriority) => {
-    switch (priority) {
-      case "critical":
-        return "bg-destructive/10 border-destructive/20 text-destructive";
-      case "warning":
-        return "bg-amber-500/10 border-amber-500/20 text-amber-500 dark:bg-amber-500/20";
-      case "info":
-        return "bg-primary/10 border-primary/20 text-primary";
-      case "success":
-        return "bg-emerald-500/10 border-emerald-500/20 text-emerald-500 dark:bg-emerald-500/20";
-    }
-  };
-
   const cardWidthClass =
     alerts.length === 1 ? "w-full min-w-full" : "w-[90%] md:w-[85%] lg:w-[92%]";
 
@@ -219,34 +263,11 @@ export function DashboardActionCenter({
         onTouchEnd={() => setIsPaused(false)}
       >
         {alerts.map((alert) => (
-          <Card
+          <ActionCenterCard
             key={alert.id}
-            className={`shrink-0 py-0 md:py-4  snap-start border-border bg-card shadow-sm overflow-hidden ${cardWidthClass}`}
-          >
-            <div className="p-3 flex flex-col sm:flex-row sm:items-center gap-2.5 md:gap-3">
-              <div
-                className={`p-1.5 md:p-2.5 rounded-lg sm:rounded-xl shrink-0 self-start ${getPriorityColors(alert.priority)}`}
-              >
-                <alert.icon className="h-4 w-4" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h4 className="font-bold text-sm text-foreground truncate">
-                  {alert.title}
-                </h4>
-                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-                  {alert.description}
-                </p>
-              </div>
-              <Button
-                variant="default"
-                size="sm"
-                className="w-full sm:w-auto shrink-0 h-8 text-xs"
-                onClick={() => router.push(alert.actionRoute)}
-              >
-                {alert.actionLabel}
-              </Button>
-            </div>
-          </Card>
+            alert={alert}
+            cardWidthClass={cardWidthClass}
+          />
         ))}
       </div>
     </div>

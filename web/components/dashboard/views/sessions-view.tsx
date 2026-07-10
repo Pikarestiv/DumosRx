@@ -1,9 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { useSessions, useRevokeSessionMutation, useRevokeAllSessionsMutation } from "@/lib/api/hooks";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Monitor, Smartphone, Globe, Loader2, LogOut, Laptop } from "lucide-react";
+import { Monitor, Smartphone, Globe, Loader2, LogOut, Laptop, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
@@ -11,6 +12,7 @@ export function SessionsView() {
   const { data: sessions, isLoading } = useSessions();
   const revokeMutation = useRevokeSessionMutation();
   const revokeAllMutation = useRevokeAllSessionsMutation();
+  const [visibleCount, setVisibleCount] = useState(5);
 
   const handleRevoke = (id: string) => {
     revokeMutation.mutate(id, {
@@ -59,6 +61,9 @@ export function SessionsView() {
     return `${browser} on ${os}`;
   };
 
+  const visibleSessions = sessions?.slice(0, visibleCount) || [];
+  const hasMore = sessions && sessions.length > visibleCount;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -98,42 +103,55 @@ export function SessionsView() {
             ) : sessions?.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-4">No active sessions found.</p>
             ) : (
-              <div className="rounded-xl border border-border/50 divide-y divide-border/50 overflow-hidden bg-background/50">
-                {sessions?.map((session: any) => (
-                  <div key={session.id} className="p-4 flex items-center justify-between gap-4 hover:bg-muted/30 transition-colors">
-                    <div className="flex items-center gap-4">
-                      <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                        {getDeviceIcon(session.user_agent)}
-                      </div>
-                      <div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="font-medium text-sm text-foreground">
-                            {parseDeviceName(session.user_agent)}
-                          </p>
-                          {session.is_current && (
-                            <span className="inline-flex items-center whitespace-nowrap rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] sm:text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
-                              Current Device
-                            </span>
-                          )}
+              <div className="space-y-4">
+                <div className="rounded-xl border border-border/50 divide-y divide-border/50 overflow-hidden bg-background/50">
+                  {visibleSessions.map((session: any) => (
+                    <div key={session.id} className="p-4 flex items-center justify-between gap-4 hover:bg-muted/30 transition-colors">
+                      <div className="flex items-center gap-4">
+                        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                          {getDeviceIcon(session.user_agent)}
                         </div>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {session.ip_address || "Unknown IP"} • Last active: {new Date(session.last_used_at || session.created_at).toLocaleString()}
-                        </p>
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-medium text-sm text-foreground">
+                              {parseDeviceName(session.user_agent)}
+                            </p>
+                            {session.is_current && (
+                              <span className="inline-flex items-center whitespace-nowrap rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] sm:text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
+                                Current Device
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {session.ip_address || "Unknown IP"} • Last active: {new Date(session.last_used_at || session.created_at).toLocaleString()}
+                          </p>
+                        </div>
                       </div>
+                      {!session.is_current && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRevoke(session.id)}
+                          disabled={revokeMutation.isPending}
+                          className="text-muted-foreground hover:text-red-600"
+                        >
+                          Log out
+                        </Button>
+                      )}
                     </div>
-                    {!session.is_current && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleRevoke(session.id)}
-                        disabled={revokeMutation.isPending}
-                        className="text-muted-foreground hover:text-red-600"
-                      >
-                        Log out
-                      </Button>
-                    )}
-                  </div>
-                ))}
+                  ))}
+                </div>
+                
+                {hasMore && (
+                  <Button 
+                    variant="ghost" 
+                    className="w-full text-muted-foreground" 
+                    onClick={() => setVisibleCount(prev => prev + 5)}
+                  >
+                    <ChevronDown className="h-4 w-4 mr-2" />
+                    Show More ({sessions.length - visibleCount} remaining)
+                  </Button>
+                )}
               </div>
             )}
           </div>

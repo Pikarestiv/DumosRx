@@ -54,7 +54,11 @@ export function DashboardRecentActivity({
             {activities.map((activity) => (
               <div
                 key={activity.id}
-                className={`flex items-center gap-3 p-3 bg-muted rounded-lg transition-colors ${onActivityClick ? 'cursor-pointer hover:bg-muted/80' : ''}`}
+                className={`group flex items-center gap-3 p-3 rounded-xl border transition-all duration-200 ${
+                  onActivityClick
+                    ? 'cursor-pointer bg-background/40 border-border/30 hover:bg-background hover:shadow-sm hover:border-border/80 hover:scale-[1.01]'
+                    : 'bg-background/40 border-border/30'
+                }`}
                 onClick={() => onActivityClick && onActivityClick(activity)}
               >
                 <div

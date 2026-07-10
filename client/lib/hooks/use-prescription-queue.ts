@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { query } from "@/lib/db/local-database";
+import { getActivePrescriptions, getAllPrescriptionItems, updatePrescriptionStatus as updateDbPrescriptionStatus } from "@/lib/db/queries/prescriptions";
 import { genericFuzzySearch } from "@/lib/utils/search";
 
 export interface PrescriptionMedication {
@@ -46,14 +46,8 @@ export function usePrescriptionQueue() {
     setLoading(true);
     try {
       // 1. Fetch prescriptions
-      const pData = await query<any>(
-        "SELECT * FROM prescriptions WHERE _deleted = 0 AND status != 'completed' ORDER BY created_at DESC"
-      );
-
-      // 2. Fetch all prescription items for these prescriptions
-      const itemsData = await query<any>(
-        "SELECT * FROM prescription_items WHERE _deleted = 0"
-      );
+      const pData = await getActivePrescriptions();
+      const itemsData = await getAllPrescriptionItems();
 
       // 3. Group items by prescription_id
       const itemsMap = new Map<string, any[]>();
@@ -123,11 +117,7 @@ export function usePrescriptionQueue() {
 
   const updatePrescriptionStatus = async (id: string, newStatus: Prescription["status"]) => {
     try {
-      await query("UPDATE prescriptions SET status = ?, updated_at = ? WHERE id = ?", [
-        newStatus,
-        new Date().toISOString(),
-        id,
-      ]);
+      await updateDbPrescriptionStatus(id, newStatus);
       setPrescriptions((prev) =>
         prev.map((p) => (p.id === id ? { ...p, status: newStatus } : p))
       );

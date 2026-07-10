@@ -1,4 +1,5 @@
-import { useLocalData } from "@/lib/db/hooks/useLocalData";
+import { useQuery } from "@tanstack/react-query";
+import { getStockBatchesForProductDetails } from "@/lib/db/queries/inventory";
 import { formatCurrency } from "@/lib/utils";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import type { ReactNode } from "react";
@@ -31,11 +32,12 @@ export function useProductDetails(
   product: Product | null,
   storeProfile: any,
 ) {
-  const { data: batches, loading: loadingBatches } = useLocalData<any>(
-    product
-      ? `SELECT * FROM stock_batches WHERE product_id = "${product.id}" AND _deleted = 0 ORDER BY expiry_date ASC`
-      : "",
-  );
+  const { data: batchesData, isLoading: loadingBatches } = useQuery({
+    queryKey: ['productBatches', product?.id],
+    queryFn: () => product?.id ? getStockBatchesForProductDetails(product.id) : Promise.resolve([]),
+    enabled: !!product?.id
+  });
+  const batches = batchesData || [];
 
   const formatPrice = (amount: number) => {
     return formatCurrency(amount, storeProfile?.currency);

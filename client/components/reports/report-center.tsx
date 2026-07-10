@@ -243,31 +243,33 @@ export function ReportCenter() {
                         <Printer className="h-3.5 w-3.5" />
                         Print
                       </Button>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-8 gap-2 w-full sm:w-auto"
-                            disabled={isLoading}
-                          >
-                            {isLoading ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                              <Download className="h-3.5 w-3.5" />
-                            )}
-                            Export
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => runExport(report.id)} className="cursor-pointer">
-                            Export CSV
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => runPrint(report.id)} className="cursor-pointer">
-                            Export PDF
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <div className="w-full sm:w-auto">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 gap-2 w-full"
+                              disabled={isLoading}
+                            >
+                              {isLoading ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Download className="h-3.5 w-3.5" />
+                              )}
+                              Export
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => runExport(report.id)} className="cursor-pointer">
+                              Export CSV
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => runPrint(report.id)} className="cursor-pointer">
+                              Export PDF
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -301,16 +303,18 @@ export function ReportCenter() {
                   <div className="min-w-0 space-y-1 w-full">
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-semibold truncate">{dl.name}</p>
-                      <Badge variant="outline" className="text-[10px] text-emerald-600 border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20 shrink-0">
-                        Downloaded
-                      </Badge>
                     </div>
                     <p className="text-xs text-muted-foreground">
                       {dl.type}
                     </p>
-                    <p className="text-xs text-muted-foreground">
-                      {format(new Date(dl.generatedAt), "MMM d, yyyy 'at' h:mm a")} • {dl.sizeLabel}
-                    </p>
+                    <div className="flex flex-col gap-0.5 mt-1">
+                      <p className="text-[11px] text-muted-foreground/80">
+                        {format(new Date(dl.generatedAt), "MMM d, yyyy 'at' h:mm a")}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground/80">
+                        {dl.sizeLabel}
+                      </p>
+                    </div>
                   </div>
                 </div>
               ))}

@@ -7,7 +7,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useLocalData } from "@/lib/db/hooks/useLocalData";
+import { useQuery } from "@tanstack/react-query";
+import { getHeldTransactionCount } from "@/lib/db/queries/sales";
 import { Badge } from "@/components/ui/badge";
 import { RequestItemDialog } from "./request-item-dialog";
 
@@ -28,10 +29,11 @@ export function POSHeader({
 }: POSHeaderProps) {
   const { t } = useStore();
 
-  const { data: heldData } = useLocalData<{ count: number }>(
-    "SELECT COUNT(*) as count FROM held_transactions",
-  );
-  const heldSalesCount = heldData?.[0]?.count || 0;
+  const { data: heldSalesCountData } = useQuery({
+    queryKey: ['heldTransactionsCount'],
+    queryFn: () => getHeldTransactionCount()
+  });
+  const heldSalesCount = heldSalesCountData || 0;
 
   return (
     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">

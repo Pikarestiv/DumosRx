@@ -4,7 +4,8 @@ import React, { useMemo, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/context/auth-context";
 import { useStore } from "@/lib/context/store-context";
-import { useLocalData } from "@/lib/db/hooks/useLocalData";
+import { useQuery } from "@tanstack/react-query";
+import { getStaffCount } from "@/lib/db/queries/auth";
 import {
   CloudOff,
   UserPlus,
@@ -43,11 +44,12 @@ export function DashboardActionCenter({
 
   const [isPaused, setIsPaused] = useState(false);
 
-  const { data: staffData } = useLocalData<{ count: number }>(
-    "SELECT COUNT(*) as count FROM users WHERE _deleted = 0 AND id != 'default-admin'",
-  );
+  const { data: staffCountData } = useQuery({
+    queryKey: ['staffCount'],
+    queryFn: () => getStaffCount()
+  });
 
-  const staffCount = staffData[0]?.count || 0;
+  const staffCount = staffCountData || 0;
 
   const alerts = useMemo(() => {
     const items: AlertItem[] = [];

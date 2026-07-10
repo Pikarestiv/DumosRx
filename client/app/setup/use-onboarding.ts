@@ -3,7 +3,9 @@
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/context/auth-context";
-import { query, execute, generateId } from "@/lib/db/local-database";
+import { generateId, execute } from "@/lib/db/core";
+import { insert } from "@/lib/db/local-database";
+import { checkIfTableExists, getActiveUserCount, getTotalUserCount, getLocalStores } from "@/lib/db/queries/setup";
 import { sync } from "@/lib/db/sync-engine";
 import { restoreDatabase, clearDatabaseForNewStore } from "@/lib/db/core";
 import { apiClient } from "@/lib/api/client";
@@ -44,14 +46,9 @@ export function useOnboarding() {
 
   const checkStatus = async () => {
     try {
-      const tables = await query<any>(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='users'",
-      );
-      if (tables.length > 0) {
-        const result = await query<any>(
-          "SELECT COUNT(*) as count FROM users WHERE is_active = 1",
-        );
-        const count = Number(result[0]?.count || 0);
+      const tableExists = await checkIfTableExists("users");
+      if (tableExists) {
+        const count = await getActiveUserCount();
         if (
           count > 0 &&
           searchParams.get("step") !== "backup" &&
@@ -141,7 +138,7 @@ export function useOnboarding() {
           return;
         }
 
-        const localStores = await query<any>("SELECT id, name FROM stores");
+        const localStores = await getLocalStores();
 
         if (stores.length === 1) {
           // Exactly one store, auto-select it
@@ -187,7 +184,7 @@ export function useOnboarding() {
       return;
     }
 
-    const localStores = await query<any>("SELECT id, name FROM stores");
+    const localStores = await getLocalStores();
     if (localStores.length > 0 && localStores[0].id !== selectedStoreId) {
       setPendingStoreName(localStores[0].name);
       setShowConfirmSwitch(true);
@@ -243,14 +240,10 @@ export function useOnboarding() {
         setSyncStatus("Verifying synced records...");
         
         // Verify we actually have users in the synced data
-        const users = await query<any>("SELECT COUNT(*) as count FROM users WHERE _deleted = 0");
-        const userCount = Number(users[0]?.count || 0);
-
-        await new Promise((r) => setTimeout(r, 1000));
-        
-        if (userCount === 0) {
-          // Check for existing stores in stores
-          const stores = await query<any>("SELECT id, name FROM stores WHERE _deleted = 0");
+        const totalCount = await getTotalUserCount();
+        if (totalCount === 0) {
+          // If no user exists, maybe we already created one but just making sure
+          const stores = await getLocalStores();
           setExistingStores(stores);
           
           setSyncStatus("No account data found");
@@ -268,7 +261,7 @@ export function useOnboarding() {
           await login(email);
           setTimeout(() => router.push("/dashboard"), 1500);
         } else {
-          toast.success(`Sync complete! ${userCount} accounts recovered. Please log in.`);
+          toast.success(`Sync complete! ${totalCount} accounts recovered. Please log in.`);
           setTimeout(() => router.push("/login"), 1500);
         }
       } else {

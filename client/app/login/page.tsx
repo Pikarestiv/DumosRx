@@ -20,7 +20,8 @@ import { toast } from "sonner";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
-import { query } from "@/lib/db/local-database";
+import { execute } from "@/lib/db/core";
+import { checkIfTableExists, getActiveUserCount } from "@/lib/db/queries/setup";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { LockScreen } from "@/components/auth/lock-screen";
 import { RecentUser } from "@/lib/context/auth-context";
@@ -51,18 +52,13 @@ export default function LoginPage() {
 
   const checkStatus = async () => {
     try {
-      const tables = await query<any>(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='users'",
-      );
-      if (tables.length === 0) {
+      const exists = await checkIfTableExists("users");
+      if (!exists) {
         setUserCount(0);
         return;
       }
 
-      const result = await query<any>(
-        "SELECT COUNT(*) as count FROM users WHERE is_active = 1",
-      );
-      const count = Number(result[0]?.count || 0);
+      const count = await getActiveUserCount();
       setUserCount(count);
     } catch (e) {
       console.error("Status check failed", e);

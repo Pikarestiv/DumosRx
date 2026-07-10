@@ -7,7 +7,7 @@ import {
   fetchProfitLossReportData,
   fetchCustomerReportData,
   fetchExpensesReportData,
-} from "./report-queries";
+} from "@/lib/db/queries/reports";
 
 export interface RecentDownload {
   id: string;

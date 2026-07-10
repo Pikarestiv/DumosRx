@@ -21,7 +21,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, Pencil } from "lucide-react";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
-import { useLocalData } from "@/lib/db/hooks/useLocalData";
+import { useQuery } from "@tanstack/react-query";
+import { getBatchTrackingData } from "@/lib/db/queries/inventory";
 import { useStockBatchStats } from "@/lib/hooks/use-stock-batch-stats";
 import { genericFuzzySearch } from "@/lib/utils/search";
 
@@ -43,15 +44,11 @@ export function BatchTracking() {
   const stats = useStockBatchStats();
 
   // Batches with expiry_date and quantity
-  const { data: batches, loading } = useLocalData<any>(
-    `SELECT 
-      sb.id, p.name as product_name, p.brand_name as product_brand,
-      sb.batch_number, sb.expiry_date, sb.quantity, sb.cost_price
-     FROM stock_batches sb
-     JOIN products p ON sb.product_id = p.id
-     WHERE sb._deleted = 0 AND p._deleted = 0
-     ORDER BY sb.expiry_date ASC`
-  );
+  const { data: batchesData, isLoading: loading } = useQuery({
+    queryKey: ['batchTrackingData'],
+    queryFn: () => getBatchTrackingData()
+  });
+  const batches = batchesData || [];
 
   const { results: filteredBatches, isFuzzyFallback } = genericFuzzySearch(
     searchTerm,

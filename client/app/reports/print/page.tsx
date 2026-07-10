@@ -9,7 +9,7 @@ import {
   fetchProfitLossReportData,
   fetchCustomerReportData,
   fetchExpensesReportData,
-} from "@/lib/hooks/report-queries";
+} from "@/lib/db/queries/reports";
 
 import { Suspense } from "react";
 

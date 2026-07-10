@@ -30,7 +30,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { useLocalData } from "@/lib/db/hooks/useLocalData";
+import { useQuery } from "@tanstack/react-query";
+import { getPaymentAccounts } from "@/lib/db/queries/setup";
 import { insert, update, remove } from "@/lib/db/local-database";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { NIGERIAN_BANKS } from "@/lib/constants/suggestions";
@@ -66,11 +67,11 @@ export function PaymentAccountsCard() {
   const activeStoreId = storeProfile?.id;
   const activeUserId = user?.id;
 
-  const { data: accounts, loading, refetch } = useLocalData<PaymentAccount>(
-    activeStoreId 
-      ? `SELECT * FROM payment_accounts WHERE _deleted = 0 AND store_id = '${activeStoreId}' ORDER BY created_at DESC`
-      : `SELECT * FROM payment_accounts WHERE _deleted = 0 ORDER BY created_at DESC`
-  );
+  const { data: accountsData, isLoading: loading, refetch } = useQuery({
+    queryKey: ['paymentAccounts', activeStoreId],
+    queryFn: () => getPaymentAccounts(activeStoreId)
+  });
+  const accounts = accountsData || [];
 
   const handleOpenDialog = (account?: PaymentAccount) => {
     if (account) {

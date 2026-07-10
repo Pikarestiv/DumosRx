@@ -8,7 +8,8 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { formatCurrency } from "@/lib/utils";
-import { useLocalData } from "@/lib/db/hooks/useLocalData";
+import { useQuery } from "@tanstack/react-query";
+import { getTransactionDetails } from "@/lib/db/queries/sales";
 import {
   Table,
   TableBody,
@@ -37,29 +38,14 @@ export function TransactionDetailsDialog({
   onReturnClick,
 }: TransactionDetailsDialogProps) {
   const { isAdmin } = useAuth();
-  const { data: items } = useLocalData<any>(
-    open && sale?.id
-      ? `SELECT 
-          si.*, 
-          m.name as product_name, 
-          si.cost_price as med_cost_price,
-          COALESCE((
-            SELECT SUM(ri.quantity) 
-            FROM return_items ri 
-            JOIN returns r ON ri.return_id = r.id 
-            WHERE r.sale_id = si.sale_id AND ri.product_id = si.product_id AND (ri._deleted = 0 OR ri._deleted IS NULL) AND (r._deleted = 0 OR r._deleted IS NULL)
-          ), 0) as returned_quantity
-         FROM sale_items si 
-         LEFT JOIN products m ON si.product_id = m.id 
-         WHERE si.sale_id = '${sale.id}' AND (si._deleted = 0 OR si._deleted IS NULL)`
-      : "SELECT 1 WHERE 1=0",
-  );
+  const { data: detailsData } = useQuery({
+    queryKey: ['transactionDetails', sale?.id],
+    queryFn: () => (open && sale?.id) ? getTransactionDetails(sale.id) : Promise.resolve(null),
+    enabled: !!(open && sale?.id)
+  });
 
-  const { data: returnsData } = useLocalData<any>(
-    open && sale?.id
-      ? `SELECT SUM(total_refunded) as total_refunded FROM returns WHERE sale_id = '${sale.id}' AND (_deleted = 0 OR _deleted IS NULL)`
-      : "SELECT 1 WHERE 1=0"
-  );
+  const items = detailsData?.items || [];
+  const returnsData = detailsData?.returnsData || [];
 
   if (!sale) return null;
 

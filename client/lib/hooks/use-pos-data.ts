@@ -1,5 +1,9 @@
-import { useLocalData } from "@/lib/db/hooks/useLocalData";
+import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@/lib/auth/store";
+import { getProductsWithStock } from "@/lib/db/queries/products";
+import { getRecentSales, getRecentlySoldProductIds, getCommonlySoldProductIds } from "@/lib/db/queries/sales";
+import { getAllCustomers } from "@/lib/db/queries/customers";
+import { getPaymentAccounts } from "@/lib/db/queries/setup";
 
 export interface Product {
   id: string;
@@ -27,78 +31,54 @@ export interface Customer {
 export function usePOSData() {
   const { user } = useAuthStore();
   const isRestrictedRole = user?.role === "sales_staff" || user?.role === "specialist";
-  const userFilterAliasS = isRestrictedRole && user?.id ? ` AND s.user_id = '${user.id}'` : "";
 
   const {
     data: products,
-    loading: loadingProducts,
+    isLoading: loadingProducts,
     refetch: refetchProducts,
-  } = useLocalData<Product>(
-    "SELECT p.*, COALESCE(SUM(sb.quantity), 0) as stock_quantity, GROUP_CONCAT(sb.batch_number, ', ') as batch_number, AVG(sb.cost_price) as avg_cost_price FROM products p LEFT JOIN stock_batches sb ON p.id = sb.product_id AND sb._deleted = 0 AND sb.is_active = 1 WHERE p._deleted = 0 GROUP BY p.id ORDER BY p.name ASC",
-    [],
-    {
-      transform: (m: any) => ({
-        id: m.id,
-        name: m.name,
-        generic_name: m.generic_name || "",
-        brand: m.brand_name || m.brand || "",
-        strength: m.strength || "",
-        unit_price: m.selling_price || 0,
-        stock: m.stock_quantity || 0,
-        cost_price: m.avg_cost_price || 0,
-        barcode: m.barcode || "",
-        batch_number: m.batch_number || "",
-        category_id: m.category_id || "",
-      }),
-    },
-  );
+  } = useQuery({
+    queryKey: ['posProducts'],
+    queryFn: () => getProductsWithStock()
+  });
 
-  const { data: recentSales, refetch: refetchSales } = useLocalData<any>(
-    `SELECT s.*, c.first_name || ' ' || c.last_name as customer_name FROM sales s LEFT JOIN customers c ON s.customer_id = c.id WHERE s._deleted = 0${userFilterAliasS} ORDER BY s.created_at DESC LIMIT 10`,
-  );
+  const { data: recentSales, refetch: refetchSales } = useQuery({
+    queryKey: ['recentSales', user?.id],
+    queryFn: () => getRecentSales(isRestrictedRole ? user?.id : undefined)
+  });
 
-  const { data: recentlySoldData } = useLocalData<any>(
-    "SELECT DISTINCT product_id FROM sale_items ORDER BY created_at DESC LIMIT 8",
-  );
+  const { data: recentlySoldIdsData } = useQuery({
+    queryKey: ['recentlySoldIds'],
+    queryFn: () => getRecentlySoldProductIds()
+  });
 
-  const { data: commonlySoldData } = useLocalData<any>(
-    "SELECT product_id, SUM(quantity) as total_qty FROM sale_items GROUP BY product_id ORDER BY total_qty DESC LIMIT 8",
-  );
+  const { data: commonlySoldIdsData } = useQuery({
+    queryKey: ['commonlySoldIds'],
+    queryFn: () => getCommonlySoldProductIds()
+  });
 
-  const recentlySoldIds =
-    recentlySoldData?.map((item: any) => item.product_id) || [];
-  const commonlySoldIds =
-    commonlySoldData?.map((item: any) => item.product_id) || [];
+  const recentlySoldIds = recentlySoldIdsData || [];
+  const commonlySoldIds = commonlySoldIdsData || [];
 
-  const { data: customers, loading: loadingCustomers } = useLocalData<Customer>(
-    "SELECT * FROM customers WHERE _deleted = 0 ORDER BY first_name ASC",
-    [],
-    {
-      transform: (c: any) => ({
-        id: c.id,
-        first_name: c.first_name || "",
-        last_name: c.last_name || "",
-        phone: c.phone || "",
-        loyalty_points: c.loyalty_points || 0,
-        outstanding_balance: c.outstanding_balance || 0,
-      }),
-    },
-  );
+  const { data: customers, isLoading: loadingCustomers } = useQuery({
+    queryKey: ['posCustomers'],
+    queryFn: () => getAllCustomers()
+  });
 
-  const { data: paymentAccounts } = useLocalData<any>(
-    "SELECT * FROM payment_accounts WHERE _deleted = 0 ORDER BY created_at DESC",
-  );
+  const { data: paymentAccounts } = useQuery({
+    queryKey: ['paymentAccounts'],
+    queryFn: () => getPaymentAccounts()
+  });
 
   return {
-    products,
+    products: products || [],
     loadingProducts,
     refetchProducts,
-    recentSales,
+    recentSales: recentSales || [],
     refetchSales,
     recentlySoldIds,
     commonlySoldIds,
-    customers,
+    customers: customers || [],
     loadingCustomers,
-    paymentAccounts,
+    paymentAccounts: paymentAccounts || [],
   };
 }

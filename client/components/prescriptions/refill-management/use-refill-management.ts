@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { genericFuzzySearch } from "@/lib/utils/search";
-import { useLocalData } from "@/lib/db/hooks/useLocalData";
+import { useQuery } from "@tanstack/react-query";
+import { getRefillManagementData } from "@/lib/db/queries/prescriptions";
 import {
   execute,
   generateId,
@@ -35,29 +36,11 @@ export function useRefillManagement() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [refills, setRefills] = useState<RefillRequest[]>([]);
 
-  const { data, refetch } = useLocalData<any>(
-    `SELECT 
-      pi.id,
-      p.id as prescription_id,
-      p.prescription_number,
-      p.patient_name,
-      p.patient_phone,
-      p.doctor_name,
-      pi.product_name,
-      pi.strength,
-      pi.dosage,
-      pi.quantity,
-      pi.instructions,
-      pi.cost,
-      pi.refills_authorized,
-      pi.refills_used,
-      pi.refill_interval_days,
-      pi.next_refill_date,
-      p.updated_at
-     FROM prescription_items pi
-     JOIN prescriptions p ON pi.prescription_id = p.id
-     WHERE pi.refills_authorized > 0 AND p.status IN ('completed', 'dispensed') AND pi._deleted = 0`,
-  );
+  const { data: dataRaw, refetch } = useQuery({
+    queryKey: ['refillManagementData'],
+    queryFn: () => getRefillManagementData()
+  });
+  const data = dataRaw || [];
 
   useEffect(() => {
     if (data) {

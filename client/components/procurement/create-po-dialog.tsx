@@ -24,11 +24,12 @@ import {
 import { POAddItemForm } from "./po-add-item-form";
 import { POLineItemsList } from "./po-line-items-list";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { query, createPurchaseOrder } from "@/lib/db/local-database";
+import { createPurchaseOrder } from "@/lib/db/local-database";
 import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
 
 import { useStore } from "@/lib/context/store-context";
+import { useProcurementData } from "@/lib/hooks/use-procurement-data";
 
 interface CreatePODialogProps {
   onPOCreated: () => void;
@@ -51,8 +52,6 @@ interface Product {
 export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
   const { storeType } = useStore();
   const [open, setOpen] = useState(false);
-  const [suppliers, setSuppliers] = useState<Vendor[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
   const [selectedSupplierId, setSelectedSupplierId] = useState("");
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<any[]>([]);
@@ -69,20 +68,7 @@ export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
     }
   }, [open]);
 
-  const fetchData = async () => {
-    try {
-      const vendorData = await query<Vendor>(
-        "SELECT id, name FROM suppliers WHERE _deleted = 0",
-      );
-      const productData = await query<Product>(
-        "SELECT p.id, p.name, p.bulk_unit, p.base_unit, p.units_per_bulk, (SELECT cost_price FROM stock_batches WHERE product_id = p.id AND _deleted = 0 ORDER BY created_at DESC LIMIT 1) as cost_price FROM products p WHERE p._deleted = 0",
-      );
-      setSuppliers(vendorData);
-      setProducts(productData);
-    } catch (error) {
-      console.error("Failed to fetch data for PO:", error);
-    }
-  };
+  const { suppliers, products, loading: dataLoading, refetch: fetchData } = useProcurementData();
 
   const handleAddLineItem = (newItem: any) => {
     setItems([...items, newItem]);

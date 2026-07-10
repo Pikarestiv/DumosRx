@@ -22,9 +22,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/utils";
-import { insert, update, query } from "@/lib/db/local-database";
-import { useLocalData } from "@/lib/db/hooks/useLocalData";
+import { insert, update } from "@/lib/db/local-database";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { getSaleItems } from "@/lib/db/queries/sales";
+import { getStockBatchById } from "@/lib/db/queries/inventory";
 import { Loader2, RotateCcw, Minus, Plus } from "lucide-react";
 import { useAuth } from "@/lib/context/auth-context";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -53,12 +55,12 @@ export function ReturnDialog({
   const [showConfirm, setShowConfirm] = useState(false);
 
   // Fetch items for this sale
-  const { data: saleItems } = useLocalData<any>(
-    sale
-      ? `SELECT si.*, m.name as product_name FROM sale_items si JOIN products m ON si.product_id = m.id WHERE si.sale_id = ?`
-      : "",
-    sale ? [sale.id] : [],
-  );
+  const { data: saleItemsData } = useQuery({
+    queryKey: ['saleItems', sale?.id],
+    queryFn: () => sale ? getSaleItems(sale.id) : Promise.resolve([]),
+    enabled: !!sale
+  });
+  const saleItems = saleItemsData || [];
 
   const handleToggleItem = (itemId: string, maxQty: number) => {
     setSelectedItems((prev) => {
@@ -130,11 +132,7 @@ export function ReturnDialog({
 
         // Update stock_batch if applicable
         if (item.stock_batch_id) {
-          const invs = await query<any>(
-            `SELECT * FROM stock_batches WHERE id = ?`,
-            [item.stock_batch_id],
-          );
-          const currentInv = invs[0];
+          const currentInv = await getStockBatchById(item.stock_batch_id);
           if (currentInv) {
             await update("stock_batches", item.stock_batch_id, {
               quantity: (currentInv.quantity || 0) + item.returnQuantity,

@@ -3,7 +3,8 @@
  * Handles offline-first license verification and clock-tampering protection.
  */
 
-import { query, execute } from "@/lib/db/core";
+import { execute } from "@/lib/db/core";
+import { getStoreProfile, updateStoreMonotonicTime } from "@/lib/db/queries/setup";
 
 export interface LicenseInfo {
   isValid: boolean;
@@ -14,8 +15,7 @@ export interface LicenseInfo {
 }
 
 export async function checkLicenseStatus(): Promise<LicenseInfo> {
-  const profiles = await query<any>("SELECT * FROM stores LIMIT 1");
-  const profile = profiles[0];
+  const profile = await getStoreProfile();
 
   if (!profile) {
     return { isValid: true, tier: "free", expiryDate: null, isClockTampered: false };
@@ -48,7 +48,7 @@ export async function checkLicenseStatus(): Promise<LicenseInfo> {
   }
 
   // 2. Update monotonic time for next check
-  await execute("UPDATE stores SET last_monotonic_time = ? WHERE id = ?", [nowIso, profile.id]);
+  await updateStoreMonotonicTime(profile.id, nowIso);
 
   // 3. Free tier is always valid (but with limited features)
   if (!profile.subscription_tier || profile.subscription_tier === "free") {

@@ -22,7 +22,8 @@ import { Search, CreditCard, Filter } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { genericFuzzySearch } from "@/lib/utils/search";
 import { useStore } from "@/lib/context/store-context";
-import { useLocalData } from "@/lib/db/hooks/useLocalData";
+import { useQuery } from "@tanstack/react-query";
+import { getDebtors } from "@/lib/db/queries/customers";
 import { RepaymentDialog } from "./repayment-dialog";
 
 export function DebtDashboard() {
@@ -31,9 +32,11 @@ export function DebtDashboard() {
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [isRepaymentOpen, setIsRepaymentOpen] = useState(false);
 
-  const { data: debtors, loading, refetch } = useLocalData<any>(
-    "SELECT * FROM customers WHERE outstanding_balance > 0 AND _deleted = 0 ORDER BY outstanding_balance DESC"
-  );
+  const { data: debtorsData, isLoading: loading, refetch } = useQuery({
+    queryKey: ['debtors'],
+    queryFn: () => getDebtors()
+  });
+  const debtors = debtorsData || [];
 
   const { results: filteredDebtors, isFuzzyFallback } = genericFuzzySearch(
     searchTerm,

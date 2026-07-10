@@ -24,20 +24,14 @@ import {
   Minus,
   Plus,
 } from "lucide-react";
-import { query } from "@/lib/db/core";
+import { getBatchesForProduct } from "@/lib/db/queries/inventory";
 import { insert, update } from "@/lib/db/local-database";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/context/auth-context";
 import { Badge } from "@/components/ui/badge";
+import { useStockAudit } from "@/lib/hooks/use-inventory-data";
 
-interface Product {
-  id: string;
-  name: string;
-  stock_quantity: number;
-  base_unit: string;
-  cost_price?: number;
-  selling_price?: number;
-}
+import type { AuditProduct as Product } from "@/lib/db/queries/inventory";
 
 interface StockAuditDialogProps {
   isOpen: boolean;
@@ -51,33 +45,20 @@ export function StockAuditDialog({
   onSuccess,
 }: StockAuditDialogProps) {
   const { user } = useAuth();
-  const [products, setProducts] = useState<Product[]>([]);
+
   const [search, setSearch] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [actualQuantity, setActualQuantity] = useState<number | "">("");
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  const { products, isLoading, refetch: loadProducts } = useStockAudit();
+
   useEffect(() => {
     if (isOpen) {
       loadProducts();
     }
   }, [isOpen]);
-
-  const loadProducts = async () => {
-    try {
-      const res = await query<Product>(`
-        SELECT p.id, p.name, p.base_unit, AVG(sb.cost_price) as cost_price, p.selling_price, COALESCE(SUM(sb.quantity), 0) as stock_quantity 
-        FROM products p 
-        LEFT JOIN stock_batches sb ON p.id = sb.product_id AND sb._deleted = 0 AND sb.is_active = 1 
-        WHERE p.is_active = 1 AND p._deleted = 0
-        GROUP BY p.id
-      `);
-      setProducts(res);
-    } catch (err) {
-      console.error(err);
-    }
-  };
 
   const filteredProducts = products.filter((m) =>
     m.name.toLowerCase().includes(search.toLowerCase()),
@@ -124,10 +105,7 @@ export function StockAuditDialog({
         });
       } else if (diff < 0) {
         // Negative discrepancy: deduct using FIFO
-        const batches = await query<any>(
-          "SELECT * FROM stock_batches WHERE product_id = ? AND _deleted = 0 AND quantity > 0 ORDER BY expiry_date ASC, created_at ASC",
-          [selectedProduct.id],
-        );
+        const batches = await getBatchesForProduct(selectedProduct.id);
         let remainingToDeduct = Math.abs(diff);
         for (const batch of batches) {
           if (remainingToDeduct <= 0) break;

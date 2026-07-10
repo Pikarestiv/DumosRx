@@ -1,5 +1,6 @@
 import { toast } from "sonner";
-import { insert, update, query } from "@/lib/db/local-database";
+import { insert, update } from "@/lib/db/local-database";
+import { getCategoryByName, getSupplierByName } from "@/lib/db/queries/products";
 import { Product } from "./types";
 import { useStore } from "@/lib/context/store-context";
 
@@ -30,12 +31,9 @@ export function useAddProduct({
       // Resolve category string to UUID
       if (payload.category_id) {
         const categoryName = payload.category_id.trim();
-        const existing = await query<any>(
-          "SELECT id FROM categories WHERE name = ? AND _deleted = 0",
-          [categoryName],
-        );
-        if (existing && existing.length > 0) {
-          localPayload.category_id = existing[0].id;
+        const categoryId = await getCategoryByName(categoryName);
+        if (categoryId) {
+          localPayload.category_id = categoryId;
         } else {
           const newId = crypto.randomUUID();
           await insert("categories", {
@@ -53,12 +51,9 @@ export function useAddProduct({
       // Resolve supplier string to UUID (maps to client suppliers table)
       if (payload.supplier_id) {
         const supplierName = payload.supplier_id.trim();
-        const existing = await query<any>(
-          "SELECT id FROM suppliers WHERE name = ? AND _deleted = 0",
-          [supplierName],
-        );
-        if (existing && existing.length > 0) {
-          localPayload.supplier_id = existing[0].id;
+        const supplierId = await getSupplierByName(supplierName);
+        if (supplierId) {
+          localPayload.supplier_id = supplierId;
         } else {
           const newId = crypto.randomUUID();
           await insert("suppliers", {

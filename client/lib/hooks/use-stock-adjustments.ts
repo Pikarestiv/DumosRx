@@ -55,16 +55,12 @@ export function useStockAdjustments() {
 
     async function fetchBatches() {
       try {
-        const { query } = await import("@/lib/db/core");
-        const med = await query<any>(
-          "SELECT id FROM products WHERE name = ? LIMIT 1",
-          [newAdjustment.product],
-        );
-        if (med && med.length > 0) {
-          const batches = await query<any>(
-            "SELECT * FROM stock_batches WHERE product_id = ? AND _deleted = 0 AND quantity > 0 ORDER BY expiry_date ASC",
-            [med[0].id],
-          );
+        const { getProductByName } = await import("@/lib/db/queries/products");
+        const { getBatchesForProduct } = await import("@/lib/db/queries/inventory");
+        const med = await getProductByName(newAdjustment.product);
+        
+        if (med) {
+          const batches = await getBatchesForProduct(med.id);
           setAvailableBatches(batches);
 
           if (batches.length === 1) {
@@ -139,33 +135,29 @@ export function useStockAdjustments() {
 
     if (true) {
       try {
-        const { query, execute } = await import("@/lib/db/core");
+        const { getProductByName } = await import("@/lib/db/queries/products");
+        const { getBatchesForProduct, createStockMovement, createStockBatch, updateStockBatchQuantity } = await import("@/lib/db/queries/inventory");
+        const { update } = await import("@/lib/db/local-database");
+        
         // Resolve product ID from the name selection
-        const med = await query<any>(
-          "SELECT id FROM products WHERE name = ? LIMIT 1",
-          [newAdjustment.product],
-        );
-        if (!med || med.length === 0) {
+        const med = await getProductByName(newAdjustment.product);
+        if (!med) {
           toast.error(
             "Selected product not found in database. Please enter or register a valid product.",
           );
           return;
         }
-        const productId = med[0].id;
+        const productId = med.id;
         const uuid = crypto.randomUUID();
 
         // Insert stock movement record
-        await execute(
-          `INSERT INTO stock_movements (id, product_id, movement_type, quantity, reason, created_at, _synced) 
-           VALUES (?, ?, 'adjustment', ?, ?, ?, 0)`,
-          [
-            uuid,
-            productId,
-            calculatedQty,
-            newAdjustment.reason,
-            new Date().toISOString(),
-          ],
-        );
+        await createStockMovement({
+          id: uuid,
+          product_id: productId,
+          movement_type: 'adjustment',
+          quantity: calculatedQty,
+          reason: newAdjustment.reason
+        });
 
         // Adjust stock_batches
         if (
@@ -174,45 +166,25 @@ export function useStockAdjustments() {
         ) {
           // Increase: Add to an 'ADJUSTMENT' batch
           const batchId = crypto.randomUUID();
-          await execute(
-            "INSERT INTO stock_batches (id, product_id, batch_number, quantity, is_active, created_at, updated_at) VALUES (?, ?, 'ADJUSTMENT', ?, 1, ?, ?)",
-            [
-              batchId,
-              productId,
-              Math.abs(calculatedQty),
-              new Date().toISOString(),
-              new Date().toISOString(),
-            ],
-          );
+          await createStockBatch({
+             id: batchId,
+             product_id: productId,
+             batch_number: 'ADJUSTMENT',
+             quantity: Math.abs(calculatedQty)
+          });
 
-          await execute(
-            "UPDATE stock_movements SET stock_batch_id = ? WHERE id = ?",
-            [batchId, uuid],
-          );
+          await update("stock_movements", uuid, { stock_batch_id: batchId });
         } else if (newAdjustment.batch_id) {
-          await execute(
-            "UPDATE stock_batches SET quantity = quantity + ?, updated_at = ? WHERE id = ?",
-            [calculatedQty, new Date().toISOString(), newAdjustment.batch_id],
-          );
-
-          await execute(
-            "UPDATE stock_movements SET stock_batch_id = ? WHERE id = ?",
-            [newAdjustment.batch_id, uuid],
-          );
+          await updateStockBatchQuantity(newAdjustment.batch_id, calculatedQty);
+          await update("stock_movements", uuid, { stock_batch_id: newAdjustment.batch_id });
         } else if (calculatedQty < 0) {
           // Fallback FIFO
-          const batches = await query<any>(
-            "SELECT * FROM stock_batches WHERE product_id = ? AND _deleted = 0 AND quantity > 0 ORDER BY expiry_date ASC, created_at ASC",
-            [productId],
-          );
+          const batches = await getBatchesForProduct(productId);
           let remainingToDeduct = Math.abs(calculatedQty);
           for (const batch of batches) {
             if (remainingToDeduct <= 0) break;
             const deduction = Math.min(batch.quantity, remainingToDeduct);
-            await execute(
-              "UPDATE stock_batches SET quantity = quantity - ?, updated_at = ? WHERE id = ?",
-              [deduction, new Date().toISOString(), batch.id],
-            );
+            await updateStockBatchQuantity(batch.id, -deduction);
             remainingToDeduct -= deduction;
           }
         }

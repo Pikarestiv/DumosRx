@@ -1,0 +1,148 @@
+import { query } from "@/lib/db/local-database";
+
+export async function getSaleItems(saleId: string) {
+  return query<any>(
+    "SELECT si.*, m.name as product_name FROM sale_items si JOIN products m ON si.product_id = m.id WHERE si.sale_id = ?",
+    [saleId]
+  );
+}
+
+export async function getTransactionDetails(saleId: string) {
+  const items = await query<any>(
+    `SELECT 
+      si.*, 
+      m.name as product_name, 
+      si.cost_price as med_cost_price,
+      COALESCE((
+        SELECT SUM(ri.quantity) 
+        FROM return_items ri 
+        JOIN returns r ON ri.return_id = r.id 
+        WHERE r.sale_id = si.sale_id AND ri.product_id = si.product_id AND (ri._deleted = 0 OR ri._deleted IS NULL) AND (r._deleted = 0 OR r._deleted IS NULL)
+      ), 0) as returned_quantity
+     FROM sale_items si 
+     LEFT JOIN products m ON si.product_id = m.id 
+     WHERE si.sale_id = ? AND (si._deleted = 0 OR si._deleted IS NULL)`,
+    [saleId]
+  );
+
+  const returnsData = await query<any>(
+    `SELECT SUM(total_refunded) as total_refunded FROM returns WHERE sale_id = ? AND (_deleted = 0 OR _deleted IS NULL)`,
+    [saleId]
+  );
+
+  return { items, returnsData };
+}
+
+export interface HeldTransaction {
+  id: string;
+  customer_name: string;
+  items_json: string;
+  total_amount: number;
+  created_at: string;
+}
+
+export async function getHeldTransactions() {
+  return query<HeldTransaction>(
+    "SELECT * FROM held_transactions ORDER BY created_at DESC"
+  );
+}
+
+export async function getHeldTransactionCount() {
+  const result = await query<{ count: number }>(
+    "SELECT COUNT(*) as count FROM held_transactions"
+  );
+  return result[0]?.count || 0;
+}
+
+export async function getStockBatchesForProduct(productId: string) {
+  return query<{id: string, quantity: number}>(
+    "SELECT id, quantity FROM stock_batches WHERE product_id = ? AND quantity > 0 ORDER BY created_at ASC",
+    [productId]
+  );
+}
+
+export async function getStockBatchById(batchId: string) {
+  const invs = await query<any>(
+    "SELECT * FROM stock_batches WHERE id = ?",
+    [batchId],
+  );
+  return invs[0] || null;
+}
+
+// --- EOD Summary Queries ---
+
+export async function getSalesTotalsByPaymentMethod(date: string) {
+  return query<{ payment_method: string; total: number }>(`
+    SELECT payment_method, SUM(total_amount) as total 
+    FROM sales 
+    WHERE date(transaction_date) = ? AND _deleted = 0
+    GROUP BY payment_method
+  `, [date]);
+}
+
+export async function getTransactionCountByDate(date: string) {
+  const res = await query<{ count: number }>(`
+    SELECT COUNT(*) as count 
+    FROM sales 
+    WHERE date(transaction_date) = ? AND _deleted = 0
+  `, [date]);
+  return res[0]?.count || 0;
+}
+
+export async function getTopStaffByDate(dateStr: string) {
+  return query<{ user_name: string; total_sales: number }>(
+    `SELECT u.first_name || ' ' || u.last_name as user_name, SUM(s.total_amount) as total_sales
+     FROM sales s
+     JOIN users u ON s.user_id = u.id
+     WHERE date(s.transaction_date) = ? AND (s._deleted = 0 OR s._deleted IS NULL)
+     GROUP BY s.user_id
+     ORDER BY total_sales DESC
+     LIMIT 5`,
+    [dateStr],
+  );
+}
+
+export async function getRecentSales(userId?: string) {
+  const userFilter = userId ? ` AND s.user_id = '${userId}'` : "";
+  return query<any>(
+    `SELECT s.*, c.first_name || ' ' || c.last_name as customer_name FROM sales s LEFT JOIN customers c ON s.customer_id = c.id WHERE s._deleted = 0${userFilter} ORDER BY s.created_at DESC LIMIT 10`
+  );
+}
+
+export async function getRecentlySoldProductIds() {
+  const data = await query<any>(
+    "SELECT DISTINCT product_id FROM sale_items ORDER BY created_at DESC LIMIT 8"
+  );
+  return data.map((d: any) => d.product_id);
+}
+
+export async function getCommonlySoldProductIds() {
+  const data = await query<any>(
+    "SELECT product_id, SUM(quantity) as total_qty FROM sale_items GROUP BY product_id ORDER BY total_qty DESC LIMIT 8"
+  );
+  return data.map((d: any) => d.product_id);
+}
+
+export async function getDailyCloseData(reportDate: string) {
+  const salesToday = await query<any>(
+    `SELECT * FROM sales WHERE date(transaction_date) = ? AND _deleted = 0`,
+    [reportDate]
+  );
+
+  const itemsToday = await query<any>(
+    `SELECT si.*, m.name as product_name, si.cost_price as med_cost_price FROM sale_items si JOIN sales s ON si.sale_id = s.id LEFT JOIN products m ON si.product_id = m.id WHERE date(s.transaction_date) = ? AND (si._deleted = 0 OR si._deleted IS NULL) AND (s._deleted = 0 OR s._deleted IS NULL)`,
+    [reportDate]
+  );
+
+  const returnsToday = await query<any>(
+    `SELECT r.*, s.payment_method, s.payment_details FROM returns r JOIN sales s ON r.sale_id = s.id WHERE date(r.created_at) = ? AND (r._deleted = 0 OR r._deleted IS NULL)`,
+    [reportDate]
+  );
+
+  const returnItemsToday = await query<any>(
+    `SELECT ri.*, IFNULL((SELECT AVG(cost_price) FROM stock_batches WHERE product_id = ri.product_id AND is_active = 1), 0) as med_cost_price FROM return_items ri JOIN returns r ON ri.return_id = r.id LEFT JOIN products m ON ri.product_id = m.id WHERE date(r.created_at) = ? AND (ri._deleted = 0 OR ri._deleted IS NULL) AND (r._deleted = 0 OR r._deleted IS NULL)`,
+    [reportDate]
+  );
+
+  return { salesToday, itemsToday, returnsToday, returnItemsToday };
+}

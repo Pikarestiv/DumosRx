@@ -18,18 +18,12 @@ import {
   User,
   ShoppingBag,
 } from "lucide-react";
-import { query } from "@/lib/db/core";
+import { useHeldTransactions } from "@/lib/hooks/use-sales-data";
 import { remove } from "@/lib/db/local-database";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 
-interface HeldTransaction {
-  id: string;
-  customer_name: string;
-  items_json: string;
-  total_amount: number;
-  created_at: string;
-}
+import type { HeldTransaction } from "@/lib/db/queries/sales";
 
 interface HeldTransactionsDialogProps {
   isOpen: boolean;
@@ -42,28 +36,13 @@ export function HeldTransactionsDialog({
   onClose,
   onRecall,
 }: HeldTransactionsDialogProps) {
-  const [heldItems, setHeldItems] = useState<HeldTransaction[]>([]);
-  const [loading, setLoading] = useState(false);
+  const { heldItems, loading, refetch: loadHeldTransactions } = useHeldTransactions();
 
   useEffect(() => {
     if (isOpen) {
       loadHeldTransactions();
     }
   }, [isOpen]);
-
-  const loadHeldTransactions = async () => {
-    try {
-      setLoading(true);
-      const res = await query<HeldTransaction>(
-        "SELECT * FROM held_transactions ORDER BY created_at DESC",
-      );
-      setHeldItems(res);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleDelete = async (id: string) => {
     try {

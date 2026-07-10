@@ -6,7 +6,7 @@ import { Check, Database, Globe, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 import { Input } from "@/components/ui/input";
-import { useLocalData } from "@/lib/db/hooks/useLocalData";
+import { useProductList } from "@/lib/hooks/use-product-list";
 import { FORM_SUGGESTIONS } from "@/lib/constants/suggestions";
 import { useStore } from "@/lib/context/store-context";
 import { genericFuzzySearch } from "@/lib/utils/search";
@@ -48,9 +48,7 @@ export function ProductCombobox({
   const isPharmacy = storeProfile?.store_type === "pharmacy";
 
   // Fetch local products
-  const { data: localProducts = [] } = useLocalData<any>(
-    "SELECT id, name, brand_name, generic_name, category_id, manufacturer FROM products WHERE _deleted = 0 ORDER BY name ASC"
-  );
+  const { data: localProducts = [] } = useProductList();
 
   // Compile global suggestions
   const globalSuggestions = React.useMemo(() => {

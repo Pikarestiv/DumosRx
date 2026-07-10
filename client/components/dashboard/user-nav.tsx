@@ -3,7 +3,8 @@
 import { useAuth } from "@/lib/context/auth-context";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { useLocalData } from "@/lib/db/hooks/useLocalData";
+import { useQuery } from "@tanstack/react-query";
+import { getSyncQueueCount } from "@/lib/db/queries/setup";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   DropdownMenu,
@@ -27,10 +28,11 @@ export function UserNav() {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [pendingLogoutType, setPendingLogoutType] = useState<"switch" | "full" | null>(null);
 
-  const { data: queueData } = useLocalData<{ count: number }>(
-    "SELECT COUNT(*) as count FROM _sync_queue"
-  );
-  const pendingCount = queueData?.[0]?.count || 0;
+  const { data: pendingCountData } = useQuery({
+    queryKey: ['syncQueueCount'],
+    queryFn: () => getSyncQueueCount()
+  });
+  const pendingCount = pendingCountData || 0;
 
   if (!user) return null;
 

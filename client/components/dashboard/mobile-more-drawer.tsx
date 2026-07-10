@@ -6,8 +6,9 @@ import { usePathname } from "next/navigation";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { useStore } from "@/lib/context/store-context";
-import { useLocalData } from "@/lib/db/hooks/useLocalData";
+import { useQuery } from "@tanstack/react-query";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { getSyncQueueCount } from "@/lib/db/queries/setup";
 import { useAuth } from "@/lib/context/auth-context";
 import { SyncIndicator } from "./sync-indicator";
 import { cn } from "@/lib/utils";
@@ -39,10 +40,11 @@ export function MobileMoreDrawer({
   const [searchQuery, setSearchQuery] = useState("");
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   
-  const { data: queueData } = useLocalData<{ count: number }>(
-    "SELECT COUNT(*) as count FROM _sync_queue"
-  );
-  const pendingCount = queueData?.[0]?.count || 0;
+  const { data: pendingCountData } = useQuery({
+    queryKey: ['syncQueueCount'],
+    queryFn: () => getSyncQueueCount()
+  });
+  const pendingCount = pendingCountData || 0;
 
   const handleLogoutAttempt = () => {
     if (pendingCount > 0) {

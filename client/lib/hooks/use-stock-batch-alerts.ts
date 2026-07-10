@@ -1,44 +1,17 @@
 import { useMemo } from "react";
-import { useLocalData } from "@/lib/db/hooks/useLocalData";
+import { useQuery } from "@tanstack/react-query";
+import { getLowStockAlerts, getExpiryAlerts } from "@/lib/db/queries/inventory";
 
 export function useStockBatchAlerts() {
-  const { data: lowStockAlerts } = useLocalData<{
-    product: string;
-    quantity: number;
-    threshold: number;
-  }>(
-    `SELECT
-      m.name as product,
-      SUM(inv.quantity) as quantity,
-      m.reorder_level as threshold
-     FROM stock_batches inv
-     JOIN products m ON inv.product_id = m.id
-     WHERE (inv._deleted = 0 OR inv._deleted IS NULL) AND (m._deleted = 0 OR m._deleted IS NULL)
-     GROUP BY m.id
-     HAVING quantity <= m.reorder_level AND m.reorder_level > 0
-     ORDER BY quantity ASC
-     LIMIT 5`
-  );
+  const { data: lowStockAlerts } = useQuery({
+    queryKey: ['lowStockAlerts'],
+    queryFn: () => getLowStockAlerts(),
+  });
 
-  const { data: expiryAlerts } = useLocalData<{
-    product: string;
-    expiryDate: string;
-    daysLeft: number;
-  }>(
-    `SELECT
-      m.name as product,
-      inv.expiry_date as expiryDate,
-      CAST((julianday(inv.expiry_date) - julianday('now')) AS INTEGER) as daysLeft
-     FROM stock_batches inv
-     JOIN products m ON inv.product_id = m.id
-     WHERE (inv._deleted = 0 OR inv._deleted IS NULL) AND (m._deleted = 0 OR m._deleted IS NULL)
-       AND inv.expiry_date IS NOT NULL
-       AND inv.expiry_date != ''
-       AND julianday(inv.expiry_date) <= julianday('now', '+30 days')
-       AND julianday(inv.expiry_date) >= julianday('now')
-     ORDER BY inv.expiry_date ASC
-     LIMIT 5`
-  );
+  const { data: expiryAlerts } = useQuery({
+    queryKey: ['expiryAlerts'],
+    queryFn: () => getExpiryAlerts(),
+  });
 
   const stock_batchAlerts = useMemo(() => {
     const low = (lowStockAlerts || []).map((a) => ({

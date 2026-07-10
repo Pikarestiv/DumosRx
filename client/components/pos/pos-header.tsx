@@ -108,17 +108,20 @@ export function POSHeader({
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                  variant={heldSalesCount > 0 ? "secondary" : "outline"}
+                  variant="outline"
                   size="sm"
                   onClick={() => setShowHeldDialog(true)}
-                  className={`cursor-pointer flex items-center gap-1.5 shrink-0 relative ${heldSalesCount > 0 ? "bg-secondary border-secondary" : ""}`}
+                  className={`cursor-pointer flex items-center gap-1.5 shrink-0 relative ${
+                    heldSalesCount > 0
+                      ? "bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20"
+                      : ""
+                  }`}
                 >
                   <Clock className="h-4 w-4" />
                   Held Sales
                   {heldSalesCount > 0 && (
                     <Badge
-                      variant="destructive"
-                      className="ml-1 h-5 px-1.5 text-xs font-semibold tabular-nums"
+                      className="ml-1 h-5 px-1.5 text-xs font-semibold tabular-nums bg-amber-500 hover:bg-amber-600 text-white border-transparent"
                     >
                       {heldSalesCount}
                     </Badge>

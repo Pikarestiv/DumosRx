@@ -81,14 +81,14 @@ export function HeldTransactionsDialog({
       <DialogContent className="sm:max-w-3xl bg-background/95 backdrop-blur-xl border-accent/10 p-4 sm:p-6">
         <DialogHeader>
           <div className="flex items-center gap-3 mb-2">
-            <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500">
-              <PauseCircle className="w-6 h-6" />
+            <div className="h-8 w-8 md:h-10 md:w-10 rounded-lg md:rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500">
+              <PauseCircle className="w-5 h-5 md:w-6 md:h-6" />
             </div>
-            <div>
-              <DialogTitle className="text-xl font-serif">
+            <div className="text-left">
+              <DialogTitle className="text-lg sm:text-xl font-serif">
                 Held Transactions
               </DialogTitle>
-              <DialogDescription>
+              <DialogDescription className="text-xs sm:text-sm">
                 Recall transactions that were previously paused.
               </DialogDescription>
             </div>
@@ -145,7 +145,7 @@ export function HeldTransactionsDialog({
                     <p className="text-[9px] sm:text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                       Total
                     </p>
-                    <p className="font-bold text-base sm:text-lg leading-none mt-0.5 sm:mt-1">
+                    <p className="font-bold text-sm sm:text-lg leading-none mt-0.5 sm:mt-1">
                       NGN {item.total_amount.toLocaleString()}
                     </p>
                   </div>
@@ -160,10 +160,10 @@ export function HeldTransactionsDialog({
                     </Button>
                     <Button
                       variant="default"
-                      className="h-9 sm:h-10 px-3 sm:px-4 rounded-lg sm:rounded-xl text-sm sm:text-base font-bold bg-primary hover:bg-primary/90 shrink-0"
+                      className="h-9 sm:h-10 px-3 sm:px-4 rounded-lg sm:rounded-xl text-xs sm:text-base font-bold bg-primary hover:bg-primary/90 shrink-0"
                       onClick={() => onRecall(item)}
                     >
-                      <PlayCircle className="w-4 h-4 sm:w-5 sm:h-5 mr-0 sm:mr-2" />
+                      <PlayCircle className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
                       Recall
                     </Button>
                   </div>

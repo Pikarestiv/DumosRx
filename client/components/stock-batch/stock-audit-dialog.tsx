@@ -159,17 +159,17 @@ export function StockAuditDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl bg-background/95 backdrop-blur-xl border-accent/10">
+      <DialogContent className="sm:max-w-4xl w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto p-4 sm:p-6 bg-background/95 backdrop-blur-xl border-accent/10">
         <DialogHeader>
           <div className="flex items-center gap-3 mb-2">
-            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-              <ClipboardCheck className="w-6 h-6" />
+            <div className="h-8 w-8 md:h-10 md:w-10 rounded-lg md:rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
+              <ClipboardCheck className="w-5 h-5 md:w-6 md:h-6" />
             </div>
-            <div>
-              <DialogTitle className="text-xl font-serif">
-                Stock Batch Audit Mode
+            <div className="text-left">
+              <DialogTitle className="text-lg sm:text-xl font-serif">
+                Stock Audit
               </DialogTitle>
-              <DialogDescription>
+              <DialogDescription className="text-xs sm:text-sm">
                 Perform physical stock-taking and reconcile with system records.
               </DialogDescription>
             </div>
@@ -334,14 +334,14 @@ export function StockAuditDialog({
           </div>
         </div>
 
-        <DialogFooter className="border-t border-accent/10 pt-6">
-          <Button variant="ghost" onClick={onClose} className="cursor-pointer">
+        <DialogFooter className="border-t border-accent/10 pt-4 sm:pt-6 flex flex-col-reverse sm:flex-row gap-2 sm:gap-0 mt-4 sm:mt-0">
+          <Button variant="ghost" onClick={onClose} className="cursor-pointer w-full sm:w-auto">
             Cancel
           </Button>
           <Button
             onClick={handleSubmit}
             disabled={submitting || !selectedProduct || actualQuantity === ""}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold cursor-pointer"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold cursor-pointer w-full sm:w-auto"
           >
             {submitting ? "Processing..." : "Reconcile Stock Batch"}
           </Button>

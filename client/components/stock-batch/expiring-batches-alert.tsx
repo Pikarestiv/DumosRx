@@ -52,7 +52,7 @@ export function ExpiringBatchesAlert() {
   return (
     <div className="relative group overflow-hidden rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4 transition-all hover:bg-amber-500/10 mb-6">
       <div className="flex items-start gap-4">
-        <div className="h-8 w-8 sm:h-10 sm:w-10 shrink-0 rounded-xl bg-amber-500/20 flex items-center justify-center text-amber-600">
+        <div className="h-7 w-7 sm:h-10 sm:w-10 shrink-0 rounded-lg sm:rounded-xl bg-amber-500/20 flex items-center justify-center text-amber-600">
           <AlertTriangle className="w-3 h-3 sm:w-5 sm:h-5" />
         </div>
 

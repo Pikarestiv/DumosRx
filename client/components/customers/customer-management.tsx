@@ -87,13 +87,15 @@ export function CustomerManagement() {
       <CustomerStats customers={customers} />
 
       <Tabs defaultValue="customers" className="space-y-6">
-        <TabsList className="bg-muted/50 p-1 h-auto flex-wrap justify-start">
-          <TabsTrigger value="customers" className="px-4 py-2">Customer Directory</TabsTrigger>
-          <TabsTrigger value="debt" className="px-4 py-2">Debt Management</TabsTrigger>
-          <TabsTrigger value="loyalty" className="px-4 py-2">Loyalty Program</TabsTrigger>
-          <TabsTrigger value="transactions" className="px-4 py-2">Recent Activity</TabsTrigger>
-          <TabsTrigger value="analytics" className="px-4 py-2">Customer Analytics</TabsTrigger>
-        </TabsList>
+        <div className="w-full overflow-x-auto scrollbar-none pb-2">
+          <TabsList className="bg-muted/50 p-1 h-auto flex justify-start w-max min-w-full">
+            <TabsTrigger value="customers" className="px-4 py-2 shrink-0">Customer Directory</TabsTrigger>
+            <TabsTrigger value="debt" className="px-4 py-2 shrink-0">Debt Management</TabsTrigger>
+            <TabsTrigger value="loyalty" className="px-4 py-2 shrink-0">Loyalty Program</TabsTrigger>
+            <TabsTrigger value="transactions" className="px-4 py-2 shrink-0">Recent Activity</TabsTrigger>
+            <TabsTrigger value="analytics" className="px-4 py-2 shrink-0">Customer Analytics</TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="customers">
           <CustomerDirectory 

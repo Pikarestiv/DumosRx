@@ -205,7 +205,7 @@ export function ProductDatabase() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="font-serif font-bold text-3xl text-foreground">
             {t("products")} Database
@@ -217,7 +217,7 @@ export function ProductDatabase() {
         </div>
         <Button
           onClick={() => setShowAddDialog(true)}
-          className="bg-accent hover:bg-accent/90"
+          className="bg-accent hover:bg-accent/90 w-full sm:w-auto"
         >
           <Plus className="h-4 w-4 mr-2" />
           Add {t("product")}

@@ -54,6 +54,7 @@ interface StoreContextType {
   activeStoreId: string | null;
   availableStores: StoreProfile[];
   switchStore: (storeId: string) => void;
+  refetch: () => Promise<any>;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -282,6 +283,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         activeStoreId: user?.store_id || activeStoreId,
         availableStores: allStores || [],
         switchStore,
+        refetch,
       }}
     >
       {children}

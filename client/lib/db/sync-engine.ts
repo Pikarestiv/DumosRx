@@ -355,15 +355,12 @@ export async function syncSubscriptionStatus(): Promise<{ success: boolean; upda
   }
 
   try {
-    // Ask the server for only the stores table changes
-    const syncState = await query<{ table_name: string; last_synced_at: string }>(
-      "SELECT table_name, last_synced_at FROM _sync_state WHERE table_name = 'stores'"
-    );
-
-    const lastSynced = syncState[0]?.last_synced_at ?? null;
-
+    // Always pass empty string so the server returns the full current store
+    // record regardless of when the last sync happened. This ensures that
+    // plan downgrades/upgrades written on the server are never missed due
+    // to timestamp delta logic.
     const response = (await apiClient.pullChanges({
-      last_synced: { stores: lastSynced ?? "" },
+      last_synced: { stores: "" },
     })) as PullResponse;
 
     const storeRecords = response?.changes?.stores;

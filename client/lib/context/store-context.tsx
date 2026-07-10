@@ -203,6 +203,43 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     };
   }, [refetch]);
 
+  // Privileged subscription status sync — always runs regardless of tier.
+  // This ensures plan downgrades, suspensions and renewals written on the
+  // server are reflected locally even when full cloud sync is gated off.
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const runSubscriptionSync = async () => {
+      const token = localStorage.getItem("auth_token");
+      if (!navigator.onLine || !token) return;
+      try {
+        const { syncSubscriptionStatus } = await import("@/lib/db/sync-engine");
+        const result = await syncSubscriptionStatus();
+        if (result.updated) {
+          console.log("[StoreContext] Subscription status updated from server, refetching profile");
+          await refetch();
+        }
+      } catch (e) {
+        console.error("[StoreContext] Subscription status sync failed", e);
+      }
+    };
+
+    // Run immediately on mount
+    runSubscriptionSync();
+
+    // Then every 30 minutes
+    const interval = setInterval(runSubscriptionSync, 30 * 60 * 1000);
+
+    // Also re-run when the app comes back online
+    const handleOnline = () => runSubscriptionSync();
+    window.addEventListener("online", handleOnline);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("online", handleOnline);
+    };
+  }, [refetch]);
+
   const updateStoreProfile = async (data: Partial<StoreProfile>) => {
     if (!storeProfile) {
       await insert("stores", {

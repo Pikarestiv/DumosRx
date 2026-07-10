@@ -337,3 +337,98 @@ export async function sync(isManual: boolean = false, isSetup: boolean = false):
     isSyncInProgress = false;
   }
 }
+
+/**
+ * Privileged Subscription Status Sync
+ * 
+ * This runs regardless of the user's plan tier. It pulls ONLY the `stores`
+ * table from the server so the local app always has the latest
+ * subscription_tier, status, suspension_reason and license_token.
+ * 
+ * This ensures that plan downgrades, suspensions and renewals are reflected
+ * locally even when full cloud sync is disabled for free-tier users.
+ */
+export async function syncSubscriptionStatus(): Promise<{ success: boolean; updated: boolean }> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+  if (!token || !navigator.onLine) {
+    return { success: false, updated: false };
+  }
+
+  try {
+    // Ask the server for only the stores table changes
+    const syncState = await query<{ table_name: string; last_synced_at: string }>(
+      "SELECT table_name, last_synced_at FROM _sync_state WHERE table_name = 'stores'"
+    );
+
+    const lastSynced = syncState[0]?.last_synced_at ?? null;
+
+    const response = (await apiClient.pullChanges({
+      last_synced: { stores: lastSynced ?? "" },
+    })) as PullResponse;
+
+    const storeRecords = response?.changes?.stores;
+    if (!storeRecords || storeRecords.length === 0) {
+      return { success: true, updated: false };
+    }
+
+    // Fetch valid columns for the stores table (with caching)
+    if (!schemaCache["stores"]) {
+      const tableInfo = await query<{ name: string }>(`PRAGMA table_info(stores)`);
+      schemaCache["stores"] = new Set(tableInfo.map((c) => c.name));
+    }
+    const validColumns = schemaCache["stores"];
+
+    // Only apply the subscription-critical fields to avoid clobbering local-only columns
+    const SUBSCRIPTION_FIELDS = new Set([
+      "subscription_tier",
+      "status",
+      "suspension_reason",
+      "license_token",
+      "updated_at",
+    ]);
+
+    for (const record of storeRecords) {
+      const { id, _deleted, ...rawData } = record as any;
+
+      const data: Record<string, any> = {};
+      for (const key in rawData) {
+        if (validColumns.has(key) && SUBSCRIPTION_FIELDS.has(key)) {
+          data[key] = rawData[key];
+        }
+      }
+
+      const columns = Object.keys(data);
+      if (columns.length === 0) continue;
+
+      const setClause = columns.map((c) => `${c} = ?`).join(", ");
+      const values = columns.map((c) => data[c]);
+
+      const exists = await query<any>(`SELECT 1 FROM stores WHERE id = ?`, [id]);
+      if (exists.length > 0) {
+        await execute(
+          `UPDATE stores SET ${setClause}, _synced = 1 WHERE id = ?`,
+          [...values, id]
+        );
+      }
+    }
+
+    // Update the sync state timestamp for the stores table
+    await execute(
+      "INSERT OR REPLACE INTO _sync_state (table_name, last_synced_at) VALUES (?, ?)",
+      ["stores", response.server_timestamp]
+    );
+
+    // Invalidate React Query cache so UI re-renders with new tier/status
+    if (typeof window !== "undefined") {
+      queryClient.invalidateQueries({ queryKey: ["localData"] });
+      queryClient.invalidateQueries({ queryKey: ["stores"] });
+      window.dispatchEvent(new CustomEvent("dumos_subscription_updated"));
+    }
+
+    console.log("[SyncEngine] Subscription status synced from server.");
+    return { success: true, updated: true };
+  } catch (error) {
+    console.error("[SyncEngine] Failed to sync subscription status:", error);
+    return { success: false, updated: false };
+  }
+}

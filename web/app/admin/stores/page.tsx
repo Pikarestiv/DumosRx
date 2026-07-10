@@ -15,7 +15,7 @@ import { StoreTable } from "@/components/admin/stores/store-table";
 import { StoreToolbar } from "@/components/admin/stores/store-toolbar";
 import { StorePagination } from "@/components/admin/stores/store-pagination";
 import { SuspendStoreDialog, ViewStoreDialog } from "@/components/admin/stores/store-dialogs";
-import { GrantTrialDialog } from "@/components/admin/stores/grant-trial-dialog";
+import { SharedGrantTrialDialog } from "@/components/admin/shared-grant-trial-dialog";
 import { toast } from "sonner";
 import { AdminSkeleton } from "@/components/admin/admin-skeleton";
 
@@ -262,10 +262,10 @@ export default function StoresManagement() {
         isPending={suspendMutation.isPending}
       />
 
-      <GrantTrialDialog
+      <SharedGrantTrialDialog
         open={isTrialDialogOpen}
         onOpenChange={setIsTrialDialogOpen}
-        store={selectedStore}
+        targetName={selectedStore?.name}
         onConfirm={handleGrantTrial}
         isPending={grantTrialMutation.isPending}
       />

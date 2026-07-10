@@ -42,7 +42,7 @@ import { UserProfileDialog } from "@/components/admin/users/user-profile-dialog"
 import { SendNotificationDialog } from "@/components/admin/users/send-notification-dialog";
 import { DeleteUserDialog } from "@/components/admin/users/delete-user-dialog";
 import { UserTable } from "@/components/admin/users/user-table";
-import { GrantUserTrialDialog } from "@/components/admin/users/grant-user-trial-dialog";
+import { SharedGrantTrialDialog } from "@/components/admin/shared-grant-trial-dialog";
 import { UserPagination } from "@/components/admin/users/user-pagination";
 
 function GlobalUsersDirectoryContent() {
@@ -321,10 +321,10 @@ function GlobalUsersDirectoryContent() {
         deleteMutation={deleteMutation}
       />
 
-      <GrantUserTrialDialog
+      <SharedGrantTrialDialog
         open={isTrialDialogOpen}
         onOpenChange={setIsTrialDialogOpen}
-        user={selectedUser}
+        targetName={selectedUser?.name}
         onConfirm={handleGrantTrial}
         isPending={grantTrialMutation.isPending}
       />

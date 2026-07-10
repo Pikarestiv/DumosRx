@@ -19,21 +19,21 @@ import {
 import { Label } from "@/components/ui/label";
 import { TRIAL_DURATIONS } from "@/lib/constants";
 
-interface GrantTrialDialogProps {
+interface SharedGrantTrialDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  store: any;
+  targetName?: string;
   onConfirm: (plan: string, duration: string) => void;
   isPending: boolean;
 }
 
-export function GrantTrialDialog({
+export function SharedGrantTrialDialog({
   open,
   onOpenChange,
-  store,
+  targetName,
   onConfirm,
   isPending,
-}: GrantTrialDialogProps) {
+}: SharedGrantTrialDialogProps) {
   const [plan, setPlan] = useState("pro");
   const [duration, setDuration] = useState("14 days");
 
@@ -45,7 +45,7 @@ export function GrantTrialDialog({
           <DialogDescription>
             Grant a free trial to{" "}
             <span className="font-bold text-slate-900 dark:text-white">
-              {store?.name}
+              {targetName || "this account"}
             </span>
             . They will have access to the selected plan features for the specified duration.
           </DialogDescription>
@@ -80,7 +80,7 @@ export function GrantTrialDialog({
             </Select>
           </div>
         </div>
-        <DialogFooter className="gap-2 sm:gap-0">
+        <DialogFooter className="gap-2 sm:space-x-2">
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}

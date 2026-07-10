@@ -177,38 +177,50 @@ jobs:
         run: |
           gh release download ${{ github.ref_name }} --repo ${{ github.repository }} --dir release-assets
 
-      - name: Rewrite updater JSON URLs to Namecheap
+      - name: Generate updater.json
         run: |
           cd release-assets
-          # Tauri action might name it latest.json, updater.json, or DumosRx.json depending on the version
-          UPDATER_FILE=$(find . -maxdepth 1 -name "*.json" | head -n 1)
-          if [ -z "$UPDATER_FILE" ]; then
-            echo "No updater json found!"
-            exit 0
-          fi
-          
-          # Normalize name to updater.json for the rest of the script
-          if [ "$UPDATER_FILE" != "./updater.json" ] && [ "$UPDATER_FILE" != "updater.json" ]; then
-            mv "$UPDATER_FILE" "updater.json"
-          fi
-          UPDATER_FILE="updater.json"
-          
-          # Replace GitHub release URLs with Namecheap subdomain URLs
-          # from https://github.com/Pikarestiv/DumosRx/releases/download/v0.0.18/DumosRx_0.0.18_x64_en-US.msi.zip
-          # to https://downloads.dumosrx.com/v0.0.18/DumosRx_0.0.18_x64_en-US.msi.zip
           node -e "
             const fs = require('fs');
-            const data = fs.readFileSync('$UPDATER_FILE', 'utf8');
-            // Regex to match github releases download url
-            const regex = /https:\/\/github\.com\/[^/]+\/[^/]+\/releases\/download\/[^/]+\//g;
-            const replaced = data.replace(regex, 'https://downloads.dumosrx.com/${{ github.ref_name }}/');
-            fs.writeFileSync('updater.json', replaced);
-            if ('$UPDATER_FILE' !== 'updater.json') {
-              fs.unlinkSync('$UPDATER_FILE');
+            const version = '${{ github.ref_name }}'.replace(/^v/, '');
+            
+            const files = fs.readdirSync('.');
+            const sigFiles = files.filter(f => f.endsWith('.sig'));
+            
+            const platforms = {};
+            
+            for (const sigFile of sigFiles) {
+              const sig = fs.readFileSync(sigFile, 'utf8').trim();
+              const baseFile = sigFile.replace('.sig', '');
+              
+              let platform = '';
+              if (baseFile.endsWith('.app.tar.gz')) {
+                platform = baseFile.includes('aarch64') ? 'darwin-aarch64' : 'darwin-x86_64';
+              } else if (baseFile.endsWith('.msi.zip')) {
+                platform = 'windows-x86_64';
+              } else if (baseFile.endsWith('.AppImage.tar.gz')) {
+                platform = 'linux-x86_64';
+              }
+              
+              if (platform) {
+                platforms[platform] = {
+                  signature: sig,
+                  url: \`https://downloads.dumosrx.com/\${{ github.ref_name }}/\${baseFile}\`
+                };
+              }
             }
+            
+            const updater = {
+              version,
+              notes: 'Update ' + version,
+              pub_date: new Date().toISOString(),
+              platforms
+            };
+            
+            fs.writeFileSync('updater.json', JSON.stringify(updater, null, 2));
+            console.log('Generated updater.json:');
+            console.log(JSON.stringify(updater, null, 2));
           "
-          echo "Updated updater.json:"
-          cat updater.json
           
       - name: Separate root files from binaries
         run: |

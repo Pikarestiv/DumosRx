@@ -79,12 +79,12 @@ export function RequestedProductsTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h3 className="text-lg font-semibold flex items-center gap-2">
           <Clock className="w-5 h-5 text-muted-foreground" />
           Requested Products Log
         </h3>
-        <div className="relative w-72">
+        <div className="relative w-full sm:w-72">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             type="search"

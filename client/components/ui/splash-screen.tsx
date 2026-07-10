@@ -6,12 +6,10 @@ export function SplashScreen() {
   return (
     <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-background">
       <div className="relative w-24 h-24 sm:w-32 sm:h-32 animate-pulse">
-        <Image
+        <img
           src="/logo-icon-blue.png"
           alt="DumosRx Logo"
-          fill
-          className="object-contain"
-          priority
+          className="w-full h-full object-contain"
         />
       </div>
       <div className="mt-8 flex flex-col items-center gap-3">

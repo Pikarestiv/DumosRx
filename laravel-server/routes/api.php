@@ -216,26 +216,5 @@ Route::prefix('v1')->group(function () {
             Route::post('/sync/pull', [SyncController::class, 'pull']);
         });
 
-        // Legacy compatibility routes (to avoid breaking current frontend immediately)
-        // Once frontend is updated, these can be removed
-        Route::get('/dashboard/summary', [DashboardController::class, 'summary']);
-        Route::post('/dashboard/reset', [DashboardController::class, 'resetData']);
-        Route::get('/products/search', [ProductController::class, 'search']);
-        Route::get('/stock-batches/low-stock', [StockBatchController::class, 'lowStock']);
-        Route::get('/stock-batches/expiring', [StockBatchController::class, 'expiring']);
-        Route::get('/stock-batches/value', [StockBatchController::class, 'value']);
-        Route::get('/stock-batches', [StockBatchController::class, 'index']);
-        Route::get('/sales/daily', [SaleController::class, 'dailySales']);
-        Route::get('/sales/top-products', [SaleController::class, 'topProducts']);
-        Route::apiResource('sales', SaleController::class)->only(['index', 'store', 'show']);
-        Route::apiResource('customers', CustomerController::class);
-        Route::apiResource('suppliers', SupplierController::class);
-        Route::apiResource('categories', CategoryController::class);
-        Route::post('/sync/push', [SyncController::class, 'push']);
-        Route::post('/sync/pull', [SyncController::class, 'pull']);
-        Route::post('/backups/upload', [BackupController::class, 'upload']);
-        Route::get('/backups', [BackupController::class, 'list']);
-        Route::get('/backups/{backup}/download', [BackupController::class, 'download']);
-        Route::get('/logs', [ActivityLogController::class, 'index']);
     });
 });

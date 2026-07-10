@@ -22,22 +22,21 @@ class ApiClient extends BaseApiClient {
     return this.request<any>("/user");
   }
 
-  // Products endpoints
   async getProducts(page = 1, limit = 50) {
-    return this.request<any>(`/products?page=${page}&limit=${limit}`);
+    return this.request<any>(`/app/products?page=${page}&limit=${limit}`);
   }
 
   async searchProducts(params: any) {
     const searchParams = new URLSearchParams(params);
-    return this.request<any>(`/products/search?${searchParams}`);
+    return this.request<any>(`/app/products/search?${searchParams}`);
   }
 
   async getProduct(id: string) {
-    return this.request<any>(`/products/${id}`);
+    return this.request<any>(`/app/products/${id}`);
   }
 
   async createProduct(data: any) {
-    return this.request<any>("/products", {
+    return this.request<any>("/app/products", {
       method: "POST",
       body: JSON.stringify(data),
     });
@@ -45,49 +44,49 @@ class ApiClient extends BaseApiClient {
 
   // Stock Batch endpoints
   async getStockBatch(page = 1, limit = 50) {
-    return this.request<any>(`/stock-batches?page=${page}&limit=${limit}`);
+    return this.request<any>(`/app/stock-batches?page=${page}&limit=${limit}`);
   }
 
   async getLowStockItems() {
-    return this.request<any>("/stock-batches/low-stock");
+    return this.request<any>("/app/stock-batches/low-stock");
   }
 
   async getExpiringItems(days = 90) {
-    return this.request<any>(`/stock-batches/expiring?days=${days}`);
+    return this.request<any>(`/app/stock-batches/expiring?days=${days}`);
   }
 
   async getStockBatchValue() {
-    return this.request<any>("/stock-batches/value");
+    return this.request<any>("/app/stock-batches/value");
   }
 
   // Sales endpoints
   async createSale(data: any) {
-    return this.request<any>("/sales", {
+    return this.request<any>("/app/sales", {
       method: "POST",
       body: JSON.stringify(data),
     });
   }
 
   async getSales(page = 1, limit = 50) {
-    return this.request<any>(`/sales?page=${page}&limit=${limit}`);
+    return this.request<any>(`/app/sales?page=${page}&limit=${limit}`);
   }
 
   async getDailySales(date?: string) {
     const params = date ? `?date=${date}` : "";
-    return this.request<any>(`/sales/daily${params}`);
+    return this.request<any>(`/app/sales/daily${params}`);
   }
 
   async getTopSellingProducts(limit = 10, days = 30) {
-    return this.request<any>(`/sales/top-products?limit=${limit}&days=${days}`);
+    return this.request<any>(`/app/sales/top-products?limit=${limit}&days=${days}`);
   }
 
   // Customers endpoints
   async getCustomers(page = 1, limit = 50) {
-    return this.request<any>(`/customers?page=${page}&limit=${limit}`);
+    return this.request<any>(`/app/customers?page=${page}&limit=${limit}`);
   }
 
   async createCustomer(data: any) {
-    return this.request<any>("/customers", {
+    return this.request<any>("/app/customers", {
       method: "POST",
       body: JSON.stringify(data),
     });
@@ -95,7 +94,7 @@ class ApiClient extends BaseApiClient {
 
   // Categories endpoints
   async getCategories() {
-    return this.request<any>("/categories");
+    return this.request<any>("/app/categories");
   }
 
   // Dashboard endpoints
@@ -125,11 +124,11 @@ class ApiClient extends BaseApiClient {
 
   // Suppliers endpoints
   async getSuppliers(page = 1, limit = 50) {
-    return this.request<any>(`/suppliers?page=${page}&limit=${limit}`);
+    return this.request<any>(`/app/suppliers?page=${page}&limit=${limit}`);
   }
 
   async createSupplier(data: any) {
-    return this.request<any>("/suppliers", {
+    return this.request<any>("/app/suppliers", {
       method: "POST",
       body: JSON.stringify(data),
     });
@@ -169,7 +168,7 @@ class ApiClient extends BaseApiClient {
     isManual: boolean = false,
     isSetup: boolean = false,
   ) {
-    let url = `/sync/push`;
+    let url = `/app/sync/push`;
     const params = new URLSearchParams();
     if (isManual) params.append("manual", "1");
     if (isSetup) params.append("setup", "1");
@@ -195,7 +194,7 @@ class ApiClient extends BaseApiClient {
     isManual: boolean = false,
     isSetup: boolean = false,
   ) {
-    let url = `/sync/pull`;
+    let url = `/app/sync/pull`;
     const params = new URLSearchParams();
     if (isManual) params.append("manual", "1");
     if (isSetup) params.append("setup", "1");
@@ -250,11 +249,11 @@ class ApiClient extends BaseApiClient {
 
   // Online Orders
   async getOnlineOrders() {
-    return this.request<any>("/online-orders");
+    return this.request<any>("/app/online-orders");
   }
 
   async fulfillOnlineOrder(id: string) {
-    return this.request<any>(`/online-orders/${id}/fulfill`, {
+    return this.request<any>(`/app/online-orders/${id}/fulfill`, {
       method: "POST",
       body: JSON.stringify({ status: "fulfilled" }),
     });

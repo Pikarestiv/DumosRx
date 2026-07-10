@@ -13,6 +13,7 @@ import {
   Lock,
   ExternalLink,
 } from "lucide-react";
+import { SplashScreen } from "@/components/ui/splash-screen";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -212,11 +213,7 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
   }, [storeProfile?.status, storeProfile?.suspension_reason]);
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <RefreshCw className="h-8 w-8 animate-spin text-accent" />
-      </div>
-    );
+    return <SplashScreen />;
   }
 
   // If license is valid, render children

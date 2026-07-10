@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { TRIAL_DURATIONS } from "@/lib/constants";
 
 interface GrantTrialDialogProps {
   open: boolean;
@@ -35,17 +36,6 @@ export function GrantTrialDialog({
 }: GrantTrialDialogProps) {
   const [plan, setPlan] = useState("pro");
   const [duration, setDuration] = useState("14 days");
-
-  const durations = [
-    "1day",
-    "3 days",
-    "7 days",
-    "14 days",
-    "21 days",
-    "30 days",
-    "3 months",
-    "6 months"
-  ];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -81,7 +71,7 @@ export function GrantTrialDialog({
                 <SelectValue placeholder="Select duration" />
               </SelectTrigger>
               <SelectContent className="rounded-xl max-h-[200px]">
-                {durations.map((d) => (
+                {TRIAL_DURATIONS.map((d) => (
                   <SelectItem key={d} value={d}>
                     {d}
                   </SelectItem>

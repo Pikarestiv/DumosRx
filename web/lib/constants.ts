@@ -9,3 +9,15 @@ export const SYSTEM_EMAIL = "system-logs@dumosrx.com";
 export const SUPPORT_EMAIL = "support@dumosrx.com";
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.dumosrx.com/api/v1";
 export const DOWNLOAD_URL = process.env.NEXT_PUBLIC_DOWNLOAD_URL || "https://downloads.dumosrx.com";
+
+export const TRIAL_DURATIONS = [
+  "1 day",
+  "3 days",
+  "7 days",
+  "14 days",
+  "21 days",
+  "1 month",
+  "3 months",
+  "6 months",
+  "1 year"
+];

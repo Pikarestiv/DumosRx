@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Table,
   TableBody,
@@ -13,7 +13,7 @@ import {
   Card,
   CardContent,
 } from "@/components/ui/card";
-import { query, softDelete } from "@/lib/db/local-database";
+import { softDelete } from "@/lib/db/local-database";
 import { formatCurrency } from "@/lib/utils";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -21,39 +21,12 @@ import { Trash2, ReceiptText } from "lucide-react";
 import { toast } from "sonner";
 import { useStore } from "@/lib/context/store-context";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-
-interface Expense {
-  id: string;
-  category: string;
-  amount: number;
-  description: string;
-  date: string;
-  payment_method: string;
-}
+import { useExpenseList } from "@/lib/hooks/use-finance-data";
 
 export function ExpenseList() {
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { expenses, isLoading, refetch: fetchExpenses } = useExpenseList();
   const { storeProfile } = useStore();
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
-
-  const fetchExpenses = async () => {
-    try {
-      const data = await query<Expense>(
-        "SELECT * FROM expenses WHERE _deleted = 0 ORDER BY date DESC"
-      );
-      setExpenses(data);
-    } catch (error) {
-      console.error("Failed to fetch expenses:", error);
-      toast.error("Failed to load expenses");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchExpenses();
-  }, []);
 
   const handleDelete = async (id: string) => {
     setDeleteTargetId(id);

@@ -128,6 +128,11 @@ export function DashboardTour() {
       scrollToFirstStep
       steps={steps}
       styles={{
+        tooltip: {
+          width: "min(360px, calc(100vw - 32px))",
+          borderRadius: "4px",
+          padding: "16px",
+        },
         tooltipContainer: {
           textAlign: "left",
         },

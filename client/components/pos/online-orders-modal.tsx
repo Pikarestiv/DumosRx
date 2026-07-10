@@ -13,9 +13,10 @@ import { apiClient } from "@/lib/api/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Loader2, CheckCircle, XCircle } from "lucide-react";
-import { useDatabase } from "@/lib/db/DatabaseProvider";
-import { generateId, execute, query } from "@/lib/db/core";
+import { Loader2, CheckCircle } from "lucide-react";
+
+import { generateId, execute } from "@/lib/db/core";
+import { getStockBatchesForProduct } from "@/lib/db/queries/sales";
 
 export function OnlineOrdersModal() {
   const { isOpen, onClose } = useOnlineOrdersModal();
@@ -80,10 +81,7 @@ export function OnlineOrdersModal() {
 
         // Reduce stock in stock_batches (simple FIFO logic or just deduct from first available)
         // Here we just deduct from the latest active batch to keep it simple, since online order didn't pick batch.
-        const batches = await query<{id: string, quantity: number}>(
-          `SELECT id, quantity FROM stock_batches WHERE product_id = ? AND quantity > 0 ORDER BY created_at ASC`,
-          [item.product_id]
-        );
+        const batches = await getStockBatchesForProduct(item.product_id);
         
         let remainingToDeduct = item.quantity;
         for (const batch of batches) {

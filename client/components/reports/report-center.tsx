@@ -173,20 +173,22 @@ export function ReportCenter() {
   return (
     <div className="space-y-6">
       {/* Date filter */}
-      <div className="flex items-center gap-3">
-        <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-        <Select value={datePreset} onValueChange={setDatePreset}>
-          <SelectTrigger className="w-44 h-9">
-            <SelectValue placeholder="Select period" />
-          </SelectTrigger>
-          <SelectContent>
-            {DATE_PRESETS.map((p) => (
-              <SelectItem key={p.value} value={p.value}>
-                {p.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        <div className="flex items-center gap-3">
+          <CalendarIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+          <Select value={datePreset} onValueChange={setDatePreset}>
+            <SelectTrigger className="w-44 h-9">
+              <SelectValue placeholder="Select period" />
+            </SelectTrigger>
+            <SelectContent>
+              {DATE_PRESETS.map((p) => (
+                <SelectItem key={p.value} value={p.value}>
+                  {p.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         <span className="text-sm text-muted-foreground">
           Reports will be generated for this time range
         </span>
@@ -220,11 +222,11 @@ export function ReportCenter() {
                     <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
                       {report.description}
                     </p>
-                    <div className="flex items-center gap-3 mt-4">
+                    <div className="flex flex-wrap items-center gap-2 mt-4">
                       <Button
                         size="sm"
                         variant="outline"
-                        className="h-8 gap-2"
+                        className="h-8 gap-2 flex-1 sm:flex-none"
                         onClick={() => runPreview(report.id)}
                         disabled={isLoading}
                       >
@@ -234,38 +236,40 @@ export function ReportCenter() {
                       <Button
                         size="sm"
                         variant="outline"
-                        className="h-8 gap-2"
+                        className="h-8 gap-2 flex-1 sm:flex-none"
                         onClick={() => runPrint(report.id)}
                         disabled={isLoading}
                       >
                         <Printer className="h-3.5 w-3.5" />
                         Print
                       </Button>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-8 gap-2"
-                            disabled={isLoading}
-                          >
-                            {isLoading ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                              <Download className="h-3.5 w-3.5" />
-                            )}
-                            Export
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => runExport(report.id)} className="cursor-pointer">
-                            Export CSV
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => runPrint(report.id)} className="cursor-pointer">
-                            Export PDF
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <div className="w-full sm:w-auto">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 gap-2 w-full"
+                              disabled={isLoading}
+                            >
+                              {isLoading ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Download className="h-3.5 w-3.5" />
+                              )}
+                              Export
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => runExport(report.id)} className="cursor-pointer">
+                              Export CSV
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => runPrint(report.id)} className="cursor-pointer">
+                              Export PDF
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -293,22 +297,25 @@ export function ReportCenter() {
               {recentDownloads.map((dl) => (
                 <div
                   key={dl.id}
-                  className="flex items-center justify-between p-3 rounded-lg bg-muted/30"
+                  className="flex items-start gap-3 p-3 rounded-lg bg-muted/30"
                 >
-                  <div className="flex items-center gap-3">
-                    <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
-                    <div>
-                      <p className="text-sm font-semibold">{dl.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {dl.type} •{" "}
-                        {format(new Date(dl.generatedAt), "MMM d, yyyy 'at' h:mm a")} •{" "}
+                  <FileText className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+                  <div className="min-w-0 space-y-1 w-full">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold truncate">{dl.name}</p>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {dl.type}
+                    </p>
+                    <div className="flex flex-col gap-0.5 mt-1">
+                      <p className="text-[11px] text-muted-foreground/80">
+                        {format(new Date(dl.generatedAt), "MMM d, yyyy 'at' h:mm a")}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground/80">
                         {dl.sizeLabel}
                       </p>
                     </div>
                   </div>
-                  <Badge variant="outline" className="text-[10px] text-emerald-600 border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20">
-                    Downloaded
-                  </Badge>
                 </div>
               ))}
             </div>

@@ -364,7 +364,7 @@ export async function initDatabase(): Promise<any> {
       } catch (_e) { }
 
       try {
-        await db.execute("ALTER TABLE products RENAME TO products");
+        await db.execute("ALTER TABLE medicines RENAME TO products");
       } catch (_e) { }
 
       const tablesWithProductId = [
@@ -377,7 +377,7 @@ export async function initDatabase(): Promise<any> {
       ];
       for (const t of tablesWithProductId) {
         try {
-          await db.execute(`ALTER TABLE ${t} RENAME COLUMN product_id TO product_id`);
+          await db.execute(`ALTER TABLE ${t} RENAME COLUMN medicine_id TO product_id`);
         } catch (_e) { }
       }
 
@@ -499,7 +499,7 @@ export async function initDatabase(): Promise<any> {
         } catch (_e) { }
 
         try {
-          db.run("ALTER TABLE products RENAME TO products");
+          db.run("ALTER TABLE medicines RENAME TO products");
         } catch (_e) { }
 
         const tablesWithProductId = [
@@ -512,7 +512,7 @@ export async function initDatabase(): Promise<any> {
         ];
         for (const t of tablesWithProductId) {
           try {
-            db.run(`ALTER TABLE ${t} RENAME COLUMN product_id TO product_id`);
+            db.run(`ALTER TABLE ${t} RENAME COLUMN medicine_id TO product_id`);
           } catch (_e) { }
         }
 

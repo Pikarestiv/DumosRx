@@ -16,7 +16,8 @@ import { ProductDatabaseFilters } from "./product-database-filters";
 import { AddProductDialog } from "./add-product-dialog";
 import { ProductDetailsDialog } from "./product-details-dialog";
 import { useAddProduct } from "./use-add-product";
-import { useLocalData } from "@/lib/db/hooks/useLocalData";
+import { useQuery } from "@tanstack/react-query";
+import { getProductsWithDetails, getCategoriesList } from "@/lib/db/queries/products";
 import { useStore } from "@/lib/context/store-context";
 import { genericFuzzySearch } from "@/lib/utils/search";
 import { Product, transformProduct } from "./types";
@@ -61,24 +62,17 @@ export function ProductDatabase() {
 
   const isStore = storeType === "pharmacy";
 
-  const { data: products, refetch } = useLocalData<Product>(
-    `SELECT m.*, c.name as category_name, v.name as supplier_name,
-       (SELECT SUM(quantity) FROM stock_batches WHERE product_id = m.id AND _deleted = 0 AND is_active = 1) as stock_quantity,
-       (SELECT cost_price FROM stock_batches WHERE product_id = m.id AND _deleted = 0 ORDER BY created_at DESC LIMIT 1) as cost_price,
-       (SELECT expiry_date FROM stock_batches WHERE product_id = m.id AND _deleted = 0 AND quantity > 0 ORDER BY expiry_date ASC LIMIT 1) as expiry_date,
-       (SELECT batch_number FROM stock_batches WHERE product_id = m.id AND _deleted = 0 AND quantity > 0 ORDER BY expiry_date ASC LIMIT 1) as batch_number
-     FROM products m
-     LEFT JOIN categories c ON m.category_id = c.id
-     LEFT JOIN suppliers v ON m.supplier_id = v.id
-     WHERE m._deleted = 0
-     ORDER BY m.created_at DESC`,
-    [],
-    { transform: transformProduct },
-  );
+  const { data: rawProducts, refetch } = useQuery({
+    queryKey: ['productsWithDetails'],
+    queryFn: () => getProductsWithDetails()
+  });
+  
+  const products = rawProducts ? rawProducts.map(transformProduct) : [];
 
-  const { data: rawCategories } = useLocalData<any>(
-    "SELECT name FROM categories WHERE _deleted = 0 ORDER BY name ASC",
-  );
+  const { data: rawCategories } = useQuery({
+    queryKey: ['categoriesList'],
+    queryFn: () => getCategoriesList()
+  });
 
   const defaultCategories = isStore
     ? ["Analgesics", "Antibiotics", "Antimalarials", "Vitamins", "Antacids"]
@@ -205,7 +199,7 @@ export function ProductDatabase() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="font-serif font-bold text-3xl text-foreground">
             {t("products")} Database
@@ -217,7 +211,7 @@ export function ProductDatabase() {
         </div>
         <Button
           onClick={() => setShowAddDialog(true)}
-          className="bg-accent hover:bg-accent/90"
+          className="bg-accent hover:bg-accent/90 w-full sm:w-auto"
         >
           <Plus className="h-4 w-4 mr-2" />
           Add {t("product")}

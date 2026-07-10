@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { query } from "@/lib/db/local-database";
+import { getPrescriptionItems } from "@/lib/db/queries/prescriptions";
 import { toast } from "sonner";
 import { Product } from "./use-pos-data";
 
@@ -28,10 +28,7 @@ export function usePOSPrescription({
       const loadPrescription = async () => {
         try {
           // fetch prescription items
-          const itemsData = await query(
-            "SELECT * FROM prescription_items WHERE prescription_id = ? AND _deleted = 0",
-            [rxId],
-          );
+          const itemsData = await getPrescriptionItems(rxId);
 
           // update prescription status to in_progress or dispensed
           // The POS handles final sale, but let's just load the cart for now.

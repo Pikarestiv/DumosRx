@@ -11,8 +11,9 @@
 
 "use client";
 
-import { useLocalData } from "@/lib/db/hooks/useLocalData";
+import { useQuery } from "@tanstack/react-query";
 import { useStore } from "@/lib/context/store-context";
+import { getStockBatchStats } from "@/lib/db/queries/inventory";
 
 export interface StockBatchStats {
   totalProducts: number;
@@ -29,30 +30,12 @@ export function useStockBatchStats(): StockBatchStats {
   const { storeProfile } = useStore();
   const expiryDays = storeProfile?.expiry_warning_days || 30;
 
-  const { data: statsData, loading } = useLocalData<any>(
-    `SELECT
-      COUNT(p.id) AS total_products,
-      SUM(CASE WHEN p.is_active = 1 THEN 1 ELSE 0 END) AS active_products,
-      SUM(CASE WHEN COALESCE(sb.total_qty, 0) <= p.reorder_level AND COALESCE(sb.total_qty, 0) > 0 THEN 1 ELSE 0 END) AS low_stock_count,
-      SUM(CASE WHEN COALESCE(sb.total_qty, 0) = 0 THEN 1 ELSE 0 END) AS critical_stock_count,
-      SUM(CASE WHEN sb.expiring_soon > 0 THEN 1 ELSE 0 END) AS expiring_soon_count,
-      SUM(CASE WHEN sb.expired > 0 THEN 1 ELSE 0 END) AS expired_count,
-      COALESCE(SUM(sb.total_value), 0) AS total_stock_batch_value
-    FROM products p
-    LEFT JOIN (
-      SELECT product_id,
-        SUM(quantity) as total_qty,
-        SUM(CASE WHEN expiry_date IS NOT NULL AND date(expiry_date) > date('now') AND date(expiry_date) <= date('now', '+${expiryDays} days') THEN 1 ELSE 0 END) as expiring_soon,
-        SUM(CASE WHEN expiry_date IS NOT NULL AND date(expiry_date) <= date('now') THEN 1 ELSE 0 END) as expired,
-        SUM(quantity * cost_price) as total_value
-      FROM stock_batches
-      WHERE _deleted = 0 OR _deleted IS NULL
-      GROUP BY product_id
-    ) sb ON p.id = sb.product_id
-    WHERE p._deleted = 0 OR p._deleted IS NULL`,
-  );
+  const { data: statsData, isLoading: loading } = useQuery({
+    queryKey: ['stockBatchStats', expiryDays],
+    queryFn: () => getStockBatchStats(expiryDays),
+  });
 
-  const row = statsData?.[0];
+  const row = statsData;
 
   return {
     totalProducts: row?.total_products ?? 0,

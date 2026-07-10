@@ -1,58 +1,26 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, ChevronRight, Pill, X } from "lucide-react";
-import { query } from "@/lib/db/core";
 import { getDaysToExpiry } from "@/lib/utils/date-utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useSettings } from "@/hooks/use-settings";
 
-interface ExpiringItem {
-  id: string;
-  name: string;
-  batch_number: string;
-  expiry_date: string;
-  stock_quantity: number;
-}
+import { useExpiringBatches } from "@/lib/hooks/use-inventory-data";
 
 export function ExpiringBatchesAlert() {
   const { expiryDays } = useSettings();
-  const [items, setItems] = useState<ExpiringItem[]>([]);
   const [dismissed, setDismissed] = useState(false);
-
-  useEffect(() => {
-    loadExpiringItems();
-  }, [expiryDays]);
-
-  const loadExpiringItems = async () => {
-    try {
-      const days = Number(expiryDays) || 90;
-      // Find items expiring in the next X days
-      const res = await query<ExpiringItem>(`
-        SELECT sb.id, p.name, sb.batch_number, sb.expiry_date, sb.quantity as stock_quantity 
-        FROM stock_batches sb
-        JOIN products p ON sb.product_id = p.id
-        WHERE sb.expiry_date IS NOT NULL 
-        AND sb.quantity > 0
-        AND sb._deleted = 0
-        AND p._deleted = 0
-        AND date(sb.expiry_date) <= date('now', '+${days} days')
-        ORDER BY sb.expiry_date ASC
-      `);
-      setItems(res);
-    } catch (err) {
-      console.error(err);
-    }
-  };
+  const { items } = useExpiringBatches(Number(expiryDays) || 90);
 
   if (dismissed || items.length === 0) return null;
 
   return (
     <div className="relative group overflow-hidden rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4 transition-all hover:bg-amber-500/10 mb-6">
       <div className="flex items-start gap-4">
-        <div className="h-8 w-8 sm:h-10 sm:w-10 shrink-0 rounded-xl bg-amber-500/20 flex items-center justify-center text-amber-600">
+        <div className="h-7 w-7 sm:h-10 sm:w-10 shrink-0 rounded-lg sm:rounded-xl bg-amber-500/20 flex items-center justify-center text-amber-600">
           <AlertTriangle className="w-3 h-3 sm:w-5 sm:h-5" />
         </div>
 

@@ -24,35 +24,22 @@ import {
 import { POAddItemForm } from "./po-add-item-form";
 import { POLineItemsList } from "./po-line-items-list";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { query, createPurchaseOrder } from "@/lib/db/local-database";
+import { createPurchaseOrder } from "@/lib/db/local-database";
 import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
 
 import { useStore } from "@/lib/context/store-context";
+import { useProcurementData } from "@/lib/hooks/use-procurement-data";
 
 interface CreatePODialogProps {
   onPOCreated: () => void;
 }
 
-interface Vendor {
-  id: string;
-  name: string;
-}
 
-interface Product {
-  id: string;
-  name: string;
-  bulk_unit: string;
-  base_unit: string;
-  units_per_bulk: number;
-  cost_price: number;
-}
 
 export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
   const { storeType } = useStore();
   const [open, setOpen] = useState(false);
-  const [suppliers, setSuppliers] = useState<Vendor[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
   const [selectedSupplierId, setSelectedSupplierId] = useState("");
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<any[]>([]);
@@ -69,20 +56,7 @@ export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
     }
   }, [open]);
 
-  const fetchData = async () => {
-    try {
-      const vendorData = await query<Vendor>(
-        "SELECT id, name FROM suppliers WHERE _deleted = 0",
-      );
-      const productData = await query<Product>(
-        "SELECT id, name, bulk_unit, base_unit, units_per_bulk, cost_price FROM products WHERE _deleted = 0",
-      );
-      setSuppliers(vendorData);
-      setProducts(productData);
-    } catch (error) {
-      console.error("Failed to fetch data for PO:", error);
-    }
-  };
+  const { suppliers, products, refetch: fetchData } = useProcurementData();
 
   const handleAddLineItem = (newItem: any) => {
     setItems([...items, newItem]);

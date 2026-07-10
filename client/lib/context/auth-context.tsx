@@ -1,8 +1,9 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { query, setCurrentUser as setDbUser } from "@/lib/db/local-database";
+import { setCurrentUser as setDbUser } from "@/lib/db/local-database";
 import { apiClient } from "@/lib/api/client";
+import { getUserByUsernameOrEmail, createDefaultAdmin, getUserPin, updateUserPin } from "@/lib/db/queries/auth";
 
 export interface User {
   id: string;
@@ -88,13 +89,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (identifier: string, pin?: string) => {
     // For local-first, we check both username and email
     const cleanIdentifier = identifier.trim();
-    const isEmail = cleanIdentifier.includes("@");
-    const field = isEmail ? "email" : "username";
+    const dbUser = await getUserByUsernameOrEmail(cleanIdentifier);
     
-    const users = await query<any>(`SELECT * FROM users WHERE LOWER(${field}) = LOWER(?) AND is_active = 1`, [cleanIdentifier]);
-    
-    if (users.length > 0) {
-      const dbUser = users[0];
+    if (dbUser) {
       // If PIN is provided, check it
       if (pin && dbUser.pin !== pin) return false;
 
@@ -145,10 +142,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       // Attempt to persist the default admin to DB
       try {
-        await query(
-          "INSERT OR IGNORE INTO users (id, first_name, last_name, username, pin, role, is_active) VALUES (?, ?, ?, ?, ?, ?, ?)",
-          [defaultAdmin.id, defaultAdmin.first_name, defaultAdmin.last_name, defaultAdmin.username, "1234", defaultAdmin.role, 1]
-        );
+        await createDefaultAdmin({
+          id: defaultAdmin.id,
+          first_name: defaultAdmin.first_name,
+          last_name: defaultAdmin.last_name,
+          username: defaultAdmin.username,
+          pin: "1234",
+          role: defaultAdmin.role
+        });
       } catch (e) {
         console.error("Failed to persist default admin", e);
       }
@@ -191,15 +192,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const changePin = async (currentPin: string, newPin: string) => {
     if (!user) return { success: false, message: "Not authenticated" };
 
-    const users = await query<any>("SELECT pin FROM users WHERE id = ?", [user.id]);
-    if (users.length === 0) return { success: false, message: "User not found" };
+    const currentStoredPin = await getUserPin(user.id);
+    if (!currentStoredPin) return { success: false, message: "User not found" };
 
-    if (users[0].pin !== currentPin) {
+    if (currentStoredPin !== currentPin) {
       return { success: false, message: "Current PIN is incorrect" };
     }
 
     try {
-      await query("UPDATE users SET pin = ? WHERE id = ?", [newPin, user.id]);
+      await updateUserPin(user.id, newPin);
       return { success: true, message: "PIN updated successfully" };
     } catch (e) {
       console.error("Failed to update PIN", e);
@@ -209,9 +210,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const verifyPin = async (pin: string) => {
     if (!user) return false;
-    const users = await query<any>("SELECT pin FROM users WHERE id = ?", [user.id]);
-    if (users.length > 0) {
-      return users[0].pin === pin;
+    const storedPin = await getUserPin(user.id);
+    if (storedPin) {
+      return storedPin === pin;
     }
     return false;
   };

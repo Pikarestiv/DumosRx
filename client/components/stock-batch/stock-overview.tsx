@@ -4,7 +4,8 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useLocalData } from "@/lib/db/hooks/useLocalData";
+import { useQuery } from "@tanstack/react-query";
+import { getStockOverviewData } from "@/lib/db/queries/inventory";
 import { useStockBatchStats } from "@/lib/hooks/use-stock-batch-stats";
 import { useStore } from "@/lib/context/store-context";
 import { StockBatchMetrics } from "./stock-batch-metrics";
@@ -33,26 +34,11 @@ export function StockOverview() {
   const stats = useStockBatchStats();
 
   // Stock list — read aggregated batch details
-  const { data: stockData, loading: stockLoading } = useLocalData<any>(
-    `SELECT 
-      p.id, p.name as product_name, p.brand_name, p.reorder_level, p.cost_price, p.selling_price, p.barcode,
-      COALESCE(sb.total_qty, 0) as quantity,
-      sb.earliest_expiry as expiry_date,
-      sb.batches as batch_number
-     FROM products p
-     LEFT JOIN (
-       SELECT product_id, 
-              SUM(quantity) as total_qty,
-              MIN(expiry_date) as earliest_expiry,
-              GROUP_CONCAT(batch_number, ', ') as batches
-       FROM stock_batches 
-       WHERE _deleted = 0 AND is_active = 1 
-       GROUP BY product_id
-     ) sb ON p.id = sb.product_id
-     WHERE p._deleted = 0
-     ORDER BY quantity ASC
-     LIMIT 50`,
-  );
+  const { data: stockDataRaw, isLoading: stockLoading } = useQuery({
+    queryKey: ['stockOverviewData'],
+    queryFn: () => getStockOverviewData()
+  });
+  const stockData = stockDataRaw || [];
 
   const getStatus = (
     quantity: number,

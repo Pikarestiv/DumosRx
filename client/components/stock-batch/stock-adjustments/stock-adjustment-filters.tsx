@@ -23,7 +23,7 @@ export function StockAdjustmentFilters({
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <CardTitle className="font-serif font-semibold">
               Stock Adjustments
@@ -34,7 +34,7 @@ export function StockAdjustmentFilters({
           </div>
           <Button
             onClick={onNewAdjustment}
-            className="bg-accent hover:bg-accent/90 cursor-pointer"
+            className="bg-accent hover:bg-accent/90 cursor-pointer w-full sm:w-auto"
           >
             <Plus className="h-4 w-4 mr-2" />
             New Adjustment

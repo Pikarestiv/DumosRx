@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -21,8 +21,8 @@ import {
 import { exportPLReportToPDF } from "@/lib/utils/pdf-export";
 import { useStore } from "@/lib/context/store-context";
 import { toast } from "sonner";
-import { query } from "@/lib/db/core";
-import { format } from "date-fns";
+
+import { usePnLReport } from "@/lib/hooks/use-finance-data";
 
 interface PandLReportDialogProps {
   isOpen: boolean;
@@ -31,8 +31,8 @@ interface PandLReportDialogProps {
 
 export function PandLReportDialog({ isOpen, onClose }: PandLReportDialogProps) {
   const { storeProfile } = useStore();
-  const [loading, setLoading] = useState(false);
-  const [reportData, setReportData] = useState<any>(null);
+  const { reportData, loading, refetch: fetchRealData } = usePnLReport();
+
 
   useEffect(() => {
     if (isOpen) {
@@ -40,57 +40,15 @@ export function PandLReportDialog({ isOpen, onClose }: PandLReportDialogProps) {
     }
   }, [isOpen]);
 
-  const fetchRealData = async () => {
-    try {
-      setLoading(true);
-      
-      // 1. Get Revenue for current month
-      const revenueResult = await query<{total: number}>(
-        "SELECT SUM(total_amount) as total FROM sales WHERE strftime('%Y-%m', transaction_date) = strftime('%Y-%m', 'now')"
-      );
-      const revenue = revenueResult[0]?.total || 0;
-
-      // 2. Get COGS for current month
-      const cogsResult = await query<{total: number}>(
-        "SELECT SUM(si.quantity * si.cost_price) as total FROM sale_items si JOIN sales s ON si.sale_id = s.id WHERE strftime('%Y-%m', s.transaction_date) = strftime('%Y-%m', 'now')"
-      );
-      const cogs = cogsResult[0]?.total || 0;
-
-      // 3. Get Expenses for current month
-      const expensesResult = await query<{total: number, category: string}>(
-        "SELECT SUM(amount) as total, category FROM expenses WHERE strftime('%Y-%m', created_at) = strftime('%Y-%m', 'now') GROUP BY category"
-      );
-      const totalExpenses = expensesResult.reduce((acc, curr) => acc + (curr.total || 0), 0);
-      
-      setReportData({
-        period: format(new Date(), "MMMM yyyy"),
-        revenue,
-        cogs,
-        expenses: totalExpenses,
-        netProfit: revenue - cogs - totalExpenses,
-        expenseBreakdown: expensesResult.map(e => ({ category: e.category, amount: e.total }))
-      });
-
-    } catch (err) {
-      console.error("Failed to fetch P&L data", err);
-      toast.error("Could not calculate live financial data");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleExport = () => {
     if (!reportData) return;
     try {
-      setLoading(true);
       exportPLReportToPDF(reportData, storeProfile?.name || "DumosRx Store");
       toast.success("P&L Report exported successfully");
       onClose();
     } catch (err) {
       console.error(err);
       toast.error("Failed to export report");
-    } finally {
-      setLoading(false);
     }
   };
 

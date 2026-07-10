@@ -16,6 +16,7 @@ import {
   useReferralStats,
   useSubscriptionStatus,
 } from "@/lib/api/hooks";
+import { SUPPORT_EMAIL } from "@/lib/constants";
 import { webApiClient } from "@/lib/api/client";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -292,7 +293,7 @@ export function SubscriptionPlans() {
           </div>
           <p className="text-xs text-blue-600 dark:text-blue-400 mt-4 font-medium flex items-center gap-1">
             <Info className="w-4 h-4" />
-            After payment, please send your receipt to support@dumosrx.com or contact our support team.
+            After payment, please send your receipt to {SUPPORT_EMAIL} or contact our support team.
           </p>
         </div>
       )}

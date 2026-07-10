@@ -5,6 +5,12 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { toast } from "sonner";
 import { useStore } from "@/lib/context/store-context";
+import {
+  calculateSubtotal,
+  calculateTax,
+  calculateDiscountAmount,
+  calculateTotal,
+} from "@/lib/utils/pos-calculations";
 
 export interface Product {
   id: string;
@@ -67,19 +73,16 @@ export function usePOSCart(products: Product[]) {
     setIsHydrated(true);
   }, []);
 
-  const subtotal = useMemo(
-    () => cart.reduce((sum, item) => sum + item.subtotal, 0),
-    [cart],
+  const subtotal = useMemo(() => calculateSubtotal(cart), [cart]);
+  const tax = useMemo(() => calculateTax(subtotal, vatPercentage), [subtotal, vatPercentage]);
+  const calculatedDiscount = useMemo(
+    () => calculateDiscountAmount(subtotal, discount, discountType),
+    [subtotal, discount, discountType]
   );
-
-  const tax = useMemo(() => subtotal * (vatPercentage / 100), [subtotal, vatPercentage]);
-  const calculatedDiscount = useMemo(() => {
-    if (discountType === "percentage") {
-      return subtotal * (discount / 100);
-    }
-    return discount;
-  }, [subtotal, discount, discountType]);
-  const total = useMemo(() => subtotal + tax - calculatedDiscount, [subtotal, tax, calculatedDiscount]);
+  const total = useMemo(
+    () => calculateTotal(subtotal, tax, calculatedDiscount),
+    [subtotal, tax, calculatedDiscount]
+  );
 
   const addToCart = (product: Product) => {
     const existingItem = cart.find((item) => item.id === product.id);

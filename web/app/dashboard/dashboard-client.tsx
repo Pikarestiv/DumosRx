@@ -27,10 +27,16 @@ import { webApiClient } from "@/lib/api/client";
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 
-export function DashboardClient({ view, subView }: { view: string, subView?: string }) {
+export function DashboardClient({
+  view,
+  subView,
+}: {
+  view: string;
+  subView?: string;
+}) {
   const [isMounted, setIsMounted] = useState(false);
   const searchParams = useSearchParams();
-  const storeIdParam = searchParams?.get('id') || undefined;
+  const storeIdParam = searchParams?.get("id") || undefined;
 
   useEffect(() => {
     setIsMounted(true);

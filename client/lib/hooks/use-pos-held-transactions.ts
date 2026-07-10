@@ -1,6 +1,7 @@
 import { insert, remove } from "@/lib/db/local-database";
 import { toast } from "sonner";
 import { Customer, Product } from "./use-pos-data";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface UsePOSHeldTransactionsProps {
   cart: any[];
@@ -25,6 +26,8 @@ export function usePOSHeldTransactions({
   customers,
   setShowHeldDialog,
 }: UsePOSHeldTransactionsProps) {
+  const queryClient = useQueryClient();
+
   const handleHoldTransaction = async () => {
     if (cart.length === 0) return;
 
@@ -44,6 +47,9 @@ export function usePOSHeldTransactions({
       toast.success("Transaction held successfully");
       clearCart();
       setSelectedCustomer(null);
+      
+      // Invalidate the count query to update the UI
+      queryClient.invalidateQueries({ queryKey: ["heldTransactionsCount"] });
     } catch (err) {
       console.error(err);
       toast.error("Failed to hold transaction");
@@ -85,6 +91,9 @@ export function usePOSHeldTransactions({
 
       toast.success("Transaction recalled");
       setShowHeldDialog(false);
+      
+      // Invalidate the count query to update the UI
+      queryClient.invalidateQueries({ queryKey: ["heldTransactionsCount"] });
     } catch (err) {
       console.error(err);
       toast.error("Failed to recall transaction");

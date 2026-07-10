@@ -21,7 +21,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, Pencil } from "lucide-react";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
-import { useLocalData } from "@/lib/db/hooks/useLocalData";
+import { useQuery } from "@tanstack/react-query";
+import { getBatchTrackingData } from "@/lib/db/queries/inventory";
 import { useStockBatchStats } from "@/lib/hooks/use-stock-batch-stats";
 import { genericFuzzySearch } from "@/lib/utils/search";
 
@@ -43,15 +44,11 @@ export function BatchTracking() {
   const stats = useStockBatchStats();
 
   // Batches with expiry_date and quantity
-  const { data: batches, loading } = useLocalData<any>(
-    `SELECT 
-      sb.id, p.name as product_name, p.brand_name as product_brand,
-      sb.batch_number, sb.expiry_date, sb.quantity, sb.cost_price
-     FROM stock_batches sb
-     JOIN products p ON sb.product_id = p.id
-     WHERE sb._deleted = 0 AND p._deleted = 0
-     ORDER BY sb.expiry_date ASC`
-  );
+  const { data: batchesData, isLoading: loading } = useQuery({
+    queryKey: ['batchTrackingData'],
+    queryFn: () => getBatchTrackingData()
+  });
+  const batches = batchesData || [];
 
   const { results: filteredBatches, isFuzzyFallback } = genericFuzzySearch(
     searchTerm,
@@ -106,13 +103,13 @@ export function BatchTracking() {
 
       <Card>
         <CardHeader>
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <CardTitle>Batch & Expiry Tracker</CardTitle>
               <CardDescription>Monitor stock expiration dates and batch performance</CardDescription>
             </div>
-            <div className="relative w-64">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 pointer-events-none" />
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 pointer-events-none" />
               <Input
                 placeholder="Search batches..."
                 value={searchTerm}

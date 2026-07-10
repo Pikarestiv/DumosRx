@@ -4,7 +4,8 @@ import React, { useMemo, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/context/auth-context";
 import { useStore } from "@/lib/context/store-context";
-import { useLocalData } from "@/lib/db/hooks/useLocalData";
+import { useQuery } from "@tanstack/react-query";
+import { getStaffCount } from "@/lib/db/queries/auth";
 import {
   CloudOff,
   UserPlus,
@@ -15,7 +16,6 @@ import {
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-
 
 export interface ActionCenterProps {
   expiringCount: number;
@@ -34,21 +34,17 @@ interface AlertItem {
   actionRoute: string;
 }
 
-export function DashboardActionCenter({
-  expiringCount,
-  lowStockCount,
-}: ActionCenterProps) {
-  const router = useRouter();
+// --- Extracted Hook for Logic ---
+function useActionCenterAlerts(expiringCount: number, lowStockCount: number) {
   const { isAuthenticated, isAdmin } = useAuth();
   const { storeProfile } = useStore();
 
-  const [isPaused, setIsPaused] = useState(false);
+  const { data: staffCountData } = useQuery({
+    queryKey: ["staffCount"],
+    queryFn: () => getStaffCount(),
+  });
 
-  const { data: staffData } = useLocalData<{ count: number }>(
-    "SELECT COUNT(*) as count FROM users WHERE _deleted = 0 AND id != 'default-admin'",
-  );
-
-  const staffCount = staffData[0]?.count || 0;
+  const staffCount = staffCountData || 0;
 
   const alerts = useMemo(() => {
     const items: AlertItem[] = [];
@@ -82,7 +78,6 @@ export function DashboardActionCenter({
 
       if (storeProfile) {
         const fieldsToCheck = ["name", "address", "phone", "email", "logo_url"];
-
         if (storeProfile.store_type === "pharmacy") {
           fieldsToCheck.push("pcn_license");
         }
@@ -158,6 +153,71 @@ export function DashboardActionCenter({
     lowStockCount,
   ]);
 
+  return alerts;
+}
+
+// --- Extracted Component for Alert Card ---
+const getPriorityColors = (priority: AlertPriority) => {
+  switch (priority) {
+    case "critical":
+      return "bg-destructive/10 border-destructive/20 text-destructive";
+    case "warning":
+      return "bg-amber-500/10 border-amber-500/20 text-amber-500 dark:bg-amber-500/20";
+    case "info":
+      return "bg-primary/10 border-primary/20 text-primary";
+    case "success":
+      return "bg-emerald-500/10 border-emerald-500/20 text-emerald-500 dark:bg-emerald-500/20";
+  }
+};
+
+interface ActionCenterCardProps {
+  alert: AlertItem;
+  cardWidthClass: string;
+}
+
+function ActionCenterCard({ alert, cardWidthClass }: ActionCenterCardProps) {
+  const router = useRouter();
+
+  return (
+    <div className={`shrink-0 snap-start p-1.5 flex ${cardWidthClass}`}>
+      <Card
+        className="w-full h-full py-0 md:py-4 border-border bg-card shadow-sm overflow-hidden"
+      >
+      <div className="p-3 flex flex-col sm:flex-row sm:items-center gap-2.5 md:gap-3">
+        <div
+          className={`p-1.5 md:p-2.5 rounded-lg sm:rounded-xl shrink-0 self-start ${getPriorityColors(alert.priority)}`}
+        >
+          <alert.icon className="h-4 w-4" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h4 className="font-bold text-sm text-foreground truncate">
+            {alert.title}
+          </h4>
+          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+            {alert.description}
+          </p>
+        </div>
+        <Button
+          variant="default"
+          size="sm"
+          className="w-full sm:w-auto shrink-0 h-8 text-xs"
+          onClick={() => router.push(alert.actionRoute)}
+        >
+          {alert.actionLabel}
+        </Button>
+      </div>
+      </Card>
+    </div>
+  );
+}
+
+// --- Main Container Component ---
+export function DashboardActionCenter({
+  expiringCount,
+  lowStockCount,
+}: ActionCenterProps) {
+  const alerts = useActionCenterAlerts(expiringCount, lowStockCount);
+  const [isPaused, setIsPaused] = useState(false);
   const scrollRef = React.useRef<HTMLDivElement>(null);
 
   // Auto-scroll logic for horizontal list
@@ -182,19 +242,6 @@ export function DashboardActionCenter({
 
   if (alerts.length === 0) return null;
 
-  const getPriorityColors = (priority: AlertPriority) => {
-    switch (priority) {
-      case "critical":
-        return "bg-destructive/10 border-destructive/20 text-destructive";
-      case "warning":
-        return "bg-amber-500/10 border-amber-500/20 text-amber-500 dark:bg-amber-500/20";
-      case "info":
-        return "bg-primary/10 border-primary/20 text-primary";
-      case "success":
-        return "bg-emerald-500/10 border-emerald-500/20 text-emerald-500 dark:bg-emerald-500/20";
-    }
-  };
-
   const cardWidthClass =
     alerts.length === 1 ? "w-full min-w-full" : "w-[90%] md:w-[85%] lg:w-[92%]";
 
@@ -211,41 +258,18 @@ export function DashboardActionCenter({
       </div>
       <div
         ref={scrollRef}
-        className="flex overflow-x-auto snap-x snap-mandatory gap-3 pb-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] -mx-1 px-1"
+        className="flex overflow-x-auto snap-x snap-mandatory pb-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] -mx-1 px-1"
         onMouseEnter={() => setIsPaused(true)}
         onMouseLeave={() => setIsPaused(false)}
         onTouchStart={() => setIsPaused(true)}
         onTouchEnd={() => setIsPaused(false)}
       >
         {alerts.map((alert) => (
-          <Card
+          <ActionCenterCard
             key={alert.id}
-            className={`shrink-0 snap-start border-border bg-card shadow-sm overflow-hidden ${cardWidthClass}`}
-          >
-            <div className="p-3 flex flex-col sm:flex-row sm:items-center gap-3">
-              <div
-                className={`p-2.5 rounded-xl shrink-0 self-start ${getPriorityColors(alert.priority)}`}
-              >
-                <alert.icon className="h-4 w-4" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h4 className="font-bold text-sm text-foreground truncate">
-                  {alert.title}
-                </h4>
-                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-                  {alert.description}
-                </p>
-              </div>
-              <Button
-                variant="default"
-                size="sm"
-                className="w-full sm:w-auto shrink-0 h-8 text-xs"
-                onClick={() => router.push(alert.actionRoute)}
-              >
-                {alert.actionLabel}
-              </Button>
-            </div>
-          </Card>
+            alert={alert}
+            cardWidthClass={cardWidthClass}
+          />
         ))}
       </div>
     </div>

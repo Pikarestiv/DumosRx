@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Table,
   TableBody,
@@ -13,44 +13,16 @@ import {
   Card,
   CardContent,
 } from "@/components/ui/card";
-import { query, softDelete } from "@/lib/db/local-database";
+import { softDelete } from "@/lib/db/local-database";
 import { Button } from "@/components/ui/button";
 import { Trash2, Building2, Phone, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-
-interface Vendor {
-  id: string;
-  name: string;
-  contact_person: string;
-  email: string;
-  phone: string;
-  address: string;
-  payment_terms: string;
-}
+import { useSupplierList } from "@/lib/hooks/use-suppliers";
 
 export function VendorList() {
-  const [vendors, setVendors] = useState<Vendor[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { vendors, isLoading, refetch: fetchVendors } = useSupplierList();
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
-
-  const fetchVendors = async () => {
-    try {
-      const data = await query<Vendor>(
-        "SELECT * FROM suppliers WHERE _deleted = 0 ORDER BY name ASC"
-      );
-      setVendors(data);
-    } catch (error) {
-      console.error("Failed to fetch vendors:", error);
-      toast.error("Failed to load vendors");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchVendors();
-  }, []);
 
   const handleDelete = async (id: string) => {
     setDeleteTargetId(id);

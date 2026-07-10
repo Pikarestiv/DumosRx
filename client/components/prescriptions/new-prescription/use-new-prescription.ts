@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { toast } from "sonner";
-import { useLocalData } from "@/lib/db/hooks/useLocalData";
-import { createPrescription, generateId, query } from "@/lib/db/local-database";
+import { useQuery } from "@tanstack/react-query";
+import { getAvailableStockBatches } from "@/lib/db/queries/inventory";
+import { createPrescription, generateId } from "@/lib/db/local-database";
+import { getPrescriptionById, getPrescriptionItems, updatePrescriptionRecord, deletePrescriptionItems, insertPrescriptionItem } from "@/lib/db/queries/prescriptions";
 
 export interface PrescriptionMedication {
   id: string;
@@ -37,12 +39,10 @@ export function useNewPrescription() {
   const [isEditing, setIsEditing] = useState(false);
   const [existingPrescriptionData, setExistingPrescriptionData] = useState<any>(null);
 
-  const { data: stock_batchData } = useLocalData<any>(
-    `SELECT i.*, m.name as product_name, m.strength as m_strength
-     FROM stock_batches i 
-     JOIN products m ON i.product_id = m.id 
-     WHERE i._deleted = 0 AND i.quantity > 0`
-  );
+  const { data: stock_batchData } = useQuery({
+    queryKey: ['availableStockBatches'],
+    queryFn: () => getAvailableStockBatches()
+  });
 
   const availableProducts = (stock_batchData || []).map((item) => ({
     name: item.product_name,
@@ -78,18 +78,12 @@ export function useNewPrescription() {
       setIsEditing(true);
       const fetchPrescription = async () => {
         try {
-          const pData = await query<any>(
-            "SELECT * FROM prescriptions WHERE id = ? AND _deleted = 0",
-            [editRxId]
-          );
-          if (pData.length === 0) return;
-          const prescription = pData[0];
+          const prescription = await getPrescriptionById(editRxId);
+          if (!prescription) return;
+          
           setExistingPrescriptionData(prescription);
 
-          const itemsData = await query<any>(
-            "SELECT * FROM prescription_items WHERE prescription_id = ? AND _deleted = 0",
-            [editRxId]
-          );
+          const itemsData = await getPrescriptionItems(editRxId);
 
           setFormData({
             patientName: prescription.patient_name || "",
@@ -234,54 +228,41 @@ export function useNewPrescription() {
       const now = new Date().toISOString();
       if (isEditing && editRxId) {
         // Handle update
-        await query(
-          `UPDATE prescriptions 
-           SET patient_name = ?, patient_phone = ?, patient_age = ?, doctor_name = ?, doctor_license = ?, priority = ?, insurance = ?, notes = ?, total_cost = ?, updated_at = ?
-           WHERE id = ?`,
-          [
-            formData.patientName,
-            formData.patientPhone,
-            parseInt(formData.patientAge) || 0,
-            formData.doctorName,
-            formData.doctorLicense,
-            formData.priority,
-            formData.insurance,
-            formData.notes,
-            formData.medications.reduce((sum, med) => sum + med.cost, 0),
-            now,
-            editRxId,
-          ]
-        );
+        await updatePrescriptionRecord(editRxId, {
+            patient_name: formData.patientName,
+            patient_phone: formData.patientPhone,
+            patient_age: parseInt(formData.patientAge) || 0,
+            doctor_name: formData.doctorName,
+            doctor_license: formData.doctorLicense,
+            priority: formData.priority,
+            insurance: formData.insurance,
+            notes: formData.notes,
+            total_cost: formData.medications.reduce((sum, med) => sum + med.cost, 0),
+            updated_at: now
+        });
 
         // Delete old items and insert new ones
-        await query(
-          `DELETE FROM prescription_items WHERE prescription_id = ?`,
-          [editRxId]
-        );
+        await deletePrescriptionItems(editRxId);
 
         for (const med of formData.medications) {
           const nextRefillDate = new Date();
           nextRefillDate.setDate(nextRefillDate.getDate() + Number(med.refillIntervalDays));
           
-          await query(
-            `INSERT INTO prescription_items (id, prescription_id, product_name, strength, dosage, quantity, instructions, cost, refills_authorized, refill_interval_days, next_refill_date, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-              generateId(),
-              editRxId,
-              med.productName,
-              med.strength,
-              med.dosage,
-              med.quantity,
-              med.instructions,
-              med.cost,
-              med.refillsAuthorized,
-              med.refillIntervalDays,
-              nextRefillDate.toISOString(),
-              now,
-              now,
-            ]
-          );
+          await insertPrescriptionItem({
+              id: generateId(),
+              prescription_id: editRxId,
+              product_name: med.productName,
+              strength: med.strength,
+              dosage: med.dosage,
+              quantity: med.quantity,
+              instructions: med.instructions,
+              cost: med.cost,
+              refills_authorized: med.refillsAuthorized,
+              refill_interval_days: med.refillIntervalDays,
+              next_refill_date: nextRefillDate.toISOString(),
+              created_at: now,
+              updated_at: now
+          });
         }
 
         toast.success("Prescription updated successfully!");

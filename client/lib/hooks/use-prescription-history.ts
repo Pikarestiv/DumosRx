@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { query } from "@/lib/db/local-database";
+import { getHistoryPrescriptions, getAllPrescriptionItems } from "@/lib/db/queries/prescriptions";
 import { genericFuzzySearch } from "@/lib/utils/search";
 import { Prescription } from "./use-prescription-queue";
 
@@ -17,14 +17,8 @@ export function usePrescriptionHistory() {
     setLoading(true);
     try {
       // 1. Fetch completed/cancelled prescriptions
-      const pData = await query<any>(
-        "SELECT * FROM prescriptions WHERE _deleted = 0 AND status IN ('completed', 'cancelled', 'dispensed') ORDER BY updated_at DESC",
-      );
-
-      // 2. Fetch all prescription items for these prescriptions
-      const itemsData = await query<any>(
-        "SELECT * FROM prescription_items WHERE _deleted = 0",
-      );
+      const pData = await getHistoryPrescriptions();
+      const itemsData = await getAllPrescriptionItems();
 
       // 3. Group items by prescription_id
       const itemsMap = new Map<string, any[]>();

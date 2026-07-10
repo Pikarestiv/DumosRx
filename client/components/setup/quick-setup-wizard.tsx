@@ -1,6 +1,6 @@
 "use client";
 
-import { useLocalData } from "@/lib/db/hooks/useLocalData";
+import { useRecordCounts } from "@/lib/hooks/use-setup-data";
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import {
@@ -28,9 +28,7 @@ import { APP_NAME } from "@/lib/constants";
 export function QuickSetupWizard() {
   const { isInitialized, updateStoreProfile, loading: storeLoading, storeProfile } = useStore();
   const { isAuthenticated, isAdmin, isCloudLinked } = useAuth();
-  const { data: recordCounts, loading: dataLoading } = useLocalData<{ total: number }>(
-    "SELECT (SELECT COUNT(*) FROM products) + (SELECT COUNT(*) FROM sales) as total"
-  );
+  const { data: recordCounts, isLoading: dataLoading } = useRecordCounts();
   const pathname = usePathname();
 
   const [step, setStep] = useState(1);
@@ -78,7 +76,7 @@ export function QuickSetupWizard() {
 
   if (storeLoading || dataLoading) return null;
 
-  const totalRecords = recordCounts[0]?.total || 0;
+  const totalRecords = recordCounts || 0;
   
   const publicRoutes = ["/", "/login", "/setup", "/register"];
   if (

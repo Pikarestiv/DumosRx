@@ -2,6 +2,7 @@
 
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Store,
   Bell,
@@ -24,6 +25,7 @@ import { useSettings } from "@/hooks/use-settings";
 
 export default function SettingsPage() {
   const {
+    storeProfile,
     user,
     theme,
     setTheme,
@@ -118,11 +120,28 @@ export default function SettingsPage() {
           </div>
           {user && (
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-sm">
-              <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-              <span className="font-medium text-foreground">{user.first_name || user.username}</span>
-              <span className="text-muted-foreground bg-background/50 px-2 py-0.5 rounded-md text-xs border">
-                {user.role.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())}
+              <Avatar className="w-5 h-5">
+                <AvatarFallback className="text-[10px] bg-primary text-primary-foreground">
+                  {(
+                    user.first_name?.[0] ||
+                    user.username?.[0] ||
+                    "U"
+                  ).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <span className="font-medium text-foreground">
+                {user.first_name || user.username}
               </span>
+              <span className="text-muted-foreground bg-background/50 px-2 py-0.5 rounded-md text-xs border">
+                {user.role
+                  .replace(/_/g, " ")
+                  .replace(/\b\w/g, (l) => l.toUpperCase())}
+              </span>
+              {storeProfile?.subscription_tier && (
+                <span className="text-muted-foreground bg-primary/10 px-2 py-0.5 rounded-md text-xs border border-primary/20 capitalize font-medium">
+                  {storeProfile.subscription_tier} Plan
+                </span>
+              )}
             </div>
           )}
         </div>

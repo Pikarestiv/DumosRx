@@ -1,4 +1,4 @@
-import { HeaderSection } from "@/components/landing/header-section";
+
 import { FooterSection } from "@/components/landing/footer-section";
 import { StorefrontCart } from "@/components/storefront/storefront-cart";
 import { CheckoutForm } from "@/components/storefront/checkout-form";

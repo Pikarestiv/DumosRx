@@ -234,6 +234,7 @@ export function POSSystem() {
           selectedCustomer={selectedCustomer}
           setPaymentMethod={setPaymentMethod}
           setShowPaymentDialog={setShowPaymentDialog}
+          onScanSuccess={handleScanSuccess}
         />
       ) : (
         <div className="flex flex-col lg:grid lg:grid-cols-3 gap-4 lg:gap-6">
@@ -244,16 +245,14 @@ export function POSSystem() {
               onValueChange={handleTabChange}
               className="w-full"
             >
-              <div className="overflow-x-auto scrollbar-none">
-                <TabsList className="w-max min-w-full bg-muted/50 p-1 flex mb-4">
-                  <TabsTrigger value="products" className="px-4 py-2 shrink-0">
-                    Products
-                  </TabsTrigger>
-                  <TabsTrigger value="history" className="px-4 py-2 shrink-0">
-                    Recent Transactions
-                  </TabsTrigger>
-                </TabsList>
-              </div>
+              <TabsList className="mb-4">
+                <TabsTrigger value="products">
+                  Products
+                </TabsTrigger>
+                <TabsTrigger value="history">
+                  Recent Transactions
+                </TabsTrigger>
+              </TabsList>
 
               <TabsContent value="products" className="space-y-4">
                 <POSSearchCard

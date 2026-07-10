@@ -2,7 +2,8 @@
 
 import React, { createContext, useContext, ReactNode } from "react";
 import { update, insert } from "@/lib/db/local-database";
-import { useLocalData } from "@/lib/db/hooks/useLocalData";
+import { useQuery } from "@tanstack/react-query";
+import { getStoreById, getFirstStore, getAllStores } from "@/lib/db/queries/setup";
 import { useAuth } from "@/lib/context/auth-context";
 
 export type StoreType = "pharmacy" | "grocery" | "supermarket" | "retail";
@@ -53,6 +54,7 @@ interface StoreContextType {
   activeStoreId: string | null;
   availableStores: StoreProfile[];
   switchStore: (storeId: string) => void;
+  refetch: () => Promise<any>;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -104,21 +106,28 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // Otherwise, use activeStoreId if set, else fallback to LIMIT 1
   const targetId = user?.store_id || activeStoreId;
 
-  const sql = targetId 
-    ? "SELECT * FROM stores WHERE id = ?" 
-    : "SELECT * FROM stores LIMIT 1";
-  const params = targetId ? [targetId] : [];
+  const { data: storeProfile, isLoading: loading, refetch } = useQuery({
+    queryKey: ['storeProfile', targetId],
+    queryFn: async () => {
+      if (targetId) {
+        return getStoreById(targetId);
+      }
+      return getFirstStore();
+    }
+  });
 
-  const { data: profiles, loading, refetch } = useLocalData<StoreProfile>(
-    sql, params
-  );
+  const { data: allStores } = useQuery({
+    queryKey: ['allStores', user?.store_id],
+    queryFn: async () => {
+      if (user && !user.store_id) {
+        const stores = await getAllStores();
+        return stores || [];
+      }
+      return [];
+    }
+  });
 
-  // Fetch all available stores for the switcher (only needed if owner)
-  const { data: allStores } = useLocalData<StoreProfile>(
-    user && !user.store_id ? "SELECT * FROM stores" : "SELECT * FROM stores WHERE 1=0"
-  );
 
-  const storeProfile = profiles[0] || null;
 
   // Sync activeStoreId back if we fell back to LIMIT 1
   React.useEffect(() => {
@@ -195,6 +204,43 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     };
   }, [refetch]);
 
+  // Privileged subscription status sync — always runs regardless of tier.
+  // This ensures plan downgrades, suspensions and renewals written on the
+  // server are reflected locally even when full cloud sync is gated off.
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const runSubscriptionSync = async () => {
+      const token = localStorage.getItem("auth_token");
+      if (!navigator.onLine || !token) return;
+      try {
+        const { syncSubscriptionStatus } = await import("@/lib/db/sync-engine");
+        const result = await syncSubscriptionStatus();
+        if (result.updated) {
+          console.log("[StoreContext] Subscription status updated from server, refetching profile");
+          await refetch();
+        }
+      } catch (e) {
+        console.error("[StoreContext] Subscription status sync failed", e);
+      }
+    };
+
+    // Run immediately on mount
+    runSubscriptionSync();
+
+    // Then every 30 minutes
+    const interval = setInterval(runSubscriptionSync, 30 * 60 * 1000);
+
+    // Also re-run when the app comes back online
+    const handleOnline = () => runSubscriptionSync();
+    window.addEventListener("online", handleOnline);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("online", handleOnline);
+    };
+  }, [refetch]);
+
   const updateStoreProfile = async (data: Partial<StoreProfile>) => {
     if (!storeProfile) {
       await insert("stores", {
@@ -218,7 +264,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   };
 
   const t = (key: string): string => {
-    return terminology[storeType]?.[key] || terminology["retail"][key] || key;
+    const type = storeType as StoreType;
+    return terminology[type]?.[key] || terminology["retail"][key] || key;
   };
 
   return (
@@ -236,6 +283,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         activeStoreId: user?.store_id || activeStoreId,
         availableStores: allStores || [],
         switchStore,
+        refetch,
       }}
     >
       {children}

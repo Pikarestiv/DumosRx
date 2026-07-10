@@ -42,8 +42,10 @@ const StockStatusEmptyState = () => {
   return (
     <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
       <PackageX className="h-12 w-12 mb-4" />
-      <p className="font-medium">No stock batch items</p>
-      <p className="text-sm">Add {t("product")}s to track stock levels.</p>
+      <p className="font-medium">No stock items</p>
+      <p className="text-sm">
+        Add {t("product").toLowerCase()}s to track stock levels.
+      </p>
     </div>
   );
 };

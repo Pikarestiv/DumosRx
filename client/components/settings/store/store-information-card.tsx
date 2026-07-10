@@ -1,4 +1,5 @@
 import { Save, Edit2, Copy, Check, Info } from "lucide-react";
+import { STOREFRONT_BASE_URL } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -59,7 +60,7 @@ export function StoreInformationCard({
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(`dumosrx.com/s/${localStoreSlug}`);
+    navigator.clipboard.writeText(`${STOREFRONT_BASE_URL}/${localStoreSlug}`);
     setCopied(true);
     toast.success("Store link copied!");
     setTimeout(() => setCopied(false), 2000);
@@ -108,7 +109,7 @@ export function StoreInformationCard({
           {isEditingSlug ? (
             <div className="flex rounded-md shadow-sm">
               <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-input bg-muted text-muted-foreground text-sm">
-                dumosrx.com/s/
+                {STOREFRONT_BASE_URL}/
               </span>
               <Input
                 id="store-slug"
@@ -120,7 +121,7 @@ export function StoreInformationCard({
             </div>
           ) : (
             <div className="flex items-center justify-between border rounded-md px-3 py-2 bg-muted/30">
-              <span className="text-sm font-medium">dumosrx.com/s/{localStoreSlug}</span>
+              <span className="text-sm font-medium">{STOREFRONT_BASE_URL}/{localStoreSlug}</span>
               <div className="flex items-center gap-2">
                 <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleCopy} type="button">
                   {copied ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}

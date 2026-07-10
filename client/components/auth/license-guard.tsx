@@ -13,6 +13,7 @@ import {
   Lock,
   ExternalLink,
 } from "lucide-react";
+import { SplashScreen } from "@/components/ui/splash-screen";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -25,10 +26,10 @@ import {
 import { useStore } from "@/lib/context/store-context";
 import { useAuth } from "@/lib/context/auth-context";
 import { usePathname } from "next/navigation";
+import { WEB_APP_URL } from "@/lib/constants";
 import { useTheme } from "@/components/theme-provider";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { isMobileDevice } from "@/lib/utils";
-import { WEB_APP_URL } from "@/lib/constants";
 import { toast } from "sonner";
 
 function ThemeRestrictor() {
@@ -178,9 +179,11 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
   const performCheck = async () => {
     setLoading(true);
 
-    // Sync status with server first if online
     if (typeof window !== "undefined" && navigator.onLine) {
       try {
+        // Force a full cloud sync so any recent subscription renewals are
+        // pulled down and written to the local stores table before we
+        // re-evaluate the license locally.
         const { sync } = await import("@/lib/db/sync-engine");
         await sync(true);
       } catch (e) {
@@ -188,6 +191,7 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
       }
     }
 
+    // Re-read the (now refreshed) local DB
     const status = await checkLicenseStatus();
     setLicense(status);
     setLoading(false);
@@ -208,18 +212,20 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
   // Reactive to local SQLite store profile status changes
   useEffect(() => {
     performCheck();
-  }, [storeProfile?.status, storeProfile?.suspension_reason]);
+  }, [storeProfile?.status, storeProfile?.suspension_reason, storeProfile?.subscription_tier]);
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <RefreshCw className="h-8 w-8 animate-spin text-accent" />
-      </div>
-    );
+    return <SplashScreen />;
   }
 
-  // If license is valid, render children
-  if (license?.isValid) {
+  // Render children for valid licenses OR expired subscriptions (downgraded to free).
+  // Only hard-block on suspension or clock tampering.
+  const isExpiredSub =
+    !license?.isValid &&
+    !license?.isClockTampered &&
+    !license?.message?.includes("suspended");
+
+  if (license?.isValid || isExpiredSub) {
     return (
       <>
         <ThemeRestrictor />
@@ -276,7 +282,7 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
               </Button>
               <Button variant="outline" className="w-full" asChild>
                 <a
-                  href="https://app.dumosrx.com/dashboard/billing"
+                  href={`${WEB_APP_URL}/dashboard/billing`}
                   target="_blank"
                   rel="noreferrer"
                 >

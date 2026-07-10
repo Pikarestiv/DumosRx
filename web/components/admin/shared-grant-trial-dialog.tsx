@@ -17,35 +17,25 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { TRIAL_DURATIONS } from "@/lib/constants";
 
-interface GrantUserTrialDialogProps {
+interface SharedGrantTrialDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  user: any;
+  targetName?: string;
   onConfirm: (plan: string, duration: string) => void;
   isPending: boolean;
 }
 
-export function GrantUserTrialDialog({
+export function SharedGrantTrialDialog({
   open,
   onOpenChange,
-  user,
+  targetName,
   onConfirm,
   isPending,
-}: GrantUserTrialDialogProps) {
+}: SharedGrantTrialDialogProps) {
   const [plan, setPlan] = useState("pro");
   const [duration, setDuration] = useState("14 days");
-
-  const durations = [
-    "1day",
-    "3 days",
-    "7 days",
-    "14 days",
-    "21 days",
-    "30 days",
-    "3 months",
-    "6 months"
-  ];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -55,7 +45,7 @@ export function GrantUserTrialDialog({
           <DialogDescription>
             Grant a free trial to{" "}
             <span className="font-bold text-slate-900 dark:text-white">
-              {user?.name}
+              {targetName || "this account"}
             </span>
             . They will have access to the selected plan features for the specified duration.
           </DialogDescription>
@@ -81,7 +71,7 @@ export function GrantUserTrialDialog({
                 <SelectValue placeholder="Select duration" />
               </SelectTrigger>
               <SelectContent className="rounded-xl max-h-[200px]">
-                {durations.map((d) => (
+                {TRIAL_DURATIONS.map((d) => (
                   <SelectItem key={d} value={d}>
                     {d}
                   </SelectItem>
@@ -90,7 +80,7 @@ export function GrantUserTrialDialog({
             </Select>
           </div>
         </div>
-        <DialogFooter className="gap-2 sm:gap-0">
+        <DialogFooter className="gap-2 sm:space-x-2">
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}

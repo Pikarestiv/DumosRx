@@ -149,10 +149,7 @@ export function AutoUpdater() {
     }
   };
 
-  const openDownloadLink = () => {
-    window.open(DOWNLOAD_URL, "_blank");
-    setStatus("idle");
-  };
+
 
   if (!isApp) return null;
 

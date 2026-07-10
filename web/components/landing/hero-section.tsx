@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { WEB_APP_DASHBOARD_URL } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { useSystemConfig } from "@/lib/api/hooks";
@@ -79,7 +80,7 @@ export function HeroSection({ isLoggedIn }: { isLoggedIn: boolean }) {
                 <div className="w-3 h-3 rounded-full bg-green-500/20" />
               </div>
               <div className="mx-auto w-full max-w-sm h-6 bg-background rounded-md border text-[10px] flex items-center px-3 text-muted-foreground">
-                app.dumosrx.com/dashboard
+                {WEB_APP_DASHBOARD_URL.replace(/^https?:\/\//, "")}
               </div>
             </div>
             <div className="aspect-video bg-muted/20 relative">

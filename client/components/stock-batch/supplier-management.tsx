@@ -152,17 +152,17 @@ export function SupplierManagement() {
 
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <CardTitle className="font-serif font-semibold">
                 Supplier Management
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="mt-1.5">
                 Manage your {t('store').toLowerCase()} suppliers and vendors
               </CardDescription>
             </div>
             <Button
-              className="bg-accent hover:bg-accent/90"
+              className="bg-accent hover:bg-accent/90 w-full sm:w-auto"
               onClick={() => setShowAddDialog(true)}
             >
               <Plus className="h-4 w-4 mr-2" />

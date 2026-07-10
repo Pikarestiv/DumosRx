@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { query, insert, generateId } from "@/lib/db/local-database";
+import { insert, generateId } from "@/lib/db/local-database";
+import { getCustomers } from "@/lib/db/queries/customers";
 
 export interface Customer {
   id: string;
@@ -43,9 +44,7 @@ export function useCustomerData() {
   const fetchCustomers = async () => {
     setLoading(true);
     try {
-      const data = await query<any>(
-        "SELECT * FROM customers WHERE _deleted = 0 ORDER BY created_at DESC"
-      );
+      const data = await getCustomers();
       const transformed = data.map(transformCustomer);
       setCustomers(transformed);
     } catch (error) {

@@ -1,8 +1,10 @@
 import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
-import { useLocalData } from "@/lib/db/hooks/useLocalData";
 import { useStore } from "@/lib/context/store-context";
 import { getLocalTodayDate } from "@/lib/utils";
+import { getDailyCloseData } from "@/lib/db/queries/sales";
+import { getPaymentAccounts } from "@/lib/db/queries/setup";
 
 export function useDailyCloseData() {
   const { storeProfile } = useStore();
@@ -10,43 +12,22 @@ export function useDailyCloseData() {
 
   const [reportDate, setReportDate] = useState(getLocalTodayDate());
 
-  // 1. Fetch sales for the selected date
-  const { data: salesToday } = useLocalData<any>(
-    `SELECT * FROM sales WHERE date(transaction_date) = '${reportDate}' AND _deleted = 0`,
-  );
+  const { data: dailyCloseData } = useQuery({
+    queryKey: ['dailyCloseData', reportDate],
+    queryFn: () => getDailyCloseData(reportDate)
+  });
 
-  // 2. Fetch sale items to calculate profit and top sellers
-  const { data: itemsToday } = useLocalData<any>(
-    `SELECT si.*, m.name as product_name, m.cost_price as med_cost_price 
-     FROM sale_items si 
-     JOIN sales s ON si.sale_id = s.id 
-     LEFT JOIN products m ON si.product_id = m.id 
-     WHERE date(s.transaction_date) = '${reportDate}' AND (si._deleted = 0 OR si._deleted IS NULL) AND (s._deleted = 0 OR s._deleted IS NULL)`,
-  );
+  const salesToday = dailyCloseData?.salesToday || [];
+  const itemsToday = dailyCloseData?.itemsToday || [];
+  const returnsToday = dailyCloseData?.returnsToday || [];
+  const returnItemsToday = dailyCloseData?.returnItemsToday || [];
 
-  // 3. Fetch returns for the selected date
-  const { data: returnsToday } = useLocalData<any>(
-    `SELECT r.*, s.payment_method, s.payment_details 
-     FROM returns r 
-     JOIN sales s ON r.sale_id = s.id 
-     WHERE date(r.created_at) = '${reportDate}' AND (r._deleted = 0 OR r._deleted IS NULL)`,
-  );
+  const { data: paymentAccountsData } = useQuery({
+    queryKey: ['paymentAccounts'],
+    queryFn: () => getPaymentAccounts()
+  });
 
-  // 4. Fetch return items for cost adjustment
-  const { data: returnItemsToday } = useLocalData<any>(
-    `SELECT ri.*, m.cost_price as med_cost_price
-     FROM return_items ri
-     JOIN returns r ON ri.return_id = r.id
-     LEFT JOIN products m ON ri.product_id = m.id
-     WHERE date(r.created_at) = '${reportDate}' AND (ri._deleted = 0 OR ri._deleted IS NULL) AND (r._deleted = 0 OR r._deleted IS NULL)`,
-  );
-
-  // 5. Fetch payment accounts for detailed breakdown
-  const { data: paymentAccounts } = useLocalData<any>(
-    storeProfile?.id 
-      ? `SELECT * FROM payment_accounts WHERE _deleted = 0 AND store_id = '${storeProfile.id}'`
-      : `SELECT * FROM payment_accounts WHERE _deleted = 0`
-  );
+  const paymentAccounts = paymentAccountsData || [];
 
   const { aggregatedTotals, totalProfit, topSellingMeds } = useMemo(() => {
     const totals = {

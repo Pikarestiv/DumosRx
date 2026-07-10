@@ -15,15 +15,18 @@ export default function ExpensesPage() {
     <DashboardLayout>
       <div className="relative w-full h-full min-h-[500px]">
         <LockedModuleOverlay featureName="Expenses" featureKey="expenses" />
-        <div className="container mx-auto p-6">
-          <div className="flex justify-between items-center mb-6">
+        <div className="w-full">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
             <div>
               <h1 className="text-3xl font-bold tracking-tight">Expenses</h1>
-              <p className="text-muted-foreground">
+              <p className="text-muted-foreground mt-1.5">
                 Track and manage your business operational costs
               </p>
             </div>
-            <Button onClick={() => setIsAddDialogOpen(true)} className="gap-2">
+            <Button
+              onClick={() => setIsAddDialogOpen(true)}
+              className="gap-2 w-full sm:w-auto"
+            >
               <Plus className="h-4 w-4" />
               Add Expense
             </Button>
@@ -31,9 +34,9 @@ export default function ExpensesPage() {
 
           <ExpenseList key={isAddDialogOpen ? "open" : "closed"} />
 
-          <AddExpenseDialog 
-            open={isAddDialogOpen} 
-            onOpenChange={setIsAddDialogOpen} 
+          <AddExpenseDialog
+            open={isAddDialogOpen}
+            onOpenChange={setIsAddDialogOpen}
           />
         </div>
       </div>

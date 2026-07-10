@@ -8,7 +8,8 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { formatCurrency } from "@/lib/utils";
-import { useLocalData } from "@/lib/db/hooks/useLocalData";
+import { useQuery } from "@tanstack/react-query";
+import { getTransactionDetails } from "@/lib/db/queries/sales";
 import {
   Table,
   TableBody,
@@ -37,29 +38,14 @@ export function TransactionDetailsDialog({
   onReturnClick,
 }: TransactionDetailsDialogProps) {
   const { isAdmin } = useAuth();
-  const { data: items } = useLocalData<any>(
-    open && sale?.id
-      ? `SELECT 
-          si.*, 
-          m.name as product_name, 
-          m.cost_price as med_cost_price,
-          COALESCE((
-            SELECT SUM(ri.quantity) 
-            FROM return_items ri 
-            JOIN returns r ON ri.return_id = r.id 
-            WHERE r.sale_id = si.sale_id AND ri.product_id = si.product_id AND (ri._deleted = 0 OR ri._deleted IS NULL) AND (r._deleted = 0 OR r._deleted IS NULL)
-          ), 0) as returned_quantity
-         FROM sale_items si 
-         LEFT JOIN products m ON si.product_id = m.id 
-         WHERE si.sale_id = '${sale.id}' AND (si._deleted = 0 OR si._deleted IS NULL)`
-      : "SELECT 1 WHERE 1=0",
-  );
+  const { data: detailsData } = useQuery({
+    queryKey: ['transactionDetails', sale?.id],
+    queryFn: () => (open && sale?.id) ? getTransactionDetails(sale.id) : Promise.resolve(null),
+    enabled: !!(open && sale?.id)
+  });
 
-  const { data: returnsData } = useLocalData<any>(
-    open && sale?.id
-      ? `SELECT SUM(total_refunded) as total_refunded FROM returns WHERE sale_id = '${sale.id}' AND (_deleted = 0 OR _deleted IS NULL)`
-      : "SELECT 1 WHERE 1=0"
-  );
+  const items = detailsData?.items || [];
+  const returnsData = detailsData?.returnsData || [];
 
   if (!sale) return null;
 
@@ -85,29 +71,32 @@ export function TransactionDetailsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-2xl w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto p-4 sm:p-6">
         <DialogHeader>
-          <DialogTitle className="font-serif text-2xl">
+          <DialogTitle className="font-serif text-xl sm:text-2xl text-center sm:text-left">
             Transaction Details
           </DialogTitle>
-          <DialogDescription>
-            Reference: {sale.transaction_number} •{" "}
-            {new Date(sale.created_at).toLocaleString()}
+          <DialogDescription className="text-center sm:text-left text-xs sm:text-sm">
+            <span>Reference: {sale.transaction_number}</span>
+            <span className="hidden sm:inline"> • </span>
+            <span className="block sm:inline mt-1 sm:mt-0 text-muted-foreground/80 sm:text-muted-foreground">
+              {new Date(sale.created_at).toLocaleString()}
+            </span>
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-2 gap-4 mt-4 p-4 bg-muted/30 rounded-lg">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 mt-4 p-3 sm:p-4 bg-muted/30 rounded-lg">
           <div>
-            <p className="text-sm text-muted-foreground">Customer</p>
-            <p className="font-medium">{sale.customer_name || "Walk-in"}</p>
+            <p className="text-xs sm:text-sm text-muted-foreground">Customer</p>
+            <p className="font-medium text-sm sm:text-base">{sale.customer_name || "Walk-in"}</p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">Payment Method</p>
-            <p className="font-medium capitalize">{sale.payment_method}</p>
+            <p className="text-xs sm:text-sm text-muted-foreground">Payment Method</p>
+            <p className="font-medium capitalize text-sm sm:text-base">{sale.payment_method}</p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">Total Sale Amount</p>
-            <p className="font-medium text-lg text-primary">
+            <p className="text-xs sm:text-sm text-muted-foreground">Total Sale Amount</p>
+            <p className="font-medium text-base sm:text-lg text-primary">
               {formatCurrency(sale.total_amount, currencyCode)}
             </p>
             {totalRefunded > 0 && (
@@ -117,9 +106,9 @@ export function TransactionDetailsDialog({
             )}
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">Total Profit</p>
+            <p className="text-xs sm:text-sm text-muted-foreground">Total Profit</p>
             <p
-              className={`font-medium text-lg ${profit >= 0 ? "text-green-600" : "text-red-600"}`}
+              className={`font-medium text-base sm:text-lg ${profit >= 0 ? "text-green-600" : "text-red-600"}`}
             >
               {formatCurrency(profit, currencyCode)}
             </p>

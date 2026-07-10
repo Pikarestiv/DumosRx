@@ -13,7 +13,7 @@ import {
   resetDatabase,
   isTauri,
 } from "@/lib/db/core";
-import { sync } from "@/lib/db/sync-engine";
+import { sync, syncSubscriptionStatus } from "@/lib/db/sync-engine";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { apiClient } from "@/lib/api/client";
 
@@ -26,6 +26,7 @@ export function useSettings() {
     updateStoreProfile,
     theme: activeTheme,
     setTheme: setAppTheme,
+    refetch: refetchStore,
   } = useStore();
 
   const { minimumSyncIntervalMinutes } = useFeatureGate();
@@ -296,9 +297,24 @@ export function useSettings() {
       setIsCloudLinkOpen(true);
       return;
     }
+
+    try {
+      // Run privileged subscription sync first so any plan change is
+      // reflected locally before the UI re-renders.
+      await syncSubscriptionStatus();
+      await refetchStore();
+    } catch (_e) {
+      // Non-fatal — continue with the full sync regardless
+    }
+
     toast.promise(sync(true), {
       loading: "Synchronizing data with cloud...",
-      success: (data) => `Sync complete! Pushed ${data.pushed}, Pulled ${data.pulled}`,
+      success: (data) => {
+        // Re-fetch store profile again after full sync completes so any
+        // additional subscription changes are picked up.
+        refetchStore();
+        return `Sync complete! Pushed ${data.pushed}, Pulled ${data.pulled}`;
+      },
       error: "Sync failed. Please check your connection.",
     });
   };
@@ -352,6 +368,7 @@ export function useSettings() {
   const stickyTop = tauriTop + headerHeight;
 
   return {
+    storeProfile,
     user,
     theme,
     setTheme,

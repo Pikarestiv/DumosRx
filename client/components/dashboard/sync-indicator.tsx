@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { Cloud, CloudOff, RefreshCw, AlertCircle } from "lucide-react";
-import { useLocalData } from "@/lib/db/hooks/useLocalData";
+import { useQuery } from "@tanstack/react-query";
+import { getSyncQueueCount } from "@/lib/db/queries/setup";
 import {
   Tooltip,
   TooltipContent,
@@ -28,10 +29,12 @@ export function SyncIndicator({ collapsed = false }: { collapsed?: boolean }) {
   const [isLinked, setIsLinked] = useState(false);
   const { storeProfile } = useStore();
 
-  const { data: queueData } = useLocalData<{ count: number }>(
-    "SELECT COUNT(*) as count FROM _sync_queue"
-  );
-  const pendingCount = queueData[0]?.count || 0;
+  const { data: pendingCountData } = useQuery({
+    queryKey: ['syncQueueCount'],
+    queryFn: () => getSyncQueueCount(),
+    refetchInterval: 5000 // Refetch every 5 seconds for indicator
+  });
+  const pendingCount = pendingCountData || 0;
 
   const isSyncOverdue = lastSync
     ? Date.now() - new Date(lastSync).getTime() > 30 * 60 * 1000

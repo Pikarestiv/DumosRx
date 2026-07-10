@@ -9,6 +9,7 @@ import { Shield, Key, Save, Loader2, Lock, Edit2, X, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import {
   Card,
   CardContent,
@@ -205,17 +206,18 @@ export function SecuritySettings() {
                   <div className="space-y-2">
                     <Label htmlFor="pin">New 4-Digit PIN</Label>
                     <div className="relative">
-                      <Key className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="pin"
-                        type="password"
+                      <InputOTP
                         maxLength={4}
                         value={pinData.pin}
-                        onChange={(e) => setPinData({ pin: e.target.value.replace(/\D/g, "") })}
-                        placeholder="e.g. 1234"
-                        className="pl-10 tracking-widest text-lg font-mono"
-                        required
-                      />
+                        onChange={(value) => setPinData({ pin: value })}
+                      >
+                        <InputOTPGroup className="gap-2">
+                          <InputOTPSlot index={0} className="w-12 h-12 text-xl font-semibold rounded-md border border-input bg-background transition-all focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary shadow-sm" />
+                          <InputOTPSlot index={1} className="w-12 h-12 text-xl font-semibold rounded-md border border-input bg-background transition-all focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary shadow-sm" />
+                          <InputOTPSlot index={2} className="w-12 h-12 text-xl font-semibold rounded-md border border-input bg-background transition-all focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary shadow-sm" />
+                          <InputOTPSlot index={3} className="w-12 h-12 text-xl font-semibold rounded-md border border-input bg-background transition-all focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary shadow-sm" />
+                        </InputOTPGroup>
+                      </InputOTP>
                     </div>
                   </div>
                   <Button type="submit" className="w-full" disabled={pinMutation.isPending || pinData.pin.length !== 4}>

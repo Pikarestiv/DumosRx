@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { HeaderSection } from "@/components/landing/header-section";
+
 import { FooterSection } from "@/components/landing/footer-section";
 import { Badge } from "@/components/ui/badge";
 import { ProductCard } from "@/components/storefront/product-card";

@@ -52,7 +52,7 @@ export function StockAuditDialog({
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const { products, isLoading, refetch: loadProducts } = useStockAudit();
+  const { products, refetch: loadProducts } = useStockAudit();
 
   useEffect(() => {
     if (isOpen) {

@@ -35,19 +35,7 @@ interface CreatePODialogProps {
   onPOCreated: () => void;
 }
 
-interface Vendor {
-  id: string;
-  name: string;
-}
 
-interface Product {
-  id: string;
-  name: string;
-  bulk_unit: string;
-  base_unit: string;
-  units_per_bulk: number;
-  cost_price: number;
-}
 
 export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
   const { storeType } = useStore();
@@ -68,7 +56,7 @@ export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
     }
   }, [open]);
 
-  const { suppliers, products, loading: dataLoading, refetch: fetchData } = useProcurementData();
+  const { suppliers, products, refetch: fetchData } = useProcurementData();
 
   const handleAddLineItem = (newItem: any) => {
     setItems([...items, newItem]);

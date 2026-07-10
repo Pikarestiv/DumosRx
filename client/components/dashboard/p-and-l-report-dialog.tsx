@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -21,7 +21,7 @@ import {
 import { exportPLReportToPDF } from "@/lib/utils/pdf-export";
 import { useStore } from "@/lib/context/store-context";
 import { toast } from "sonner";
-import { format } from "date-fns";
+
 import { usePnLReport } from "@/lib/hooks/use-finance-data";
 
 interface PandLReportDialogProps {
@@ -32,7 +32,7 @@ interface PandLReportDialogProps {
 export function PandLReportDialog({ isOpen, onClose }: PandLReportDialogProps) {
   const { storeProfile } = useStore();
   const { reportData, loading, refetch: fetchRealData } = usePnLReport();
-  const [exporting, setExporting] = useState(false);
+
 
   useEffect(() => {
     if (isOpen) {
@@ -43,15 +43,12 @@ export function PandLReportDialog({ isOpen, onClose }: PandLReportDialogProps) {
   const handleExport = () => {
     if (!reportData) return;
     try {
-      setExporting(true);
       exportPLReportToPDF(reportData, storeProfile?.name || "DumosRx Store");
       toast.success("P&L Report exported successfully");
       onClose();
     } catch (err) {
       console.error(err);
       toast.error("Failed to export report");
-    } finally {
-      setExporting(false);
     }
   };
 

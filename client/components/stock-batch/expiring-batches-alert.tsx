@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, ChevronRight, Pill, X } from "lucide-react";
 import { getDaysToExpiry } from "@/lib/utils/date-utils";
@@ -13,7 +13,7 @@ import { useExpiringBatches } from "@/lib/hooks/use-inventory-data";
 export function ExpiringBatchesAlert() {
   const { expiryDays } = useSettings();
   const [dismissed, setDismissed] = useState(false);
-  const { items, isLoading } = useExpiringBatches(Number(expiryDays) || 90);
+  const { items } = useExpiringBatches(Number(expiryDays) || 90);
 
   if (dismissed || items.length === 0) return null;
 

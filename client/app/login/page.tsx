@@ -20,7 +20,7 @@ import { toast } from "sonner";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
-import { execute } from "@/lib/db/core";
+
 import { checkIfTableExists, getActiveUserCount } from "@/lib/db/queries/setup";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { LockScreen } from "@/components/auth/lock-screen";

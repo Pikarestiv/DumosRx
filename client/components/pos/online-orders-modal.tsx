@@ -13,8 +13,8 @@ import { apiClient } from "@/lib/api/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Loader2, CheckCircle, XCircle } from "lucide-react";
-import { useDatabase } from "@/lib/db/DatabaseProvider";
+import { Loader2, CheckCircle } from "lucide-react";
+
 import { generateId, execute } from "@/lib/db/core";
 import { getStockBatchesForProduct } from "@/lib/db/queries/sales";
 

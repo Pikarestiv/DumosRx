@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/context/auth-context";
 import { generateId, execute } from "@/lib/db/core";
-import { insert } from "@/lib/db/local-database";
+
 import { checkIfTableExists, getActiveUserCount, getTotalUserCount, getLocalStores } from "@/lib/db/queries/setup";
 import { sync } from "@/lib/db/sync-engine";
 import { restoreDatabase, clearDatabaseForNewStore } from "@/lib/db/core";
@@ -129,7 +129,7 @@ export function useOnboarding() {
       const result = await linkCloudAccount(email, pass);
       if (result.success) {
         // Fetch user profile and available stores from cloud
-        const profile = await apiClient.getProfile();
+        await apiClient.getProfile();
         const stores = await apiClient.getStores();
 
         if (stores.length === 0) {

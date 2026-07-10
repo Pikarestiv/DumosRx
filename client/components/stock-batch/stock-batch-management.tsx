@@ -68,27 +68,25 @@ export function StockBatchManagement({
         onValueChange={(val) => router.push(`/inventory/${val}`)}
         className="space-y-6"
       >
-        <div className="w-full overflow-x-auto scrollbar-none pb-1">
-          <TabsList className="bg-muted/50 p-1 h-auto w-max flex justify-start">
-            <TabsTrigger value="overview" className="px-4 py-2 shrink-0">
-              Overview
+        <TabsList>
+          <TabsTrigger value="overview">
+            Overview
+          </TabsTrigger>
+          <TabsTrigger value="products" className="capitalize">
+            {t("products")} Database
+          </TabsTrigger>
+          <TabsTrigger value="batches">
+            Batches & Expiry
+          </TabsTrigger>
+          <TabsTrigger value="movements">
+            Stock Movements
+          </TabsTrigger>
+          {isAdmin && (
+            <TabsTrigger value="adjustments">
+              Adjustments
             </TabsTrigger>
-            <TabsTrigger value="products" className="px-4 py-2 capitalize shrink-0">
-              {t("products")} Database
-            </TabsTrigger>
-            <TabsTrigger value="batches" className="px-4 py-2 shrink-0">
-              Batches & Expiry
-            </TabsTrigger>
-            <TabsTrigger value="movements" className="px-4 py-2 shrink-0">
-              Stock Movements
-            </TabsTrigger>
-            {isAdmin && (
-              <TabsTrigger value="adjustments" className="px-4 py-2 shrink-0">
-                Adjustments
-              </TabsTrigger>
-            )}
-          </TabsList>
-        </div>
+          )}
+        </TabsList>
 
         <TabsContent value="products">
           <ProductDatabase />

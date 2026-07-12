@@ -8,7 +8,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { ServerSelector } from "@/components/ui/server-selector";
 import { motion } from "framer-motion";
 import Image from "next/image";
@@ -33,7 +32,6 @@ export default function HomePage() {
         style={{ top: "calc(var(--tauri-top, 0px) + 1.5rem)" }}
       >
         <ServerSelector />
-        <ThemeToggle />
       </div>
 
       <main className="w-full max-w-[1200px] grid grid-cols-1 lg:grid-cols-2 gap-12 items-center z-10">

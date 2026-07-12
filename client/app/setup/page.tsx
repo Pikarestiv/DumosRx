@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { ArrowLeft, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useOnboarding } from "./use-onboarding";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
@@ -61,13 +60,6 @@ export default function SetupPage() {
         <div className="absolute inset-0 bg-gradient-to-tr from-primary/5 via-transparent to-accent/5 dark:from-primary/10 dark:to-accent/10" />
         <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-primary/10 dark:bg-primary/20 rounded-full blur-[120px] mix-blend-multiply dark:mix-blend-screen animate-blob" />
         <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-accent/5 dark:bg-accent/10 rounded-full blur-[120px] mix-blend-multiply dark:mix-blend-screen animate-blob animation-delay-2000" />
-      </div>
-
-      <div
-        className="absolute z-20 flex items-center gap-4 right-14 md:right-6"
-        style={{ top: "calc(var(--tauri-top, 0px) + 1.5rem)" }}
-      >
-        <ThemeToggle />
       </div>
 
       <motion.div

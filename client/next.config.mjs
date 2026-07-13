@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: "export",
+  allowedDevOrigins: ["tauri.localhost", "localhost", "127.0.0.1", "10.0.2.2"],
   // rewrites() are not supported in static export
   // async rewrites() {
   //   const REMOTE_API_ROOT = "https://api.dumosrx.com";

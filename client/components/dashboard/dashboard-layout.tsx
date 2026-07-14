@@ -5,7 +5,7 @@ import type React from "react";
 import { useState, useEffect, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Image from "next/image";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { ThemeCustomizer } from "@/components/ui/theme-customizer";
 import { UserNav } from "@/components/dashboard/user-nav";
@@ -94,7 +94,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     prevIndexRef.current = currentIndex;
   }, [currentIndex]);
 
-  const direction = currentIndex > prevIndexRef.current ? 1 : -1;
+
 
   const handleTouchStart = (e: React.TouchEvent) => {
     // Ignore if touch is inside a horizontal scroll container
@@ -160,11 +160,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     }
   }, [user, router]);
 
-  const slideVariants = {
-    enter: (d: number) => ({ x: d > 0 ? 30 : -30, opacity: 0 }),
-    center: { x: 0, opacity: 1 },
-    exit: (d: number) => ({ x: d > 0 ? -30 : 30, opacity: 0 }),
-  };
+
 
   return (
     <div className="min-h-screen bg-background relative">

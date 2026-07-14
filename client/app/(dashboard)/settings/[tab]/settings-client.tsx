@@ -1,6 +1,5 @@
 "use client";
 
-import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -107,7 +106,7 @@ export default function SettingsPage() {
   console.log("[DEBUG SETTINGS]", { user, isAdmin });
 
   return (
-    <DashboardLayout>
+    <>
       <div className="max-w-5xl">
         <div className="mb-6 flex flex-col md:flex-row md:items-start md:justify-between gap-4">
           <div>
@@ -343,6 +342,6 @@ export default function SettingsPage() {
           }
         }}
       />
-    </DashboardLayout>
+    </>
   );
 }

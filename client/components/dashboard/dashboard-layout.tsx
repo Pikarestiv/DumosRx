@@ -301,20 +301,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
         {/* Page content */}
         <div className="flex-1 relative overflow-x-clip">
-          <AnimatePresence mode="wait" initial={false} custom={direction}>
-            <motion.div
-              key={currentIndex !== -1 ? currentIndex : pathname}
-              custom={direction}
-              variants={slideVariants}
-              initial="enter"
-              animate="center"
-              exit="exit"
-              transition={{ duration: 0.2, ease: "easeInOut" }}
-              className="w-full h-full"
-            >
-              <main className="p-4 sm:p-6">{children}</main>
-            </motion.div>
-          </AnimatePresence>
+          <main className="p-4 sm:p-6">{children}</main>
         </div>
       </div>
       <DashboardTour />

@@ -18,7 +18,16 @@ export function TauriTitleBar() {
     handleMouseDown,
   } = useTauriWindow();
 
-  if (!isTauri || !isDesktop) return null;
+  if (!isTauri) return null;
+
+  if (!isDesktop) {
+    return (
+      <div
+        className="fixed top-0 left-0 right-0 z-[9999] bg-background"
+        style={{ height: "var(--tauri-top, 0px)" }}
+      />
+    );
+  }
 
   return (
     <div

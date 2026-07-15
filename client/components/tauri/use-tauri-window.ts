@@ -21,11 +21,13 @@ export function useTauriWindow() {
 
           const win = getCurrentWindow();
           setAppWindow(win);
-          
+
           const osType = type();
           setPlatform(osType);
-          
-          const isDesk = ["windows", "macos", "darwin", "linux"].includes(osType.toLowerCase());
+
+          const isDesk = ["windows", "macos", "darwin", "linux"].includes(
+            osType.toLowerCase(),
+          );
           setIsDesktop(isDesk);
           setIsMobile(!isDesk);
 
@@ -56,8 +58,10 @@ export function useTauriWindow() {
         document.body.style.setProperty("--tauri-top", "40px");
         document.body.style.setProperty("--tauri-bottom", "0px");
       } else if (isMobile) {
-        document.body.style.setProperty("--tauri-top", "env(safe-area-inset-top, 24px)");
-        document.body.style.setProperty("--tauri-bottom", "env(safe-area-inset-bottom, 24px)");
+        // We use max() because if the WebView evaluates env() to 0px, the standard env fallback is ignored.
+        // max() guarantees a minimum of 24px/16px on mobile devices even if env() is falsely reported as 0px.
+        document.body.style.setProperty("--tauri-top", "max(env(safe-area-inset-top), 24px)");
+        document.body.style.setProperty("--tauri-bottom", "max(env(safe-area-inset-bottom), 16px)");
       }
     } else {
       document.body.style.setProperty("--tauri-top", "0px");

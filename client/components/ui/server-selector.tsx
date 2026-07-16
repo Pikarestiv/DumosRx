@@ -38,6 +38,10 @@ const ENVIRONMENTS = [
       process.env.NEXT_PUBLIC_API_URL_LOCAL_NODE ||
       "http://localhost:8000/api/v1",
   },
+  {
+    name: "Android Emulator to Host (artisan serve)",
+    url: "http://10.0.2.2:8000/api/v1",
+  },
 ];
 
 export function ServerSelector() {

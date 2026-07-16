@@ -1,6 +1,5 @@
 "use client";
 
-import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -107,7 +106,7 @@ export default function SettingsPage() {
   console.log("[DEBUG SETTINGS]", { user, isAdmin });
 
   return (
-    <DashboardLayout>
+    <>
       <div className="max-w-5xl">
         <div className="mb-6 flex flex-col md:flex-row md:items-start md:justify-between gap-4">
           <div>
@@ -157,12 +156,12 @@ export default function SettingsPage() {
             style={{ top: isDesktop ? `${stickyTop + 16}px` : undefined }}
           >
             <TabsList
-              className="flex flex-row flex-wrap md:flex-col h-auto bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b md:border-none p-2 md:p-0 gap-1 justify-start md:w-full sticky md:relative z-30"
+              className="flex flex-row md:flex-col h-auto overflow-x-auto scrollbar-none md:overflow-visible bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b md:border-none p-2 md:p-0 gap-1 justify-start md:w-full sticky md:relative z-30"
               style={{ top: !isDesktop ? `${stickyTop}px` : undefined }}
             >
               <TabsTrigger
                 value="appearance"
-                className="flex-auto md:w-full justify-center md:justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20"
+                className="flex-none justify-center md:justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20"
               >
                 <Palette className="w-4 h-4 mr-2 md:mr-3" />
                 <span className="text-sm">General</span>
@@ -170,7 +169,7 @@ export default function SettingsPage() {
               {isAdmin && (
                 <TabsTrigger
                   value="store"
-                  className="flex-auto md:w-full justify-center md:justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20"
+                  className="flex-none justify-center md:justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20"
                 >
                   <Store className="w-4 h-4 mr-2 md:mr-3" />
                   <span className="text-sm">Store Profile</span>
@@ -178,7 +177,7 @@ export default function SettingsPage() {
               )}
               <TabsTrigger
                 value="notifications"
-                className="flex-auto md:w-full justify-center md:justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20"
+                className="flex-none justify-center md:justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20"
               >
                 <Bell className="w-4 h-4 mr-2 md:mr-3" />
                 <span className="text-sm">Alerts</span>
@@ -186,7 +185,7 @@ export default function SettingsPage() {
               {isAdmin && (
                 <TabsTrigger
                   value="data"
-                  className="flex-auto md:w-full justify-center md:justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20"
+                  className="flex-none justify-center md:justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20"
                 >
                   <Database className="w-4 h-4 mr-2 md:mr-3" />
                   <span className="text-sm">Data & Sync</span>
@@ -194,7 +193,7 @@ export default function SettingsPage() {
               )}
               <TabsTrigger
                 value="security"
-                className="flex-auto md:w-full justify-center md:justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20"
+                className="flex-none justify-center md:justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20"
               >
                 <Shield className="w-4 h-4 mr-2 md:mr-3" />
                 <span className="text-sm">Security</span>
@@ -202,7 +201,7 @@ export default function SettingsPage() {
               {isAdmin && (
                 <TabsTrigger
                   value="staff"
-                  className="flex-auto md:w-full justify-center md:justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20"
+                  className="flex-none justify-center md:justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20"
                 >
                   <Users className="w-4 h-4 mr-2 md:mr-3" />
                   <span className="text-sm">Staff</span>
@@ -211,7 +210,7 @@ export default function SettingsPage() {
               {isAdmin && (
                 <TabsTrigger
                   value="system"
-                  className="flex-auto md:w-full justify-center md:justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20"
+                  className="flex-none justify-center md:justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20"
                 >
                   <Globe className="w-4 h-4 mr-2 md:mr-3" />
                   <span className="text-sm">System</span>
@@ -343,6 +342,6 @@ export default function SettingsPage() {
           }
         }}
       />
-    </DashboardLayout>
+    </>
   );
 }

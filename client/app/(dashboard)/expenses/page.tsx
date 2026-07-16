@@ -1,6 +1,5 @@
 "use client";
 
-import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
 import { ExpenseList } from "@/components/expenses/expense-list";
 import { AddExpenseDialog } from "@/components/expenses/add-expense-dialog";
 import { useState } from "react";
@@ -12,7 +11,7 @@ export default function ExpensesPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 
   return (
-    <DashboardLayout>
+    <>
       <div className="relative w-full h-full min-h-[500px]">
         <LockedModuleOverlay featureName="Expenses" featureKey="expenses" />
         <div className="w-full">
@@ -40,6 +39,6 @@ export default function ExpensesPage() {
           />
         </div>
       </div>
-    </DashboardLayout>
+    </>
   );
 }

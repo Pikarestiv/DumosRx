@@ -22,7 +22,6 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { checkIfTableExists, getActiveUserCount } from "@/lib/db/queries/setup";
-import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { LockScreen } from "@/components/auth/lock-screen";
 import { RecentUser } from "@/lib/context/auth-context";
 
@@ -101,13 +100,6 @@ export default function LoginPage() {
     >
       <div className="absolute inset-0 z-0">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent to-background/60" />
-      </div>
-
-      <div
-        className="absolute z-20 right-6"
-        style={{ top: "calc(var(--tauri-top, 0px) + 1.5rem)" }}
-      >
-        <ThemeToggle />
       </div>
 
       <motion.div

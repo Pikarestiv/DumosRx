@@ -5,7 +5,7 @@ import type React from "react";
 import { useState, useEffect, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Image from "next/image";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { ThemeCustomizer } from "@/components/ui/theme-customizer";
 import { UserNav } from "@/components/dashboard/user-nav";
@@ -41,12 +41,16 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
-  const { storeProfile, availableStores, switchStore, activeStoreId } = useStore();
+  const { storeProfile, availableStores, switchStore, activeStoreId } =
+    useStore();
   const { user } = useAuth();
   const [feedbackOpen, setFeedbackOpen] = useState(false);
-  const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
+  const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(
+    null,
+  );
 
-  const { duration, isLocked, lock, updateActivity, unlock } = useAutoLockStore();
+  const { duration, isLocked, lock, updateActivity, unlock } =
+    useAutoLockStore();
   const [recentUsers, setRecentUsers] = useState<any[]>([]);
 
   useEffect(() => {
@@ -68,7 +72,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     window.addEventListener("scroll", handleActivity);
 
     const interval = setInterval(() => {
-      const { lastActivity, isLocked: currentLocked, duration: currentDuration } = useAutoLockStore.getState();
+      const {
+        lastActivity,
+        isLocked: currentLocked,
+        duration: currentDuration,
+      } = useAutoLockStore.getState();
       if (!currentLocked && currentDuration > 0) {
         const inactiveTime = Date.now() - lastActivity;
         if (inactiveTime > currentDuration * 60 * 1000) {
@@ -87,14 +95,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   }, [duration, updateActivity, lock]);
 
   const tabs = ["/dashboard", "/pos", "/inventory", "/customers"];
-  const currentIndex = tabs.findIndex(t => pathname.startsWith(t));
+  const currentIndex = tabs.findIndex((t) => pathname.startsWith(t));
   const prevIndexRef = useRef(currentIndex);
-  
+
   useEffect(() => {
     prevIndexRef.current = currentIndex;
   }, [currentIndex]);
-
-  const direction = currentIndex > prevIndexRef.current ? 1 : -1;
 
   const handleTouchStart = (e: React.TouchEvent) => {
     // Ignore if touch is inside a horizontal scroll container
@@ -160,12 +166,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     }
   }, [user, router]);
 
-  const slideVariants = {
-    enter: (d: number) => ({ x: d > 0 ? 30 : -30, opacity: 0 }),
-    center: { x: 0, opacity: 1 },
-    exit: (d: number) => ({ x: d > 0 ? -30 : 30, opacity: 0 }),
-  };
-
   return (
     <div className="min-h-screen bg-background relative">
       {isLocked && (
@@ -173,7 +173,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           <div className="absolute inset-0 z-0">
             <div className="absolute inset-0 bg-gradient-to-b from-transparent to-background/60" />
           </div>
-          
+
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -205,9 +205,13 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               </div>
 
               <div className="pt-1 pb-6 px-6">
-                <LockScreen 
-                  recentUsers={recentUsers} 
-                  defaultUser={user ? { ...user, last_login: new Date().toISOString() } : undefined}
+                <LockScreen
+                  recentUsers={recentUsers}
+                  defaultUser={
+                    user
+                      ? { ...user, last_login: new Date().toISOString() }
+                      : undefined
+                  }
                   onLoginAsOther={() => {
                     unlock();
                     router.push("/login");
@@ -216,7 +220,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 />
               </div>
             </div>
-            
+
             <div className="mt-8 flex items-center justify-center gap-2 text-xs font-medium text-muted-foreground/60 uppercase tracking-widest">
               <Lock className="w-3 h-3" />
               Terminal Access • Secure Login
@@ -239,10 +243,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* Main content — shifts right to clear the sidebar */}
       <div
         className={cn(
-          "flex flex-col min-h-screen transition-all duration-300 pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0",
+          "flex flex-col min-h-screen transition-all duration-300",
           sidebarCollapsed ? "lg:pl-[68px]" : "lg:pl-64",
         )}
-        style={{ paddingTop: "var(--tauri-top, 0px)" }}
+        style={{
+          paddingTop: "var(--tauri-top, 0px)",
+          paddingBottom:
+            "calc(4rem + var(--tauri-bottom, env(safe-area-inset-bottom)))",
+        }}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
@@ -250,11 +258,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
         {/* Top header */}
         <header
-          className="h-16 bg-background border-b border-border flex items-center justify-between px-4 sm:px-6 sticky z-40"
+          className="h-16 bg-background border-b border-border flex items-center justify-between px-4 sm:px-6 sticky z-40 before:absolute before:inset-x-0 before:bottom-full before:h-[100vh] before:bg-background before:-z-10"
           style={{ top: "var(--tauri-top, 0px)" }}
         >
           <div className="flex items-center gap-4">
-            {(!user?.store_id && availableStores.length > 1) ? (
+            {!user?.store_id && availableStores.length > 1 ? (
               <DropdownMenu>
                 <DropdownMenuTrigger className="flex items-center gap-2 outline-none hover:opacity-80 transition-opacity">
                   <h1 className="font-serif font-black text-xl text-foreground truncate max-w-[200px] sm:max-w-xs">
@@ -264,12 +272,13 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="w-[240px]">
                   {availableStores.map((store) => (
-                    <DropdownMenuItem 
-                      key={store.id} 
+                    <DropdownMenuItem
+                      key={store.id}
                       onClick={() => switchStore(store.id)}
                       className={cn(
                         "flex items-center gap-2 py-2 cursor-pointer",
-                        store.id === activeStoreId && "bg-primary/10 text-primary font-medium focus:bg-primary/20"
+                        store.id === activeStoreId &&
+                          "bg-primary/10 text-primary font-medium focus:bg-primary/20",
                       )}
                     >
                       <StoreIcon className="h-4 w-4" />
@@ -298,20 +307,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
         {/* Page content */}
         <div className="flex-1 relative overflow-x-clip">
-          <AnimatePresence mode="wait" initial={false} custom={direction}>
-            <motion.div
-              key={currentIndex !== -1 ? currentIndex : pathname}
-              custom={direction}
-              variants={slideVariants}
-              initial="enter"
-              animate="center"
-              exit="exit"
-              transition={{ duration: 0.2, ease: "easeInOut" }}
-              className="w-full h-full"
-            >
-              <main className="p-4 sm:p-6">{children}</main>
-            </motion.div>
-          </AnimatePresence>
+          <main className="p-4 sm:p-6">{children}</main>
         </div>
       </div>
       <DashboardTour />

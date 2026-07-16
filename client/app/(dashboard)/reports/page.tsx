@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
 import { ReportCenter } from "@/components/reports/report-center";
 import { BusinessIntelligenceDashboard } from "@/components/analytics/business-intelligence-dashboard";
 import { useStore } from "@/lib/context/store-context";
@@ -43,7 +42,7 @@ export default function ReportsPage() {
   };
 
   return (
-    <DashboardLayout>
+    <>
       <div className="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <h1 className="font-serif font-bold text-3xl text-foreground">
@@ -101,6 +100,6 @@ export default function ReportsPage() {
           </TabsContent>
         )}
       </Tabs>
-    </DashboardLayout>
+    </>
   );
 }

@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 
-import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
 import { DashboardOverview } from "@/components/dashboard/dashboard-overview";
 import { useAuth } from "@/lib/context/auth-context";
 
@@ -32,8 +31,8 @@ export default function DashboardPage() {
   }
 
   return (
-    <DashboardLayout>
+    <>
       <DashboardOverview />
-    </DashboardLayout>
+    </>
   );
 }

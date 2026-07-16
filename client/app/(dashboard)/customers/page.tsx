@@ -1,9 +1,8 @@
-import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
 import { CustomerManagement } from "@/components/customers/customer-management";
 
 export default function CustomersPage() {
   return (
-    <DashboardLayout>
+    <>
       <div className="mb-6">
         <h1 className="font-serif font-bold text-3xl text-foreground">
           Customer & Loyalty Management
@@ -13,6 +12,6 @@ export default function CustomersPage() {
         </p>
       </div>
       <CustomerManagement />
-    </DashboardLayout>
+    </>
   );
 }

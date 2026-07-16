@@ -9,6 +9,7 @@ import { WindowsWindowControls } from "./windows-window-controls";
 export function TauriTitleBar() {
   const {
     isTauri,
+    isDesktop,
     isMaximized,
     isMac,
     handleMinimize,
@@ -18,6 +19,15 @@ export function TauriTitleBar() {
   } = useTauriWindow();
 
   if (!isTauri) return null;
+
+  if (!isDesktop) {
+    return (
+      <div
+        className="fixed top-0 left-0 right-0 z-[9999] bg-background"
+        style={{ height: "var(--tauri-top, 0px)" }}
+      />
+    );
+  }
 
   return (
     <div

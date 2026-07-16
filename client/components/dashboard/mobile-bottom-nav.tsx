@@ -40,7 +40,10 @@ export function MobileBottomNav({ onOpenFeedback }: MobileBottomNavProps) {
 
   return (
     <>
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-t border-border pb-[env(safe-area-inset-bottom)]">
+      <div 
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-t border-border"
+        style={{ paddingBottom: "var(--tauri-bottom, env(safe-area-inset-bottom))" }}
+      >
         <nav className="flex items-center justify-around px-2 h-16">
           {primaryTabs.map((tab) => {
             const isActive = pathname.startsWith(tab.href);

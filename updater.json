@@ -1,23 +1,23 @@
 {
-  "version": "0.0.23",
-  "notes": "DumosRx Production Release v0.0.23.",
+  "version": "0.0.24",
+  "notes": "DumosRx Production Release v0.0.24.",
   "pub_date": "2026-07-10T12:00:00Z",
   "platforms": {
     "windows-x86_64": {
       "signature": "",
-      "url": "https://downloads.dumosrx.com/v0.0.23/DumosRx_0.0.23_x64_en-US.msi"
+      "url": "https://downloads.dumosrx.com/v0.0.24/DumosRx_0.0.24_x64_en-US.msi"
     },
     "darwin-aarch64": {
       "signature": "",
-      "url": "https://downloads.dumosrx.com/v0.0.23/DumosRx_0.0.23_aarch64.dmg"
+      "url": "https://downloads.dumosrx.com/v0.0.24/DumosRx_0.0.24_aarch64.dmg"
     },
     "darwin-x86_64": {
       "signature": "",
-      "url": "https://downloads.dumosrx.com/v0.0.23/DumosRx_0.0.23_x64.dmg"
+      "url": "https://downloads.dumosrx.com/v0.0.24/DumosRx_0.0.24_x64.dmg"
     },
     "linux-x86_64": {
       "signature": "",
-      "url": "https://downloads.dumosrx.com/v0.0.23/DumosRx_0.0.23_amd64.AppImage"
+      "url": "https://downloads.dumosrx.com/v0.0.24/DumosRx_0.0.24_amd64.AppImage"
     }
   }
 }

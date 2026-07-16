@@ -140,6 +140,7 @@ Below is our current prospect pipeline, mapped to their specific requirements an
 | **Mmesoma** (Former Apprentice) | Legacy Inventory | E-commerce integration benefits. | **E-commerce Sync Layer** | Primary Dev |
 | **Makhillz store** (2+ stores) | QuickBooks | 2+ store aggregated dashboard. | **Enterprise Multi-Store Sync** | Co-Founder Mike |
 | **Ikem/Gloria** (DotCom) | Scope Shopmaster | Pitch missing features they wish Scope had. | Feature Gap Analysis | Primary Dev |
+| **Pharm KC** (Shemuel Pharmacies) | Unknown (Past Owner) | Indirect (WhatsApp Stories) -> Ask for direct interest or network referrals | None | Primary Dev |
 
 ### Technical Strategy for Major Feature Blockers
 

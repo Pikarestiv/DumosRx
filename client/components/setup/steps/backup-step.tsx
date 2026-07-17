@@ -15,11 +15,17 @@ import { FileUp, Loader2 } from "lucide-react";
 
 interface BackupStepProps {
   onCancel: () => void;
-  onRestore: (file: File) => void;
+  onRestore: (file: File) => Promise<void>;
+  onGoToCloud?: () => void;
   isLoading: boolean;
 }
 
-export function BackupStep({ onCancel, onRestore, isLoading }: BackupStepProps) {
+export function BackupStep({
+  onCancel,
+  onRestore,
+  onGoToCloud,
+  isLoading,
+}: BackupStepProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -35,8 +41,9 @@ export function BackupStep({ onCancel, onRestore, isLoading }: BackupStepProps) 
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -20 }}
+      className="flex-1 flex flex-col w-full"
     >
-      <Card className="border-border shadow-2xl bg-card/60 backdrop-blur-2xl">
+      <Card className="flex-1 sm:flex-initial flex flex-col border-none sm:border-solid sm:border-border shadow-[0_-20px_40px_rgba(0,0,0,0.15)] sm:shadow-2xl bg-background sm:bg-card/60 sm:backdrop-blur-2xl rounded-t-[2.5rem] sm:rounded-xl overflow-hidden relative">
         <CardHeader className="space-y-1 flex flex-col items-center text-center pb-2">
           <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
             <FileUp className="h-6 w-6 text-primary" />
@@ -46,18 +53,18 @@ export function BackupStep({ onCancel, onRestore, isLoading }: BackupStepProps) 
             Restore from a previous backup file
           </CardDescription>
         </CardHeader>
-        <CardContent className="py-8 pt-6">
-          <div 
-            className={`flex flex-col items-center justify-center border-2 border-dashed border-border rounded-xl p-8 transition-colors ${isLoading ? 'bg-background/10 cursor-not-allowed opacity-70' : 'bg-background/30 hover:bg-background/50 cursor-pointer group'}`}
+        <CardContent className="py-8 px-6 pt-6">
+          <div
+            className={`flex flex-col items-center justify-center border-2 border-dashed border-border rounded-xl p-8 transition-colors ${isLoading ? "bg-background/10 cursor-not-allowed opacity-70" : "bg-background/30 hover:bg-background/50 cursor-pointer group"}`}
             onClick={() => {
               if (!isLoading) fileInputRef.current?.click();
             }}
           >
-            <input 
-              type="file" 
-              ref={fileInputRef} 
-              className="hidden" 
-              accept=".drx" 
+            <input
+              type="file"
+              ref={fileInputRef}
+              className="hidden"
+              accept=".drx"
               onChange={handleFileChange}
             />
             {isLoading ? (
@@ -83,10 +90,29 @@ export function BackupStep({ onCancel, onRestore, isLoading }: BackupStepProps) 
             )}
           </div>
         </CardContent>
-        <CardFooter className="pb-8">
-          <Button variant="outline" className="w-full" onClick={onCancel} disabled={isLoading}>
+        <CardFooter className="pb-8 px-6 flex flex-col space-y-4">
+          <Button
+            variant="outline"
+            className="w-full h-11"
+            onClick={onCancel}
+            disabled={isLoading}
+          >
             Cancel
           </Button>
+          {onGoToCloud && (
+            <div className="text-center pt-2">
+              <p className="text-sm text-muted-foreground">
+                Don't have a local backup?{" "}
+                <button
+                  type="button"
+                  onClick={onGoToCloud}
+                  className="text-primary hover:underline font-semibold"
+                >
+                  Restore from Cloud
+                </button>
+              </p>
+            </div>
+          )}
         </CardFooter>
       </Card>
     </motion.div>

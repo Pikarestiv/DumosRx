@@ -49,8 +49,9 @@ export function RegisterStep({ onRegister, isLoading, isCloudLinked, existingSto
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -20 }}
+      className="flex-1 flex flex-col w-full"
     >
-      <Card className="border-border shadow-2xl bg-card/60 backdrop-blur-2xl">
+      <Card className="flex-1 sm:flex-initial flex flex-col border-none sm:border-solid sm:border-border shadow-[0_-20px_40px_rgba(0,0,0,0.15)] sm:shadow-2xl bg-background sm:bg-card/60 sm:backdrop-blur-2xl rounded-t-[2.5rem] sm:rounded-xl overflow-hidden relative">
         <CardHeader className="space-y-1 flex flex-col items-center text-center pb-1 pt-4">
           <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-2">
             <UserPlus className="h-5 w-5 text-primary" />

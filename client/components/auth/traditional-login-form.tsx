@@ -26,10 +26,14 @@ export function TraditionalLoginForm({
   return (
     <form onSubmit={onSubmit} className="flex-1 flex flex-col justify-center">
       <div className="sm:hidden px-6 pt-10 pb-2 text-center space-y-1.5">
-        <h2 className="text-2xl font-bold tracking-tight text-foreground">Sign In</h2>
-        <p className="text-sm text-muted-foreground font-medium">Enter your details below to continue</p>
+        <h2 className="text-2xl font-bold tracking-tight text-foreground">
+          Sign In
+        </h2>
+        <p className="text-sm text-muted-foreground font-medium">
+          Enter your details below to continue
+        </p>
       </div>
-      <CardContent className="space-y-3 sm:pt-4">
+      <CardContent className="space-y-3 px-6 sm:pt-4">
         <div className="space-y-1.5">
           <Label htmlFor="username" className="text-sm font-medium">
             Username
@@ -83,7 +87,7 @@ export function TraditionalLoginForm({
           </div>
         </div>
       </CardContent>
-      <CardFooter className="flex flex-col space-y-4 pt-4 pb-6">
+      <CardFooter className="flex flex-col space-y-4 pt-4 px-6 pb-6">
         <Button
           type="submit"
           className="w-full h-11 text-base font-bold shadow-lg active:scale-[0.98]"

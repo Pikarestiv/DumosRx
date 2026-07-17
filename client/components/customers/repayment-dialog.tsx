@@ -1,14 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { ResponsiveModal } from "@/components/ui/responsive-modal";
+import { DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -89,14 +83,7 @@ export function RepaymentDialog({
   if (!customer) return null;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>Record Repayment</DialogTitle>
-          <DialogDescription>
-            Record a payment from {customer.name} to reduce their debt.
-          </DialogDescription>
-        </DialogHeader>
+    <ResponsiveModal open={open} onOpenChange={onOpenChange} title={<>Record Repayment</>} description={<>Record a payment from {customer.name} to reduce their debt.</>} className="sm:max-w-[425px]">
 
         <div className="grid gap-4 py-4">
           <div className="bg-muted/50 p-3 rounded-lg flex justify-between items-center">
@@ -151,7 +138,6 @@ export function RepaymentDialog({
             Record Payment
           </Button>
         </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      </ResponsiveModal>
   );
 }

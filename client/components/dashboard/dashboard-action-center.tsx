@@ -17,7 +17,6 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 
 export interface ActionCenterProps {
   expiringCount: number;
@@ -220,7 +219,7 @@ export function DashboardActionCenter({
   lowStockCount,
 }: ActionCenterProps) {
   const alerts = useActionCenterAlerts(expiringCount, lowStockCount);
-  const [isPaused, setIsPaused] = useState(false);
+  const [isPaused] = useState(false);
   const scrollRef = React.useRef<HTMLDivElement>(null);
 
   // Auto-scroll logic for horizontal list

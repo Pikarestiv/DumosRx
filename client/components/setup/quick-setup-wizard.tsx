@@ -3,14 +3,8 @@
 import { useRecordCounts } from "@/lib/hooks/use-setup-data";
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { ResponsiveModal } from "@/components/ui/responsive-modal";
+import { DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -89,16 +83,7 @@ export function QuickSetupWizard() {
   ) return null;
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="sm:max-w-[500px] border-accent/20 dark:border-white/20">
-        <DialogHeader>
-          <DialogTitle className="font-serif text-2xl font-bold text-center">
-            Welcome to {APP_NAME}
-          </DialogTitle>
-          <DialogDescription className="text-center">
-            Let's customize the platform for your business.
-          </DialogDescription>
-        </DialogHeader>
+    <ResponsiveModal open={open} onOpenChange={setOpen} title={<>Welcome to {APP_NAME}</>} description={<>Let's customize the platform for your business.</>} className="sm:max-w-[500px] border-accent/20 dark:border-white/20">
 
         <div className="py-6">
           {step === 1 && (
@@ -233,7 +218,6 @@ export function QuickSetupWizard() {
             )}
           </div>
         </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      </ResponsiveModal>
   );
 }

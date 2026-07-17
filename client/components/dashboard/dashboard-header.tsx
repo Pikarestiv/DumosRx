@@ -1,27 +1,19 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Search, Plus, Store as StoreIcon } from "lucide-react";
+import { Plus, Store as StoreIcon } from "lucide-react";
 import { useAuth } from "@/lib/context/auth-context";
 import { useStore } from "@/lib/context/store-context";
 import { APP_NAME } from "@/lib/constants";
 import { SyncIndicator } from "./sync-indicator";
 import { NotificationBell } from "./notification-bell";
 import { UserNav } from "./user-nav";
-import { useState } from "react";
+
 
 export function DashboardHeader() {
   const router = useRouter();
   const { user } = useAuth();
   const { storeProfile } = useStore();
-  const [searchQuery, setSearchQuery] = useState("");
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      router.push(`/inventory/products?search=${encodeURIComponent(searchQuery)}`);
-    }
-  };
 
   return (
     <header

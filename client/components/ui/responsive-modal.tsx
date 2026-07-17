@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -22,11 +23,13 @@ import { X } from "lucide-react";
 interface ResponsiveModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  title: string;
+  title: React.ReactNode;
   description?: React.ReactNode;
   children: React.ReactNode;
   /** Custom class for the content container */
   className?: string;
+  /** Custom class for the header container */
+  headerClassName?: string;
 }
 
 export function ResponsiveModal({
@@ -36,6 +39,7 @@ export function ResponsiveModal({
   description,
   children,
   className,
+  headerClassName,
 }: ResponsiveModalProps) {
   const isDesktop = useMediaQuery("(min-width: 768px)");
 
@@ -43,7 +47,7 @@ export function ResponsiveModal({
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className={className}>
-          <DialogHeader>
+          <DialogHeader className={headerClassName}>
             <DialogTitle>{title}</DialogTitle>
             {description && (
               <DialogDescription>{description}</DialogDescription>
@@ -60,7 +64,7 @@ export function ResponsiveModal({
       <DrawerContent
         className={`max-h-[90vh] overflow-y-auto px-4 ${className || ""}`}
       >
-        <DrawerHeader className="text-left mb-4 px-0 flex flex-row items-start justify-between">
+        <DrawerHeader className={cn("text-left mb-4 px-0 flex flex-row items-start justify-between", headerClassName)}>
           <div>
             <DrawerTitle>{title}</DrawerTitle>
             {description && (

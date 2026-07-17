@@ -1,13 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -61,14 +55,7 @@ export function AddVendorDialog({ open, onOpenChange }: AddVendorDialogProps) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle>Add New Vendor</DialogTitle>
-          <DialogDescription>
-            Enter the details of your new supplier or service provider.
-          </DialogDescription>
-        </DialogHeader>
+    <ResponsiveModal open={open} onOpenChange={onOpenChange} title={<>Add New Vendor</>} description={<>Enter the details of your new supplier or service provider.</>} className="sm:max-w-[500px]">
         <form onSubmit={handleSubmit} className="space-y-4 pt-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-2">
@@ -158,7 +145,6 @@ export function AddVendorDialog({ open, onOpenChange }: AddVendorDialogProps) {
             </Button>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
+      </ResponsiveModal>
   );
 }

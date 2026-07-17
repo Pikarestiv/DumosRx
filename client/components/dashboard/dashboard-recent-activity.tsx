@@ -1,6 +1,6 @@
 "use client";
 
-import { Activity, ArrowRight } from "lucide-react";
+import { Activity } from "lucide-react";
 import Link from "next/link";
 import { 
   Card, 
@@ -21,14 +21,13 @@ interface ActivityItem {
 
 interface DashboardRecentActivityProps {
   activities: ActivityItem[];
-  storeTerm: string;
   getActivityColor: (type: string) => string;
   onActivityClick?: (activity: ActivityItem) => void;
 }
 
 export function DashboardRecentActivity({
   activities,
-  storeTerm,
+   
   getActivityColor,
   onActivityClick
 }: DashboardRecentActivityProps) {

@@ -37,7 +37,7 @@ export const useAutoLockStore = create<AutoLockState>()(
 );
 
 export function useAutoLockTimer() {
-  const { duration, isLocked, lock, updateActivity } = useAutoLockStore();
+  const { duration, lock, updateActivity } = useAutoLockStore();
 
   useEffect(() => {
     if (duration <= 0) return; // auto lock is off

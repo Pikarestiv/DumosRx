@@ -21,7 +21,7 @@ interface MobileBottomNavProps {
 
 export function MobileBottomNav({ onOpenFeedback }: MobileBottomNavProps) {
   const pathname = usePathname();
-  const { storeType, t } = useStore();
+  const { storeType } = useStore();
   const [moreDrawerOpen, setMoreDrawerOpen] = useState(false);
 
   const leftTabs = [

@@ -42,7 +42,7 @@ export function DashboardOverview() {
   const salesYesterday = dashboardData?.salesYesterday?.total || 0;
   const activeCategories = dashboardData?.activeCategories || 0;
 
-  const expiryDays = storeProfile?.expiry_warning_days || 30;
+  
 
   const todayRevenue =
     (salesToday[0]?.total || 0) - (refundsToday[0]?.total || 0);
@@ -69,7 +69,7 @@ export function DashboardOverview() {
 
     if (activity.activity_type === "sale") {
       message = `${t("product")} sale: ${activity.transaction_number || activity.id.slice(0, 8)}`;
-      const val = Number(activity.total_amount);
+      const val = Number(activity.total_amount !== undefined ? activity.total_amount : activity.total);
       amount = isNaN(val) ? "N/A" : formatCurrency(val, storeProfile?.currency);
     } else if (activity.activity_type === "stock_movement") {
       message = `Stock ${activity.movement_type}: ${Math.abs(activity.quantity)} units`;

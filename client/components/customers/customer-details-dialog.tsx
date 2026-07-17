@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Mail, Phone, MapPin, Calendar, CreditCard } from "lucide-react";
@@ -35,17 +29,14 @@ export function CustomerDetailsDialog({
   if (!selectedCustomer) return null;
 
   return (
-    <Dialog
+    <>
+    <ResponsiveModal
       open={!!selectedCustomer}
       onOpenChange={() => setSelectedCustomer(null)}
+      title={selectedCustomer.name}
+      description={`Customer ID: ${selectedCustomer.id}`}
+      className="sm:max-w-2xl max-h-[90vh] overflow-y-auto"
     >
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>{selectedCustomer.name}</DialogTitle>
-          <DialogDescription>
-            Customer ID: {selectedCustomer.id}
-          </DialogDescription>
-        </DialogHeader>
         <div className="space-y-6">
           <div className="grid grid-cols-2 gap-6">
             <div>
@@ -135,6 +126,7 @@ export function CustomerDetailsDialog({
             <Button>Send Message</Button>
           </div>
         </div>
+    </ResponsiveModal>
         
         <RepaymentDialog
           open={isRepaymentOpen}
@@ -146,7 +138,6 @@ export function CustomerDetailsDialog({
           }}
           currencyCode={storeProfile?.currency}
         />
-      </DialogContent>
-    </Dialog>
+    </>
   );
 }

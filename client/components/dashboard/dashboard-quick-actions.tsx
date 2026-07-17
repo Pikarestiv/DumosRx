@@ -4,8 +4,6 @@ import Link from "next/link";
 import {
   Package,
   ShoppingCart,
-  AlertTriangle,
-  TrendingUp,
   ClipboardCheck,
   FileBarChart,
   BarChart3,

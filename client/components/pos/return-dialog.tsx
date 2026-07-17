@@ -2,13 +2,9 @@
 
 import { useState } from "react";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,7 +23,7 @@ import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { getSaleItems } from "@/lib/db/queries/sales";
 import { getStockBatchById } from "@/lib/db/queries/inventory";
-import { Loader2, RotateCcw, Minus, Plus } from "lucide-react";
+import { Loader2, Minus, Plus, RotateCcw } from "lucide-react";
 import { useAuth } from "@/lib/context/auth-context";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
@@ -165,20 +161,20 @@ export function ReturnDialog({
   if (!sale) return null;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <RotateCcw className="h-5 w-5 text-accent" />
-            Process Sales Return
-          </DialogTitle>
-          <DialogDescription>
-            Select items from transaction #{sale.transaction_number} to return
-            to stock.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="py-4 space-y-4">
+    <>
+    <ResponsiveModal
+      open={open}
+      onOpenChange={onOpenChange}
+      title={
+        <span className="flex items-center gap-2">
+          <RotateCcw className="h-5 w-5 text-accent" />
+          Process Return & Refund
+        </span>
+      }
+      description={`Select the items to return for Receipt #${sale.receipt_number || sale.id.substring(0, 8).toUpperCase()}`}
+      className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
+    >
+      <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
           <div className="border rounded-lg overflow-hidden">
             <Table>
               <TableHeader>
@@ -307,7 +303,7 @@ export function ReturnDialog({
             Confirm Return & Refund
           </Button>
         </DialogFooter>
-      </DialogContent>
+    </ResponsiveModal>
 
       <ConfirmDialog
         open={showConfirm}
@@ -350,6 +346,6 @@ export function ReturnDialog({
         }
         onConfirm={handleSubmit}
       />
-    </Dialog>
+    </>
   );
 }

@@ -5,13 +5,9 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
   DialogFooter,
-  DialogHeader,
-  DialogTitle,
 } from "@/components/ui/dialog";
+import { ResponsiveModal } from "@/components/ui/responsive-modal";
 
 import { useStore } from "@/lib/context/store-context";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -298,27 +294,24 @@ export function AddProductDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="sm:max-w-3xl max-h-[90vh] overflow-y-auto"
-        onPointerDownOutside={(e) => e.preventDefault()}
-        onEscapeKeyDown={(e) => {
-          e.preventDefault();
-          onOpenChange(false);
-        }}
-      >
-        <DialogHeader>
-          <DialogTitle className="font-serif font-bold text-2xl">
-            {editingProduct
-              ? `Edit ${t("product")}`
-              : `Add New ${t("product")}`}
-          </DialogTitle>
-          <DialogDescription>
-            {editingProduct
-              ? `Update the details for ${editingProduct.name}. All fields marked with * are required.`
-              : `Enter the details for the new ${t("product").toLowerCase()}. All fields marked with * are required.`}
-          </DialogDescription>
-        </DialogHeader>
+    <>
+    <ResponsiveModal 
+      open={open} 
+      onOpenChange={onOpenChange}
+      title={
+        <span className="font-serif font-bold text-2xl">
+          {editingProduct
+            ? `Edit ${t("product")}`
+            : `Add New ${t("product")}`}
+        </span>
+      }
+      description={
+        editingProduct
+          ? `Update the details for ${editingProduct.name}. All fields marked with * are required.`
+          : `Enter the details for the new ${t("product").toLowerCase()}. All fields marked with * are required.`
+      }
+      className="sm:max-w-3xl max-h-[90vh] overflow-y-auto"
+    >
 
         <form onSubmit={withRestriction(handleSubmit)} className="space-y-4">
           <ProductFormFields
@@ -355,7 +348,7 @@ export function AddProductDialog({
             </div>
           </DialogFooter>
         </form>
-      </DialogContent>
+    </ResponsiveModal>
       <ConfirmDialog
         open={!!alertMessage}
         onOpenChange={(open) => {
@@ -367,6 +360,6 @@ export function AddProductDialog({
         hideCancel
         onConfirm={() => setAlertMessage(null)}
       />
-    </Dialog>
+    </>
   );
 }

@@ -61,7 +61,7 @@ export function TransactionDetailsDialog({
       return acc + cost * (item.returned_quantity || 0);
     }, 0) || 0;
 
-  const profit = (sale.total_amount - totalRefunded) - (totalCostPrice - returnedCostPrice);
+  const profit = ((sale.total_amount !== undefined ? sale.total_amount : sale.total) - totalRefunded) - (totalCostPrice - returnedCostPrice);
 
   const title = "Transaction Details";
   const description = (
@@ -88,7 +88,7 @@ export function TransactionDetailsDialog({
           <div>
             <p className="text-xs sm:text-sm text-muted-foreground">Total Sale Amount</p>
             <p className="font-medium text-base sm:text-lg text-primary">
-              {formatCurrency(sale.total_amount, currencyCode)}
+              {formatCurrency(sale.total_amount !== undefined ? sale.total_amount : sale.total, currencyCode)}
             </p>
             {totalRefunded > 0 && (
               <p className="text-xs font-medium text-destructive mt-0.5">

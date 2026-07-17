@@ -12,7 +12,7 @@ export async function getTransactionDetails(saleId: string) {
     `SELECT 
       si.*, 
       m.name as product_name, 
-      si.cost_price as med_cost_price,
+      m.cost_price as med_cost_price,
       COALESCE((
         SELECT SUM(ri.quantity) 
         FROM return_items ri 

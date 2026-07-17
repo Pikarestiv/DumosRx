@@ -46,7 +46,7 @@ export function DashboardSidebar({
   onToggleCollapse,
 }: DashboardSidebarProps) {
   const pathname = usePathname();
-  const { storeType, t } = useStore();
+  const { storeType } = useStore();
   const { isAdmin, canManageStockBatch } = useAuth();
   const { currentTier } = useFeatureGate();
 

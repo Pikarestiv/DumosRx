@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
 import { useStore } from "@/lib/context/store-context";
 import { useQuery } from "@tanstack/react-query";
@@ -75,11 +75,11 @@ export function MobileMoreDrawer({
 
   return (
     <>
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-[90vh] flex flex-col p-0 pb-6 rounded-t-xl" onOpenAutoFocus={(e) => e.preventDefault()}>
-        <SheetHeader className="px-6 pt-6 pb-2 text-left">
-          <SheetTitle className="font-serif font-black text-2xl">More</SheetTitle>
-        </SheetHeader>
+    <Drawer open={open} onOpenChange={onOpenChange}>
+      <DrawerContent className="h-[90vh] flex flex-col p-0 pb-6 rounded-t-xl" onOpenAutoFocus={(e) => e.preventDefault()}>
+        <DrawerHeader className="px-6 pt-2 pb-2 text-left">
+          <DrawerTitle className="font-serif font-black text-2xl">More</DrawerTitle>
+        </DrawerHeader>
         
         <div className="px-6 pb-4">
           <div className="relative">
@@ -148,8 +148,8 @@ export function MobileMoreDrawer({
         <div className="px-6 mt-auto">
           <SyncIndicator collapsed={false} />
         </div>
-      </SheetContent>
-    </Sheet>
+      </DrawerContent>
+    </Drawer>
     <ConfirmDialog
       open={showLogoutConfirm}
       onOpenChange={setShowLogoutConfirm}

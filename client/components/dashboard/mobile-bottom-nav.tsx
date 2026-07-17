@@ -83,9 +83,10 @@ export function MobileBottomNav({ onOpenFeedback }: MobileBottomNavProps) {
           <div className="relative w-16 h-full flex justify-center">
             <Link
               href="/pos"
+              style={{ boxShadow: '0 6px 16px rgba(32,84,224,0.4)' }}
               className={cn(
-                "absolute -top-6 flex flex-col items-center justify-center w-[60px] h-[60px] rounded-full bg-primary text-primary-foreground shadow-[0_4px_15px_rgba(var(--primary),0.4)] border-[4px] border-background hover:scale-105 active:scale-95 transition-transform",
-                pathname.startsWith("/pos") && "shadow-[0_0_20px_rgba(var(--primary),0.6)] ring-2 ring-primary/20 ring-offset-2 ring-offset-background"
+                "absolute -top-6 flex flex-col items-center justify-center w-[60px] h-[60px] rounded-full bg-primary text-primary-foreground border-[4px] border-background hover:scale-105 active:scale-95 transition-transform",
+                pathname.startsWith("/pos") && "ring-2 ring-primary/20 ring-offset-2 ring-offset-background"
               )}
             >
               <ShoppingCart 

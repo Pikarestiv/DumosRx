@@ -5,10 +5,10 @@ import Link from "next/link";
 import { 
   Card, 
   CardContent, 
-  CardDescription, 
   CardHeader, 
   CardTitle 
 } from "@/components/ui/card";
+import { ShoppingCart, PackagePlus, FileText } from "lucide-react";
 
 interface ActivityItem {
   id: string;
@@ -32,25 +32,31 @@ export function DashboardRecentActivity({
   getActivityColor,
   onActivityClick
 }: DashboardRecentActivityProps) {
+  const getActivityIcon = (type: string) => {
+    switch (type) {
+      case "sale": return ShoppingCart;
+      case "stock_movement": return PackagePlus;
+      case "prescription": return FileText;
+      default: return Activity;
+    }
+  };
+
   return (
-    <Card className="border-border">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+    <Card className="border-none shadow-none bg-transparent sm:border-solid sm:border-border sm:shadow-sm sm:bg-card">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0 px-1 sm:px-6">
         <div>
           <CardTitle className="font-serif font-semibold">
             Recent Activity
           </CardTitle>
-          <CardDescription>
-            Latest {storeTerm.toLowerCase()} transactions and updates
-          </CardDescription>
         </div>
         <Link 
           href="/reports" 
-          className="text-xs font-medium text-primary hover:text-primary/80 flex items-center gap-1 shrink-0 whitespace-nowrap"
+          className="text-xs font-medium text-primary hover:text-primary/80 flex items-center shrink-0 whitespace-nowrap"
         >
-          All <ArrowRight className="h-3 w-3" />
+          View All
         </Link>
       </CardHeader>
-      <CardContent>
+      <CardContent className="px-1 sm:px-6 pt-0">
         {activities.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
             <Activity className="h-8 w-8 mb-2 opacity-50" />
@@ -60,38 +66,41 @@ export function DashboardRecentActivity({
             </p>
           </div>
         ) : (
-          <div className="space-y-4">
-            {activities.map((activity) => (
-              <div
-                key={activity.id}
-                className={`group flex items-center justify-between p-3 rounded-xl border transition-all duration-200 ${
-                  onActivityClick
-                    ? 'cursor-pointer bg-background/40 border-border/30 hover:bg-background hover:shadow-sm hover:border-border/80 hover:scale-[1.01]'
-                    : 'bg-background/40 border-border/30'
-                }`}
-                onClick={() => onActivityClick && onActivityClick(activity)}
-              >
-                <div className="flex items-center gap-3 overflow-hidden">
-                  <div
-                    className={`shrink-0 flex items-center justify-center w-10 h-10 rounded-xl ${getActivityColor(activity.type).replace('bg-', 'bg-').replace('-500', '-500/10')} text-${getActivityColor(activity.type).replace('bg-', '')}`}
-                  >
-                    <Activity className="h-5 w-5 text-primary" />
+          <div className="flex flex-col">
+            {activities.map((activity) => {
+              const Icon = getActivityIcon(activity.type);
+              return (
+                <div
+                  key={activity.id}
+                  className={`group flex items-center justify-between py-3 border-b border-border/50 last:border-0 transition-all duration-200 ${
+                    onActivityClick
+                      ? 'cursor-pointer hover:bg-muted/30 sm:px-2 rounded-lg -mx-2 px-2'
+                      : ''
+                  }`}
+                  onClick={() => onActivityClick && onActivityClick(activity)}
+                >
+                  <div className="flex items-center gap-3 overflow-hidden">
+                    <div
+                      className={`shrink-0 flex items-center justify-center w-10 h-10 rounded-xl ${getActivityColor(activity.type)}`}
+                    >
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <div className="flex flex-col overflow-hidden">
+                      <p className="text-sm font-medium text-foreground truncate">{activity.message.split(':')[0]}</p>
+                      <p className="text-xs text-muted-foreground truncate">{activity.message.split(':')[1]?.trim()}</p>
+                    </div>
                   </div>
-                  <div className="flex flex-col overflow-hidden">
-                    <p className="text-sm font-semibold text-foreground truncate">{activity.message.split(':')[0]}</p>
-                    <p className="text-xs text-muted-foreground truncate">{activity.message.split(':')[1]?.trim()}</p>
+                  <div className="flex flex-col items-end shrink-0 pl-3">
+                    {activity.amount && (
+                      <span className="text-sm font-semibold text-foreground">{activity.amount}</span>
+                    )}
+                    <span className="text-[10px] text-muted-foreground font-medium">
+                      {new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
                   </div>
                 </div>
-                <div className="flex flex-col items-end shrink-0 pl-3">
-                  {activity.amount && (
-                    <span className="text-sm font-bold text-foreground">{activity.amount}</span>
-                  )}
-                  <span className="text-[10px] text-muted-foreground font-medium">
-                    {new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </CardContent>

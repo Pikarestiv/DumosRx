@@ -1,6 +1,5 @@
 "use client";
 
-
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -50,9 +49,12 @@ export function DashboardSidebar({
   const { storeType, t } = useStore();
   const { isAdmin, canManageStockBatch } = useAuth();
   const { currentTier } = useFeatureGate();
-  
+
   const stockStats = useStockBatchStats();
-  const actionableItemsCount = stockStats.lowStockCount + stockStats.expiredCount + stockStats.expiringSoonCount;
+  const actionableItemsCount =
+    stockStats.lowStockCount +
+    stockStats.expiredCount +
+    stockStats.expiringSoonCount;
 
   const isLocked = (href: string) => {
     if (currentTier !== "free") return false;
@@ -82,7 +84,11 @@ export function DashboardSidebar({
           { name: "Reports", href: "/reports", icon: BarChart3 },
         ]
       : [
-          { name: "Daily Close", href: "/reports?tab=daily_close", icon: BarChart3 },
+          {
+            name: "Daily Close",
+            href: "/reports?tab=daily_close",
+            icon: BarChart3,
+          },
         ]),
   ];
 
@@ -98,7 +104,7 @@ export function DashboardSidebar({
     icon: React.ElementType;
     name: string;
   }) => {
-    const isActive = pathname.startsWith(href.split('?')[0]);
+    const isActive = pathname.startsWith(href.split("?")[0]);
     const locked = isLocked(href);
     const link = (
       <Link
@@ -123,7 +129,7 @@ export function DashboardSidebar({
         <div className="flex items-center gap-2">
           {name === "Inventory" && actionableItemsCount > 0 && !collapsed && (
             <span className="bg-destructive text-destructive-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">
-              {actionableItemsCount > 99 ? '99+' : actionableItemsCount}
+              {actionableItemsCount > 99 ? "99+" : actionableItemsCount}
             </span>
           )}
           {locked && !collapsed && (
@@ -146,9 +152,16 @@ export function DashboardSidebar({
       return (
         <Tooltip>
           <TooltipTrigger asChild>{link}</TooltipTrigger>
-          <TooltipContent side="right" className={collapsed ? "font-medium text-xs" : "font-semibold text-xs ml-2"}>
+          <TooltipContent
+            side="right"
+            className={
+              collapsed ? "font-medium text-xs" : "font-semibold text-xs ml-2"
+            }
+          >
             {collapsed ? (
-              <>{name} {locked ? "🔒" : ""}</>
+              <>
+                {name} {locked ? "🔒" : ""}
+              </>
             ) : (
               extraTooltip
             )}
@@ -257,14 +270,15 @@ export function DashboardSidebar({
 
             {(isAdmin || canManageStockBatch) && (
               <>
-                <div className={cn("text-[11px] font-bold text-muted-foreground uppercase tracking-wider mt-6 mb-2", collapsed ? "text-center px-0" : "px-3")}>
+                <div
+                  className={cn(
+                    "text-[11px] font-bold text-muted-foreground uppercase tracking-wider mt-6 mb-2",
+                    collapsed ? "text-center px-0" : "px-3",
+                  )}
+                >
                   {collapsed ? "Sys" : "System"}
                 </div>
-                <NavItem
-                  href="/settings"
-                  icon={Settings}
-                  name="Settings"
-                />
+                <NavItem href="/settings" icon={Settings} name="Settings" />
               </>
             )}
 
@@ -312,7 +326,7 @@ export function DashboardSidebar({
           </nav>
 
           {/* Footer Area */}
-          <div className="border-t border-sidebar-border bg-sidebar flex flex-col pt-2 pb-2 px-2 gap-0.5">
+          <div className="bg-sidebar flex flex-col pt-2 pb-2 px-2 gap-0.5">
             <SyncIndicator collapsed={collapsed} />
             <div className="px-1">
               <UserNav showDetails={!collapsed} />

@@ -3,7 +3,13 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import { Package, ShoppingCart, AlertTriangle, TrendingUp } from "lucide-react";
+import {
+  Package,
+  ShoppingCart,
+  AlertTriangle,
+  TrendingUp,
+  Receipt,
+} from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { getDashboardOverviewData } from "@/lib/db/queries/reports";
 import { useStockBatchStats } from "@/lib/hooks/use-stock-batch-stats";
@@ -25,79 +31,118 @@ export function DashboardOverview() {
   // Single source of truth for all stock-batch-related stat cards
   const stock_batchStats = useStockBatchStats();
 
-  const isRestrictedRole = user?.role === "sales_staff" || user?.role === "specialist";
+  const isRestrictedRole =
+    user?.role === "sales_staff" || user?.role === "specialist";
   const { data: dashboardData } = useQuery({
-    queryKey: ['dashboardOverviewData', user?.id, isRestrictedRole],
-    queryFn: () => getDashboardOverviewData(user?.id, isRestrictedRole)
+    queryKey: ["dashboardOverviewData", user?.id, isRestrictedRole],
+    queryFn: () => getDashboardOverviewData(user?.id, isRestrictedRole),
   });
 
-  const salesToday = dashboardData?.salesToday ? [dashboardData.salesToday] : [];
-  const refundsToday = dashboardData?.refundsToday ? [dashboardData.refundsToday] : [];
-  const recentSales = dashboardData?.recentSales || [];
+  const salesToday = dashboardData?.salesToday
+    ? [dashboardData.salesToday]
+    : [];
+  const refundsToday = dashboardData?.refundsToday
+    ? [dashboardData.refundsToday]
+    : [];
+  const recentActivities = dashboardData?.recentActivities || [];
+  const salesYesterday = dashboardData?.salesYesterday?.total || 0;
+  const activeCategories = dashboardData?.activeCategories || 0;
 
   const expiryDays = storeProfile?.expiry_warning_days || 30;
 
+  const todayRevenue =
+    (salesToday[0]?.total || 0) - (refundsToday[0]?.total || 0);
+
+  let salesComparison = "No sales yesterday";
+  if (salesYesterday > 0) {
+    const diff = todayRevenue - salesYesterday;
+    const perc = (Math.abs(diff) / salesYesterday) * 100;
+    salesComparison = `${diff >= 0 ? "▲" : "▼"} ${perc.toFixed(1)}% vs yesterday`;
+  } else if (todayRevenue > 0) {
+    salesComparison = "▲ 100% vs yesterday";
+  }
+
   const stats = {
     totalProducts: stock_batchStats.activeProducts,
-    dailySalesRevenue: (salesToday[0]?.total || 0) - (refundsToday[0]?.total || 0),
+    dailySalesRevenue: todayRevenue,
     expiringSoon: stock_batchStats.expiringSoonCount,
     lowStockCount: stock_batchStats.lowStockCount,
   };
 
-  const activities = recentSales.slice(0, 3).map((sale: any) => ({
-    id: sale.id,
-    type: "sale",
-    message: `${t("product")} sale: ${sale.transaction_number}`,
-    timestamp: sale.created_at,
-    amount: formatCurrency(sale.total, storeProfile?.currency),
-    rawSale: sale,
-  }));
+  const activities = recentActivities.slice(0, 5).map((activity: any) => {
+    let message = "";
+    let amount = "";
+    
+    if (activity.activity_type === "sale") {
+      message = `${t("product")} sale: ${activity.transaction_number || activity.id.slice(0, 8)}`;
+      const val = Number(activity.total);
+      amount = isNaN(val) ? "N/A" : formatCurrency(val, storeProfile?.currency);
+    } else if (activity.activity_type === "stock_movement") {
+      message = `Stock ${activity.movement_type}: ${Math.abs(activity.quantity)} units`;
+      const val = Number(activity.total_cost);
+      if (!isNaN(val) && val > 0) {
+        amount = formatCurrency(val, storeProfile?.currency);
+      }
+    } else if (activity.activity_type === "prescription") {
+      message = `Prescription logged: ${activity.patient_name || "Patient"}`;
+    }
+
+    return {
+      id: activity.id,
+      type: activity.activity_type,
+      message,
+      timestamp: activity.created_at,
+      amount,
+      rawSale: activity.activity_type === "sale" ? activity : undefined,
+    };
+  });
 
   const getActivityColor = (type: string) => {
     switch (type) {
       case "sale":
-        return "bg-primary";
-      case "restock":
-        return "bg-primary";
+        return "bg-green-500/10 text-green-600";
+      case "stock_movement":
+        return "bg-blue-500/10 text-blue-600";
+      case "prescription":
+        return "bg-purple-500/10 text-purple-600";
       case "alert":
-        return "bg-destructive";
+        return "bg-red-500/10 text-red-600";
       default:
-        return "bg-muted-foreground";
+        return "bg-gray-500/10 text-gray-600";
     }
   };
 
   const statsCards = [
     {
-      title: `Total ${t("products")}`,
-      value: stats.totalProducts.toLocaleString(),
-      description: `Active ${t("products").toLowerCase()} in stock`,
-      icon: Package,
-      trend: "In database",
-      colorScheme: "blue" as const,
-    },
-    {
-      title: "Daily Sales",
+      title: "Today's Sales",
       value: formatCurrency(stats.dailySalesRevenue, storeProfile?.currency),
-      description: "Today's revenue",
+      comparison: salesComparison,
       icon: ShoppingCart,
-      trend: "Today",
       colorScheme: "green" as const,
     },
     {
-      title: "Expiring Soon",
-      value: String(stats.expiringSoon),
-      description: `Items expiring in ${expiryDays} days`,
-      icon: AlertTriangle,
-      trend: stats.expiringSoon > 0 ? "Requires attention" : "All clear",
-      colorScheme: "red" as const,
+      title: `Total ${t("products")}`,
+      value: stats.totalProducts.toLocaleString(),
+      comparison: `Across ${activeCategories} categories`,
+      icon: Package,
+      colorScheme: "blue" as const,
     },
     {
-      title: "Low Stock",
-      value: String(stats.lowStockCount),
-      description: "Items below reorder level",
+      title: "Inventory Value",
+      value: formatCurrency(
+        stock_batchStats.totalStockBatchValue,
+        storeProfile?.currency,
+      ),
+      comparison: "Calculated stock value",
       icon: TrendingUp,
-      trend: stats.lowStockCount > 0 ? "Needs restock" : "Healthy",
       colorScheme: "amber" as const,
+    },
+    {
+      title: "Orders Today",
+      value: String(salesToday[0]?.count || 0),
+      comparison: "Completed transactions",
+      icon: Receipt,
+      colorScheme: "default" as const,
     },
   ];
 
@@ -128,29 +173,30 @@ export function DashboardOverview() {
 
   return (
     <div className="space-y-4">
+      <DashboardStats statsCards={statsCards} />
+
       <DashboardActionCenter
         expiringCount={stats.expiringSoon}
         lowStockCount={stats.lowStockCount}
       />
 
-      <DashboardStats statsCards={statsCards} isCompact={true} />
+      <div className="flex flex-col lg:grid lg:grid-cols-[1.4fr_1fr] gap-5">
+        <div className="order-2 lg:order-1">
+          <DashboardRecentActivity
+            activities={activities}
+            storeTerm={t("store")}
+            getActivityColor={getActivityColor}
+            onActivityClick={(activity) => {
+              if (activity.type === "sale" && activity.rawSale) {
+                setSelectedSale(activity.rawSale);
+              }
+            }}
+          />
+        </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <DashboardRecentActivity
-          activities={activities}
-          storeTerm={t("store")}
-          getActivityColor={getActivityColor}
-          onActivityClick={(activity) => {
-            if (activity.type === "sale" && activity.rawSale) {
-              setSelectedSale(activity.rawSale);
-            }
-          }}
-        />
-
-        <DashboardQuickActions
-          storeTerm={t("store")}
-          productTerm={t("product")}
-        />
+        <div className="order-1 lg:order-2">
+          <DashboardQuickActions productTerm={t("product")} />
+        </div>
       </div>
 
       <TransactionDetailsDialog

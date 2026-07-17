@@ -34,10 +34,41 @@ export async function getDashboardOverviewData(userId?: string, isRestrictedRole
     `SELECT * FROM sales WHERE _deleted = 0${userFilter} ORDER BY created_at DESC LIMIT 5`
   );
 
+  const recentMovements = await query<any>(
+    `SELECT * FROM stock_movements WHERE _deleted = 0 ORDER BY created_at DESC LIMIT 5`
+  );
+
+  const recentPrescriptions = await query<any>(
+    `SELECT * FROM prescriptions WHERE _deleted = 0 ORDER BY created_at DESC LIMIT 5`
+  );
+
+  const allActivities = [
+    ...(recentSales || []).map((s: any) => ({ ...s, activity_type: 'sale' })),
+    ...(recentMovements || []).map((m: any) => ({ ...m, activity_type: 'stock_movement' })),
+    ...(recentPrescriptions || []).map((p: any) => ({ ...p, activity_type: 'prescription' }))
+  ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+   .slice(0, 10);
+
+  const dateYesterday = new Date();
+  dateYesterday.setDate(dateYesterday.getDate() - 1);
+  const yesterday = `${dateYesterday.getFullYear()}-${String(dateYesterday.getMonth() + 1).padStart(2, '0')}-${String(dateYesterday.getDate()).padStart(2, '0')}`;
+
+  const salesYesterday = await query<any>(
+    `SELECT SUM(total_amount) as total FROM sales WHERE date(transaction_date) = ? AND (_deleted = 0 OR _deleted IS NULL)${userFilter}`,
+    [yesterday]
+  );
+
+  const activeCategories = await query<any>(
+    `SELECT COUNT(DISTINCT category_id) as count FROM products WHERE _deleted = 0`
+  );
+
   return {
     salesToday: salesToday[0] || { total: 0, count: 0, cash: 0, card: 0, debt: 0 },
     refundsToday: refundsToday[0] || { total: 0, cash: 0, card: 0, debt: 0 },
-    recentSales: recentSales || []
+    salesYesterday: salesYesterday[0] || { total: 0 },
+    activeCategories: activeCategories[0]?.count || 0,
+    recentSales: recentSales || [],
+    recentActivities: allActivities || []
   };
 }
 

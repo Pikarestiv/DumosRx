@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/context/auth-context";
 import { useStore } from "@/lib/context/store-context";
 import { useQuery } from "@tanstack/react-query";
 import { getStaffCount } from "@/lib/db/queries/auth";
+import { getSyncQueueCount } from "@/lib/db/queries/setup";
 import {
   CloudOff,
   UserPlus,
@@ -13,6 +14,7 @@ import {
   BellRing,
   PackageX,
   Clock,
+  RefreshCw,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -44,7 +46,14 @@ function useActionCenterAlerts(expiringCount: number, lowStockCount: number) {
     queryFn: () => getStaffCount(),
   });
 
+  const { data: pendingCountData } = useQuery({
+    queryKey: ["syncQueueCount"],
+    queryFn: () => getSyncQueueCount(),
+    refetchInterval: 5000,
+  });
+
   const staffCount = staffCountData || 0;
+  const pendingSyncCount = pendingCountData || 0;
 
   const alerts = useMemo(() => {
     const items: AlertItem[] = [];
@@ -53,9 +62,8 @@ function useActionCenterAlerts(expiringCount: number, lowStockCount: number) {
       if (!isAuthenticated) {
         items.push({
           id: "cloud-sync",
-          title: "No Cloud Account Linked",
-          description:
-            "Link to DumosRx Cloud to enable backups and remote sync.",
+          title: "No Cloud Account",
+          description: "Enable backups and remote sync.",
           icon: CloudOff,
           priority: "critical",
           actionLabel: "Link Account",
@@ -66,9 +74,8 @@ function useActionCenterAlerts(expiringCount: number, lowStockCount: number) {
       if (staffCount === 0) {
         items.push({
           id: "no-staff",
-          title: "No Staff Accounts Found",
-          description:
-            "Create staff PINs so your cashiers can log in to the POS.",
+          title: "No Staff Accounts",
+          description: "Create staff PINs for POS access.",
           icon: UserPlus,
           priority: "critical",
           actionLabel: "Create Staff",
@@ -92,9 +99,8 @@ function useActionCenterAlerts(expiringCount: number, lowStockCount: number) {
         if (percentage < 100) {
           items.push({
             id: "profile-incomplete",
-            title: `Store Profile is ${percentage}% Complete`,
-            description:
-              "Complete your profile to ensure your receipts look professional.",
+            title: `Profile ${percentage}% Complete`,
+            description: "Ensure professional receipts.",
             icon: Settings,
             priority: "info",
             actionLabel: "Complete Now",
@@ -105,8 +111,7 @@ function useActionCenterAlerts(expiringCount: number, lowStockCount: number) {
         items.push({
           id: "profile-missing",
           title: `Store Setup Required`,
-          description:
-            "Please configure your business details and terminology.",
+          description: "Configure business details.",
           icon: Settings,
           priority: "critical",
           actionLabel: "Setup Now",
@@ -117,8 +122,8 @@ function useActionCenterAlerts(expiringCount: number, lowStockCount: number) {
       if (expiringCount > 0) {
         items.push({
           id: "expiring-soon",
-          title: `${expiringCount} Items Expiring Soon`,
-          description: "Review your stock batches to discount or remove items.",
+          title: `${expiringCount} Items Expiring`,
+          description: "Discount or remove items.",
           icon: Clock,
           priority: "warning",
           actionLabel: "Check Now",
@@ -129,13 +134,24 @@ function useActionCenterAlerts(expiringCount: number, lowStockCount: number) {
       if (lowStockCount > 0) {
         items.push({
           id: "low-stock",
-          title: `${lowStockCount} Items Low on Stock`,
-          description:
-            "You have products below their designated reorder level.",
+          title: `${lowStockCount} Items Low Stock`,
+          description: "Below designated reorder level.",
           icon: PackageX,
           priority: "warning",
           actionLabel: "View Needs",
           actionRoute: "/inventory/products?status=low_stock",
+        });
+      }
+
+      if (pendingSyncCount > 0) {
+        items.push({
+          id: "pending-sync",
+          title: `${pendingSyncCount} Changes Unsynced`,
+          description: "Sync to cloud to backup safely.",
+          icon: RefreshCw,
+          priority: "warning", // or info depending on severity
+          actionLabel: "Sync Status",
+          actionRoute: "/settings/cloud",
         });
       }
     }
@@ -151,6 +167,7 @@ function useActionCenterAlerts(expiringCount: number, lowStockCount: number) {
     storeProfile,
     expiringCount,
     lowStockCount,
+    pendingSyncCount,
   ]);
 
   return alerts;
@@ -178,24 +195,19 @@ function ActionCenterCard({ alert }: { alert: AlertItem }) {
       className={`border-border bg-card shadow-sm hover:shadow-md transition-all cursor-pointer overflow-hidden flex flex-col justify-between h-full group ${getPriorityColors(alert.priority).split(' ')[0].replace('/10', '/5')}`}
       onClick={() => router.push(alert.actionRoute)}
     >
-      <div className="p-3 sm:p-4 flex flex-col gap-2 h-full">
-        <div className="flex items-center justify-between">
-          <div
-            className={`p-2 rounded-lg shrink-0 ${getPriorityColors(alert.priority)}`}
-          >
-            <alert.icon className="h-4 w-4 sm:h-5 sm:w-5" />
+      <div className="px-2.5 py-1.5 sm:px-3 sm:py-2 flex flex-col h-full justify-center">
+        <div className="flex items-start gap-2">
+          <div className={`p-1.5 rounded-md shrink-0 ${getPriorityColors(alert.priority)}`}>
+            <alert.icon className="h-3.5 w-3.5" />
           </div>
-        </div>
-        <div className="flex-1 mt-1">
-          <h4 className="font-bold text-xs sm:text-sm text-foreground line-clamp-1">
-            {alert.title}
-          </h4>
-          <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 line-clamp-2 leading-snug">
-            {alert.description}
-          </p>
-        </div>
-        <div className="mt-2 text-[10px] sm:text-xs font-bold text-primary group-hover:underline">
-          {alert.actionLabel} &rarr;
+          <div className="min-w-0 flex flex-col justify-center">
+             <h4 className="font-bold text-[11px] sm:text-xs text-foreground line-clamp-1 leading-tight">
+               {alert.title}
+             </h4>
+             <p className="text-[9px] sm:text-[10px] text-muted-foreground mt-0.5 line-clamp-2 leading-snug">
+               {alert.description}
+             </p>
+          </div>
         </div>
       </div>
     </Card>

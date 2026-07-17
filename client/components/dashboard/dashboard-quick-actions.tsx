@@ -1,104 +1,105 @@
 "use client";
 
 import Link from "next/link";
-import { 
-  Package, 
-  ShoppingCart, 
-  AlertTriangle, 
+import {
+  Package,
+  ShoppingCart,
+  AlertTriangle,
   TrendingUp,
-  XCircle,
-  FileBarChart
+  ClipboardCheck,
+  FileBarChart,
 } from "lucide-react";
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardHeader, 
-  CardTitle 
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useState } from "react";
 import { PandLReportDialog } from "./p-and-l-report-dialog";
 
 interface DashboardQuickActionsProps {
-  storeTerm: string;
   productTerm: string;
 }
 
+const getQuickActionsConfig = (
+  productTerm: string,
+  setIsReportOpen: (val: boolean) => void,
+) => [
+  {
+    label: "New Sale",
+    icon: ShoppingCart,
+    href: "/pos",
+  },
+  {
+    label: `Add ${productTerm}`,
+    icon: Package,
+    href: "/inventory/products?action=add",
+  },
+  {
+    label: "Close Register",
+    icon: ClipboardCheck,
+    href: "/reports?tab=daily_close",
+  },
+  {
+    label: "Check Expiry",
+    icon: AlertTriangle,
+    href: "/inventory/batches",
+  },
+  {
+    label: "Low Stock",
+    icon: TrendingUp,
+    href: "/inventory/products?status=low_stock",
+  },
+  {
+    label: "Generate P&L",
+    icon: FileBarChart,
+    onClick: () => setIsReportOpen(true),
+  },
+];
+
 export function DashboardQuickActions({
-  storeTerm,
   productTerm,
 }: DashboardQuickActionsProps) {
   const [isReportOpen, setIsReportOpen] = useState(false);
 
   return (
-    <Card className="border-border">
-      <CardHeader>
-        <CardTitle className="font-serif font-semibold">
+    <Card className="border-none shadow-none bg-transparent sm:border-solid sm:border-border sm:shadow-sm sm:bg-card pb-0 !gap-0 sm:gap-6">
+      <CardHeader className="px-0 sm:px-6 pb-3 sm:pb-6">
+        <CardTitle className="font-serif font-semibold !px-0">
           Quick Actions
         </CardTitle>
-        <CardDescription>Common {storeTerm.toLowerCase()} management tasks</CardDescription>
+        {/* <CardDescription>Common {storeTerm.toLowerCase()} management tasks</CardDescription> */}
       </CardHeader>
-      <CardContent className="p-4 pt-0">
-        <div className="flex overflow-x-auto sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-3 pb-2 sm:pb-0 hide-scrollbar snap-x snap-mandatory -mx-4 sm:mx-0 px-4 sm:px-0">
-          <Link
-            href="/inventory/products?action=add"
-            className="shrink-0 snap-start w-[100px] sm:w-auto p-3 bg-muted/30 border border-border/50 rounded-xl hover:bg-muted hover:border-border transition-colors flex flex-col items-center justify-center text-center cursor-pointer group"
-          >
-            <div className="p-2.5 bg-primary/10 rounded-lg mb-2 text-primary group-hover:scale-110 transition-transform">
-              <Package className="h-4 w-4" />
-            </div>
-            <span className="text-[11px] font-bold text-foreground">Add {productTerm}</span>
-          </Link>
-          <Link
-            href="/pos"
-            className="shrink-0 snap-start w-[100px] sm:w-auto p-3 bg-muted/30 border border-border/50 rounded-xl hover:bg-muted hover:border-border transition-colors flex flex-col items-center justify-center text-center cursor-pointer group"
-          >
-            <div className="p-2.5 bg-primary/10 rounded-lg mb-2 text-primary group-hover:scale-110 transition-transform">
-              <ShoppingCart className="h-4 w-4" />
-            </div>
-            <span className="text-[11px] font-bold text-foreground">New Sale</span>
-          </Link>
-          <Link
-            href="/inventory/batches"
-            className="shrink-0 snap-start w-[100px] sm:w-auto p-3 bg-muted/30 border border-border/50 rounded-xl hover:bg-muted hover:border-border transition-colors flex flex-col items-center justify-center text-center cursor-pointer group"
-          >
-            <div className="p-2.5 bg-primary/10 rounded-lg mb-2 text-primary group-hover:scale-110 transition-transform">
-              <AlertTriangle className="h-4 w-4" />
-            </div>
-            <span className="text-[11px] font-bold text-foreground">Check Expiry</span>
-          </Link>
-          <Link
-            href="/inventory/products?status=low_stock"
-            className="shrink-0 snap-start w-[100px] sm:w-auto p-3 bg-muted/30 border border-border/50 rounded-xl hover:bg-muted hover:border-border transition-colors flex flex-col items-center justify-center text-center cursor-pointer group"
-          >
-            <div className="p-2.5 bg-primary/10 rounded-lg mb-2 text-primary group-hover:scale-110 transition-transform">
-              <TrendingUp className="h-4 w-4" />
-            </div>
-            <span className="text-[11px] font-bold text-foreground">Low Stock</span>
-          </Link>
-          <button
-            onClick={() => setIsReportOpen(true)}
-            className="shrink-0 snap-start w-[100px] sm:w-auto p-3 bg-muted/30 border border-border/50 rounded-xl hover:bg-muted hover:border-border transition-colors flex flex-col items-center justify-center text-center cursor-pointer group outline-none"
-          >
-            <div className="p-2.5 bg-primary/10 rounded-lg mb-2 text-primary group-hover:scale-110 transition-transform">
-              <FileBarChart className="h-4 w-4" />
-            </div>
-            <span className="text-[11px] font-bold text-foreground">Generate P&L</span>
-          </button>
-          <Link
-            href="/reports?tab=daily_close"
-            className="shrink-0 snap-start w-[100px] sm:w-auto p-3 bg-muted/30 border border-border/50 rounded-xl hover:bg-muted hover:border-border transition-colors flex flex-col items-center justify-center text-center cursor-pointer group"
-          >
-            <div className="p-2.5 bg-destructive/10 rounded-lg mb-2 text-destructive group-hover:scale-110 transition-transform">
-              <XCircle className="h-4 w-4 cursor-pointer" />
-            </div>
-            <span className="text-[11px] font-bold text-foreground">Close Register</span>
-          </Link>
+      <CardContent className="p-0 sm:px-4 pt-0">
+        <div className="flex overflow-x-auto sm:grid sm:grid-cols-2 gap-1 sm:gap-4 pb-0 hide-scrollbar snap-x snap-mandatory -mx-4 sm:mx-0 px-4 sm:px-0">
+          {getQuickActionsConfig(productTerm, setIsReportOpen).map(
+            (action, i) => {
+              const content = (
+                <>
+                  <div className="p-3 rounded-2xl sm:rounded-xl w-13 h-13 sm:w-auto sm:h-auto border border-primary/20 sm:border-none bg-background sm:bg-primary/10 shadow-sm sm:shadow-none text-primary group-hover:bg-primary/15 transition-transform flex items-center justify-center">
+                    <action.icon className="h-4 w-4" />
+                  </div>
+                  <span className="text-[11px] sm:text-xs font-medium sm:font-semibold text-foreground mt-1">
+                    {action.label}
+                  </span>
+                </>
+              );
+
+              const className =
+                "shrink-0 snap-start w-16 sm:w-auto p-0 sm:p-4 bg-transparent sm:bg-card border-none sm:border-solid sm:border sm:border-border rounded-xl transition-all flex flex-col items-center sm:items-start cursor-pointer group outline-none text-center sm:text-left hover:bg-primary/5 sm:hover:border-primary/50";
+
+              return action.href ? (
+                <Link key={i} href={action.href} className={className}>
+                  {content}
+                </Link>
+              ) : (
+                <button key={i} onClick={action.onClick} className={className}>
+                  {content}
+                </button>
+              );
+            },
+          )}
         </div>
 
-        <PandLReportDialog 
-            isOpen={isReportOpen}
-            onClose={() => setIsReportOpen(false)}
+        <PandLReportDialog
+          isOpen={isReportOpen}
+          onClose={() => setIsReportOpen(false)}
         />
       </CardContent>
     </Card>

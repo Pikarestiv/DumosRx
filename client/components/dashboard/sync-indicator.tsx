@@ -262,14 +262,6 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
                     ? formatDistanceToNow(new Date(lastSync)).replace('about ', '').replace('less than a minute', '1 min') + " ago"
                     : "never"}
                 </p>
-                {pendingCount > 0 && (
-                  <p className={cn(
-                    "text-[10px] font-bold",
-                    needsSync ? "text-amber-500 animate-pulse" : "text-sidebar-foreground/70"
-                  )}>
-                    {pendingCount} unsynced
-                  </p>
-                )}
               </div>
             </div>
           </TooltipTrigger>

@@ -27,7 +27,7 @@ export function MobileBottomNav({ onOpenFeedback }: MobileBottomNavProps) {
   const leftTabs = [
     { name: "Home", href: "/dashboard", icon: Home },
     {
-      name: t("products"),
+      name: "Inventory",
       href: "/inventory",
       icon: storeType === "pharmacy" ? Pill : ShoppingBasket,
     },

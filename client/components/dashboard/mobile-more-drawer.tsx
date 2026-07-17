@@ -61,9 +61,9 @@ export function MobileMoreDrawer({
       : []),
     ...(isAdmin || canManageStockBatch
       ? [
-          { name: "Procurement & Vendors", href: "/procurement", icon: ClipboardList },
+          { name: "Procurement", href: "/procurement", icon: ClipboardList },
           { name: "Expenses", href: "/expenses", icon: Wallet },
-          { name: "Reports & Analytics", href: "/reports", icon: BarChart3 },
+          { name: "Reports", href: "/reports", icon: BarChart3 },
           { name: "Settings", href: "/settings", icon: Settings },
         ]
       : []),

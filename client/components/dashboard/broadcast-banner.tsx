@@ -31,7 +31,9 @@ export function BroadcastBanner() {
     return () => clearInterval(interval);
   }, []);
 
-  const visibleBroadcasts = (Array.isArray(broadcasts) ? broadcasts : []).filter(b => !dismissedIds.includes(b.id));
+  const visibleBroadcasts = (Array.isArray(broadcasts) ? broadcasts : [])
+    .filter(b => !dismissedIds.includes(b.id))
+    .filter(b => b.type === 'danger' || b.type === 'warning');
 
   if (visibleBroadcasts.length === 0) return null;
 

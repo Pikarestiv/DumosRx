@@ -33,6 +33,7 @@ import {
   Lock,
 } from "lucide-react";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
+import { useStockBatchStats } from "@/lib/hooks/use-stock-batch-stats";
 
 interface DashboardSidebarProps {
   onOpenFeedback: () => void;
@@ -49,6 +50,9 @@ export function DashboardSidebar({
   const { storeType, t } = useStore();
   const { isAdmin, canManageStockBatch } = useAuth();
   const { currentTier } = useFeatureGate();
+  
+  const stockStats = useStockBatchStats();
+  const actionableItemsCount = stockStats.lowStockCount + stockStats.expiredCount + stockStats.expiringSoonCount;
 
   const isLocked = (href: string) => {
     if (currentTier !== "free") return false;
@@ -70,12 +74,12 @@ export function DashboardSidebar({
     ...(isAdmin || canManageStockBatch
       ? [
           {
-            name: "Procurement & Vendors",
+            name: "Procurement",
             href: "/procurement",
             icon: ClipboardList,
           },
           { name: "Expenses", href: "/expenses", icon: Wallet },
-          { name: "Reports & Analytics", href: "/reports", icon: BarChart3 },
+          { name: "Reports", href: "/reports", icon: BarChart3 },
         ]
       : [
           { name: "Daily Close", href: "/reports?tab=daily_close", icon: BarChart3 },
@@ -116,9 +120,16 @@ export function DashboardSidebar({
             <span className="truncate transition-all duration-200">{name}</span>
           )}
         </div>
-        {locked && !collapsed && (
-          <Lock className="h-3 w-3 text-sidebar-foreground/40 shrink-0" />
-        )}
+        <div className="flex items-center gap-2">
+          {name === "Inventory" && actionableItemsCount > 0 && !collapsed && (
+            <span className="bg-destructive text-destructive-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">
+              {actionableItemsCount > 99 ? '99+' : actionableItemsCount}
+            </span>
+          )}
+          {locked && !collapsed && (
+            <Lock className="h-3 w-3 text-sidebar-foreground/40 shrink-0" />
+          )}
+        </div>
       </Link>
     );
 
@@ -193,7 +204,7 @@ export function DashboardSidebar({
         <div
           className={cn(
             "hidden lg:flex fixed inset-y-0 left-0 z-50 bg-sidebar border-r border-sidebar-border transition-all duration-300 ease-in-out flex-col",
-            collapsed ? "w-[68px]" : "w-64",
+            collapsed ? "w-[68px]" : "w-60",
           )}
           style={{
             top: "var(--tauri-top, 0px)",
@@ -301,7 +312,7 @@ export function DashboardSidebar({
           </nav>
 
           {/* Footer Area */}
-          <div className="border-t border-sidebar-border bg-sidebar flex flex-col pt-2 pb-2 px-2 gap-2">
+          <div className="border-t border-sidebar-border bg-sidebar flex flex-col pt-2 pb-2 px-2 gap-0.5">
             <SyncIndicator collapsed={collapsed} />
             <div className="px-1">
               <UserNav showDetails={!collapsed} />

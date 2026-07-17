@@ -141,16 +141,27 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
             : "Not Linked";
 
   const statusIcon = isSyncInProgress ? (
-    <RefreshCw className="h-4 w-4 text-blue-500 animate-spin" />
+    <RefreshCw className="h-3 w-3 text-blue-500 animate-spin" />
   ) : status === "offline" ? (
-    <CloudOff className="h-4 w-4 text-muted-foreground" />
+    <CloudOff className="h-3 w-3 text-muted-foreground" />
   ) : status === "error" ? (
-    <AlertCircle className="h-4 w-4 text-destructive" />
+    <AlertCircle className="h-3 w-3 text-destructive" />
   ) : needsSync ? (
-    <Cloud className="h-4 w-4 text-amber-500 animate-pulse" />
+    <Cloud className="h-3 w-3 text-amber-500 animate-pulse" />
   ) : (
-    <Cloud className="h-4 w-4 text-emerald-500" />
+    <Cloud className="h-3 w-3 text-emerald-500" />
   );
+
+  const statusBorder = isSyncInProgress
+    ? "border-blue-500/50"
+    : status === "offline"
+      ? "border-muted-foreground/30"
+      : status === "error"
+        ? "border-destructive/50"
+        : needsSync
+          ? "border-amber-500/50"
+          : "border-emerald-500/50";
+
 
   const tooltipText = isSyncInProgress
     ? "Syncing your changes to the cloud..."
@@ -166,7 +177,7 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
 
   if (isMobileHeader) {
     return (
-      <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-muted/50 border border-border/50 max-w-fit" onClick={handleManualSync}>
+      <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-muted/50 border ${statusBorder} max-w-fit transition-colors`} onClick={handleManualSync}>
         {statusIcon}
         <span className="text-[10px] font-medium text-muted-foreground whitespace-nowrap">
           {statusLabel}
@@ -210,15 +221,16 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
   }
 
   return (
-    <div id="tour-sync-indicator" className="px-4 py-4 border-t border-sidebar-border bg-sidebar-accent/5">
-      <TooltipProvider>
+    <div className="px-2 pb-1">
+      <div id="tour-sync-indicator" className={`p-2.5 border rounded-xl ${statusBorder} bg-sidebar-accent/5 transition-colors`}>
+        <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1.5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   {statusIcon}
-                  <span className="text-xs font-bold text-sidebar-foreground uppercase tracking-tight">
+                  <span className="text-[11px] font-bold text-sidebar-foreground uppercase tracking-tight">
                     {statusLabel}
                   </span>
                 </div>
@@ -228,11 +240,11 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
                     <button
                       onClick={handleManualSync}
                       disabled={isSyncInProgress || status === "offline"}
-                      className="p-1.5 bg-sidebar-accent rounded-lg transition-colors disabled:opacity-30 cursor-pointer border border-transparent hover:border-sidebar-border relative z-10"
+                      className="p-1 border border-sidebar-border rounded-md transition-colors disabled:opacity-30 cursor-pointer hover:bg-sidebar-accent relative z-10"
                     >
                       <RefreshCw
                         className={cn(
-                          "h-3 w-3 text-secondary-foreground !flex",
+                          "h-3 w-3 text-sidebar-foreground !flex",
                           isSyncInProgress && "animate-spin",
                         )}
                       />
@@ -244,32 +256,20 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
                 </Tooltip>
               </div>
 
-              <div className="flex flex-col gap-1">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <p className="text-[10px] text-sidebar-foreground/50 font-medium">
-                      LAST BACKUP
-                    </p>
-                    <p className="text-[10px] text-sidebar-foreground/80 font-bold">
-                      {lastSync
-                        ? formatDistanceToNow(new Date(lastSync)) + " ago"
-                        : "Never"}
-                    </p>
-                  </div>
-                  {pendingCount > 0 && (
-                    <div className="text-right">
-                      <p className="text-[10px] text-sidebar-foreground/50 font-medium">
-                        UNSYNCED
-                      </p>
-                      <p className={cn(
-                        "text-[10px] font-bold",
-                        needsSync ? "text-amber-500 animate-pulse" : "text-sidebar-foreground/80"
-                      )}>
-                        {pendingCount} item{pendingCount > 1 ? "s" : ""}
-                      </p>
-                    </div>
-                  )}
-                </div>
+              <div className="flex justify-between items-center pl-5">
+                <p className="text-[10px] text-sidebar-foreground/70 font-medium">
+                  Last synced {lastSync
+                    ? formatDistanceToNow(new Date(lastSync)).replace('about ', '').replace('less than a minute', '1 min') + " ago"
+                    : "never"}
+                </p>
+                {pendingCount > 0 && (
+                  <p className={cn(
+                    "text-[10px] font-bold",
+                    needsSync ? "text-amber-500 animate-pulse" : "text-sidebar-foreground/70"
+                  )}>
+                    {pendingCount} unsynced
+                  </p>
+                )}
               </div>
             </div>
           </TooltipTrigger>
@@ -285,6 +285,7 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
       </TooltipProvider>
 
       <AuthModal open={showAuthModal} onOpenChange={setShowAuthModal} />
+      </div>
     </div>
   );
 }

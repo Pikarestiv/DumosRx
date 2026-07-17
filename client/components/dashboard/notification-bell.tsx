@@ -73,8 +73,31 @@ export function NotificationBell() {
 
   const fetchNotifications = async () => {
     try {
-      const data = await apiClient.getNotifications();
-      setNotifications(data);
+      const [notifsData, broadcastsData] = await Promise.all([
+        apiClient.getNotifications(),
+        apiClient.getBroadcasts().catch(() => [])
+      ]);
+
+      let finalBroadcasts: any[] = [];
+      if (broadcastsData && (broadcastsData as any).success && Array.isArray((broadcastsData as any).data)) {
+        finalBroadcasts = (broadcastsData as any).data;
+      } else if (Array.isArray(broadcastsData)) {
+        finalBroadcasts = broadcastsData;
+      }
+
+      const standardBroadcasts = finalBroadcasts
+        .filter(b => b.type !== 'danger' && b.type !== 'warning')
+        .map(b => ({
+          id: `broadcast-${b.id}`,
+          title: b.title,
+          description: b.message,
+          time: 'System Broadcast',
+          type: b.type,
+          isRead: false,
+          category: 'broadcast'
+        }));
+
+      setNotifications([...standardBroadcasts, ...(Array.isArray(notifsData) ? notifsData : [])]);
     } catch (e) {
       console.error("Failed to fetch notifications", e);
     }
@@ -89,6 +112,10 @@ export function NotificationBell() {
 
   const markAsRead = async (id: string) => {
     try {
+      if (id.startsWith('broadcast-')) {
+        setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+        return;
+      }
       await apiClient.markNotificationRead(id);
       setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
     } catch (e) {

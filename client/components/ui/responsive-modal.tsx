@@ -10,12 +10,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
+import { X } from "lucide-react";
 
 interface ResponsiveModalProps {
   open: boolean;
@@ -54,16 +56,24 @@ export function ResponsiveModal({
   }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className={`max-h-[90vh] overflow-y-auto ${className || ''}`}>
-        <SheetHeader className="text-left mb-4">
-          <SheetTitle>{title}</SheetTitle>
-          {description && (
-            <SheetDescription>{description}</SheetDescription>
-          )}
-        </SheetHeader>
+    <Drawer open={open} onOpenChange={onOpenChange}>
+      <DrawerContent
+        className={`max-h-[90vh] overflow-y-auto px-4 ${className || ""}`}
+      >
+        <DrawerHeader className="text-left mb-4 px-0 flex flex-row items-start justify-between">
+          <div>
+            <DrawerTitle>{title}</DrawerTitle>
+            {description && (
+              <DrawerDescription>{description}</DrawerDescription>
+            )}
+          </div>
+          <DrawerClose className="p-1">
+            <X className="h-5 w-5 opacity-70" />
+            <span className="sr-only">Close</span>
+          </DrawerClose>
+        </DrawerHeader>
         {children}
-      </SheetContent>
-    </Sheet>
+      </DrawerContent>
+    </Drawer>
   );
 }

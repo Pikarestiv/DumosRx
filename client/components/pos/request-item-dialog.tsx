@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,18 +38,24 @@ export function RequestItemDialog() {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="cursor-pointer flex items-center gap-1.5 shrink-0 border-blue-500/20 text-blue-600 hover:bg-blue-500/10 hover:text-blue-700 dark:hover:text-blue-400">
-          <ClipboardList className="h-4 w-4" />
-          Request Item
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+    <>
+      <Button 
+        variant="outline" 
+        size="sm" 
+        onClick={() => setOpen(true)}
+        className="cursor-pointer flex items-center gap-1.5 shrink-0 border-blue-500/20 text-blue-600 hover:bg-blue-500/10 hover:text-blue-700 dark:hover:text-blue-400"
+      >
+        <ClipboardList className="h-4 w-4" />
+        Request Item
+      </Button>
+
+      <ResponsiveModal 
+        open={open} 
+        onOpenChange={setOpen}
+        title="Log Missing Product"
+        className="sm:max-w-[425px]"
+      >
         <form onSubmit={handleSubmit}>
-          <DialogHeader>
-            <DialogTitle>Log Missing Product</DialogTitle>
-          </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="name">Product Name *</Label>
@@ -72,16 +78,16 @@ export function RequestItemDialog() {
               />
             </div>
           </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={loading}>
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 pt-4 border-t">
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={loading} className="mt-2 sm:mt-0">
               Cancel
             </Button>
             <Button type="submit" disabled={loading}>
               {loading ? "Saving..." : "Save Request"}
             </Button>
-          </DialogFooter>
+          </div>
         </form>
-      </DialogContent>
-    </Dialog>
+      </ResponsiveModal>
+    </>
   );
 }

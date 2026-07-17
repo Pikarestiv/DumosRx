@@ -101,7 +101,22 @@ export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
   };
 
   return (
-    <ResponsiveModal open={open} onOpenChange={setOpen} title={<>Create Purchase Order</>} description={<>Draft a formal request for stock batch replenishment</>} className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col p-0 border-accent/20 bg-card/95 backdrop-blur-xl" headerClassName="p-6 border-b border-accent/10">
+    <>
+      <Button 
+        onClick={() => setOpen(true)}
+        className="font-bold shadow-md h-10 px-6 bg-primary hover:bg-primary/95 text-primary-foreground"
+      >
+        <ShoppingCart className="h-4 w-4 mr-2" />
+        Create PO
+      </Button>
+      <ResponsiveModal 
+        open={open} 
+        onOpenChange={setOpen} 
+        title={<>Create Purchase Order</>} 
+        description={<>Draft a formal request for stock batch replenishment</>} 
+        className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col p-0 border-accent/20 bg-card/95 backdrop-blur-xl" 
+        headerClassName="p-6 border-b border-accent/10"
+      >
 
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -227,5 +242,6 @@ export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
           </div>
         </div>
       </ResponsiveModal>
+    </>
   );
 }

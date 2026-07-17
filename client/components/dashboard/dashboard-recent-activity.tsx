@@ -21,6 +21,7 @@ interface ActivityItem {
 
 interface DashboardRecentActivityProps {
   activities: ActivityItem[];
+  storeTerm?: string;
   getActivityColor: (type: string) => string;
   onActivityClick?: (activity: ActivityItem) => void;
 }

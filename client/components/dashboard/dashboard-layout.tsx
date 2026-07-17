@@ -169,7 +169,13 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
     <div className="min-h-screen bg-background relative">
       {isLocked && (
-        <div className="fixed inset-0 z-[99999] bg-background flex flex-col items-center justify-center p-4 overflow-hidden">
+        <div 
+          className="fixed inset-0 z-[99999] bg-background flex flex-col items-center justify-center p-0 sm:p-4 overflow-hidden"
+          style={{ 
+            paddingTop: "calc(var(--tauri-top, env(safe-area-inset-top, 0px)) + 1rem)",
+            paddingBottom: "calc(var(--tauri-bottom, env(safe-area-inset-bottom, 0px)) + 1rem)"
+          }}
+        >
           <div className="absolute inset-0 z-0">
             <div className="absolute inset-0 bg-gradient-to-b from-transparent to-background/60" />
           </div>
@@ -178,9 +184,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.5 }}
-            className="w-full max-w-md z-10"
+            className="w-full h-[100dvh] sm:h-auto sm:max-w-md z-10 flex flex-col sm:justify-center"
           >
-            <div className="rounded-xl border border-border shadow-2xl bg-card/60 backdrop-blur-2xl text-card-foreground">
+            <div className="flex-1 sm:flex-initial flex flex-col rounded-none sm:rounded-xl border-none sm:border-solid border-border shadow-none sm:shadow-2xl bg-transparent sm:bg-card/60 sm:backdrop-blur-2xl text-card-foreground">
               <div className="space-y-1 flex flex-col items-center text-center pb-2 p-6">
                 <motion.div
                   initial={{ scale: 0 }}
@@ -204,7 +210,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 </motion.div>
               </div>
 
-              <div className="pt-1 pb-6 px-6">
+              <div className="flex-1 flex flex-col pt-1 pb-0 px-4 sm:pb-6 sm:px-6">
                 <LockScreen
                   recentUsers={recentUsers}
                   defaultUser={
@@ -221,7 +227,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               </div>
             </div>
 
-            <div className="mt-8 flex items-center justify-center gap-2 text-xs font-medium text-muted-foreground/60 uppercase tracking-widest">
+            <div className="mt-4 sm:mt-8 flex items-center justify-center gap-2 text-xs font-medium text-muted-foreground/60 uppercase tracking-widest">
               <Lock className="w-3 h-3" />
               Terminal Access • Secure Login
             </div>

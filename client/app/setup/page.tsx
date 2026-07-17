@@ -52,8 +52,11 @@ export default function SetupPage() {
 
   return (
     <div
-      className="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden bg-background"
-      style={{ paddingTop: "calc(var(--tauri-top, 0px) + 1rem)" }}
+      className="fixed inset-0 flex flex-col items-center justify-center p-4 overflow-hidden bg-background"
+      style={{ 
+        paddingTop: "calc(var(--tauri-top, env(safe-area-inset-top, 0px)) + 1rem)",
+        paddingBottom: "calc(var(--tauri-bottom, env(safe-area-inset-bottom, 0px)) + 1rem)"
+      }}
     >
       {/* Premium Background Effects */}
       <div className="absolute inset-0 z-0">

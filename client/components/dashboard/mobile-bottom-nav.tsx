@@ -43,8 +43,8 @@ export function MobileBottomNav({ onOpenFeedback }: MobileBottomNavProps) {
   return (
     <>
       <div 
-        className="lg:hidden fixed left-4 right-4 z-50 bg-primary text-primary-foreground rounded-2xl shadow-2xl shadow-primary/20"
-        style={{ bottom: "calc(1rem + var(--tauri-bottom, env(safe-area-inset-bottom)))" }}
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border shadow-[0_-4px_20px_rgba(0,0,0,0.05)]"
+        style={{ paddingBottom: "var(--tauri-bottom, env(safe-area-inset-bottom))" }}
       >
         <nav className="flex items-center justify-between px-2 h-16 relative">
           {/* Left Tabs */}
@@ -59,12 +59,12 @@ export function MobileBottomNav({ onOpenFeedback }: MobileBottomNavProps) {
                   className={cn(
                     "relative flex flex-col items-center justify-center w-full h-full space-y-1 transition-all",
                     isActive 
-                      ? "text-primary-foreground scale-105" 
-                      : "text-primary-foreground/60 hover:text-primary-foreground/80"
+                      ? "text-primary scale-105" 
+                      : "text-muted-foreground hover:text-foreground"
                   )}
                 >
                   {isActive && (
-                    <span className="absolute top-1.5 w-1 h-1 rounded-full bg-primary-foreground" />
+                    <span className="absolute top-1.5 w-1 h-1 rounded-full bg-primary" />
                   )}
                   <Icon 
                     className="h-5 w-5" 
@@ -84,8 +84,8 @@ export function MobileBottomNav({ onOpenFeedback }: MobileBottomNavProps) {
             <Link
               href="/pos"
               className={cn(
-                "absolute -top-6 flex flex-col items-center justify-center w-[60px] h-[60px] rounded-full bg-background text-primary shadow-[0_0_15px_rgba(0,0,0,0.1)] border-[6px] border-background hover:scale-105 active:scale-95 transition-transform",
-                pathname.startsWith("/pos") && "shadow-[0_0_20px_rgba(var(--primary),0.3)] ring-2 ring-primary/20 ring-offset-2 ring-offset-background"
+                "absolute -top-6 flex flex-col items-center justify-center w-[60px] h-[60px] rounded-full bg-primary text-primary-foreground shadow-[0_4px_15px_rgba(var(--primary),0.4)] border-[4px] border-background hover:scale-105 active:scale-95 transition-transform",
+                pathname.startsWith("/pos") && "shadow-[0_0_20px_rgba(var(--primary),0.6)] ring-2 ring-primary/20 ring-offset-2 ring-offset-background"
               )}
             >
               <ShoppingCart 
@@ -108,12 +108,12 @@ export function MobileBottomNav({ onOpenFeedback }: MobileBottomNavProps) {
                   className={cn(
                     "relative flex flex-col items-center justify-center w-full h-full space-y-1 transition-all",
                     isActive 
-                      ? "text-primary-foreground scale-105" 
-                      : "text-primary-foreground/60 hover:text-primary-foreground/80"
+                      ? "text-primary scale-105" 
+                      : "text-muted-foreground hover:text-foreground"
                   )}
                 >
                   {isActive && (
-                    <span className="absolute top-1.5 w-1 h-1 rounded-full bg-primary-foreground" />
+                    <span className="absolute top-1.5 w-1 h-1 rounded-full bg-primary" />
                   )}
                   <Icon 
                     className="h-5 w-5" 
@@ -133,12 +133,12 @@ export function MobileBottomNav({ onOpenFeedback }: MobileBottomNavProps) {
               className={cn(
                 "relative flex flex-col items-center justify-center w-full h-full space-y-1 transition-all outline-none",
                 isMoreActive 
-                  ? "text-primary-foreground scale-105" 
-                  : "text-primary-foreground/60 hover:text-primary-foreground/80"
+                  ? "text-primary scale-105" 
+                  : "text-muted-foreground hover:text-foreground"
               )}
             >
               {isMoreActive && (
-                <span className="absolute top-1.5 w-1 h-1 rounded-full bg-primary-foreground" />
+                <span className="absolute top-1.5 w-1 h-1 rounded-full bg-primary" />
               )}
               <LayoutGrid 
                 className="h-5 w-5" 

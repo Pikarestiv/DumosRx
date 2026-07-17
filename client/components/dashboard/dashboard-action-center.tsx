@@ -170,44 +170,35 @@ const getPriorityColors = (priority: AlertPriority) => {
   }
 };
 
-interface ActionCenterCardProps {
-  alert: AlertItem;
-  cardWidthClass: string;
-}
-
-function ActionCenterCard({ alert, cardWidthClass }: ActionCenterCardProps) {
+function ActionCenterCard({ alert }: { alert: AlertItem }) {
   const router = useRouter();
 
   return (
-    <div className={`shrink-0 snap-start p-1.5 flex ${cardWidthClass}`}>
-      <Card
-        className="w-full h-full py-0 md:py-4 border-border bg-card shadow-sm overflow-hidden"
-      >
-      <div className="p-3 flex flex-col sm:flex-row sm:items-center gap-2.5 md:gap-3">
-        <div
-          className={`p-1.5 md:p-2.5 rounded-lg sm:rounded-xl shrink-0 self-start ${getPriorityColors(alert.priority)}`}
-        >
-          <alert.icon className="h-4 w-4" />
+    <Card
+      className={`border-border bg-card shadow-sm hover:shadow-md transition-all cursor-pointer overflow-hidden flex flex-col justify-between h-full group ${getPriorityColors(alert.priority).split(' ')[0].replace('/10', '/5')}`}
+      onClick={() => router.push(alert.actionRoute)}
+    >
+      <div className="p-3 sm:p-4 flex flex-col gap-2 h-full">
+        <div className="flex items-center justify-between">
+          <div
+            className={`p-2 rounded-lg shrink-0 ${getPriorityColors(alert.priority)}`}
+          >
+            <alert.icon className="h-4 w-4 sm:h-5 sm:w-5" />
+          </div>
         </div>
-        <div className="flex-1 min-w-0">
-          <h4 className="font-bold text-sm text-foreground truncate">
+        <div className="flex-1 mt-1">
+          <h4 className="font-bold text-xs sm:text-sm text-foreground line-clamp-1">
             {alert.title}
           </h4>
-          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+          <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 line-clamp-2 leading-snug">
             {alert.description}
           </p>
         </div>
-        <Button
-          variant="default"
-          size="sm"
-          className="w-full sm:w-auto shrink-0 h-8 text-xs"
-          onClick={() => router.push(alert.actionRoute)}
-        >
-          {alert.actionLabel}
-        </Button>
+        <div className="mt-2 text-[10px] sm:text-xs font-bold text-primary group-hover:underline">
+          {alert.actionLabel} &rarr;
+        </div>
       </div>
-      </Card>
-    </div>
+    </Card>
   );
 }
 
@@ -242,33 +233,22 @@ export function DashboardActionCenter({
 
   if (alerts.length === 0) return null;
 
-  const cardWidthClass =
-    alerts.length === 1 ? "w-full min-w-full" : "w-[90%] md:w-[85%] lg:w-[92%]";
-
   return (
-    <div className="mb-2">
-      <div className="flex items-center gap-2 mb-2 px-1">
+    <div className="mb-4">
+      <div className="flex items-center gap-2 mb-3">
         <BellRing className="h-4 w-4 text-primary" />
         <h3 className="font-bold text-sm text-foreground">Action Center</h3>
-        {alerts.length > 1 && (
+        {alerts.length > 0 && (
           <span className="bg-primary/10 text-primary text-[10px] font-black px-2 py-0.5 rounded-full ml-1">
             {alerts.length} Items
           </span>
         )}
       </div>
-      <div
-        ref={scrollRef}
-        className="flex overflow-x-auto snap-x snap-mandatory pb-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] -mx-1 px-1"
-        onMouseEnter={() => setIsPaused(true)}
-        onMouseLeave={() => setIsPaused(false)}
-        onTouchStart={() => setIsPaused(true)}
-        onTouchEnd={() => setIsPaused(false)}
-      >
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {alerts.map((alert) => (
           <ActionCenterCard
             key={alert.id}
             alert={alert}
-            cardWidthClass={cardWidthClass}
           />
         ))}
       </div>

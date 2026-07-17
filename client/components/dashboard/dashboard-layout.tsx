@@ -21,11 +21,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ChevronDown, Store as StoreIcon, Lock } from "lucide-react";
+import { ChevronDown, Store as StoreIcon, Lock, Search, Plus } from "lucide-react";
 import { BroadcastBanner } from "./broadcast-banner";
 import { DashboardSidebar } from "./dashboard-sidebar";
 import { MobileBottomNav } from "./mobile-bottom-nav";
 import { LiveClock } from "./live-clock";
+import { SyncIndicator } from "./sync-indicator";
 import { DashboardTour } from "./dashboard-tour";
 import { cn } from "@/lib/utils";
 import { useAutoLockStore } from "@/lib/hooks/use-auto-lock";
@@ -264,50 +265,84 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
         {/* Top header */}
         <header
-          className="h-16 bg-background border-b border-border flex items-center justify-between px-4 sm:px-6 sticky z-40 before:absolute before:inset-x-0 before:bottom-full before:h-[100vh] before:bg-background before:-z-10"
+          className="h-auto min-h-16 py-3 bg-background flex items-center justify-between px-4 sm:px-6 sticky z-40 before:absolute before:inset-x-0 before:bottom-full before:h-[100vh] before:bg-background before:-z-10"
           style={{ top: "var(--tauri-top, 0px)" }}
         >
-          <div className="flex items-center gap-4">
-            {!user?.store_id && availableStores.length > 1 ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger className="flex items-center gap-2 outline-none hover:opacity-80 transition-opacity">
-                  <h1 className="font-serif font-black text-xl text-foreground truncate max-w-[200px] sm:max-w-xs">
-                    {storeProfile?.name || APP_NAME}
-                  </h1>
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-[240px]">
-                  {availableStores.map((store) => (
-                    <DropdownMenuItem
-                      key={store.id}
-                      onClick={() => switchStore(store.id)}
-                      className={cn(
-                        "flex items-center gap-2 py-2 cursor-pointer",
-                        store.id === activeStoreId &&
-                          "bg-primary/10 text-primary font-medium focus:bg-primary/20",
-                      )}
-                    >
-                      <StoreIcon className="h-4 w-4" />
-                      <span className="truncate">{store.name}</span>
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : (
-              <h1 className="font-serif font-black text-xl text-foreground truncate max-w-[200px] sm:max-w-xs">
-                {storeProfile?.name || APP_NAME}
-              </h1>
-            )}
-            <LiveClock />
+          {/* Left side (Desktop & Mobile) */}
+          <div className="flex flex-col gap-0.5">
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground text-sm font-medium">
+                {(() => {
+                  const hour = new Date().getHours();
+                  if (hour < 12) return "Good morning";
+                  if (hour < 18) return "Good afternoon";
+                  return "Good evening";
+                })()}
+              </span>
+              <span className="text-foreground text-sm font-bold sm:hidden">
+                {user?.first_name} {user?.last_name}
+              </span>
+              <span className="text-foreground text-sm font-bold hidden sm:inline-block">
+                {user?.first_name}
+              </span>
+            </div>
+            
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span className="hidden sm:inline-block">
+                {new Date().toLocaleDateString("en-US", { weekday: 'long', month: 'short', day: 'numeric' })}
+              </span>
+              <span className="hidden sm:inline-block text-border">•</span>
+              <div className="flex items-center gap-1 font-medium text-foreground">
+                <StoreIcon className="h-3 w-3" />
+                <span className="truncate max-w-[120px] sm:max-w-[200px]">
+                  {storeProfile?.name || APP_NAME}
+                </span>
+              </div>
+            </div>
+
+            {/* Mobile Sync Indicator */}
+            <div className="sm:hidden mt-1">
+              <SyncIndicator collapsed={false} isMobileHeader={true} />
+            </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <NotificationBell />
-            <div className="hidden sm:flex items-center gap-2">
-              <ThemeToggle />
-              <ThemeCustomizer />
+          {/* Right side */}
+          <div className="flex items-center gap-3">
+            {/* Desktop only features */}
+            <div className="hidden sm:flex items-center gap-3">
+              {/* Search Bar Placeholder */}
+              <div className="relative group">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Search className="h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search products, customers..."
+                  className="pl-9 pr-4 py-2 bg-muted/50 border border-border/50 hover:border-border focus:border-primary focus:ring-1 focus:ring-primary rounded-full text-sm outline-none transition-all w-64"
+                />
+                <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                  <span className="text-[10px] font-medium text-muted-foreground border border-border rounded px-1.5 py-0.5 bg-background">⌘K</span>
+                </div>
+              </div>
+
+              <button
+                onClick={() => router.push("/pos")}
+                className="flex items-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-full text-sm font-medium transition-colors shadow-sm"
+              >
+                <Plus className="h-4 w-4" />
+                New Sale
+              </button>
             </div>
-            <UserNav />
+
+            {/* Notification Bell */}
+            <div className="relative border border-border/50 rounded-full p-0.5">
+              <NotificationBell />
+            </div>
+            
+            {/* Mobile User Nav */}
+            <div className="sm:hidden">
+              <UserNav />
+            </div>
           </div>
         </header>
 

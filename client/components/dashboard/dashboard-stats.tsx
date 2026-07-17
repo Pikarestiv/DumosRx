@@ -54,40 +54,44 @@ export function DashboardStats({ statsCards, isCompact }: DashboardStatsProps) {
   };
 
   return (
-    <div
-      className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 ${isCompact ? "" : ""}`}
-    >
-      {statsCards.map((stat) => {
-        const colors = getColorStyles(stat.colorScheme);
-        return (
-          <Card
-            key={stat.title}
-            className={`${colors.wrapper} transition-colors ${isCompact ? "pb-1 pt-1 gap-2" : "pb-6"}`}
-          >
-            <CardHeader
-              className={`flex flex-row items-center justify-between space-y-0 ${isCompact ? "p-3 pb-1" : "pb-2"}`}
+    <div className="-mx-4 sm:mx-0 px-4 sm:px-0">
+      <div
+        className="flex overflow-x-auto sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-4 pb-4 sm:pb-0 hide-scrollbar snap-x snap-mandatory"
+      >
+        {statsCards.map((stat) => {
+          const colors = getColorStyles(stat.colorScheme);
+          return (
+            <Card
+              key={stat.title}
+              className={`min-w-[240px] sm:min-w-0 snap-center shrink-0 border-border bg-card shadow-sm hover:shadow-md transition-all ${isCompact ? "pb-0 pt-0" : "pb-4"}`}
             >
-              <CardTitle className="text-xs font-medium text-muted-foreground">
-                {stat.title}
-              </CardTitle>
-              <stat.icon className={`h-4 w-4 ${colors.icon}`} />
-            </CardHeader>
-            <CardContent className={isCompact ? "p-3 pt-0 pb-3" : ""}>
-              <div className="text-xl font-bold text-foreground">
-                {stat.value}
-              </div>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {stat.description}
-              </p>
-              <p
-                className={`text-[10px] font-bold mt-1 uppercase tracking-wider ${colors.trend}`}
+              <CardHeader
+                className={`flex flex-row items-center justify-between space-y-0 ${isCompact ? "p-4 pb-2" : "pb-2"}`}
               >
-                {stat.trend}
-              </p>
-            </CardContent>
-          </Card>
-        );
-      })}
+                <CardTitle className="text-sm font-semibold text-muted-foreground">
+                  {stat.title}
+                </CardTitle>
+                <div className={`p-2 rounded-lg ${colors.wrapper}`}>
+                  <stat.icon className={`h-4 w-4 ${colors.icon}`} />
+                </div>
+              </CardHeader>
+              <CardContent className={isCompact ? "p-4 pt-0" : ""}>
+                <div className="text-2xl font-black text-foreground tracking-tight">
+                  {stat.value}
+                </div>
+                <div className="flex items-center gap-2 mt-2">
+                  <span className={`text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${colors.wrapper} ${colors.trend}`}>
+                    {stat.trend}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground font-medium truncate">
+                    {stat.description}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
     </div>
   );
 }

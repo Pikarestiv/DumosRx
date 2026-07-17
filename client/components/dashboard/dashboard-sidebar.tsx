@@ -15,6 +15,7 @@ import {
 import { useStore } from "@/lib/context/store-context";
 import { useAuth } from "@/lib/context/auth-context";
 import { SyncIndicator } from "./sync-indicator";
+import { UserNav } from "@/components/dashboard/user-nav";
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -57,7 +58,7 @@ export function DashboardSidebar({
   const navigationItems = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     {
-      name: `${t("products")} & Batches`,
+      name: "Inventory",
       href: "/inventory",
       icon: storeType === "pharmacy" ? Pill : ShoppingBasket,
     },
@@ -81,12 +82,7 @@ export function DashboardSidebar({
         ]),
   ];
 
-  const allItems = [
-    ...navigationItems,
-    ...(isAdmin || canManageStockBatch
-      ? [{ name: "Settings", href: "/settings", icon: Settings }]
-      : []),
-  ];
+  const allItems = navigationItems;
 
   /** Shared nav link renderer — collapses to icon + tooltip when sidebar is narrow */
   const NavItem = ({
@@ -207,7 +203,7 @@ export function DashboardSidebar({
           {/* Logo header */}
           <div
             className={cn(
-              "flex items-center h-16 border-b border-sidebar-border transition-all duration-300 overflow-hidden",
+              "flex items-center h-16 transition-all duration-300 overflow-hidden",
               collapsed ? "px-3 justify-center" : "px-5 gap-3",
             )}
           >
@@ -247,6 +243,19 @@ export function DashboardSidebar({
                 name={item.name}
               />
             ))}
+
+            {(isAdmin || canManageStockBatch) && (
+              <>
+                <div className={cn("text-[11px] font-bold text-muted-foreground uppercase tracking-wider mt-6 mb-2", collapsed ? "text-center px-0" : "px-3")}>
+                  {collapsed ? "Sys" : "System"}
+                </div>
+                <NavItem
+                  href="/settings"
+                  icon={Settings}
+                  name="Settings"
+                />
+              </>
+            )}
 
             <div className="pt-2 border-t border-sidebar-border mt-2">
               <ActionItem
@@ -291,9 +300,12 @@ export function DashboardSidebar({
             </div>
           </nav>
 
-          {/* Sync indicator */}
-          <div className="border-t border-sidebar-border bg-sidebar">
+          {/* Footer Area */}
+          <div className="border-t border-sidebar-border bg-sidebar flex flex-col pt-2 pb-2 px-2 gap-2">
             <SyncIndicator collapsed={collapsed} />
+            <div className="px-1">
+              <UserNav showDetails={!collapsed} />
+            </div>
           </div>
         </div>
       </>

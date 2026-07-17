@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 
-export function SyncIndicator({ collapsed = false }: { collapsed?: boolean }) {
+export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { collapsed?: boolean; isMobileHeader?: boolean }) {
   const [status, setStatus] = useState<
     "online" | "offline" | "syncing" | "error"
   >("online");
@@ -163,6 +163,18 @@ export function SyncIndicator({ collapsed = false }: { collapsed?: boolean }) {
           : isLinked
             ? "Your data is securely backed up to the DumosRx cloud."
             : "Connect your cloud account to enable backups.";
+
+  if (isMobileHeader) {
+    return (
+      <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-muted/50 border border-border/50 max-w-fit" onClick={handleManualSync}>
+        {statusIcon}
+        <span className="text-[10px] font-medium text-muted-foreground whitespace-nowrap">
+          {statusLabel}
+        </span>
+        <AuthModal open={showAuthModal} onOpenChange={setShowAuthModal} />
+      </div>
+    );
+  }
 
   if (collapsed) {
     return (

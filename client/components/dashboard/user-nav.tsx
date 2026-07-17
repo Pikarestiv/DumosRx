@@ -28,14 +28,21 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { ThemeCustomizer } from "@/components/ui/theme-customizer";
 import { getUserInitials } from "@/lib/utils";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { cn } from "@/lib/utils";
 
-const NavTrigger = ({ initials }: { initials: string }) => (
-  <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-    <Avatar className="h-8 w-8 border border-border">
+const NavTrigger = ({ initials, user, showDetails }: { initials: string, user?: any, showDetails?: boolean }) => (
+  <Button variant="ghost" className={cn("relative rounded-xl hover:bg-muted/50 transition-colors", showDetails ? "h-auto w-full flex items-center justify-start gap-3 p-2" : "h-8 w-8 rounded-full p-0")}>
+    <Avatar className={cn("border border-border shrink-0", showDetails ? "h-9 w-9" : "h-8 w-8")}>
       <AvatarFallback className="bg-primary/10 text-primary hover:text-accent-foreground text-xs font-semibold">
         {initials}
       </AvatarFallback>
     </Avatar>
+    {showDetails && user && (
+      <div className="flex flex-col items-start overflow-hidden">
+        <span className="text-sm font-semibold truncate w-full text-left">{user.first_name} {user.last_name}</span>
+        <span className="text-xs text-muted-foreground capitalize truncate w-full text-left">{user.role.replace(/_/g, " ")}</span>
+      </div>
+    )}
   </Button>
 );
 
@@ -52,7 +59,11 @@ const MobileAppearanceSettings = () => (
   </div>
 );
 
-export function UserNav() {
+interface UserNavProps {
+  showDetails?: boolean;
+}
+
+export function UserNav({ showDetails }: UserNavProps) {
   const { user, logout } = useAuth();
   const router = useRouter();
   const isDesktop = useMediaQuery("(min-width: 768px)");
@@ -103,12 +114,12 @@ export function UserNav() {
   const renderDesktopMenu = () => (
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
-        <div>
-          <NavTrigger initials={initials} />
+        <div className={cn(showDetails ? "w-full" : "")}>
+          <NavTrigger initials={initials} user={user} showDetails={showDetails} />
         </div>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent className="w-56" align="end" forceMount>
+      <DropdownMenuContent className="w-56" align={showDetails ? "end" : "end"} side={showDetails ? "right" : "bottom"} forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1 overflow-hidden">
             <p className="text-sm font-medium leading-none truncate">
@@ -119,6 +130,16 @@ export function UserNav() {
             </p>
           </div>
         </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        
+        <div className="px-2 py-1.5 flex items-center justify-between">
+          <span className="text-sm text-muted-foreground">Appearance</span>
+          <div className="flex items-center gap-1">
+            <ThemeToggle />
+            <ThemeCustomizer />
+          </div>
+        </div>
+
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onClick={handleSwitchAccount}

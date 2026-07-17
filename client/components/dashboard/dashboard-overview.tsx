@@ -15,6 +15,7 @@ import { DashboardQuickActions } from "./dashboard-quick-actions";
 import { DashboardActionCenter } from "./dashboard-action-center";
 import { useState } from "react";
 import { TransactionDetailsDialog } from "@/components/pos/transaction-details-dialog";
+import { formatCurrency } from "@/lib/utils";
 
 export function DashboardOverview() {
   const { t, storeProfile } = useStore();
@@ -48,16 +49,9 @@ export function DashboardOverview() {
     type: "sale",
     message: `${t("product")} sale: ${sale.transaction_number}`,
     timestamp: sale.created_at,
+    amount: formatCurrency(sale.total, storeProfile?.currency),
     rawSale: sale,
   }));
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-NG", {
-      style: "currency",
-      currency: storeProfile?.currency || "NGN",
-      minimumFractionDigits: 0,
-    }).format(amount);
-  };
 
   const getActivityColor = (type: string) => {
     switch (type) {
@@ -83,7 +77,7 @@ export function DashboardOverview() {
     },
     {
       title: "Daily Sales",
-      value: formatCurrency(stats.dailySalesRevenue),
+      value: formatCurrency(stats.dailySalesRevenue, storeProfile?.currency),
       description: "Today's revenue",
       icon: ShoppingCart,
       trend: "Today",
@@ -134,18 +128,6 @@ export function DashboardOverview() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <p className="text-primary font-medium mb-1">
-          Welcome back, {user?.first_name || "User"}
-        </p>
-        <h1 className="font-serif font-bold text-3xl text-foreground">
-          Dashboard Overview
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          Monitor your {t("store").toLowerCase()} operations and key metrics
-        </p>
-      </div>
-
       <DashboardActionCenter
         expiringCount={stats.expiringSoon}
         lowStockCount={stats.lowStockCount}

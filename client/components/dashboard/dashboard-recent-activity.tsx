@@ -15,6 +15,7 @@ interface ActivityItem {
   type: string;
   message: string;
   timestamp: string;
+  amount?: string;
   rawSale?: any;
 }
 
@@ -63,22 +64,32 @@ export function DashboardRecentActivity({
             {activities.map((activity) => (
               <div
                 key={activity.id}
-                className={`group flex items-center gap-3 p-3 rounded-xl border transition-all duration-200 ${
+                className={`group flex items-center justify-between p-3 rounded-xl border transition-all duration-200 ${
                   onActivityClick
                     ? 'cursor-pointer bg-background/40 border-border/30 hover:bg-background hover:shadow-sm hover:border-border/80 hover:scale-[1.01]'
                     : 'bg-background/40 border-border/30'
                 }`}
                 onClick={() => onActivityClick && onActivityClick(activity)}
               >
-                <div
-                  className={`w-2 h-2 ${getActivityColor(activity.type)} rounded-full`}
-                ></div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium">{activity.message}</p>
+                <div className="flex items-center gap-3 overflow-hidden">
+                  <div
+                    className={`shrink-0 flex items-center justify-center w-10 h-10 rounded-xl ${getActivityColor(activity.type).replace('bg-', 'bg-').replace('-500', '-500/10')} text-${getActivityColor(activity.type).replace('bg-', '')}`}
+                  >
+                    <Activity className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="flex flex-col overflow-hidden">
+                    <p className="text-sm font-semibold text-foreground truncate">{activity.message.split(':')[0]}</p>
+                    <p className="text-xs text-muted-foreground truncate">{activity.message.split(':')[1]?.trim()}</p>
+                  </div>
                 </div>
-                <span className="text-xs text-muted-foreground">
-                  {new Date(activity.timestamp).toLocaleTimeString()}
-                </span>
+                <div className="flex flex-col items-end shrink-0 pl-3">
+                  {activity.amount && (
+                    <span className="text-sm font-bold text-foreground">{activity.amount}</span>
+                  )}
+                  <span className="text-[10px] text-muted-foreground font-medium">
+                    {new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
               </div>
             ))}
           </div>

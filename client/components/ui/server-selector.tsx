@@ -11,10 +11,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { Server, Check } from "lucide-react";
+import { Server, Check, Plus } from "lucide-react";
 import { toast } from "sonner";
 
-const ENVIRONMENTS = [
+const STATIC_ENVIRONMENTS = [
   {
     name: "Production Server",
     url:
@@ -46,9 +46,29 @@ const ENVIRONMENTS = [
 
 export function ServerSelector() {
   const [currentUrl, setCurrentUrl] = useState<string>("");
+  const [environments, setEnvironments] = useState(STATIC_ENVIRONMENTS);
 
   useEffect(() => {
     setCurrentUrl(apiClient.getBaseURL());
+
+    // Dynamically add the current host IP for physical device wireless debugging
+    if (typeof window !== "undefined") {
+      const hostname = window.location.hostname;
+      if (
+        hostname &&
+        hostname !== "localhost" &&
+        hostname !== "127.0.0.1" &&
+        hostname !== "tauri.localhost"
+      ) {
+        setEnvironments((prev) => [
+          ...prev,
+          {
+            name: `Physical Device Host (${hostname})`,
+            url: `http://${hostname}:8000/api/v1`,
+          },
+        ]);
+      }
+    }
   }, []);
 
   const handleSelect = (url: string) => {
@@ -57,8 +77,22 @@ export function ServerSelector() {
     toast.success("Server environment updated");
   };
 
+  const handleCustomIp = () => {
+    const ip = prompt("Enter your Mac's Wi-Fi IP address (e.g. 192.168.1.191):", "192.168.1.");
+    if (ip) {
+      const customUrl = `http://${ip.trim()}:8000/api/v1`;
+      setEnvironments((prev) => [
+        ...prev,
+        {
+          name: `Custom Wi-Fi Host (${ip.trim()})`,
+          url: customUrl,
+        },
+      ]);
+      handleSelect(customUrl);
+    }
+  };
+
   if (!currentUrl) return null;
-  if (process.env.NODE_ENV === "production") return null;
 
   return (
     <DropdownMenu>
@@ -72,28 +106,33 @@ export function ServerSelector() {
           Server Config
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
+      <DropdownMenuContent align="end" className="w-64">
         <DropdownMenuLabel className="text-xs">
           API Environment
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {ENVIRONMENTS.map((env) => (
+        {environments.map((env) => (
           <DropdownMenuItem
             key={env.url}
             onClick={() => handleSelect(env.url)}
             className="flex items-center justify-between text-xs py-2"
           >
-            <div className="flex flex-col">
+            <div className="flex flex-col gap-1">
               <span className="font-medium">{env.name}</span>
-              <span className="text-[10px] text-muted-foreground">
+              <span className="text-[10px] text-muted-foreground break-all">
                 {env.url}
               </span>
             </div>
             {currentUrl === env.url && (
-              <Check className="h-4 w-4 text-primary" />
+              <Check className="h-4 w-4 text-primary shrink-0 ml-2" />
             )}
           </DropdownMenuItem>
         ))}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={handleCustomIp} className="text-xs py-2 text-primary font-medium flex items-center gap-2">
+          <Plus className="h-4 w-4" />
+          Enter Custom Mac IP...
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

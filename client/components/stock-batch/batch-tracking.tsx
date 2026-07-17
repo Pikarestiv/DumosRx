@@ -69,36 +69,38 @@ export function BatchTracking() {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="bg-destructive/5 border-destructive/20">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-destructive">Expired Products</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-destructive">{stats.expiredCount}</div>
-            <p className="text-xs text-muted-foreground mt-1">Requires immediate disposal</p>
-          </CardContent>
-        </Card>
+      <div className="-mx-4 sm:mx-0 px-4 sm:px-0">
+        <div className="flex overflow-x-auto sm:grid sm:grid-cols-3 gap-[10px] sm:gap-6 pb-4 sm:pb-0 hide-scrollbar snap-x snap-mandatory">
+          <Card className="min-w-[140px] sm:min-w-0 snap-center shrink-0 bg-destructive/5 border-destructive/20">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs sm:text-sm font-medium text-destructive">Expired Products</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-xl sm:text-2xl font-bold text-destructive">{stats.expiredCount}</div>
+              <p className="text-[11px] sm:text-xs text-muted-foreground mt-1">Requires immediate disposal</p>
+            </CardContent>
+          </Card>
 
-        <Card className="bg-orange-500/5 border-orange-500/20">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-orange-600">Expiring Soon ({expiryThreshold}d)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{stats.expiringSoonCount}</div>
-            <p className="text-xs text-muted-foreground mt-1">Monitor these items closely</p>
-          </CardContent>
-        </Card>
+          <Card className="min-w-[140px] sm:min-w-0 snap-center shrink-0 bg-orange-500/5 border-orange-500/20">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs sm:text-sm font-medium text-orange-600">Expiring Soon ({expiryThreshold}d)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-xl sm:text-2xl font-bold text-orange-600">{stats.expiringSoonCount}</div>
+              <p className="text-[11px] sm:text-xs text-muted-foreground mt-1">Monitor these items closely</p>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-primary">Total Products Tracked</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalProducts}</div>
-            <p className="text-xs text-muted-foreground mt-1">Across all products</p>
-          </CardContent>
-        </Card>
+          <Card className="min-w-[140px] sm:min-w-0 snap-center shrink-0 border-border">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs sm:text-sm font-medium text-primary">Total Products Tracked</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-xl sm:text-2xl font-bold">{stats.totalProducts}</div>
+              <p className="text-[11px] sm:text-xs text-muted-foreground mt-1">Across all products</p>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       <Card>

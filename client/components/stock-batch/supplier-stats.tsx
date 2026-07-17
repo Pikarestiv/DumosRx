@@ -20,57 +20,59 @@ export function SupplierStats({
   formatCurrency
 }: SupplierStatsProps) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">Total Suppliers</p>
-              <p className="text-2xl font-bold">{totalSuppliers}</p>
+    <div className="-mx-4 sm:mx-0 px-4 sm:px-0">
+      <div className="flex overflow-x-auto sm:grid sm:grid-cols-3 gap-[10px] sm:gap-4 pb-4 sm:pb-0 hide-scrollbar snap-x snap-mandatory">
+        <Card className="min-w-[140px] sm:min-w-0 snap-center shrink-0 border-border">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs sm:text-sm text-muted-foreground">Total Suppliers</p>
+                <p className="text-xl sm:text-2xl font-bold">{totalSuppliers}</p>
+              </div>
+              <div className="text-right shrink-0">
+                <p className="text-[11px] sm:text-xs text-muted-foreground">Active</p>
+                <p className="text-sm sm:text-base font-semibold text-primary">
+                  {activeSuppliers}
+                </p>
+              </div>
             </div>
-            <div className="text-right">
-              <p className="text-sm text-muted-foreground">Active</p>
-              <p className="text-lg font-semibold text-primary">
-                {activeSuppliers}
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">
-                Total Purchase Value
-              </p>
-              <p className="text-2xl font-bold">
-                {formatCurrency(totalValue)}
-              </p>
+        <Card className="min-w-[140px] sm:min-w-0 snap-center shrink-0 border-border">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs sm:text-sm text-muted-foreground">
+                  Total Purchase Value
+                </p>
+                <p className="text-xl sm:text-2xl font-bold">
+                  {formatCurrency(totalValue)}
+                </p>
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">Average Rating</p>
-              <p className="text-2xl font-bold">
-                {avgRating.toFixed(1)}
-              </p>
+        <Card className="min-w-[140px] sm:min-w-0 snap-center shrink-0 border-border">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs sm:text-sm text-muted-foreground">Average Rating</p>
+                <p className="text-xl sm:text-2xl font-bold">
+                  {avgRating.toFixed(1)}
+                </p>
+              </div>
+              <div className="text-right shrink-0">
+                <p className="text-[11px] sm:text-xs text-muted-foreground">Stars</p>
+                <p className="text-sm sm:text-base">
+                  {ratingStars}
+                </p>
+              </div>
             </div>
-            <div className="text-right">
-              <p className="text-sm text-muted-foreground">Stars</p>
-              <p className="text-lg">
-                {ratingStars}
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

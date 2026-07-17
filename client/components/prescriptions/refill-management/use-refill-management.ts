@@ -36,11 +36,10 @@ export function useRefillManagement() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [refills, setRefills] = useState<RefillRequest[]>([]);
 
-  const { data: dataRaw, refetch } = useQuery({
+  const { data, refetch } = useQuery({
     queryKey: ['refillManagementData'],
     queryFn: () => getRefillManagementData()
   });
-  const data = dataRaw || [];
 
   useEffect(() => {
     if (data) {

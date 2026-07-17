@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -64,6 +65,13 @@ export function RetailSpeedPOS({
 }: RetailSpeedPOSProps) {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams?.get("action") === "scan") {
+      setIsScannerOpen(true);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     // Auto-focus search on mount

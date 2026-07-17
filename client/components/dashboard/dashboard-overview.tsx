@@ -3,13 +3,7 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Package,
-  ShoppingCart,
-  AlertTriangle,
-  TrendingUp,
-  Receipt,
-} from "lucide-react";
+import { Package, ShoppingCart, TrendingUp, Receipt } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { getDashboardOverviewData } from "@/lib/db/queries/reports";
 import { useStockBatchStats } from "@/lib/hooks/use-stock-batch-stats";
@@ -72,10 +66,10 @@ export function DashboardOverview() {
   const activities = recentActivities.slice(0, 5).map((activity: any) => {
     let message = "";
     let amount = "";
-    
+
     if (activity.activity_type === "sale") {
       message = `${t("product")} sale: ${activity.transaction_number || activity.id.slice(0, 8)}`;
-      const val = Number(activity.total);
+      const val = Number(activity.total_amount);
       amount = isNaN(val) ? "N/A" : formatCurrency(val, storeProfile?.currency);
     } else if (activity.activity_type === "stock_movement") {
       message = `Stock ${activity.movement_type}: ${Math.abs(activity.quantity)} units`;

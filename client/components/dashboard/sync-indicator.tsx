@@ -222,7 +222,11 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
 
   return (
     <div className="px-2 pb-1">
-      <div id="tour-sync-indicator" className={`p-2.5 border rounded-xl ${statusBorder} bg-sidebar-accent/5 transition-colors`}>
+      <div 
+        id="tour-sync-indicator" 
+        className={`p-2.5 border rounded-xl ${statusBorder} bg-sidebar-accent/5 transition-colors cursor-pointer hover:bg-sidebar-accent/10`}
+        onClick={handleManualSync}
+      >
         <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -238,9 +242,8 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <button
-                      onClick={handleManualSync}
                       disabled={isSyncInProgress || status === "offline"}
-                      className="p-1 border border-sidebar-border rounded-md transition-colors disabled:opacity-30 cursor-pointer hover:bg-sidebar-accent relative z-10"
+                      className="p-1 border border-sidebar-border rounded-md transition-colors disabled:opacity-30 cursor-pointer hover:bg-sidebar-accent relative z-10 pointer-events-none"
                     >
                       <RefreshCw
                         className={cn(

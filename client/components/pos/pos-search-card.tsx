@@ -4,7 +4,8 @@ import { Search, Scan, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { CameraScannerDialog } from "./camera-scanner-dialog";
 
 interface POSSearchCardProps {
@@ -29,6 +30,13 @@ export function POSSearchCard({
   productTerm
 }: POSSearchCardProps) {
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams?.get("action") === "scan") {
+      setIsScannerOpen(true);
+    }
+  }, [searchParams]);
 
   return (
     <Card>

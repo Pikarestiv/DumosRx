@@ -23,7 +23,7 @@ interface ResponsiveModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
-  description?: string;
+  description?: React.ReactNode;
   children: React.ReactNode;
   /** Custom class for the content container */
   className?: string;

@@ -8,6 +8,8 @@ import {
   TrendingUp,
   ClipboardCheck,
   FileBarChart,
+  BarChart3,
+  Barcode,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useState } from "react";
@@ -37,14 +39,14 @@ const getQuickActionsConfig = (
     href: "/reports?tab=daily_close",
   },
   {
-    label: "Check Expiry",
-    icon: AlertTriangle,
-    href: "/inventory/batches",
+    label: "Scan Barcode",
+    icon: Barcode,
+    href: "/pos?action=scan",
   },
   {
-    label: "Low Stock",
-    icon: TrendingUp,
-    href: "/inventory/products?status=low_stock",
+    label: "View Reports",
+    icon: BarChart3,
+    href: "/reports",
   },
   {
     label: "Generate P&L",

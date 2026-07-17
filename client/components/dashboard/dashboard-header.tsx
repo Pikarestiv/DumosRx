@@ -8,11 +8,20 @@ import { APP_NAME } from "@/lib/constants";
 import { SyncIndicator } from "./sync-indicator";
 import { NotificationBell } from "./notification-bell";
 import { UserNav } from "./user-nav";
+import { useState } from "react";
 
 export function DashboardHeader() {
   const router = useRouter();
   const { user } = useAuth();
   const { storeProfile } = useStore();
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      router.push(`/inventory/products?search=${encodeURIComponent(searchQuery)}`);
+    }
+  };
 
   return (
     <header
@@ -64,19 +73,23 @@ export function DashboardHeader() {
         {/* Desktop only features */}
         <div className="hidden sm:flex items-center gap-3">
           {/* Search Bar Placeholder */}
-          <div className="relative group">
+          {/* 
+          <form onSubmit={handleSearch} className="relative group">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Search className="h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
             </div>
             <input
               type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search products, customers..."
               className="pl-9 pr-4 py-2 bg-muted/50 border border-border/50 hover:border-border focus:border-primary focus:ring-1 focus:ring-primary rounded-full text-sm outline-none transition-all w-64"
             />
             <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-              <span className="text-[10px] font-medium text-muted-foreground border border-border rounded px-1.5 py-0.5 bg-background">⌘K</span>
+              <button type="submit" className="text-[10px] font-medium text-muted-foreground border border-border rounded px-1.5 py-0.5 bg-background hover:bg-muted cursor-pointer pointer-events-auto">↵</button>
             </div>
-          </div>
+          </form> 
+          */}
 
           <button
             onClick={() => router.push("/pos")}

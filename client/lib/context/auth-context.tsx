@@ -10,6 +10,7 @@ export interface User {
   first_name: string;
   last_name: string;
   username: string;
+  email?: string;
   role: "super_admin" | "store_owner" | "admin" | "manager" | "specialist" | "sales_staff" | "auditor";
   store_id?: string;
 }
@@ -219,6 +220,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const linkCloudAccount = async (email: string, password: string) => {
     try {
+      // Prevent linking to a different account if already linked before
+      if (user?.email && user.email.toLowerCase() !== email.toLowerCase()) {
+        return { 
+          success: false, 
+          message: `Account mismatch. This device is already linked to ${user.email}. Please use that account.` 
+        };
+      }
+
       const response = await apiClient.login(email, password);
       
       if (response.token) {

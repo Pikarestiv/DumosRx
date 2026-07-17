@@ -25,15 +25,21 @@ export function TraditionalLoginForm({
 }: TraditionalLoginFormProps) {
   return (
     <form onSubmit={onSubmit} className="flex-1 flex flex-col justify-center">
-      <CardContent className="space-y-3 pt-4">
+      <div className="sm:hidden px-6 pt-10 pb-2 text-center space-y-1.5">
+        <h2 className="text-2xl font-bold tracking-tight text-foreground">Sign In</h2>
+        <p className="text-sm text-muted-foreground font-medium">Enter your details below to continue</p>
+      </div>
+      <CardContent className="space-y-3 sm:pt-4">
         <div className="space-y-1.5">
-          <Label htmlFor="username">Username</Label>
+          <Label htmlFor="username" className="text-sm font-medium">
+            Username
+          </Label>
           <div className="relative group">
-            <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+            <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
             <Input
               id="username"
               placeholder="admin"
-              className="pl-10 bg-background/50 border-border focus:border-primary/50 focus:ring-primary/20 transition-all lowercase"
+              className="h-12 pl-11 text-base bg-background/50 border-border focus:border-primary/50 focus:ring-primary/20 transition-all lowercase"
               value={username}
               onChange={(e) => setUsername(e.target.value.toLowerCase())}
               required
@@ -41,14 +47,16 @@ export function TraditionalLoginForm({
           </div>
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="pin">PIN</Label>
+          <Label htmlFor="pin" className="text-sm font-medium">
+            PIN
+          </Label>
           <div className="relative group">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+            <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
             <Input
               id="pin"
               type="password"
               placeholder="••••"
-              className="pl-10 bg-background/50 border-border focus:border-primary/50 focus:ring-primary/20 transition-all"
+              className="h-12 pl-11 text-base bg-background/50 border-border focus:border-primary/50 focus:ring-primary/20 transition-all"
               value={pin}
               onChange={(e) => setPin(e.target.value)}
               required

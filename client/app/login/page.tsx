@@ -38,36 +38,70 @@ export default function LoginPage() {
 
   return (
     <div
-      className="fixed inset-0 flex flex-col items-center justify-center p-0 sm:p-4 overflow-hidden bg-background"
+      className="fixed inset-0 flex flex-col sm:items-center sm:justify-center p-0 sm:p-4 overflow-hidden bg-background"
       style={{
-        paddingTop:
-          "calc(var(--tauri-top, env(safe-area-inset-top, 0px)) + 1rem)",
-        paddingBottom:
-          "calc(var(--tauri-bottom, env(safe-area-inset-bottom, 0px)) + 1rem)",
+        paddingTop: "calc(var(--tauri-top, env(safe-area-inset-top, 0px)))",
+        paddingBottom: "calc(var(--tauri-bottom, env(safe-area-inset-bottom, 0px)))",
       }}
     >
-      <div className="absolute inset-0 z-0">
+      {/* Mobile Top Background Layer */}
+      <div className="absolute top-0 left-0 right-0 h-[50dvh] bg-primary sm:hidden z-0" />
+
+      {/* Desktop Background Effects */}
+      <div className="absolute inset-0 z-0 hidden sm:block">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent to-background/60" />
+      </div>
+
+      {/* Mobile Top Section (1/4 height) */}
+      <div className="sm:hidden relative z-10 flex flex-col items-center justify-center shrink-0 min-h-[25dvh] pt-4 pb-6">
+        {(!recentUsers.length || showTraditionalLogin) && (
+          <Link
+            href="/"
+            className="absolute left-6 top-6 inline-flex items-center text-sm font-medium text-primary-foreground/90 hover:text-primary-foreground transition-colors group"
+          >
+            <ArrowLeft className="h-5 w-5 mr-1 transform group-hover:-translate-x-1 transition-transform" />
+            Back
+          </Link>
+        )}
+        <motion.div
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: "spring", stiffness: 260, damping: 20 }}
+        >
+          <Image
+            src="/logo.png"
+            alt="Logo"
+            width={160}
+            height={60}
+            className="object-contain brightness-0 invert"
+            style={{ height: "auto" }}
+          />
+        </motion.div>
       </div>
 
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.5 }}
-        className="w-full h-full sm:h-auto sm:max-w-md z-10 flex flex-col sm:justify-center"
+        className="w-full h-full sm:h-auto sm:max-w-md z-10 flex flex-col mx-auto"
       >
+        {/* Desktop Back Link */}
         {(!recentUsers.length || showTraditionalLogin) && (
-          <Link
-            href="/"
-            className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4 sm:mt-0 transition-colors group px-4 pt-4 sm:p-0"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2 transform group-hover:-translate-x-1 transition-transform" />
-            Back
-          </Link>
+          <div className="hidden sm:block px-4 sm:px-0">
+            <Link
+              href="/"
+              className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors group"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2 transform group-hover:-translate-x-1 transition-transform" />
+              Back
+            </Link>
+          </div>
         )}
 
-        <Card className="flex-1 sm:flex-initial flex flex-col border border-border/50 shadow-xl sm:shadow-2xl bg-card/60 backdrop-blur-2xl rounded-3xl sm:rounded-xl mx-4 mt-2 mb-4 sm:m-0 overflow-hidden relative">
-          <CardHeader className="space-y-1 flex flex-col items-center text-center pb-1 pt-5">
+        <Card className="flex-1 sm:flex-initial flex flex-col border-none sm:border-solid sm:border-border shadow-[0_-20px_40px_rgba(0,0,0,0.15)] sm:shadow-2xl bg-background sm:bg-card/60 sm:backdrop-blur-2xl rounded-t-[2.5rem] sm:rounded-xl overflow-hidden relative">
+          
+          {/* Desktop Logo */}
+          <div className="hidden sm:flex flex-col items-center pt-6 pb-2">
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
@@ -77,7 +111,7 @@ export default function LoginPage() {
                 damping: 20,
                 delay: 0.2,
               }}
-              className="mb-3 overflow-hidden"
+              className="mb-1 overflow-hidden"
             >
               <Image
                 src="/logo.png"
@@ -88,14 +122,18 @@ export default function LoginPage() {
                 style={{ filter: "var(--logo-filter)", height: "auto" }}
               />
             </motion.div>
+          </div>
 
-            {userCount === 0 && <SetupPromptHeader />}
-          </CardHeader>
+          {userCount === 0 && (
+            <CardHeader className="pt-8 sm:pt-2 pb-2 items-center text-center">
+              <SetupPromptHeader />
+            </CardHeader>
+          )}
 
           {userCount === 0 ? (
             <SetupPromptContent />
           ) : recentUsers.length > 0 && !showTraditionalLogin ? (
-            <CardContent className="flex-1 flex flex-col pt-1 pb-0 px-4 sm:pb-6 sm:px-6">
+            <CardContent className="flex-1 flex flex-col pt-6 sm:pt-2 pb-0 px-4 sm:pb-6 sm:px-6">
               <LockScreen
                 recentUsers={recentUsers}
                 onLoginAsOther={() => setShowTraditionalLogin(true)}
@@ -114,7 +152,7 @@ export default function LoginPage() {
         </Card>
 
         {userCount > 0 && showTraditionalLogin && (
-          <div className="mt-4 flex items-center justify-center gap-2 text-xs font-medium text-muted-foreground/60 uppercase tracking-widest">
+          <div className="hidden sm:flex mt-4 items-center justify-center gap-2 text-xs font-medium text-muted-foreground/60 uppercase tracking-widest">
             <Lock className="w-3 h-3" />
             Terminal Access • Secure Login
           </div>

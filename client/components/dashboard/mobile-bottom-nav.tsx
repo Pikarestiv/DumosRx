@@ -7,10 +7,10 @@ import { useStore } from "@/lib/context/store-context";
 import { MobileMoreDrawer } from "./mobile-more-drawer";
 import { cn } from "@/lib/utils";
 import {
-  LayoutDashboard,
+  LayoutGrid,
   ShoppingCart,
   Users,
-  Menu,
+  Home,
   Pill,
   ShoppingBasket,
 } from "lucide-react";
@@ -25,7 +25,7 @@ export function MobileBottomNav({ onOpenFeedback }: MobileBottomNavProps) {
   const [moreDrawerOpen, setMoreDrawerOpen] = useState(false);
 
   const leftTabs = [
-    { name: "Home", href: "/dashboard", icon: LayoutDashboard },
+    { name: "Home", href: "/dashboard", icon: Home },
     {
       name: t("products"),
       href: "/inventory",
@@ -57,13 +57,20 @@ export function MobileBottomNav({ onOpenFeedback }: MobileBottomNavProps) {
                   key={tab.name}
                   href={tab.href}
                   className={cn(
-                    "flex flex-col items-center justify-center w-full h-full space-y-1 transition-all",
+                    "relative flex flex-col items-center justify-center w-full h-full space-y-1 transition-all",
                     isActive 
                       ? "text-primary-foreground scale-105" 
                       : "text-primary-foreground/60 hover:text-primary-foreground/80"
                   )}
                 >
-                  <Icon className="h-5 w-5" strokeWidth={isActive ? 2.5 : 2} />
+                  {isActive && (
+                    <span className="absolute top-1.5 w-1 h-1 rounded-full bg-primary-foreground" />
+                  )}
+                  <Icon 
+                    className="h-5 w-5" 
+                    strokeWidth={isActive ? 2 : 2} 
+                    fill={isActive ? "currentColor" : "none"}
+                  />
                   <span className="text-[10px] font-medium tracking-tight">
                     {tab.name}
                   </span>
@@ -81,7 +88,11 @@ export function MobileBottomNav({ onOpenFeedback }: MobileBottomNavProps) {
                 pathname.startsWith("/pos") && "shadow-[0_0_20px_rgba(var(--primary),0.3)] ring-2 ring-primary/20 ring-offset-2 ring-offset-background"
               )}
             >
-              <ShoppingCart className="h-6 w-6" strokeWidth={pathname.startsWith("/pos") ? 2.5 : 2} />
+              <ShoppingCart 
+                className="h-6 w-6" 
+                strokeWidth={pathname.startsWith("/pos") ? 2.5 : 2} 
+                fill={pathname.startsWith("/pos") ? "currentColor" : "none"}
+              />
             </Link>
           </div>
 
@@ -95,13 +106,20 @@ export function MobileBottomNav({ onOpenFeedback }: MobileBottomNavProps) {
                   key={tab.name}
                   href={tab.href}
                   className={cn(
-                    "flex flex-col items-center justify-center w-full h-full space-y-1 transition-all",
+                    "relative flex flex-col items-center justify-center w-full h-full space-y-1 transition-all",
                     isActive 
                       ? "text-primary-foreground scale-105" 
                       : "text-primary-foreground/60 hover:text-primary-foreground/80"
                   )}
                 >
-                  <Icon className="h-5 w-5" strokeWidth={isActive ? 2.5 : 2} />
+                  {isActive && (
+                    <span className="absolute top-1.5 w-1 h-1 rounded-full bg-primary-foreground" />
+                  )}
+                  <Icon 
+                    className="h-5 w-5" 
+                    strokeWidth={isActive ? 2 : 2} 
+                    fill={isActive ? "currentColor" : "none"}
+                  />
                   <span className="text-[10px] font-medium tracking-tight">
                     {tab.name}
                   </span>
@@ -113,13 +131,20 @@ export function MobileBottomNav({ onOpenFeedback }: MobileBottomNavProps) {
             <button
               onClick={() => setMoreDrawerOpen(true)}
               className={cn(
-                "flex flex-col items-center justify-center w-full h-full space-y-1 transition-all outline-none",
+                "relative flex flex-col items-center justify-center w-full h-full space-y-1 transition-all outline-none",
                 isMoreActive 
                   ? "text-primary-foreground scale-105" 
                   : "text-primary-foreground/60 hover:text-primary-foreground/80"
               )}
             >
-              <Menu className="h-5 w-5" strokeWidth={isMoreActive ? 2.5 : 2} />
+              {isMoreActive && (
+                <span className="absolute top-1.5 w-1 h-1 rounded-full bg-primary-foreground" />
+              )}
+              <LayoutGrid 
+                className="h-5 w-5" 
+                strokeWidth={isMoreActive ? 2 : 2} 
+                fill={isMoreActive ? "currentColor" : "none"}
+              />
               <span className="text-[10px] font-medium tracking-tight">More</span>
             </button>
           </div>

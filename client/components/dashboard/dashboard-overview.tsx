@@ -43,7 +43,7 @@ export function DashboardOverview() {
     lowStockCount: stock_batchStats.lowStockCount,
   };
 
-  const activities = recentSales.map((sale: any) => ({
+  const activities = recentSales.slice(0, 3).map((sale: any) => ({
     id: sale.id,
     type: "sale",
     message: `${t("product")} sale: ${sale.transaction_number}`,

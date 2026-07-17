@@ -1,6 +1,7 @@
 "use client";
 
-import { Activity } from "lucide-react";
+import { Activity, ArrowRight } from "lucide-react";
+import Link from "next/link";
 import { 
   Card, 
   CardContent, 
@@ -32,13 +33,21 @@ export function DashboardRecentActivity({
 }: DashboardRecentActivityProps) {
   return (
     <Card className="border-border">
-      <CardHeader>
-        <CardTitle className="font-serif font-semibold">
-          Recent Activity
-        </CardTitle>
-        <CardDescription>
-          Latest {storeTerm.toLowerCase()} transactions and updates
-        </CardDescription>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <div>
+          <CardTitle className="font-serif font-semibold">
+            Recent Activity
+          </CardTitle>
+          <CardDescription>
+            Latest {storeTerm.toLowerCase()} transactions and updates
+          </CardDescription>
+        </div>
+        <Link 
+          href="/reports" 
+          className="text-xs font-medium text-primary hover:text-primary/80 flex items-center gap-1 shrink-0 whitespace-nowrap"
+        >
+          All <ArrowRight className="h-3 w-3" />
+        </Link>
       </CardHeader>
       <CardContent>
         {activities.length === 0 ? (

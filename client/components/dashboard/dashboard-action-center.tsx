@@ -219,7 +219,7 @@ export function DashboardActionCenter({
   lowStockCount,
 }: ActionCenterProps) {
   const alerts = useActionCenterAlerts(expiringCount, lowStockCount);
-  const [isPaused] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const scrollRef = React.useRef<HTMLDivElement>(null);
 
   // Auto-scroll logic for horizontal list
@@ -255,12 +255,18 @@ export function DashboardActionCenter({
           </span>
         )}
       </div>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div 
+        ref={scrollRef}
+        onMouseEnter={() => setIsPaused(true)}
+        onMouseLeave={() => setIsPaused(false)}
+        onTouchStart={() => setIsPaused(true)}
+        onTouchEnd={() => setIsPaused(false)}
+        className="flex overflow-x-auto lg:grid lg:grid-cols-4 gap-3 sm:gap-4 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 snap-x snap-mandatory hide-scrollbar"
+      >
         {alerts.map((alert) => (
-          <ActionCenterCard
-            key={alert.id}
-            alert={alert}
-          />
+          <div key={alert.id} className="snap-start shrink-0 w-[160px] lg:w-full">
+            <ActionCenterCard alert={alert} />
+          </div>
         ))}
       </div>
     </div>

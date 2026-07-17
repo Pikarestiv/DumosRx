@@ -166,7 +166,16 @@ export function DashboardOverview() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      <div>
+        <h1 className="font-serif font-bold text-3xl text-foreground">
+          Overview
+        </h1>
+        <p className="text-muted-foreground mt-1.5 text-sm">
+          A real-time summary of your store's operations, inventory status, and sales
+        </p>
+      </div>
+
       <DashboardStats statsCards={statsCards} />
 
       <DashboardActionCenter

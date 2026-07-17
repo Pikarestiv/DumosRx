@@ -255,7 +255,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         style={{
           paddingTop: "var(--tauri-top, 0px)",
           paddingBottom:
-            "calc(4rem + var(--tauri-bottom, env(safe-area-inset-bottom)))",
+            "calc(5.5rem + var(--tauri-bottom, env(safe-area-inset-bottom)))",
         }}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}

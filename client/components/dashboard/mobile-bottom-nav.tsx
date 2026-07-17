@@ -24,76 +24,105 @@ export function MobileBottomNav({ onOpenFeedback }: MobileBottomNavProps) {
   const { storeType, t } = useStore();
   const [moreDrawerOpen, setMoreDrawerOpen] = useState(false);
 
-  const primaryTabs = [
+  const leftTabs = [
     { name: "Home", href: "/dashboard", icon: LayoutDashboard },
-    { name: "POS", href: "/pos", icon: ShoppingCart },
     {
       name: t("products"),
       href: "/inventory",
       icon: storeType === "pharmacy" ? Pill : ShoppingBasket,
     },
+  ];
+
+  const rightTabs = [
     { name: "Customers", href: "/customers", icon: Users },
   ];
 
-  const isMoreActive =
-    pathname && !primaryTabs.some((tab) => pathname.startsWith(tab.href));
+  const allTabHrefs = [...leftTabs, ...rightTabs].map((t) => t.href).concat("/pos");
+  const isMoreActive = pathname && !allTabHrefs.some((href) => pathname.startsWith(href));
 
   return (
     <>
       <div 
-        className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-t border-border"
-        style={{ paddingBottom: "var(--tauri-bottom, env(safe-area-inset-bottom))" }}
+        className="lg:hidden fixed left-4 right-4 z-50 bg-primary text-primary-foreground rounded-2xl shadow-2xl shadow-primary/20"
+        style={{ bottom: "calc(1rem + var(--tauri-bottom, env(safe-area-inset-bottom)))" }}
       >
-        <nav className="flex items-center justify-around px-2 h-16">
-          {primaryTabs.map((tab) => {
-            const isActive = pathname.startsWith(tab.href);
-            const Icon = tab.icon;
-
-            return (
-              <Link
-                key={tab.name}
-                href={tab.href}
-                className={cn(
-                  "flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors",
-                  isActive
-                    ? "text-primary"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                <div
+        <nav className="flex items-center justify-between px-2 h-16 relative">
+          {/* Left Tabs */}
+          <div className="flex flex-1 justify-around h-full">
+            {leftTabs.map((tab) => {
+              const isActive = pathname.startsWith(tab.href);
+              const Icon = tab.icon;
+              return (
+                <Link
+                  key={tab.name}
+                  href={tab.href}
                   className={cn(
-                    "flex items-center justify-center rounded-full p-1",
-                    isActive ? "bg-primary/10" : "",
+                    "flex flex-col items-center justify-center w-full h-full space-y-1 transition-all",
+                    isActive 
+                      ? "text-primary-foreground scale-105" 
+                      : "text-primary-foreground/60 hover:text-primary-foreground/80"
                   )}
                 >
-                  <Icon className="h-5 w-5" />
-                </div>
-                <span className="text-[10px] font-medium tracking-tight">
-                  {tab.name}
-                </span>
-              </Link>
-            );
-          })}
+                  <Icon className="h-5 w-5" strokeWidth={isActive ? 2.5 : 2} />
+                  <span className="text-[10px] font-medium tracking-tight">
+                    {tab.name}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
 
-          <button
-            onClick={() => setMoreDrawerOpen(true)}
-            className={cn(
-              "flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors",
-              isMoreActive
-                ? "text-primary"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            <div
+          {/* Center POS Button */}
+          <div className="relative w-16 h-full flex justify-center">
+            <Link
+              href="/pos"
               className={cn(
-                "flex items-center justify-center rounded-full p-1",
-                isMoreActive ? "bg-primary/10" : "",
+                "absolute -top-6 flex flex-col items-center justify-center w-[60px] h-[60px] rounded-full bg-background text-primary shadow-[0_0_15px_rgba(0,0,0,0.1)] border-[6px] border-background hover:scale-105 active:scale-95 transition-transform",
+                pathname.startsWith("/pos") && "shadow-[0_0_20px_rgba(var(--primary),0.3)] ring-2 ring-primary/20 ring-offset-2 ring-offset-background"
               )}
             >
-              <Menu className="h-5 w-5" />
-            </div>
-            <span className="text-[10px] font-medium tracking-tight">More</span>
-          </button>
+              <ShoppingCart className="h-6 w-6" strokeWidth={pathname.startsWith("/pos") ? 2.5 : 2} />
+            </Link>
+          </div>
+
+          {/* Right Tabs */}
+          <div className="flex flex-1 justify-around h-full">
+            {rightTabs.map((tab) => {
+              const isActive = pathname.startsWith(tab.href);
+              const Icon = tab.icon;
+              return (
+                <Link
+                  key={tab.name}
+                  href={tab.href}
+                  className={cn(
+                    "flex flex-col items-center justify-center w-full h-full space-y-1 transition-all",
+                    isActive 
+                      ? "text-primary-foreground scale-105" 
+                      : "text-primary-foreground/60 hover:text-primary-foreground/80"
+                  )}
+                >
+                  <Icon className="h-5 w-5" strokeWidth={isActive ? 2.5 : 2} />
+                  <span className="text-[10px] font-medium tracking-tight">
+                    {tab.name}
+                  </span>
+                </Link>
+              );
+            })}
+
+            {/* More Button */}
+            <button
+              onClick={() => setMoreDrawerOpen(true)}
+              className={cn(
+                "flex flex-col items-center justify-center w-full h-full space-y-1 transition-all outline-none",
+                isMoreActive 
+                  ? "text-primary-foreground scale-105" 
+                  : "text-primary-foreground/60 hover:text-primary-foreground/80"
+              )}
+            >
+              <Menu className="h-5 w-5" strokeWidth={isMoreActive ? 2.5 : 2} />
+              <span className="text-[10px] font-medium tracking-tight">More</span>
+            </button>
+          </div>
         </nav>
       </div>
 

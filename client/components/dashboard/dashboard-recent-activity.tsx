@@ -94,7 +94,7 @@ export function DashboardRecentActivity({
                     {activity.amount && (
                       <span className="text-sm font-semibold text-foreground">{activity.amount}</span>
                     )}
-                    <span className="text-[10px] text-muted-foreground font-medium">
+                    <span className="text-[11px] sm:text-xs text-muted-foreground font-medium">
                       {new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>

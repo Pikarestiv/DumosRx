@@ -56,17 +56,17 @@ const getQuickActionsConfig = (
 function QuickActionCard({ action }: { action: any }) {
   const content = (
     <>
-      <div className="p-3 rounded-2xl sm:rounded-xl w-13 h-13 sm:w-auto sm:h-auto border border-primary/20 sm:border-none bg-background sm:bg-primary/10 shadow-sm sm:shadow-none text-primary group-hover:bg-primary/15 transition-transform flex items-center justify-center">
-        <action.icon className="h-4 w-4" />
+      <div className="p-3 rounded-2xl sm:rounded-xl w-16 h-16 sm:w-auto sm:h-auto border border-primary/20 sm:border-none bg-background sm:bg-primary/10 shadow-sm sm:shadow-none text-primary group-hover:bg-primary/15 transition-transform flex items-center justify-center">
+        <action.icon className="h-5 w-5 sm:h-4 sm:w-4" />
       </div>
-      <span className="text-[11px] sm:text-xs font-medium sm:font-semibold text-foreground mt-1">
+      <span className="text-xs sm:text-sm font-medium sm:font-semibold text-foreground mt-1">
         {action.label}
       </span>
     </>
   );
 
   const className =
-    "shrink-0 snap-start w-[74px] sm:w-auto p-1 sm:p-4 bg-transparent sm:bg-card border-none sm:border-solid sm:border sm:border-border rounded-xl transition-all flex flex-col items-center sm:items-start cursor-pointer group outline-none text-center sm:text-left hover:bg-primary/5 sm:hover:border-primary/50";
+    "shrink-0 snap-start w-[94px] sm:w-auto p-1 sm:p-4 bg-transparent sm:bg-card border-none sm:border-solid sm:border sm:border-border rounded-xl transition-all flex flex-col items-center sm:items-start cursor-pointer group outline-none text-center sm:text-left hover:bg-primary/5 sm:hover:border-primary/50";
 
   if (action.href) {
     return (

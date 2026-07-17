@@ -62,7 +62,7 @@ export function DashboardStats({ statsCards }: DashboardStatsProps) {
               className="min-w-[140px] sm:min-w-0 snap-center shrink-0 border-border bg-card shadow-sm hover:shadow-md transition-all !py-3 gap-2"
             >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 px-2 py-0">
-                <CardTitle className="text-xs smtext-[13px] font-semibold text-muted-foreground">
+                <CardTitle className="text-xs sm:text-sm font-semibold text-muted-foreground">
                   {stat.title}
                 </CardTitle>
                 <div className={`p-1.5 rounded-md ${colors.wrapper}`}>
@@ -70,12 +70,12 @@ export function DashboardStats({ statsCards }: DashboardStatsProps) {
                 </div>
               </CardHeader>
               <CardContent className="px-2 py-0">
-                <div className="text-xl font-black text-foreground tracking-tight">
+                <div className="text-xl sm:text-2xl font-black text-foreground tracking-tight">
                   {stat.value}
                 </div>
                 {stat.comparison && (
                   <div className="flex items-center gap-1.5 mt-1">
-                    <span className="text-[10px] text-muted-foreground font-medium truncate">
+                    <span className="text-[11px] sm:text-xs text-muted-foreground font-medium truncate">
                       {stat.comparison}
                     </span>
                   </div>

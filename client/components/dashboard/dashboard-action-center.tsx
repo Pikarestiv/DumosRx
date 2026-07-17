@@ -200,10 +200,10 @@ function ActionCenterCard({ alert }: { alert: AlertItem }) {
             <alert.icon className="h-3.5 w-3.5" />
           </div>
           <div className="min-w-0 flex flex-col justify-center">
-             <h4 className="font-bold text-[11px] sm:text-xs text-foreground line-clamp-1 leading-tight">
+             <h4 className="font-bold text-xs sm:text-sm text-foreground line-clamp-1 leading-tight">
                {alert.title}
              </h4>
-             <p className="text-[9px] sm:text-[10px] text-muted-foreground mt-0.5 line-clamp-2 leading-snug">
+             <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5 line-clamp-2 leading-snug">
                {alert.description}
              </p>
           </div>

@@ -124,48 +124,7 @@ function MobileRestrictionGuard() {
     }
   };
 
-  if (
-    isMobile &&
-    !canUseMobileApp &&
-    isAuthenticated &&
-    pathname !== "/login" &&
-    pathname !== "/setup"
-  ) {
-    return (
-      <div className="fixed bottom-0 left-0 right-0 z-[9999] p-4 pointer-events-none">
-        <Card
-          id="mobile-restriction-banner"
-          className="max-w-md mx-auto w-full border-border/40 shadow-2xl bg-card text-card-foreground pointer-events-auto"
-        >
-          <CardHeader className="pb-2 flex flex-row items-start gap-4 space-y-0">
-            <div className="w-10 h-10 bg-destructive/10 text-destructive rounded-full flex shrink-0 items-center justify-center">
-              <Lock className="h-5 w-5" />
-            </div>
-            <div>
-              <CardTitle className="text-lg font-bold font-serif tracking-tight">
-                📱 Mobile Access Locked
-              </CardTitle>
-              <CardDescription className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                {getUpgradeMessage(
-                  "mobile_access",
-                  "Mobile access is a premium feature. Please upgrade your plan to access your dashboard on the go.",
-                )}
-              </CardDescription>
-            </div>
-          </CardHeader>
-          <CardFooter className="pt-2 pb-4">
-            <Button
-              className="w-full bg-primary hover:bg-primary/95 text-primary-foreground font-bold shadow-md shadow-primary/20 h-10"
-              onClick={openBilling}
-            >
-              <ExternalLink className="h-4 w-4 mr-2" />
-              Upgrade Plan
-            </Button>
-          </CardFooter>
-        </Card>
-      </div>
-    );
-  }
+
 
   return null;
 }

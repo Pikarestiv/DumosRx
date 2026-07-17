@@ -451,8 +451,7 @@ class SyncController extends Controller
         $lastSyncedMap = $request->input('last_synced', []);
         $changes = [];
         $serverTimestamp = now()->toIso8601String();
-
-        $tables = ['products', 'stock_batches', 'categories', 'customers', 'suppliers', 'sales', 'stores', 'users', 'stock_movements', 'purchase_orders', 'purchase_order_items', 'expenses', 'payment_accounts', 'requested_products', 'supplier_payments'];
+        $tables = ['products', 'stock_batches', 'categories', 'customers', 'suppliers', 'sales', 'sale_items', 'stores', 'users', 'stock_movements', 'purchase_orders', 'purchase_order_items', 'expenses', 'payment_accounts', 'requested_products', 'supplier_payments', 'returns', 'return_items', 'prescriptions', 'prescription_items'];
 
         foreach ($tables as $table) {
             $lastSynced = $lastSyncedMap[$table] ?? null;
@@ -494,6 +493,21 @@ class SyncController extends Controller
                     $query->whereIn('id', $storeIds)->with(['user.subscriptions']);
                 } elseif ($table === 'sales') {
                     $query->whereIn('cashier_id', $userIds);
+                } elseif ($table === 'sale_items') {
+                    $saleIds = Sale::whereIn('cashier_id', $userIds)->pluck('id')->toArray();
+                    $query->whereIn('sale_id', $saleIds);
+                } elseif ($table === 'returns') {
+                    $query->whereIn('user_id', $userIds);
+                } elseif ($table === 'return_items') {
+                    $returnIds = \App\Models\SaleReturn::whereIn('user_id', $userIds)->pluck('id')->toArray();
+                    $query->whereIn('return_id', $returnIds);
+                } elseif ($table === 'prescriptions') {
+                    $customerIds = Customer::where('user_id', $ownerId)->pluck('id')->toArray();
+                    $query->whereIn('customer_id', $customerIds);
+                } elseif ($table === 'prescription_items') {
+                    $customerIds = Customer::where('user_id', $ownerId)->pluck('id')->toArray();
+                    $prescriptionIds = \App\Models\Prescription::whereIn('customer_id', $customerIds)->pluck('id')->toArray();
+                    $query->whereIn('prescription_id', $prescriptionIds);
                 } elseif ($table === 'purchase_orders') {
                     $query->whereIn('ordered_by', $userIds);
                 } elseif ($table === 'purchase_order_items') {
@@ -635,6 +649,8 @@ class SyncController extends Controller
             'return_items' => \App\Models\SaleReturnItem::class,
             'requested_products' => RequestedProduct::class,
             'supplier_payments' => \App\Models\SupplierPayment::class,
+            'prescriptions' => \App\Models\Prescription::class,
+            'prescription_items' => \App\Models\PrescriptionItem::class,
         ];
         return $map[$tableName] ?? null;
     }

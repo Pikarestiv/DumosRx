@@ -37,15 +37,16 @@ export function PinEntry({
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 20 }}
-      className="flex-1 flex flex-col justify-between sm:justify-start sm:space-y-6"
+      className="flex-1 flex flex-col justify-between sm:justify-start sm:gap-y-6"
     >
-      <div className="flex flex-col items-center space-y-2 sm:space-y-5 pt-2 sm:pt-0 pb-0 sm:pb-2">
+      <div className="flex flex-col items-center mb-4 gap-y-2 sm:gap-y-5 pb-0 sm:pb-2">
         <Avatar className="h-12 w-12 sm:h-16 sm:w-16 shadow-md ring-1 ring-border/50">
           <AvatarFallback className="bg-primary/10 text-primary text-xl font-medium">
             {getUserInitials(selectedUser.first_name, selectedUser.last_name)}
           </AvatarFallback>
         </Avatar>
-        <div className="text-center space-y-1">
+
+        <div className="text-center gap-y-1">
           <h2 className="text-xl font-semibold text-foreground">
             Welcome back, {selectedUser.first_name}
           </h2>
@@ -57,7 +58,7 @@ export function PinEntry({
 
       <form
         onSubmit={handleLogin}
-        className="flex-1 flex flex-col justify-end sm:justify-start space-y-2 sm:space-y-4"
+        className="flex-1 flex flex-col justify-end sm:justify-start space-y-4 sm:space-y-4"
       >
         <div className="flex-1 flex flex-col justify-center sm:block sm:space-y-2">
           <Label htmlFor="pin" className="sr-only">
@@ -84,29 +85,20 @@ export function PinEntry({
               className="md:input-mode-numeric"
               containerClassName="gap-2"
             >
-              <InputOTPGroup className="gap-2 sm:gap-3">
-                <InputOTPSlot
-                  index={0}
-                  className="w-12 h-14 sm:w-14 sm:h-16 text-2xl font-semibold rounded-xl border border-border/60 shadow-sm transition-all focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary"
-                />
-                <InputOTPSlot
-                  index={1}
-                  className="w-12 h-14 sm:w-14 sm:h-16 text-2xl font-semibold rounded-xl border border-border/60 shadow-sm transition-all focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary"
-                />
-                <InputOTPSlot
-                  index={2}
-                  className="w-12 h-14 sm:w-14 sm:h-16 text-2xl font-semibold rounded-xl border border-border/60 shadow-sm transition-all focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary"
-                />
-                <InputOTPSlot
-                  index={3}
-                  className="w-12 h-14 sm:w-14 sm:h-16 text-2xl font-semibold rounded-xl border border-border/60 shadow-sm transition-all focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary"
-                />
+              <InputOTPGroup className="gap-2 sm:gap-3 w-full max-w-[280px] justify-center mx-auto">
+                {[0, 1, 2, 3].map((idx) => (
+                  <InputOTPSlot
+                    key={idx}
+                    index={idx}
+                    className="flex-1 min-w-0 h-auto aspect-square max-w-[56px] text-2xl sm:text-3xl font-semibold rounded-xl border border-border/60 shadow-sm transition-all focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary"
+                  />
+                ))}
               </InputOTPGroup>
             </InputOTP>
           </motion.div>
         </div>
 
-        <div className="md:hidden mt-auto mb-1">
+        <div className="md:hidden mt-auto mb-3">
           <PinPad value={pin} onChange={setPin} maxLength={4} />
         </div>
 

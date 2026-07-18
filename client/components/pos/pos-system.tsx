@@ -8,7 +8,6 @@ import { usePOSCart } from "@/lib/hooks/use-pos-cart";
 import { usePOSPayment } from "@/lib/hooks/use-pos-payment";
 import { useSmartSuggestions } from "@/hooks/use-smart-suggestions";
 import { searchProducts } from "@/lib/utils/search";
-// UI Components
 import { POSLayoutHeader } from "./pos-layout-header";
 import { useQuery } from "@tanstack/react-query";
 import { getHeldTransactionCount } from "@/lib/db/queries/sales";
@@ -23,7 +22,6 @@ import { ReturnDialog } from "./return-dialog";
 import { HeldTransactionsDialog } from "./held-transactions-dialog";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { POSMobileCartDrawer } from "./pos-mobile-cart-drawer";
-// Custom Hooks
 import { usePOSData, Customer } from "@/lib/hooks/use-pos-data";
 import { usePOSPrescription } from "@/lib/hooks/use-pos-prescription";
 import { usePOSHeldTransactions } from "@/lib/hooks/use-pos-held-transactions";
@@ -41,14 +39,11 @@ export function POSSystem() {
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   };
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
-    null,
-  );
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [showReturnDialog, setShowReturnDialog] = useState(false);
   const [saleToReturn, setSaleToReturn] = useState<any>(null);
   const [showHeldDialog, setShowHeldDialog] = useState(false);
   const [showClearCartDialog, setShowClearCartDialog] = useState(false);
-  // 1. Fetch Data
   const { data: heldSalesCountData } = useQuery({
     queryKey: ["heldTransactionsCount"],
     queryFn: () => getHeldTransactionCount(),
@@ -66,7 +61,6 @@ export function POSSystem() {
     loadingCustomers,
     paymentAccounts,
   } = usePOSData();
-  // 2. Cart Logic
   const {
     cart,
     addToCart,
@@ -83,21 +77,11 @@ export function POSSystem() {
     setDiscount,
     setDiscountType,
   } = usePOSCart(products);
-  // 3. Suggestions
-  const { canUseSmartSuggestions, withRestriction } =
-    useFeatureGate();
+  const { canUseSmartSuggestions, withRestriction } = useFeatureGate();
   const { suggestions } = useSmartSuggestions(cart, products);
-  // 4. Payment Config
   const requirePaymentAccount = storeProfile?.require_payment_account === 1;
   let enabledPaymentMethods = ["cash", "card", "transfer", "credit", "mixed"];
-  try {
-    if (storeProfile?.enabled_payment_methods) {
-      enabledPaymentMethods = JSON.parse(storeProfile.enabled_payment_methods);
-    }
-  } catch (_e) {
-    // default
-  }
-  // 4.5. Dispense Prescription Logic
+  try { if (storeProfile?.enabled_payment_methods) enabledPaymentMethods = JSON.parse(storeProfile.enabled_payment_methods); } catch (_e) {}
   const { dispensedRxId, setDispensedRxId } = usePOSPrescription({
     searchParams,
     products,
@@ -106,7 +90,6 @@ export function POSSystem() {
     router,
     pathname,
   });
-  // 5. Payment Logic
   const {
     paymentMethod,
     setPaymentMethod,
@@ -139,7 +122,6 @@ export function POSSystem() {
     dispensedRxId,
     setDispensedRxId,
   });
-  // 7. Keyboard Shortcuts Logic
   usePOSKeyboardShortcuts({
     searchInputRef,
     cartLength: cart.length,
@@ -153,7 +135,6 @@ export function POSSystem() {
     setShowClearCartDialog,
     setPaymentMethod,
   });
-  // 8. Held Transactions Logic
   const { handleHoldTransaction, handleRecallTransaction } =
     usePOSHeldTransactions({
       cart,
@@ -166,7 +147,6 @@ export function POSSystem() {
       customers,
       setShowHeldDialog,
     });
-  // 9. Search & Filter
   const { results: filteredProducts, isFuzzyFallback } = React.useMemo(() => {
     return searchProducts(searchTerm, products);
   }, [searchTerm, products]);

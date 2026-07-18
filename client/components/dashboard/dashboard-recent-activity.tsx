@@ -2,12 +2,7 @@
 
 import { Activity } from "lucide-react";
 import Link from "next/link";
-import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
-  CardTitle 
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ShoppingCart, PackagePlus, FileText } from "lucide-react";
 
 interface ActivityItem {
@@ -21,23 +16,26 @@ interface ActivityItem {
 
 interface DashboardRecentActivityProps {
   activities: ActivityItem[];
-  storeTerm?: string;
   getActivityColor: (type: string) => string;
   onActivityClick?: (activity: ActivityItem) => void;
 }
 
 export function DashboardRecentActivity({
   activities,
-   
+
   getActivityColor,
-  onActivityClick
+  onActivityClick,
 }: DashboardRecentActivityProps) {
   const getActivityIcon = (type: string) => {
     switch (type) {
-      case "sale": return ShoppingCart;
-      case "stock_movement": return PackagePlus;
-      case "prescription": return FileText;
-      default: return Activity;
+      case "sale":
+        return ShoppingCart;
+      case "stock_movement":
+        return PackagePlus;
+      case "prescription":
+        return FileText;
+      default:
+        return Activity;
     }
   };
 
@@ -49,8 +47,8 @@ export function DashboardRecentActivity({
             Recent Activity
           </CardTitle>
         </div>
-        <Link 
-          href="/reports" 
+        <Link
+          href="/reports"
           className="text-xs font-medium text-primary hover:text-primary/80 flex items-center shrink-0 whitespace-nowrap"
         >
           View All
@@ -74,8 +72,8 @@ export function DashboardRecentActivity({
                   key={activity.id}
                   className={`group flex items-center justify-between py-3 border-b border-border/50 last:border-0 transition-all duration-200 ${
                     onActivityClick
-                      ? 'cursor-pointer hover:bg-muted/30 sm:px-2 rounded-lg -mx-2 px-2'
-                      : ''
+                      ? "cursor-pointer hover:bg-muted/30 sm:px-2 rounded-lg -mx-2 px-2"
+                      : ""
                   }`}
                   onClick={() => onActivityClick && onActivityClick(activity)}
                 >
@@ -86,16 +84,25 @@ export function DashboardRecentActivity({
                       <Icon className="h-5 w-5" />
                     </div>
                     <div className="flex flex-col overflow-hidden">
-                      <p className="text-sm font-medium text-foreground truncate">{activity.message.split(':')[0]}</p>
-                      <p className="text-xs text-muted-foreground truncate">{activity.message.split(':')[1]?.trim()}</p>
+                      <p className="text-sm font-medium text-foreground truncate">
+                        {activity.message.split(":")[0]}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {activity.message.split(":")[1]?.trim()}
+                      </p>
                     </div>
                   </div>
                   <div className="flex flex-col items-end shrink-0 pl-3">
                     {activity.amount && (
-                      <span className="text-sm font-semibold text-foreground">{activity.amount}</span>
+                      <span className="text-sm font-semibold text-foreground">
+                        {activity.amount}
+                      </span>
                     )}
                     <span className="text-[11px] sm:text-xs text-muted-foreground font-medium">
-                      {new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {new Date(activity.timestamp).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
                     </span>
                   </div>
                 </div>

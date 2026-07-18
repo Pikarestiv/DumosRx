@@ -66,9 +66,9 @@ export function POSCustomerSelector({
       setNewLastName("");
       setNewPhone("");
     },
-    onError: (error) => {
+    onError: (_error) => {
       toast.error("Failed to create customer");
-    }
+    },
   });
 
   const handleAddCustomer = () => {
@@ -83,15 +83,16 @@ export function POSCustomerSelector({
     });
   };
 
-  const filteredCustomers = customers.filter(c => {
+  const filteredCustomers = customers.filter((c) => {
     const term = search.toLowerCase();
     const fullName = `${c.first_name} ${c.last_name}`.toLowerCase();
     return fullName.includes(term) || (c.phone && c.phone.includes(term));
   });
 
   // get initials
-  const initials = selectedCustomer 
-    ? `${selectedCustomer.first_name[0] || ""}${selectedCustomer.last_name?.[0] || ""}`.toUpperCase() || "C"
+  const initials = selectedCustomer
+    ? `${selectedCustomer.first_name[0] || ""}${selectedCustomer.last_name?.[0] || ""}`.toUpperCase() ||
+      "C"
     : "WI";
 
   const handleClear = (e: React.MouseEvent) => {
@@ -107,7 +108,7 @@ export function POSCustomerSelector({
       </div>
 
       {/* Trigger */}
-      <div 
+      <div
         className="flex items-center gap-2.5 px-3 py-2.5 bg-primary/5 border border-primary/20 rounded-[10px] cursor-pointer hover:bg-primary/10 transition-colors"
         onClick={() => setOpen(true)}
       >
@@ -116,18 +117,21 @@ export function POSCustomerSelector({
         </div>
         <div className="flex-1 text-left">
           <div className="text-[12.5px] font-semibold text-foreground">
-            {selectedCustomer 
+            {selectedCustomer
               ? `${selectedCustomer.first_name} ${selectedCustomer.last_name || ""}`
               : "Walk-in customer"}
           </div>
           <div className="text-[11px] text-muted-foreground">
-            {selectedCustomer 
+            {selectedCustomer
               ? `${selectedCustomer.phone || "No phone"} • ${selectedCustomer.loyalty_points || 0} pts`
               : "Tap to search or add"}
           </div>
         </div>
         {selectedCustomer ? (
-          <X className="w-4 h-4 text-muted-foreground hover:text-foreground shrink-0" onClick={handleClear} />
+          <X
+            className="w-4 h-4 text-muted-foreground hover:text-foreground shrink-0"
+            onClick={handleClear}
+          />
         ) : (
           <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
         )}
@@ -149,44 +153,48 @@ export function POSCustomerSelector({
             />
           </div>
 
-          <div 
+          <div
             className="flex items-center gap-2.5 px-3 py-[11px] border border-dashed border-border rounded-xl cursor-pointer text-primary hover:bg-primary/5 transition-colors mt-0.5"
             onClick={() => setShowAddForm(!showAddForm)}
           >
             <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
               <UserPlus className="w-[15px] h-[15px]" />
             </div>
-            <span className="text-[12.5px] font-semibold">Add new customer</span>
+            <span className="text-[12.5px] font-semibold">
+              Add new customer
+            </span>
           </div>
 
           {showAddForm && (
             <div className="flex flex-col gap-3 p-3 bg-muted/50 border border-border rounded-xl">
               <div className="flex gap-2.5">
-                <Input 
-                  placeholder="First name" 
+                <Input
+                  placeholder="First name"
                   value={newFirstName}
                   onChange={(e) => setNewFirstName(e.target.value)}
                   className="flex-1 h-9"
                 />
-                <Input 
-                  placeholder="Last name" 
+                <Input
+                  placeholder="Last name"
                   value={newLastName}
                   onChange={(e) => setNewLastName(e.target.value)}
                   className="flex-1 h-9"
                 />
               </div>
-              <Input 
-                placeholder="Phone number" 
+              <Input
+                placeholder="Phone number"
                 value={newPhone}
                 onChange={(e) => setNewPhone(e.target.value)}
                 className="h-9"
               />
-              <Button 
-                onClick={handleAddCustomer} 
+              <Button
+                onClick={handleAddCustomer}
                 disabled={createCustomerMutation.isPending}
                 className="w-full font-bold"
               >
-                {createCustomerMutation.isPending ? "Saving..." : "Save & select"}
+                {createCustomerMutation.isPending
+                  ? "Saving..."
+                  : "Save & select"}
               </Button>
             </div>
           )}
@@ -197,7 +205,7 @@ export function POSCustomerSelector({
 
           <div className="overflow-y-auto max-h-[300px] -mx-1 px-1 pb-4">
             <div className="flex flex-col gap-2.5">
-              <div 
+              <div
                 className="flex items-center gap-3 px-3 py-[11px] border border-border rounded-xl cursor-pointer hover:border-primary hover:bg-primary/5 transition-colors"
                 onClick={() => {
                   onSelectCustomer(null);
@@ -208,8 +216,12 @@ export function POSCustomerSelector({
                   WI
                 </div>
                 <div className="flex-1">
-                  <div className="text-[13px] font-semibold">Walk-in customer</div>
-                  <div className="text-[11.5px] text-muted-foreground mt-0.5">No account needed</div>
+                  <div className="text-[13px] font-semibold">
+                    Walk-in customer
+                  </div>
+                  <div className="text-[11.5px] text-muted-foreground mt-0.5">
+                    No account needed
+                  </div>
                 </div>
                 {!selectedCustomer && (
                   <div className="text-[10.5px] font-bold px-2 py-[3px] rounded-md whitespace-nowrap bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
@@ -219,13 +231,17 @@ export function POSCustomerSelector({
               </div>
 
               {loadingCustomers ? (
-                <div className="text-center py-4 text-sm text-muted-foreground">Loading customers...</div>
+                <div className="text-center py-4 text-sm text-muted-foreground">
+                  Loading customers...
+                </div>
               ) : (
-                filteredCustomers.map(c => {
-                  const custInitials = `${c.first_name[0] || ""}${c.last_name?.[0] || ""}`.toUpperCase() || "C";
+                filteredCustomers.map((c) => {
+                  const custInitials =
+                    `${c.first_name[0] || ""}${c.last_name?.[0] || ""}`.toUpperCase() ||
+                    "C";
                   const isSelected = selectedCustomer?.id === c.id;
                   return (
-                    <div 
+                    <div
                       key={c.id}
                       className="flex items-center gap-3 px-3 py-[11px] border border-border rounded-xl cursor-pointer hover:border-primary hover:bg-primary/5 transition-colors"
                       onClick={() => {
@@ -237,8 +253,12 @@ export function POSCustomerSelector({
                         {custInitials}
                       </div>
                       <div className="flex-1 overflow-hidden">
-                        <div className="text-[13px] font-semibold truncate">{c.first_name} {c.last_name}</div>
-                        <div className="text-[11.5px] text-muted-foreground mt-0.5 truncate">{c.phone || "No phone"}</div>
+                        <div className="text-[13px] font-semibold truncate">
+                          {c.first_name} {c.last_name}
+                        </div>
+                        <div className="text-[11.5px] text-muted-foreground mt-0.5 truncate">
+                          {c.phone || "No phone"}
+                        </div>
                       </div>
                       <div className="text-[10.5px] font-bold px-2 py-[3px] rounded-md whitespace-nowrap bg-primary/10 text-primary flex items-center gap-1">
                         {isSelected && <Check className="w-3 h-3" />}

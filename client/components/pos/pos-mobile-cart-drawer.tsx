@@ -1,17 +1,15 @@
 import { useState } from "react";
-import { Drawer, DrawerContent, DrawerTrigger, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerTrigger,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
 import { ChevronUp, ShoppingCart } from "lucide-react";
 import { POSCustomerSelector } from "./pos-customer-selector";
 import { POSCart } from "./pos-cart";
 import { formatCurrency } from "@/lib/utils";
-
-interface Customer {
-  id: string;
-  first_name: string;
-  last_name: string;
-  phone: string;
-  loyalty_points: number;
-}
 
 export function POSMobileCartDrawer({
   cart,
@@ -49,8 +47,12 @@ export function POSMobileCartDrawer({
               </div>
             </div>
             <div className="flex flex-col">
-              <span className="text-[13.5px] font-medium text-white/90 leading-[1.2] mb-0.5">{cart.length} items</span>
-              <span className="text-[19px] font-bold leading-[1.2] tracking-tight">{formatCurrency(total, currencyCode)}</span>
+              <span className="text-[13.5px] font-medium text-white/90 leading-[1.2] mb-0.5">
+                {cart.length} items
+              </span>
+              <span className="text-[19px] font-bold leading-[1.2] tracking-tight">
+                {formatCurrency(total, currencyCode)}
+              </span>
             </div>
           </div>
           <ChevronUp className="w-6 h-6 mr-1 opacity-90" />

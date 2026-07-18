@@ -72,7 +72,7 @@ export function POSLayoutHeader({
               value={searchTerm}
               onChange={(e) => onSearchChange(e.target.value)}
               onKeyDown={onKeyDown}
-              className="h-12 pl-10 pr-10 bg-muted/30 border-border/50 hover:border-border focus:border-primary focus:ring-1 focus:ring-primary rounded-xl text-sm transition-all w-full"
+              className="h-10 pl-10 pr-10 bg-muted/30 border-border/50 hover:border-border focus:border-primary focus:ring-1 focus:ring-primary rounded-xl text-sm transition-all w-full"
             />
             {searchTerm && (
               <button
@@ -86,7 +86,7 @@ export function POSLayoutHeader({
             )}
           </div>
           <Button
-            className="flex items-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl h-12"
+            className="flex items-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl h-10 px-4"
             onClick={() => setIsScannerOpen(true)}
           >
             <Scan className="h-4 w-4" />

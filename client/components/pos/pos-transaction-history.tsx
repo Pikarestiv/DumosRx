@@ -2,9 +2,14 @@
 
 import React, { useState, useMemo } from "react";
 import { format, isToday, isYesterday, parseISO } from "date-fns";
-import { 
-  Receipt, RotateCcw, Banknote, CreditCard, 
-  ArrowLeftRight, Search, Filter
+import {
+  Receipt,
+  RotateCcw,
+  Banknote,
+  CreditCard,
+  ArrowLeftRight,
+  Search,
+  Filter,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,23 +36,35 @@ interface POSTransactionHistoryProps {
 export function POSTransactionHistory({
   recentSales,
   onReturnClick,
-  currencyCode
+  currencyCode,
 }: POSTransactionHistoryProps) {
   const [selectedSale, setSelectedSale] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFilter, setDateFilter] = useState<string>("All");
   const [paymentFilter, setPaymentFilter] = useState<string>("All");
-  
+
   const { user } = useAuth();
-  const canReturn = user?.role === "store_owner" || user?.role === "admin" || user?.role === "manager";
+  const canReturn =
+    user?.role === "store_owner" ||
+    user?.role === "admin" ||
+    user?.role === "manager";
 
   // Compute metrics for "Today"
   const todayMetrics = useMemo(() => {
-    const todaySales = (recentSales || []).filter(s => s.created_at && isToday(parseISO(s.created_at)));
-    
-    const totalSales = todaySales.reduce((acc, s) => acc + (Number(s.total_amount) || Number(s.total) || 0), 0);
+    const todaySales = (recentSales || []).filter(
+      (s) => s.created_at && isToday(parseISO(s.created_at)),
+    );
+
+    const totalSales = todaySales.reduce(
+      (acc, s) => acc + (Number(s.total_amount) || Number(s.total) || 0),
+      0,
+    );
     const transactions = todaySales.length;
-    const refunded = todaySales.filter(s => s.payment_status?.toLowerCase() === 'refunded' || s.status?.toLowerCase() === 'refunded').length;
+    const refunded = todaySales.filter(
+      (s) =>
+        s.payment_status?.toLowerCase() === "refunded" ||
+        s.status?.toLowerCase() === "refunded",
+    ).length;
     const avgBasket = transactions > 0 ? totalSales / transactions : 0;
 
     return { totalSales, transactions, refunded, avgBasket };
@@ -55,24 +72,30 @@ export function POSTransactionHistory({
 
   // Filtered sales
   const filteredSales = useMemo(() => {
-    return (recentSales || []).filter(sale => {
+    return (recentSales || []).filter((sale) => {
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
-        const matchesCustomer = (sale.customer_name || 'Walk-in').toLowerCase().includes(q);
-        const matchesReceipt = sale.transaction_number?.toLowerCase().includes(q);
+        const matchesCustomer = (sale.customer_name || "Walk-in")
+          .toLowerCase()
+          .includes(q);
+        const matchesReceipt = sale.transaction_number
+          ?.toLowerCase()
+          .includes(q);
         if (!matchesCustomer && !matchesReceipt) return false;
       }
-      
-      if (dateFilter === 'Today') {
-        if (!sale.created_at || !isToday(parseISO(sale.created_at))) return false;
-      } else if (dateFilter === 'This week') {
+
+      if (dateFilter === "Today") {
+        if (!sale.created_at || !isToday(parseISO(sale.created_at)))
+          return false;
+      } else if (dateFilter === "This week") {
         if (!sale.created_at) return false;
         const diff = Date.now() - new Date(sale.created_at).getTime();
         if (diff > 7 * 24 * 60 * 60 * 1000) return false;
       }
 
-      if (paymentFilter !== 'All') {
-        if (sale.payment_method?.toLowerCase() !== paymentFilter.toLowerCase()) return false;
+      if (paymentFilter !== "All") {
+        if (sale.payment_method?.toLowerCase() !== paymentFilter.toLowerCase())
+          return false;
       }
 
       return true;
@@ -82,13 +105,13 @@ export function POSTransactionHistory({
   // Group by relative date
   const groupedSales = useMemo(() => {
     const groups: { [key: string]: any[] } = {
-      "TODAY": [],
-      "YESTERDAY": [],
+      TODAY: [],
+      YESTERDAY: [],
       "THIS WEEK": [],
-      "OLDER": []
+      OLDER: [],
     };
 
-    filteredSales.forEach(sale => {
+    filteredSales.forEach((sale) => {
       if (!sale.created_at) {
         groups["OLDER"].push(sale);
         return;
@@ -114,8 +137,8 @@ export function POSTransactionHistory({
   return (
     <div className="flex flex-col gap-6">
       <TransactionMetrics metrics={todayMetrics} currencyCode={currencyCode} />
-      
-      <TransactionFilters 
+
+      <TransactionFilters
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         dateFilter={dateFilter}
@@ -123,8 +146,8 @@ export function POSTransactionHistory({
         paymentFilter={paymentFilter}
         setPaymentFilter={setPaymentFilter}
       />
-      
-      <TransactionList 
+
+      <TransactionList
         groupedSales={groupedSales}
         currencyCode={currencyCode}
         canReturn={canReturn}
@@ -148,18 +171,36 @@ export function POSTransactionHistory({
 // Subcomponents
 // ============================================================================
 
-function TransactionMetrics({ metrics, currencyCode }: { metrics: any, currencyCode?: string }) {
+function TransactionMetrics({
+  metrics,
+  currencyCode,
+}: {
+  metrics: any;
+  currencyCode?: string;
+}) {
   return (
-    <div className="flex overflow-x-auto gap-4 pb-2 -mx-4 px-4 md:mx-0 md:px-0 md:grid md:grid-cols-4 hide-scrollbar snap-x snap-mandatory">
-      <MetricCard title="Today's sales" value={formatCurrency(metrics.totalSales, currencyCode)} />
+    <div className="flex overflow-x-auto gap-4 pb-2 px-4 md:mx-0 md:px-0 md:grid md:grid-cols-4 hide-scrollbar snap-x snap-mandatory">
+      <MetricCard
+        title="Today's sales"
+        value={formatCurrency(metrics.totalSales, currencyCode)}
+      />
       <MetricCard title="Transactions" value={metrics.transactions} />
       <MetricCard title="Refunded" value={metrics.refunded} />
-      <MetricCard title="Avg. basket" value={formatCurrency(metrics.avgBasket, currencyCode)} />
+      <MetricCard
+        title="Avg. basket"
+        value={formatCurrency(metrics.avgBasket, currencyCode)}
+      />
     </div>
   );
 }
 
-function MetricCard({ title, value }: { title: string; value: React.ReactNode }) {
+function MetricCard({
+  title,
+  value,
+}: {
+  title: string;
+  value: React.ReactNode;
+}) {
   return (
     <div className="bg-card text-card-foreground p-3 shadow-sm border border-border/50 min-w-[130px] shrink-0 md:min-w-0 rounded-xl flex flex-col justify-center snap-start">
       <p className="text-sm text-muted-foreground font-medium mb-1">{title}</p>
@@ -168,55 +209,110 @@ function MetricCard({ title, value }: { title: string; value: React.ReactNode })
   );
 }
 
-function TransactionFilters({ 
-  searchQuery, setSearchQuery, 
-  dateFilter, setDateFilter, 
-  paymentFilter, setPaymentFilter 
+function TransactionFilters({
+  searchQuery,
+  setSearchQuery,
+  dateFilter,
+  setDateFilter,
+  paymentFilter,
+  setPaymentFilter,
 }: any) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex gap-2">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input 
-            placeholder="Search receipt or customer" 
+          <Input
+            placeholder="Search receipt or customer"
             className="pl-9 h-12 rounded-xl bg-background border-border/50"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <Button variant="outline" className="h-12 w-12 rounded-xl border-border/50 shrink-0">
+        <Button
+          variant="outline"
+          className="h-12 w-12 rounded-xl border-border/50 shrink-0"
+        >
           <Filter className="h-4 w-4 text-muted-foreground" />
         </Button>
       </div>
 
       <div className="flex overflow-x-auto gap-2 pb-2 -mx-4 px-4 md:mx-0 md:px-0 hide-scrollbar flex-nowrap md:flex-wrap">
-        <FilterPill label="All" current={dateFilter} onClick={() => setDateFilter('All')} />
-        <FilterPill label="Today" current={dateFilter} onClick={() => setDateFilter(dateFilter === 'Today' ? 'All' : 'Today')} />
-        <FilterPill label="This week" current={dateFilter} onClick={() => setDateFilter(dateFilter === 'This week' ? 'All' : 'This week')} />
-        
-        <FilterPill label="Cash" current={paymentFilter} onClick={() => setPaymentFilter(paymentFilter === 'Cash' ? 'All' : 'Cash')} />
-        <FilterPill label="Card" current={paymentFilter} onClick={() => setPaymentFilter(paymentFilter === 'Card' ? 'All' : 'Card')} />
-        <FilterPill label="Transfer" current={paymentFilter} onClick={() => setPaymentFilter(paymentFilter === 'Transfer' ? 'All' : 'Transfer')} />
+        <FilterPill
+          label="All"
+          current={dateFilter}
+          onClick={() => setDateFilter("All")}
+        />
+        <FilterPill
+          label="Today"
+          current={dateFilter}
+          onClick={() =>
+            setDateFilter(dateFilter === "Today" ? "All" : "Today")
+          }
+        />
+        <FilterPill
+          label="This week"
+          current={dateFilter}
+          onClick={() =>
+            setDateFilter(dateFilter === "This week" ? "All" : "This week")
+          }
+        />
+
+        <FilterPill
+          label="Cash"
+          current={paymentFilter}
+          onClick={() =>
+            setPaymentFilter(paymentFilter === "Cash" ? "All" : "Cash")
+          }
+        />
+        <FilterPill
+          label="Card"
+          current={paymentFilter}
+          onClick={() =>
+            setPaymentFilter(paymentFilter === "Card" ? "All" : "Card")
+          }
+        />
+        <FilterPill
+          label="Transfer"
+          current={paymentFilter}
+          onClick={() =>
+            setPaymentFilter(paymentFilter === "Transfer" ? "All" : "Transfer")
+          }
+        />
       </div>
     </div>
   );
 }
 
-function FilterPill({ label, current, onClick }: { label: string; current: string; onClick: () => void }) {
+function FilterPill({
+  label,
+  current,
+  onClick,
+}: {
+  label: string;
+  current: string;
+  onClick: () => void;
+}) {
   const isActive = current === label;
   return (
-    <Button 
-      variant={isActive ? 'default' : 'outline'} 
-      onClick={onClick} 
-      className={`rounded-full h-9 px-5 shrink-0 ${isActive ? 'bg-blue-600 hover:bg-blue-700 text-white border-0' : 'bg-background border-border/50 text-foreground hover:bg-muted/50'}`}
+    <Button
+      variant={isActive ? "default" : "outline"}
+      onClick={onClick}
+      className={`rounded-full h-9 px-5 shrink-0 transition-colors ${isActive ? "bg-primary hover:bg-primary/90 text-primary-foreground border-0" : "bg-background border-border/50 text-foreground hover:bg-muted/50"}`}
     >
       {label}
     </Button>
   );
 }
 
-function TransactionList({ groupedSales, currencyCode, canReturn, onSelectSale, onReturnClick, hasFilters }: any) {
+function TransactionList({
+  groupedSales,
+  currencyCode,
+  canReturn,
+  onSelectSale,
+  onReturnClick,
+  hasFilters,
+}: any) {
   if (hasFilters) {
     return (
       <div className="text-center py-10 text-muted-foreground border rounded-xl border-dashed">
@@ -236,7 +332,7 @@ function TransactionList({ groupedSales, currencyCode, canReturn, onSelectSale, 
             </h3>
             <div className="flex flex-col gap-3">
               {sales.map((sale: any) => (
-                <TransactionItem 
+                <TransactionItem
                   key={sale.id}
                   sale={sale}
                   currencyCode={currencyCode}
@@ -253,61 +349,115 @@ function TransactionList({ groupedSales, currencyCode, canReturn, onSelectSale, 
   );
 }
 
-function TransactionItem({ sale, currencyCode, canReturn, onClick, onReturnClick }: any) {
-  const time = sale.created_at ? format(parseISO(sale.created_at), 'h:mm a') : '';
+function TransactionItem({
+  sale,
+  currencyCode,
+  canReturn,
+  onClick,
+  onReturnClick,
+}: any) {
+  const time = sale.created_at
+    ? format(parseISO(sale.created_at), "h:mm a")
+    : "";
   const itemCount = sale.item_count || 1;
   const amount = Number(sale.total_amount) || Number(sale.total) || 0;
 
   const getPaymentIcon = (method: string) => {
     switch (method?.toLowerCase()) {
-      case 'cash': return <Banknote className="h-5 w-5 text-emerald-600" />;
-      case 'card': return <CreditCard className="h-5 w-5 text-blue-600" />;
-      case 'transfer': return <ArrowLeftRight className="h-5 w-5 text-purple-600" />;
-      default: return <Receipt className="h-5 w-5 text-gray-600" />;
+      case "cash":
+        return <Banknote className="h-5 w-5 text-emerald-600" />;
+      case "card":
+        return <CreditCard className="h-5 w-5 text-blue-600" />;
+      case "transfer":
+        return <ArrowLeftRight className="h-5 w-5 text-purple-600" />;
+      default:
+        return <Receipt className="h-5 w-5 text-gray-600" />;
     }
   };
 
   const getPaymentIconBg = (method: string) => {
     switch (method?.toLowerCase()) {
-      case 'cash': return "bg-emerald-100";
-      case 'card': return "bg-blue-100";
-      case 'transfer': return "bg-purple-100";
-      default: return "bg-gray-100";
+      case "cash":
+        return "bg-emerald-100";
+      case "card":
+        return "bg-blue-100";
+      case "transfer":
+        return "bg-purple-100";
+      default:
+        return "bg-gray-100";
     }
   };
 
   const getStatusBadge = (status: string) => {
-    const s = status?.toLowerCase() || 'completed';
-    if (s === 'completed') return <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100/80 border-0">Completed</Badge>;
-    if (s === 'refunded') return <Badge variant="secondary" className="bg-red-100 text-red-700 hover:bg-red-100/80 border-0">Refunded</Badge>;
-    if (s === 'resumed hold') return <Badge variant="secondary" className="bg-amber-100 text-amber-700 hover:bg-amber-100/80 border-0">Resumed hold</Badge>;
-    return <Badge variant="secondary" className="bg-gray-100 text-gray-700 hover:bg-gray-100/80 border-0 capitalize">{s}</Badge>;
+    const s = status?.toLowerCase() || "completed";
+    if (s === "completed")
+      return (
+        <Badge
+          variant="secondary"
+          className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100/80 border-0"
+        >
+          Completed
+        </Badge>
+      );
+    if (s === "refunded")
+      return (
+        <Badge
+          variant="secondary"
+          className="bg-red-100 text-red-700 hover:bg-red-100/80 border-0"
+        >
+          Refunded
+        </Badge>
+      );
+    if (s === "resumed hold")
+      return (
+        <Badge
+          variant="secondary"
+          className="bg-amber-100 text-amber-700 hover:bg-amber-100/80 border-0"
+        >
+          Resumed hold
+        </Badge>
+      );
+    return (
+      <Badge
+        variant="secondary"
+        className="bg-gray-100 text-gray-700 hover:bg-gray-100/80 border-0 capitalize"
+      >
+        {s}
+      </Badge>
+    );
   };
 
   return (
-    <div 
+    <div
       className="bg-card text-card-foreground p-3 rounded-2xl shadow-sm border border-border/50 cursor-pointer hover:border-primary/30 transition-colors flex items-center justify-between group"
       onClick={onClick}
     >
-      <div className="flex items-center gap-3">
-        <div className={`h-10 w-10 rounded-lg flex items-center justify-center shrink-0 ${getPaymentIconBg(sale.payment_method)}`}>
+      <div className="flex items-center gap-3 min-w-0 flex-1">
+        <div
+          className={`h-10 w-10 rounded-lg flex items-center justify-center shrink-0 ${getPaymentIconBg(sale.payment_method)}`}
+        >
           {getPaymentIcon(sale.payment_method)}
         </div>
-        <div>
-          <div className="font-bold text-[15px] text-foreground mb-0.5">
-            Sale #{sale.transaction_number} &middot; {sale.customer_name || 'Walk-in'}
+        <div className="min-w-0 flex-1">
+          <div className="font-bold text-[15px] text-foreground mb-0.5 truncate">
+            Sale #{sale.transaction_number} &middot;{" "}
+            {sale.customer_name || "Walk-in"}
           </div>
-          <div className="text-xs text-muted-foreground">
-            {time && `${time} · `}{itemCount} item{itemCount !== 1 ? 's' : ''} &middot; <span className="capitalize">{sale.payment_method || 'Unknown'}</span>
+          <div className="text-xs text-muted-foreground truncate">
+            {time && `${time} · `}
+            {itemCount} item{itemCount !== 1 ? "s" : ""} &middot;{" "}
+            <span className="capitalize">
+              {sale.payment_method || "Unknown"}
+            </span>
           </div>
         </div>
       </div>
 
       <div className="flex items-center gap-4">
         {canReturn && (
-          <Button 
-            variant="ghost" 
-            size="sm" 
+          <Button
+            variant="ghost"
+            size="sm"
             className="text-accent opacity-0 group-hover:opacity-100 transition-opacity hidden sm:flex"
             onClick={(e) => {
               e.stopPropagation();

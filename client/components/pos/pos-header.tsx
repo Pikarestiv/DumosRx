@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Zap, PauseCircle, Clock } from "lucide-react";
+import { PauseCircle, Clock, Receipt } from "lucide-react";
 import { useStore } from "@/lib/context/store-context";
 import {
   Tooltip,
@@ -13,19 +13,19 @@ import { Badge } from "@/components/ui/badge";
 import { RequestItemDialog } from "./request-item-dialog";
 
 interface POSHeaderProps {
-  posMode: "standard" | "speed";
-  setPosMode: (mode: "standard" | "speed") => void;
   handleHoldTransaction: () => void;
   cartLength: number;
   setShowHeldDialog: (show: boolean) => void;
+  completedTransaction: any;
+  setShowReceiptDialog: (show: boolean) => void;
 }
 
 export function POSHeader({
-  posMode,
-  setPosMode,
   handleHoldTransaction,
   cartLength,
   setShowHeldDialog,
+  completedTransaction,
+  setShowReceiptDialog,
 }: POSHeaderProps) {
   const { t } = useStore();
 
@@ -36,55 +36,11 @@ export function POSHeader({
   const heldSalesCount = heldSalesCountData || 0;
 
   return (
-    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-      <div className="min-w-0">
-        <h1 className="font-serif font-bold text-2xl sm:text-3xl text-foreground leading-tight">
-          Point of Sale
-        </h1>
-        <p className="text-muted-foreground mt-1 text-sm">
-          Process sales transactions and manage {t("products").toLowerCase()}{" "}
-          orders
-        </p>
-      </div>
+    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-end gap-3 pb-2 border-b border-border/50">
       {/* Action buttons — scroll horizontally when they don't fit */}
       <div className="w-full sm:w-auto overflow-x-auto scrollbar-none">
         <TooltipProvider delayDuration={700}>
           <div className="flex items-center gap-2 min-w-max">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={posMode === "standard" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setPosMode("standard")}
-                  className="cursor-pointer flex items-center gap-1.5 shrink-0"
-                >
-                  Standard View
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                Detailed view with full product search
-              </TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={posMode === "speed" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setPosMode("speed")}
-                  className="cursor-pointer flex items-center gap-1.5 shrink-0"
-                >
-                  <Zap className="h-4 w-4" />
-                  Retail Speed
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                Optimized for barcode scanning and fast checkout
-              </TooltipContent>
-            </Tooltip>
-
-            <div className="w-px h-6 bg-border mx-0.5 shrink-0" />
-
             <RequestItemDialog />
 
             <div className="w-px h-6 bg-border mx-0.5 shrink-0" />
@@ -107,33 +63,17 @@ export function POSHeader({
               </TooltipContent>
             </Tooltip>
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowHeldDialog(true)}
-                  className={`cursor-pointer flex items-center gap-1.5 shrink-0 relative ${
-                    heldSalesCount > 0
-                      ? "bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20"
-                      : ""
-                  }`}
-                >
-                  <Clock className="h-4 w-4" />
-                  Held Sales
-                  {heldSalesCount > 0 && (
-                    <Badge
-                      className="ml-1 h-5 px-1.5 text-xs font-semibold tabular-nums bg-amber-500 hover:bg-amber-600 text-white border-transparent"
-                    >
-                      {heldSalesCount}
-                    </Badge>
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                View and resume previously held transactions
-              </TooltipContent>
-            </Tooltip>
+            {completedTransaction && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
+                onClick={() => setShowReceiptDialog(true)}
+              >
+                <Receipt className="h-4 w-4" />
+                Last Receipt
+              </Button>
+            )}
           </div>
         </TooltipProvider>
       </div>

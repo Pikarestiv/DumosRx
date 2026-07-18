@@ -1,21 +1,42 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { ChevronLeft, Maximize, Search, FileClock } from "lucide-react";
+import { ChevronLeft, Maximize, Search, FileClock, Scan } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useQuery } from "@tanstack/react-query";
-import { getHeldTransactionCount } from "@/lib/db/queries/sales";
 import { cn } from "@/lib/utils";
+import { CameraScannerDialog } from "./camera-scanner-dialog";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 
-export function POSLayoutHeader() {
+interface POSLayoutHeaderProps {
+  searchTerm: string;
+  onSearchChange: (val: string) => void;
+  onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+  searchInputRef: React.RefObject<HTMLInputElement | null>;
+  heldSalesCount: number;
+  onOpenHeldSales: () => void;
+  onScanSuccess: (barcode: string) => void;
+}
+
+export function POSLayoutHeader({
+  searchTerm,
+  onSearchChange,
+  onKeyDown,
+  searchInputRef,
+  heldSalesCount,
+  onOpenHeldSales,
+  onScanSuccess
+}: POSLayoutHeaderProps) {
   const router = useRouter();
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const searchParams = useSearchParams();
 
-  const { data: heldSalesCountData } = useQuery({
-    queryKey: ['heldTransactionsCount'],
-    queryFn: () => getHeldTransactionCount()
-  });
-  const heldSalesCount = heldSalesCountData || 0;
+  useEffect(() => {
+    if (searchParams?.get("action") === "scan") {
+      setIsScannerOpen(true);
+    }
+  }, [searchParams]);
 
   return (
     <header
@@ -39,15 +60,39 @@ export function POSLayoutHeader() {
 
       {/* Center: Search (Desktop only) */}
       <div className="hidden sm:flex flex-1 max-w-md mx-4">
-        <div className="relative w-full group">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search className="h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+        <div className="relative w-full group flex gap-2">
+          <div className="relative flex-1">
+            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+              <Search className="h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+            </div>
+            <Input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Search products or SKU"
+              value={searchTerm}
+              onChange={(e) => onSearchChange(e.target.value)}
+              onKeyDown={onKeyDown}
+              className="h-12 pl-10 pr-10 bg-muted/30 border-border/50 hover:border-border focus:border-primary focus:ring-1 focus:ring-primary rounded-xl text-sm transition-all w-full"
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => onSearchChange("")}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground focus:outline-none cursor-pointer flex items-center justify-center"
+              >
+                <span className="sr-only">Clear</span>
+                <span aria-hidden="true" className="text-lg font-bold leading-none">&times;</span>
+              </button>
+            )}
           </div>
-          <Input
-            type="text"
-            placeholder="Search products or SKU"
-            className="pl-9 pr-4 py-5 bg-muted/30 border-border/50 hover:border-border focus:border-primary focus:ring-1 focus:ring-primary rounded-xl text-sm transition-all w-full"
-          />
+          <Button
+            variant="outline"
+            className="flex items-center gap-2 bg-transparent cursor-pointer rounded-xl h-12"
+            onClick={() => setIsScannerOpen(true)}
+          >
+            <Scan className="h-4 w-4" />
+            Scan
+          </Button>
         </div>
       </div>
 
@@ -73,6 +118,7 @@ export function POSLayoutHeader() {
         <Button 
           variant="outline" 
           size="icon" 
+          onClick={onOpenHeldSales}
           className={cn(
             "relative h-10 w-10 shrink-0 rounded-xl border-border/50 bg-background hover:text-foreground transition-colors",
             heldSalesCount > 0 ? "text-amber-600 hover:text-amber-700 hover:bg-amber-500/10 border-amber-500/20" : "text-muted-foreground"
@@ -86,6 +132,12 @@ export function POSLayoutHeader() {
           )}
         </Button>
       </div>
+
+      <CameraScannerDialog 
+        isOpen={isScannerOpen} 
+        onClose={() => setIsScannerOpen(false)} 
+        onScanSuccess={onScanSuccess} 
+      />
     </header>
   );
 }

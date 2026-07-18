@@ -181,11 +181,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       >
         <BroadcastBanner />
 
-        {isPosRoute ? <POSLayoutHeader /> : <DashboardHeader />}
+        {!isPosRoute && <DashboardHeader />}
 
         {/* Page content */}
         <div className="flex-1 relative overflow-x-clip">
-          <main className="p-4 sm:p-6">{children}</main>
+          <main className={isPosRoute ? "" : "p-4 sm:p-6"}>{children}</main>
         </div>
       </div>
       <DashboardTour />

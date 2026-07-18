@@ -9,7 +9,7 @@ import { ClipboardList } from "lucide-react";
 import { logRequestedProduct } from "@/lib/db/requested-products-queries";
 import { toast } from "sonner";
 
-export function RequestItemDialog() {
+export function RequestItemDialog({ triggerClassName }: { triggerClassName?: string }) {
   const [open, setOpen] = useState(false);
   const [productName, setProductName] = useState("");
   const [customerName, setCustomerName] = useState("");
@@ -43,7 +43,7 @@ export function RequestItemDialog() {
         variant="outline" 
         size="sm" 
         onClick={() => setOpen(true)}
-        className="cursor-pointer flex items-center gap-1.5 shrink-0 border-blue-500/20 text-blue-600 hover:bg-blue-500/10 hover:text-blue-700 dark:hover:text-blue-400"
+        className={triggerClassName || "cursor-pointer flex items-center gap-1.5 shrink-0 border-blue-500/20 text-blue-600 hover:bg-blue-500/10 hover:text-blue-700 dark:hover:text-blue-400"}
       >
         <ClipboardList className="h-4 w-4" />
         Request Item

@@ -70,6 +70,7 @@ export async function getProductsWithStock() {
     strength: m.strength || "",
     unit_price: m.selling_price || 0,
     stock: m.stock_quantity || 0,
+    reorder_level: m.reorder_level || 10,
     cost_price: m.avg_cost_price || 0,
     barcode: m.barcode || "",
     batch_number: m.batch_number || "",

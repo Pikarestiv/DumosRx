@@ -298,7 +298,7 @@ function FilterPill({
     <Button
       variant={isActive ? "default" : "outline"}
       onClick={onClick}
-      className={`rounded-full h-9 px-5 shrink-0 transition-colors ${isActive ? "bg-primary hover:bg-primary/90 text-primary-foreground border-0" : "bg-background border-border/50 text-foreground hover:bg-muted/50"}`}
+      className={`rounded-full h-9 px-5 shrink-0 transition-colors ${isActive ? "bg-primary hover:bg-primary/90 text-primary-foreground border-0" : "bg-background border-border/50 text-foreground hover:bg-muted/50 hover:text-foreground"}`}
     >
       {label}
     </Button>

@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ShoppingCart, Minus, Plus, Trash2, Tag, Package, PauseCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ShoppingCart, Minus, Plus, Trash2, Package, PauseCircle } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { RequestItemDialog } from "./request-item-dialog";
 

@@ -12,7 +12,6 @@ import { OnlineOrdersModal } from "@/components/pos/online-orders-modal";
 import { Lock } from "lucide-react";
 import { BroadcastBanner } from "./broadcast-banner";
 import { DashboardHeader } from "./dashboard-header";
-import { POSLayoutHeader } from "@/components/pos/pos-layout-header";
 import { DashboardSidebar } from "./dashboard-sidebar";
 import { MobileBottomNav } from "./mobile-bottom-nav";
 import { DashboardTour } from "./dashboard-tour";

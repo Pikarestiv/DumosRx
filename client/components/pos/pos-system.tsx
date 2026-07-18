@@ -11,7 +11,6 @@ import { useSmartSuggestions } from "@/hooks/use-smart-suggestions";
 import { searchProducts } from "@/lib/utils/search";
 
 // UI Components
-import { POSHeader } from "./pos-header";
 import { POSLayoutHeader } from "./pos-layout-header";
 import { useQuery } from "@tanstack/react-query";
 import { getHeldTransactionCount } from "@/lib/db/queries/sales";
@@ -97,7 +96,7 @@ export function POSSystem() {
   } = usePOSCart(products);
 
   // 3. Suggestions
-  const { canUseSmartSuggestions, canUseMobileApp, withRestriction } =
+  const { withRestriction } =
     useFeatureGate();
   const { suggestions } = useSmartSuggestions(cart, products);
 

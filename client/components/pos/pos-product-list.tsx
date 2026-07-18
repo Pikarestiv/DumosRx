@@ -1,19 +1,11 @@
 "use client";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+
+
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   PackageX,
   Package,
-  Plus,
   AlertCircle,
   Sparkles,
   Clock,
@@ -128,7 +120,6 @@ function POSProductCard({
 export function POSProductList({
   loadingProducts,
   filteredProducts,
-  productsLength,
   addToCart,
   productTerm,
   currencyCode,

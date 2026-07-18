@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { PauseCircle, Clock, Receipt } from "lucide-react";
+import { PauseCircle, Receipt } from "lucide-react";
 import { useStore } from "@/lib/context/store-context";
 import {
   Tooltip,
@@ -9,7 +9,6 @@ import {
 } from "@/components/ui/tooltip";
 import { useQuery } from "@tanstack/react-query";
 import { getHeldTransactionCount } from "@/lib/db/queries/sales";
-import { Badge } from "@/components/ui/badge";
 import { RequestItemDialog } from "./request-item-dialog";
 
 interface POSHeaderProps {
@@ -23,7 +22,6 @@ interface POSHeaderProps {
 export function POSHeader({
   handleHoldTransaction,
   cartLength,
-  setShowHeldDialog,
   completedTransaction,
   setShowReceiptDialog,
 }: POSHeaderProps) {

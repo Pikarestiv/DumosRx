@@ -52,7 +52,7 @@ function ThemeRestrictor() {
 }
 
 function MobileRestrictionGuard() {
-  const { canUseMobileApp, getUpgradeMessage } = useFeatureGate();
+  const { canUseMobileApp } = useFeatureGate();
   const { isAuthenticated } = useAuth();
   const pathname = usePathname();
   const [isMobile, setIsMobile] = useState(false);
@@ -110,22 +110,6 @@ function MobileRestrictionGuard() {
     };
   }, [isMobile, canUseMobileApp, isAuthenticated, pathname]);
 
-  const openBilling = async () => {
-    const url = `${WEB_APP_URL}/dashboard/billing`;
-    try {
-      if ((window as any).__TAURI_INTERNALS__) {
-        const { open } = await import("@tauri-apps/plugin-shell");
-        await open(url);
-      } else {
-        window.open(url, "_blank", "noopener,noreferrer");
-      }
-    } catch (_e) {
-      window.open(url, "_blank", "noopener,noreferrer");
-    }
-  };
-
-
-
   return null;
 }
 
@@ -171,7 +155,11 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
   // Reactive to local SQLite store profile status changes
   useEffect(() => {
     performCheck();
-  }, [storeProfile?.status, storeProfile?.suspension_reason, storeProfile?.subscription_tier]);
+  }, [
+    storeProfile?.status,
+    storeProfile?.suspension_reason,
+    storeProfile?.subscription_tier,
+  ]);
 
   if (loading) {
     return <SplashScreen />;

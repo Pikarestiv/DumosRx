@@ -87,7 +87,7 @@ export function CustomerManagement() {
       <CustomerStats customers={customers} />
 
       <Tabs defaultValue="customers" className="space-y-6">
-        <TabsList className="w-full md:w-auto">
+        <TabsList className="w-full md:w-max">
           <TabsTrigger value="customers">Customer Directory</TabsTrigger>
           <TabsTrigger value="debt">Debt Management</TabsTrigger>
           <TabsTrigger value="loyalty">Loyalty Program</TabsTrigger>

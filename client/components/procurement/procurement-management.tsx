@@ -76,7 +76,7 @@ export function ProcurementManagement() {
       </div>
 
       <Tabs defaultValue="orders" className="space-y-6">
-        <TabsList className="w-full md:w-auto">
+        <TabsList className="w-full md:w-max">
           <TabsTrigger value="orders">
             Purchase Orders
           </TabsTrigger>

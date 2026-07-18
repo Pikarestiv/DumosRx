@@ -105,7 +105,15 @@ export async function getTopStaffByDate(dateStr: string) {
 export async function getRecentSales(userId?: string) {
   const userFilter = userId ? ` AND s.user_id = '${userId}'` : "";
   return query<any>(
-    `SELECT s.*, c.first_name || ' ' || c.last_name as customer_name FROM sales s LEFT JOIN customers c ON s.customer_id = c.id WHERE s._deleted = 0${userFilter} ORDER BY s.created_at DESC LIMIT 10`
+    `SELECT 
+      s.*, 
+      c.first_name || ' ' || c.last_name as customer_name,
+      (SELECT SUM(quantity) FROM sale_items si WHERE si.sale_id = s.id AND (si._deleted = 0 OR si._deleted IS NULL)) as item_count
+     FROM sales s 
+     LEFT JOIN customers c ON s.customer_id = c.id 
+     WHERE s._deleted = 0${userFilter} 
+     ORDER BY s.created_at DESC 
+     LIMIT 100`
   );
 }
 

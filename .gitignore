@@ -2,3 +2,5 @@
 # macOS AppleDouble files
 ._*
 .DS_Store
+
+refs/*

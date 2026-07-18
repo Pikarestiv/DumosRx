@@ -3,7 +3,7 @@
 import type React from "react";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { useAuth } from "@/lib/context/auth-context";
@@ -12,6 +12,7 @@ import { OnlineOrdersModal } from "@/components/pos/online-orders-modal";
 import { Lock } from "lucide-react";
 import { BroadcastBanner } from "./broadcast-banner";
 import { DashboardHeader } from "./dashboard-header";
+import { POSLayoutHeader } from "@/components/pos/pos-layout-header";
 import { DashboardSidebar } from "./dashboard-sidebar";
 import { MobileBottomNav } from "./mobile-bottom-nav";
 import { DashboardTour } from "./dashboard-tour";
@@ -29,6 +30,7 @@ const COLLAPSED_KEY = "sidebar_collapsed";
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const router = useRouter();
+  const pathname = usePathname();
   const { user } = useAuth();
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const { isLocked, unlock } = useAutoLockStore();
@@ -45,6 +47,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const TABS = ["/dashboard", "/pos", "/inventory", "/customers"];
   const { handleTouchStart, handleTouchEnd } = useSwipeNavigation(TABS);
+
+  const isPosRoute = pathname.startsWith("/pos");
+  const [hoverExpanded, setHoverExpanded] = useState(false);
+  const effectiveCollapsed = isPosRoute ? !hoverExpanded : sidebarCollapsed;
+  const contentCollapsed = isPosRoute ? true : sidebarCollapsed;
 
   /* Hydrate collapse preference from localStorage */
   useEffect(() => {
@@ -148,11 +155,13 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
       <DashboardSidebar
         onOpenFeedback={() => setFeedbackOpen(true)}
-        collapsed={sidebarCollapsed}
+        collapsed={effectiveCollapsed}
         onToggleCollapse={handleToggleCollapse}
+        onMouseEnter={() => isPosRoute && setHoverExpanded(true)}
+        onMouseLeave={() => isPosRoute && setHoverExpanded(false)}
       />
 
-      <MobileBottomNav onOpenFeedback={() => setFeedbackOpen(true)} />
+      {!isPosRoute && <MobileBottomNav onOpenFeedback={() => setFeedbackOpen(true)} />}
 
       <FeedbackForm open={feedbackOpen} onOpenChange={setFeedbackOpen} />
       <OnlineOrdersModal />
@@ -161,19 +170,18 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       <div
         className={cn(
           "flex flex-col min-h-screen transition-all duration-300",
-          sidebarCollapsed ? "lg:pl-[68px]" : "lg:pl-60",
+          contentCollapsed ? "lg:pl-[68px]" : "lg:pl-60",
         )}
         style={{
           paddingTop: "var(--tauri-top, 0px)",
-          paddingBottom:
-            "calc(5.5rem + var(--tauri-bottom, env(safe-area-inset-bottom)))",
+          paddingBottom: isPosRoute ? "var(--tauri-bottom, env(safe-area-inset-bottom))" : "calc(5.5rem + var(--tauri-bottom, env(safe-area-inset-bottom)))",
         }}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
         <BroadcastBanner />
 
-        <DashboardHeader />
+        {isPosRoute ? <POSLayoutHeader /> : <DashboardHeader />}
 
         {/* Page content */}
         <div className="flex-1 relative overflow-x-clip">

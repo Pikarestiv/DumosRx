@@ -38,12 +38,16 @@ interface DashboardSidebarProps {
   onOpenFeedback: () => void;
   collapsed: boolean;
   onToggleCollapse: () => void;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
 }
 
 export function DashboardSidebar({
   onOpenFeedback,
   collapsed,
   onToggleCollapse,
+  onMouseEnter,
+  onMouseLeave,
 }: DashboardSidebarProps) {
   const pathname = usePathname();
   const { storeType } = useStore();
@@ -126,16 +130,18 @@ export function DashboardSidebar({
             <span className="truncate transition-all duration-200">{name}</span>
           )}
         </div>
-        <div className="flex items-center gap-2">
-          {name === "Inventory" && actionableItemsCount > 0 && !collapsed && (
-            <span className="bg-destructive text-destructive-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">
-              {actionableItemsCount > 99 ? "99+" : actionableItemsCount}
-            </span>
-          )}
-          {locked && !collapsed && (
-            <Lock className="h-3 w-3 text-sidebar-foreground/40 shrink-0" />
-          )}
-        </div>
+        {!collapsed && (
+          <div className="flex items-center gap-2">
+            {name === "Inventory" && actionableItemsCount > 0 && (
+              <span className="bg-destructive text-destructive-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">
+                {actionableItemsCount > 99 ? "99+" : actionableItemsCount}
+              </span>
+            )}
+            {locked && (
+              <Lock className="h-3 w-3 text-sidebar-foreground/40 shrink-0" />
+            )}
+          </div>
+        )}
       </Link>
     );
 
@@ -215,6 +221,8 @@ export function DashboardSidebar({
       <>
         {/* Sidebar */}
         <div
+          onMouseEnter={onMouseEnter}
+          onMouseLeave={onMouseLeave}
           className={cn(
             "hidden lg:flex fixed inset-y-0 left-0 z-50 bg-sidebar border-r border-sidebar-border transition-all duration-300 ease-in-out flex-col",
             collapsed ? "w-[68px]" : "w-60",

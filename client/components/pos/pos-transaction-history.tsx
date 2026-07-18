@@ -429,10 +429,10 @@ function TransactionItem({
 
   return (
     <div
-      className="bg-card text-card-foreground p-3 rounded-2xl shadow-sm border border-border/50 cursor-pointer hover:border-primary/30 transition-colors flex items-center justify-between group"
+      className="bg-card text-card-foreground p-3 rounded-2xl shadow-sm border border-border/50 cursor-pointer hover:border-primary/30 transition-colors flex flex-col sm:flex-row sm:items-center justify-between group gap-3 sm:gap-0"
       onClick={onClick}
     >
-      <div className="flex items-center gap-3 min-w-0 flex-1">
+      <div className="flex items-center gap-3 min-w-0 flex-1 w-full">
         <div
           className={`h-10 w-10 rounded-lg flex items-center justify-center shrink-0 ${getPaymentIconBg(sale.payment_method)}`}
         >
@@ -453,7 +453,7 @@ function TransactionItem({
         </div>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center justify-end w-full sm:w-auto gap-4">
         {canReturn && (
           <Button
             variant="ghost"

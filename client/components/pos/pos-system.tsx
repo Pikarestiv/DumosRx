@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { toast } from "sonner";
@@ -9,7 +8,6 @@ import { usePOSCart } from "@/lib/hooks/use-pos-cart";
 import { usePOSPayment } from "@/lib/hooks/use-pos-payment";
 import { useSmartSuggestions } from "@/hooks/use-smart-suggestions";
 import { searchProducts } from "@/lib/utils/search";
-
 // UI Components
 import { POSLayoutHeader } from "./pos-layout-header";
 import { useQuery } from "@tanstack/react-query";
@@ -25,29 +23,23 @@ import { ReturnDialog } from "./return-dialog";
 import { HeldTransactionsDialog } from "./held-transactions-dialog";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { POSMobileCartDrawer } from "./pos-mobile-cart-drawer";
-
 // Custom Hooks
 import { usePOSData, Customer } from "@/lib/hooks/use-pos-data";
 import { usePOSPrescription } from "@/lib/hooks/use-pos-prescription";
 import { usePOSHeldTransactions } from "@/lib/hooks/use-pos-held-transactions";
 import { usePOSKeyboardShortcuts } from "@/lib/hooks/use-pos-keyboard-shortcuts";
-
 export function POSSystem() {
   const { t, storeProfile, vatPercentage } = useStore();
   const searchInputRef = React.useRef<HTMLInputElement>(null);
-
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
-
   const activeTab = searchParams.get("tab") || "products";
-
   const handleTabChange = (value: string) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set("tab", value);
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   };
-
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
     null,
@@ -56,14 +48,12 @@ export function POSSystem() {
   const [saleToReturn, setSaleToReturn] = useState<any>(null);
   const [showHeldDialog, setShowHeldDialog] = useState(false);
   const [showClearCartDialog, setShowClearCartDialog] = useState(false);
-
   // 1. Fetch Data
   const { data: heldSalesCountData } = useQuery({
     queryKey: ["heldTransactionsCount"],
     queryFn: () => getHeldTransactionCount(),
   });
   const heldSalesCount = heldSalesCountData || 0;
-
   const {
     products,
     loadingProducts,
@@ -76,7 +66,6 @@ export function POSSystem() {
     loadingCustomers,
     paymentAccounts,
   } = usePOSData();
-
   // 2. Cart Logic
   const {
     cart,
@@ -94,12 +83,10 @@ export function POSSystem() {
     setDiscount,
     setDiscountType,
   } = usePOSCart(products);
-
   // 3. Suggestions
-  const { withRestriction } =
+  const { canUseSmartSuggestions, withRestriction } =
     useFeatureGate();
   const { suggestions } = useSmartSuggestions(cart, products);
-
   // 4. Payment Config
   const requirePaymentAccount = storeProfile?.require_payment_account === 1;
   let enabledPaymentMethods = ["cash", "card", "transfer", "credit", "mixed"];
@@ -110,7 +97,6 @@ export function POSSystem() {
   } catch (_e) {
     // default
   }
-
   // 4.5. Dispense Prescription Logic
   const { dispensedRxId, setDispensedRxId } = usePOSPrescription({
     searchParams,
@@ -120,7 +106,6 @@ export function POSSystem() {
     router,
     pathname,
   });
-
   // 5. Payment Logic
   const {
     paymentMethod,
@@ -154,7 +139,6 @@ export function POSSystem() {
     dispensedRxId,
     setDispensedRxId,
   });
-
   // 7. Keyboard Shortcuts Logic
   usePOSKeyboardShortcuts({
     searchInputRef,
@@ -169,7 +153,6 @@ export function POSSystem() {
     setShowClearCartDialog,
     setPaymentMethod,
   });
-
   // 8. Held Transactions Logic
   const { handleHoldTransaction, handleRecallTransaction } =
     usePOSHeldTransactions({
@@ -183,18 +166,15 @@ export function POSSystem() {
       customers,
       setShowHeldDialog,
     });
-
   // 9. Search & Filter
   const { results: filteredProducts, isFuzzyFallback } = React.useMemo(() => {
     return searchProducts(searchTerm, products);
   }, [searchTerm, products]);
-
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && searchTerm.trim()) {
       handleScanSuccess(searchTerm.trim());
     }
   };
-
   const handleScanSuccess = (scannedBarcode: string) => {
     const query = scannedBarcode.toLowerCase().trim();
     const barcodeMatch = products.find(
@@ -202,7 +182,6 @@ export function POSSystem() {
         m.barcode?.toLowerCase() === query ||
         m.batch_number?.toLowerCase() === query,
     );
-
     if (barcodeMatch) {
       addToCart(barcodeMatch);
       setSearchTerm("");
@@ -211,7 +190,6 @@ export function POSSystem() {
       toast.error(`No product found for barcode: ${scannedBarcode}`);
     }
   };
-
   return (
     <div className="flex flex-col w-full h-screen overflow-hidden bg-background">
       <POSLayoutHeader
@@ -237,7 +215,6 @@ export function POSSystem() {
                 <TabsTrigger value="history">Recent Sales</TabsTrigger>
               </TabsList>
             </div>
-
             <div className="flex-1 overflow-hidden relative">
               <TabsContent
                 value="products"
@@ -247,7 +224,6 @@ export function POSSystem() {
                   loadingProducts={loadingProducts}
                   filteredProducts={filteredProducts}
                   isFuzzyFallback={isFuzzyFallback}
-                  productsLength={products.length}
                   addToCart={addToCart}
                   productTerm={t("product")}
                   currencyCode={storeProfile?.currency}
@@ -255,9 +231,10 @@ export function POSSystem() {
                   recentlySoldIds={recentlySoldIds}
                   commonlySoldIds={commonlySoldIds}
                   cart={cart}
+                  canUseSmartSuggestions={canUseSmartSuggestions}
+                  onUpgradeClick={withRestriction(() => {}, { featureAllowed: canUseSmartSuggestions, featureKey: 'smart_suggestions' })}
                 />
               </TabsContent>
-
               <TabsContent
                 value="history"
                 className="absolute inset-0 overflow-y-auto mt-0 pr-1"
@@ -273,7 +250,6 @@ export function POSSystem() {
               </TabsContent>
             </div>
           </div>
-
           {/* Right: customer + cart (Hidden on Mobile) */}
           <div className="hidden lg:flex flex-col bg-background border border-border lg:rounded-2xl shadow-sm overflow-hidden h-full">
             <POSCustomerSelector
@@ -283,7 +259,6 @@ export function POSSystem() {
               onSelectCustomer={setSelectedCustomer as any}
               cartLength={cart.length}
             />
-
             <div className="flex-1 flex flex-col overflow-hidden">
               <POSCart
                 cart={cart}
@@ -306,7 +281,6 @@ export function POSSystem() {
             </div>
           </div>
         </Tabs>
-
         {/* Mobile Cart Trigger */}
         {cart.length > 0 && (
           <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] bg-gradient-to-t from-background via-background to-transparent pointer-events-none">
@@ -336,7 +310,6 @@ export function POSSystem() {
             </div>
           </div>
         )}
-
         <POSPaymentDialog
           showPaymentDialog={showPaymentDialog}
           setShowPaymentDialog={setShowPaymentDialog}
@@ -357,13 +330,11 @@ export function POSSystem() {
           enabledPaymentMethods={enabledPaymentMethods}
           paymentAccounts={paymentAccounts || []}
         />
-
         <POSReceiptDialog
           showReceiptDialog={showReceiptDialog}
           setShowReceiptDialog={setShowReceiptDialog}
           completedTransaction={completedTransaction}
         />
-
         <ReturnDialog
           open={showReturnDialog}
           onOpenChange={setShowReturnDialog}
@@ -375,13 +346,11 @@ export function POSSystem() {
           }}
           currencyCode={storeProfile?.currency}
         />
-
         <HeldTransactionsDialog
           isOpen={showHeldDialog}
           onClose={() => setShowHeldDialog(false)}
           onRecall={handleRecallTransaction}
         />
-
         <ConfirmDialog
           open={showClearCartDialog}
           onOpenChange={setShowClearCartDialog}

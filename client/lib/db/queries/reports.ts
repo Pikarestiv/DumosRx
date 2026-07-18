@@ -34,20 +34,37 @@ export async function getDashboardOverviewData(userId?: string, isRestrictedRole
     `SELECT * FROM sales WHERE _deleted = 0${userFilter} ORDER BY created_at DESC LIMIT 5`
   );
 
+  const smFilter = isRestrictedRole && userId ? ` AND performed_by = '${userId}'` : "";
   const recentMovements = await query<any>(
-    `SELECT * FROM stock_movements WHERE _deleted = 0 ORDER BY created_at DESC LIMIT 5`
+    `SELECT * FROM stock_movements WHERE _deleted = 0${smFilter} ORDER BY created_at DESC LIMIT 5`
   );
 
+  const poFilter = isRestrictedRole && userId ? ` AND ordered_by = '${userId}'` : "";
+  const recentPurchaseOrders = await query<any>(
+    `SELECT * FROM purchase_orders WHERE _deleted = 0${poFilter} ORDER BY created_at DESC LIMIT 5`
+  );
+
+  const expFilter = isRestrictedRole && userId ? ` AND user_id = '${userId}'` : "";
+  const recentExpenses = await query<any>(
+    `SELECT * FROM expenses WHERE _deleted = 0${expFilter} ORDER BY created_at DESC LIMIT 5`
+  );
+
+  const rxFilter = isRestrictedRole && userId ? ` AND user_id = '${userId}'` : "";
   const recentPrescriptions = await query<any>(
-    `SELECT * FROM prescriptions WHERE _deleted = 0 ORDER BY created_at DESC LIMIT 5`
+    `SELECT * FROM prescriptions WHERE _deleted = 0${rxFilter} ORDER BY created_at DESC LIMIT 5`
   );
 
   const allActivities = [
     ...(recentSales || []).map((s: any) => ({ ...s, activity_type: 'sale' })),
     ...(recentMovements || []).map((m: any) => ({ ...m, activity_type: 'stock_movement' })),
+    ...(recentPurchaseOrders || []).map((po: any) => ({ ...po, activity_type: 'purchase_order' })),
+    ...(recentExpenses || []).map((e: any) => ({ ...e, activity_type: 'expense' })),
     ...(recentPrescriptions || []).map((p: any) => ({ ...p, activity_type: 'prescription' }))
-  ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-   .slice(0, 10);
+  ].sort((a, b) => {
+    const timeA = new Date(a.created_at || a.date || a.transaction_date).getTime();
+    const timeB = new Date(b.created_at || b.date || b.transaction_date).getTime();
+    return timeB - timeA;
+  }).slice(0, 10);
 
   const dateYesterday = new Date();
   dateYesterday.setDate(dateYesterday.getDate() - 1);

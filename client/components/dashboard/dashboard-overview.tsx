@@ -15,12 +15,16 @@ import { DashboardQuickActions } from "./dashboard-quick-actions";
 import { DashboardActionCenter } from "./dashboard-action-center";
 import { useState } from "react";
 import { TransactionDetailsDialog } from "@/components/pos/transaction-details-dialog";
+import { ExpenseDetailsDialog } from "./modals/expense-details-dialog";
+import { ProcurementDetailsDialog } from "./modals/procurement-details-dialog";
+import { DashboardPrescriptionDetailsDialog } from "./modals/dashboard-prescription-details-dialog";
+import { StockMovementDetailsDialog } from "./modals/stock-movement-details-dialog";
 import { formatCurrency } from "@/lib/utils";
 
 export function DashboardOverview() {
   const { t, storeProfile } = useStore();
   const { user } = useAuth();
-  const [selectedSale, setSelectedSale] = useState<any>(null);
+  const [selectedActivity, setSelectedActivity] = useState<any>(null);
 
   // Single source of truth for all stock-batch-related stat cards
   const stock_batchStats = useStockBatchStats();
@@ -79,15 +83,23 @@ export function DashboardOverview() {
       }
     } else if (activity.activity_type === "prescription") {
       message = `Prescription logged: ${activity.patient_name || "Patient"}`;
+      amount = activity.total_cost ? formatCurrency(activity.total_cost, storeProfile?.currency) : "";
+    } else if (activity.activity_type === "expense") {
+      message = `Expense: ${activity.category}`;
+      amount = formatCurrency(activity.amount, storeProfile?.currency);
+    } else if (activity.activity_type === "purchase_order") {
+      message = `Procurement PO: ${activity.po_number || activity.id.slice(0, 8)}`;
+      amount = activity.total_amount ? formatCurrency(activity.total_amount, storeProfile?.currency) : "";
     }
 
     return {
       id: activity.id,
       type: activity.activity_type,
       message,
-      timestamp: activity.created_at,
+      timestamp: activity.created_at || activity.date || activity.transaction_date,
       amount,
       rawSale: activity.activity_type === "sale" ? activity : undefined,
+      rawActivity: activity,
     };
   });
 
@@ -99,6 +111,10 @@ export function DashboardOverview() {
         return "bg-blue-500/10 text-blue-600";
       case "prescription":
         return "bg-purple-500/10 text-purple-600";
+      case "expense":
+        return "bg-red-500/10 text-red-600";
+      case "purchase_order":
+        return "bg-orange-500/10 text-orange-600";
       case "alert":
         return "bg-red-500/10 text-red-600";
       default:
@@ -187,13 +203,8 @@ export function DashboardOverview() {
         <div className="order-2 lg:order-1">
           <DashboardRecentActivity
             activities={activities}
-            storeTerm={t("store")}
             getActivityColor={getActivityColor}
-            onActivityClick={(activity) => {
-              if (activity.type === "sale" && activity.rawSale) {
-                setSelectedSale(activity.rawSale);
-              }
-            }}
+            onActivityClick={(activity) => setSelectedActivity(activity)}
           />
         </div>
 
@@ -203,9 +214,33 @@ export function DashboardOverview() {
       </div>
 
       <TransactionDetailsDialog
-        sale={selectedSale}
-        open={!!selectedSale}
-        onOpenChange={(open) => !open && setSelectedSale(null)}
+        sale={selectedActivity?.type === "sale" ? selectedActivity.rawActivity : null}
+        open={selectedActivity?.type === "sale"}
+        onOpenChange={(open) => !open && setSelectedActivity(null)}
+        currencyCode={storeProfile?.currency}
+      />
+      <ExpenseDetailsDialog
+        expense={selectedActivity?.type === "expense" ? selectedActivity.rawActivity : null}
+        open={selectedActivity?.type === "expense"}
+        onOpenChange={(open) => !open && setSelectedActivity(null)}
+        currencyCode={storeProfile?.currency}
+      />
+      <ProcurementDetailsDialog
+        po={selectedActivity?.type === "purchase_order" ? selectedActivity.rawActivity : null}
+        open={selectedActivity?.type === "purchase_order"}
+        onOpenChange={(open) => !open && setSelectedActivity(null)}
+        currencyCode={storeProfile?.currency}
+      />
+      <DashboardPrescriptionDetailsDialog
+        prescription={selectedActivity?.type === "prescription" ? selectedActivity.rawActivity : null}
+        open={selectedActivity?.type === "prescription"}
+        onOpenChange={(open) => !open && setSelectedActivity(null)}
+        currencyCode={storeProfile?.currency}
+      />
+      <StockMovementDetailsDialog
+        movement={selectedActivity?.type === "stock_movement" ? selectedActivity.rawActivity : null}
+        open={selectedActivity?.type === "stock_movement"}
+        onOpenChange={(open) => !open && setSelectedActivity(null)}
         currencyCode={storeProfile?.currency}
       />
     </div>

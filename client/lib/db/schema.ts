@@ -154,6 +154,7 @@ CREATE TABLE IF NOT EXISTS prescriptions (
   id TEXT PRIMARY KEY,
   prescription_number TEXT,
   customer_id TEXT,
+  user_id TEXT,
   patient_name TEXT,
   patient_phone TEXT,
   patient_age INTEGER,
@@ -303,6 +304,7 @@ CREATE TABLE IF NOT EXISTS stores (
 
 CREATE TABLE IF NOT EXISTS expenses (
   id TEXT PRIMARY KEY,
+  user_id TEXT,
   category TEXT NOT NULL,
   description TEXT,
   amount REAL NOT NULL,

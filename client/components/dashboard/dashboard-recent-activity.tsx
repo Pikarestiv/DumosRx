@@ -3,7 +3,7 @@
 import { Activity } from "lucide-react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ShoppingCart, PackagePlus, FileText } from "lucide-react";
+import { ShoppingCart, PackagePlus, FileText, Banknote, Truck } from "lucide-react";
 
 interface ActivityItem {
   id: string;
@@ -26,7 +26,7 @@ export function DashboardRecentActivity({
   getActivityColor,
   onActivityClick,
 }: DashboardRecentActivityProps) {
-  const getActivityIcon = (type: string) => {
+    const getActivityIcon = (type: string) => {
     switch (type) {
       case "sale":
         return ShoppingCart;
@@ -34,6 +34,10 @@ export function DashboardRecentActivity({
         return PackagePlus;
       case "prescription":
         return FileText;
+      case "expense":
+        return Banknote;
+      case "purchase_order":
+        return Truck;
       default:
         return Activity;
     }

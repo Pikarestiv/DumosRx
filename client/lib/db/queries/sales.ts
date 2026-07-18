@@ -8,29 +8,48 @@ export async function getSaleItems(saleId: string) {
 }
 
 export async function getTransactionDetails(saleId: string) {
-  const items = await query<any>(
-    `SELECT 
-      si.*, 
-      m.name as product_name, 
-      si.cost_price as med_cost_price,
-      COALESCE((
-        SELECT SUM(ri.quantity) 
-        FROM return_items ri 
-        JOIN returns r ON ri.return_id = r.id 
-        WHERE r.sale_id = si.sale_id AND ri.product_id = si.product_id AND (ri._deleted = 0 OR ri._deleted IS NULL) AND (r._deleted = 0 OR r._deleted IS NULL)
-      ), 0) as returned_quantity
-     FROM sale_items si 
-     LEFT JOIN products m ON si.product_id = m.id 
-     WHERE si.sale_id = ? AND (si._deleted = 0 OR si._deleted IS NULL)`,
-    [saleId]
-  );
+  try {
+    const items = await query<any>(
+      `SELECT 
+        si.*, 
+        m.name as product_name, 
+        si.cost_price as med_cost_price,
+        COALESCE((
+          SELECT SUM(ri.quantity) 
+          FROM return_items ri 
+          JOIN returns r ON ri.return_id = r.id 
+          WHERE r.sale_id = si.sale_id AND ri.product_id = si.product_id AND (ri._deleted = 0 OR ri._deleted IS NULL) AND (r._deleted = 0 OR r._deleted IS NULL)
+        ), 0) as returned_quantity
+       FROM sale_items si 
+       LEFT JOIN products m ON si.product_id = m.id 
+       WHERE si.sale_id = ? AND (si._deleted = 0 OR si._deleted IS NULL)`,
+      [saleId]
+    );
 
-  const returnsData = await query<any>(
-    `SELECT SUM(total_refunded) as total_refunded FROM returns WHERE sale_id = ? AND (_deleted = 0 OR _deleted IS NULL)`,
-    [saleId]
-  );
+    const returnsData = await query<any>(
+      `SELECT SUM(total_refunded) as total_refunded FROM returns WHERE sale_id = ? AND (_deleted = 0 OR _deleted IS NULL)`,
+      [saleId]
+    );
 
-  return { items, returnsData };
+    return { items, returnsData };
+  } catch (error) {
+    console.error("Failed to fetch transaction details:", error);
+    
+    // Fallback simple query just in case the complex one fails due to schema issues
+    try {
+      const fallbackItems = await query<any>(
+        `SELECT si.*, m.name as product_name, si.cost_price as med_cost_price, 0 as returned_quantity 
+         FROM sale_items si 
+         LEFT JOIN products m ON si.product_id = m.id 
+         WHERE si.sale_id = ? AND (si._deleted = 0 OR si._deleted IS NULL)`,
+        [saleId]
+      );
+      return { items: fallbackItems, returnsData: [] };
+    } catch (innerError) {
+      console.error("Fallback query also failed:", innerError);
+      return { items: [], returnsData: [] };
+    }
+  }
 }
 
 export interface HeldTransaction {

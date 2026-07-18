@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/lib/context/auth-context";
 import { getAvailableStockBatches } from "@/lib/db/queries/inventory";
 import { createPrescription, generateId } from "@/lib/db/local-database";
 import { getPrescriptionById, getPrescriptionItems, updatePrescriptionRecord, deletePrescriptionItems, insertPrescriptionItem } from "@/lib/db/queries/prescriptions";
@@ -35,6 +36,7 @@ export function useNewPrescription() {
   const router = useRouter();
   const pathname = usePathname();
   const editRxId = searchParams.get("edit_rx");
+  const { user } = useAuth();
 
   const [isEditing, setIsEditing] = useState(false);
   const [existingPrescriptionData, setExistingPrescriptionData] = useState<any>(null);
@@ -277,6 +279,7 @@ export function useNewPrescription() {
           patient_name: formData.patientName,
           patient_phone: formData.patientPhone,
           patient_age: parseInt(formData.patientAge) || 0,
+          user_id: user?.id,
           doctor_name: formData.doctorName,
           doctor_license: formData.doctorLicense,
           priority: formData.priority,

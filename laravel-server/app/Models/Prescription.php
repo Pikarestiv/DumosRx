@@ -10,11 +10,7 @@ class Prescription extends Model
 {
     use HasFactory, HasUuids;
 
-    protected $fillable = [
-        'prescription_number', 'customer_id', 'doctor_name', 'hospital_name',
-        'prescription_date', 'diagnosis', 'notes', 'status', 
-        'substituted_product_id', 'substitution_reason'
-    ];
+    protected $guarded = [];
 
     protected $casts = [
         'prescription_date' => 'date',

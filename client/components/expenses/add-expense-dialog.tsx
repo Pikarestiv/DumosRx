@@ -17,6 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { insert } from "@/lib/db/local-database";
 import { toast } from "sonner";
 import { SearchableInput } from "@/components/ui/searchable-input";
+import { useAuth } from "@/lib/context/auth-context";
 
 interface AddExpenseDialogProps {
   open: boolean;
@@ -37,6 +38,7 @@ const CATEGORIES = [
 const PAYMENT_METHODS = ["Cash", "Bank Transfer", "POS", "Cheque"];
 
 export function AddExpenseDialog({ open, onOpenChange }: AddExpenseDialogProps) {
+  const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     category: "",
@@ -58,6 +60,7 @@ export function AddExpenseDialog({ open, onOpenChange }: AddExpenseDialogProps) 
       await insert("expenses", {
         ...formData,
         amount: parseFloat(formData.amount),
+        user_id: user?.id,
       });
       toast.success("Expense added successfully");
       onOpenChange(false);

@@ -41,7 +41,7 @@ export function PrescriptionManagement() {
       </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-        <TabsList>
+        <TabsList className="w-full md:w-auto">
           <TabsTrigger value="queue">Prescription Queue</TabsTrigger>
           <TabsTrigger value="new">New Prescription</TabsTrigger>
           <TabsTrigger value="refills">Refills</TabsTrigger>

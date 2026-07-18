@@ -39,7 +39,9 @@ export function POSSystem() {
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   };
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
+    null,
+  );
   const [showReturnDialog, setShowReturnDialog] = useState(false);
   const [saleToReturn, setSaleToReturn] = useState<any>(null);
   const [showHeldDialog, setShowHeldDialog] = useState(false);
@@ -81,7 +83,10 @@ export function POSSystem() {
   const { suggestions } = useSmartSuggestions(cart, products);
   const requirePaymentAccount = storeProfile?.require_payment_account === 1;
   let enabledPaymentMethods = ["cash", "card", "transfer", "credit", "mixed"];
-  try { if (storeProfile?.enabled_payment_methods) enabledPaymentMethods = JSON.parse(storeProfile.enabled_payment_methods); } catch (_e) {}
+  try {
+    if (storeProfile?.enabled_payment_methods)
+      enabledPaymentMethods = JSON.parse(storeProfile.enabled_payment_methods);
+  } catch (_e) {}
   const { dispensedRxId, setDispensedRxId } = usePOSPrescription({
     searchParams,
     products,
@@ -190,7 +195,7 @@ export function POSSystem() {
           {/* Left: TabsList + product search + list */}
           <div className="lg:col-span-2 flex flex-col overflow-hidden h-full">
             <div className="flex-none flex mb-2 sm:mb-4">
-              <TabsList className="w-auto">
+              <TabsList className="w-full md:w-auto">
                 <TabsTrigger value="products">Products</TabsTrigger>
                 <TabsTrigger value="history">Recent Sales</TabsTrigger>
               </TabsList>
@@ -212,7 +217,10 @@ export function POSSystem() {
                   commonlySoldIds={commonlySoldIds}
                   cart={cart}
                   canUseSmartSuggestions={canUseSmartSuggestions}
-                  onUpgradeClick={withRestriction(() => {}, { featureAllowed: canUseSmartSuggestions, featureKey: 'smart_suggestions' })}
+                  onUpgradeClick={withRestriction(() => {}, {
+                    featureAllowed: canUseSmartSuggestions,
+                    featureKey: "smart_suggestions",
+                  })}
                 />
               </TabsContent>
               <TabsContent

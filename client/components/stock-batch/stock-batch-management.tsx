@@ -68,7 +68,7 @@ export function StockBatchManagement({
         onValueChange={(val) => router.push(`/inventory/${val}`)}
         className="space-y-6"
       >
-        <TabsList>
+        <TabsList className="w-full md:w-auto">
           <TabsTrigger value="overview">
             Overview
           </TabsTrigger>

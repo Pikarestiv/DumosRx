@@ -32,47 +32,52 @@ interface POSProductListProps {
   suggestions?: any[];
   recentlySoldIds?: string[];
   commonlySoldIds?: string[];
+  cart?: any[];
 }
 
 function POSProductCard({
   product,
   currencyCode,
   addToCart,
+  cartQuantity = 0,
 }: {
   product: any;
   currencyCode?: string;
   addToCart: (product: any) => void;
+  cartQuantity?: number;
 }) {
   let indicator = null;
-  let cardStyle = "border-border/60 hover:border-primary/40 bg-card hover:bg-muted/30";
+  let cardStyle =
+    "border-border/60 hover:border-primary/40 bg-card hover:bg-muted/30";
 
   if (product.posGroup === "suggestion") {
     indicator = (
-      <div className="absolute -top-2.5 -right-2.5 z-10 flex items-center justify-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-100 border-2 border-background px-2 py-0.5 rounded-full shadow-sm">
-        <Sparkles className="h-3 w-3" />
+      <div className="absolute top-2 left-2 z-10 flex items-center justify-center gap-1 text-[9px] font-bold text-amber-700 bg-amber-50/90 backdrop-blur-md border border-amber-200/50 px-1.5 py-0.5 rounded-full shadow-sm">
+        <Sparkles className="h-2.5 w-2.5" />
         <span>Suggested</span>
       </div>
     );
     cardStyle = "border-amber-200/50 bg-amber-50/30 hover:bg-amber-50/80";
   } else if (product.posGroup === "recent") {
     indicator = (
-      <div className="absolute -top-2.5 -right-2.5 z-10 flex items-center justify-center gap-1 text-[10px] font-bold text-blue-700 bg-blue-100 border-2 border-background px-2 py-0.5 rounded-full shadow-sm">
-        <Clock className="h-3 w-3" />
+      <div className="absolute top-2 left-2 z-10 flex items-center justify-center gap-1 text-[9px] font-bold text-blue-700 bg-blue-50/90 backdrop-blur-md border border-blue-200/50 px-1.5 py-0.5 rounded-full shadow-sm">
+        <Clock className="h-2.5 w-2.5" />
         <span>Recent</span>
       </div>
     );
     cardStyle = "border-blue-200/50 bg-blue-50/30 hover:bg-blue-50/80";
   } else if (product.posGroup === "common") {
     indicator = (
-      <div className="absolute -top-2.5 -right-2.5 z-10 flex items-center justify-center gap-1 text-[10px] font-bold text-yellow-800 bg-yellow-100 border-2 border-background px-2 py-0.5 rounded-full shadow-sm">
-        <Star className="h-3 w-3 fill-yellow-600" />
+      <div className="absolute top-2 left-2 z-10 flex items-center justify-center gap-1 text-[9px] font-bold text-yellow-800 bg-yellow-50/90 backdrop-blur-md border border-yellow-200/50 px-1.5 py-0.5 rounded-full shadow-sm">
+        <Star className="h-2.5 w-2.5 fill-yellow-600" />
         <span>Popular</span>
       </div>
     );
     cardStyle = "border-yellow-200/50 bg-yellow-50/30 hover:bg-yellow-50/80";
   }
 
-  const isLowStock = product.stock > 0 && product.stock <= (product.reorder_level || 10);
+  const isLowStock =
+    product.stock > 0 && product.stock <= (product.reorder_level || 10);
   const isOutOfStock = product.stock === 0;
 
   return (
@@ -81,7 +86,13 @@ function POSProductCard({
       onClick={() => addToCart(product)}
     >
       {indicator}
-      
+
+      {cartQuantity > 0 && (
+        <div className="absolute top-2 right-2 z-10 flex items-center justify-center min-w-[22px] h-[22px] px-1 text-[10px] font-bold text-primary-foreground bg-primary shadow-sm rounded-full">
+          {cartQuantity}
+        </div>
+      )}
+
       {/* Icon Area */}
       <div className="w-full h-14 rounded-xl bg-primary/5 text-primary/70 flex items-center justify-center mb-2.5">
         <Package className="h-5 w-5" />
@@ -98,13 +109,15 @@ function POSProductCard({
         <div className="text-[13.5px] font-bold text-primary">
           {formatCurrency(product.unit_price, currencyCode)}
         </div>
-        <div className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
-          isOutOfStock 
-            ? "bg-destructive/10 text-destructive" 
-            : isLowStock
-              ? "bg-amber-500/10 text-amber-600"
-              : "bg-emerald-500/10 text-emerald-600"
-        }`}>
+        <div
+          className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+            isOutOfStock
+              ? "bg-destructive/10 text-destructive"
+              : isLowStock
+                ? "bg-amber-500/10 text-amber-600"
+                : "bg-emerald-500/10 text-emerald-600"
+          }`}
+        >
           {isOutOfStock ? "Out of stock" : `${product.stock} left`}
         </div>
       </div>
@@ -123,7 +136,13 @@ export function POSProductList({
   suggestions = [],
   recentlySoldIds = [],
   commonlySoldIds = [],
+  cart = [],
 }: POSProductListProps) {
+  // Use a map for O(1) lookups
+  const cartQuantityMap = new Map(
+    cart.map((item: any) => [item.id, item.quantity]),
+  );
+
   // Segment the products for prioritization
   const suggestionsSet = new Set(suggestions.map((s) => s.id));
   const recentSet = new Set(recentlySoldIds);
@@ -155,7 +174,7 @@ export function POSProductList({
   ];
 
   return (
-    <div className="space-y-3 pt-3 pr-3">
+    <div className="gap-y-3">
       {isFuzzyFallback && filteredProducts.length > 0 && (
         <div className="mb-2 bg-amber-500/10 border border-amber-500/20 text-amber-600 px-4 py-3 rounded-lg flex items-center gap-3">
           <AlertCircle className="h-5 w-5 shrink-0" />
@@ -195,6 +214,7 @@ export function POSProductList({
               product={product}
               currencyCode={currencyCode}
               addToCart={addToCart}
+              cartQuantity={cartQuantityMap.get(product.id) || 0}
             />
           ))}
         </div>

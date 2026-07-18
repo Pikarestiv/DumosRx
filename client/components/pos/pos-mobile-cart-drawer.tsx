@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Drawer, DrawerContent, DrawerTrigger, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
-import { ChevronUp } from "lucide-react";
+import { ChevronUp, ShoppingCart } from "lucide-react";
 import { POSCustomerSelector } from "./pos-customer-selector";
 import { POSCart } from "./pos-cart";
 import { formatCurrency } from "@/lib/utils";
@@ -40,13 +40,20 @@ export function POSMobileCartDrawer({
   return (
     <Drawer open={open} onOpenChange={setOpen}>
       <DrawerTrigger asChild>
-        <div className="w-full bg-primary text-primary-foreground p-3.5 rounded-xl text-[15px] font-bold cursor-pointer flex items-center justify-between shadow-lg hover:bg-primary/90 transition-colors">
-          <div className="flex items-center gap-2">
-            <span>{cart.length} items</span>
-            <span className="w-1 h-1 bg-primary-foreground/50 rounded-full" />
-            <span>{formatCurrency(total, currencyCode)}</span>
+        <div className="w-full bg-primary text-primary-foreground p-3 sm:p-3.5 rounded-[20px] cursor-pointer flex items-center justify-between shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:bg-primary/90 transition-colors">
+          <div className="flex items-center gap-3.5">
+            <div className="relative flex items-center justify-center w-[46px] h-[46px] rounded-[14px] bg-white/15">
+              <ShoppingCart className="w-5 h-5 text-white" />
+              <div className="absolute -top-1.5 -right-1.5 bg-white text-primary text-[11.5px] font-bold w-[22px] h-[22px] rounded-full flex items-center justify-center shadow-sm">
+                {cart.length}
+              </div>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[13.5px] font-medium text-white/90 leading-[1.2] mb-0.5">{cart.length} items</span>
+              <span className="text-[19px] font-bold leading-[1.2] tracking-tight">{formatCurrency(total, currencyCode)}</span>
+            </div>
           </div>
-          <ChevronUp className="w-5 h-5" />
+          <ChevronUp className="w-6 h-6 mr-1 opacity-90" />
         </div>
       </DrawerTrigger>
       <DrawerContent className="max-h-[85vh] flex flex-col bg-background">

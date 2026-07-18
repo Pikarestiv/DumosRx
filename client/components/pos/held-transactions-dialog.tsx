@@ -54,15 +54,13 @@ export function HeldTransactionsDialog({
       open={isOpen} 
       onOpenChange={onClose} 
       title={
-        <span className="flex items-center gap-3">
-          <span className="h-8 w-8 md:h-10 md:w-10 rounded-lg md:rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500 shrink-0">
-            <PauseCircle className="w-5 h-5 md:w-6 md:h-6" />
-          </span>
-          <span className="text-lg sm:text-xl font-serif">Held Transactions</span>
+        <span className="flex items-center gap-2">
+          <PauseCircle className="h-5 w-5 text-amber-500" />
+          Held Transactions
         </span>
       } 
-      description={<span className="block mt-1 sm:mt-2">Recall transactions that were previously paused.</span>} 
-      className="sm:max-w-3xl bg-background/95 backdrop-blur-xl border-accent/10 p-4 sm:p-6"
+      description="Recall transactions that were previously paused."
+      className="sm:max-w-3xl max-h-[90vh] overflow-hidden flex flex-col"
     >
 
         <div className="py-4 min-h-[300px] max-h-[500px] overflow-y-auto space-y-4">

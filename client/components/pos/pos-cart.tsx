@@ -184,7 +184,7 @@ export function POSCart({
           <button 
             onClick={clearCart}
             disabled={cart.length === 0}
-            className="w-full flex items-center justify-center gap-1.5 p-2.5 rounded-[10px] border border-border bg-background text-[12.5px] font-semibold text-muted-foreground cursor-pointer hover:bg-muted/50 transition-colors disabled:opacity-50"
+            className="w-full flex items-center justify-center gap-1.5 p-2.5 rounded-[10px] border border-destructive/20 bg-destructive/5 text-[12.5px] font-semibold text-destructive cursor-pointer hover:bg-destructive/10 transition-colors disabled:opacity-50 disabled:grayscale"
           >
             <Trash2 className="w-[15px] h-[15px]" />
             Clear cart

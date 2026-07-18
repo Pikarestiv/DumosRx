@@ -40,7 +40,7 @@ export function POSLayoutHeader({
 
   return (
     <header
-      className="h-auto min-h-16 py-3 bg-background flex items-center justify-between px-4 sm:px-6 sticky z-40 border-b border-border/50 before:absolute before:inset-x-0 before:bottom-full before:h-[100vh] before:bg-background before:-z-10"
+      className="h-auto min-h-16 py-3 bg-background flex items-center px-4 sm:px-6 sticky z-40 border-b border-border/50 before:absolute before:inset-x-0 before:bottom-full before:h-[100vh] before:bg-background before:-z-10"
       style={{ top: "var(--tauri-top, 0px)" }}
     >
       {/* Left side: Title and Back button */}
@@ -59,7 +59,7 @@ export function POSLayoutHeader({
       </div>
 
       {/* Center: Search (Desktop only) */}
-      <div className="hidden sm:flex flex-1 max-w-md mx-4">
+      <div className="hidden sm:flex flex-1 max-w-md ml-6 mr-auto">
         <div className="relative w-full group flex gap-2">
           <div className="relative flex-1">
             <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
@@ -86,8 +86,7 @@ export function POSLayoutHeader({
             )}
           </div>
           <Button
-            variant="outline"
-            className="flex items-center gap-2 bg-transparent cursor-pointer rounded-xl h-12"
+            className="flex items-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl h-12"
             onClick={() => setIsScannerOpen(true)}
           >
             <Scan className="h-4 w-4" />
@@ -97,7 +96,7 @@ export function POSLayoutHeader({
       </div>
 
       {/* Right side: Actions */}
-      <div className="flex items-center gap-2 sm:gap-3">
+      <div className="flex items-center gap-2 sm:gap-3 ml-auto">
         {/* Fullscreen toggle (Desktop only) */}
         <Button 
           variant="outline" 

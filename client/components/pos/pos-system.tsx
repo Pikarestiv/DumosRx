@@ -224,7 +224,7 @@ export function POSSystem() {
         onOpenHeldSales={() => setShowHeldDialog(true)}
         onScanSuccess={handleScanSuccess}
       />
-      <div className="p-4 sm:p-6 sm:pt-3 flex-1 overflow-hidden flex flex-col">
+      <div className="p-4 sm:p-6 sm:pt-3 sm:py-4 flex-1 overflow-hidden flex flex-col">
         <Tabs
           value={activeTab}
           onValueChange={handleTabChange}
@@ -232,7 +232,7 @@ export function POSSystem() {
         >
           {/* Left: TabsList + product search + list */}
           <div className="lg:col-span-2 flex flex-col overflow-hidden h-full">
-            <div className="flex-none flex pb-2 mb-2 sm:mb-4">
+            <div className="flex-none flex mb-2 sm:mb-4">
               <TabsList className="w-auto">
                 <TabsTrigger value="products">Products</TabsTrigger>
                 <TabsTrigger value="history">Recent Sales</TabsTrigger>
@@ -255,6 +255,7 @@ export function POSSystem() {
                   suggestions={suggestions}
                   recentlySoldIds={recentlySoldIds}
                   commonlySoldIds={commonlySoldIds}
+                  cart={cart}
                 />
               </TabsContent>
 
@@ -309,29 +310,31 @@ export function POSSystem() {
 
         {/* Mobile Cart Trigger */}
         {cart.length > 0 && (
-          <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50">
-            <POSMobileCartDrawer
-              cart={cart}
-              subtotal={subtotal}
-              tax={tax}
-              total={total}
-              discount={discount}
-              calculatedDiscount={calculatedDiscount}
-              discountType={discountType}
-              setDiscount={setDiscount}
-              setDiscountType={setDiscountType}
-              vatPercentage={vatPercentage}
-              currencyCode={storeProfile?.currency}
-              updateQuantity={updateQuantity}
-              removeFromCart={removeFromCart}
-              clearCart={clearCart}
-              onCheckout={withRestriction(() => setShowPaymentDialog(true))}
-              onHoldSale={handleHoldTransaction}
-              selectedCustomer={selectedCustomer}
-              customers={customers}
-              loadingCustomers={loadingCustomers}
-              onSelectCustomer={setSelectedCustomer as any}
-            />
+          <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] bg-gradient-to-t from-background via-background to-transparent pointer-events-none">
+            <div className="pointer-events-auto">
+              <POSMobileCartDrawer
+                cart={cart}
+                subtotal={subtotal}
+                tax={tax}
+                total={total}
+                discount={discount}
+                calculatedDiscount={calculatedDiscount}
+                discountType={discountType}
+                setDiscount={setDiscount}
+                setDiscountType={setDiscountType}
+                vatPercentage={vatPercentage}
+                currencyCode={storeProfile?.currency}
+                updateQuantity={updateQuantity}
+                removeFromCart={removeFromCart}
+                clearCart={clearCart}
+                onCheckout={withRestriction(() => setShowPaymentDialog(true))}
+                onHoldSale={handleHoldTransaction}
+                selectedCustomer={selectedCustomer}
+                customers={customers}
+                loadingCustomers={loadingCustomers}
+                onSelectCustomer={setSelectedCustomer as any}
+              />
+            </div>
           </div>
         )}
 

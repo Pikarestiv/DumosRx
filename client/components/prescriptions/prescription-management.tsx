@@ -25,12 +25,7 @@ export function PrescriptionManagement() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <h1 className="font-serif font-bold text-3xl text-foreground">Prescription Management</h1>
-          <p className="text-muted-foreground mt-2">
-            Manage prescriptions, track dispensing, and maintain patient medication records
-          </p>
-        </div>
+
         <Button
           onClick={() => handleTabChange("new")}
           className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold cursor-pointer h-11"

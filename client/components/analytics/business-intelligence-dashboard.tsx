@@ -42,12 +42,7 @@ export function BusinessIntelligenceDashboard() {
   return (
     <div className="space-y-8 p-1">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Business Intelligence</h1>
-          <p className="text-muted-foreground">
-            Strategic insights and financial performance metrics
-          </p>
-        </div>
+
         <div className="flex items-center gap-2">
           <Select value={timeRange} onValueChange={setTimeRange}>
             <SelectTrigger className="w-[180px]">

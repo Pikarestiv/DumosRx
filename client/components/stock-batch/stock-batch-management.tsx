@@ -31,15 +31,7 @@ export function StockBatchManagement({
       <ExpiringBatchesAlert />
 
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <h1 className="font-serif font-bold text-3xl text-foreground capitalize">
-            {t("products")} & Inventory
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            Manage your product catalog, monitor stock levels, and track
-            movements
-          </p>
-        </div>
+
         {isAdmin && (
           <Button
             onClick={withRestriction(() => setIsAuditOpen(true), {

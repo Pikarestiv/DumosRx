@@ -109,14 +109,7 @@ export default function SettingsPage() {
     <>
       <div className="max-w-5xl">
         <div className="mb-6 flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-          <div>
-            <h1 className="font-serif font-bold text-3xl text-foreground">
-              Settings
-            </h1>
-            <p className="text-muted-foreground mt-2">
-              Manage your {storeType} configuration and preferences
-            </p>
-          </div>
+
           {user && (
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-sm">
               <Avatar className="w-5 h-5">

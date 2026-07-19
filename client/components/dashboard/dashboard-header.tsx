@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Plus, Store as StoreIcon } from "lucide-react";
 import { useAuth } from "@/lib/context/auth-context";
 import { useStore } from "@/lib/context/store-context";
@@ -8,16 +8,44 @@ import { APP_NAME } from "@/lib/constants";
 import { SyncIndicator } from "./sync-indicator";
 import { NotificationBell } from "./notification-bell";
 import { UserNav } from "./user-nav";
-
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface DashboardHeaderProps {
   onOpenFeedback?: () => void;
 }
 
+const PAGE_ROUTES = [
+  { path: "/inventory/categories", title: "Categories", desc: "Organize your products into categories." },
+  { path: "/inventory/stock-batches", title: "Stock Batches", desc: "Manage inventory intake, expiration dates, and physical stock." },
+  { path: "/inventory", title: "Product Catalog", desc: "Manage your pharmacy's core product database and pricing." },
+  { path: "/customers", title: "Customer Management", desc: "View and manage customer profiles, credit, and history." },
+  { path: "/sales", title: "Sales History", desc: "View and manage past transactions and returns." },
+  { path: "/prescriptions", title: "Prescription Management", desc: "Track and fulfill patient prescriptions securely." },
+  { path: "/procurement", title: "Procurement & Orders", desc: "Manage suppliers, create purchase orders, and track deliveries." },
+  { path: "/expenses", title: "Expenses", desc: "Track and manage your pharmacy's operational expenses." },
+  { path: "/reports", title: "Reporting Center", desc: "View performance metrics and generate detailed reports." },
+  { path: "/settings", title: "Settings", desc: "Manage your pharmacy configuration and preferences." }
+];
+
+function getPageInfo(pathname: string) {
+  if (pathname === "/" || pathname === "/dashboard") return null; // Use greeting
+  
+  const match = PAGE_ROUTES.find(route => pathname.startsWith(route.path));
+  return match || { title: APP_NAME, desc: "" };
+}
+
 export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const { user } = useAuth();
   const { storeProfile } = useStore();
+
+  const pageInfo = getPageInfo(pathname || "/");
 
   return (
     <header
@@ -27,27 +55,60 @@ export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
       {/* Left side (Desktop & Mobile) */}
       <div className="flex flex-col gap-0.5">
         <div className="flex items-center gap-1.5">
-          <span className="text-foreground text-base sm:text-lg font-bold tracking-tight">
-            {(() => {
-              const hour = new Date().getHours();
-              if (hour < 12) return "Good morning,";
-              if (hour === 12) return "Good noon,";
-              if (hour < 17) return "Good afternoon,";
-              if (hour < 21) return "Good evening,";
-              return "Good night,";
-            })()}
-          </span>
-          <span className="text-foreground text-base sm:text-lg font-bold sm:hidden tracking-tight">
-            {user?.first_name} {user?.last_name}
-          </span>
-          <span className="text-foreground text-base sm:text-lg font-bold hidden sm:inline-block tracking-tight">
-            {user?.first_name}
-          </span>
+          {!pageInfo ? (
+            <>
+              <span className="text-foreground text-base sm:text-lg font-bold tracking-tight">
+                {(() => {
+                  const hour = new Date().getHours();
+                  if (hour < 12) return "Good morning,";
+                  if (hour === 12) return "Good noon,";
+                  if (hour < 17) return "Good afternoon,";
+                  if (hour < 21) return "Good evening,";
+                  return "Good night,";
+                })()}
+              </span>
+              <span className="text-foreground text-base sm:text-lg font-bold sm:hidden tracking-tight">
+                {user?.first_name} {user?.last_name}
+              </span>
+              <span className="text-foreground text-base sm:text-lg font-bold hidden sm:inline-block tracking-tight">
+                {user?.first_name}
+              </span>
+            </>
+          ) : (
+            <div className="flex items-center gap-2">
+              {pageInfo.desc ? (
+                <TooltipProvider delayDuration={1000}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="text-foreground text-base sm:text-lg font-bold tracking-tight cursor-default">
+                        {pageInfo.title}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent
+                      side="bottom"
+                      align="start"
+                      className="max-w-[300px] text-sm"
+                    >
+                      <p>{pageInfo.desc}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              ) : (
+                <span className="text-foreground text-base sm:text-lg font-bold tracking-tight">
+                  {pageInfo.title}
+                </span>
+              )}
+            </div>
+          )}
         </div>
-        
+
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <span className="hidden sm:inline-block">
-            {new Date().toLocaleDateString("en-US", { weekday: 'long', month: 'short', day: 'numeric' })}
+            {new Date().toLocaleDateString("en-US", {
+              weekday: "long",
+              month: "short",
+              day: "numeric",
+            })}
           </span>
           <span className="hidden sm:inline-block text-border">•</span>
           <div className="flex items-center gap-1 font-medium text-foreground">
@@ -100,7 +161,7 @@ export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
         <div className="relative border border-border/50 rounded-full p-0.5">
           <NotificationBell />
         </div>
-        
+
         {/* Mobile User Nav */}
         <div className="sm:hidden">
           <UserNav onOpenFeedback={onOpenFeedback} />

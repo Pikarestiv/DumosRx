@@ -162,6 +162,26 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
           ? "border-amber-500/50"
           : "border-emerald-500/50";
 
+  const desktopBg = isSyncInProgress
+    ? "bg-blue-500/10 hover:bg-blue-500/20"
+    : status === "offline"
+      ? "bg-sidebar-accent/5 hover:bg-sidebar-accent/10"
+      : status === "error"
+        ? "bg-destructive/10 hover:bg-destructive/20"
+        : needsSync
+          ? "bg-amber-500/10 hover:bg-amber-500/20"
+          : "bg-sidebar-accent/5 hover:bg-sidebar-accent/10";
+
+  const mobileBg = isSyncInProgress
+    ? "bg-blue-500/10"
+    : status === "offline"
+      ? "bg-muted/50"
+      : status === "error"
+        ? "bg-destructive/10"
+        : needsSync
+          ? "bg-amber-500/10"
+          : "bg-muted/50";
+
 
   const tooltipText = isSyncInProgress
     ? "Syncing your changes to the cloud..."
@@ -177,7 +197,7 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
 
   if (isMobileHeader) {
     return (
-      <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-muted/50 border ${statusBorder} max-w-fit transition-colors`} onClick={handleManualSync}>
+      <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full ${mobileBg} border ${statusBorder} max-w-fit transition-colors`} onClick={handleManualSync}>
         {statusIcon}
         <span className="text-[10px] font-medium text-muted-foreground whitespace-nowrap">
           {statusLabel}
@@ -224,7 +244,7 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
     <div className="px-2 pb-1">
       <div 
         id="tour-sync-indicator" 
-        className={`p-2.5 border rounded-xl ${statusBorder} bg-sidebar-accent/5 transition-colors cursor-pointer hover:bg-sidebar-accent/10`}
+        className={`p-2.5 border rounded-xl ${statusBorder} ${desktopBg} transition-colors cursor-pointer`}
         onClick={handleManualSync}
       >
         <TooltipProvider>

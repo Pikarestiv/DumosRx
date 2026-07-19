@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
@@ -28,9 +29,11 @@ interface CreatePODialogProps {
   onPOCreated: () => void;
 }
 
-
-
 export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
   const { storeType } = useStore();
   const [open, setOpen] = useState(false);
   const [selectedSupplierId, setSelectedSupplierId] = useState("");
@@ -40,6 +43,16 @@ export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
   const [paymentStatus, setPaymentStatus] = useState("unpaid");
   const [amountPaid, setAmountPaid] = useState("");
   const [dueDate, setDueDate] = useState("");
+
+  useEffect(() => {
+    if (searchParams.get("action") === "add") {
+      setOpen(true);
+      const newParams = new URLSearchParams(searchParams.toString());
+      newParams.delete("action");
+      const newUrl = pathname + (newParams.toString() ? `?${newParams.toString()}` : "");
+      router.replace(newUrl);
+    }
+  }, [searchParams, router, pathname]);
 
   // New item state managed by POAddItemForm now
 

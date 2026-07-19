@@ -1,4 +1,5 @@
 "use client"
+import { useEffect } from "react";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { PrescriptionQueue } from "./prescription-queue"
@@ -22,6 +23,16 @@ export function PrescriptionManagement() {
     params.set("tab", value);
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   };
+
+  useEffect(() => {
+    if (searchParams.get("action") === "add") {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("action");
+      params.set("tab", "new");
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    }
+  }, [searchParams, router, pathname]);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">

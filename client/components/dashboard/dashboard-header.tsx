@@ -20,9 +20,9 @@ interface DashboardHeaderProps {
 }
 
 const PAGE_ROUTES = [
-  { path: "/inventory/categories", title: "Categories", desc: "Organize your products into categories.", action: { label: "Add Category", path: "/inventory/categories?action=add" } },
-  { path: "/inventory/stock-batches", title: "Stock Batches", desc: "Manage inventory intake, expiration dates, and physical stock.", action: { label: "Add Batch", path: "/inventory/stock-batches?action=add" } },
-  { path: "/inventory", title: "Product Catalog", desc: "Manage your pharmacy's core product database and pricing.", action: { label: "Add Product", path: "/inventory?action=add" } },
+  { path: "/inventory/products", title: "Product Catalog", desc: "Manage your pharmacy's core product database and pricing.", action: { label: "Add Product", path: "/inventory/products?action=add" } },
+  { path: "/inventory/batches", title: "Stock Batches", desc: "Manage inventory intake, expiration dates, and physical stock.", action: { label: "Add Batch", path: "/inventory/batches?action=add" } },
+  { path: "/inventory", title: "Inventory Dashboard", desc: "Overview of your inventory health and metrics." },
   { path: "/customers", title: "Customer Management", desc: "View and manage customer profiles, credit, and history.", action: { label: "Add Customer", path: "/customers?action=add" } },
   { path: "/sales", title: "Sales History", desc: "View and manage past transactions and returns." },
   { path: "/prescriptions", title: "Prescription Management", desc: "Track and fulfill patient prescriptions securely.", action: { label: "Create Prescription", path: "/prescriptions?action=add" } },

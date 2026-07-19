@@ -8,7 +8,14 @@ import { StockAdjustmentMetrics } from "./stock-adjustments/stock-adjustment-met
 import { StockAdjustmentFilters } from "./stock-adjustments/stock-adjustment-filters";
 import { StockAdjustmentTable } from "./stock-adjustments/stock-adjustment-table";
 
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { useEffect } from "react";
+
 export function StockAdjustments() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
   const {
     adjustments,
     loading,
@@ -25,6 +32,16 @@ export function StockAdjustments() {
     totalAdjustments,
     thisMonthAdjustments,
   } = useStockAdjustments();
+
+  useEffect(() => {
+    if (searchParams.get("action") === "add") {
+      setShowAddForm(true);
+      const newParams = new URLSearchParams(searchParams.toString());
+      newParams.delete("action");
+      const newUrl = pathname + (newParams.toString() ? `?${newParams.toString()}` : "");
+      router.replace(newUrl);
+    }
+  }, [searchParams, router, pathname, setShowAddForm]);
 
   if (loading) {
     return <StockAdjustmentLoading />;

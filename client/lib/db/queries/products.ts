@@ -77,3 +77,20 @@ export async function getProductsWithStock() {
     category_id: m.category_id || "",
   }));
 }
+
+export async function getProductHistory(productId: string) {
+  const auditLogs = await query<any>(
+    "SELECT * FROM audit_logs WHERE record_id = ? ORDER BY created_at DESC",
+    [productId]
+  );
+  
+  const stockMovements = await query<any>(
+    "SELECT * FROM stock_movements WHERE product_id = ? ORDER BY created_at DESC",
+    [productId]
+  );
+
+  return {
+    auditLogs: auditLogs || [],
+    stockMovements: stockMovements || [],
+  };
+}

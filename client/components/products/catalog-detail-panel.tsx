@@ -7,6 +7,7 @@ import { ProductSupplierInfo } from "./product-details/product-supplier-info";
 import { ProductPricingInfo } from "./product-details/product-pricing-info";
 import { ProductStockInfo } from "./product-details/product-stock-info";
 import { ProductBatchHistory } from "./product-details/product-batch-history";
+import { ProductHistory } from "./product-details/product-history";
 
 interface CatalogDetailPanelProps {
   product: Product | null;
@@ -87,9 +88,8 @@ export function CatalogDetailPanel({ product, onEditProduct }: CatalogDetailPane
             />
           </TabsContent>
 
-          <TabsContent value="history" className="mt-0 text-center py-10 text-muted-foreground">
-            {/* Will be implemented with actual history later, leaving placeholder */}
-            <p className="text-sm">History logs will appear here.</p>
+          <TabsContent value="history" className="mt-4 pt-2">
+            <ProductHistory productId={product.id} />
           </TabsContent>
         </Tabs>
       </div>

@@ -151,7 +151,8 @@ export async function getStockBatchStats(expiryDays: number = 30) {
       SUM(CASE WHEN COALESCE(sb.total_qty, 0) = 0 THEN 1 ELSE 0 END) AS critical_stock_count,
       SUM(CASE WHEN sb.expiring_soon > 0 THEN 1 ELSE 0 END) AS expiring_soon_count,
       SUM(CASE WHEN sb.expired > 0 THEN 1 ELSE 0 END) AS expired_count,
-      COALESCE(SUM(sb.total_value), 0) AS total_stock_batch_value
+      COALESCE(SUM(sb.total_value), 0) AS total_stock_batch_value,
+      COUNT(DISTINCT p.category_id) as active_categories
     FROM products p
     LEFT JOIN (
       SELECT product_id,
@@ -220,22 +221,51 @@ export async function createStockBatch(batch: {
 
 export async function getFastMovers(days: number = 7) {
   const result = await query<any>(
-    `SELECT 
-      p.id, 
-      p.name, 
-      p.generic_name as genericName, 
-      p.category_id, 
-      SUM(si.quantity) as soldQuantity, 
-      SUM(si.total_price) as revenue
-    FROM sales s
-    JOIN sale_items si ON s.id = si.sale_id
-    JOIN products p ON si.product_id = p.id
-    WHERE s.created_at >= date('now', '-' || ? || ' days')
-      AND (s._deleted = 0 OR s._deleted IS NULL)
-    GROUP BY p.id
-    ORDER BY soldQuantity DESC
+    `WITH current_period AS (
+      SELECT 
+        p.id, 
+        p.name, 
+        p.generic_name as genericName, 
+        p.category_id, 
+        SUM(si.quantity) as soldQuantity, 
+        SUM(si.total_price) as revenue
+      FROM sales s
+      JOIN sale_items si ON s.id = si.sale_id
+      JOIN products p ON si.product_id = p.id
+      WHERE s.created_at >= date('now', '-' || ? || ' days')
+        AND (s._deleted = 0 OR s._deleted IS NULL)
+      GROUP BY p.id
+    ),
+    previous_period AS (
+      SELECT 
+        si.product_id, 
+        SUM(si.quantity) as prevQuantity
+      FROM sales s
+      JOIN sale_items si ON s.id = si.sale_id
+      WHERE s.created_at >= date('now', '-' || (? * 2) || ' days')
+        AND s.created_at < date('now', '-' || ? || ' days')
+        AND (s._deleted = 0 OR s._deleted IS NULL)
+      GROUP BY si.product_id
+    )
+    SELECT 
+      c.*,
+      COALESCE(p.prevQuantity, 0) as prevQuantity
+    FROM current_period c
+    LEFT JOIN previous_period p ON c.id = p.product_id
+    ORDER BY c.soldQuantity DESC
     LIMIT 5`,
-    [days.toString()]
+    [days.toString(), days.toString(), days.toString()]
   );
-  return result;
+  
+  const items = result.map((row: any) => {
+    let percentageChange = 0;
+    if (row.prevQuantity > 0) {
+      percentageChange = ((row.soldQuantity - row.prevQuantity) / row.prevQuantity) * 100;
+    } else if (row.soldQuantity > 0) {
+      percentageChange = 100;
+    }
+    return { ...row, percentageChange };
+  });
+
+  return { items };
 }

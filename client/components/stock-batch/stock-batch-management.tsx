@@ -31,6 +31,7 @@ export function StockBatchManagement({
         totalProducts={stats.totalProducts}
         lowStockCount={stats.lowStockCount}
         expiringCount={stats.expiringSoonCount}
+        activeCategories={stats.activeCategories}
         formatCurrency={formatCurrency}
       />
 

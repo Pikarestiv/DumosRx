@@ -20,14 +20,14 @@ interface DashboardHeaderProps {
 }
 
 const PAGE_ROUTES = [
-  { path: "/inventory/categories", title: "Categories", desc: "Organize your products into categories." },
-  { path: "/inventory/stock-batches", title: "Stock Batches", desc: "Manage inventory intake, expiration dates, and physical stock." },
-  { path: "/inventory", title: "Product Catalog", desc: "Manage your pharmacy's core product database and pricing." },
-  { path: "/customers", title: "Customer Management", desc: "View and manage customer profiles, credit, and history." },
+  { path: "/inventory/categories", title: "Categories", desc: "Organize your products into categories.", action: { label: "Add Category", path: "/inventory/categories?action=add" } },
+  { path: "/inventory/stock-batches", title: "Stock Batches", desc: "Manage inventory intake, expiration dates, and physical stock.", action: { label: "Add Batch", path: "/inventory/stock-batches?action=add" } },
+  { path: "/inventory", title: "Product Catalog", desc: "Manage your pharmacy's core product database and pricing.", action: { label: "Add Product", path: "/inventory?action=add" } },
+  { path: "/customers", title: "Customer Management", desc: "View and manage customer profiles, credit, and history.", action: { label: "Add Customer", path: "/customers?action=add" } },
   { path: "/sales", title: "Sales History", desc: "View and manage past transactions and returns." },
-  { path: "/prescriptions", title: "Prescription Management", desc: "Track and fulfill patient prescriptions securely." },
-  { path: "/procurement", title: "Procurement & Orders", desc: "Manage suppliers, create purchase orders, and track deliveries." },
-  { path: "/expenses", title: "Expenses", desc: "Track and manage your pharmacy's operational expenses." },
+  { path: "/prescriptions", title: "Prescription Management", desc: "Track and fulfill patient prescriptions securely.", action: { label: "Create Prescription", path: "/prescriptions?action=add" } },
+  { path: "/procurement", title: "Procurement & Orders", desc: "Manage suppliers, create purchase orders, and track deliveries.", action: { label: "Create Order", path: "/procurement?action=add" } },
+  { path: "/expenses", title: "Expenses", desc: "Track and manage your pharmacy's operational expenses.", action: { label: "Add Expense", path: "/expenses?action=add" } },
   { path: "/reports", title: "Reporting Center", desc: "View performance metrics and generate detailed reports." },
   { path: "/settings", title: "Settings", desc: "Manage your pharmacy configuration and preferences." }
 ];
@@ -36,7 +36,7 @@ function getPageInfo(pathname: string) {
   if (pathname === "/" || pathname === "/dashboard") return null; // Use greeting
   
   const match = PAGE_ROUTES.find(route => pathname.startsWith(route.path));
-  return match || { title: APP_NAME, desc: "" };
+  return match || { title: APP_NAME, desc: "", action: null };
 }
 
 export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
@@ -149,11 +149,11 @@ export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
           */}
 
           <button
-            onClick={() => router.push("/pos")}
+            onClick={() => router.push(pageInfo?.action ? pageInfo.action.path : "/pos")}
             className="flex items-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-full text-sm font-medium transition-colors shadow-sm"
           >
             <Plus className="h-4 w-4" />
-            New Sale
+            {pageInfo?.action ? pageInfo.action.label : "New Sale"}
           </button>
         </div>
 

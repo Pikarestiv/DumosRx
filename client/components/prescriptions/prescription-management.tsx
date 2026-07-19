@@ -25,14 +25,6 @@ export function PrescriptionManagement() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-
-        <Button
-          onClick={() => handleTabChange("new")}
-          className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold cursor-pointer h-11"
-        >
-          <Plus className="w-5 h-5 mr-2" />
-          Create Prescription
-        </Button>
       </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">

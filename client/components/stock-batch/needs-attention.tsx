@@ -23,7 +23,7 @@ export function NeedsAttention({ stockData }: { stockData: StockItem[] }) {
   const expiryDays = storeProfile?.expiry_warning_days || 90;
 
   const { data: expiringBatchesData } = useQuery({
-    queryKey: ['expiringBatches', expiryDays],
+    queryKey: ["expiringBatches", expiryDays],
     queryFn: () => getExpiringBatches(expiryDays),
   });
 
@@ -32,13 +32,28 @@ export function NeedsAttention({ stockData }: { stockData: StockItem[] }) {
   const items: any[] = [];
 
   // Add expiring batches
-  expiringBatches.forEach(batch => {
-    const daysLeft = Math.ceil((new Date(batch.expiry_date).getTime() - new Date().getTime()) / (1000 * 3600 * 24));
+  expiringBatches.forEach((batch) => {
+    const daysLeft = Math.ceil(
+      (new Date(batch.expiry_date).getTime() - new Date().getTime()) /
+        (1000 * 3600 * 24),
+    );
+
+    let expiryText = "";
+    if (daysLeft < 0) {
+      const d = new Date(batch.expiry_date);
+      const formattedDate = `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
+      expiryText = `Expired on ${formattedDate}`;
+    } else if (daysLeft === 0) {
+      expiryText = `Expires today`;
+    } else {
+      expiryText = `Expires in ${daysLeft} days`;
+    }
+
     items.push({
       type: "expiring",
       id: batch.id,
       product_name: batch.name,
-      description: `Batch ${batch.batch_number} expires in ${daysLeft} days · ${batch.stock_quantity} units`,
+      description: `Batch ${batch.batch_number} · ${expiryText} · ${batch.stock_quantity} units`,
       icon: <Calendar className="w-4 h-4" />,
       iconClass: "bg-destructive/10 text-destructive",
       actionText: "View batch",
@@ -48,20 +63,29 @@ export function NeedsAttention({ stockData }: { stockData: StockItem[] }) {
   });
 
   // Add low/critical stock
-  stockData.forEach(item => {
+  stockData.forEach((item) => {
     if (item.status === "critical" || item.status === "low") {
       const isCritical = item.status === "critical" || item.quantity === 0;
       items.push({
         type: item.status,
         id: item.id,
         product_name: item.product_name,
-        description: item.quantity === 0 
-          ? `Out of stock` 
-          : `${item.quantity} units left · reorder at ${item.reorder_level}`,
-        icon: isCritical ? <AlertCircle className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />,
-        iconClass: isCritical ? "bg-destructive/10 text-destructive" : "bg-orange-500/10 text-orange-600 dark:text-orange-400",
+        description:
+          item.quantity === 0
+            ? `Out of stock · Missing out on sales`
+            : `${item.quantity} units left · Reorder at ${item.reorder_level}`,
+        icon: isCritical ? (
+          <AlertCircle className="w-4 h-4" />
+        ) : (
+          <TrendingDown className="w-4 h-4" />
+        ),
+        iconClass: isCritical
+          ? "bg-destructive/10 text-destructive"
+          : "bg-orange-500/10 text-orange-600 dark:text-orange-400",
         actionText: "Reorder",
-        actionClass: isCritical ? "text-destructive bg-destructive/10 hover:bg-destructive/20" : "text-orange-600 dark:text-orange-400 bg-orange-500/10 hover:bg-orange-500/20",
+        actionClass: isCritical
+          ? "text-destructive bg-destructive/10 hover:bg-destructive/20"
+          : "text-orange-600 dark:text-orange-400 bg-orange-500/10 hover:bg-orange-500/20",
         onClick: () => router.push(`/procurement`),
       });
     }
@@ -71,14 +95,14 @@ export function NeedsAttention({ stockData }: { stockData: StockItem[] }) {
     <div className="bg-card border border-border rounded-2xl p-5 flex flex-col">
       <div className="flex items-center justify-between mb-4">
         <div className="text-[15px] font-semibold">Needs attention</div>
-        <div 
+        <div
           className="text-[12.5px] text-primary font-semibold cursor-pointer hover:underline"
-          onClick={() => router.push('/inventory/products')}
+          onClick={() => router.push("/inventory/products")}
         >
           View all
         </div>
       </div>
-      
+
       <div className="flex flex-col">
         {items.length === 0 ? (
           <div className="text-sm text-muted-foreground py-4 text-center">
@@ -86,15 +110,24 @@ export function NeedsAttention({ stockData }: { stockData: StockItem[] }) {
           </div>
         ) : (
           items.slice(0, 10).map((item, idx) => (
-            <div key={item.id + idx} className={`flex items-center gap-3 py-3 ${idx !== items.length - 1 && idx !== 9 ? 'border-b border-border' : ''}`}>
-              <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${item.iconClass}`}>
+            <div
+              key={item.id + idx}
+              className={`flex items-center gap-3 py-3 ${idx !== items.length - 1 && idx !== 9 ? "border-b border-border" : ""}`}
+            >
+              <div
+                className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${item.iconClass}`}
+              >
                 {item.icon}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-[13px] font-semibold truncate">{item.product_name}</div>
-                <div className="text-[11.5px] text-muted-foreground">{item.description}</div>
+                <div className="text-[13px] font-semibold truncate">
+                  {item.product_name}
+                </div>
+                <div className="text-[11.5px] text-muted-foreground">
+                  {item.description}
+                </div>
               </div>
-              <button 
+              <button
                 className={`text-[11.5px] font-semibold px-3 py-1.5 rounded-lg shrink-0 transition-colors ${item.actionClass}`}
                 onClick={item.onClick}
               >

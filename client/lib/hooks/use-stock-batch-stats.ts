@@ -23,6 +23,7 @@ export interface StockBatchStats {
   expiringSoonCount: number;
   expiredCount: number;
   totalStockBatchValue: number;
+  activeCategories: number;
   loading: boolean;
 }
 
@@ -45,6 +46,7 @@ export function useStockBatchStats(): StockBatchStats {
     expiringSoonCount: row?.expiring_soon_count ?? 0,
     expiredCount: row?.expired_count ?? 0,
     totalStockBatchValue: row?.total_stock_batch_value ?? 0,
+    activeCategories: row?.active_categories ?? 0,
     loading,
   };
 }

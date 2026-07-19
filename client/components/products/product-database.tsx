@@ -158,13 +158,6 @@ export function ProductDatabase() {
           statuses={statuses}
         />
 
-        <Button
-          onClick={() => setShowAddDialog(true)}
-          className="bg-accent hover:bg-accent/90 shrink-0"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add {t("product")}
-        </Button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] xl:grid-cols-[1fr_450px] gap-5 flex-1 min-h-0">

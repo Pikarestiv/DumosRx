@@ -148,7 +148,7 @@ export function ProductDatabase() {
     <div className="flex flex-col h-[calc(100vh-140px)] min-h-[600px] space-y-4">
 
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] xl:grid-cols-[1fr_450px] gap-5 flex-1 min-h-0">
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(320px,400px)] xl:grid-cols-[minmax(0,1fr)_minmax(380px,450px)] gap-5 flex-1 min-h-0">
         {/* Left List */}
         <div className="bg-card border border-border rounded-2xl flex flex-col min-h-0">
           <ProductDatabaseFilters

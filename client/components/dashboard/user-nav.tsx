@@ -2,7 +2,7 @@
 
 import { useAuth } from "@/lib/context/auth-context";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getSyncQueueCount } from "@/lib/db/queries/setup";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { LogOut, Repeat, Settings2 } from "lucide-react";
+import { LogOut, Repeat, Settings2, MessageSquare } from "lucide-react";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { ThemeCustomizer } from "@/components/ui/theme-customizer";
 import { getUserInitials } from "@/lib/utils";
@@ -31,7 +31,7 @@ import { useMediaQuery } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
 
 const NavTrigger = ({ initials, user, showDetails }: { initials: string, user?: any, showDetails?: boolean }) => (
-  <Button variant="ghost" className={cn("relative rounded-xl hover:bg-muted/50 transition-colors", showDetails ? "h-auto w-full flex items-center justify-start gap-3 p-2" : "h-8 w-8 rounded-full p-0")}>
+  <Button variant="ghost" className={cn("relative rounded-xl hover:bg-muted/50 transition-colors text-foreground hover:text-foreground", showDetails ? "h-auto w-full flex items-center justify-start gap-3 p-2" : "h-8 w-8 rounded-full p-0")}>
     <Avatar className={cn("border border-border shrink-0", showDetails ? "h-9 w-9" : "h-8 w-8")}>
       <AvatarFallback className="bg-primary/10 text-primary hover:text-accent-foreground text-xs font-semibold">
         {initials}
@@ -61,9 +61,11 @@ const MobileAppearanceSettings = () => (
 
 interface UserNavProps {
   showDetails?: boolean;
+  onOpenFeedback?: () => void;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function UserNav({ showDetails }: UserNavProps) {
+export function UserNav({ showDetails, onOpenFeedback, onOpenChange }: UserNavProps) {
   const { user, logout } = useAuth();
   const router = useRouter();
   const isDesktop = useMediaQuery("(min-width: 768px)");
@@ -73,6 +75,10 @@ export function UserNav({ showDetails }: UserNavProps) {
   const [pendingLogoutType, setPendingLogoutType] = useState<
     "switch" | "full" | null
   >(null);
+
+  useEffect(() => {
+    onOpenChange?.(open);
+  }, [open, onOpenChange]);
 
   const { data: pendingCountData } = useQuery({
     queryKey: ["syncQueueCount"],
@@ -141,6 +147,21 @@ export function UserNav({ showDetails }: UserNavProps) {
         </div>
 
         <DropdownMenuSeparator />
+        {onOpenFeedback && (
+          <>
+            <DropdownMenuItem
+              onClick={() => {
+                setOpen(false);
+                onOpenFeedback();
+              }}
+              className="cursor-pointer group"
+            >
+              <MessageSquare className="mr-2 h-4 w-4 group-hover:text-white group-focus:text-white transition-colors" />
+              <span>Help & Feedback</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+          </>
+        )}
         <DropdownMenuItem
           onClick={handleSwitchAccount}
           className="cursor-pointer group"
@@ -183,6 +204,19 @@ export function UserNav({ showDetails }: UserNavProps) {
 
         <div className="px-4 py-4 space-y-2">
           <MobileAppearanceSettings />
+
+          {onOpenFeedback && (
+            <button
+              onClick={() => {
+                setOpen(false);
+                onOpenFeedback();
+              }}
+              className="w-full flex items-center gap-4 p-4 rounded-xl font-medium text-foreground hover:bg-muted transition-colors border border-transparent"
+            >
+              <MessageSquare className="h-5 w-5 opacity-90" />
+              <span>Help & Feedback</span>
+            </button>
+          )}
 
           <button
             onClick={handleSwitchAccount}

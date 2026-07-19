@@ -37,17 +37,21 @@ import { useStockBatchStats } from "@/lib/hooks/use-stock-batch-stats";
 interface DashboardSidebarProps {
   onOpenFeedback: () => void;
   collapsed: boolean;
+  logicalCollapsed: boolean;
   onToggleCollapse: () => void;
-  onMouseEnter?: () => void;
-  onMouseLeave?: () => void;
+  onMouseEnter: () => void;
+  onMouseLeave: () => void;
+  onUserNavOpenChange?: (open: boolean) => void;
 }
 
 export function DashboardSidebar({
   onOpenFeedback,
   collapsed,
+  logicalCollapsed,
   onToggleCollapse,
   onMouseEnter,
   onMouseLeave,
+  onUserNavOpenChange,
 }: DashboardSidebarProps) {
   const pathname = usePathname();
   const { storeType } = useStore();
@@ -277,28 +281,8 @@ export function DashboardSidebar({
             ))}
 
             {(isAdmin || canManageStockBatch) && (
-              <>
-                <div
-                  className={cn(
-                    "text-[11px] font-bold text-muted-foreground uppercase tracking-wider mt-6 mb-2",
-                    collapsed ? "text-center px-0" : "px-3",
-                  )}
-                >
-                  {collapsed ? "Sys" : "System"}
-                </div>
-                <NavItem href="/settings" icon={Settings} name="Settings" />
-              </>
+              <NavItem href="/settings" icon={Settings} name="Settings" />
             )}
-
-            <div className="pt-2 border-t border-sidebar-border mt-2">
-              <ActionItem
-                icon={MessageSquare}
-                name="Help & Feedback"
-                onClick={() => {
-                  onOpenFeedback();
-                }}
-              />
-            </div>
 
             {/* Collapse toggle — only on desktop */}
             <div className="pt-2 hidden lg:block">
@@ -312,8 +296,15 @@ export function DashboardSidebar({
                       collapsed ? "justify-center px-2" : "",
                     )}
                   >
-                    {collapsed ? (
-                      <ChevronsRight className="h-[18px] w-[18px] shrink-0" />
+                    {logicalCollapsed ? (
+                      collapsed ? (
+                        <ChevronsRight className="h-[18px] w-[18px] shrink-0" />
+                      ) : (
+                        <>
+                          <ChevronsRight className="h-[18px] w-[18px] shrink-0" />
+                          <span className="truncate text-xs">Pin sidebar open</span>
+                        </>
+                      )
                     ) : (
                       <>
                         <ChevronsLeft className="h-[18px] w-[18px] shrink-0" />
@@ -324,7 +315,7 @@ export function DashboardSidebar({
                     )}
                   </button>
                 </TooltipTrigger>
-                {collapsed && (
+                {logicalCollapsed && (
                   <TooltipContent side="right" className="font-medium text-xs">
                     Expand sidebar
                   </TooltipContent>
@@ -337,7 +328,7 @@ export function DashboardSidebar({
           <div className="bg-sidebar flex flex-col pt-2 pb-2 px-2 gap-0.5">
             <SyncIndicator collapsed={collapsed} />
             <div className="px-1">
-              <UserNav showDetails={!collapsed} />
+              <UserNav showDetails={!collapsed} onOpenFeedback={onOpenFeedback} onOpenChange={onUserNavOpenChange} />
             </div>
           </div>
         </div>

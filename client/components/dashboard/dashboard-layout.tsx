@@ -16,6 +16,7 @@ import { DashboardSidebar } from "./dashboard-sidebar";
 import { MobileBottomNav } from "./mobile-bottom-nav";
 import { DashboardTour } from "./dashboard-tour";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import { useAutoLockStore, useAutoLockTimer } from "@/lib/hooks/use-auto-lock";
 import { useSwipeNavigation } from "@/lib/hooks/use-swipe-navigation";
 import { LockScreen } from "@/components/auth/lock-screen";
@@ -49,8 +50,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const isPosRoute = pathname.startsWith("/pos");
   const [hoverExpanded, setHoverExpanded] = useState(false);
+  const [userNavOpen, setUserNavOpen] = useState(false);
   const isLogicallyCollapsed = isPosRoute ? true : sidebarCollapsed;
-  const effectiveCollapsed = isLogicallyCollapsed && !hoverExpanded;
+  const effectiveCollapsed = isLogicallyCollapsed && !hoverExpanded && !userNavOpen;
   const contentCollapsed = isLogicallyCollapsed;
 
   /* Hydrate collapse preference from localStorage */
@@ -67,6 +69,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   }, []);
 
   const handleToggleCollapse = () => {
+    if (isPosRoute) {
+      toast.info("The POS view is collapsed by default to maximize workspace width.");
+      return;
+    }
     setSidebarCollapsed((prev) => {
       const next = !prev;
       try {
@@ -156,9 +162,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       <DashboardSidebar
         onOpenFeedback={() => setFeedbackOpen(true)}
         collapsed={effectiveCollapsed}
+        logicalCollapsed={isLogicallyCollapsed}
         onToggleCollapse={handleToggleCollapse}
         onMouseEnter={() => setHoverExpanded(true)}
         onMouseLeave={() => setHoverExpanded(false)}
+        onUserNavOpenChange={setUserNavOpen}
       />
 
       {!isPosRoute && <MobileBottomNav onOpenFeedback={() => setFeedbackOpen(true)} />}
@@ -181,7 +189,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       >
         <BroadcastBanner />
 
-        {!isPosRoute && <DashboardHeader />}
+        {!isPosRoute && <DashboardHeader onOpenFeedback={() => setFeedbackOpen(true)} />}
 
         {/* Page content */}
         <div className="flex-1 relative overflow-x-clip">

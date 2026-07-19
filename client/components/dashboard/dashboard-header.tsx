@@ -10,7 +10,11 @@ import { NotificationBell } from "./notification-bell";
 import { UserNav } from "./user-nav";
 
 
-export function DashboardHeader() {
+interface DashboardHeaderProps {
+  onOpenFeedback?: () => void;
+}
+
+export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
   const router = useRouter();
   const { user } = useAuth();
   const { storeProfile } = useStore();
@@ -99,7 +103,7 @@ export function DashboardHeader() {
         
         {/* Mobile User Nav */}
         <div className="sm:hidden">
-          <UserNav />
+          <UserNav onOpenFeedback={onOpenFeedback} />
         </div>
       </div>
     </header>

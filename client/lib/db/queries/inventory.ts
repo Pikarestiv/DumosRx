@@ -217,3 +217,25 @@ export async function createStockBatch(batch: {
 }) {
   return insert("stock_batches", batch);
 }
+
+export async function getFastMovers(days: number = 7) {
+  const result = await query<any>(
+    `SELECT 
+      p.id, 
+      p.name, 
+      p.generic_name as genericName, 
+      p.category_id, 
+      SUM(si.quantity) as soldQuantity, 
+      SUM(si.total_price) as revenue
+    FROM sales s
+    JOIN sale_items si ON s.id = si.sale_id
+    JOIN products p ON si.product_id = p.id
+    WHERE s.created_at >= date('now', '-' || ? || ' days')
+      AND (s._deleted = 0 OR s._deleted IS NULL)
+    GROUP BY p.id
+    ORDER BY soldQuantity DESC
+    LIMIT 5`,
+    [days.toString()]
+  );
+  return result;
+}

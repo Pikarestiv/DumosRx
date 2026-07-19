@@ -1,0 +1,109 @@
+"use client";
+
+import { useQuery } from "@tanstack/react-query";
+import { AlertCircle, Calendar, TrendingDown } from "lucide-react";
+import { getExpiringBatches } from "@/lib/db/queries/inventory";
+import { useStore } from "@/lib/context/store-context";
+import { useRouter } from "next/navigation";
+
+interface StockItem {
+  id: string;
+  product_id: string;
+  product_name: string;
+  batch_number: string;
+  quantity: number;
+  reorder_level: number;
+  status: "healthy" | "low" | "critical" | "overstock";
+  expiry_date?: string;
+}
+
+export function NeedsAttention({ stockData }: { stockData: StockItem[] }) {
+  const router = useRouter();
+  const { storeProfile } = useStore();
+  const expiryDays = storeProfile?.expiry_warning_days || 90;
+
+  const { data: expiringBatchesData } = useQuery({
+    queryKey: ['expiringBatches', expiryDays],
+    queryFn: () => getExpiringBatches(expiryDays),
+  });
+
+  const expiringBatches = expiringBatchesData || [];
+
+  const items: any[] = [];
+
+  // Add expiring batches
+  expiringBatches.forEach(batch => {
+    const daysLeft = Math.ceil((new Date(batch.expiry_date).getTime() - new Date().getTime()) / (1000 * 3600 * 24));
+    items.push({
+      type: "expiring",
+      id: batch.id,
+      product_name: batch.name,
+      description: `Batch ${batch.batch_number} expires in ${daysLeft} days · ${batch.stock_quantity} units`,
+      icon: <Calendar className="w-4 h-4" />,
+      iconClass: "bg-destructive/10 text-destructive",
+      actionText: "View batch",
+      actionClass: "text-destructive bg-destructive/10 hover:bg-destructive/20",
+      onClick: () => router.push(`/inventory/batches`),
+    });
+  });
+
+  // Add low/critical stock
+  stockData.forEach(item => {
+    if (item.status === "critical" || item.status === "low") {
+      const isCritical = item.status === "critical" || item.quantity === 0;
+      items.push({
+        type: item.status,
+        id: item.id,
+        product_name: item.product_name,
+        description: item.quantity === 0 
+          ? `Out of stock` 
+          : `${item.quantity} units left · reorder at ${item.reorder_level}`,
+        icon: isCritical ? <AlertCircle className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />,
+        iconClass: isCritical ? "bg-destructive/10 text-destructive" : "bg-orange-500/10 text-orange-600 dark:text-orange-400",
+        actionText: "Reorder",
+        actionClass: isCritical ? "text-destructive bg-destructive/10 hover:bg-destructive/20" : "text-orange-600 dark:text-orange-400 bg-orange-500/10 hover:bg-orange-500/20",
+        onClick: () => router.push(`/procurement`),
+      });
+    }
+  });
+
+  return (
+    <div className="bg-card border border-border rounded-2xl p-5 flex flex-col">
+      <div className="flex items-center justify-between mb-4">
+        <div className="text-[15px] font-semibold">Needs attention</div>
+        <div 
+          className="text-[12.5px] text-primary font-semibold cursor-pointer hover:underline"
+          onClick={() => router.push('/inventory/products')}
+        >
+          View all
+        </div>
+      </div>
+      
+      <div className="flex flex-col">
+        {items.length === 0 ? (
+          <div className="text-sm text-muted-foreground py-4 text-center">
+            No items need immediate attention.
+          </div>
+        ) : (
+          items.slice(0, 10).map((item, idx) => (
+            <div key={item.id + idx} className={`flex items-center gap-3 py-3 ${idx !== items.length - 1 && idx !== 9 ? 'border-b border-border' : ''}`}>
+              <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${item.iconClass}`}>
+                {item.icon}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-[13px] font-semibold truncate">{item.product_name}</div>
+                <div className="text-[11.5px] text-muted-foreground">{item.description}</div>
+              </div>
+              <button 
+                className={`text-[11.5px] font-semibold px-3 py-1.5 rounded-lg shrink-0 transition-colors ${item.actionClass}`}
+                onClick={item.onClick}
+              >
+                {item.actionText}
+              </button>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}

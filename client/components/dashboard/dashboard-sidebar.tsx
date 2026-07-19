@@ -26,7 +26,6 @@ import {
   ShoppingBasket,
   Wallet,
   ClipboardList,
-  MessageSquare,
   ChevronsLeft,
   ChevronsRight,
   Lock,
@@ -181,43 +180,6 @@ export function DashboardSidebar({
     }
 
     return link;
-  };
-
-  /** Shared button-style action item */
-  const ActionItem = ({
-    icon: Icon,
-    name,
-    onClick,
-  }: {
-    icon: React.ElementType;
-    name: string;
-    onClick: () => void;
-  }) => {
-    const btn = (
-      <button
-        onClick={onClick}
-        className={cn(
-          "w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 cursor-pointer text-sidebar-foreground hover:bg-primary/50 hover:text-primary-foreground",
-          collapsed ? "justify-center px-2" : "",
-        )}
-      >
-        <Icon className="h-[18px] w-[18px] shrink-0" />
-        {!collapsed && <span className="truncate">{name}</span>}
-      </button>
-    );
-
-    if (collapsed) {
-      return (
-        <Tooltip delayDuration={100}>
-          <TooltipTrigger asChild>{btn}</TooltipTrigger>
-          <TooltipContent side="right" className="font-medium text-xs">
-            {name}
-          </TooltipContent>
-        </Tooltip>
-      );
-    }
-
-    return btn;
   };
 
   return (

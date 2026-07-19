@@ -5,54 +5,33 @@ import { StockMovements } from "./stock-movements";
 import { StockAdjustments } from "./stock-adjustments";
 import { BatchTracking } from "./batch-tracking";
 import { ProductDatabase } from "@/components/products/product-database";
-import { Button } from "@/components/ui/button";
-import { ClipboardCheck, Lock } from "lucide-react";
-import { useState } from "react";
-import { StockAuditDialog } from "./stock-audit-dialog";
-import { ExpiringBatchesAlert } from "./expiring-batches-alert";
+
 import { useStore } from "@/lib/context/store-context";
-import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { useAuth } from "@/lib/context/auth-context";
 import { useRouter } from "next/navigation";
+import { StockBatchMetrics } from "./stock-batch-metrics";
+import { useStockBatchStats } from "@/lib/hooks/use-stock-batch-stats";
+import { formatCurrency } from "@/lib/utils";
 
 export function StockBatchManagement({
   currentTab = "overview",
 }: {
   currentTab?: string;
 }) {
-  const [isAuditOpen, setIsAuditOpen] = useState(false);
   const { t } = useStore();
   const { isAdmin } = useAuth();
   const router = useRouter();
-  const { canUseAuditMode, withRestriction } = useFeatureGate();
+  
+  const stats = useStockBatchStats();
 
   return (
     <div className="space-y-6">
-      <ExpiringBatchesAlert />
-
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-
-        {isAdmin && (
-          <Button
-            onClick={withRestriction(() => setIsAuditOpen(true), {
-              featureAllowed: canUseAuditMode,
-              featureKey: "audit_mode",
-            })}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold cursor-pointer h-11"
-          >
-            {canUseAuditMode ? (
-              <ClipboardCheck className="w-5 h-5 mr-2" />
-            ) : (
-              <Lock className="w-4 h-4 mr-2" />
-            )}
-            Start Audit Mode
-          </Button>
-        )}
-      </div>
-
-      <StockAuditDialog
-        isOpen={isAuditOpen}
-        onClose={() => setIsAuditOpen(false)}
+      <StockBatchMetrics
+        stock_batchValue={stats.totalStockBatchValue}
+        totalProducts={stats.totalProducts}
+        lowStockCount={stats.lowStockCount}
+        expiringCount={stats.expiringSoonCount}
+        formatCurrency={formatCurrency}
       />
 
       <Tabs

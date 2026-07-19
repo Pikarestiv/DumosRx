@@ -12,7 +12,7 @@ import { useAuth } from "@/lib/context/auth-context";
 import { DailyCloseReport } from "@/components/reports/daily-close-report";
 
 export default function ReportsPage() {
-  const { t, storeType: _storeType } = useStore();
+  const { t: _t, storeType: _storeType } = useStore();
   const { isAdmin } = useAuth();
   const searchParams = useSearchParams();
   const router = useRouter();

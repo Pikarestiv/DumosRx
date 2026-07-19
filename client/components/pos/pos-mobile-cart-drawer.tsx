@@ -7,7 +7,6 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { ChevronUp, ShoppingCart } from "lucide-react";
-import { POSCustomerSelector } from "./pos-customer-selector";
 import { POSCart } from "./pos-cart";
 import { formatCurrency } from "@/lib/utils";
 
@@ -28,10 +27,6 @@ export function POSMobileCartDrawer({
   clearCart,
   onCheckout,
   onHoldSale,
-  selectedCustomer,
-  customers,
-  loadingCustomers,
-  onSelectCustomer,
 }: any) {
   const [open, setOpen] = useState(false);
 

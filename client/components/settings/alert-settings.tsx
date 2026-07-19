@@ -1,6 +1,7 @@
 "use client";
 
-import { Save, Info } from "lucide-react";
+import { useState } from "react";
+import { Save, Info, Pencil, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,13 +35,24 @@ export function AlertSettings({
   setExpiryDays,
   handleSaveAlertSettings,
 }: AlertSettingsProps) {
+  const [isEditing, setIsEditing] = useState(false);
+
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Stock Batch Alerts</CardTitle>
-        <CardDescription>
-          Configure when you want to be warned about stock issues.
-        </CardDescription>
+      <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-4">
+        <div className="space-y-1.5">
+          <CardTitle>Stock Batch Alerts</CardTitle>
+          <CardDescription>
+            Configure when you want to be warned about stock issues.
+          </CardDescription>
+        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setIsEditing(!isEditing)}
+        >
+          {isEditing ? <X className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
+        </Button>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex items-center justify-between rounded-lg border p-4">
@@ -62,10 +74,14 @@ export function AlertSettings({
               Notify when stock hits reorder level
             </p>
           </div>
-          <Switch
-            checked={lowStockAlert}
-            onCheckedChange={setLowStockAlert}
-          />
+          {isEditing ? (
+            <Switch
+              checked={lowStockAlert}
+              onCheckedChange={setLowStockAlert}
+            />
+          ) : (
+            <p className="text-sm font-medium">{lowStockAlert ? "Enabled" : "Disabled"}</p>
+          )}
         </div>
         <div className="flex items-center justify-between rounded-lg border p-4">
           <div className="space-y-0.5">
@@ -86,30 +102,43 @@ export function AlertSettings({
               Notify before products expire
             </p>
           </div>
-          <Switch
-            checked={expiryAlert}
-            onCheckedChange={setExpiryAlert}
-          />
+          {isEditing ? (
+            <Switch
+              checked={expiryAlert}
+              onCheckedChange={setExpiryAlert}
+            />
+          ) : (
+            <p className="text-sm font-medium">{expiryAlert ? "Enabled" : "Disabled"}</p>
+          )}
         </div>
         <div className="grid gap-2 pt-4">
           <Label>Days before expiry to warn</Label>
-          <Input
-            type="number"
-            value={expiryDays}
-            onChange={(e) => setExpiryDays(e.target.value)}
-            className="max-w-[150px]"
-          />
+          {isEditing ? (
+            <Input
+              type="number"
+              value={expiryDays}
+              onChange={(e) => setExpiryDays(e.target.value)}
+              className="max-w-[150px]"
+            />
+          ) : (
+            <p className="text-sm font-medium py-2">{expiryDays || "Not set"} days</p>
+          )}
         </div>
       </CardContent>
-      <CardFooter className="border-t px-6 py-4">
-        <Button
-          onClick={handleSaveAlertSettings}
-          className="cursor-pointer"
-        >
-          <Save className="w-4 h-4 mr-2" />
-          Save Alert Preferences
-        </Button>
-      </CardFooter>
+      {isEditing && (
+        <CardFooter className="border-t px-6 py-4">
+          <Button
+            onClick={() => {
+              handleSaveAlertSettings();
+              setIsEditing(false);
+            }}
+            className="cursor-pointer"
+          >
+            <Save className="w-4 h-4 mr-2" />
+            Save Alert Preferences
+          </Button>
+        </CardFooter>
+      )}
     </Card>
   );
 }

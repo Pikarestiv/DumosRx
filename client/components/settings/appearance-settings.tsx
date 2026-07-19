@@ -1,6 +1,7 @@
 "use client";
 
-import { Sun, Moon, Globe, Save, Lock, Info } from "lucide-react";
+import { useState } from "react";
+import { Sun, Moon, Globe, Save, Lock, Info, Pencil, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -80,6 +81,8 @@ export function AppearanceSettings({
   handleSaveRegional,
   isAdmin,
 }: AppearanceSettingsProps) {
+  const [isEditingRegional, setIsEditingRegional] = useState(false);
+
   const { canCustomizeTheme, canUseDarkMode, withRestriction } =
     useFeatureGate();
 
@@ -195,11 +198,24 @@ export function AppearanceSettings({
 
       {isAdmin && (
         <Card>
-          <CardHeader>
-            <CardTitle>Regional Settings</CardTitle>
-            <CardDescription>
-              Configure currency and locale defaults.
-            </CardDescription>
+          <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-4">
+            <div className="space-y-1.5">
+              <CardTitle>Regional Settings</CardTitle>
+              <CardDescription>
+                Configure currency and locale defaults.
+              </CardDescription>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsEditingRegional(!isEditingRegional)}
+            >
+              {isEditingRegional ? (
+                <X className="h-4 w-4" />
+              ) : (
+                <Pencil className="h-4 w-4" />
+              )}
+            </Button>
           </CardHeader>
           <CardContent className="grid gap-6">
             <div className="grid gap-2">
@@ -219,12 +235,18 @@ export function AppearanceSettings({
                   </Tooltip>
                 </TooltipProvider>
               </div>
-              <Input
-                id="currency"
-                value={localCurrency}
-                onChange={(e) => setLocalCurrency(e.target.value.toUpperCase())}
-                placeholder="e.g. NGN, USD, GHS"
-              />
+              {isEditingRegional ? (
+                <Input
+                  id="currency"
+                  value={localCurrency}
+                  onChange={(e) => setLocalCurrency(e.target.value.toUpperCase())}
+                  placeholder="e.g. NGN, USD, GHS"
+                />
+              ) : (
+                <p className="text-sm font-medium py-2">
+                  {localCurrency || "Not set"}
+                </p>
+              )}
             </div>
             <div className="grid gap-2">
               <div className="flex items-center gap-2">
@@ -243,22 +265,33 @@ export function AppearanceSettings({
                   </Tooltip>
                 </TooltipProvider>
               </div>
-              <Input
-                id="vat"
-                type="number"
-                step="0.1"
-                value={localVat}
-                onChange={(e) => setLocalVat(e.target.value)}
-                placeholder="e.g. 7.5"
-              />
+              {isEditingRegional ? (
+                <Input
+                  id="vat"
+                  type="number"
+                  step="0.1"
+                  value={localVat}
+                  onChange={(e) => setLocalVat(e.target.value)}
+                  placeholder="e.g. 7.5"
+                />
+              ) : (
+                <p className="text-sm font-medium py-2">
+                  {localVat ? `${localVat}%` : "0%"}
+                </p>
+              )}
             </div>
           </CardContent>
-          <CardFooter className="border-t px-6 py-4">
-            <Button onClick={handleSaveRegional}>
-              <Save className="w-4 h-4 mr-2" />
-              Save Regional Settings
-            </Button>
-          </CardFooter>
+          {isEditingRegional && (
+            <CardFooter className="border-t px-6 py-4">
+              <Button onClick={() => {
+                handleSaveRegional();
+                setIsEditingRegional(false);
+              }}>
+                <Save className="w-4 h-4 mr-2" />
+                Save Regional Settings
+              </Button>
+            </CardFooter>
+          )}
         </Card>
       )}
     </div>

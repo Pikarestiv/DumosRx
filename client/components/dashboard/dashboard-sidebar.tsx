@@ -229,7 +229,7 @@ export function DashboardSidebar({
           {/* Nav */}
           <nav
             className={cn(
-              "flex-1 py-5 space-y-1 overflow-y-auto overflow-x-hidden",
+              "flex-1 py-5 pt-3 space-y-1 overflow-y-auto overflow-x-hidden",
               collapsed ? "px-2" : "px-3",
             )}
           >
@@ -264,7 +264,9 @@ export function DashboardSidebar({
                       ) : (
                         <>
                           <ChevronsRight className="h-[18px] w-[18px] shrink-0" />
-                          <span className="truncate text-xs">Pin sidebar open</span>
+                          <span className="truncate text-xs">
+                            Pin sidebar open
+                          </span>
                         </>
                       )
                     ) : (
@@ -290,7 +292,11 @@ export function DashboardSidebar({
           <div className="bg-sidebar flex flex-col pt-2 pb-2 px-2 gap-0.5">
             <SyncIndicator collapsed={collapsed} />
             <div className="px-1">
-              <UserNav showDetails={!collapsed} onOpenFeedback={onOpenFeedback} onOpenChange={onUserNavOpenChange} />
+              <UserNav
+                showDetails={!collapsed}
+                onOpenFeedback={onOpenFeedback}
+                onOpenChange={onUserNavOpenChange}
+              />
             </div>
           </div>
         </div>

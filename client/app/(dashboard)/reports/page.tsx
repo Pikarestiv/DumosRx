@@ -12,7 +12,7 @@ import { useAuth } from "@/lib/context/auth-context";
 import { DailyCloseReport } from "@/components/reports/daily-close-report";
 
 export default function ReportsPage() {
-  const { t, storeType: _storeType } = useStore();
+  const { t: _t, storeType: _storeType } = useStore();
   const { isAdmin } = useAuth();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -44,18 +44,7 @@ export default function ReportsPage() {
   return (
     <>
       <div className="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <h1 className="font-serif font-bold text-3xl text-foreground">
-            {activeTab === "reports" ? "Reporting Center" : activeTab === "daily_close" ? "Daily Close (End of Day)" : "Business Intelligence"}
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            {activeTab === "reports" 
-              ? `Generate, schedule, and export detailed operational reports for your ${t('store').toLowerCase()}`
-              : activeTab === "daily_close"
-              ? "End of day reconciliation and summary for today's transactions"
-              : "Advanced data visualization and trend analysis for your business performance"}
-          </p>
-        </div>
+
       </div>
 
       <Tabs

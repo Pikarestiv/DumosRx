@@ -41,6 +41,8 @@ Route::prefix('v1')->group(function () {
     Route::get('/health', function () {
         return response()->json(['status' => 'ok', 'timestamp' => now()]);
     });
+    
+    Route::get('/announcements', [BroadcastController::class, 'index']);
 
     // Tracking Routes
     Route::post('/track/download', [\App\Http\Controllers\Api\TrackController::class, 'download']);
@@ -87,7 +89,6 @@ Route::prefix('v1')->group(function () {
         });
         Route::get('/alerts', [NotificationController::class, 'index']);
         Route::post('/alerts/{id}/read', [NotificationController::class, 'markAsRead']);
-        Route::get('/announcements', [BroadcastController::class, 'index']);
 
         // Stock Movements, Adjustments & Purchase Orders
         Route::get('/stock-movements', [\App\Http\Controllers\Api\App\StockMovementController::class, 'index']);

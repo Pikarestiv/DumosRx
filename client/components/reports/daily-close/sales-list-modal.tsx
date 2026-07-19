@@ -1,9 +1,9 @@
 import { useState, useMemo } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
+import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/utils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 
 interface SalesListModalProps {
   isOpen: boolean;
@@ -41,10 +41,8 @@ export function SalesListModal({
   }, [salesToday, salesSearch, paymentFilter]);
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-4xl max-h-[80vh] flex flex-col pt-10">
-        <DialogHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-2 sm:space-y-0 pb-4 mt-2 border-b mb-4">
-          <DialogTitle>Sales on {reportDate}</DialogTitle>
+    <ResponsiveModal open={isOpen} onOpenChange={onOpenChange} title={<>Sales on {reportDate}</>}  className="sm:max-w-4xl max-h-[80vh] flex flex-col pt-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4 px-1">
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <Select value={paymentFilter} onValueChange={setPaymentFilter}>
               <SelectTrigger className="w-[140px] h-8">
@@ -66,7 +64,7 @@ export function SalesListModal({
               className="h-8 w-full sm:w-[200px]"
             />
           </div>
-        </DialogHeader>
+        </div>
         <div className="flex-1 overflow-y-auto px-1">
           <Table>
             <TableHeader>
@@ -115,7 +113,6 @@ export function SalesListModal({
             </TableBody>
           </Table>
         </div>
-      </DialogContent>
-    </Dialog>
+      </ResponsiveModal>
   );
 }

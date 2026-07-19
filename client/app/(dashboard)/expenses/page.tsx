@@ -2,13 +2,27 @@
 
 import { ExpenseList } from "@/components/expenses/expense-list";
 import { AddExpenseDialog } from "@/components/expenses/add-expense-dialog";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { LockedModuleOverlay } from "@/components/dashboard/locked-module-overlay";
 
 export default function ExpensesPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    if (searchParams.get("action") === "add") {
+      setIsAddDialogOpen(true);
+      const newParams = new URLSearchParams(searchParams.toString());
+      newParams.delete("action");
+      const newUrl = pathname + (newParams.toString() ? `?${newParams.toString()}` : "");
+      router.replace(newUrl);
+    }
+  }, [searchParams, router, pathname]);
 
   return (
     <>
@@ -16,12 +30,7 @@ export default function ExpensesPage() {
         <LockedModuleOverlay featureName="Expenses" featureKey="expenses" />
         <div className="w-full">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">Expenses</h1>
-              <p className="text-muted-foreground mt-1.5">
-                Track and manage your business operational costs
-              </p>
-            </div>
+
             <Button
               onClick={() => setIsAddDialogOpen(true)}
               className="gap-2 w-full sm:w-auto"

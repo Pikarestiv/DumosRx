@@ -2,13 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -85,14 +79,7 @@ export function RecordPaymentDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md bg-card/95 backdrop-blur-xl border-accent/20">
-        <DialogHeader>
-          <DialogTitle className="font-serif">Record Payment</DialogTitle>
-          <DialogDescription>
-            Record a payment to {supplierName} for PO #{poNumber}
-          </DialogDescription>
-        </DialogHeader>
+    <ResponsiveModal open={open} onOpenChange={onOpenChange} title={<>Record Payment</>} description={<>Record a payment to {supplierName} for PO #{poNumber}</>} className="max-w-md bg-card/95 backdrop-blur-xl border-accent/20">
 
         <div className="space-y-4 py-4">
           <div className="space-y-2">
@@ -149,7 +136,6 @@ export function RecordPaymentDialog({
             {isSubmitting ? "Saving..." : "Save Payment"}
           </Button>
         </div>
-      </DialogContent>
-    </Dialog>
+      </ResponsiveModal>
   );
 }

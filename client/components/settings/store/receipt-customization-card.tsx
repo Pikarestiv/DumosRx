@@ -1,4 +1,4 @@
-import { Save, Upload, X, Info, Lock } from "lucide-react";
+import { Save, Upload, X, Info, Lock, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { toast } from "sonner";
+import { useState } from "react";
 
 interface ReceiptCustomizationCardProps {
   localName: string;
@@ -57,6 +58,7 @@ export function ReceiptCustomizationCard({
   handleSaveReceiptSettings,
 }: ReceiptCustomizationCardProps) {
   const { canCustomizeTheme, withRestriction, getUpgradeMessage } = useFeatureGate();
+  const [isEditing, setIsEditing] = useState(false);
 
   const handleToggleLogo = (checked: boolean) => {
     if (checked && !localLogo) {
@@ -67,11 +69,20 @@ export function ReceiptCustomizationCard({
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Receipt Customization</CardTitle>
-        <CardDescription>
-          Configure how your printed receipts look.
-        </CardDescription>
+      <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-4">
+        <div className="space-y-1.5">
+          <CardTitle>Receipt Customization</CardTitle>
+          <CardDescription>
+            Configure how your printed receipts look.
+          </CardDescription>
+        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setIsEditing(!isEditing)}
+        >
+          {isEditing ? <X className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
+        </Button>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="flex flex-col md:flex-row gap-6">
@@ -86,56 +97,60 @@ export function ReceiptCustomizationCard({
                       alt="Logo Preview"
                       className="h-20 w-20 object-contain border rounded-lg p-1 bg-white"
                     />
-                    <button
-                      onClick={handleRemoveLogo}
-                      className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <X className="h-3 w-3 cursor-pointer" />
-                    </button>
+                    {isEditing && (
+                      <button
+                        onClick={handleRemoveLogo}
+                        className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X className="h-3 w-3 cursor-pointer" />
+                      </button>
+                    )}
                   </div>
                 ) : (
                   <div className="h-20 w-20 border-2 border-dashed rounded-lg flex items-center justify-center text-muted-foreground bg-muted/30">
                     <Upload className="h-6 w-6" />
                   </div>
                 )}
-                <div className="flex-1">
-                  <TooltipProvider delayDuration={0}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className="inline-block">
-                          <Label
-                            htmlFor={
-                              canCustomizeTheme ? "logo-upload" : undefined
-                            }
-                            className={`cursor-pointer inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3 ${!canCustomizeTheme ? "opacity-50 cursor-not-allowed" : ""}`}
-                          >
-                            {!canCustomizeTheme && (
-                              <Lock className="h-3 w-3 mr-2" />
-                            )}
-                            {localLogo ? "Change Logo" : "Upload Logo"}
-                          </Label>
-                        </div>
-                      </TooltipTrigger>
-                      {!canCustomizeTheme && (
-                        <TooltipContent>
-                          <p>{getUpgradeMessage("custom_branding")}</p>
-                        </TooltipContent>
-                      )}
-                    </Tooltip>
-                  </TooltipProvider>
+                {isEditing && (
+                  <div className="flex-1">
+                    <TooltipProvider delayDuration={0}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="inline-block">
+                            <Label
+                              htmlFor={
+                                canCustomizeTheme ? "logo-upload" : undefined
+                              }
+                              className={`cursor-pointer inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3 ${!canCustomizeTheme ? "opacity-50 cursor-not-allowed" : ""}`}
+                            >
+                              {!canCustomizeTheme && (
+                                <Lock className="h-3 w-3 mr-2" />
+                              )}
+                              {localLogo ? "Change Logo" : "Upload Logo"}
+                            </Label>
+                          </div>
+                        </TooltipTrigger>
+                        {!canCustomizeTheme && (
+                          <TooltipContent>
+                            <p>{getUpgradeMessage("custom_branding")}</p>
+                          </TooltipContent>
+                        )}
+                      </Tooltip>
+                    </TooltipProvider>
 
-                  <input
-                    id="logo-upload"
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    disabled={!canCustomizeTheme}
-                    onChange={handleLogoUpload}
-                  />
-                  <p className="text-[10px] text-muted-foreground mt-1">
-                    SVG, PNG or JPG (Max 1MB)
-                  </p>
-                </div>
+                    <input
+                      id="logo-upload"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      disabled={!canCustomizeTheme}
+                      onChange={handleLogoUpload}
+                    />
+                    <p className="text-[10px] text-muted-foreground mt-1">
+                      SVG, PNG or JPG (Max 1MB)
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -159,12 +174,16 @@ export function ReceiptCustomizationCard({
                   </Tooltip>
                 </TooltipProvider>
               </div>
-              <Input
-                id="receipt-header"
-                placeholder="e.g. Thanks for your patronage!"
-                value={localReceiptHeader}
-                onChange={(e) => setLocalReceiptHeader(e.target.value)}
-              />
+              {isEditing ? (
+                <Input
+                  id="receipt-header"
+                  placeholder="e.g. Thanks for your patronage!"
+                  value={localReceiptHeader}
+                  onChange={(e) => setLocalReceiptHeader(e.target.value)}
+                />
+              ) : (
+                <p className="text-sm font-medium py-2">{localReceiptHeader || "Not set"}</p>
+              )}
             </div>
             <div className="grid gap-2">
               <div className="flex items-center gap-2">
@@ -183,12 +202,16 @@ export function ReceiptCustomizationCard({
                   </Tooltip>
                 </TooltipProvider>
               </div>
-              <Input
-                id="receipt-footer"
-                placeholder="e.g. No refund after 24 hours"
-                value={localReceiptFooter}
-                onChange={(e) => setLocalReceiptFooter(e.target.value)}
-              />
+              {isEditing ? (
+                <Input
+                  id="receipt-footer"
+                  placeholder="e.g. No refund after 24 hours"
+                  value={localReceiptFooter}
+                  onChange={(e) => setLocalReceiptFooter(e.target.value)}
+                />
+              ) : (
+                <p className="text-sm font-medium py-2">{localReceiptFooter || "Not set"}</p>
+              )}
             </div>
             <div className="flex items-center justify-between rounded-lg border p-4">
               <div className="space-y-0.5">
@@ -197,10 +220,14 @@ export function ReceiptCustomizationCard({
                   Display store logo at the top
                 </p>
               </div>
-              <Switch
-                checked={showLogo && canCustomizeTheme}
-                onCheckedChange={(checked) => checked ? withRestriction(() => handleToggleLogo(checked), { featureAllowed: canCustomizeTheme, featureKey: 'custom_branding' })() : withRestriction(() => handleToggleLogo(checked))()}
-              />
+              {isEditing ? (
+                <Switch
+                  checked={showLogo && canCustomizeTheme}
+                  onCheckedChange={(checked) => checked ? withRestriction(() => handleToggleLogo(checked), { featureAllowed: canCustomizeTheme, featureKey: 'custom_branding' })() : withRestriction(() => handleToggleLogo(checked))()}
+                />
+              ) : (
+                <p className="text-sm font-medium">{(showLogo && canCustomizeTheme) ? "Enabled" : "Disabled"}</p>
+              )}
             </div>
             <div className="flex items-center justify-between rounded-lg border p-4">
               <div className="space-y-0.5">
@@ -209,7 +236,11 @@ export function ReceiptCustomizationCard({
                   Include contact details on receipt
                 </p>
               </div>
-              <Switch checked={showContact} onCheckedChange={setShowContact} />
+              {isEditing ? (
+                <Switch checked={showContact} onCheckedChange={setShowContact} />
+              ) : (
+                <p className="text-sm font-medium">{showContact ? "Enabled" : "Disabled"}</p>
+              )}
             </div>
           </div>
 
@@ -225,12 +256,17 @@ export function ReceiptCustomizationCard({
           />
         </div>
       </CardContent>
-      <CardFooter className="border-t px-6 py-4">
-        <Button onClick={handleSaveReceiptSettings} className="cursor-pointer">
-          <Save className="w-4 h-4 mr-2" />
-          Save Receipt Settings
-        </Button>
-      </CardFooter>
+      {isEditing && (
+        <CardFooter className="border-t px-6 py-4">
+          <Button onClick={() => {
+            handleSaveReceiptSettings();
+            setIsEditing(false);
+          }} className="cursor-pointer">
+            <Save className="w-4 h-4 mr-2" />
+            Save Receipt Settings
+          </Button>
+        </CardFooter>
+      )}
     </Card>
   );
 }

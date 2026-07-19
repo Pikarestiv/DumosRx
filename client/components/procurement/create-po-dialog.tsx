@@ -1,16 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, ShoppingCart } from "lucide-react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { ResponsiveModal } from "@/components/ui/responsive-modal";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,9 +29,11 @@ interface CreatePODialogProps {
   onPOCreated: () => void;
 }
 
-
-
 export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
   const { storeType } = useStore();
   const [open, setOpen] = useState(false);
   const [selectedSupplierId, setSelectedSupplierId] = useState("");
@@ -47,6 +43,16 @@ export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
   const [paymentStatus, setPaymentStatus] = useState("unpaid");
   const [amountPaid, setAmountPaid] = useState("");
   const [dueDate, setDueDate] = useState("");
+
+  useEffect(() => {
+    if (searchParams.get("action") === "add") {
+      setOpen(true);
+      const newParams = new URLSearchParams(searchParams.toString());
+      newParams.delete("action");
+      const newUrl = pathname + (newParams.toString() ? `?${newParams.toString()}` : "");
+      router.replace(newUrl);
+    }
+  }, [searchParams, router, pathname]);
 
   // New item state managed by POAddItemForm now
 
@@ -108,28 +114,22 @@ export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20 transition-all active:scale-95">
-          <Plus className="w-4 h-4 mr-2" /> New Purchase Order
-        </Button>
-      </DialogTrigger>
-      <DialogContent
-        className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col p-0 border-accent/20 bg-card/95 backdrop-blur-xl"
-        onPointerDownOutside={(e) => e.preventDefault()}
-        onEscapeKeyDown={(e) => {
-          e.preventDefault();
-          setOpen(false);
-        }}
+    <>
+      <Button 
+        onClick={() => setOpen(true)}
+        className="font-bold shadow-md h-10 px-6 bg-primary hover:bg-primary/95 text-primary-foreground"
       >
-        <DialogHeader className="p-6 border-b border-accent/10">
-          <DialogTitle className="text-2xl font-serif font-bold">
-            Create Purchase Order
-          </DialogTitle>
-          <DialogDescription>
-            Draft a formal request for stock batch replenishment
-          </DialogDescription>
-        </DialogHeader>
+        <ShoppingCart className="h-4 w-4 mr-2" />
+        Create PO
+      </Button>
+      <ResponsiveModal 
+        open={open} 
+        onOpenChange={setOpen} 
+        title={<>Create Purchase Order</>} 
+        description={<>Draft a formal request for stock batch replenishment</>} 
+        className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col p-0 border-accent/20 bg-card/95 backdrop-blur-xl" 
+        headerClassName="p-6 border-b border-accent/10"
+      >
 
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -254,7 +254,7 @@ export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
             </Button>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </ResponsiveModal>
+    </>
   );
 }

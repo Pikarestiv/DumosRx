@@ -4,13 +4,9 @@ import type React from "react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
   DialogFooter,
-  DialogHeader,
-  DialogTitle,
 } from "@/components/ui/dialog";
+import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -112,14 +108,14 @@ export function AddCustomerDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="font-serif font-bold">
-            Add New Customer
-          </DialogTitle>
-          <DialogDescription>Create a new customer profile.</DialogDescription>
-        </DialogHeader>
+    <>
+    <ResponsiveModal 
+      open={open} 
+      onOpenChange={onOpenChange}
+      title={<span className="font-serif font-bold">Add New Customer</span>}
+      description="Create a new customer profile."
+      className="max-w-md max-h-[90vh] overflow-y-auto"
+    >
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -248,7 +244,7 @@ export function AddCustomerDialog({
             </Button>
           </DialogFooter>
         </form>
-      </DialogContent>
+    </ResponsiveModal>
       <ConfirmDialog
         open={!!alertMessage}
         onOpenChange={(open) => { if (!open) setAlertMessage(null); }}
@@ -258,6 +254,6 @@ export function AddCustomerDialog({
         hideCancel
         onConfirm={() => setAlertMessage(null)}
       />
-    </Dialog>
+    </>
   );
 }

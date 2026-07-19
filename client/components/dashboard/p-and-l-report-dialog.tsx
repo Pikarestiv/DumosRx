@@ -1,22 +1,16 @@
 "use client";
 
 import { useEffect } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { ResponsiveModal } from "@/components/ui/responsive-modal";
+import { DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { 
-  FileBarChart, 
   Download,
   Calendar,
   TrendingUp,
   Info,
-  Loader2
+  Loader2,
+  FileBarChart
 } from "lucide-react";
 import { exportPLReportToPDF } from "@/lib/utils/pdf-export";
 import { useStore } from "@/lib/context/store-context";
@@ -53,21 +47,20 @@ export function PandLReportDialog({ isOpen, onClose }: PandLReportDialogProps) {
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md bg-background/95 backdrop-blur-xl border-accent/10">
-        <DialogHeader>
-          <div className="flex items-center gap-3 mb-2">
-            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-              <FileBarChart className="w-6 h-6" />
-            </div>
-            <div>
-              <DialogTitle className="text-xl font-serif">P&L Dashboard Export</DialogTitle>
-              <DialogDescription>
-                Generate a professional financial summary for your store.
-              </DialogDescription>
-            </div>
-          </div>
-        </DialogHeader>
+    <ResponsiveModal 
+      open={isOpen} 
+      onOpenChange={onClose} 
+      title={
+        <span className="flex items-center gap-3">
+          <span className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
+            <FileBarChart className="w-6 h-6" />
+          </span>
+          <span className="text-xl font-serif">P&L Dashboard Export</span>
+        </span>
+      } 
+      description={<span className="block mt-2">Generate a professional financial summary for your store.</span>} 
+      className="max-w-md bg-background/95 backdrop-blur-xl border-accent/10"
+    >
 
         {!reportData && loading ? (
           <div className="py-20 flex flex-col items-center justify-center gap-4">
@@ -124,7 +117,6 @@ export function PandLReportDialog({ isOpen, onClose }: PandLReportDialogProps) {
             {loading ? "Generating..." : "Download PDF Report"}
           </Button>
         </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      </ResponsiveModal>
   );
 }

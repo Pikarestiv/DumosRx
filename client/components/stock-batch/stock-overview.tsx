@@ -2,15 +2,13 @@
 
 import { useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { getStockOverviewData } from "@/lib/db/queries/inventory";
 import { useStockBatchStats } from "@/lib/hooks/use-stock-batch-stats";
 import { useStore } from "@/lib/context/store-context";
-import { StockBatchMetrics } from "./stock-batch-metrics";
-import { StockStatusList } from "./stock-status-list";
-import { StockBatchQuickActions } from "./stock-batch-quick-actions";
+import { NeedsAttention } from "./needs-attention";
+import { FastMovers } from "./fast-movers";
 import { BarcodePrintDialog } from "./barcode-print-dialog";
 
 interface StockItem {
@@ -61,36 +59,6 @@ export function StockOverview() {
 
   const loading = stockLoading || stats.loading;
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-NG", {
-      style: "currency",
-      currency: "NGN",
-      minimumFractionDigits: 0,
-    }).format(amount);
-  };
-
-  const getStatusBadge = (status: StockItem["status"]) => {
-    const variants = {
-      healthy: "default",
-      low: "outline",
-      critical: "destructive",
-      overstock: "secondary",
-    } as const;
-
-    const labels = {
-      healthy: "Healthy",
-      low: "Low Stock",
-      critical: "Critical",
-      overstock: "Overstock",
-    };
-
-    return (
-      <Badge variant={variants[status]} className="text-xs">
-        {labels[status]}
-      </Badge>
-    );
-  };
 
   if (loading) {
     return (
@@ -145,33 +113,9 @@ export function StockOverview() {
 
   return (
     <div className="space-y-6">
-      <StockBatchMetrics
-        stock_batchValue={stats.totalStockBatchValue}
-        criticalItems={stats.criticalStockCount}
-        lowStockCount={stats.lowStockCount}
-        expiringCount={stats.expiringSoonCount}
-        formatCurrency={formatCurrency}
-      />
-
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <StockStatusList
-          stockData={stockItems}
-          formatCurrency={formatCurrency}
-          getStatusBadge={getStatusBadge}
-          onPrintBarcode={(item) =>
-            setSelectedProduct({
-              id: item.id,
-              name: item.product_name,
-              unit_price: item.unit_price,
-              barcode: item.barcode,
-            })
-          }
-        />
-
-        <StockBatchQuickActions
-          criticalItems={stats.criticalStockCount}
-          lowStockCount={stats.lowStockCount}
-        />
+        <NeedsAttention stockData={stockItems} />
+        <FastMovers />
       </div>
 
       <BarcodePrintDialog

@@ -59,13 +59,17 @@ const SheetContent = React.forwardRef<
     <SheetPrimitive.Content
       ref={ref}
       className={cn(sheetVariants({ side }), className)}
-      style={{ paddingTop: "calc(var(--tauri-top, 0px) + 1.5rem)", ...style }}
+      style={{ 
+        paddingTop: side === "bottom" ? "1.5rem" : "calc(var(--tauri-top, 0px) + 1.5rem)", 
+        paddingBottom: "calc(var(--tauri-bottom, env(safe-area-inset-bottom, 0px)) + 1.5rem)",
+        ...style 
+      }}
       {...props}
     >
       {children}
       <SheetPrimitive.Close
         className="absolute right-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary"
-        style={{ top: "calc(var(--tauri-top, 0px) + 1rem)" }}
+        style={{ top: side === "bottom" ? "1rem" : "calc(var(--tauri-top, 0px) + 1rem)" }}
       >
         <X className="h-4 w-4 cursor-pointer" />
         <span className="sr-only">Close</span>

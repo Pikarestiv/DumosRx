@@ -216,8 +216,9 @@ class ApiClient extends BaseApiClient {
   }
 
   // Broadcasts
-  async getBroadcasts() {
-    return this.request<any>("/announcements");
+  async getBroadcasts(storeId?: string) {
+    const headers = storeId ? { "X-Store-ID": storeId } : {};
+    return this.request<any>("/announcements", { headers });
   }
 
   // System Configurations

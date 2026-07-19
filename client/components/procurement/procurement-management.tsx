@@ -64,19 +64,12 @@ export function ProcurementManagement() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="font-serif font-bold text-3xl text-foreground">
-            Procurement & Vendors
-          </h1>
-          <p className="text-muted-foreground">
-            Manage vendor purchase orders and stock batch replenishment
-          </p>
-        </div>
+
         <CreatePODialog onPOCreated={fetchPurchaseOrders} />
       </div>
 
       <Tabs defaultValue="orders" className="space-y-6">
-        <TabsList>
+        <TabsList className="w-full md:w-max">
           <TabsTrigger value="orders">
             Purchase Orders
           </TabsTrigger>

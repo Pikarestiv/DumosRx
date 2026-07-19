@@ -5,28 +5,8 @@ import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 
-export interface Product {
-  id: string;
-  name: string;
-  genericName: string;
-  brand: string;
-  category: string;
-  nafdacNumber: string;
-  strength: string;
-  dosageForm: string;
-  manufacturer: string;
-  supplier: string;
-  costPrice: number;
-  sellingPrice: number;
-  stockQuantity: number;
-  reorderLevel: number;
-  expiryDate: string;
-  batchNumber: string;
-  baseUnit: string;
-  bulkUnit: string;
-  unitsPerBulk: number;
-  status: "active" | "inactive" | "expired" | "low_stock" | "out_of_stock";
-}
+import { Product } from "../types";
+export type { Product };
 
 export function useProductDetails(
   product: Product | null,

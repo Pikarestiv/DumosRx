@@ -2,12 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useOnlineOrdersModal } from "@/lib/store/use-online-orders-modal";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { useAuth } from "@/lib/context/auth-context";
 import { apiClient } from "@/lib/api/client";
 import { Button } from "@/components/ui/button";
@@ -105,11 +100,7 @@ export function OnlineOrdersModal() {
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle>Online Orders</DialogTitle>
-        </DialogHeader>
+    <ResponsiveModal open={isOpen} onOpenChange={onClose} title={<>Online Orders</>}  className="max-w-4xl max-h-[80vh] flex flex-col">
         
         <div className="flex-1 pr-4 overflow-y-auto max-h-[60vh]">
           {loading ? (
@@ -178,7 +169,6 @@ export function OnlineOrdersModal() {
             </div>
           )}
         </div>
-      </DialogContent>
-    </Dialog>
+      </ResponsiveModal>
   );
 }

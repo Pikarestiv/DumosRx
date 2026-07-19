@@ -1,22 +1,16 @@
 "use client";
 
 import { useEffect } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { ResponsiveModal } from "@/components/ui/responsive-modal";
+import { DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import {
-  PauseCircle,
   PlayCircle,
   Trash2,
   Clock,
   User,
   ShoppingBag,
+  PauseCircle,
 } from "lucide-react";
 import { useHeldTransactions } from "@/lib/hooks/use-sales-data";
 import { remove } from "@/lib/db/local-database";
@@ -56,23 +50,18 @@ export function HeldTransactionsDialog({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-3xl bg-background/95 backdrop-blur-xl border-accent/10 p-4 sm:p-6">
-        <DialogHeader>
-          <div className="flex items-center gap-3 mb-2">
-            <div className="h-8 w-8 md:h-10 md:w-10 rounded-lg md:rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500">
-              <PauseCircle className="w-5 h-5 md:w-6 md:h-6" />
-            </div>
-            <div className="text-left">
-              <DialogTitle className="text-lg sm:text-xl font-serif">
-                Held Transactions
-              </DialogTitle>
-              <DialogDescription className="text-xs sm:text-sm">
-                Recall transactions that were previously paused.
-              </DialogDescription>
-            </div>
-          </div>
-        </DialogHeader>
+    <ResponsiveModal 
+      open={isOpen} 
+      onOpenChange={onClose} 
+      title={
+        <span className="flex items-center gap-2">
+          <PauseCircle className="h-5 w-5 text-amber-500" />
+          Held Transactions
+        </span>
+      } 
+      description="Recall transactions that were previously paused."
+      className="sm:max-w-3xl max-h-[90vh] overflow-hidden flex flex-col"
+    >
 
         <div className="py-4 min-h-[300px] max-h-[500px] overflow-y-auto space-y-4">
           {loading ? (
@@ -157,7 +146,6 @@ export function HeldTransactionsDialog({
             Close
           </Button>
         </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      </ResponsiveModal>
   );
 }

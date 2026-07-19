@@ -2,13 +2,7 @@
 
 import React, { useEffect, useRef } from "react";
 import { Html5QrcodeScanner, Html5QrcodeScanType } from "html5-qrcode";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ResponsiveModal } from "@/components/ui/responsive-modal";
 
 interface CameraScannerDialogProps {
   isOpen: boolean;
@@ -70,17 +64,14 @@ export function CameraScannerDialog({
   }, [isOpen, onScanSuccess, onClose]);
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Camera Scanner</DialogTitle>
-          <DialogDescription>
-            Point your camera at a product's barcode to scan it.
-          </DialogDescription>
-        </DialogHeader>
-
-          <div id={`reader-${readerId}`} className="w-full min-h-[300px] overflow-hidden rounded-lg"></div>
-      </DialogContent>
-    </Dialog>
+    <ResponsiveModal 
+      open={isOpen} 
+      onOpenChange={(open) => !open && onClose()}
+      title="Camera Scanner"
+      description="Point your camera at a product's barcode to scan it."
+      className="sm:max-w-md"
+    >
+      <div id={`reader-${readerId}`} className="w-full min-h-[300px] overflow-hidden rounded-lg"></div>
+    </ResponsiveModal>
   );
 }

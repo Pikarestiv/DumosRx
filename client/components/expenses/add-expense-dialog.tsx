@@ -1,13 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,6 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { insert } from "@/lib/db/local-database";
 import { toast } from "sonner";
 import { SearchableInput } from "@/components/ui/searchable-input";
+import { useAuth } from "@/lib/context/auth-context";
 
 interface AddExpenseDialogProps {
   open: boolean;
@@ -43,6 +38,7 @@ const CATEGORIES = [
 const PAYMENT_METHODS = ["Cash", "Bank Transfer", "POS", "Cheque"];
 
 export function AddExpenseDialog({ open, onOpenChange }: AddExpenseDialogProps) {
+  const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     category: "",
@@ -64,6 +60,7 @@ export function AddExpenseDialog({ open, onOpenChange }: AddExpenseDialogProps) 
       await insert("expenses", {
         ...formData,
         amount: parseFloat(formData.amount),
+        user_id: user?.id,
       });
       toast.success("Expense added successfully");
       onOpenChange(false);
@@ -83,14 +80,7 @@ export function AddExpenseDialog({ open, onOpenChange }: AddExpenseDialogProps) 
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>Add New Expense</DialogTitle>
-          <DialogDescription>
-            Record a new business expense here.
-          </DialogDescription>
-        </DialogHeader>
+    <ResponsiveModal open={open} onOpenChange={onOpenChange} title={<>Add New Expense</>} description={<>Record a new business expense here.</>} className="sm:max-w-[425px]">
         <form onSubmit={handleSubmit} className="space-y-4 pt-4">
           <div className="grid gap-2">
             <Label htmlFor="category">Category *</Label>
@@ -175,7 +165,6 @@ export function AddExpenseDialog({ open, onOpenChange }: AddExpenseDialogProps) 
             </Button>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
+      </ResponsiveModal>
   );
 }

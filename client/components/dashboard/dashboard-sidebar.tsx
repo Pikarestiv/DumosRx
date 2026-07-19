@@ -1,6 +1,5 @@
 "use client";
 
-
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -15,6 +14,7 @@ import {
 import { useStore } from "@/lib/context/store-context";
 import { useAuth } from "@/lib/context/auth-context";
 import { SyncIndicator } from "./sync-indicator";
+import { UserNav } from "@/components/dashboard/user-nav";
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -26,28 +26,42 @@ import {
   ShoppingBasket,
   Wallet,
   ClipboardList,
-  MessageSquare,
   ChevronsLeft,
   ChevronsRight,
   Lock,
 } from "lucide-react";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
+import { useStockBatchStats } from "@/lib/hooks/use-stock-batch-stats";
 
 interface DashboardSidebarProps {
   onOpenFeedback: () => void;
   collapsed: boolean;
+  logicalCollapsed: boolean;
   onToggleCollapse: () => void;
+  onMouseEnter: () => void;
+  onMouseLeave: () => void;
+  onUserNavOpenChange?: (open: boolean) => void;
 }
 
 export function DashboardSidebar({
   onOpenFeedback,
   collapsed,
+  logicalCollapsed,
   onToggleCollapse,
+  onMouseEnter,
+  onMouseLeave,
+  onUserNavOpenChange,
 }: DashboardSidebarProps) {
   const pathname = usePathname();
-  const { storeType, t } = useStore();
+  const { storeType } = useStore();
   const { isAdmin, canManageStockBatch } = useAuth();
   const { currentTier } = useFeatureGate();
+
+  const stockStats = useStockBatchStats();
+  const actionableItemsCount =
+    stockStats.lowStockCount +
+    stockStats.expiredCount +
+    stockStats.expiringSoonCount;
 
   const isLocked = (href: string) => {
     if (currentTier !== "free") return false;
@@ -57,7 +71,7 @@ export function DashboardSidebar({
   const navigationItems = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     {
-      name: `${t("products")} & Batches`,
+      name: "Inventory",
       href: "/inventory",
       icon: storeType === "pharmacy" ? Pill : ShoppingBasket,
     },
@@ -69,24 +83,23 @@ export function DashboardSidebar({
     ...(isAdmin || canManageStockBatch
       ? [
           {
-            name: "Procurement & Vendors",
+            name: "Procurement",
             href: "/procurement",
             icon: ClipboardList,
           },
           { name: "Expenses", href: "/expenses", icon: Wallet },
-          { name: "Reports & Analytics", href: "/reports", icon: BarChart3 },
+          { name: "Reports", href: "/reports", icon: BarChart3 },
         ]
       : [
-          { name: "Daily Close", href: "/reports?tab=daily_close", icon: BarChart3 },
+          {
+            name: "Daily Close",
+            href: "/reports?tab=daily_close",
+            icon: BarChart3,
+          },
         ]),
   ];
 
-  const allItems = [
-    ...navigationItems,
-    ...(isAdmin || canManageStockBatch
-      ? [{ name: "Settings", href: "/settings", icon: Settings }]
-      : []),
-  ];
+  const allItems = navigationItems;
 
   /** Shared nav link renderer — collapses to icon + tooltip when sidebar is narrow */
   const NavItem = ({
@@ -98,7 +111,7 @@ export function DashboardSidebar({
     icon: React.ElementType;
     name: string;
   }) => {
-    const isActive = pathname.startsWith(href.split('?')[0]);
+    const isActive = pathname.startsWith(href.split("?")[0]);
     const locked = isLocked(href);
     const link = (
       <Link
@@ -120,8 +133,17 @@ export function DashboardSidebar({
             <span className="truncate transition-all duration-200">{name}</span>
           )}
         </div>
-        {locked && !collapsed && (
-          <Lock className="h-3 w-3 text-sidebar-foreground/40 shrink-0" />
+        {!collapsed && (
+          <div className="flex items-center gap-2">
+            {name === "Inventory" && actionableItemsCount > 0 && (
+              <span className="bg-destructive text-destructive-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">
+                {actionableItemsCount > 99 ? "99+" : actionableItemsCount}
+              </span>
+            )}
+            {locked && (
+              <Lock className="h-3 w-3 text-sidebar-foreground/40 shrink-0" />
+            )}
+          </div>
         )}
       </Link>
     );
@@ -139,9 +161,16 @@ export function DashboardSidebar({
       return (
         <Tooltip>
           <TooltipTrigger asChild>{link}</TooltipTrigger>
-          <TooltipContent side="right" className={collapsed ? "font-medium text-xs" : "font-semibold text-xs ml-2"}>
+          <TooltipContent
+            side="right"
+            className={
+              collapsed ? "font-medium text-xs" : "font-semibold text-xs ml-2"
+            }
+          >
             {collapsed ? (
-              <>{name} {locked ? "🔒" : ""}</>
+              <>
+                {name} {locked ? "🔒" : ""}
+              </>
             ) : (
               extraTooltip
             )}
@@ -153,51 +182,16 @@ export function DashboardSidebar({
     return link;
   };
 
-  /** Shared button-style action item */
-  const ActionItem = ({
-    icon: Icon,
-    name,
-    onClick,
-  }: {
-    icon: React.ElementType;
-    name: string;
-    onClick: () => void;
-  }) => {
-    const btn = (
-      <button
-        onClick={onClick}
-        className={cn(
-          "w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 cursor-pointer text-sidebar-foreground hover:bg-primary/50 hover:text-primary-foreground",
-          collapsed ? "justify-center px-2" : "",
-        )}
-      >
-        <Icon className="h-[18px] w-[18px] shrink-0" />
-        {!collapsed && <span className="truncate">{name}</span>}
-      </button>
-    );
-
-    if (collapsed) {
-      return (
-        <Tooltip delayDuration={100}>
-          <TooltipTrigger asChild>{btn}</TooltipTrigger>
-          <TooltipContent side="right" className="font-medium text-xs">
-            {name}
-          </TooltipContent>
-        </Tooltip>
-      );
-    }
-
-    return btn;
-  };
-
   return (
     <TooltipProvider>
       <>
         {/* Sidebar */}
         <div
+          onMouseEnter={onMouseEnter}
+          onMouseLeave={onMouseLeave}
           className={cn(
             "hidden lg:flex fixed inset-y-0 left-0 z-50 bg-sidebar border-r border-sidebar-border transition-all duration-300 ease-in-out flex-col",
-            collapsed ? "w-[68px]" : "w-64",
+            collapsed ? "w-[68px]" : "w-60",
           )}
           style={{
             top: "var(--tauri-top, 0px)",
@@ -207,7 +201,7 @@ export function DashboardSidebar({
           {/* Logo header */}
           <div
             className={cn(
-              "flex items-center h-16 border-b border-sidebar-border transition-all duration-300 overflow-hidden",
+              "flex items-center h-16 transition-all duration-300 overflow-hidden",
               collapsed ? "px-3 justify-center" : "px-5 gap-3",
             )}
           >
@@ -235,7 +229,7 @@ export function DashboardSidebar({
           {/* Nav */}
           <nav
             className={cn(
-              "flex-1 py-5 space-y-1 overflow-y-auto overflow-x-hidden",
+              "flex-1 py-5 pt-3 space-y-1 overflow-y-auto overflow-x-hidden",
               collapsed ? "px-2" : "px-3",
             )}
           >
@@ -248,15 +242,9 @@ export function DashboardSidebar({
               />
             ))}
 
-            <div className="pt-2 border-t border-sidebar-border mt-2">
-              <ActionItem
-                icon={MessageSquare}
-                name="Help & Feedback"
-                onClick={() => {
-                  onOpenFeedback();
-                }}
-              />
-            </div>
+            {(isAdmin || canManageStockBatch) && (
+              <NavItem href="/settings" icon={Settings} name="Settings" />
+            )}
 
             {/* Collapse toggle — only on desktop */}
             <div className="pt-2 hidden lg:block">
@@ -270,8 +258,17 @@ export function DashboardSidebar({
                       collapsed ? "justify-center px-2" : "",
                     )}
                   >
-                    {collapsed ? (
-                      <ChevronsRight className="h-[18px] w-[18px] shrink-0" />
+                    {logicalCollapsed ? (
+                      collapsed ? (
+                        <ChevronsRight className="h-[18px] w-[18px] shrink-0" />
+                      ) : (
+                        <>
+                          <ChevronsRight className="h-[18px] w-[18px] shrink-0" />
+                          <span className="truncate text-xs">
+                            Pin sidebar open
+                          </span>
+                        </>
+                      )
                     ) : (
                       <>
                         <ChevronsLeft className="h-[18px] w-[18px] shrink-0" />
@@ -282,7 +279,7 @@ export function DashboardSidebar({
                     )}
                   </button>
                 </TooltipTrigger>
-                {collapsed && (
+                {logicalCollapsed && (
                   <TooltipContent side="right" className="font-medium text-xs">
                     Expand sidebar
                   </TooltipContent>
@@ -291,9 +288,16 @@ export function DashboardSidebar({
             </div>
           </nav>
 
-          {/* Sync indicator */}
-          <div className="border-t border-sidebar-border bg-sidebar">
+          {/* Footer Area */}
+          <div className="bg-sidebar flex flex-col pt-2 pb-2 px-2 gap-0.5">
             <SyncIndicator collapsed={collapsed} />
+            <div className="px-1">
+              <UserNav
+                showDetails={!collapsed}
+                onOpenFeedback={onOpenFeedback}
+                onOpenChange={onUserNavOpenChange}
+              />
+            </div>
           </div>
         </div>
       </>

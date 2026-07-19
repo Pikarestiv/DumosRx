@@ -1,92 +1,112 @@
 "use client";
 
 import Link from "next/link";
-import { 
-  Package, 
-  ShoppingCart, 
-  AlertTriangle, 
-  TrendingUp,
-  XCircle,
-  FileBarChart
+import {
+  Package,
+  ShoppingCart,
+  ClipboardCheck,
+  FileBarChart,
+  BarChart3,
+  Barcode,
 } from "lucide-react";
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardHeader, 
-  CardTitle 
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useState } from "react";
 import { PandLReportDialog } from "./p-and-l-report-dialog";
 
 interface DashboardQuickActionsProps {
-  storeTerm: string;
   productTerm: string;
 }
 
+const getQuickActionsConfig = (
+  productTerm: string,
+  setIsReportOpen: (val: boolean) => void,
+) => [
+  {
+    label: "New Sale",
+    icon: ShoppingCart,
+    href: "/pos",
+  },
+  {
+    label: `Add ${productTerm}`,
+    icon: Package,
+    href: "/inventory/products?action=add",
+  },
+  {
+    label: "Close Register",
+    icon: ClipboardCheck,
+    href: "/reports?tab=daily_close",
+  },
+  {
+    label: "Scan Barcode",
+    icon: Barcode,
+    href: "/pos?action=scan",
+  },
+  {
+    label: "View Reports",
+    icon: BarChart3,
+    href: "/reports",
+  },
+  {
+    label: "Generate P&L",
+    icon: FileBarChart,
+    onClick: () => setIsReportOpen(true),
+  },
+];
+
+function QuickActionCard({ action }: { action: any }) {
+  const content = (
+    <>
+      <div className="p-3 rounded-2xl sm:rounded-xl w-16 h-16 sm:w-auto sm:h-auto border border-primary/20 sm:border-none bg-background sm:bg-primary/10 shadow-sm sm:shadow-none text-primary group-hover:bg-primary/15 transition-transform flex items-center justify-center">
+        <action.icon className="h-5 w-5 sm:h-4 sm:w-4" />
+      </div>
+      <span className="text-xs sm:text-sm font-medium sm:font-semibold text-foreground mt-1">
+        {action.label}
+      </span>
+    </>
+  );
+
+  const className =
+    "shrink-0 snap-start w-[94px] sm:w-auto p-1 sm:p-4 bg-transparent sm:bg-card border-none sm:border-solid sm:border sm:border-border rounded-xl transition-all flex flex-col items-center sm:items-start cursor-pointer group outline-none text-center sm:text-left hover:bg-primary/5 sm:hover:border-primary/50";
+
+  if (action.href) {
+    return (
+      <Link href={action.href} className={className}>
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <button onClick={action.onClick} className={className}>
+      {content}
+    </button>
+  );
+}
+
 export function DashboardQuickActions({
-  storeTerm,
   productTerm,
 }: DashboardQuickActionsProps) {
   const [isReportOpen, setIsReportOpen] = useState(false);
 
   return (
-    <Card className="border-border">
-      <CardHeader>
-        <CardTitle className="font-serif font-semibold">
+    <Card className="border-none shadow-none bg-transparent sm:border-solid sm:border-border sm:shadow-sm sm:bg-card pb-0 !gap-0 sm:gap-6">
+      <CardHeader className="px-0 sm:px-6 pb-3 sm:pb-6">
+        <CardTitle className="font-serif font-semibold !px-0">
           Quick Actions
         </CardTitle>
-        <CardDescription>Common {storeTerm.toLowerCase()} management tasks</CardDescription>
       </CardHeader>
-      <CardContent className="p-4 pt-0">
-        <div className="grid grid-cols-2 gap-2">
-          <Link
-            href="/inventory/products?action=add"
-            className="p-3 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors flex flex-col items-center justify-center text-center cursor-pointer border border-primary/20"
-          >
-            <Package className="h-5 w-5 mb-1.5" />
-            <span className="text-xs font-semibold">Add {productTerm}</span>
-          </Link>
-          <Link
-            href="/pos"
-            className="p-3 bg-emerald-500/10 text-emerald-600 rounded-lg hover:bg-emerald-500/20 transition-colors flex flex-col items-center justify-center text-center cursor-pointer border border-emerald-200"
-          >
-            <ShoppingCart className="h-5 w-5 mb-1.5" />
-            <span className="text-xs font-semibold">New Sale</span>
-          </Link>
-          <Link
-            href="/inventory/batches"
-            className="p-3 bg-amber-500/10 text-amber-600 rounded-lg hover:bg-amber-500/20 transition-colors flex flex-col items-center justify-center text-center cursor-pointer border border-amber-200"
-          >
-            <AlertTriangle className="h-5 w-5 mb-1.5" />
-            <span className="text-xs font-semibold">Check Expiry</span>
-          </Link>
-          <Link
-            href="/inventory/products?status=low_stock"
-            className="p-3 bg-orange-500/10 text-orange-600 rounded-lg hover:bg-orange-500/20 transition-colors flex flex-col items-center justify-center text-center cursor-pointer border border-orange-200"
-          >
-            <TrendingUp className="h-5 w-5 mb-1.5" />
-            <span className="text-xs font-semibold">Check Low Stock</span>
-          </Link>
-          <button
-            onClick={() => setIsReportOpen(true)}
-            className="p-3 bg-blue-500/10 text-blue-600 rounded-lg hover:bg-blue-500/20 transition-colors flex flex-col items-center justify-center text-center cursor-pointer border border-blue-200"
-          >
-            <FileBarChart className="h-5 w-5 mb-1.5" />
-            <span className="text-xs font-semibold">Generate P&L</span>
-          </button>
-          <Link
-            href="/reports?tab=daily_close"
-            className="p-3 bg-destructive/10 text-destructive rounded-lg hover:bg-destructive/20 transition-colors flex flex-col items-center justify-center text-center cursor-pointer border border-destructive/20"
-          >
-            <XCircle className="h-5 w-5 mb-1.5 cursor-pointer" />
-            <span className="text-xs font-semibold">Close Register</span>
-          </Link>
+      <CardContent className="p-0 sm:px-4 pt-0">
+        <div className="flex overflow-x-auto sm:grid sm:grid-cols-2 gap-1 sm:gap-4 pb-0 hide-scrollbar snap-x snap-mandatory -mx-4 sm:mx-0 px-4 sm:px-0">
+          {getQuickActionsConfig(productTerm, setIsReportOpen).map(
+            (action, i) => (
+              <QuickActionCard key={i} action={action} />
+            ),
+          )}
         </div>
 
-        <PandLReportDialog 
-            isOpen={isReportOpen}
-            onClose={() => setIsReportOpen(false)}
+        <PandLReportDialog
+          isOpen={isReportOpen}
+          onClose={() => setIsReportOpen(false)}
         />
       </CardContent>
     </Card>

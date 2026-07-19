@@ -7,7 +7,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import {
   ShoppingCart,
   Package,
@@ -25,62 +24,77 @@ interface StockBatchQuickActionsProps {
   lowStockCount: number;
 }
 
+function QuickActionCard({ action }: { action: any }) {
+  const content = (
+    <>
+      <div className="p-3 rounded-2xl sm:rounded-xl w-16 h-16 sm:w-auto sm:h-auto border border-primary/20 sm:border-none bg-background sm:bg-primary/10 shadow-sm sm:shadow-none text-primary group-hover:bg-primary/15 transition-transform flex items-center justify-center">
+        <action.icon className="h-5 w-5 sm:h-4 sm:w-4" />
+      </div>
+      <span className="text-xs sm:text-sm font-medium sm:font-semibold text-foreground mt-1">
+        {action.label}
+      </span>
+    </>
+  );
+
+  const className =
+    "shrink-0 snap-start w-[94px] sm:w-auto p-1 sm:p-4 bg-transparent sm:bg-card border-none sm:border-solid sm:border sm:border-border rounded-xl transition-all flex flex-col items-center sm:items-start cursor-pointer group outline-none text-center sm:text-left hover:bg-primary/5 sm:hover:border-primary/50";
+
+  return (
+    <Link href={action.href} className={className}>
+      {content}
+    </Link>
+  );
+}
+
 export function StockBatchQuickActions({
   criticalItems,
   lowStockCount,
 }: StockBatchQuickActionsProps) {
   const { t } = useStore();
 
+  const items = [
+    {
+      label: `Add ${t("product")}`,
+      icon: PlusCircle,
+      href: "/inventory/products",
+    },
+    {
+      label: "Create P.O.",
+      icon: ShoppingCart,
+      href: "/procurement",
+    },
+    {
+      label: "Stock Adjustment",
+      icon: Package,
+      href: "/inventory/adjustments",
+    },
+    {
+      label: "Expiry Report",
+      icon: Calendar,
+      href: "/inventory/batches",
+    },
+    {
+      label: "Stock Report",
+      icon: BarChart3,
+      href: "/reports",
+    },
+  ];
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="font-serif font-semibold">
+    <Card className="border-none shadow-none bg-transparent sm:border-solid sm:border-border sm:shadow-sm sm:bg-card pb-0 !gap-0 sm:gap-6">
+      <CardHeader className="px-0 sm:px-6 pb-3 sm:pb-6">
+        <CardTitle className="font-serif font-semibold !px-0">
           Quick Actions
         </CardTitle>
-        <CardDescription>Common inventory management tasks</CardDescription>
+        <CardDescription className="hidden sm:block mt-1">
+          Common inventory management tasks
+        </CardDescription>
       </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          <Button
-            variant="outline"
-            className="h-20 flex flex-col gap-2 bg-primary/5 hover:bg-primary/10 border-primary/20"
-            asChild
-          >
-            <Link href="/inventory/products">
-              <PlusCircle className="h-6 w-6 text-primary hover-rotate-icon" />
-              <span className="text-sm font-medium text-primary capitalize">
-                Add {t("product")}
-              </span>
-            </Link>
-          </Button>
-          <Button
-            variant="outline"
-            className="h-20 flex flex-col gap-2 bg-transparent"
-          >
-            <ShoppingCart className="h-6 w-6 hover-rotate-icon" />
-            <span className="text-sm">Create P.O.</span>
-          </Button>
-          <Button
-            variant="outline"
-            className="h-20 flex flex-col gap-2 bg-transparent"
-          >
-            <Package className="h-6 w-6 hover-rotate-icon" />
-            <span className="text-sm">Stock Adjustment</span>
-          </Button>
-          <Button
-            variant="outline"
-            className="h-20 flex flex-col gap-2 bg-transparent"
-          >
-            <Calendar className="h-6 w-6 hover-rotate-icon" />
-            <span className="text-sm">Expiry Report</span>
-          </Button>
-          <Button
-            variant="outline"
-            className="h-20 flex flex-col gap-2 bg-transparent"
-          >
-            <BarChart3 className="h-6 w-6 hover-rotate-icon" />
-            <span className="text-sm">Stock Batch Report</span>
-          </Button>
+      <CardContent className="p-0 sm:px-4 pt-0">
+        <div className="flex overflow-x-auto sm:grid sm:grid-cols-2 gap-1 sm:gap-4 pb-0 hide-scrollbar snap-x snap-mandatory -mx-4 sm:mx-0 px-4 sm:px-0">
+          {items.map((item) => (
+            <QuickActionCard key={item.label} action={item} />
+          ))}
         </div>
 
         <div className="mt-6 space-y-3">

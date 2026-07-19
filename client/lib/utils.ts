@@ -18,6 +18,23 @@ export function formatCurrency(amount: number, currencyCode: string = "NGN") {
   }).format(amount);
 }
 
+export function formatDateTime(dateStr: string | Date | undefined | null): string {
+  if (!dateStr) return "N/A";
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return String(dateStr);
+    return new Intl.DateTimeFormat("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit"
+    }).format(d);
+  } catch (_e) {
+    return String(dateStr);
+  }
+}
+
 /**
  * Returns the current date in YYYY-MM-DD format based on the user's local timezone
  * rather than UTC. This prevents timezone offset bugs around midnight.

@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { usePathname, useRouter } from "next/navigation";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
 import { useStore } from "@/lib/context/store-context";
 import { useQuery } from "@tanstack/react-query";
@@ -35,6 +35,7 @@ export function MobileMoreDrawer({
   onOpenFeedback,
 }: MobileMoreDrawerProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const { storeType } = useStore();
   const { logout, isAdmin, canManageStockBatch } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
@@ -61,9 +62,9 @@ export function MobileMoreDrawer({
       : []),
     ...(isAdmin || canManageStockBatch
       ? [
-          { name: "Procurement & Vendors", href: "/procurement", icon: ClipboardList },
+          { name: "Procurement", href: "/procurement", icon: ClipboardList },
           { name: "Expenses", href: "/expenses", icon: Wallet },
-          { name: "Reports & Analytics", href: "/reports", icon: BarChart3 },
+          { name: "Reports", href: "/reports", icon: BarChart3 },
           { name: "Settings", href: "/settings", icon: Settings },
         ]
       : []),
@@ -75,22 +76,29 @@ export function MobileMoreDrawer({
 
   return (
     <>
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-[90vh] flex flex-col p-0 pb-6 rounded-t-xl" onOpenAutoFocus={(e) => e.preventDefault()}>
-        <SheetHeader className="px-6 pt-6 pb-2 text-left">
-          <SheetTitle className="font-serif font-black text-2xl">More</SheetTitle>
-        </SheetHeader>
+    <Drawer open={open} onOpenChange={onOpenChange}>
+      <DrawerContent className="h-[90vh] flex flex-col p-0 pb-6 rounded-t-xl" onOpenAutoFocus={(e) => e.preventDefault()}>
+        <DrawerHeader className="px-6 pt-2 pb-2 text-left">
+          <DrawerTitle className="font-serif font-black text-2xl">More</DrawerTitle>
+        </DrawerHeader>
         
         <div className="px-6 pb-4">
-          <div className="relative">
+          <form className="relative" onSubmit={(e) => {
+            e.preventDefault();
+            if (searchQuery.trim()) {
+              router.push(`/inventory/products?search=${encodeURIComponent(searchQuery)}`);
+              onOpenChange(false);
+            }
+          }}>
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             <Input 
-              placeholder="Search features..." 
+              placeholder="Search features, products..." 
               className="pl-9 bg-muted/50 border-0"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
-          </div>
+            <button type="submit" className="hidden" />
+          </form>
         </div>
 
         <div className="flex-1 overflow-y-auto px-4">
@@ -117,8 +125,9 @@ export function MobileMoreDrawer({
                 );
               })
             ) : (
-              <div className="py-8 text-center text-muted-foreground text-sm">
-                No features found for "{searchQuery}"
+              <div className="py-8 text-center text-muted-foreground text-sm flex flex-col items-center">
+                <span>No features found.</span>
+                <span className="text-primary mt-1">Press Enter to search inventory for "{searchQuery}"</span>
               </div>
             )}
           </div>
@@ -148,8 +157,8 @@ export function MobileMoreDrawer({
         <div className="px-6 mt-auto">
           <SyncIndicator collapsed={false} />
         </div>
-      </SheetContent>
-    </Sheet>
+      </DrawerContent>
+    </Drawer>
     <ConfirmDialog
       open={showLogoutConfirm}
       onOpenChange={setShowLogoutConfirm}

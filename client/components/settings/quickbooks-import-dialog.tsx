@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -79,16 +79,13 @@ export function QuickBooksImportDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>QuickBooks Migration (Beta)</DialogTitle>
-          <DialogDescription>
-            Review the parsed data before importing into your database.
-          </DialogDescription>
-        </DialogHeader>
-
-        {importComplete ? (
+    <ResponsiveModal
+      open={open}
+      onOpenChange={handleClose}
+      title="QuickBooks Migration (Beta)"
+      description="Review the parsed data before importing into your database."
+      className="sm:max-w-[425px]"
+    >        {importComplete ? (
           <div className="py-6 flex flex-col items-center justify-center space-y-4">
              <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center text-green-600">
                <CheckCircle2 className="h-6 w-6" />
@@ -145,12 +142,12 @@ export function QuickBooksImportDialog({
           </div>
         )}
 
-        <DialogFooter>
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 pt-4 border-t mt-4">
           {importComplete ? (
              <Button onClick={handleClose}>Done</Button>
           ) : (
             <>
-              <Button variant="outline" onClick={handleClose} disabled={isImporting}>
+              <Button variant="outline" onClick={handleClose} disabled={isImporting} className="mt-2 sm:mt-0">
                 Cancel
               </Button>
               <Button onClick={handleImport} disabled={isImporting || (!importProducts && !importCustomers)}>
@@ -159,8 +156,7 @@ export function QuickBooksImportDialog({
               </Button>
             </>
           )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </div>
+    </ResponsiveModal>
   );
 }

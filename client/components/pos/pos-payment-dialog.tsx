@@ -4,13 +4,7 @@ import { PaymentMethodSelector } from "./payment-method-selector";
 import { PaymentSplits } from "./payment-splits";
 
 import { useEffect } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -116,14 +110,7 @@ export function POSPaymentDialog({
 
 
   return (
-    <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle className="font-serif font-bold">Payment</DialogTitle>
-          <DialogDescription>
-            Total amount: {formatCurrency(total, currencyCode)}
-          </DialogDescription>
-        </DialogHeader>
+    <ResponsiveModal open={showPaymentDialog} onOpenChange={setShowPaymentDialog} title={<>Payment</>} description={<>Total amount: {formatCurrency(total, currencyCode)}</>} className="max-w-md">
 
         <div className="space-y-4">
           <PaymentMethodSelector
@@ -249,7 +236,6 @@ export function POSPaymentDialog({
             </Button>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </ResponsiveModal>
   );
 }

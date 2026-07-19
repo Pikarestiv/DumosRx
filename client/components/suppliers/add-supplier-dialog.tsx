@@ -4,13 +4,9 @@ import type React from "react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
   DialogFooter,
-  DialogHeader,
-  DialogTitle,
 } from "@/components/ui/dialog";
+import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -111,17 +107,15 @@ export function AddSupplierDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="font-serif font-bold">
-            Add New Supplier
-          </DialogTitle>
-          <DialogDescription>
-            Enter details for the new supplier.
-          </DialogDescription>
-        </DialogHeader>
-
+    <>
+    <ResponsiveModal 
+      open={open} 
+      onOpenChange={onOpenChange}
+      title={<span className="font-serif font-bold">Add New Supplier</span>}
+      description={`Add a new ${isPharmacy ? "supplier or distributor" : "supplier"} to your database.`}
+      className="sm:max-w-xl max-h-[90vh] overflow-hidden flex flex-col"
+    >
+      <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="name">Supplier Name *</Label>
@@ -235,7 +229,8 @@ export function AddSupplierDialog({
             </Button>
           </DialogFooter>
         </form>
-      </DialogContent>
+      </div>
+    </ResponsiveModal>
       <ConfirmDialog
         open={!!alertMessage}
         onOpenChange={(open) => {
@@ -247,6 +242,6 @@ export function AddSupplierDialog({
         hideCancel
         onConfirm={() => setAlertMessage(null)}
       />
-    </Dialog>
+    </>
   );
 }

@@ -1,14 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { ResponsiveModal } from "@/components/ui/responsive-modal";
+import { DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -77,22 +71,8 @@ export function EditBatchDialog({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent 
-        className="sm:max-w-[425px]"
-        onPointerDownOutside={(e) => e.preventDefault()}
-        onEscapeKeyDown={(e) => {
-          e.preventDefault();
-          onClose();
-        }}
-      >
-        <DialogHeader>
-          <DialogTitle>Edit Batch Details</DialogTitle>
-          <DialogDescription>
-            Update batch number, expiry date, and quantity for{" "}
-            {batch?.product_name}.
-          </DialogDescription>
-        </DialogHeader>
+    <ResponsiveModal open={isOpen} onOpenChange={onClose} title={<>Edit Batch Details</>} description={<>Update batch number, expiry date, and quantity for{" "}
+            {batch?.product_name}.</>} className="sm:max-w-[425px]">
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
           <div className="space-y-2">
             <Label htmlFor="batch_number">Batch Number</Label>
@@ -155,7 +135,6 @@ export function EditBatchDialog({
             </Button>
           </DialogFooter>
         </form>
-      </DialogContent>
-    </Dialog>
+      </ResponsiveModal>
   );
 }

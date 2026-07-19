@@ -1,13 +1,13 @@
-import { Search } from "lucide-react";
+import { Search, Filter } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { SearchableInput } from "@/components/ui/searchable-input";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useStore } from "@/lib/context/store-context";
 
 interface ProductDatabaseFiltersProps {
@@ -34,63 +34,66 @@ export function ProductDatabaseFilters({
   const { t } = useStore();
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="font-serif font-semibold">
-          Search & Filter
-        </CardTitle>
-        <CardDescription>
-          Find {t("products").toLowerCase()} by name, brand,{" "}
-          {t("registration_number").toLowerCase()}, or other criteria
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-              <Input
-                placeholder={`Search ${t("products").toLowerCase()}, brands, ${t("registration_number").toLowerCase()}...`}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-          </div>
-          <div className="w-full md:w-56">
-            <SearchableInput
-              options={categories.map((c) => ({
-                label: c === "all" ? `All ${t("category")}s` : c,
-                value: c,
-              }))}
-              value={categoryFilter}
-              onValueChange={setCategoryFilter}
-              placeholder={`All ${t("category")}s`}
-            />
-          </div>
-          <div className="w-full md:w-56">
-            <SearchableInput
-              options={statuses.map((s) => ({
-                label:
-                  s === "all"
+    <div className="p-4 border-b border-border space-y-4">
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <Input
+            placeholder={`Search by name or SKU`}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-9 bg-primary/5 border-transparent focus-visible:ring-1 focus-visible:ring-ring rounded-lg"
+          />
+        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              className="shrink-0 bg-primary/5 border-transparent rounded-lg"
+            >
+              <Filter className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-[200px]">
+            <DropdownMenuRadioGroup
+              value={statusFilter}
+              onValueChange={setStatusFilter}
+            >
+              {statuses.map((s) => (
+                <DropdownMenuRadioItem key={s} value={s}>
+                  {s === "all"
                     ? "All Status"
                     : s
                         .replace("_", " ")
                         .split(" ")
-                        .map(
-                          (word) =>
-                            word.charAt(0).toUpperCase() + word.slice(1)
-                        )
-                        .join(" "),
-                value: s,
-              }))}
-              value={statusFilter}
-              onValueChange={setStatusFilter}
-              placeholder="All Status"
-            />
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+                        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+                        .join(" ")}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+      <div className="flex overflow-x-auto hide-scrollbar gap-2 pb-1">
+        <button
+          className={`shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${categoryFilter === "all" ? "bg-primary text-primary-foreground" : "bg-transparent border border-border text-foreground hover:bg-muted/50"}`}
+          onClick={() => setCategoryFilter("all")}
+        >
+          All
+        </button>
+        {categories
+          .filter((c) => c !== "all")
+          .map((c) => (
+            <button
+              key={c}
+              className={`shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${categoryFilter === c ? "bg-primary text-primary-foreground" : "bg-transparent border border-border text-foreground hover:bg-muted/50"}`}
+              onClick={() => setCategoryFilter(c)}
+            >
+              {c}
+            </button>
+          ))}
+      </div>
+    </div>
   );
 }

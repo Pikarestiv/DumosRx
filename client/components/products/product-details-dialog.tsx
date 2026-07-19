@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { useStore } from "@/lib/context/store-context";
 
 import { useProductDetails, Product } from "./product-details/use-product-details";
@@ -42,21 +36,18 @@ export function ProductDetailsDialog({
   if (!product) return null;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-5xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <DialogTitle className="text-left font-serif font-bold text-2xl">
-                {product.name}
-              </DialogTitle>
-              <DialogDescription className="text-left text-lg">
-                {product.genericName}
-              </DialogDescription>
-            </div>
-            {getStatusBadge(product.status)}
-          </div>
-        </DialogHeader>
+    <ResponsiveModal 
+      open={open} 
+      onOpenChange={onOpenChange} 
+      title={
+        <span className="flex items-center justify-between w-full">
+          <span>{product.name}</span>
+          <span className="ml-4">{getStatusBadge(product.status)}</span>
+        </span>
+      } 
+      description={<>{product.genericName}</>} 
+      className="sm:max-w-5xl max-h-[90vh] overflow-y-auto"
+    >
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <ProductBasicInfo product={product} />
@@ -82,7 +73,6 @@ export function ProductDetailsDialog({
           loadingBatches={loadingBatches}
           storeType={storeProfile?.store_type || "pharmacy"}
         />
-      </DialogContent>
-    </Dialog>
+      </ResponsiveModal>
   );
 }

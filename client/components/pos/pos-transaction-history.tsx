@@ -1,18 +1,18 @@
 "use client";
+import { TransactionMetrics } from './transaction-metrics';
+import { TransactionFilters } from './transaction-filters';
+import { TransactionList } from './transaction-list';
 
-import { Receipt, RotateCcw } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from "@/components/ui/table";
-import { formatCurrency } from "@/lib/utils";
+import React, { useState, useMemo } from "react";
+import { isToday, isYesterday, parseISO } from "date-fns";
+
+
 import { useAuth } from "@/lib/context/auth-context";
+import { TransactionDetailsDialog } from "./transaction-details-dialog";
+
+// ============================================================================
+// Types
+// ============================================================================
 
 interface POSTransactionHistoryProps {
   recentSales: any[];
@@ -20,77 +20,132 @@ interface POSTransactionHistoryProps {
   currencyCode?: string;
 }
 
-import { useState } from "react";
-import { TransactionDetailsDialog } from "./transaction-details-dialog";
+// ============================================================================
+// Main Component
+// ============================================================================
 
 export function POSTransactionHistory({
   recentSales,
   onReturnClick,
-  currencyCode
+  currencyCode,
 }: POSTransactionHistoryProps) {
   const [selectedSale, setSelectedSale] = useState<any>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [dateFilter, setDateFilter] = useState<string>("All");
+  const [paymentFilter, setPaymentFilter] = useState<string>("All");
+
   const { user } = useAuth();
-  const canReturn = user?.role === "store_owner" || user?.role === "admin" || user?.role === "manager";
+  const canReturn =
+    user?.role === "store_owner" ||
+    user?.role === "admin" ||
+    user?.role === "manager";
+
+  // Compute metrics for "Today"
+  const todayMetrics = useMemo(() => {
+    const todaySales = (recentSales || []).filter(
+      (s) => s.created_at && isToday(parseISO(s.created_at)),
+    );
+
+    const totalSales = todaySales.reduce(
+      (acc, s) => acc + (Number(s.total_amount) || Number(s.total) || 0),
+      0,
+    );
+    const transactions = todaySales.length;
+    const refunded = todaySales.filter(
+      (s) =>
+        s.payment_status?.toLowerCase() === "refunded" ||
+        s.status?.toLowerCase() === "refunded",
+    ).length;
+    const avgBasket = transactions > 0 ? totalSales / transactions : 0;
+
+    return { totalSales, transactions, refunded, avgBasket };
+  }, [recentSales]);
+
+  // Filtered sales
+  const filteredSales = useMemo(() => {
+    return (recentSales || []).filter((sale) => {
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        const matchesCustomer = (sale.customer_name || "Walk-in")
+          .toLowerCase()
+          .includes(q);
+        const matchesReceipt = sale.transaction_number
+          ?.toLowerCase()
+          .includes(q);
+        if (!matchesCustomer && !matchesReceipt) return false;
+      }
+
+      if (dateFilter === "Today") {
+        if (!sale.created_at || !isToday(parseISO(sale.created_at)))
+          return false;
+      } else if (dateFilter === "This week") {
+        if (!sale.created_at) return false;
+        const diff = Date.now() - new Date(sale.created_at).getTime();
+        if (diff > 7 * 24 * 60 * 60 * 1000) return false;
+      }
+
+      if (paymentFilter !== "All") {
+        if (sale.payment_method?.toLowerCase() !== paymentFilter.toLowerCase())
+          return false;
+      }
+
+      return true;
+    });
+  }, [recentSales, searchQuery, dateFilter, paymentFilter]);
+
+  // Group by relative date
+  const groupedSales = useMemo(() => {
+    const groups: { [key: string]: any[] } = {
+      TODAY: [],
+      YESTERDAY: [],
+      "THIS WEEK": [],
+      OLDER: [],
+    };
+
+    filteredSales.forEach((sale) => {
+      if (!sale.created_at) {
+        groups["OLDER"].push(sale);
+        return;
+      }
+      const d = parseISO(sale.created_at);
+      if (isToday(d)) {
+        groups["TODAY"].push(sale);
+      } else if (isYesterday(d)) {
+        groups["YESTERDAY"].push(sale);
+      } else {
+        const diff = Date.now() - d.getTime();
+        if (diff <= 7 * 24 * 60 * 60 * 1000) {
+          groups["THIS WEEK"].push(sale);
+        } else {
+          groups["OLDER"].push(sale);
+        }
+      }
+    });
+
+    return groups;
+  }, [filteredSales]);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="font-serif font-semibold flex items-center gap-2">
-          <Receipt className="h-5 w-5" />
-          Sales History
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="border rounded-lg overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Trans #</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead className="text-right">Total</TableHead>
-                <TableHead className="text-right">Action</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {recentSales?.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={4} className="text-center py-4 text-muted-foreground">
-                    No recent sales
-                  </TableCell>
-                </TableRow>
-              ) : (
-                recentSales?.map((sale: any) => (
-                  <TableRow 
-                    key={sale.id} 
-                    className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => setSelectedSale(sale)}
-                  >
-                    <TableCell className="font-mono text-xs">{sale.transaction_number}</TableCell>
-                    <TableCell>{sale.customer_name || 'Walk-in'}</TableCell>
-                    <TableCell className="text-right font-bold">{formatCurrency(sale.total_amount, currencyCode)}</TableCell>
-                    <TableCell className="text-right">
-                      {canReturn && (
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="text-accent hover:text-accent hover:bg-accent/10"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onReturnClick(sale);
-                          }}
-                        >
-                          <RotateCcw className="h-3 w-3 mr-1" />
-                          Return
-                        </Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
+    <div className="flex flex-col gap-6">
+      <TransactionMetrics metrics={todayMetrics} currencyCode={currencyCode} />
+
+      <TransactionFilters
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        dateFilter={dateFilter}
+        setDateFilter={setDateFilter}
+        paymentFilter={paymentFilter}
+        setPaymentFilter={setPaymentFilter}
+      />
+
+      <TransactionList
+        groupedSales={groupedSales}
+        currencyCode={currencyCode}
+        canReturn={canReturn}
+        onSelectSale={setSelectedSale}
+        onReturnClick={onReturnClick}
+        hasFilters={filteredSales.length === 0}
+      />
 
       <TransactionDetailsDialog
         sale={selectedSale}
@@ -99,6 +154,7 @@ export function POSTransactionHistory({
         currencyCode={currencyCode}
         onReturnClick={canReturn ? onReturnClick : undefined}
       />
-    </Card>
+    </div>
   );
 }
+

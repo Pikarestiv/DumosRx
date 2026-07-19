@@ -70,9 +70,27 @@ export async function getProductsWithStock() {
     strength: m.strength || "",
     unit_price: m.selling_price || 0,
     stock: m.stock_quantity || 0,
+    reorder_level: m.reorder_level || 10,
     cost_price: m.avg_cost_price || 0,
     barcode: m.barcode || "",
     batch_number: m.batch_number || "",
     category_id: m.category_id || "",
   }));
+}
+
+export async function getProductHistory(productId: string) {
+  const auditLogs = await query<any>(
+    "SELECT * FROM audit_logs WHERE record_id = ? ORDER BY created_at DESC",
+    [productId]
+  );
+  
+  const stockMovements = await query<any>(
+    "SELECT * FROM stock_movements WHERE product_id = ? ORDER BY created_at DESC",
+    [productId]
+  );
+
+  return {
+    auditLogs: auditLogs || [],
+    stockMovements: stockMovements || [],
+  };
 }

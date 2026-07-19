@@ -1,6 +1,6 @@
 "use client";
 
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { User, FileText, Pill } from "lucide-react";
@@ -25,15 +25,13 @@ export function PrescriptionDetailsDialog({
   if (!prescription) return null;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="font-serif font-bold">Prescription Details</DialogTitle>
-          <DialogDescription>
-            {prescription.prescriptionNumber} - {prescription.patientName}
-          </DialogDescription>
-        </DialogHeader>
-
+    <ResponsiveModal
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Prescription Details"
+      description={`${prescription.prescriptionNumber} - ${prescription.patientName}`}
+      className="sm:max-w-4xl"
+    >
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Patient Information */}
@@ -165,7 +163,6 @@ export function PrescriptionDetailsDialog({
             </Card>
           )}
         </div>
-      </DialogContent>
-    </Dialog>
+    </ResponsiveModal>
   );
 }

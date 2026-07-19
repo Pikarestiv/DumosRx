@@ -48,76 +48,78 @@ export function DebtDashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="bg-destructive/5 border-destructive/20">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-destructive">
-              Total Outstanding Debt
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-destructive">
-              {formatCurrency(totalDebt, storeProfile?.currency)}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Owed by {debtors.length} customers
-            </p>
-          </CardContent>
-        </Card>
+      <div className="-mx-4 sm:mx-0 px-4 sm:px-0">
+        <div className="flex overflow-x-auto sm:grid sm:grid-cols-3 gap-[10px] sm:gap-6 pb-4 sm:pb-0 hide-scrollbar snap-x snap-mandatory">
+          <Card className="min-w-[140px] sm:min-w-0 snap-center shrink-0 bg-destructive/5 border-destructive/20">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs sm:text-sm font-medium text-destructive">
+                Total Outstanding Debt
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-xl sm:text-2xl font-bold text-destructive">
+                {formatCurrency(totalDebt, storeProfile?.currency)}
+              </div>
+              <p className="text-[11px] sm:text-xs text-muted-foreground mt-1">
+                Owed by {debtors.length} customers
+              </p>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">
-              Avg. Debt per Customer
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {formatCurrency(
-                debtors.length > 0 ? totalDebt / debtors.length : 0,
-                storeProfile?.currency
-              )}
-            </div>
-          </CardContent>
-        </Card>
+          <Card className="min-w-[140px] sm:min-w-0 snap-center shrink-0 border-border">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs sm:text-sm font-medium">
+                Avg. Debt per Customer
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-xl sm:text-2xl font-bold">
+                {formatCurrency(
+                  debtors.length > 0 ? totalDebt / debtors.length : 0,
+                  storeProfile?.currency
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">
-              Collections (MTD)
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {formatCurrency(0, storeProfile?.currency)}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Coming from payment tracking
-            </p>
-          </CardContent>
-        </Card>
+          <Card className="min-w-[140px] sm:min-w-0 snap-center shrink-0 border-border">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs sm:text-sm font-medium">
+                Collections (MTD)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-xl sm:text-2xl font-bold text-green-600">
+                {formatCurrency(0, storeProfile?.currency)}
+              </div>
+              <p className="text-[11px] sm:text-xs text-muted-foreground mt-1">
+                Coming from payment tracking
+              </p>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       <Card>
         <CardHeader>
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
             <div>
               <CardTitle>Debtor List</CardTitle>
               <CardDescription>
                 Customers with active credit balances
               </CardDescription>
             </div>
-            <div className="flex gap-2">
-              <div className="relative w-64">
+            <div className="flex gap-2 w-full sm:w-auto">
+              <div className="relative flex-1 sm:w-64">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 pointer-events-none" />
                 <Input
                   placeholder="Search debtors..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 w-full"
                 />
               </div>
-              <Button variant="outline" size="icon">
+              <Button variant="outline" size="icon" className="shrink-0">
                 <Filter className="h-4 w-4" />
               </Button>
             </div>

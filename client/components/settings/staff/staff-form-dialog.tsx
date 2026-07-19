@@ -2,14 +2,8 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ResponsiveModal } from "@/components/ui/responsive-modal";
+import { DialogFooter } from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -147,18 +141,9 @@ export function StaffFormDialog({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>
-            {isEditing ? "Edit Staff Member" : "Add New Staff Member"}
-          </DialogTitle>
-          <DialogDescription>
-            {isEditing
+    <ResponsiveModal open={isOpen} onOpenChange={onOpenChange} title={<>{isEditing ? "Edit Staff Member" : "Add New Staff Member"}</>} description={<>{isEditing
               ? "Update sub-account details and permissions."
-              : "Create a sub-account with specific permissions."}
-          </DialogDescription>
-        </DialogHeader>
+              : "Create a sub-account with specific permissions."}</>} >
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
@@ -314,7 +299,6 @@ export function StaffFormDialog({
             </Button>
           </DialogFooter>
         </form>
-      </DialogContent>
-    </Dialog>
+      </ResponsiveModal>
   );
 }

@@ -451,8 +451,7 @@ class SyncController extends Controller
         $lastSyncedMap = $request->input('last_synced', []);
         $changes = [];
         $serverTimestamp = now()->toIso8601String();
-
-        $tables = ['products', 'stock_batches', 'categories', 'customers', 'suppliers', 'sales', 'stores', 'users', 'stock_movements', 'purchase_orders', 'purchase_order_items', 'expenses', 'payment_accounts', 'requested_products', 'supplier_payments'];
+        $tables = ['products', 'stock_batches', 'categories', 'customers', 'suppliers', 'sales', 'sale_items', 'stores', 'users', 'stock_movements', 'purchase_orders', 'purchase_order_items', 'expenses', 'payment_accounts', 'requested_products', 'supplier_payments', 'returns', 'return_items', 'prescriptions', 'prescription_items'];
 
         foreach ($tables as $table) {
             $lastSynced = $lastSyncedMap[$table] ?? null;
@@ -488,31 +487,23 @@ class SyncController extends Controller
                     
                 $userIds = User::whereIn('store_id', $storeIds)->pluck('id')->push($ownerId)->toArray();
 
-                if ($table === 'users') {
-                    $query->whereIn('id', $userIds);
-                } elseif ($table === 'stores') {
-                    $query->whereIn('id', $storeIds)->with(['user.subscriptions']);
-                } elseif ($table === 'sales') {
-                    $query->whereIn('cashier_id', $userIds);
-                } elseif ($table === 'purchase_orders') {
-                    $query->whereIn('ordered_by', $userIds);
-                } elseif ($table === 'purchase_order_items') {
-                    $poIds = PurchaseOrder::whereIn('ordered_by', $userIds)->pluck('id')->toArray();
-                    $query->whereIn('purchase_order_id', $poIds);
-                } elseif ($table === 'stock_movements') {
-                    $query->whereIn('performed_by', $userIds);
-                } elseif ($table === 'stock_batches') {
-                    $medicineIds = Product::where('user_id', $ownerId)->pluck('id')->toArray();
-                    $query->whereIn('product_id', $medicineIds);
-                } elseif ($table === 'supplier_payments') {
-                    $supplierIds = Supplier::where('user_id', $ownerId)->pluck('id')->toArray();
-                    $query->whereIn('supplier_id', $supplierIds);
-                } elseif ($table === 'requested_products') {
-                    $query->whereIn('store_id', $storeIds);
-                } else {
-                    // Default to filtering by owner_id for products, customers, suppliers
-                    $query->where('user_id', $ownerId);
-                }
+                match ($table) {
+                    'users' => $query->whereIn('id', $userIds),
+                    'stores' => $query->whereIn('id', $storeIds)->with(['user.subscriptions']),
+                    'sales' => $query->whereIn('cashier_id', $userIds),
+                    'sale_items' => $query->whereIn('sale_id', Sale::whereIn('cashier_id', $userIds)->pluck('id')),
+                    'returns' => $query->whereIn('user_id', $userIds),
+                    'return_items' => $query->whereIn('return_id', \App\Models\SaleReturn::whereIn('user_id', $userIds)->pluck('id')),
+                    'prescriptions' => $query->whereIn('customer_id', Customer::where('user_id', $ownerId)->pluck('id')),
+                    'prescription_items' => $query->whereIn('prescription_id', \App\Models\Prescription::whereIn('customer_id', Customer::where('user_id', $ownerId)->pluck('id'))->pluck('id')),
+                    'purchase_orders' => $query->whereIn('ordered_by', $userIds),
+                    'purchase_order_items' => $query->whereIn('purchase_order_id', PurchaseOrder::whereIn('ordered_by', $userIds)->pluck('id')),
+                    'stock_movements' => $query->whereIn('performed_by', $userIds),
+                    'stock_batches' => $query->whereIn('product_id', Product::where('user_id', $ownerId)->pluck('id')),
+                    'supplier_payments' => $query->whereIn('supplier_id', Supplier::where('user_id', $ownerId)->pluck('id')),
+                    'requested_products' => $query->whereIn('store_id', $storeIds),
+                    default => $query->where('user_id', $ownerId),
+                };
             }
 
             $lastSynced = $lastSyncedMap[$table] ?? null;
@@ -635,6 +626,8 @@ class SyncController extends Controller
             'return_items' => \App\Models\SaleReturnItem::class,
             'requested_products' => RequestedProduct::class,
             'supplier_payments' => \App\Models\SupplierPayment::class,
+            'prescriptions' => \App\Models\Prescription::class,
+            'prescription_items' => \App\Models\PrescriptionItem::class,
         ];
         return $map[$tableName] ?? null;
     }

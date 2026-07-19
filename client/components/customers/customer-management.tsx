@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useStore } from "@/lib/context/store-context";
 import { useCustomerData, Customer } from "@/lib/hooks/use-customer-data";
@@ -66,6 +67,20 @@ export function CustomerManagement() {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [isAddCustomerOpen, setIsAddCustomerOpen] = useState(false);
 
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    if (searchParams.get("action") === "add") {
+      setIsAddCustomerOpen(true);
+      const newParams = new URLSearchParams(searchParams.toString());
+      newParams.delete("action");
+      const newUrl = pathname + (newParams.toString() ? `?${newParams.toString()}` : "");
+      router.replace(newUrl);
+    }
+  }, [searchParams, router, pathname]);
+
   const handleAddCustomer = async (payload: any) => {
     await addCustomer(payload);
     setIsAddCustomerOpen(false);
@@ -87,7 +102,7 @@ export function CustomerManagement() {
       <CustomerStats customers={customers} />
 
       <Tabs defaultValue="customers" className="space-y-6">
-        <TabsList>
+        <TabsList className="w-full md:w-max">
           <TabsTrigger value="customers">Customer Directory</TabsTrigger>
           <TabsTrigger value="debt">Debt Management</TabsTrigger>
           <TabsTrigger value="loyalty">Loyalty Program</TabsTrigger>

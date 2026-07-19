@@ -1,6 +1,7 @@
 "use client";
 
-import { Sun, Moon, Globe, Save, Lock, Info } from "lucide-react";
+import { useState } from "react";
+import { Sun, Moon, Globe, Save, Lock, Info, Pencil, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,7 +16,12 @@ import {
 import { APP_NAME } from "@/lib/constants";
 import { Theme } from "@/components/theme-provider";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface AppearanceSettingsProps {
   theme: string | undefined;
@@ -31,12 +37,36 @@ interface AppearanceSettingsProps {
 }
 
 const colorThemes = [
-  { id: "default", name: "Dumos Blue", color: "bg-blue-600" },
-  { id: "ocean", name: "Ocean Breeze", color: "bg-cyan-500" },
-  { id: "emerald", name: "Emerald Health", color: "bg-emerald-500" },
-  { id: "ruby", name: "Ruby Retail", color: "bg-rose-600" },
-  { id: "midnight", name: "Midnight Gold", color: "bg-slate-900" },
-  { id: "slate", name: "Professional Slate", color: "bg-slate-500" },
+  {
+    id: "default",
+    name: "Dumos Blue",
+    style: { backgroundColor: "oklch(0.55 0.18 250)" },
+  },
+  {
+    id: "ocean",
+    name: "Ocean Breeze",
+    style: { backgroundColor: "oklch(0.588 0.158 241.966)" },
+  },
+  {
+    id: "emerald",
+    name: "Emerald Health",
+    style: { backgroundColor: "oklch(0.627 0.194 149.214)" },
+  },
+  {
+    id: "ruby",
+    name: "Ruby Retail",
+    style: { backgroundColor: "oklch(0.577 0.245 27.325)" },
+  },
+  {
+    id: "midnight",
+    name: "Midnight Gold",
+    style: { backgroundColor: "oklch(0.696 0.151 77.212)" },
+  },
+  {
+    id: "slate",
+    name: "Professional Slate",
+    style: { backgroundColor: "oklch(0.439 0 0)" },
+  },
 ];
 
 export function AppearanceSettings({
@@ -51,7 +81,10 @@ export function AppearanceSettings({
   handleSaveRegional,
   isAdmin,
 }: AppearanceSettingsProps) {
-  const { canCustomizeTheme, canUseDarkMode, withRestriction } = useFeatureGate();
+  const [isEditingRegional, setIsEditingRegional] = useState(false);
+
+  const { canCustomizeTheme, canUseDarkMode, withRestriction } =
+    useFeatureGate();
 
   const handleApplyTheme = (themeId: string) => {
     setAppTheme(themeId);
@@ -78,7 +111,7 @@ export function AppearanceSettings({
                 onClick={withRestriction(() => handleSetTheme("light"))}
                 className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all cursor-pointer ${
                   theme === "light"
-                    ? "border-primary bg-primary/5"
+                    ? "bg-primary text-primary-foreground border-primary"
                     : "border-muted hover:border-primary/50"
                 }`}
               >
@@ -87,10 +120,13 @@ export function AppearanceSettings({
               </button>
 
               <button
-                onClick={withRestriction(() => handleSetTheme("dark"), { featureAllowed: canUseDarkMode, featureKey: 'dark_mode' })}
+                onClick={withRestriction(() => handleSetTheme("dark"), {
+                  featureAllowed: canUseDarkMode,
+                  featureKey: "dark_mode",
+                })}
                 className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all cursor-pointer ${
                   theme === "dark"
-                    ? "border-primary bg-primary/5"
+                    ? "bg-primary text-primary-foreground border-primary"
                     : "border-border hover:border-primary/50"
                 }`}
               >
@@ -99,10 +135,13 @@ export function AppearanceSettings({
               </button>
 
               <button
-                onClick={withRestriction(() => handleSetTheme("system"), { featureAllowed: canUseDarkMode, featureKey: 'dark_mode' })}
+                onClick={withRestriction(() => handleSetTheme("system"), {
+                  featureAllowed: canUseDarkMode,
+                  featureKey: "dark_mode",
+                })}
                 className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all cursor-pointer ${
                   theme === "system"
-                    ? "border-primary bg-primary/5"
+                    ? "bg-primary text-primary-foreground border-primary"
                     : "border-border hover:border-primary/50"
                 }`}
               >
@@ -120,22 +159,35 @@ export function AppearanceSettings({
                 return (
                   <button
                     key={t.id}
-                    onClick={t.id === 'default' ? withRestriction(() => handleApplyTheme(t.id)) : withRestriction(() => handleApplyTheme(t.id), { featureAllowed: canCustomizeTheme, featureKey: 'theme_customizer' })}
+                    onClick={
+                      t.id === "default"
+                        ? withRestriction(() => handleApplyTheme(t.id))
+                        : withRestriction(() => handleApplyTheme(t.id), {
+                            featureAllowed: canCustomizeTheme,
+                            featureKey: "theme_customizer",
+                          })
+                    }
                     className={`flex items-center justify-between p-4 rounded-lg border-2 transition-all cursor-pointer ${
                       activeTheme === t.id
-                        ? "border-primary bg-primary/5"
+                        ? "bg-primary text-primary-foreground border-primary"
                         : isLocked
-                        ? "border-border opacity-60 cursor-not-allowed hover:bg-transparent"
-                        : "border-border hover:bg-muted"
+                          ? "border-border opacity-60 cursor-not-allowed hover:bg-transparent"
+                          : "border-border hover:bg-muted"
                     }`}
                   >
                     <div className="flex items-center gap-3">
                       <div
-                        className={`w-6 h-6 rounded-full ${t.color} border shadow-sm`}
+                        className={`w-6 h-6 rounded-full border shadow-sm ${
+                          activeTheme === t.id ? "bg-primary-foreground" : ""
+                        }`}
+                        // style={activeTheme === t.id ? undefined : t.style}
+                        style={t.style}
                       />
                       <span className="text-sm font-medium">{t.name}</span>
                     </div>
-                    {isLocked && <Lock className="h-4 w-4 text-muted-foreground" />}
+                    {isLocked && (
+                      <Lock className="h-4 w-4 text-muted-foreground" />
+                    )}
                   </button>
                 );
               })}
@@ -146,11 +198,24 @@ export function AppearanceSettings({
 
       {isAdmin && (
         <Card>
-          <CardHeader>
-            <CardTitle>Regional Settings</CardTitle>
-            <CardDescription>
-              Configure currency and locale defaults.
-            </CardDescription>
+          <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-4">
+            <div className="space-y-1.5">
+              <CardTitle>Regional Settings</CardTitle>
+              <CardDescription>
+                Configure currency and locale defaults.
+              </CardDescription>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsEditingRegional(!isEditingRegional)}
+            >
+              {isEditingRegional ? (
+                <X className="h-4 w-4" />
+              ) : (
+                <Pencil className="h-4 w-4" />
+              )}
+            </Button>
           </CardHeader>
           <CardContent className="grid gap-6">
             <div className="grid gap-2">
@@ -162,17 +227,26 @@ export function AppearanceSettings({
                       <Info className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>Enter a standard 3-letter currency code (e.g., NGN, USD, GBP). This changes the currency symbol across the app.</p>
+                      <p>
+                        Enter a standard 3-letter currency code (e.g., NGN, USD,
+                        GBP). This changes the currency symbol across the app.
+                      </p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
               </div>
-              <Input
-                id="currency"
-                value={localCurrency}
-                onChange={(e) => setLocalCurrency(e.target.value.toUpperCase())}
-                placeholder="e.g. NGN, USD, GHS"
-              />
+              {isEditingRegional ? (
+                <Input
+                  id="currency"
+                  value={localCurrency}
+                  onChange={(e) => setLocalCurrency(e.target.value.toUpperCase())}
+                  placeholder="e.g. NGN, USD, GHS"
+                />
+              ) : (
+                <p className="text-sm font-medium py-2">
+                  {localCurrency || "Not set"}
+                </p>
+              )}
             </div>
             <div className="grid gap-2">
               <div className="flex items-center gap-2">
@@ -183,27 +257,41 @@ export function AppearanceSettings({
                       <Info className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>The default Value Added Tax applied to transactions. Leave as 0 if your prices are already tax-inclusive.</p>
+                      <p>
+                        The default Value Added Tax applied to transactions.
+                        Leave as 0 if your prices are already tax-inclusive.
+                      </p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
               </div>
-              <Input
-                id="vat"
-                type="number"
-                step="0.1"
-                value={localVat}
-                onChange={(e) => setLocalVat(e.target.value)}
-                placeholder="e.g. 7.5"
-              />
+              {isEditingRegional ? (
+                <Input
+                  id="vat"
+                  type="number"
+                  step="0.1"
+                  value={localVat}
+                  onChange={(e) => setLocalVat(e.target.value)}
+                  placeholder="e.g. 7.5"
+                />
+              ) : (
+                <p className="text-sm font-medium py-2">
+                  {localVat ? `${localVat}%` : "0%"}
+                </p>
+              )}
             </div>
           </CardContent>
-          <CardFooter className="border-t px-6 py-4">
-            <Button onClick={handleSaveRegional}>
-              <Save className="w-4 h-4 mr-2" />
-              Save Regional Settings
-            </Button>
-          </CardFooter>
+          {isEditingRegional && (
+            <CardFooter className="border-t px-6 py-4">
+              <Button onClick={() => {
+                handleSaveRegional();
+                setIsEditingRegional(false);
+              }}>
+                <Save className="w-4 h-4 mr-2" />
+                Save Regional Settings
+              </Button>
+            </CardFooter>
+          )}
         </Card>
       )}
     </div>

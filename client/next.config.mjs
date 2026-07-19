@@ -1,7 +1,26 @@
+import os from "os";
+
+function getLocalIps() {
+  const interfaces = os.networkInterfaces();
+  const ips = [];
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name] || []) {
+      if (iface.family === "IPv4" && !iface.internal) {
+        ips.push(iface.address);
+      }
+    }
+  }
+  return ips;
+}
+
+const localIps = getLocalIps();
+const devHost = localIps.length > 0 ? localIps[0] : "localhost";
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: "export",
-  allowedDevOrigins: ["tauri.localhost", "localhost", "127.0.0.1", "10.0.2.2"],
+  allowedDevOrigins: ["tauri.localhost", "localhost", "127.0.0.1", "10.0.2.2", ...localIps],
+  assetPrefix: process.env.NODE_ENV === "development" ? `http://${devHost}:3000` : undefined,
   // rewrites() are not supported in static export
   // async rewrites() {
   //   const REMOTE_API_ROOT = "https://api.dumosrx.com";

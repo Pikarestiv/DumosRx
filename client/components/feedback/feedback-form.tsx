@@ -1,14 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogDescription,
-  DialogFooter
-} from "@/components/ui/dialog";
+import { ResponsiveModal } from "@/components/ui/responsive-modal";
+import { DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -68,17 +62,8 @@ export function FeedbackForm({ open, onOpenChange }: FeedbackFormProps) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 font-serif text-2xl">
-            <MessageSquare className="h-6 w-6 text-primary" />
-            Send Feedback
-          </DialogTitle>
-          <DialogDescription>
-            Help us improve {process.env.NEXT_PUBLIC_APP_NAME || "DumosRx"}. Tell us about a bug, suggest a feature, or just say hello!
-          </DialogDescription>
-        </DialogHeader>
+    <ResponsiveModal open={open} onOpenChange={onOpenChange} title={<><MessageSquare className="h-6 w-6 text-primary" />
+            Send Feedback</>} description={<>Help us improve {process.env.NEXT_PUBLIC_APP_NAME || "DumosRx"}. Tell us about a bug, suggest a feature, or just say hello!</>} className="sm:max-w-[500px]">
 
         <div className="space-y-4 py-4">
           <div className="space-y-2">
@@ -147,7 +132,6 @@ export function FeedbackForm({ open, onOpenChange }: FeedbackFormProps) {
             {isSubmitting ? "Sending..." : "Submit Feedback"}
           </Button>
         </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      </ResponsiveModal>
   );
 }

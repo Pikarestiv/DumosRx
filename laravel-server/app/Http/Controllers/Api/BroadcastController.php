@@ -14,7 +14,8 @@ class BroadcastController extends Controller
      */
     public function index(Request $request)
     {
-        $user = $request->user();
+        $user = auth('sanctum')->user();
+        $storeId = $request->header('X-Store-ID');
 
         $query = Broadcast::active()->orderBy('created_at', 'desc');
 
@@ -30,9 +31,20 @@ class BroadcastController extends Controller
                 });
 
                 // Show to store owners (admin/store_owner)
-                if ($user->hasRole('store_owner') || $user->hasRole('admin')) {
+                if ($user->role === 'store_owner' || $user->role === 'admin') {
                     $q->orWhereIn('target_type', ['pharmacies', 'stores']);
                 }
+            });
+        } elseif ($storeId) {
+            $query->where(function ($q) use ($storeId) {
+                // Show to all
+                $q->where('target_type', 'all');
+
+                // Show to specific stores
+                $q->orWhere(function ($q2) use ($storeId) {
+                    $q2->where('target_type', 'specific')
+                       ->whereJsonContains('user_ids', $storeId);
+                });
             });
         } else {
             $query->where('target_type', 'all');

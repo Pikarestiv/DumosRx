@@ -2,33 +2,23 @@
 
 import type React from "react";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { ThemeToggle } from "@/components/ui/theme-toggle";
-import { ThemeCustomizer } from "@/components/ui/theme-customizer";
-import { UserNav } from "@/components/dashboard/user-nav";
-import { NotificationBell } from "@/components/dashboard/notification-bell";
 import { useAuth } from "@/lib/context/auth-context";
-import { useStore } from "@/lib/context/store-context";
-import { APP_NAME } from "@/lib/constants";
 import { FeedbackForm } from "@/components/feedback/feedback-form";
 import { OnlineOrdersModal } from "@/components/pos/online-orders-modal";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { ChevronDown, Store as StoreIcon, Lock } from "lucide-react";
+import { Lock } from "lucide-react";
 import { BroadcastBanner } from "./broadcast-banner";
+import { DashboardHeader } from "./dashboard-header";
 import { DashboardSidebar } from "./dashboard-sidebar";
 import { MobileBottomNav } from "./mobile-bottom-nav";
-import { LiveClock } from "./live-clock";
 import { DashboardTour } from "./dashboard-tour";
 import { cn } from "@/lib/utils";
-import { useAutoLockStore } from "@/lib/hooks/use-auto-lock";
+import { toast } from "sonner";
+import { useAutoLockStore, useAutoLockTimer } from "@/lib/hooks/use-auto-lock";
+import { useSwipeNavigation } from "@/lib/hooks/use-swipe-navigation";
 import { LockScreen } from "@/components/auth/lock-screen";
 
 interface DashboardLayoutProps {
@@ -41,17 +31,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
-  const { storeProfile, availableStores, switchStore, activeStoreId } =
-    useStore();
   const { user } = useAuth();
   const [feedbackOpen, setFeedbackOpen] = useState(false);
-  const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(
-    null,
-  );
-
-  const { duration, isLocked, lock, updateActivity, unlock } =
-    useAutoLockStore();
+  const { isLocked, unlock } = useAutoLockStore();
   const [recentUsers, setRecentUsers] = useState<any[]>([]);
+
+  useAutoLockTimer();
 
   useEffect(() => {
     try {
@@ -60,82 +45,15 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     } catch {}
   }, []);
 
-  useEffect(() => {
-    if (duration <= 0) return; // auto lock is off
+  const TABS = ["/dashboard", "/pos", "/inventory", "/customers"];
+  const { handleTouchStart, handleTouchEnd } = useSwipeNavigation(TABS);
 
-    const handleActivity = () => updateActivity();
-
-    // Attach listeners
-    window.addEventListener("mousemove", handleActivity);
-    window.addEventListener("keydown", handleActivity);
-    window.addEventListener("touchstart", handleActivity);
-    window.addEventListener("scroll", handleActivity);
-
-    const interval = setInterval(() => {
-      const {
-        lastActivity,
-        isLocked: currentLocked,
-        duration: currentDuration,
-      } = useAutoLockStore.getState();
-      if (!currentLocked && currentDuration > 0) {
-        const inactiveTime = Date.now() - lastActivity;
-        if (inactiveTime > currentDuration * 60 * 1000) {
-          lock();
-        }
-      }
-    }, 10000); // Check every 10 seconds
-
-    return () => {
-      window.removeEventListener("mousemove", handleActivity);
-      window.removeEventListener("keydown", handleActivity);
-      window.removeEventListener("touchstart", handleActivity);
-      window.removeEventListener("scroll", handleActivity);
-      clearInterval(interval);
-    };
-  }, [duration, updateActivity, lock]);
-
-  const tabs = ["/dashboard", "/pos", "/inventory", "/customers"];
-  const currentIndex = tabs.findIndex((t) => pathname.startsWith(t));
-  const prevIndexRef = useRef(currentIndex);
-
-  useEffect(() => {
-    prevIndexRef.current = currentIndex;
-  }, [currentIndex]);
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    // Ignore if touch is inside a horizontal scroll container
-    let el = e.target as HTMLElement | null;
-    while (el && el !== e.currentTarget) {
-      const style = window.getComputedStyle(el);
-      if (
-        (style.overflowX === "auto" || style.overflowX === "scroll") &&
-        el.scrollWidth > el.clientWidth
-      ) {
-        return;
-      }
-      el = el.parentElement;
-    }
-    setTouchStart({ x: e.touches[0].clientX, y: e.touches[0].clientY });
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (!touchStart) return;
-    const endX = e.changedTouches[0].clientX;
-    const endY = e.changedTouches[0].clientY;
-    const diffX = endX - touchStart.x;
-    const diffY = endY - touchStart.y;
-
-    if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 50) {
-      if (currentIndex !== -1) {
-        if (diffX > 0 && currentIndex > 0) {
-          router.push(tabs[currentIndex - 1]);
-        } else if (diffX < 0 && currentIndex < tabs.length - 1) {
-          router.push(tabs[currentIndex + 1]);
-        }
-      }
-    }
-    setTouchStart(null);
-  };
+  const isPosRoute = pathname.startsWith("/pos");
+  const [hoverExpanded, setHoverExpanded] = useState(false);
+  const [userNavOpen, setUserNavOpen] = useState(false);
+  const isLogicallyCollapsed = isPosRoute ? true : sidebarCollapsed;
+  const effectiveCollapsed = isLogicallyCollapsed && !hoverExpanded && !userNavOpen;
+  const contentCollapsed = isLogicallyCollapsed;
 
   /* Hydrate collapse preference from localStorage */
   useEffect(() => {
@@ -151,6 +69,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   }, []);
 
   const handleToggleCollapse = () => {
+    if (isPosRoute) {
+      toast.info("The POS view is collapsed by default to maximize workspace width.");
+      return;
+    }
     setSidebarCollapsed((prev) => {
       const next = !prev;
       try {
@@ -169,7 +91,15 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
     <div className="min-h-screen bg-background relative">
       {isLocked && (
-        <div className="fixed inset-0 z-[99999] bg-background flex flex-col items-center justify-center p-4 overflow-hidden">
+        <div
+          className="fixed inset-0 z-[99999] bg-background flex flex-col items-center justify-center p-0 sm:p-4 overflow-hidden"
+          style={{
+            paddingTop:
+              "calc(var(--tauri-top, env(safe-area-inset-top, 0px)) + 1rem)",
+            paddingBottom:
+              "calc(var(--tauri-bottom, env(safe-area-inset-bottom, 0px)) + 1rem)",
+          }}
+        >
           <div className="absolute inset-0 z-0">
             <div className="absolute inset-0 bg-gradient-to-b from-transparent to-background/60" />
           </div>
@@ -178,9 +108,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.5 }}
-            className="w-full max-w-md z-10"
+            className="w-full h-[100dvh] sm:h-auto sm:max-w-md z-10 flex flex-col sm:justify-center"
           >
-            <div className="rounded-xl border border-border shadow-2xl bg-card/60 backdrop-blur-2xl text-card-foreground">
+            <div className="flex-1 sm:flex-initial flex flex-col rounded-none sm:rounded-xl border-none sm:border-solid border-border shadow-none sm:shadow-2xl bg-transparent sm:bg-card/60 sm:backdrop-blur-2xl text-card-foreground">
               <div className="space-y-1 flex flex-col items-center text-center pb-2 p-6">
                 <motion.div
                   initial={{ scale: 0 }}
@@ -204,7 +134,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 </motion.div>
               </div>
 
-              <div className="pt-1 pb-6 px-6">
+              <div className="flex-1 flex flex-col pt-1 pb-0 px-4 sm:pb-6 sm:px-6">
                 <LockScreen
                   recentUsers={recentUsers}
                   defaultUser={
@@ -221,7 +151,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               </div>
             </div>
 
-            <div className="mt-8 flex items-center justify-center gap-2 text-xs font-medium text-muted-foreground/60 uppercase tracking-widest">
+            <div className="mt-4 sm:mt-8 flex items-center justify-center gap-2 text-xs font-medium text-muted-foreground/60 uppercase tracking-widest">
               <Lock className="w-3 h-3" />
               Terminal Access • Secure Login
             </div>
@@ -231,11 +161,15 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
       <DashboardSidebar
         onOpenFeedback={() => setFeedbackOpen(true)}
-        collapsed={sidebarCollapsed}
+        collapsed={effectiveCollapsed}
+        logicalCollapsed={isLogicallyCollapsed}
         onToggleCollapse={handleToggleCollapse}
+        onMouseEnter={() => setHoverExpanded(true)}
+        onMouseLeave={() => setHoverExpanded(false)}
+        onUserNavOpenChange={setUserNavOpen}
       />
 
-      <MobileBottomNav onOpenFeedback={() => setFeedbackOpen(true)} />
+      {!isPosRoute && <MobileBottomNav onOpenFeedback={() => setFeedbackOpen(true)} />}
 
       <FeedbackForm open={feedbackOpen} onOpenChange={setFeedbackOpen} />
       <OnlineOrdersModal />
@@ -244,70 +178,22 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       <div
         className={cn(
           "flex flex-col min-h-screen transition-all duration-300",
-          sidebarCollapsed ? "lg:pl-[68px]" : "lg:pl-64",
+          contentCollapsed ? "lg:pl-[68px]" : "lg:pl-60",
         )}
         style={{
           paddingTop: "var(--tauri-top, 0px)",
-          paddingBottom:
-            "calc(4rem + var(--tauri-bottom, env(safe-area-inset-bottom)))",
+          paddingBottom: isPosRoute ? "var(--tauri-bottom, env(safe-area-inset-bottom))" : "calc(5.5rem + var(--tauri-bottom, env(safe-area-inset-bottom)))",
         }}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
         <BroadcastBanner />
 
-        {/* Top header */}
-        <header
-          className="h-16 bg-background border-b border-border flex items-center justify-between px-4 sm:px-6 sticky z-40 before:absolute before:inset-x-0 before:bottom-full before:h-[100vh] before:bg-background before:-z-10"
-          style={{ top: "var(--tauri-top, 0px)" }}
-        >
-          <div className="flex items-center gap-4">
-            {!user?.store_id && availableStores.length > 1 ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger className="flex items-center gap-2 outline-none hover:opacity-80 transition-opacity">
-                  <h1 className="font-serif font-black text-xl text-foreground truncate max-w-[200px] sm:max-w-xs">
-                    {storeProfile?.name || APP_NAME}
-                  </h1>
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-[240px]">
-                  {availableStores.map((store) => (
-                    <DropdownMenuItem
-                      key={store.id}
-                      onClick={() => switchStore(store.id)}
-                      className={cn(
-                        "flex items-center gap-2 py-2 cursor-pointer",
-                        store.id === activeStoreId &&
-                          "bg-primary/10 text-primary font-medium focus:bg-primary/20",
-                      )}
-                    >
-                      <StoreIcon className="h-4 w-4" />
-                      <span className="truncate">{store.name}</span>
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : (
-              <h1 className="font-serif font-black text-xl text-foreground truncate max-w-[200px] sm:max-w-xs">
-                {storeProfile?.name || APP_NAME}
-              </h1>
-            )}
-            <LiveClock />
-          </div>
-
-          <div className="flex items-center gap-2">
-            <NotificationBell />
-            <div className="hidden sm:flex items-center gap-2">
-              <ThemeToggle />
-              <ThemeCustomizer />
-            </div>
-            <UserNav />
-          </div>
-        </header>
+        {!isPosRoute && <DashboardHeader onOpenFeedback={() => setFeedbackOpen(true)} />}
 
         {/* Page content */}
         <div className="flex-1 relative overflow-x-clip">
-          <main className="p-4 sm:p-6">{children}</main>
+          <main className={isPosRoute ? "" : "p-4 sm:p-6"}>{children}</main>
         </div>
       </div>
       <DashboardTour />

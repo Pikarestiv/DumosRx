@@ -23,6 +23,9 @@ const Toaster = ({ ...props }: ToasterProps) => {
             "group-[.toast]:bg-muted group-[.toast]:text-muted-foreground",
         },
       }}
+      style={{
+        marginBottom: "calc(var(--tauri-bottom, env(safe-area-inset-bottom, 0px)) + 16px)",
+      }}
       {...props}
     />
   );

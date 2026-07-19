@@ -44,23 +44,28 @@ export function PinPad({
   ];
 
   return (
-    <div className={cn("grid grid-cols-3 gap-4 max-w-[280px] mx-auto", className)}>
+    <div
+      className={cn(
+        "grid grid-cols-3 gap-2 sm:gap-4 max-w-[280px] mx-auto",
+        className,
+      )}
+    >
       {digits.flat().map((btn, index) => {
         if (btn === null) {
           return <div key={`empty-${index}`} />;
         }
-        
+
         if (btn === "delete") {
           return (
             <Button
               key="delete"
               variant="ghost"
               size="icon"
-              className="h-16 w-full rounded-full text-xl hover:bg-muted/50 active:bg-muted"
+              className="aspect-square h-auto w-full max-w-[64px] mx-auto rounded-full text-2xl hover:bg-muted/50 active:bg-muted"
               onClick={handleDelete}
               type="button"
             >
-              <Delete className="h-6 w-6 text-muted-foreground" />
+              <Delete className="h-10 w-10 text-muted-foreground" />
               <span className="sr-only">Delete</span>
             </Button>
           );
@@ -70,7 +75,7 @@ export function PinPad({
           <Button
             key={btn}
             variant="ghost"
-            className="h-16 w-full rounded-full text-2xl font-normal hover:bg-muted/50 active:bg-muted shadow-sm border border-transparent hover:border-border/50"
+            className="aspect-square h-auto w-full max-w-[64px] mx-auto rounded-full text-2xl font-normal hover:bg-muted/50 active:bg-muted shadow-sm border border-transparent hover:border-border/50"
             onClick={() => handlePress(btn)}
             type="button"
           >

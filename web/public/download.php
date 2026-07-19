@@ -7,7 +7,7 @@
 $os = isset($_GET['os']) ? $_GET['os'] : 'windows';
 
 // The current version of the application
-$version = "0.0.24"; 
+$version = "0.0.25"; 
 $downloadUrl = "";
 
 // Fetch latest release data from DumosRx Server

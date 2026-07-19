@@ -101,8 +101,8 @@ export function POSCustomerSelector({
   };
 
   return (
-    <div className="px-5 pt-[18px] pb-3.5 border-b border-border">
-      <div className="flex items-center justify-between mb-3">
+    <div className="px-0 sm:px-5 pt-[18px] pb-3.5 border-b border-border">
+      <div className="hidden sm:flex items-center justify-between mb-3">
         <div className="text-[15px] font-semibold">Current sale</div>
         <div className="text-xs text-muted-foreground">{cartLength} items</div>
       </div>

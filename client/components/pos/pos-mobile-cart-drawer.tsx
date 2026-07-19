@@ -63,13 +63,12 @@ export function POSMobileCartDrawer({
           <DrawerTitle>Cart</DrawerTitle>
         </DrawerHeader>
         <div className="flex flex-col flex-1 overflow-hidden">
-          <POSCustomerSelector
-            selectedCustomer={selectedCustomer}
-            customers={customers}
-            loadingCustomers={loadingCustomers}
-            onSelectCustomer={onSelectCustomer}
-            cartLength={cart.length}
-          />
+          <div className="flex items-center justify-between px-5 pt-[18px] pb-3.5 border-b border-border">
+            <div className="text-[15px] font-semibold">Current sale</div>
+            <div className="text-xs text-muted-foreground">
+              {cart.length} items
+            </div>
+          </div>
           <div className="flex-1 flex flex-col overflow-hidden">
             <POSCart
               cart={cart}

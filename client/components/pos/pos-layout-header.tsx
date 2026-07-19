@@ -4,6 +4,9 @@ import { useRouter } from "next/navigation";
 import { ChevronLeft, Maximize, Search, FileClock, Scan } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Store as StoreIcon } from "lucide-react";
+import { useStore } from "@/lib/context/store-context";
+import { APP_NAME } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { CameraScannerDialog } from "./camera-scanner-dialog";
 import { useState, useEffect } from "react";
@@ -29,6 +32,7 @@ export function POSLayoutHeader({
   onScanSuccess
 }: POSLayoutHeaderProps) {
   const router = useRouter();
+  const { storeProfile } = useStore();
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const searchParams = useSearchParams();
 
@@ -53,9 +57,17 @@ export function POSLayoutHeader({
         >
           <ChevronLeft className="h-5 w-5" />
         </Button>
-        <span className="text-foreground text-lg sm:text-xl font-semibold tracking-tight whitespace-nowrap">
-          Point of sale
-        </span>
+        <div className="flex flex-col gap-0.5">
+          <span className="text-foreground text-base sm:text-lg font-semibold tracking-tight whitespace-nowrap leading-none">
+            Point of sale
+          </span>
+          <div className="flex items-center gap-1 font-medium text-muted-foreground text-[10px] sm:text-xs">
+            <StoreIcon className="h-3 w-3" />
+            <span className="truncate max-w-[120px] sm:max-w-[200px]">
+              {storeProfile?.name || APP_NAME}
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* Center: Search (Desktop only) */}

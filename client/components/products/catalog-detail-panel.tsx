@@ -61,8 +61,8 @@ export function CatalogDetailPanel({ product, onEditProduct }: CatalogDetailPane
             <TabsTrigger value="history">History</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="details" className="space-y-6 mt-0">
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          <TabsContent value="details" className="mt-0">
+            <div className="flex flex-col gap-4 pb-4">
               <ProductBasicInfo product={product} />
               <ProductSupplierInfo product={product} />
               <ProductPricingInfo

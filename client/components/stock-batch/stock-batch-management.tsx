@@ -3,7 +3,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StockOverview } from "./stock-overview";
 import { StockMovements } from "./stock-movements";
 import { StockAdjustments } from "./stock-adjustments";
-import { BatchTracking } from "./batch-tracking";
 import { ProductDatabase } from "@/components/products/product-database";
 
 import { useStore } from "@/lib/context/store-context";
@@ -44,11 +43,8 @@ export function StockBatchManagement({
           <TabsTrigger value="overview">
             Overview
           </TabsTrigger>
-          <TabsTrigger value="products" className="capitalize">
-            {t("products")} Database
-          </TabsTrigger>
-          <TabsTrigger value="batches">
-            Batches & Expiry
+          <TabsTrigger value="products">
+            Catalog
           </TabsTrigger>
           <TabsTrigger value="movements">
             Stock Movements
@@ -60,16 +56,12 @@ export function StockBatchManagement({
           )}
         </TabsList>
 
-        <TabsContent value="products">
+        <TabsContent value="products" className="mt-0 outline-none">
           <ProductDatabase />
         </TabsContent>
 
         <TabsContent value="overview">
           <StockOverview />
-        </TabsContent>
-
-        <TabsContent value="batches">
-          <BatchTracking />
         </TabsContent>
 
         <TabsContent value="movements">

@@ -125,7 +125,7 @@ export function ProductDatabase() {
   const { results: filteredProducts, isFuzzyFallback } = genericFuzzySearch(
     searchTerm,
     preFilteredProducts,
-    ["name", "genericName", "brand", "nafdacNumber"],
+    ["name", "genericName", "brand", "nafdacNumber", "barcode", "id"],
   );
 
   const formatCurrency = (amount: number) => {
@@ -146,23 +146,21 @@ export function ProductDatabase() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-140px)] min-h-[600px] space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0">
-        <ProductDatabaseFilters
-          searchTerm={searchTerm}
-          setSearchTerm={setSearchTerm}
-          categoryFilter={categoryFilter}
-          setCategoryFilter={setCategoryFilter}
-          statusFilter={statusFilter}
-          setStatusFilter={setStatusFilter}
-          categories={categories}
-          statuses={statuses}
-        />
 
-      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] xl:grid-cols-[1fr_450px] gap-5 flex-1 min-h-0">
         {/* Left List */}
         <div className="bg-card border border-border rounded-2xl flex flex-col min-h-0">
+          <ProductDatabaseFilters
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            categoryFilter={categoryFilter}
+            setCategoryFilter={setCategoryFilter}
+            statusFilter={statusFilter}
+            setStatusFilter={setStatusFilter}
+            categories={categories}
+            statuses={statuses}
+          />
           <CatalogList
             filteredProducts={filteredProducts}
             totalCount={products.length}

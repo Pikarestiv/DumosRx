@@ -91,33 +91,45 @@ export async function getStockBatchById(batchId: string) {
 // --- EOD Summary Queries ---
 
 export async function getSalesTotalsByPaymentMethod(date: string) {
+  const [year, month, day] = date.split('-').map(Number);
+  const startIso = new Date(year, month - 1, day, 0, 0, 0, 0).toISOString();
+  const endIso = new Date(year, month - 1, day, 23, 59, 59, 999).toISOString();
+
   return query<{ payment_method: string; total: number }>(`
     SELECT payment_method, SUM(total_amount) as total 
     FROM sales 
-    WHERE date(transaction_date) = ? AND _deleted = 0
+    WHERE transaction_date >= ? AND transaction_date <= ? AND _deleted = 0
     GROUP BY payment_method
-  `, [date]);
+  `, [startIso, endIso]);
 }
 
 export async function getTransactionCountByDate(date: string) {
+  const [year, month, day] = date.split('-').map(Number);
+  const startIso = new Date(year, month - 1, day, 0, 0, 0, 0).toISOString();
+  const endIso = new Date(year, month - 1, day, 23, 59, 59, 999).toISOString();
+
   const res = await query<{ count: number }>(`
     SELECT COUNT(*) as count 
     FROM sales 
-    WHERE date(transaction_date) = ? AND _deleted = 0
-  `, [date]);
+    WHERE transaction_date >= ? AND transaction_date <= ? AND _deleted = 0
+  `, [startIso, endIso]);
   return res[0]?.count || 0;
 }
 
 export async function getTopStaffByDate(dateStr: string) {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const startIso = new Date(year, month - 1, day, 0, 0, 0, 0).toISOString();
+  const endIso = new Date(year, month - 1, day, 23, 59, 59, 999).toISOString();
+
   return query<{ user_name: string; total_sales: number }>(
     `SELECT u.first_name || ' ' || u.last_name as user_name, SUM(s.total_amount) as total_sales
      FROM sales s
      JOIN users u ON s.user_id = u.id
-     WHERE date(s.transaction_date) = ? AND (s._deleted = 0 OR s._deleted IS NULL)
+     WHERE s.transaction_date >= ? AND s.transaction_date <= ? AND (s._deleted = 0 OR s._deleted IS NULL)
      GROUP BY s.user_id
      ORDER BY total_sales DESC
      LIMIT 5`,
-    [dateStr],
+    [startIso, endIso],
   );
 }
 
@@ -151,24 +163,28 @@ export async function getCommonlySoldProductIds() {
 }
 
 export async function getDailyCloseData(reportDate: string) {
+  const [year, month, day] = reportDate.split('-').map(Number);
+  const startIso = new Date(year, month - 1, day, 0, 0, 0, 0).toISOString();
+  const endIso = new Date(year, month - 1, day, 23, 59, 59, 999).toISOString();
+
   const salesToday = await query<any>(
-    `SELECT * FROM sales WHERE date(transaction_date) = ? AND _deleted = 0`,
-    [reportDate]
+    `SELECT * FROM sales WHERE transaction_date >= ? AND transaction_date <= ? AND _deleted = 0`,
+    [startIso, endIso]
   );
 
   const itemsToday = await query<any>(
-    `SELECT si.*, m.name as product_name, si.cost_price as med_cost_price FROM sale_items si JOIN sales s ON si.sale_id = s.id LEFT JOIN products m ON si.product_id = m.id WHERE date(s.transaction_date) = ? AND (si._deleted = 0 OR si._deleted IS NULL) AND (s._deleted = 0 OR s._deleted IS NULL)`,
-    [reportDate]
+    `SELECT si.*, m.name as product_name, si.cost_price as med_cost_price FROM sale_items si JOIN sales s ON si.sale_id = s.id LEFT JOIN products m ON si.product_id = m.id WHERE s.transaction_date >= ? AND s.transaction_date <= ? AND (si._deleted = 0 OR si._deleted IS NULL) AND (s._deleted = 0 OR s._deleted IS NULL)`,
+    [startIso, endIso]
   );
 
   const returnsToday = await query<any>(
-    `SELECT r.*, s.payment_method, s.payment_details FROM returns r JOIN sales s ON r.sale_id = s.id WHERE date(r.created_at) = ? AND (r._deleted = 0 OR r._deleted IS NULL)`,
-    [reportDate]
+    `SELECT r.*, s.payment_method, s.payment_details FROM returns r JOIN sales s ON r.sale_id = s.id WHERE r.created_at >= ? AND r.created_at <= ? AND (r._deleted = 0 OR r._deleted IS NULL)`,
+    [startIso, endIso]
   );
 
   const returnItemsToday = await query<any>(
-    `SELECT ri.*, IFNULL((SELECT AVG(cost_price) FROM stock_batches WHERE product_id = ri.product_id AND is_active = 1), 0) as med_cost_price FROM return_items ri JOIN returns r ON ri.return_id = r.id LEFT JOIN products m ON ri.product_id = m.id WHERE date(r.created_at) = ? AND (ri._deleted = 0 OR ri._deleted IS NULL) AND (r._deleted = 0 OR r._deleted IS NULL)`,
-    [reportDate]
+    `SELECT ri.*, IFNULL((SELECT AVG(cost_price) FROM stock_batches WHERE product_id = ri.product_id AND is_active = 1), 0) as med_cost_price FROM return_items ri JOIN returns r ON ri.return_id = r.id LEFT JOIN products m ON ri.product_id = m.id WHERE r.created_at >= ? AND r.created_at <= ? AND (ri._deleted = 0 OR ri._deleted IS NULL) AND (r._deleted = 0 OR r._deleted IS NULL)`,
+    [startIso, endIso]
   );
 
   return { salesToday, itemsToday, returnsToday, returnItemsToday };

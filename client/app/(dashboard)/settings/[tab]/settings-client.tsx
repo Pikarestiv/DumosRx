@@ -161,7 +161,7 @@ export default function SettingsPage() {
             >
               <TabsTrigger
                 value="appearance"
-                className="flex-none justify-center md:justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20"
+                className="flex-none justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm border border-transparent rounded-lg"
               >
                 <Palette className="w-4 h-4 mr-2 md:mr-3" />
                 <span className="text-sm">General</span>
@@ -169,7 +169,7 @@ export default function SettingsPage() {
               {isAdmin && (
                 <TabsTrigger
                   value="store"
-                  className="flex-none justify-center md:justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20"
+                  className="flex-none justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm border border-transparent rounded-lg"
                 >
                   <Store className="w-4 h-4 mr-2 md:mr-3" />
                   <span className="text-sm">Store Profile</span>
@@ -177,7 +177,7 @@ export default function SettingsPage() {
               )}
               <TabsTrigger
                 value="notifications"
-                className="flex-none justify-center md:justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20"
+                className="flex-none justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm border border-transparent rounded-lg"
               >
                 <Bell className="w-4 h-4 mr-2 md:mr-3" />
                 <span className="text-sm">Alerts</span>
@@ -185,7 +185,7 @@ export default function SettingsPage() {
               {isAdmin && (
                 <TabsTrigger
                   value="data"
-                  className="flex-none justify-center md:justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20"
+                  className="flex-none justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm border border-transparent rounded-lg"
                 >
                   <Database className="w-4 h-4 mr-2 md:mr-3" />
                   <span className="text-sm">Data & Sync</span>
@@ -193,7 +193,7 @@ export default function SettingsPage() {
               )}
               <TabsTrigger
                 value="security"
-                className="flex-none justify-center md:justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20"
+                className="flex-none justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm border border-transparent rounded-lg"
               >
                 <Shield className="w-4 h-4 mr-2 md:mr-3" />
                 <span className="text-sm">Security</span>
@@ -201,7 +201,7 @@ export default function SettingsPage() {
               {isAdmin && (
                 <TabsTrigger
                   value="staff"
-                  className="flex-none justify-center md:justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20"
+                  className="flex-none justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm border border-transparent rounded-lg"
                 >
                   <Users className="w-4 h-4 mr-2 md:mr-3" />
                   <span className="text-sm">Staff</span>
@@ -210,7 +210,7 @@ export default function SettingsPage() {
               {isAdmin && (
                 <TabsTrigger
                   value="system"
-                  className="flex-none justify-center md:justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20"
+                  className="flex-none justify-start px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm border border-transparent rounded-lg"
                 >
                   <Globe className="w-4 h-4 mr-2 md:mr-3" />
                   <span className="text-sm">System</span>

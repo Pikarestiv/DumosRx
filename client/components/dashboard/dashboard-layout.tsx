@@ -49,8 +49,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const isPosRoute = pathname.startsWith("/pos");
   const [hoverExpanded, setHoverExpanded] = useState(false);
-  const effectiveCollapsed = isPosRoute ? !hoverExpanded : sidebarCollapsed;
-  const contentCollapsed = isPosRoute ? true : sidebarCollapsed;
+  const isLogicallyCollapsed = isPosRoute ? true : sidebarCollapsed;
+  const effectiveCollapsed = isLogicallyCollapsed && !hoverExpanded;
+  const contentCollapsed = isLogicallyCollapsed;
 
   /* Hydrate collapse preference from localStorage */
   useEffect(() => {
@@ -156,8 +157,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         onOpenFeedback={() => setFeedbackOpen(true)}
         collapsed={effectiveCollapsed}
         onToggleCollapse={handleToggleCollapse}
-        onMouseEnter={() => isPosRoute && setHoverExpanded(true)}
-        onMouseLeave={() => isPosRoute && setHoverExpanded(false)}
+        onMouseEnter={() => setHoverExpanded(true)}
+        onMouseLeave={() => setHoverExpanded(false)}
       />
 
       {!isPosRoute && <MobileBottomNav onOpenFeedback={() => setFeedbackOpen(true)} />}

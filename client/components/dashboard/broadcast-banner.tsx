@@ -4,8 +4,10 @@ import { useEffect, useState } from "react";
 import { Megaphone, X, AlertTriangle, ShieldAlert, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiClient } from "@/lib/api/client";
+import { useStore } from "@/lib/context/store-context";
 
 export function BroadcastBanner() {
+  const { storeProfile } = useStore();
   const [broadcasts, setBroadcasts] = useState<any[]>([]);
   const [dismissedIds, setDismissedIds] = useState<string[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -13,7 +15,7 @@ export function BroadcastBanner() {
   useEffect(() => {
     const fetchBroadcasts = async () => {
       try {
-        const response = await apiClient.getBroadcasts();
+        const response = await apiClient.getBroadcasts(storeProfile?.id);
         // The API returns { success: true, data: [...] }
         if (response && response.success && Array.isArray(response.data)) {
           setBroadcasts(response.data);

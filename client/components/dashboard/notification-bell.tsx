@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/drawer";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/lib/context/auth-context";
+import { useStore } from "@/lib/context/store-context";
 import { apiClient } from "@/lib/api/client";
 import { useRouter } from "next/navigation";
 import { useOnlineOrdersModal } from "@/lib/store/use-online-orders-modal";
@@ -65,6 +66,7 @@ const NotificationTrigger = ({ unreadCount }: { unreadCount: number }) => (
 
 export function NotificationBell() {
   const { user, isCloudLinked } = useAuth();
+  const { storeProfile } = useStore();
   const router = useRouter();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const { onOpen } = useOnlineOrdersModal();
@@ -75,7 +77,7 @@ export function NotificationBell() {
     try {
       const [notifsData, broadcastsData] = await Promise.all([
         isCloudLinked ? apiClient.getNotifications().catch(() => []) : Promise.resolve([]),
-        apiClient.getBroadcasts().catch(() => [])
+        apiClient.getBroadcasts(storeProfile?.id).catch(() => [])
       ]);
 
       let finalBroadcasts: any[] = [];

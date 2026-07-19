@@ -64,7 +64,7 @@ const NotificationTrigger = ({ unreadCount }: { unreadCount: number }) => (
 );
 
 export function NotificationBell() {
-  const { user } = useAuth();
+  const { user, isCloudLinked } = useAuth();
   const router = useRouter();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const { onOpen } = useOnlineOrdersModal();
@@ -74,7 +74,7 @@ export function NotificationBell() {
   const fetchNotifications = async () => {
     try {
       const [notifsData, broadcastsData] = await Promise.all([
-        apiClient.getNotifications(),
+        isCloudLinked ? apiClient.getNotifications().catch(() => []) : Promise.resolve([]),
         apiClient.getBroadcasts().catch(() => [])
       ]);
 

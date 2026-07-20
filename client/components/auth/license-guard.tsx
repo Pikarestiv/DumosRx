@@ -186,7 +186,7 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
 
   // If clock is tampered or license expired/suspended, show lock screen
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0a0a0a] p-4">
+    <div className="min-h-screen flex items-center justify-center bg-neutral-950 p-4">
       <Card className="max-w-md w-full border-destructive/50 shadow-2xl shadow-destructive/10">
         <CardHeader className="text-center">
           <div className="mx-auto w-16 h-16 bg-destructive/10 text-destructive rounded-full flex items-center justify-center mb-4">

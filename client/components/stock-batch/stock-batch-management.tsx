@@ -60,7 +60,7 @@ export function StockBatchManagement({
             {isAdmin && (
               <button
                 onClick={() => setIsAuditing(true)}
-                className="bg-[#2054E0] text-white px-4 py-2 rounded-xl text-[14px] font-semibold hover:bg-[#1A43B3] transition-colors"
+                className="bg-primary text-white px-4 py-2 rounded-xl text-[14px] font-semibold hover:bg-primary/90 transition-colors"
               >
                 Start Audit
               </button>

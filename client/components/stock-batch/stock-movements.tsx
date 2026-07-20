@@ -95,12 +95,12 @@ export function StockMovements() {
 
   return (
     <div className="relative">
-      <div className="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl flex flex-col flex-1 min-h-[600px]">
+      <div className="bg-card border border-border rounded-2xl flex flex-col flex-1 min-h-[600px]">
         {/* Header & Filters */}
-        <div className="p-4 pb-3 border-b border-[#E6EAF2]">
+        <div className="p-4 pb-3 border-b border-border">
           <div className="flex flex-col md:flex-row md:items-center gap-2.5 mb-3">
-            <div className="flex-1 flex items-center gap-2 bg-[#F5F8FC] border border-[#E6EAF2] rounded-[10px] px-3.5 py-2.5">
-              <Search className="w-4 h-4 text-[#98A2B3] shrink-0" />
+            <div className="flex-1 flex items-center gap-2 bg-muted/30 border border-border rounded-[10px] px-3.5 py-2.5">
+              <Search className="w-4 h-4 text-muted-foreground/70 shrink-0" />
               <input
                 type="text"
                 placeholder="Search by product, reference, or user"
@@ -109,7 +109,7 @@ export function StockMovements() {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <div className="flex items-center gap-1.5 text-[11.5px] text-[#98A2B3] bg-[#F5F8FC] border border-[#E6EAF2] rounded-[10px] px-3 py-2.5 whitespace-nowrap w-max">
+            <div className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground/70 bg-muted/30 border border-border rounded-[10px] px-3 py-2.5 whitespace-nowrap w-max">
               <Lock className="w-3.5 h-3.5" />
               Immutable log — entries can't be edited
             </div>
@@ -121,8 +121,8 @@ export function StockMovements() {
                 onClick={() => setTypeFilter(ft.id)}
                 className={`px-3.5 py-1.5 rounded-full border text-[12px] font-semibold whitespace-nowrap cursor-pointer transition-colors ${
                   typeFilter === ft.id
-                    ? "border-[#2054E0] bg-[#2054E0] text-white"
-                    : "border-[#E6EAF2] bg-[#FFFFFF] text-[#667085] hover:bg-[#F5F8FC]"
+                    ? "border-primary bg-primary text-white"
+                    : "border-border bg-card text-muted-foreground hover:bg-muted/30"
                 }`}
               >
                 {ft.label}
@@ -132,7 +132,7 @@ export function StockMovements() {
         </div>
 
         {/* Desktop Grid Header */}
-        <div className="hidden md:grid grid-cols-[100px_1fr_130px_100px_1fr_120px] gap-2 px-4 py-2.5 text-[11px] font-bold text-[#98A2B3] uppercase tracking-wide border-b border-[#E6EAF2]">
+        <div className="hidden md:grid grid-cols-[100px_1fr_130px_100px_1fr_120px] gap-2 px-4 py-2.5 text-[11px] font-bold text-muted-foreground/70 uppercase tracking-wide border-b border-border">
           <div>Time</div>
           <div>Product</div>
           <div>Type</div>
@@ -144,7 +144,7 @@ export function StockMovements() {
         {/* List */}
         <div className="flex-1 overflow-y-auto">
           {filteredMovements.length === 0 ? (
-            <div className="p-8 text-center text-[#667085] text-[13px]">
+            <div className="p-8 text-center text-muted-foreground text-[13px]">
               No movements found.
             </div>
           ) : (
@@ -154,9 +154,9 @@ export function StockMovements() {
                 <div
                   key={movement.id}
                   onClick={() => setSelectedMovement(movement)}
-                  className="grid grid-cols-1 md:grid-cols-[100px_1fr_130px_100px_1fr_120px] gap-2 px-4 py-3 items-center border-b border-[#E6EAF2] cursor-pointer hover:bg-[#F9FAFB] transition-colors"
+                  className="grid grid-cols-1 md:grid-cols-[100px_1fr_130px_100px_1fr_120px] gap-2 px-4 py-3 items-center border-b border-border cursor-pointer hover:bg-accent/50 transition-colors"
                 >
-                  <div className="text-[12px] text-[#667085]">
+                  <div className="text-[12px] text-muted-foreground">
                     <span className="md:hidden font-semibold mr-1">{formatDate(movement.date)}</span>
                     {formatTime(movement.date)}
                   </div>
@@ -164,22 +164,22 @@ export function StockMovements() {
                     {movement.product}
                   </div>
                   <div>
-                    <span className="text-[11px] font-semibold bg-[#F5F8FC] border border-[#E6EAF2] text-[#344054] px-2 py-0.5 rounded-md capitalize">
+                    <span className="text-[11px] font-semibold bg-muted/30 border border-border text-foreground px-2 py-0.5 rounded-md capitalize">
                       {movement.type}
                     </span>
                   </div>
                   <div
                     className={`text-[14px] font-semibold ${
-                      isPositive ? "text-[#067647]" : "text-[#B42318]"
+                      isPositive ? "text-emerald-700" : "text-destructive"
                     }`}
                   >
                     {isPositive ? "+" : ""}
                     {movement.quantity}
                   </div>
-                  <div className="text-[12px] text-[#667085] truncate">
+                  <div className="text-[12px] text-muted-foreground truncate">
                     {movement.reference || movement.reason || "-"}
                   </div>
-                  <div className="text-[12px] text-[#344054] truncate">
+                  <div className="text-[12px] text-foreground truncate">
                     {movement.user}
                   </div>
                 </div>
@@ -192,11 +192,11 @@ export function StockMovements() {
       {/* Detail Modal overlay */}
       {selectedMovement && (
         <div className="fixed inset-0 bg-[rgba(16,24,40,0.42)] z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-[440px] bg-[#FFFFFF] rounded-2xl overflow-hidden shadow-[0_8px_24px_rgba(16,24,40,0.14)] animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-[#E6EAF2]">
+          <div className="w-full max-w-[440px] bg-card rounded-2xl overflow-hidden shadow-[0_8px_24px_rgba(16,24,40,0.14)] animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <div className="text-[15px] font-semibold">Movement detail</div>
               <div
-                className="w-[30px] h-[30px] rounded-lg bg-[#F5F8FC] flex items-center justify-center text-[#667085] cursor-pointer hover:bg-[#E6EAF2] transition-colors"
+                className="w-[30px] h-[30px] rounded-lg bg-muted/30 flex items-center justify-center text-muted-foreground cursor-pointer hover:bg-accent transition-colors"
                 onClick={() => setSelectedMovement(null)}
               >
                 <X className="w-4 h-4" />
@@ -208,19 +208,19 @@ export function StockMovements() {
                   <div className="text-[15px] font-semibold">
                     {selectedMovement.product}
                   </div>
-                  <div className="text-[12px] text-[#98A2B3]">
+                  <div className="text-[12px] text-muted-foreground/70">
                     {formatDate(selectedMovement.date)}, {formatTime(selectedMovement.date)}
                   </div>
                 </div>
                 <div className="text-right">
-                  <span className="text-[11px] font-semibold bg-[#F5F8FC] border border-[#E6EAF2] text-[#344054] px-2 py-0.5 rounded-md capitalize inline-block">
+                  <span className="text-[11px] font-semibold bg-muted/30 border border-border text-foreground px-2 py-0.5 rounded-md capitalize inline-block">
                     {selectedMovement.type}
                   </span>
                   <div
                     className={`text-[18px] font-semibold mt-1 ${
                       selectedMovement.quantity > 0
-                        ? "text-[#067647]"
-                        : "text-[#B42318]"
+                        ? "text-emerald-700"
+                        : "text-destructive"
                     }`}
                   >
                     {selectedMovement.quantity > 0 ? "+" : ""}
@@ -228,24 +228,24 @@ export function StockMovements() {
                   </div>
                 </div>
               </div>
-              <div className="border-t border-[#E6EAF2] pt-3.5 flex flex-col gap-3">
+              <div className="border-t border-border pt-3.5 flex flex-col gap-3">
                 <div>
-                  <div className="text-[11px] font-semibold text-[#98A2B3] uppercase tracking-wide mb-1">
+                  <div className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wide mb-1">
                     Reference / reason
                   </div>
-                  <div className="text-[13px] text-[#344054]">
+                  <div className="text-[13px] text-foreground">
                     {selectedMovement.reference || selectedMovement.reason || "-"}
                   </div>
                 </div>
                 <div>
-                  <div className="text-[11px] font-semibold text-[#98A2B3] uppercase tracking-wide mb-1">
+                  <div className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wide mb-1">
                     Recorded by
                   </div>
-                  <div className="text-[13px] text-[#344054]">{selectedMovement.user}</div>
+                  <div className="text-[13px] text-foreground">{selectedMovement.user}</div>
                 </div>
               </div>
               <div 
-                className="text-[12px] font-semibold text-[#2054E0] mt-5 cursor-pointer hover:underline"
+                className="text-[12px] font-semibold text-primary mt-5 cursor-pointer hover:underline"
                 onClick={() => {
                   setSelectedMovement(null);
                   router.push('/inventory/catalog')

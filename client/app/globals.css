@@ -167,6 +167,13 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
   --logo-filter: var(--logo-filter);
+  
+  --color-mac-close-btn: #ff5f57;
+  --color-mac-close-icon: #4c0002;
+  --color-mac-min-btn: #ffbd2e;
+  --color-mac-min-icon: #5c3e00;
+  --color-mac-max-btn: #28c940;
+  --color-mac-max-icon: #005000;
 }
 
 /* Global Animation Overrides */

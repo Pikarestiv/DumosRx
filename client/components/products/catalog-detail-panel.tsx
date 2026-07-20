@@ -1,6 +1,7 @@
 import React from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useStore } from "@/lib/context/store-context";
+import { cn } from "@/lib/utils";
 import { useProductDetails, Product } from "./product-details/use-product-details";
 import { ProductBasicInfo } from "./product-details/product-basic-info";
 import { ProductSupplierInfo } from "./product-details/product-supplier-info";
@@ -12,9 +13,10 @@ import { ProductHistory } from "./product-details/product-history";
 interface CatalogDetailPanelProps {
   product: Product | null;
   onEditProduct: (product: Product) => void;
+  className?: string;
 }
 
-export function CatalogDetailPanel({ product, onEditProduct }: CatalogDetailPanelProps) {
+export function CatalogDetailPanel({ product, onEditProduct, className }: CatalogDetailPanelProps) {
   const { storeProfile } = useStore();
   const {
     batches,
@@ -29,7 +31,7 @@ export function CatalogDetailPanel({ product, onEditProduct }: CatalogDetailPane
 
   if (!product) {
     return (
-      <div className="flex flex-col h-full min-h-0 bg-card border border-border rounded-2xl items-center justify-center text-muted-foreground p-6 text-center">
+      <div className={cn("flex flex-col h-full min-h-0 bg-card border border-border rounded-2xl items-center justify-center text-muted-foreground p-6 text-center", className)}>
         <div className="w-16 h-16 rounded-full bg-muted/30 flex items-center justify-center mb-4">
           <svg
             className="w-8 h-8 text-muted-foreground/50"
@@ -53,7 +55,7 @@ export function CatalogDetailPanel({ product, onEditProduct }: CatalogDetailPane
   }
 
   return (
-    <div className="flex flex-col h-full min-h-0 bg-card border border-border rounded-2xl">
+    <div className={cn("flex flex-col h-full min-h-0 bg-card border border-border rounded-2xl", className)}>
       {/* Header */}
       <div className="p-4 border-b border-border shrink-0 flex items-center justify-between">
         <div>

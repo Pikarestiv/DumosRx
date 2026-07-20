@@ -176,6 +176,7 @@ export function ProductDatabase() {
           <CatalogDetailPanel 
             product={selectedProduct} 
             onEditProduct={handleEditProduct} 
+            onClose={() => setSelectedProduct(null)}
           />
         </div>
       </div>
@@ -184,13 +185,14 @@ export function ProductDatabase() {
       <Sheet open={!!selectedProduct && isMobile} onOpenChange={(open) => {
         if (!open) setSelectedProduct(null);
       }}>
-        <SheetContent side="right" className="w-full sm:w-[400px] p-0 flex flex-col bg-card">
+        <SheetContent side="right" hideClose className="w-full sm:w-[400px] p-0 flex flex-col bg-card">
           <CatalogDetailPanel 
             product={selectedProduct} 
             className="border-none rounded-none"
             onEditProduct={(p) => {
               handleEditProduct(p);
             }} 
+            onClose={() => setSelectedProduct(null)}
           />
         </SheetContent>
       </Sheet>

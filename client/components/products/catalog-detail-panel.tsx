@@ -1,5 +1,7 @@
 import React from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Edit } from "lucide-react";
 import { useStore } from "@/lib/context/store-context";
 import { cn } from "@/lib/utils";
 import { useProductDetails, Product } from "./product-details/use-product-details";
@@ -13,10 +15,11 @@ import { ProductHistory } from "./product-details/product-history";
 interface CatalogDetailPanelProps {
   product: Product | null;
   onEditProduct: (product: Product) => void;
+  onClose?: () => void;
   className?: string;
 }
 
-export function CatalogDetailPanel({ product, onEditProduct, className }: CatalogDetailPanelProps) {
+export function CatalogDetailPanel({ product, onEditProduct, onClose, className }: CatalogDetailPanelProps) {
   const { storeProfile } = useStore();
   const {
     batches,
@@ -57,28 +60,63 @@ export function CatalogDetailPanel({ product, onEditProduct, className }: Catalo
   return (
     <div className={cn("flex flex-col h-full min-h-0 bg-card border border-border rounded-2xl", className)}>
       {/* Header */}
-      <div className="p-4 border-b border-border shrink-0 flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold">{product.name}</h2>
-          <p className="text-sm text-muted-foreground">{product.genericName || product.barcode || product.id.slice(0,8)}</p>
+      <div className="p-4 shrink-0 flex flex-col gap-4 border-b border-border">
+        <div className="flex items-start justify-between">
+          <div className="flex items-start gap-3">
+            <button 
+              onClick={onClose}
+              className="mt-1 w-8 h-8 shrink-0 rounded-2xl bg-muted/50 flex items-center justify-center hover:bg-muted/80 transition-colors"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground"><path d="m15 18-6-6 6-6"/></svg>
+            </button>
+            <div className="flex flex-col">
+              <h2 className="text-[17px] font-bold text-foreground leading-tight">{product.name}</h2>
+              <p className="text-[12px] text-muted-foreground mt-0.5 uppercase tracking-wide">SKU: {product.barcode || product.id.slice(0,8)}</p>
+            </div>
+          </div>
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="w-8 h-8 rounded-2xl bg-muted/50 flex items-center justify-center hover:bg-muted/80 transition-colors">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={() => onEditProduct(product)} className="cursor-pointer">
+                <Edit className="w-4 h-4 mr-2" />
+                Edit Product
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
-        <div className="flex items-center gap-2">
-          {getStatusBadge(product.status)}
-          <button 
-            onClick={() => onEditProduct(product)}
-            className="text-[12.5px] font-semibold text-primary bg-primary/10 px-3 py-1.5 rounded-lg hover:bg-primary/20 transition-colors"
-          >
-            Edit
-          </button>
-        </div>
+      </div>
+      
+      {/* Category below border */}
+      <div className="px-4 pt-4 pb-2 shrink-0">
+        <span className="text-[13px] font-semibold text-primary">{product.category || "Pharmacy"}</span>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 hide-scrollbar">
         <Tabs defaultValue="details" className="w-full">
-          <TabsList className="w-full mb-4 grid grid-cols-3">
-            <TabsTrigger value="details">Details</TabsTrigger>
-            <TabsTrigger value="batches">Batches</TabsTrigger>
-            <TabsTrigger value="history">History</TabsTrigger>
+          <TabsList className="w-full mb-6 flex justify-between bg-transparent p-0 h-auto space-x-2">
+            <TabsTrigger 
+              value="details" 
+              className="flex-1 py-2 rounded-xl data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground shadow-none"
+            >
+              Details
+            </TabsTrigger>
+            <TabsTrigger 
+              value="batches" 
+              className="flex-1 py-2 rounded-xl data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground shadow-none"
+            >
+              Batches
+            </TabsTrigger>
+            <TabsTrigger 
+              value="history" 
+              className="flex-1 py-2 rounded-xl data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground shadow-none"
+            >
+              History
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="details" className="mt-0">

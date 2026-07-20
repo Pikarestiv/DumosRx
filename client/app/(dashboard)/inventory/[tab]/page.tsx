@@ -2,7 +2,7 @@ import { StockBatchManagement } from "@/components/stock-batch/stock-batch-manag
 import { redirect } from "next/navigation"
 
 export function generateStaticParams() {
-  const allowedTabs = ["overview", "products", "batches", "movements", "adjustments"]
+  const allowedTabs = ["overview", "catalog", "batches", "ledger", "audits"]
   return allowedTabs.map((tab) => ({
     tab,
   }))
@@ -10,7 +10,7 @@ export function generateStaticParams() {
 
 export default async function InventoryTabPage({ params }: { params: Promise<{ tab: string }> }) {
   const resolvedParams = await params;
-  const allowedTabs = ["overview", "products", "batches", "movements", "adjustments"]
+  const allowedTabs = ["overview", "catalog", "batches", "ledger", "audits"]
   
   if (!allowedTabs.includes(resolvedParams.tab)) {
     redirect("/inventory/overview")

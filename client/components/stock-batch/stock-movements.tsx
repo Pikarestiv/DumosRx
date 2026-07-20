@@ -1,43 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { StockMovementsSkeleton } from "./stock-movements-skeleton";
-import {
-  Search,
-  Download,
-  ArrowUpCircle,
-  ArrowDownCircle,
-  RotateCcw,
-  PackageX,
-} from "lucide-react";
+import { Search, Lock, X } from "lucide-react";
 import { apiClient } from "@/lib/api/client";
 import { genericFuzzySearch } from "@/lib/utils/search";
 import { isTauri } from "@/lib/db/local-database";
+import { StockMovementsSkeleton } from "./stock-movements-skeleton";
+import { useRouter } from "next/navigation";
 
 interface StockMovement {
   id: string;
@@ -52,24 +21,27 @@ interface StockMovement {
   batchNumber?: string;
 }
 
+const FILTER_TYPES = [
+  { id: "all", label: "All types" },
+  { id: "in", label: "Stock In" },
+  { id: "out", label: "Stock Out" },
+  { id: "adjustment", label: "Adjustments" },
+];
+
 export function StockMovements() {
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
-  const [dateFilter, setDateFilter] = useState("all");
+  const [selectedMovement, setSelectedMovement] = useState<StockMovement | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     async function fetchMovements() {
       setLoading(true);
       try {
-        let res;
-        if (isTauri()) {
-          const { getStockMovements } = await import("@/lib/db/local-database");
-          res = await getStockMovements(1, 100);
-        } else {
-          res = await apiClient.getStockMovements(1, 100);
-        }
+        const { getStockMovements } = await import("@/lib/db/local-database");
+        const res = await getStockMovements(1, 100);
 
         const items = (res.data || []).map((m: any) => ({
           id: m.id,
@@ -94,84 +66,27 @@ export function StockMovements() {
   }, []);
 
   const preFilteredMovements = movements.filter((movement) => {
-    const matchesType = typeFilter === "all" || movement.type === typeFilter;
-
-    const matchesDate =
-      dateFilter === "all" || checkDateFilter(movement.date, dateFilter);
-
-    return matchesType && matchesDate;
+    return typeFilter === "all" || movement.type === typeFilter;
   });
 
-  const { results: filteredMovements, isFuzzyFallback } = genericFuzzySearch(
+  const { results: filteredMovements } = genericFuzzySearch(
     searchTerm,
     preFilteredMovements,
-    ["product", "reference", "reason"],
+    ["product", "reference", "reason", "user"],
   );
 
-  function checkDateFilter(date: string, filter: string): boolean {
-    const movementDate = new Date(date);
-    const now = new Date();
-    const daysDiff = Math.floor(
-      (now.getTime() - movementDate.getTime()) / (1000 * 60 * 60 * 24),
-    );
-
-    switch (filter) {
-      case "today":
-        return daysDiff === 0;
-      case "week":
-        return daysDiff <= 7;
-      case "month":
-        return daysDiff <= 30;
-      default:
-        return true;
-    }
-  }
-
-  const getMovementIcon = (type: StockMovement["type"]) => {
-    switch (type) {
-      case "in":
-        return <ArrowUpCircle className="h-4 w-4 text-green-600" />;
-      case "out":
-        return <ArrowDownCircle className="h-4 w-4 text-red-600" />;
-      case "adjustment":
-        return <RotateCcw className="h-4 w-4 text-blue-600" />;
-    }
+  const formatTime = (dateString: string) => {
+    const d = new Date(dateString);
+    return d.toLocaleTimeString("en-US", { hour: 'numeric', minute: '2-digit' });
   };
-
-  const getMovementBadge = (type: StockMovement["type"]) => {
-    let variant: "default" | "destructive" | "secondary" = "default";
-    let label = "Stock In";
-
-    switch (type) {
-      case "in":
-        variant = "default";
-        label = "Stock In";
-        break;
-      case "out":
-        variant = "destructive";
-        label = "Stock Out";
-        break;
-      case "adjustment":
-        variant = "secondary";
-        label = "Adjustment";
-        break;
+  
+  const formatDate = (dateString: string) => {
+    const d = new Date(dateString);
+    const today = new Date();
+    if (d.toDateString() === today.toDateString()) {
+      return "Today";
     }
-
-    return (
-      <Badge variant={variant} className="text-xs">
-        {label}
-      </Badge>
-    );
-  };
-
-  const formatDateTime = (dateString: string) => {
-    return new Date(dateString).toLocaleString("en-NG", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    return d.toLocaleDateString("en-US", { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
   if (loading) {
@@ -179,170 +94,169 @@ export function StockMovements() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="font-serif font-semibold">
-            Stock Movement History
-          </CardTitle>
-          <CardDescription>
-            Track all stock batch movements and transactions
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                <Input
-                  placeholder="Search movements, products, references..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
+    <div className="relative">
+      <div className="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl flex flex-col flex-1 min-h-[600px]">
+        {/* Header & Filters */}
+        <div className="p-4 pb-3 border-b border-[#E6EAF2]">
+          <div className="flex flex-col md:flex-row md:items-center gap-2.5 mb-3">
+            <div className="flex-1 flex items-center gap-2 bg-[#F5F8FC] border border-[#E6EAF2] rounded-[10px] px-3.5 py-2.5">
+              <Search className="w-4 h-4 text-[#98A2B3] shrink-0" />
+              <input
+                type="text"
+                placeholder="Search by product, reference, or user"
+                className="border-0 outline-none text-[13px] w-full bg-transparent"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <div className="flex items-center gap-1.5 text-[11.5px] text-[#98A2B3] bg-[#F5F8FC] border border-[#E6EAF2] rounded-[10px] px-3 py-2.5 whitespace-nowrap w-max">
+              <Lock className="w-3.5 h-3.5" />
+              Immutable log — entries can't be edited
+            </div>
+          </div>
+          <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+            {FILTER_TYPES.map((ft) => (
+              <div
+                key={ft.id}
+                onClick={() => setTypeFilter(ft.id)}
+                className={`px-3.5 py-1.5 rounded-full border text-[12px] font-semibold whitespace-nowrap cursor-pointer transition-colors ${
+                  typeFilter === ft.id
+                    ? "border-[#2054E0] bg-[#2054E0] text-white"
+                    : "border-[#E6EAF2] bg-[#FFFFFF] text-[#667085] hover:bg-[#F5F8FC]"
+                }`}
+              >
+                {ft.label}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Desktop Grid Header */}
+        <div className="hidden md:grid grid-cols-[100px_1fr_130px_100px_1fr_120px] gap-2 px-4 py-2.5 text-[11px] font-bold text-[#98A2B3] uppercase tracking-wide border-b border-[#E6EAF2]">
+          <div>Time</div>
+          <div>Product</div>
+          <div>Type</div>
+          <div>Qty</div>
+          <div>Reference / Reason</div>
+          <div>User</div>
+        </div>
+
+        {/* List */}
+        <div className="flex-1 overflow-y-auto">
+          {filteredMovements.length === 0 ? (
+            <div className="p-8 text-center text-[#667085] text-[13px]">
+              No movements found.
+            </div>
+          ) : (
+            filteredMovements.map((movement) => {
+              const isPositive = movement.quantity > 0;
+              return (
+                <div
+                  key={movement.id}
+                  onClick={() => setSelectedMovement(movement)}
+                  className="grid grid-cols-1 md:grid-cols-[100px_1fr_130px_100px_1fr_120px] gap-2 px-4 py-3 items-center border-b border-[#E6EAF2] cursor-pointer hover:bg-[#F9FAFB] transition-colors"
+                >
+                  <div className="text-[12px] text-[#667085]">
+                    <span className="md:hidden font-semibold mr-1">{formatDate(movement.date)}</span>
+                    {formatTime(movement.date)}
+                  </div>
+                  <div className="text-[13px] font-semibold truncate">
+                    {movement.product}
+                  </div>
+                  <div>
+                    <span className="text-[11px] font-semibold bg-[#F5F8FC] border border-[#E6EAF2] text-[#344054] px-2 py-0.5 rounded-md capitalize">
+                      {movement.type}
+                    </span>
+                  </div>
+                  <div
+                    className={`text-[14px] font-semibold ${
+                      isPositive ? "text-[#067647]" : "text-[#B42318]"
+                    }`}
+                  >
+                    {isPositive ? "+" : ""}
+                    {movement.quantity}
+                  </div>
+                  <div className="text-[12px] text-[#667085] truncate">
+                    {movement.reference || movement.reason || "-"}
+                  </div>
+                  <div className="text-[12px] text-[#344054] truncate">
+                    {movement.user}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+
+      {/* Detail Modal overlay */}
+      {selectedMovement && (
+        <div className="fixed inset-0 bg-[rgba(16,24,40,0.42)] z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-[440px] bg-[#FFFFFF] rounded-2xl overflow-hidden shadow-[0_8px_24px_rgba(16,24,40,0.14)] animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[#E6EAF2]">
+              <div className="text-[15px] font-semibold">Movement detail</div>
+              <div
+                className="w-[30px] h-[30px] rounded-lg bg-[#F5F8FC] flex items-center justify-center text-[#667085] cursor-pointer hover:bg-[#E6EAF2] transition-colors"
+                onClick={() => setSelectedMovement(null)}
+              >
+                <X className="w-4 h-4" />
               </div>
             </div>
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-full md:w-48">
-                <SelectValue placeholder="Movement Type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="in">Stock In</SelectItem>
-                <SelectItem value="out">Stock Out</SelectItem>
-                <SelectItem value="adjustment">Adjustments</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={dateFilter} onValueChange={setDateFilter}>
-              <SelectTrigger className="w-full md:w-48">
-                <SelectValue placeholder="Date Range" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Time</SelectItem>
-                <SelectItem value="today">Today</SelectItem>
-                <SelectItem value="week">This Week</SelectItem>
-                <SelectItem value="month">This Month</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button
-              variant="outline"
-              className="flex items-center gap-2 bg-transparent cursor-pointer"
-            >
-              <Download className="h-4 w-4" />
-              Export
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Movements Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="font-serif font-semibold">
-            Movement Records
-          </CardTitle>
-          <CardDescription>
-            Showing {filteredMovements.length} of {movements.length} movements
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isFuzzyFallback && filteredMovements.length > 0 && (
-            <div className="bg-amber-500/10 text-amber-600 px-4 py-2 text-sm border border-amber-500/20 text-center font-medium rounded-md mb-4">
-              Did you mean? (No exact matches found. Showing closest names.)
+            <div className="px-5 py-[18px]">
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <div className="text-[15px] font-semibold">
+                    {selectedMovement.product}
+                  </div>
+                  <div className="text-[12px] text-[#98A2B3]">
+                    {formatDate(selectedMovement.date)}, {formatTime(selectedMovement.date)}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className="text-[11px] font-semibold bg-[#F5F8FC] border border-[#E6EAF2] text-[#344054] px-2 py-0.5 rounded-md capitalize inline-block">
+                    {selectedMovement.type}
+                  </span>
+                  <div
+                    className={`text-[18px] font-semibold mt-1 ${
+                      selectedMovement.quantity > 0
+                        ? "text-[#067647]"
+                        : "text-[#B42318]"
+                    }`}
+                  >
+                    {selectedMovement.quantity > 0 ? "+" : ""}
+                    {selectedMovement.quantity}
+                  </div>
+                </div>
+              </div>
+              <div className="border-t border-[#E6EAF2] pt-3.5 flex flex-col gap-3">
+                <div>
+                  <div className="text-[11px] font-semibold text-[#98A2B3] uppercase tracking-wide mb-1">
+                    Reference / reason
+                  </div>
+                  <div className="text-[13px] text-[#344054]">
+                    {selectedMovement.reference || selectedMovement.reason || "-"}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[11px] font-semibold text-[#98A2B3] uppercase tracking-wide mb-1">
+                    Recorded by
+                  </div>
+                  <div className="text-[13px] text-[#344054]">{selectedMovement.user}</div>
+                </div>
+              </div>
+              <div 
+                className="text-[12px] font-semibold text-[#2054E0] mt-5 cursor-pointer hover:underline"
+                onClick={() => {
+                  setSelectedMovement(null);
+                  router.push('/inventory/catalog')
+                }}
+              >
+                View product in Catalog →
+              </div>
             </div>
-          )}
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date & Time</TableHead>
-                  <TableHead>Product</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Quantity</TableHead>
-                  <TableHead>Reason</TableHead>
-                  <TableHead>Reference</TableHead>
-                  <TableHead>User</TableHead>
-                  <TableHead>Supplier/Batch</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredMovements.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="h-32 text-center">
-                      <div className="flex flex-col items-center justify-center text-muted-foreground">
-                        <PackageX className="h-8 w-8 mb-2 opacity-50" />
-                        <p className="font-medium">No stock movements found</p>
-                        <p className="text-sm">
-                          {movements.length === 0
-                            ? "Stock movements will appear here as they happen"
-                            : "Try adjusting your search or filters"}
-                        </p>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredMovements.map((movement) => (
-                    <TableRow key={movement.id}>
-                      <TableCell>
-                        <div className="text-sm">
-                          <div className="font-medium">
-                            {formatDateTime(movement.date)}
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="font-medium">{movement.product}</div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {getMovementIcon(movement.type)}
-                          {getMovementBadge(movement.type)}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div
-                          className={`font-medium ${
-                            movement.quantity > 0
-                              ? "text-green-600"
-                              : movement.quantity < 0
-                                ? "text-red-600"
-                                : "text-blue-600"
-                          }`}
-                        >
-                          {movement.quantity > 0 ? "+" : ""}
-                          {movement.quantity}
-                        </div>
-                      </TableCell>
-                      <TableCell>{movement.reason}</TableCell>
-                      <TableCell>
-                        <code className="text-xs bg-muted px-2 py-1 rounded">
-                          {movement.reference}
-                        </code>
-                      </TableCell>
-                      <TableCell>{movement.user}</TableCell>
-                      <TableCell>
-                        <div className="text-sm">
-                          {movement.supplier && (
-                            <div className="font-medium">
-                              {movement.supplier}
-                            </div>
-                          )}
-                          {movement.batchNumber && (
-                            <div className="text-muted-foreground">
-                              Batch: {movement.batchNumber}
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      )}
     </div>
   );
 }

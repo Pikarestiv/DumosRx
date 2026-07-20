@@ -144,6 +144,7 @@ export async function receivePurchaseOrder(id: string) {
     });
 
     // Log local stock movement
+    const dumosUser = JSON.parse(localStorage.getItem("dumos_user") || "{}");
     await insert("stock_movements", {
       id: crypto.randomUUID(),
       product_id: item.product_id,
@@ -155,6 +156,7 @@ export async function receivePurchaseOrder(id: string) {
       reference_id: poData.id,
       reference_type: "purchase_order",
       reason: "Purchase order received",
+      performed_by: dumosUser?.id || null,
       movement_date: now,
       created_at: now,
       _version: 1,

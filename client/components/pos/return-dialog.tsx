@@ -135,6 +135,21 @@ export function ReturnDialog({
             });
           }
         }
+
+        const dumosUser = JSON.parse(localStorage.getItem("dumos_user") || "{}");
+        await insert("stock_movements", {
+          product_id: item.product_id,
+          stock_batch_id: item.stock_batch_id || null,
+          movement_type: "return",
+          quantity: Math.abs(item.returnQuantity),
+          unit_cost: item.unit_price,
+          total_cost: item.unit_price * item.returnQuantity,
+          reference_id: returnId,
+          reference_type: "return",
+          reason: "Customer return",
+          performed_by: dumosUser?.id || null,
+          movement_date: new Date().toISOString(),
+        });
       }
 
       // 3. Mark sale as returned

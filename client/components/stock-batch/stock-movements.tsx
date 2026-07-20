@@ -12,7 +12,7 @@ interface StockMovement {
   id: string;
   date: string;
   product: string;
-  type: "in" | "out" | "adjustment";
+  type: string;
   quantity: number;
   reason: string;
   reference: string;
@@ -23,8 +23,10 @@ interface StockMovement {
 
 const FILTER_TYPES = [
   { id: "all", label: "All types" },
-  { id: "in", label: "Stock In" },
-  { id: "out", label: "Stock Out" },
+  { id: "sale", label: "Sales" },
+  { id: "purchase", label: "Restock" },
+  { id: "return", label: "Returns" },
+  { id: "damaged", label: "Damage" },
   { id: "adjustment", label: "Adjustments" },
 ];
 

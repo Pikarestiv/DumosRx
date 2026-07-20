@@ -4,6 +4,7 @@ import { StockOverview } from "./stock-overview";
 import { StockMovements } from "./stock-movements";
 import { StockAudits } from "./stock-audits";
 import { ProductDatabase } from "@/components/products/product-database";
+import { Button } from "@/components/ui/button";
 
 import { useStore } from "@/lib/context/store-context";
 import { useAuth } from "@/lib/context/auth-context";
@@ -58,12 +59,11 @@ export function StockBatchManagement({
             </TabsList>
 
             {isAdmin && (
-              <button
+              <Button
                 onClick={() => setIsAuditing(true)}
-                className="bg-primary text-white px-4 py-2 rounded-xl text-[14px] font-semibold hover:bg-primary/90 transition-colors"
               >
                 Start Audit
-              </button>
+              </Button>
             )}
           </div>
 

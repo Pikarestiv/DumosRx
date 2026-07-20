@@ -112,6 +112,19 @@ export function StockAuditDialog({
         }
       }
 
+      if (diff !== 0) {
+        await insert("stock_movements", {
+          product_id: selectedProduct.id,
+          movement_type: diff > 0 ? "adjustment" : "damaged", 
+          quantity: diff,
+          unit_cost: selectedProduct.cost_price || 0,
+          total_cost: (selectedProduct.cost_price || 0) * Math.abs(diff),
+          reason: `Stock Audit (Discrepancy): Expected ${selectedProduct.stock_quantity}, Counted ${actualQuantity}`,
+          performed_by: user?.id || null,
+          movement_date: new Date().toISOString(),
+        });
+      }
+
       toast.success(`Stock reconciled for ${selectedProduct.name}`);
       onSuccess?.();
       onClose();

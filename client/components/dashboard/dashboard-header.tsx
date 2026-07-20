@@ -14,6 +14,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Button } from "@/components/ui/button";
 
 interface DashboardHeaderProps {
   onOpenFeedback?: () => void;
@@ -148,13 +149,12 @@ export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
           </form> 
           */}
 
-          <button
+          <Button
             onClick={() => router.push(pageInfo?.action ? pageInfo.action.path : "/pos")}
-            className="flex items-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-full text-sm font-medium transition-colors shadow-sm"
           >
             <Plus className="h-4 w-4" />
             {pageInfo?.action ? pageInfo.action.label : "New Sale"}
-          </button>
+          </Button>
         </div>
 
         {/* Notification Bell */}

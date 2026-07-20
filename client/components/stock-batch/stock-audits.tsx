@@ -31,7 +31,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
 
   const [items, setItems] = useState<AuditItem[]>([]);
   const [activeItem, setActiveItem] = useState<AuditItem | null>(null);
-  const [currentCount, setCurrentCount] = useState<number>(0);
+  const [currentCount, setCurrentCount] = useState<number | "">(0);
   const [reason, setReason] = useState<string>("");
 
   useEffect(() => {
@@ -53,7 +53,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
     count: items.filter(i => i.category === cat).length
   })).sort((a, b) => b.count - a.count);
 
-  const categoryItems = items.filter(i => i.category === selectedCategory);
+  const categoryItems = selectedCategory === "__all__" ? items : items.filter(i => i.category === selectedCategory);
   
   const { results: filteredList } = genericFuzzySearch(
     search,
@@ -77,7 +77,8 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
 
   const saveCount = () => {
     if (!activeItem) return;
-    setItems(prev => prev.map(i => i.id === activeItem.id ? { ...i, countedQty: currentCount } : i));
+    const finalCount = typeof currentCount === "number" ? currentCount : 0;
+    setItems(prev => prev.map(i => i.id === activeItem.id ? { ...i, countedQty: finalCount } : i));
     setStep("list");
   };
 
@@ -87,7 +88,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-muted/30 w-full h-full">
+    <div className="fixed inset-0 z-50 flex flex-col bg-background w-full h-full">
       {/* Header */}
       <div className="flex items-center gap-3 px-4 md:px-6 py-4 md:py-5 border-b border-border bg-card">
         <div 
@@ -128,8 +129,21 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
               {isLoading ? (
                 <div className="text-center p-8 text-muted-foreground">Loading categories...</div>
               ) : (
-                <div className="flex flex-col gap-2.5 mb-6">
-                  {categories.length === 0 && <div className="text-muted-foreground text-[13px]">No categories found.</div>}
+                <div className="flex flex-col gap-2.5 mb-2">
+                  {categories.length === 0 && <div className="text-muted-foreground text-[13px]">No items found.</div>}
+                  
+                  {items.length > 0 && (
+                    <div 
+                      onClick={() => setSelectedCategory("__all__")}
+                      className={`flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-colors ${
+                        selectedCategory === "__all__" ? 'border-primary bg-primary/10' : 'border-border bg-card hover:bg-accent/50'
+                      }`}
+                    >
+                      <div className="font-semibold text-[14px] text-foreground">All Categories</div>
+                      <div className="text-[13px] text-muted-foreground">{items.length} items</div>
+                    </div>
+                  )}
+
                   {categories.map(cat => (
                     <div 
                       key={cat.id} 
@@ -144,13 +158,6 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
                   ))}
                 </div>
               )}
-              <button 
-                className="w-full bg-primary text-white border-0 py-3.5 rounded-xl text-[14px] font-bold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary/90 transition-colors"
-                disabled={!selectedCategory}
-                onClick={handleStart}
-              >
-                Start count
-              </button>
             </div>
           )}
 
@@ -161,7 +168,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
                 <div className="text-[17px] font-semibold">Count items</div>
                 <div className="text-[12.5px] text-muted-foreground font-medium">{countedItems.length} of {categoryItems.length} counted</div>
               </div>
-              <div className="flex items-center gap-2 bg-card border border-border rounded-[10px] px-3.5 py-2.5 mb-4">
+              <div className="flex items-center gap-2 bg-card border border-border rounded-[10px] px-3.5 py-2.5 mb-4 sticky top-0 z-10">
                 <Search className="w-4 h-4 text-muted-foreground/70 shrink-0" />
                 <input 
                   type="text" 
@@ -171,7 +178,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
                   onChange={e => setSearch(e.target.value)}
                 />
               </div>
-              <div className="flex flex-col gap-2.5 mb-6">
+              <div className="flex flex-col gap-2.5 mb-2">
                 {filteredList.map(item => {
                   const isCounted = item.countedQty !== undefined;
                   const isDelta = isCounted && item.countedQty !== item.systemQty;
@@ -199,19 +206,13 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
                   )
                 })}
               </div>
-              <button 
-                className="w-full bg-primary text-white border-0 py-3.5 rounded-xl text-[14px] font-bold cursor-pointer hover:bg-primary/90 transition-colors"
-                onClick={() => setStep("review")}
-              >
-                Review &amp; submit
-              </button>
             </div>
           )}
 
           {/* COUNT */}
           {step === "count" && activeItem && (
             <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-              <div className="bg-card border border-border rounded-2xl p-6 mb-5">
+              <div className="bg-card border border-border rounded-2xl p-6 mb-2">
                 <span className="text-[11px] font-semibold bg-blue-500/10 text-blue-700 px-2 py-0.5 rounded-md">
                   {activeItem.category}
                 </span>
@@ -225,14 +226,28 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
                 <div className="flex items-center justify-center gap-5 mb-2">
                   <button 
                     className="w-12 h-12 rounded-xl bg-muted/30 border border-border text-foreground flex items-center justify-center cursor-pointer hover:bg-accent"
-                    onClick={() => setCurrentCount(Math.max(0, currentCount - 1))}
+                    onClick={() => setCurrentCount(Math.max(0, (typeof currentCount === "number" ? currentCount : 0) - 1))}
                   >
                     <Minus className="w-5 h-5" />
                   </button>
-                  <div className="text-[34px] font-bold w-24 text-center">{currentCount}</div>
+                  <input
+                    type="number"
+                    min="0"
+                    className="text-[34px] font-bold w-32 text-center border-0 bg-transparent outline-none p-0 focus:ring-0 [&::-webkit-inner-spin-button]:appearance-none"
+                    value={currentCount}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value, 10);
+                      if (!isNaN(val) && val >= 0) {
+                        setCurrentCount(val);
+                      } else if (e.target.value === "") {
+                        setCurrentCount("");
+                      }
+                    }}
+                    onFocus={(e) => e.target.select()}
+                  />
                   <button 
                     className="w-12 h-12 rounded-xl bg-muted/30 border border-border text-foreground flex items-center justify-center cursor-pointer hover:bg-accent"
-                    onClick={() => setCurrentCount(currentCount + 1)}
+                    onClick={() => setCurrentCount((typeof currentCount === "number" ? currentCount : 0) + 1)}
                   >
                     <Plus className="w-5 h-5" />
                   </button>
@@ -241,7 +256,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
                 {currentCount !== activeItem.systemQty && (
                   <div className="border-t border-border mt-5 pt-4 animate-in fade-in duration-300">
                     <div className="text-[12.5px] font-semibold mb-2.5 text-destructive">
-                      {Math.abs(currentCount - activeItem.systemQty)} {currentCount > activeItem.systemQty ? "more" : "fewer"} than expected — reason required
+                      {Math.abs((typeof currentCount === "number" ? currentCount : 0) - activeItem.systemQty)} {(typeof currentCount === "number" ? currentCount : 0) > activeItem.systemQty ? "more" : "fewer"} than expected — reason required
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {["Damaged", "Expired", "Missing", "Found", "Other"].map(r => (
@@ -259,14 +274,6 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
                   </div>
                 )}
               </div>
-
-              <button 
-                className="w-full bg-primary text-white border-0 py-3.5 rounded-xl text-[14px] font-bold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary/90 transition-colors"
-                disabled={currentCount !== activeItem.systemQty && !reason}
-                onClick={saveCount}
-              >
-                Save count
-              </button>
             </div>
           )}
 
@@ -288,7 +295,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
               </div>
 
               {adjustedItems.length > 0 ? (
-                <div className="bg-card border border-border rounded-2xl divide-y divide-[#E6EAF2] mb-6">
+                <div className="bg-card border border-border rounded-2xl divide-y divide-[#E6EAF2] mb-2">
                   {adjustedItems.map(item => (
                     <div key={item.id} className="p-4 flex items-center justify-between">
                       <div>
@@ -304,17 +311,10 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
                   ))}
                 </div>
               ) : (
-                <div className="p-6 bg-card border border-border rounded-2xl mb-6 text-center text-[13px] text-muted-foreground">
+                <div className="p-6 bg-card border border-border rounded-2xl mb-2 text-center text-[13px] text-muted-foreground">
                   No items were adjusted. All counts matched the system.
                 </div>
               )}
-
-              <button 
-                className="w-full bg-primary text-white border-0 py-3.5 rounded-xl text-[14px] font-bold cursor-pointer hover:bg-primary/90 transition-colors"
-                onClick={submitAudit}
-              >
-                Submit audit
-              </button>
             </div>
           )}
 
@@ -328,15 +328,61 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
               <div className="text-[13px] text-muted-foreground mb-6">
                 {countedItems.length} items counted · {adjustedItems.length} adjusted
               </div>
-              <button 
-                className="bg-primary text-white border-0 px-6 py-3 rounded-xl text-[14px] font-bold cursor-pointer hover:bg-primary/90 transition-colors"
-                onClick={onClose}
-              >
-                Close Audit
-              </button>
             </div>
           )}
 
+        </div>
+      </div>
+
+      {/* FIXED FOOTER */}
+      <div className="border-t border-border bg-background p-4 md:px-8 md:py-5 flex justify-center shrink-0">
+        <div className="w-full max-w-[560px]">
+          {step === "setup" && (
+            <button 
+              className="w-full bg-primary text-white border-0 py-3.5 rounded-xl text-[14px] font-bold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary/90 transition-colors"
+              disabled={!selectedCategory}
+              onClick={handleStart}
+            >
+              Start count
+            </button>
+          )}
+
+          {step === "list" && (
+            <button 
+              className="w-full bg-primary text-white border-0 py-3.5 rounded-xl text-[14px] font-bold cursor-pointer hover:bg-primary/90 transition-colors"
+              onClick={() => setStep("review")}
+            >
+              Review &amp; submit
+            </button>
+          )}
+
+          {step === "count" && (
+            <button 
+              className="w-full bg-primary text-white border-0 py-3.5 rounded-xl text-[14px] font-bold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary/90 transition-colors"
+              disabled={currentCount !== activeItem?.systemQty && !reason}
+              onClick={saveCount}
+            >
+              Save count
+            </button>
+          )}
+
+          {step === "review" && (
+            <button 
+              className="w-full bg-primary text-white border-0 py-3.5 rounded-xl text-[14px] font-bold cursor-pointer hover:bg-primary/90 transition-colors"
+              onClick={submitAudit}
+            >
+              Submit audit
+            </button>
+          )}
+
+          {step === "done" && (
+            <button 
+              className="w-full bg-primary text-white border-0 py-3.5 rounded-xl text-[14px] font-bold cursor-pointer hover:bg-primary/90 transition-colors"
+              onClick={onClose}
+            >
+              Close Audit
+            </button>
+          )}
         </div>
       </div>
     </div>

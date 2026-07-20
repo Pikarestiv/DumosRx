@@ -62,7 +62,7 @@ export function ResponsiveModal({
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent
-        className={`max-h-[90vh] overflow-y-auto px-4 ${className || ""}`}
+        className={cn("max-h-[90vh] overflow-y-auto px-4", className)}
       >
         <DrawerHeader className={cn("text-left mb-4 px-0 flex flex-row items-start justify-between", headerClassName)}>
           <div>

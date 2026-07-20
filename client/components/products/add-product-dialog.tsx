@@ -310,37 +310,41 @@ export function AddProductDialog({
           ? `Update the details for ${editingProduct.name}. All fields marked with * are required.`
           : `Enter the details for the new ${t("product").toLowerCase()}. All fields marked with * are required.`
       }
-      className="sm:max-w-3xl max-h-[90vh] overflow-y-auto"
+      className="sm:max-w-3xl h-[95vh] sm:h-auto flex flex-col overflow-hidden px-0 sm:px-6 pb-0 sm:pb-6"
+      headerClassName="px-4 pt-4 sm:p-0"
     >
 
-        <form onSubmit={withRestriction(handleSubmit)} className="space-y-4">
-          <ProductFormFields
-            formData={formData}
-            onInputChange={handleInputChange}
-            isPharmacy={isPharmacy}
-            suggestions={suggestions as any}
-            commonSuggestions={commonSuggestions}
-            t={t}
-          />
+        <form onSubmit={withRestriction(handleSubmit)} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+          <div className="flex-1 overflow-y-auto px-4 sm:px-0 py-2">
+            <ProductFormFields
+              formData={formData}
+              onInputChange={handleInputChange}
+              isPharmacy={isPharmacy}
+              suggestions={suggestions as any}
+              commonSuggestions={commonSuggestions}
+              t={t}
+            />
+          </div>
 
-          <DialogFooter className="sticky bottom-0 bg-background pt-4 border-t z-10 mt-6 gap-2">
+          <DialogFooter className="bg-background border-t gap-2 p-4 sm:p-0 sm:pt-4 flex-shrink-0">
             <Button
               type="button"
               variant="outline"
+              className="w-full sm:w-auto"
               onClick={() => onOpenChange(false)}
             >
               Cancel
             </Button>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
               <Button
                 type="button"
                 variant="outline"
-                className="border-accent text-accent hover:bg-accent/10 hover:text-primary"
+                className="border-accent text-accent hover:bg-accent/10 hover:text-primary w-full sm:w-auto"
                 onClick={withRestriction((e: any) => handleSubmit(e, true))}
               >
                 {editingProduct ? `Update & Add Another` : `Save & Add Another`}
               </Button>
-              <Button type="submit" className="bg-accent hover:bg-accent/90">
+              <Button type="submit" className="bg-accent hover:bg-accent/90 w-full sm:w-auto">
                 {editingProduct
                   ? `Update ${t("product")}`
                   : `Add ${t("product")}`}

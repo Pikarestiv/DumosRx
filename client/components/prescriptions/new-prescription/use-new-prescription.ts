@@ -73,6 +73,7 @@ export function useNewPrescription() {
     instructions: "",
     refillsAuthorized: 0 as number | "",
     refillIntervalDays: 30 as number | "",
+    cost: "" as number | "",
   });
 
   useEffect(() => {
@@ -145,7 +146,7 @@ export function useNewPrescription() {
       dosage: newMedication.dosage,
       quantity: Number(newMedication.quantity),
       instructions: newMedication.instructions,
-      cost: product.cost * Number(newMedication.quantity),
+      cost: newMedication.cost !== "" ? Number(newMedication.cost) : (product.cost * Number(newMedication.quantity)),
       refillsAuthorized: Number(newMedication.refillsAuthorized) || 0,
       refillIntervalDays: Number(newMedication.refillIntervalDays) || 30,
     };
@@ -163,6 +164,7 @@ export function useNewPrescription() {
       instructions: "",
       refillsAuthorized: 0,
       refillIntervalDays: 30,
+      cost: "",
     });
   };
 
@@ -184,6 +186,7 @@ export function useNewPrescription() {
         instructions: medToEdit.instructions,
         refillsAuthorized: medToEdit.refillsAuthorized,
         refillIntervalDays: medToEdit.refillIntervalDays,
+        cost: medToEdit.cost,
       });
       removeMedication(id);
     }
@@ -263,7 +266,8 @@ export function useNewPrescription() {
               refill_interval_days: med.refillIntervalDays,
               next_refill_date: nextRefillDate.toISOString(),
               created_at: now,
-              updated_at: now
+              updated_at: now,
+              medicine_name: med.productName // Fallback for old schema
           });
         }
 
@@ -308,6 +312,7 @@ export function useNewPrescription() {
             next_refill_date: nextRefillDate.toISOString(),
             created_at: now,
             updated_at: now,
+            medicine_name: med.productName // Fallback for old schema
           };
         });
 

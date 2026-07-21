@@ -76,7 +76,7 @@ export function PrescriptionManagement() {
       {/* FILTER CHIPS (using global Tabs) */}
       <div className="mb-4">
         <Tabs value={statusFilter} onValueChange={setStatusFilter}>
-          <TabsList>
+          <TabsList className="w-full justify-start overflow-x-auto overflow-y-hidden hide-scrollbar">
             <TabsTrigger value="all">All</TabsTrigger>
             <TabsTrigger value="pending">Needs verification</TabsTrigger>
             <TabsTrigger value="refill_due">Refills due</TabsTrigger>
@@ -105,15 +105,29 @@ export function PrescriptionManagement() {
           ${selectedPrescription ? "block" : "hidden"} 
           lg:block lg:sticky lg:top-4
         `}>
-          <PrescriptionDetailPanel
-            prescription={selectedPrescription}
-            getPriorityBadge={getPriorityBadge}
-            formatDateTime={formatDateTime}
-            onClose={() => setSelectedPrescription(null)}
-            onEdit={handleEdit}
-            onDispense={handleDispense}
-            updateStatus={updatePrescriptionStatus}
-          />
+          {selectedPrescription ? (
+            <PrescriptionDetailPanel
+              prescription={selectedPrescription}
+              getPriorityBadge={getPriorityBadge}
+              formatDateTime={formatDateTime}
+              onClose={() => setSelectedPrescription(null)}
+              onEdit={handleEdit}
+              onDispense={handleDispense}
+              updateStatus={updatePrescriptionStatus}
+            />
+          ) : (
+            <div className="h-[calc(100vh-140px)] min-h-[600px] border border-border bg-card rounded-xl flex items-center justify-center flex-col text-center p-6 text-muted-foreground shadow-[0_1px_2px_rgba(28,25,23,0.04)]">
+              <svg className="w-16 h-16 text-muted-foreground/30 mb-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+                <polyline points="10 9 9 9 8 9" />
+              </svg>
+              <h3 className="text-lg font-medium text-foreground mb-1">No Prescription Selected</h3>
+              <p className="text-sm max-w-[250px]">Select a prescription from the queue to view its details, medications, and verify instructions.</p>
+            </div>
+          )}
         </div>
       </div>
 

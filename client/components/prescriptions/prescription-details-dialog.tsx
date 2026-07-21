@@ -127,7 +127,7 @@ export function PrescriptionDetailsDialog({
                           </p>
                           {medication.instructions && (
                             <p className="text-sm mt-2 p-2 bg-muted rounded text-muted-foreground">
-                              Instructions: {medication.instructions}
+                              {medication.instructions}
                             </p>
                           )}
                         </div>

@@ -21,6 +21,7 @@ interface PrescriptionMedicationsProps {
     instructions: string;
     refillsAuthorized: number | "";
     refillIntervalDays: number | "";
+    cost: number | "";
   };
   setNewMedication: React.Dispatch<React.SetStateAction<any>>;
   availableProducts: any[];
@@ -140,6 +141,23 @@ export function PrescriptionMedications({
             </div>
 
             <div className="space-y-2">
+              <Label>Total Cost (₦)</Label>
+              <Input
+                type="number"
+                value={newMedication.cost}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setNewMedication((prev: any) => ({
+                    ...prev,
+                    cost: val === "" ? "" : Number.parseFloat(val) || 0,
+                  }));
+                }}
+                min="0"
+                placeholder="Leave empty to auto-calculate"
+              />
+            </div>
+
+            <div className="space-y-2">
               <Label>Refills Authorized</Label>
               <Input
                 type="number"
@@ -223,9 +241,9 @@ export function PrescriptionMedications({
                       {medication.dosage}
                     </p>
                     {medication.instructions && (
-                      <div className="text-sm text-muted-foreground truncate">
+                      <p className="text-xs text-muted-foreground mt-1">
                         Instructions: {medication.instructions}
-                      </div>
+                      </p>
                     )}
                   </div>
                   <div className="flex items-center gap-2">

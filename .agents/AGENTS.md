@@ -46,3 +46,8 @@ To maintain the DumosRx "Premium" feel:
 - **Prototype Pollution:** Never perform dynamic bracket lookup `obj[key]` using values fetched directly from inputs. Use ES6 `Map` or strict `switch` statements.
 - **JWT & Anti-Tampering:** Subscription licenses are verified via offline JWT checks. Do not alter the `LicenseGuard` anti-backdating logic without explicit instruction.
 - **Pagination:** Always use pagination, limit offsets, or cursor-based scrolling to limit page results to 50 items to prevent UI thrashing.
+
+## 7. 🧪 Testing & Validation
+
+- Whenever a new feature is implemented, an architectural change is made, or an existing calculation is modified, **you must check whether to update existing tests or add new ones.**
+- Data integrity calculations, sync operations, and offline reconciliation flows MUST always be covered by automated tests to prevent silent data corruption.

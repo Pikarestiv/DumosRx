@@ -7,6 +7,7 @@ import { insert } from "@/lib/db/local-database";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/context/auth-context";
 import { Info } from "lucide-react";
+import { DatePickerInput } from "@/components/ui/date-picker-input";
 
 interface AddExpenseDialogProps {
   open: boolean;
@@ -82,12 +83,10 @@ export function AddExpenseDialog({ open, onOpenChange }: AddExpenseDialogProps) 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="text-[12.5px] font-semibold mb-1.5 block text-foreground">Date</label>
-              <input 
-                type="date" 
-                required
-                className="w-full border border-border rounded-[10px] px-3.5 py-2.5 text-[13px] outline-none focus:border-primary bg-background text-foreground"
+              <DatePickerInput
                 value={formData.date}
-                onChange={e => setFormData(prev => ({ ...prev, date: e.target.value }))}
+                onChange={(value: string) => setFormData(prev => ({ ...prev, date: value }))}
+                className="w-full bg-background [&_input]:border-border [&_input]:rounded-[10px] [&_input]:px-3.5 [&_input]:py-2.5 [&_input]:text-[13px] [&_input]:h-auto focus-within:border-primary"
               />
             </div>
             <div>

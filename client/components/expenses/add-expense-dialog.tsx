@@ -3,21 +3,10 @@
 import { useState } from "react";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { DatePickerInput } from "@/components/ui/date-picker-input";
-import { Textarea } from "@/components/ui/textarea";
 import { insert } from "@/lib/db/local-database";
 import { toast } from "sonner";
-import { SearchableInput } from "@/components/ui/searchable-input";
 import { useAuth } from "@/lib/context/auth-context";
+import { Info } from "lucide-react";
 
 interface AddExpenseDialogProps {
   open: boolean;
@@ -26,26 +15,26 @@ interface AddExpenseDialogProps {
 
 const CATEGORIES = [
   "Rent",
+  "Inventory Purchase",
   "Utilities",
   "Salaries",
-  "Transport",
-  "Marketing",
   "Maintenance",
-  "Office Supplies",
-  "Others",
+  "Marketing",
+  "Other",
 ];
 
-const PAYMENT_METHODS = ["Cash", "Bank Transfer", "POS", "Cheque"];
+const PAYMENT_METHODS = ["Cash", "Bank Transfer", "Card"];
 
 export function AddExpenseDialog({ open, onOpenChange }: AddExpenseDialogProps) {
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
-    category: "",
+    category: "Rent",
     amount: "",
     description: "",
     date: new Date().toISOString().split("T")[0],
     payment_method: "Cash",
+    notes: "",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -65,11 +54,12 @@ export function AddExpenseDialog({ open, onOpenChange }: AddExpenseDialogProps) 
       toast.success("Expense added successfully");
       onOpenChange(false);
       setFormData({
-        category: "",
+        category: "Rent",
         amount: "",
         description: "",
         date: new Date().toISOString().split("T")[0],
         payment_method: "Cash",
+        notes: "",
       });
     } catch (error) {
       console.error("Failed to add expense:", error);
@@ -80,91 +70,102 @@ export function AddExpenseDialog({ open, onOpenChange }: AddExpenseDialogProps) 
   };
 
   return (
-    <ResponsiveModal open={open} onOpenChange={onOpenChange} title={<>Add New Expense</>} description={<>Record a new business expense here.</>} className="sm:max-w-[425px]">
-        <form onSubmit={handleSubmit} className="space-y-4 pt-4">
-          <div className="grid gap-2">
-            <Label htmlFor="category">Category *</Label>
-            <SearchableInput
-              value={formData.category}
-              onValueChange={(value) =>
-                setFormData((prev) => ({ ...prev, category: value }))
-              }
-              options={CATEGORIES}
-              placeholder="Select or type category"
-            />
+    <ResponsiveModal 
+      open={open} 
+      onOpenChange={onOpenChange} 
+      title={<span className="text-[17px] font-serif font-bold">Add Expense</span>}
+      className="p-0 sm:max-w-[520px] bg-card rounded-2xl overflow-hidden gap-0 border-border"
+      headerClassName="px-6 py-5 border-b border-border m-0"
+    >
+      <form onSubmit={handleSubmit} className="flex flex-col h-full max-h-[85vh]">
+        <div className="px-6 py-5 overflow-y-auto flex flex-col gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="text-[12.5px] font-semibold mb-1.5 block text-foreground">Date</label>
+              <input 
+                type="date" 
+                required
+                className="w-full border border-border rounded-[10px] px-3.5 py-2.5 text-[13px] outline-none focus:border-primary bg-background text-foreground"
+                value={formData.date}
+                onChange={e => setFormData(prev => ({ ...prev, date: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className="text-[12.5px] font-semibold mb-1.5 block text-foreground">Category</label>
+              <select 
+                className="w-full border border-border rounded-[10px] px-3.5 py-2.5 text-[13px] outline-none focus:border-primary bg-background text-foreground"
+                value={formData.category}
+                onChange={e => setFormData(prev => ({ ...prev, category: e.target.value }))}
+              >
+                {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+              </select>
+            </div>
           </div>
-
-          <div className="grid gap-2">
-            <Label htmlFor="amount">Amount (NGN) *</Label>
-            <Input
-              id="amount"
-              type="number"
-              step="0.01"
-              placeholder="0.00"
-              value={formData.amount}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, amount: e.target.value }))
-              }
-              onFocus={(e) => e.target.select()}
-            />
-          </div>
-
-          <div className="grid gap-2">
-            <Label htmlFor="date">Date *</Label>
-            <DatePickerInput
-              value={formData.date}
-              onChange={(val) =>
-                setFormData((prev) => ({ ...prev, date: val }))
-              }
-            />
-          </div>
-
-          <div className="grid gap-2">
-            <Label htmlFor="payment_method">Payment Method</Label>
-            <Select
-              value={formData.payment_method}
-              onValueChange={(value) =>
-                setFormData((prev) => ({ ...prev, payment_method: value }))
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select payment method" />
-              </SelectTrigger>
-              <SelectContent>
-                {PAYMENT_METHODS.map((method) => (
-                  <SelectItem key={method} value={method}>
-                    {method}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="grid gap-2">
-            <Label htmlFor="description">Description (Optional)</Label>
-            <Textarea
-              id="description"
-              placeholder="Additional details..."
+          
+          <div>
+            <label className="text-[12.5px] font-semibold mb-1.5 block text-foreground">Description</label>
+            <input 
+              type="text" 
+              required
+              placeholder="e.g. July shop rent" 
+              className="w-full border border-border rounded-[10px] px-3.5 py-2.5 text-[13px] outline-none focus:border-primary bg-background text-foreground placeholder:text-muted-foreground"
               value={formData.description}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, description: e.target.value }))
-              }
+              onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
             />
           </div>
-
-          <div className="flex justify-end gap-3 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? "Saving..." : "Save Expense"}
-            </Button>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="text-[12.5px] font-semibold mb-1.5 block text-foreground">Amount</label>
+              <input 
+                type="number" 
+                step="0.01"
+                required
+                placeholder="0.00" 
+                className="w-full border border-border rounded-[10px] px-3.5 py-2.5 text-[13px] outline-none focus:border-primary bg-background text-foreground placeholder:text-muted-foreground"
+                value={formData.amount}
+                onChange={e => setFormData(prev => ({ ...prev, amount: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className="text-[12.5px] font-semibold mb-1.5 block text-foreground">Method</label>
+              <select 
+                className="w-full border border-border rounded-[10px] px-3.5 py-2.5 text-[13px] outline-none focus:border-primary bg-background text-foreground"
+                value={formData.payment_method}
+                onChange={e => setFormData(prev => ({ ...prev, payment_method: e.target.value }))}
+              >
+                {PAYMENT_METHODS.map(method => <option key={method} value={method}>{method}</option>)}
+              </select>
+            </div>
           </div>
-        </form>
-      </ResponsiveModal>
+          
+          <div>
+            <label className="text-[12.5px] font-semibold mb-1.5 block text-foreground">Notes (optional)</label>
+            <input 
+              type="text" 
+              placeholder="Any extra detail" 
+              className="w-full border border-border rounded-[10px] px-3.5 py-2.5 text-[13px] outline-none focus:border-primary bg-background text-foreground placeholder:text-muted-foreground"
+              value={formData.notes}
+              onChange={e => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+            />
+          </div>
+          
+          <div className="text-[11.5px] text-muted-foreground bg-primary/5 border border-primary/20 rounded-[10px] px-3.5 py-3 flex gap-2 items-start mt-2">
+            <Info className="w-[15px] h-[15px] text-primary shrink-0 mt-0.5" />
+            Attach a receipt later from the expense detail view — file upload coming soon.
+          </div>
+        </div>
+        
+        <div className="px-6 py-5 border-t border-border mt-auto bg-card">
+          <Button 
+            type="submit" 
+            className="w-full py-6 rounded-xl text-[14px] font-bold"
+            disabled={isLoading}
+          >
+            {isLoading ? "Saving..." : "Save Expense"}
+          </Button>
+        </div>
+      </form>
+    </ResponsiveModal>
   );
 }

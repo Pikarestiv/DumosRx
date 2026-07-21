@@ -200,7 +200,7 @@ export function DashboardOverview() {
       />
 
       <div className="flex flex-col lg:grid lg:grid-cols-[1.4fr_1fr] gap-5">
-        <div className="order-2 lg:order-1">
+        <div className="order-2 lg:order-1 h-full">
           <DashboardRecentActivity
             activities={activities}
             getActivityColor={getActivityColor}
@@ -208,7 +208,7 @@ export function DashboardOverview() {
           />
         </div>
 
-        <div className="order-1 lg:order-2">
+        <div className="order-1 lg:order-2 h-full">
           <DashboardQuickActions productTerm={t("product")} />
         </div>
       </div>

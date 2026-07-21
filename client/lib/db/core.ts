@@ -542,9 +542,15 @@ export async function initDatabase(): Promise<any> {
       db.run(SCHEMA_SQL);
     }
 
-    
-      // --- Data migration: stock_quantity to stock_batches ---
-      try {
+    // --- Data migrations ---
+
+    try {
+      db.run('ALTER TABLE expenses ADD COLUMN notes TEXT;');
+    } catch (_e) {
+      // Ignore if column already exists
+    }
+
+    try {
         const hasProductsStock = db.exec("SELECT 1 FROM pragma_table_info('products') WHERE name='stock_quantity'");
         if (hasProductsStock && hasProductsStock.length > 0 && hasProductsStock[0].values.length > 0) {
           db.run(`

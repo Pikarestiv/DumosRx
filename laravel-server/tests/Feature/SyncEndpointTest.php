@@ -283,4 +283,47 @@ class SyncEndpointTest extends TestCase
             'quantity' => 70, // 80 - 10 = 70
         ]);
     }
+
+    public function test_push_sync_handles_expense_inserts_with_notes()
+    {
+        $expenseId = 'exp_123';
+        $payload = [
+            'setup' => true,
+            'changes' => [
+                [
+                    'table_name' => 'expenses',
+                    'operation' => 'INSERT',
+                    'record_id' => $expenseId,
+                    'payload' => [
+                        'id' => $expenseId,
+                        'user_id' => $this->user->id,
+                        'category' => 'Marketing',
+                        'description' => 'Facebook Ads',
+                        'amount' => 5000.00,
+                        'date' => now()->toDateString(),
+                        'payment_method' => 'Card',
+                        'notes' => 'Campaign Q3',
+                        'created_at' => now()->toDateTimeString(),
+                        'updated_at' => now()->toDateTimeString(),
+                    ]
+                ]
+            ]
+        ];
+
+        $response = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', $payload);
+
+        if ($response->status() !== 200) {
+            dump($response->json());
+        }
+        $response->assertStatus(200);
+        $response->assertJson(['success' => true]);
+
+        $this->assertDatabaseHas('expenses', [
+            'id' => $expenseId,
+            'user_id' => $this->user->id,
+            'category' => 'Marketing',
+            'amount' => 5000.00,
+            'notes' => 'Campaign Q3'
+        ]);
+    }
 }

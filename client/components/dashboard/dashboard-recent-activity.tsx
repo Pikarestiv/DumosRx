@@ -44,8 +44,8 @@ export function DashboardRecentActivity({
   };
 
   return (
-    <Card className="border-none shadow-none bg-transparent sm:border-solid sm:border-border sm:shadow-sm sm:bg-card">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0 px-1 sm:px-6">
+    <Card className="h-full flex flex-col border-none shadow-none bg-transparent sm:border-solid sm:border-border sm:shadow-sm sm:bg-card">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0 px-1 sm:px-6 mt-4">
         <div>
           <CardTitle className="font-serif font-semibold">
             Recent Activity
@@ -58,9 +58,9 @@ export function DashboardRecentActivity({
           View All
         </Link>
       </CardHeader>
-      <CardContent className="px-1 sm:px-6 pt-0">
+      <CardContent className="px-1 sm:px-6 pt-0 flex-1 flex flex-col">
         {activities.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+          <div className="flex-1 flex flex-col items-center justify-center py-8 text-muted-foreground">
             <Activity className="h-8 w-8 mb-2 opacity-50" />
             <p className="text-sm">No recent activity</p>
             <p className="text-xs">

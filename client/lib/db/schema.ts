@@ -312,6 +312,7 @@ CREATE TABLE IF NOT EXISTS expenses (
   payment_method TEXT,
   vendor_name TEXT,
   reference_number TEXT,
+  notes TEXT,
   created_at TEXT,
   updated_at TEXT,
   _version INTEGER DEFAULT 1,

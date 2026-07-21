@@ -9,17 +9,10 @@ export async function getPrescriptionById(id: string) {
 }
 
 export async function getPrescriptionItems(prescriptionId: string) {
-  try {
-    return await query<any>(
-      "SELECT *, COALESCE(product_name, medicine_name) as product_name FROM prescription_items WHERE prescription_id = ? AND _deleted = 0",
-      [prescriptionId]
-    );
-  } catch (e) {
-    return await query<any>(
-      "SELECT *, medicine_name as product_name FROM prescription_items WHERE prescription_id = ? AND _deleted = 0",
-      [prescriptionId]
-    );
-  }
+  return await query<any>(
+    "SELECT * FROM prescription_items WHERE prescription_id = ? AND _deleted = 0",
+    [prescriptionId]
+  );
 }
 
 export async function getQueueCount() {
@@ -48,28 +41,11 @@ export async function deletePrescriptionItems(prescriptionId: string) {
 }
 
 export async function insertPrescriptionItem(data: any) {
-  try {
-    return await query(
-      `INSERT INTO prescription_items (id, prescription_id, medicine_name, product_name, strength, dosage, quantity, instructions, cost, refills_authorized, refill_interval_days, next_refill_date, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [data.id, data.prescription_id, data.product_name, data.product_name, data.strength, data.dosage, data.quantity, data.instructions, data.cost, data.refills_authorized, data.refill_interval_days, data.next_refill_date, data.created_at, data.updated_at]
-    );
-  } catch (e: any) {
-    if (e.message && e.message.includes("no column named product_name")) {
-      return await query(
-        `INSERT INTO prescription_items (id, prescription_id, medicine_name, strength, dosage, quantity, instructions, cost, refills_authorized, refill_interval_days, next_refill_date, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [data.id, data.prescription_id, data.product_name, data.strength, data.dosage, data.quantity, data.instructions, data.cost, data.refills_authorized, data.refill_interval_days, data.next_refill_date, data.created_at, data.updated_at]
-      );
-    } else if (e.message && e.message.includes("no column named medicine_name")) {
-      return await query(
-        `INSERT INTO prescription_items (id, prescription_id, product_name, strength, dosage, quantity, instructions, cost, refills_authorized, refill_interval_days, next_refill_date, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [data.id, data.prescription_id, data.product_name, data.strength, data.dosage, data.quantity, data.instructions, data.cost, data.refills_authorized, data.refill_interval_days, data.next_refill_date, data.created_at, data.updated_at]
-      );
-    }
-    throw e;
-  }
+  return await query(
+    `INSERT INTO prescription_items (id, prescription_id, product_name, strength, dosage, quantity, instructions, cost, refills_authorized, refill_interval_days, next_refill_date, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [data.id, data.prescription_id, data.product_name, data.strength, data.dosage, data.quantity, data.instructions, data.cost, data.refills_authorized, data.refill_interval_days, data.next_refill_date, data.created_at, data.updated_at]
+  );
 }
 export async function getRefillManagementData() {
   return query<any>(
@@ -110,15 +86,9 @@ export async function getHistoryPrescriptions() {
 }
 
 export async function getAllPrescriptionItems() {
-  try {
-    return await query<any>(
-      "SELECT *, COALESCE(product_name, medicine_name) as product_name FROM prescription_items WHERE _deleted = 0"
-    );
-  } catch (e) {
-    return await query<any>(
-      "SELECT *, medicine_name as product_name FROM prescription_items WHERE _deleted = 0"
-    );
-  }
+  return await query<any>(
+    "SELECT * FROM prescription_items WHERE _deleted = 0"
+  );
 }
 
 export async function updatePrescriptionStatus(id: string, status: string) {

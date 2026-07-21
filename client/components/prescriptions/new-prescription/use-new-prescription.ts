@@ -266,8 +266,7 @@ export function useNewPrescription() {
               refill_interval_days: med.refillIntervalDays,
               next_refill_date: nextRefillDate.toISOString(),
               created_at: now,
-              updated_at: now,
-              medicine_name: med.productName // Fallback for old schema
+              updated_at: now
           });
         }
 
@@ -312,7 +311,6 @@ export function useNewPrescription() {
             next_refill_date: nextRefillDate.toISOString(),
             created_at: now,
             updated_at: now,
-            medicine_name: med.productName // Fallback for old schema
           };
         });
 

@@ -63,9 +63,11 @@ describe('Sync Engine & Local Database', () => {
       
       // Verify the second execute is logging to _sync_queue
       expect(executeMock.mock.calls[1][0]).toContain('INSERT INTO _sync_queue');
-      expect(executeMock.mock.calls[1][1][0]).toBe('products');
-      expect(executeMock.mock.calls[1][1][2]).toBe('INSERT');
-      expect(typeof executeMock.mock.calls[1][1][3]).toBe('string');
+      const params = executeMock.mock.calls[1][1];
+      expect(params).toBeDefined();
+      expect(params![0]).toBe('products');
+      expect(params![2]).toBe('INSERT');
+      expect(typeof params![3]).toBe('string');
     });
   });
 

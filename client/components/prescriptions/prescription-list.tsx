@@ -47,15 +47,15 @@ export function PrescriptionList({
   };
 
   return (
-    <div className="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl flex flex-col min-h-0 h-[calc(100vh-320px)]">
+    <div className="bg-card border border-border rounded-2xl flex flex-col min-h-0 h-[calc(100vh-320px)]">
       {/* Search */}
-      <div className="p-4 pb-3 border-b border-[#E6EAF2]">
-        <div className="flex items-center gap-2 bg-[#F5F8FC] border border-[#E6EAF2] rounded-[10px] px-3.5 py-2.5">
-          <Search className="w-4 h-4 text-[#98A2B3] shrink-0" />
+      <div className="p-4 pb-3 border-b border-border">
+        <div className="flex items-center gap-2 bg-muted border border-border rounded-[10px] px-3.5 py-2.5">
+          <Search className="w-4 h-4 text-muted-foreground shrink-0" />
           <input
             type="text"
             placeholder="Search by patient or medication"
-            className="border-0 outline-none text-[13px] w-full bg-transparent text-[#101828] placeholder:text-[#98A2B3]"
+            className="border-0 outline-none text-[13px] w-full bg-transparent text-foreground placeholder:text-muted-foreground"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />

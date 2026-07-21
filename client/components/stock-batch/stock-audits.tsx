@@ -295,7 +295,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
               </div>
 
               {adjustedItems.length > 0 ? (
-                <div className="bg-card border border-border rounded-2xl divide-y divide-[#E6EAF2] mb-2">
+                <div className="bg-card border border-border rounded-2xl divide-y divide-border mb-2">
                   {adjustedItems.map(item => (
                     <div key={item.id} className="p-4 flex items-center justify-between">
                       <div>

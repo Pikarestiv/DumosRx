@@ -10,9 +10,16 @@ import { Plus, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
+import { useSearchParams } from "next/navigation";
+
 export function PrescriptionManagement() {
   const router = useRouter();
-  const [showNewPrescription, setShowNewPrescription] = useState(false);
+  const searchParams = useSearchParams();
+  const showNewPrescription = searchParams.get("action") === "add" || !!searchParams.get("edit_rx");
+
+  const closeNewPrescription = () => {
+    router.push("/prescriptions");
+  };
 
   const {
     loading,
@@ -63,16 +70,6 @@ export function PrescriptionManagement() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold font-serif tracking-tight">Prescriptions</h1>
-          <p className="text-sm text-muted-foreground">Manage and track Rx orders</p>
-        </div>
-        <Button onClick={() => setShowNewPrescription(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          New Prescription
-        </Button>
-      </div>
 
       <PrescriptionStats stats={stats} />
 
@@ -125,7 +122,7 @@ export function PrescriptionManagement() {
         <div className="fixed inset-0 z-50 bg-background flex flex-col">
           <div className="flex items-center justify-between p-4 border-b border-border bg-card">
             <h2 className="text-xl font-semibold font-serif">New Prescription</h2>
-            <Button variant="ghost" size="icon" onClick={() => setShowNewPrescription(false)}>
+            <Button variant="ghost" size="icon" onClick={closeNewPrescription}>
               <X className="w-5 h-5" />
             </Button>
           </div>

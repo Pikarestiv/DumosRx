@@ -2,7 +2,7 @@ import { query, insert, update } from "@/lib/db/local-database";
 
 export async function getAvailableStockBatches() {
   return query<any>(
-    `SELECT i.*, m.name as product_name, m.strength as m_strength FROM stock_batches i JOIN products m ON i.product_id = m.id WHERE i._deleted = 0 AND i.quantity > 0`
+    `SELECT i.*, m.name as product_name, m.strength as m_strength, m.selling_price FROM stock_batches i JOIN products m ON i.product_id = m.id WHERE i._deleted = 0 AND i.quantity > 0`
   );
 }
 

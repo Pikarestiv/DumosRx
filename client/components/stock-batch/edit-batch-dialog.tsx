@@ -50,7 +50,7 @@ export function EditBatchDialog({
     setLoading(true);
 
     try {
-      const { update } = await import("@/lib/db/local-database");
+      const { update, insert } = await import("@/lib/db/local-database");
 
       await update("stock_batches", batch.id, {
         batch_number: formData.batch_number,
@@ -58,6 +58,22 @@ export function EditBatchDialog({
         quantity: formData.quantity,
         cost_price: formData.cost_price,
       });
+
+      const qtyDiff = formData.quantity - (batch.quantity || 0);
+      if (qtyDiff !== 0) {
+        const dumosUser = JSON.parse(localStorage.getItem("dumos_user") || "{}");
+        await insert("stock_movements", {
+          product_id: batch.product_id,
+          stock_batch_id: batch.id,
+          movement_type: "adjustment",
+          quantity: qtyDiff,
+          unit_cost: formData.cost_price || batch.cost_price || 0,
+          total_cost: (formData.cost_price || batch.cost_price || 0) * Math.abs(qtyDiff),
+          reason: "Manual batch quantity update",
+          performed_by: dumosUser?.id || null,
+          movement_date: new Date().toISOString(),
+        });
+      }
 
       toast.success("Batch details updated successfully");
       onSuccess();

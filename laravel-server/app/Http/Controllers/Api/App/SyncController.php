@@ -272,7 +272,7 @@ class SyncController extends Controller
 
                     if (!$exists) {
                         $model = new $modelClass();
-                        $model->fill($payload);
+                        $model->forceFill($payload);
                         
                         // Force missing required fields for users
                         if ($change['table_name'] === 'users') {
@@ -334,7 +334,7 @@ class SyncController extends Controller
                     $model = \method_exists($modelClass, 'trashed') ? $modelClass::withTrashed()->find($recordId) : $modelClass::find($recordId);
                     
                     if ($model) {
-                        $model->fill($payload);
+                        $model->forceFill($payload);
                         
                         if ($change['table_name'] === 'users') {
                             if (isset($payload['password'])) {

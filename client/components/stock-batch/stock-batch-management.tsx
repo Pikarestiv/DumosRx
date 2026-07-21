@@ -2,8 +2,9 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StockOverview } from "./stock-overview";
 import { StockMovements } from "./stock-movements";
-import { StockAdjustments } from "./stock-adjustments";
+import { StockAudits } from "./stock-audits";
 import { ProductDatabase } from "@/components/products/product-database";
+import { Button } from "@/components/ui/button";
 
 import { useStore } from "@/lib/context/store-context";
 import { useAuth } from "@/lib/context/auth-context";
@@ -11,6 +12,7 @@ import { useRouter } from "next/navigation";
 import { StockBatchMetrics } from "./stock-batch-metrics";
 import { useStockBatchStats } from "@/lib/hooks/use-stock-batch-stats";
 import { formatCurrency } from "@/lib/utils";
+import { useState, useEffect } from "react";
 
 export function StockBatchManagement({
   currentTab = "overview",
@@ -20,11 +22,20 @@ export function StockBatchManagement({
   const { t } = useStore();
   const { isAdmin } = useAuth();
   const router = useRouter();
-  
+  const [isAuditing, setIsAuditing] = useState(false);
+
   const stats = useStockBatchStats();
 
+  useEffect(() => {
+    if (currentTab === "audits") {
+      setIsAuditing(true);
+      router.replace("/inventory/overview");
+    }
+  }, [currentTab, router]);
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 relative">
+      {isAuditing && <StockAudits onClose={() => setIsAuditing(false)} />}
       <StockBatchMetrics
         stock_batchValue={stats.totalStockBatchValue}
         totalProducts={stats.totalProducts}
@@ -34,46 +45,41 @@ export function StockBatchManagement({
         formatCurrency={formatCurrency}
       />
 
-      <Tabs
-        value={currentTab}
-        onValueChange={(val) => router.push(`/inventory/${val}`)}
-        className="space-y-6"
-      >
-        <TabsList className="w-full md:w-max">
-          <TabsTrigger value="overview">
-            Overview
-          </TabsTrigger>
-          <TabsTrigger value="products">
-            Catalog
-          </TabsTrigger>
-          <TabsTrigger value="movements">
-            Stock Movements
-          </TabsTrigger>
-          {isAdmin && (
-            <TabsTrigger value="adjustments">
-              Adjustments
-            </TabsTrigger>
-          )}
-        </TabsList>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <Tabs
+          value={currentTab}
+          onValueChange={(val) => router.push(`/inventory/${val}`)}
+          className="space-y-6 w-full"
+        >
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <TabsList className="w-full md:w-max">
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="catalog">Catalog</TabsTrigger>
+              <TabsTrigger value="ledger">Ledger</TabsTrigger>
+            </TabsList>
 
-        <TabsContent value="products" className="mt-0 outline-none">
-          <ProductDatabase />
-        </TabsContent>
+            {isAdmin && (
+              <Button
+                onClick={() => setIsAuditing(true)}
+              >
+                Start Audit
+              </Button>
+            )}
+          </div>
 
-        <TabsContent value="overview">
-          <StockOverview />
-        </TabsContent>
-
-        <TabsContent value="movements">
-          <StockMovements />
-        </TabsContent>
-
-        {isAdmin && (
-          <TabsContent value="adjustments">
-            <StockAdjustments />
+          <TabsContent value="catalog" className="mt-0 outline-none">
+            <ProductDatabase />
           </TabsContent>
-        )}
-      </Tabs>
+
+          <TabsContent value="overview">
+            <StockOverview />
+          </TabsContent>
+
+          <TabsContent value="ledger">
+            <StockMovements />
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   );
 }

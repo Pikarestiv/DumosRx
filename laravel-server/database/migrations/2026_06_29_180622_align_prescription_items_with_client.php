@@ -11,25 +11,27 @@ return new class extends Migration
      */
     public function up(): void
     {
-        try {
-            \Illuminate\Support\Facades\DB::statement('ALTER TABLE prescription_items DROP FOREIGN KEY prescription_items_medicine_id_foreign');
-        } catch (\Exception $e) {}
+        if (\Illuminate\Support\Facades\DB::getDriverName() !== 'sqlite') {
+            try {
+                \Illuminate\Support\Facades\DB::statement('ALTER TABLE prescription_items DROP FOREIGN KEY prescription_items_medicine_id_foreign');
+            } catch (\Exception $e) {}
 
-        try {
-            \Illuminate\Support\Facades\DB::statement('ALTER TABLE prescription_items DROP FOREIGN KEY prescription_items_product_id_foreign');
-        } catch (\Exception $e) {}
+            try {
+                \Illuminate\Support\Facades\DB::statement('ALTER TABLE prescription_items DROP FOREIGN KEY prescription_items_product_id_foreign');
+            } catch (\Exception $e) {}
+        }
 
         Schema::table('prescription_items', function (Blueprint $table) {
-            if (Schema::hasColumn('prescription_items', 'product_id')) {
+            if (Schema::hasColumn('prescription_items', 'product_id') && \Illuminate\Support\Facades\DB::getDriverName() !== 'sqlite') {
                 $table->dropColumn('product_id');
             }
-            if (Schema::hasColumn('prescription_items', 'quantity_prescribed')) {
+            if (Schema::hasColumn('prescription_items', 'quantity_prescribed') && \Illuminate\Support\Facades\DB::getDriverName() !== 'sqlite') {
                 $table->dropColumn('quantity_prescribed');
             }
-            if (Schema::hasColumn('prescription_items', 'quantity_dispensed')) {
+            if (Schema::hasColumn('prescription_items', 'quantity_dispensed') && \Illuminate\Support\Facades\DB::getDriverName() !== 'sqlite') {
                 $table->dropColumn('quantity_dispensed');
             }
-            if (Schema::hasColumn('prescription_items', 'status')) {
+            if (Schema::hasColumn('prescription_items', 'status') && \Illuminate\Support\Facades\DB::getDriverName() !== 'sqlite') {
                 $table->dropColumn('status');
             }
 

@@ -42,7 +42,7 @@ export function ProductDatabaseFilters({
             placeholder={`Search by name or SKU`}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-9 bg-primary/5 border-transparent focus-visible:ring-1 focus-visible:ring-ring rounded-lg"
+            className="pl-9 bg-muted border-transparent focus-visible:ring-1 focus-visible:ring-ring rounded-lg"
           />
         </div>
         <DropdownMenu>

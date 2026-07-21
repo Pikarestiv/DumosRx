@@ -189,6 +189,19 @@ export function usePOSPayment({
           });
           remainingToDeduct -= deduction;
         }
+
+        await insert("stock_movements", {
+          product_id: item.id,
+          movement_type: "sale",
+          quantity: -Math.abs(item.quantity),
+          unit_cost: item.cost_price || 0,
+          total_cost: (item.cost_price || 0) * item.quantity,
+          reference_id: saleId,
+          reference_type: "sale",
+          reason: "Customer sale",
+          performed_by: cashierId,
+          movement_date: new Date().toISOString(),
+        });
       }
 
       if (paymentMethod === "credit" && selectedCustomer) {

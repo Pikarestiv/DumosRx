@@ -77,6 +77,7 @@ export function usePrescriptionQueue() {
         doctorName: p.doctor_name,
         doctorLicense: p.doctor_license,
         dateIssued: p.issued_at,
+        dateDispensed: p.dispensed_at,
         status: p.status,
         priority: p.priority,
         medications: itemsMap.get(p.id) || [],
@@ -99,6 +100,11 @@ export function usePrescriptionQueue() {
 
   const preFilteredPrescriptions = useMemo(() => {
     return prescriptions.filter((prescription) => {
+      // Handle the "filled" filter to show dispensed/completed
+      if (statusFilter === "filled") {
+        return prescription.status === "dispensed" || prescription.status === "completed";
+      }
+      
       const matchesStatus = statusFilter === "all" || prescription.status === statusFilter;
       const matchesPriority = priorityFilter === "all" || prescription.priority === priorityFilter;
 
@@ -121,6 +127,9 @@ export function usePrescriptionQueue() {
       setPrescriptions((prev) =>
         prev.map((p) => (p.id === id ? { ...p, status: newStatus } : p))
       );
+      if (selectedPrescription?.id === id) {
+        setSelectedPrescription((prev) => prev ? { ...prev, status: newStatus } : null);
+      }
     } catch (err) {
       console.error("Failed to update status", err);
     }
@@ -132,11 +141,37 @@ export function usePrescriptionQueue() {
   };
 
   const stats = useMemo(() => {
+    const today = new Date();
+    const todayStr = today.toISOString().split("T")[0];
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split("T")[0];
+    
+    let filledToday = 0;
+    let filledYesterday = 0;
+
+    const pending = prescriptions.filter((p) => p.status === "pending").length;
+    const inProgress = prescriptions.filter((p) => p.status === "in_progress").length;
+    const ready = prescriptions.filter((p) => p.status === "ready").length;
+    const urgent = prescriptions.filter((p) => p.priority === "urgent" || p.priority === "stat").length;
+
+    prescriptions.forEach((p) => {
+      const isFilled = p.status === "dispensed" || p.status === "completed";
+      if (!isFilled) return;
+      const dateStr = p.dateDispensed || p.dateIssued;
+      if (!dateStr) return;
+      
+      if (dateStr.startsWith(todayStr)) filledToday++;
+      else if (dateStr.startsWith(yesterdayStr)) filledYesterday++;
+    });
+
     return {
-      pending: prescriptions.filter((p) => p.status === "pending").length,
-      inProgress: prescriptions.filter((p) => p.status === "in_progress").length,
-      ready: prescriptions.filter((p) => p.status === "ready").length,
-      urgent: prescriptions.filter((p) => p.priority === "urgent" || p.priority === "stat").length,
+      pending,
+      inProgress,
+      ready,
+      urgent,
+      filledToday,
+      filledYesterday,
     };
   }, [prescriptions]);
 
@@ -152,6 +187,7 @@ export function usePrescriptionQueue() {
     filteredPrescriptions,
     isFuzzyFallback,
     selectedPrescription,
+    setSelectedPrescription,
     showDetailsDialog,
     setShowDetailsDialog,
     updatePrescriptionStatus,

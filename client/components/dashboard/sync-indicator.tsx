@@ -197,9 +197,9 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
 
   if (isMobileHeader) {
     return (
-      <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full ${mobileBg} border ${statusBorder} max-w-fit transition-colors`} onClick={handleManualSync}>
+      <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full ${mobileBg} border ${statusBorder} max-w-fit transition-colors [&_svg]:w-3.5 [&_svg]:h-3.5`} onClick={handleManualSync}>
         {statusIcon}
-        <span className="text-[10px] font-medium text-muted-foreground whitespace-nowrap">
+        <span className="text-[12px] font-medium text-muted-foreground whitespace-nowrap">
           {statusLabel}
         </span>
         <AuthModal open={showAuthModal} onOpenChange={setShowAuthModal} />

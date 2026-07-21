@@ -101,6 +101,18 @@ export function useAddProduct({
                 .split("T")[0],
             is_active: 1,
           });
+
+          const dumosUser = JSON.parse(localStorage.getItem("dumos_user") || "{}");
+          await insert("stock_movements", {
+            product_id: productId,
+            movement_type: "adjustment",
+            quantity: initialStock,
+            unit_cost: initialCostPrice || 0,
+            total_cost: (initialCostPrice || 0) * initialStock,
+            reason: "Initial stock load",
+            performed_by: dumosUser?.id || null,
+            movement_date: new Date().toISOString(),
+          });
         }
         toast.success(`${t("product")} added successfully`);
       }

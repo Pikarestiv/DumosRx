@@ -151,21 +151,21 @@ export function ProfitLossTab({
             <div className="space-y-3 mt-6">
               <div className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/30 transition-colors">
                 <div className="flex items-center gap-3">
-                  <div className="w-3 h-3 rounded-full bg-[#0ea5e9]" />
+                  <div className="w-3 h-3 rounded-full bg-sky-500" />
                   <span className="text-xs font-medium">Stock Batch Cost</span>
                 </div>
                 <span className="text-xs font-bold">{totalRevenue > 0 ? ((totalCogs / totalRevenue) * 100).toFixed(0) : 0}%</span>
               </div>
               <div className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/30 transition-colors">
                 <div className="flex items-center gap-3">
-                  <div className="w-3 h-3 rounded-full bg-[#f59e0b]" />
+                  <div className="w-3 h-3 rounded-full bg-amber-500" />
                   <span className="text-xs font-medium">Operating Exp.</span>
                 </div>
                 <span className="text-xs font-bold">{totalRevenue > 0 ? ((totalExpenses / totalRevenue) * 100).toFixed(0) : 0}%</span>
               </div>
               <div className="flex items-center justify-between p-2 rounded-lg bg-emerald-500/5 transition-colors">
                 <div className="flex items-center gap-3">
-                  <div className="w-3 h-3 rounded-full bg-[#10b981]" />
+                  <div className="w-3 h-3 rounded-full bg-emerald-500" />
                   <span className="text-xs font-bold text-emerald-600 uppercase tracking-tighter">Net Profit</span>
                 </div>
                 <span className="text-xs font-black text-emerald-600">{totalRevenue > 0 ? ((netProfit / totalRevenue) * 100).toFixed(0) : 0}%</span>

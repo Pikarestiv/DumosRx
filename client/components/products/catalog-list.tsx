@@ -1,5 +1,5 @@
 import React from "react";
-import { Package } from "lucide-react";
+import { Package, ChevronRight } from "lucide-react";
 import { Product } from "./types";
 
 interface CatalogListProps {
@@ -28,12 +28,12 @@ export function CatalogList({
       )}
 
       {/* Header */}
-      <div className="grid grid-cols-[1fr_110px_90px_100px_90px] gap-2 px-4 py-2.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wide border-b border-border shrink-0">
+      <div className="hidden sm:grid grid-cols-[1fr_110px_90px_100px_90px] gap-2 px-4 py-2.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wide border-b border-border shrink-0">
         <div>Product</div>
-        <div className="hidden sm:block">Category</div>
-        <div className="hidden sm:block">Price</div>
+        <div>Category</div>
+        <div>Price</div>
         <div>Stock</div>
-        <div className="hidden sm:block">Reorder</div>
+        <div>Reorder</div>
       </div>
 
       {/* Rows */}
@@ -55,27 +55,51 @@ export function CatalogList({
               <div
                 key={product.id}
                 onClick={() => onSelectProduct(product)}
-                className={`grid grid-cols-[1fr_110px_90px_100px_90px] gap-2 px-4 py-3 items-center border-b border-border cursor-pointer transition-colors ${
+                className={`px-4 py-3 border-b border-border cursor-pointer transition-colors ${
                   isSelected ? "bg-primary/5 border-l-2 border-l-primary" : "hover:bg-muted/50 border-l-2 border-l-transparent"
                 }`}
               >
-                <div className="min-w-0 pr-2">
-                  <div className="text-[13px] font-semibold truncate">{product.name}</div>
-                  <div className="text-[11px] text-muted-foreground truncate">{product.barcode || product.id.slice(0,8)}</div>
+                {/* Mobile View */}
+                <div className="flex sm:hidden items-center justify-between">
+                  <div className="min-w-0 pr-2 flex-1">
+                    <div className="text-[15px] font-bold text-foreground truncate">{product.name}</div>
+                    <div className="text-[13px] text-muted-foreground mt-0.5 truncate">
+                      {product.barcode || product.id.slice(0, 8)} · {product.category || "Uncategorized"}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <div className="flex flex-col items-end">
+                      <div className="text-[15px] font-bold text-foreground">
+                        {formatCurrency(product.sellingPrice)}
+                      </div>
+                      <div className={`text-[13px] font-semibold mt-0.5 ${product.stockQuantity <= product.reorderLevel ? 'text-orange-600' : 'text-emerald-600'}`}>
+                        {product.stockQuantity} {product.baseUnit || 'unit'}{product.stockQuantity === 1 ? '' : 's'}
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground/30" />
+                  </div>
                 </div>
-                <div className="hidden sm:block">
-                  <span className="text-[11px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-md truncate max-w-[100px] inline-block">
-                    {product.category || "Uncategorized"}
-                  </span>
-                </div>
-                <div className="hidden sm:block text-[13px] font-semibold">
-                  {formatCurrency(product.sellingPrice)}
-                </div>
-                <div className={`text-[13px] font-semibold ${product.stockQuantity <= product.reorderLevel ? 'text-destructive' : 'text-primary'}`}>
-                  {product.stockQuantity} {product.baseUnit || 'units'}
-                </div>
-                <div className="hidden sm:block text-[13px] text-muted-foreground">
-                  {product.reorderLevel}
+
+                {/* Desktop View */}
+                <div className="hidden sm:grid grid-cols-[1fr_110px_90px_100px_90px] gap-2 items-center">
+                  <div className="min-w-0 pr-2">
+                    <div className="text-[13px] font-semibold truncate">{product.name}</div>
+                    <div className="text-[11px] text-muted-foreground truncate">{product.barcode || product.id.slice(0,8)}</div>
+                  </div>
+                  <div>
+                    <span className="text-[11px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-md truncate max-w-[100px] inline-block">
+                      {product.category || "Uncategorized"}
+                    </span>
+                  </div>
+                  <div className="text-[13px] font-semibold">
+                    {formatCurrency(product.sellingPrice)}
+                  </div>
+                  <div className={`text-[13px] font-semibold ${product.stockQuantity <= product.reorderLevel ? 'text-destructive' : 'text-primary'}`}>
+                    {product.stockQuantity} {product.baseUnit || 'unit'}{product.stockQuantity === 1 ? '' : 's'}
+                  </div>
+                  <div className="text-[13px] text-muted-foreground">
+                    {product.reorderLevel}
+                  </div>
                 </div>
               </div>
             );

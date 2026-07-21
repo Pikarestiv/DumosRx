@@ -1,16 +1,3 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Clock } from "lucide-react";
-import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
-
 interface ProductBatchHistoryProps {
   batches: any[];
   loadingBatches: boolean;
@@ -22,69 +9,64 @@ export function ProductBatchHistory({
   loadingBatches,
   storeType,
 }: ProductBatchHistoryProps) {
+  if (loadingBatches) {
+    return (
+      <p className="text-center py-8 text-sm text-muted-foreground">
+        Loading batches...
+      </p>
+    );
+  }
+
+  if (batches.length === 0) {
+    return (
+      <p className="text-center py-8 text-sm text-muted-foreground italic">
+        No batch records found for this{" "}
+        {storeType === "pharmacy" ? "product" : "item"}.
+      </p>
+    );
+  }
+
   return (
-    <Card className="mt-6">
-      <CardHeader>
-        <CardTitle className="font-serif font-semibold flex items-center gap-2">
-          <Clock className="h-5 w-5" />
-          Batch History & Tracking
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        {loadingBatches ? (
-          <p className="text-center py-4">Loading batches...</p>
-        ) : batches.length === 0 ? (
-          <p className="text-center py-4 text-muted-foreground italic">
-            No batch records found for this{" "}
-            {storeType === "pharmacy" ? "product" : "product"}.
-          </p>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Batch Number</TableHead>
-                <TableHead>Quantity</TableHead>
-                <TableHead>Expiry Date</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {batches.map((batch: any) => {
-                const days = Math.ceil(
-                  (new Date(batch.expiry_date).getTime() -
-                    new Date().getTime()) /
-                    (1000 * 60 * 60 * 24),
-                );
-                return (
-                  <TableRow key={batch.id}>
-                    <TableCell className="font-mono">
-                      {batch.batch_number}
-                    </TableCell>
-                    <TableCell>{batch.quantity} units</TableCell>
-                    <TableCell>
-                      {formatDateToDDMMYYYY(batch.expiry_date)}
-                    </TableCell>
-                    <TableCell>
-                      {days <= 0 ? (
-                        <Badge variant="destructive">Expired</Badge>
-                      ) : days <= 90 ? (
-                        <Badge
-                          variant="outline"
-                          className="border-orange-500 text-orange-600"
-                        >
-                          Near Expiry
-                        </Badge>
-                      ) : (
-                        <Badge variant="default">Healthy</Badge>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        )}
-      </CardContent>
-    </Card>
+    <div className="flex flex-col gap-3">
+      {batches.map((batch: any) => {
+        const days = Math.ceil(
+          (new Date(batch.expiry_date).getTime() - new Date().getTime()) /
+            (1000 * 60 * 60 * 24),
+        );
+
+        let statusColor = "bg-emerald-50 text-emerald-600";
+        let statusText = `Expires in ${days} days`;
+
+        if (days <= 0) {
+          statusColor = "bg-red-50 text-red-600";
+          statusText = "Expired";
+        } else if (days <= 30) {
+          statusColor = "bg-red-50 text-red-600";
+        } else if (days <= 90) {
+          statusColor = "bg-orange-50 text-orange-600";
+        }
+
+        return (
+          <div
+            key={batch.id}
+            className="bg-card border border-border rounded-xl p-4 flex flex-col gap-2"
+          >
+            <div className="flex justify-between items-start">
+              <span className="font-semibold text-[14px]">
+                Batch #{batch.batch_number}
+              </span>
+              <span
+                className={`text-[11px] font-bold px-2.5 py-1 rounded-md ${statusColor}`}
+              >
+                {statusText}
+              </span>
+            </div>
+            <div className="text-[13px] text-muted-foreground">
+              {batch.quantity} units · Sell first (FEFO)
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }

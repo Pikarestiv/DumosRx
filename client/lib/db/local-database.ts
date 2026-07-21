@@ -153,10 +153,29 @@ export async function createPrescription(data: any, items: any[]) {
   const prescriptionId = await insert("prescriptions", data);
 
   for (const item of items) {
-    await insert("prescription_items", {
-      ...item,
-      prescription_id: prescriptionId,
-    });
+    try {
+      await insert("prescription_items", {
+        ...item,
+        prescription_id: prescriptionId,
+      });
+    } catch (err: any) {
+      if (err.message && err.message.includes("no column named product_name")) {
+        const { product_name, ...rest } = item;
+        await insert("prescription_items", {
+          ...rest,
+          medicine_name: item.product_name,
+          prescription_id: prescriptionId,
+        });
+      } else if (err.message && err.message.includes("medicine_name")) {
+        await insert("prescription_items", {
+          ...item,
+          medicine_name: item.product_name,
+          prescription_id: prescriptionId,
+        });
+      } else {
+        throw err;
+      }
+    }
   }
 
   return prescriptionId;

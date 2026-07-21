@@ -8,6 +8,7 @@ import { NewPrescription } from "./new-prescription";
 import { Button } from "@/components/ui/button";
 import { Plus, X } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export function PrescriptionManagement() {
   const router = useRouter();
@@ -75,29 +76,17 @@ export function PrescriptionManagement() {
 
       <PrescriptionStats stats={stats} />
 
-      {/* FILTER CHIPS */}
-      <div className="flex items-center gap-2 mb-4">
-        <div className="flex gap-1.5 bg-[#FFFFFF] border border-[#E6EAF2] rounded-[11px] p-1 overflow-x-auto hide-scrollbar">
-          {[
-            { id: "all", label: "All" },
-            { id: "pending", label: "Needs verification" },
-            { id: "refill_due", label: "Refills due" },
-            { id: "ready", label: "Ready for pickup" },
-            { id: "completed", label: "History" },
-          ].map((filter) => (
-            <div
-              key={filter.id}
-              onClick={() => setStatusFilter(filter.id)}
-              className={`px-4 py-2 rounded-lg text-[13px] font-semibold cursor-pointer whitespace-nowrap transition-colors ${
-                statusFilter === filter.id
-                  ? "bg-[#2054E0] text-white"
-                  : "text-[#98A2B3] hover:text-[#667085]"
-              }`}
-            >
-              {filter.label}
-            </div>
-          ))}
-        </div>
+      {/* FILTER CHIPS (using global Tabs) */}
+      <div className="mb-4">
+        <Tabs value={statusFilter} onValueChange={setStatusFilter}>
+          <TabsList>
+            <TabsTrigger value="all">All</TabsTrigger>
+            <TabsTrigger value="pending">Needs verification</TabsTrigger>
+            <TabsTrigger value="refill_due">Refills due</TabsTrigger>
+            <TabsTrigger value="ready">Ready for pickup</TabsTrigger>
+            <TabsTrigger value="completed">History</TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
       {/* Grid Layout */}

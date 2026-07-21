@@ -222,9 +222,11 @@ export function PrescriptionMedications({
                       Quantity: {medication.quantity} • Dosage:{" "}
                       {medication.dosage}
                     </p>
-                    <p className="text-sm text-muted-foreground">
-                      Instructions: {medication.instructions}
-                    </p>
+                    {medication.instructions && (
+                      <div className="text-sm text-muted-foreground truncate">
+                        Instructions: {medication.instructions}
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="font-medium">

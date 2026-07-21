@@ -141,19 +141,37 @@ export function usePrescriptionQueue() {
   };
 
   const stats = useMemo(() => {
-    const today = new Date().toISOString().split("T")[0];
+    const today = new Date();
+    const todayStr = today.toISOString().split("T")[0];
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split("T")[0];
     
+    let filledToday = 0;
+    let filledYesterday = 0;
+
+    const pending = prescriptions.filter((p) => p.status === "pending").length;
+    const inProgress = prescriptions.filter((p) => p.status === "in_progress").length;
+    const ready = prescriptions.filter((p) => p.status === "ready").length;
+    const urgent = prescriptions.filter((p) => p.priority === "urgent" || p.priority === "stat").length;
+
+    prescriptions.forEach((p) => {
+      const isFilled = p.status === "dispensed" || p.status === "completed";
+      if (!isFilled) return;
+      const dateStr = p.dateDispensed || p.dateIssued;
+      if (!dateStr) return;
+      
+      if (dateStr.startsWith(todayStr)) filledToday++;
+      else if (dateStr.startsWith(yesterdayStr)) filledYesterday++;
+    });
+
     return {
-      pending: prescriptions.filter((p) => p.status === "pending").length,
-      inProgress: prescriptions.filter((p) => p.status === "in_progress").length,
-      ready: prescriptions.filter((p) => p.status === "ready").length,
-      urgent: prescriptions.filter((p) => p.priority === "urgent" || p.priority === "stat").length,
-      filledToday: prescriptions.filter((p) => {
-        const isFilled = p.status === "dispensed" || p.status === "completed";
-        const dateStr = p.dateDispensed || p.dateIssued;
-        const isToday = dateStr ? dateStr.startsWith(today) : false;
-        return isFilled && isToday;
-      }).length,
+      pending,
+      inProgress,
+      ready,
+      urgent,
+      filledToday,
+      filledYesterday,
     };
   }, [prescriptions]);
 

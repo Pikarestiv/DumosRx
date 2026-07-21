@@ -9,6 +9,7 @@ interface PrescriptionStatsProps {
     ready: number;
     urgent: number;
     filledToday?: number;
+    filledYesterday?: number;
   };
 }
 
@@ -70,8 +71,23 @@ export function PrescriptionStats({ stats }: PrescriptionStatsProps) {
           </div>
         </div>
         <div className="text-2xl font-semibold font-serif tracking-tight mb-1.5">{stats.filledToday || 0}</div>
-        <div className="text-xs font-semibold text-emerald-600">
-          {stats.filledToday && stats.filledToday > 0 ? "↑ On track" : "No fills yet"}
+        <div className="text-xs font-semibold">
+          {(() => {
+            const today = stats.filledToday || 0;
+            const yesterday = stats.filledYesterday || 0;
+            if (yesterday === 0) {
+              return today > 0 ? (
+                <span className="text-emerald-600">↑ 100% vs yesterday</span>
+              ) : (
+                <span className="text-muted-foreground">No fills yet</span>
+              );
+            }
+            const diff = today - yesterday;
+            const percent = Math.round((diff / yesterday) * 100);
+            if (percent > 0) return <span className="text-emerald-600">↑ {percent}% vs yesterday</span>;
+            if (percent < 0) return <span className="text-red-600">↓ {Math.abs(percent)}% vs yesterday</span>;
+            return <span className="text-muted-foreground">Same as yesterday</span>;
+          })()}
         </div>
       </div>
     </div>

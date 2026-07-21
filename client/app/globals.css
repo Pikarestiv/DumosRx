@@ -4,9 +4,9 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: oklch(1 0 0); /* #ffffff - clean white background */
+  --background: oklch(0.97 0 0); /* #f1f5f9 - light gray background */
   --foreground: oklch(0.205 0 0); /* #1f2937 - professional dark gray text */
-  --card: oklch(0.97 0 0); /* #f1f5f9 - light gray card background */
+  --card: oklch(1 0 0); /* #ffffff - clean white card background */
   --card-foreground: oklch(0.205 0 0); /* #1f2937 - card text */
   --popover: oklch(1 0 0); /* #ffffff - popover background */
   --popover-foreground: oklch(0.205 0 0); /* #1f2937 - popover text */
@@ -21,7 +21,7 @@
   --destructive: oklch(0.577 0.245 27.325); /* #ea580c - error/alert color */
   --destructive-foreground: oklch(1 0 0); /* #ffffff - error text */
   --border: oklch(0.922 0 0); /* #e5e7eb - borders */
-  --input: oklch(0.97 0 0); /* #f1f5f9 - input backgrounds */
+  --input: oklch(1 0 0); /* #ffffff - input backgrounds */
   --ring: oklch(0.646 0.222 264.376 / 0.5); /* accent purple focus ring */
   --chart-1: oklch(0.646 0.222 264.376); /* #8b5cf6 - chart color 1 */
   --chart-2: oklch(0.577 0.245 27.325); /* #ea580c - chart color 2 */
@@ -29,7 +29,7 @@
   --chart-4: oklch(0.205 0 0); /* #1f2937 - chart color 4 */
   --chart-5: oklch(1 0 0); /* #ffffff - chart color 5 */
   --radius: 0.5rem; /* 8px corner rounding */
-  --sidebar: oklch(0.97 0 0); /* #f1f5f9 - sidebar background */
+  --sidebar: oklch(1 0 0); /* #ffffff - sidebar background */
   --sidebar-foreground: oklch(0.205 0 0); /* #1f2937 - sidebar text */
   --sidebar-primary: var(--primary);
   --sidebar-primary-foreground: oklch(1 0 0);

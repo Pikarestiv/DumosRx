@@ -40,6 +40,7 @@ To maintain the DumosRx "Premium" feel:
 - **Accents:** Primary color is deep emerald or navy, with gold/muted-yellow accents for alerts/ratings.
 - **Glassmorphism:** Use backdrop-blur (`bg-background/95 backdrop-blur-sm border shadow-sm`) for dialogs, tooltips, and secondary cards.
 - **Tooltips:** Use Radix UI tooltips with a subtle 1000ms delay to prevent flickering.
+- **Localization (Dates):** Always maintain Nigeria's date structure (`DD/MM/YYYY`) for UI elements instead of the US format (`MM/DD/YYYY`). Use custom DatePicker components (like `DatePickerInput`) rather than native `<input type="date">` to enforce this visual format across all browsers.
 
 ## 6. 🔒 Security & Optimization Standards
 

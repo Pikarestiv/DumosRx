@@ -1,67 +1,152 @@
 "use client"
-import { useEffect } from "react";
-
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { PrescriptionQueue } from "./prescription-queue"
-import { PrescriptionHistory } from "./prescription-history"
-import { NewPrescription } from "./new-prescription"
-import { RefillManagement } from "./refill-management"
-import { useRouter, useSearchParams, usePathname } from "next/navigation"
-
-import { Button } from "@/components/ui/button"
-import { Plus } from "lucide-react"
+import { useState } from "react";
+import { usePrescriptionQueue, Prescription } from "@/lib/hooks/use-prescription-queue";
+import { PrescriptionStats } from "./prescription-stats";
+import { PrescriptionList } from "./prescription-list";
+import { PrescriptionDetailPanel } from "./prescription-detail-panel";
+import { NewPrescription } from "./new-prescription";
+import { Button } from "@/components/ui/button";
+import { Plus, X } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export function PrescriptionManagement() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const pathname = usePathname();
-  
-  const activeTab = searchParams.get("tab") || "queue";
+  const [showNewPrescription, setShowNewPrescription] = useState(false);
 
-  const handleTabChange = (value: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("tab", value);
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  const {
+    loading,
+    searchTerm,
+    setSearchTerm,
+    statusFilter,
+    setStatusFilter,
+    filteredPrescriptions,
+    selectedPrescription,
+    setSelectedPrescription,
+    updatePrescriptionStatus,
+    stats,
+    isFuzzyFallback,
+  } = usePrescriptionQueue();
+
+  const getPriorityBadge = (priority: Prescription["priority"]) => {
+    const colors = {
+      normal: "text-muted-foreground",
+      urgent: "text-orange-600 font-bold",
+      stat: "text-red-600 font-bold",
+    };
+    const labels = {
+      normal: "Normal",
+      urgent: "Urgent",
+      stat: "STAT",
+    };
+    return <span className={`text-xs ${colors[priority]}`}>{labels[priority]}</span>;
   };
 
-  useEffect(() => {
-    if (searchParams.get("action") === "add") {
-      const params = new URLSearchParams(searchParams.toString());
-      params.delete("action");
-      params.set("tab", "new");
-      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-    }
-  }, [searchParams, router, pathname]);
+  const formatDateTime = (dateString: string) => {
+    return new Date(dateString).toLocaleString("en-NG", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const handleEdit = (prescription: Prescription) => {
+    // Navigate to edit form, could just show new prescription with ID
+    router.push(`/prescriptions?action=add&edit_rx=${prescription.id}`);
+  };
+
+  const handleDispense = (prescription: Prescription) => {
+    updatePrescriptionStatus(prescription.id, "dispensed");
+  };
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold font-serif tracking-tight">Prescriptions</h1>
+          <p className="text-sm text-muted-foreground">Manage and track Rx orders</p>
+        </div>
+        <Button onClick={() => setShowNewPrescription(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          New Prescription
+        </Button>
       </div>
 
-      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-        <TabsList className="w-full md:w-max">
-          <TabsTrigger value="queue">Prescription Queue</TabsTrigger>
-          <TabsTrigger value="new">New Prescription</TabsTrigger>
-          <TabsTrigger value="refills">Refills</TabsTrigger>
-          <TabsTrigger value="history">History</TabsTrigger>
-        </TabsList>
+      <PrescriptionStats stats={stats} />
 
-        <TabsContent value="queue">
-          <PrescriptionQueue />
-        </TabsContent>
+      {/* FILTER CHIPS */}
+      <div className="flex items-center gap-2 mb-4">
+        <div className="flex gap-1.5 bg-[#FFFFFF] border border-[#E6EAF2] rounded-[11px] p-1 overflow-x-auto hide-scrollbar">
+          {[
+            { id: "all", label: "All" },
+            { id: "pending", label: "Needs verification" },
+            { id: "refill_due", label: "Refills due" },
+            { id: "ready", label: "Ready for pickup" },
+            { id: "completed", label: "History" },
+          ].map((filter) => (
+            <div
+              key={filter.id}
+              onClick={() => setStatusFilter(filter.id)}
+              className={`px-4 py-2 rounded-lg text-[13px] font-semibold cursor-pointer whitespace-nowrap transition-colors ${
+                statusFilter === filter.id
+                  ? "bg-[#2054E0] text-white"
+                  : "text-[#98A2B3] hover:text-[#667085]"
+              }`}
+            >
+              {filter.label}
+            </div>
+          ))}
+        </div>
+      </div>
 
-        <TabsContent value="new">
-          <NewPrescription />
-        </TabsContent>
+      {/* Grid Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6 items-start">
+        {/* Left List */}
+        <PrescriptionList
+          prescriptions={filteredPrescriptions}
+          selectedPrescription={selectedPrescription}
+          onSelect={setSelectedPrescription}
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          statusFilter={statusFilter}
+          setStatusFilter={setStatusFilter}
+          isFuzzyFallback={isFuzzyFallback}
+        />
 
-        <TabsContent value="refills">
-          <RefillManagement />
-        </TabsContent>
+        {/* Right Detail Panel */}
+        <div className={`
+          ${selectedPrescription ? "block" : "hidden"} 
+          lg:block lg:sticky lg:top-4
+        `}>
+          <PrescriptionDetailPanel
+            prescription={selectedPrescription}
+            getPriorityBadge={getPriorityBadge}
+            formatDateTime={formatDateTime}
+            onClose={() => setSelectedPrescription(null)}
+            onEdit={handleEdit}
+            onDispense={handleDispense}
+            updateStatus={updatePrescriptionStatus}
+          />
+        </div>
+      </div>
 
-        <TabsContent value="history">
-          <PrescriptionHistory />
-        </TabsContent>
-      </Tabs>
+      {/* Full Screen Overlay for New Prescription */}
+      {showNewPrescription && (
+        <div className="fixed inset-0 z-50 bg-background flex flex-col">
+          <div className="flex items-center justify-between p-4 border-b border-border bg-card">
+            <h2 className="text-xl font-semibold font-serif">New Prescription</h2>
+            <Button variant="ghost" size="icon" onClick={() => setShowNewPrescription(false)}>
+              <X className="w-5 h-5" />
+            </Button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-4">
+            <div className="max-w-4xl mx-auto">
+              <NewPrescription />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
-  )
+  );
 }

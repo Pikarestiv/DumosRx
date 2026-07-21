@@ -28,8 +28,12 @@ export function PrescriptionDetailPanel({
 }: PrescriptionDetailPanelProps) {
   if (!prescription) {
     return (
-      <div className="hidden md:flex h-full items-center justify-center bg-card rounded-xl border border-border text-muted-foreground">
-        Select a prescription to view details
+      <div className="hidden md:flex flex-col h-full items-center justify-center bg-card rounded-2xl border border-border text-muted-foreground p-6">
+        <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+          <FileText className="w-8 h-8 text-muted-foreground/60" />
+        </div>
+        <h3 className="text-lg font-semibold text-foreground mb-1">No Prescription Selected</h3>
+        <p className="text-sm text-center max-w-[250px]">Select a prescription from the list to view its details, update status, or dispense medications.</p>
       </div>
     );
   }

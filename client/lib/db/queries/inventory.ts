@@ -269,3 +269,50 @@ export async function getFastMovers(days: number = 7) {
 
   return { items };
 }
+
+export async function getStockMoM() {
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const dateFilter30 = thirtyDaysAgo.toISOString();
+
+  // Value added in last 30 days
+  const added30 = await query<any>(`
+    SELECT SUM(ABS(quantity) * IFNULL(unit_cost, 0)) as total_added
+    FROM stock_movements
+    WHERE created_at >= ? AND movement_type IN ('addition', 'IN', 'purchase', 'return') AND (_deleted = 0 OR _deleted IS NULL)
+  `, [dateFilter30]);
+
+  // Value removed in last 30 days
+  const removed30 = await query<any>(`
+    SELECT SUM(ABS(quantity) * IFNULL(unit_cost, 0)) as total_removed
+    FROM stock_movements
+    WHERE created_at >= ? AND movement_type IN ('deduction', 'OUT', 'sale', 'damaged', 'adjustment') AND (_deleted = 0 OR _deleted IS NULL) AND quantity < 0
+  `, [dateFilter30]);
+  
+  // Adjusted additions from positive adjustments
+  const positiveAdjustments = await query<any>(`
+    SELECT SUM(ABS(quantity) * IFNULL(unit_cost, 0)) as total_added
+    FROM stock_movements
+    WHERE created_at >= ? AND movement_type = 'adjustment' AND (_deleted = 0 OR _deleted IS NULL) AND quantity > 0
+  `, [dateFilter30]);
+
+  const currentStock = await query<any>(`
+    SELECT SUM(cost_price * quantity) as total_value
+    FROM stock_batches
+    WHERE is_active = 1 AND (_deleted = 0 OR _deleted IS NULL)
+  `);
+
+  const currentVal = currentStock[0]?.total_value || 0;
+  const addedVal = (added30[0]?.total_added || 0) + (positiveAdjustments[0]?.total_added || 0);
+  const removedVal = removed30[0]?.total_removed || 0;
+  const netChange30 = addedVal - removedVal;
+
+  const previousVal = currentVal - netChange30;
+  const percentChange = previousVal > 0 ? (netChange30 / previousVal) * 100 : 0;
+
+  return {
+    currentValue: currentVal,
+    previousValue: previousVal,
+    percentChange: percentChange,
+  };
+}

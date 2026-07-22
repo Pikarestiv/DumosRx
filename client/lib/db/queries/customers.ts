@@ -31,3 +31,41 @@ export async function getAllCustomers() {
     outstanding_balance: c.outstanding_balance || 0,
   }));
 }
+
+export async function getCustomerRetentionMetrics() {
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const dateFilter = thirtyDaysAgo.toISOString();
+
+  const data = await query<any>(`
+    SELECT 
+      COUNT(DISTINCT customer_id) as total_customers_purchased,
+      COUNT(DISTINCT CASE WHEN cnt > 1 THEN customer_id END) as returning_customers,
+      SUM(cnt) as total_visits,
+      SUM(total_spent) as total_revenue
+    FROM (
+      SELECT customer_id, COUNT(*) as cnt, SUM(total_amount) as total_spent
+      FROM sales 
+      WHERE transaction_date >= ? AND (_deleted = 0 OR _deleted IS NULL) AND customer_id IS NOT NULL 
+      GROUP BY customer_id
+    )
+  `, [dateFilter]);
+
+  if (!data || data.length === 0) return { retentionRate: 0, avgVisits: 0, avgTransactionValue: 0 };
+
+  const row = data[0];
+  const total = row.total_customers_purchased || 0;
+  const returning = row.returning_customers || 0;
+  const totalVisits = row.total_visits || 0;
+  const totalRevenue = row.total_revenue || 0;
+
+  const retentionRate = total > 0 ? (returning / total) * 100 : 0;
+  const avgVisits = total > 0 ? (totalVisits / total) : 0;
+  const avgTransactionValue = totalVisits > 0 ? (totalRevenue / totalVisits) : 0;
+
+  return {
+    retentionRate,
+    avgVisits,
+    avgTransactionValue,
+  };
+}

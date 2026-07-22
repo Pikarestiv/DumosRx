@@ -7,8 +7,60 @@ import {
   CardHeader, 
   CardTitle 
 } from "@/components/ui/card";
+import { useCustomerRetention } from "@/lib/hooks/use-analytics";
+import { formatCurrency } from "@/lib/utils";
+import { Loader2 } from "lucide-react";
 
 export function CustomerAnalyticsTab() {
+  const { data, isLoading } = useCustomerRetention();
+
+  const renderRetentionContent = () => {
+    if (isLoading) {
+      return (
+        <div className="flex h-32 items-center justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      );
+    }
+
+    if (!data) {
+      return (
+        <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">
+          No data available
+        </div>
+      );
+    }
+
+    return (
+      <div className="grid grid-cols-2 gap-4">
+        <div className="text-center">
+          <div className="text-3xl font-bold text-green-600">
+            {data.retentionRate.toFixed(1)}%
+          </div>
+          <p className="text-sm text-gray-500">
+            Overall Retention Rate
+          </p>
+        </div>
+        <div className="text-center">
+          <div className="text-3xl font-bold text-blue-600">
+            {data.avgVisits.toFixed(1)}
+          </div>
+          <p className="text-sm text-gray-500">
+            Avg. Monthly Visits
+          </p>
+        </div>
+        <div className="col-span-2 text-center mt-4">
+          <div className="text-2xl font-bold text-purple-600">
+            {formatCurrency(data.avgTransactionValue)}
+          </div>
+          <p className="text-sm text-gray-500">
+            Avg. Transaction Value
+          </p>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       <Card>
@@ -59,37 +111,16 @@ export function CustomerAnalyticsTab() {
           </div>
         </CardContent>
       </Card>
-
+      
       <Card>
         <CardHeader>
           <CardTitle>Customer Retention</CardTitle>
           <CardDescription>
-            Monthly retention and churn analysis
+            Retention and value metrics over the last 30 days
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            <div className="text-center">
-              <div className="text-3xl font-bold text-green-600">
-                78.5%
-              </div>
-              <p className="text-sm text-gray-500">
-                Overall Retention Rate
-              </p>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-blue-600">2.3x</div>
-              <p className="text-sm text-gray-500">Avg. Monthly Visits</p>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-purple-600">
-                ₦15,420
-              </div>
-              <p className="text-sm text-gray-500">
-                Avg. Transaction Value
-              </p>
-            </div>
-          </div>
+          {renderRetentionContent()}
         </CardContent>
       </Card>
     </div>

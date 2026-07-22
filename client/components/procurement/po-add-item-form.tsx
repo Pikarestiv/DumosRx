@@ -90,31 +90,33 @@ export function POAddItemForm({ products, onAddItem, onOpenAddProduct }: POAddIt
   };
 
   return (
-    <div className="space-y-4">
-      <div className="space-y-2">
-        <Label className="text-[10px] uppercase font-bold text-muted-foreground">
+    <div className="space-y-3">
+      <div className="space-y-1.5">
+        <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
           {t("product")}
         </Label>
         <ProductCombobox
           value={currentProductName}
           onChange={handleProductChange}
-          placeholder="Search product..."
+          placeholder="e.g. Amoxicillin 500mg"
+          className="bg-muted border-border h-10 px-3 text-[13px] rounded-[10px]"
         />
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-        <div className="md:col-span-3 space-y-2">
-          <Label className="text-[10px] uppercase font-bold text-muted-foreground">
+      <div className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 items-end">
+        <div className="space-y-1">
+          <Label className="text-[10.5px] font-semibold text-muted-foreground uppercase tracking-wide">
             Qty (Bulk)
           </Label>
           <Input
             type="number"
-            className="bg-card border-accent/10 h-10"
+            className="bg-card border-border h-10 px-3 text-[13px] rounded-[10px]"
             value={currentBulkQty}
+            min={1}
             onChange={(e) => setCurrentBulkQty(Number(e.target.value))}
           />
         </div>
-        <div className="md:col-span-3 space-y-2">
-          <Label className="text-[10px] uppercase font-bold text-muted-foreground flex items-center gap-1">
+        <div className="space-y-1">
+          <Label className="text-[10.5px] font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1">
             Conversion
             <TooltipProvider delayDuration={0}>
               <Tooltip>
@@ -129,32 +131,32 @@ export function POAddItemForm({ products, onAddItem, onOpenAddProduct }: POAddIt
           </Label>
           <Input
             type="number"
-            className="bg-card border-accent/10 h-10"
+            className="bg-card border-border h-10 px-3 text-[13px] rounded-[10px]"
             value={currentUoM}
+            min={1}
             onChange={(e) => setCurrentUoM(Number(e.target.value))}
             placeholder="E.g. 20"
           />
         </div>
-        <div className="md:col-span-4 space-y-2">
-          <Label className="text-[10px] uppercase font-bold text-primary">
-            Bulk Cost (
-            {products.find((m) => m.id === currentProductId)?.bulk_unit || "Unit"}
-            )
+        <div className="space-y-1">
+          <Label className="text-[10.5px] font-semibold text-primary uppercase tracking-wide">
+            Bulk Cost ({products.find((m) => m.id === currentProductId)?.bulk_unit || "Unit"})
           </Label>
           <Input
             type="number"
-            className="bg-card border-accent/10 h-10"
+            className="bg-card border-border h-10 px-3 text-[13px] rounded-[10px]"
             value={currentCost}
+            min={0}
             onChange={(e) => setCurrentCost(Number(e.target.value))}
           />
         </div>
-        <div className="md:col-span-2">
+        <div>
           <Button
             type="button"
             onClick={handleAddLineItem}
-            className="w-full h-10 px-0"
+            className="h-10 px-4 text-[13px] font-semibold rounded-[10px] shrink-0"
           >
-            <Plus className="w-5 h-5" /> Add
+            <Plus className="w-3.5 h-3.5 mr-1.5" /> Add
           </Button>
         </div>
       </div>

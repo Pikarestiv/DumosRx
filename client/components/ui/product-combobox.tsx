@@ -28,6 +28,7 @@ interface ProductComboboxProps {
   onChange: (product: SelectedProduct) => void;
   placeholder?: string;
   disabled?: boolean;
+  className?: string;
 }
 
 export function ProductCombobox({
@@ -35,6 +36,7 @@ export function ProductCombobox({
   onChange,
   placeholder = "Search products...",
   disabled = false,
+  className,
 }: ProductComboboxProps) {
   const [open, setOpen] = React.useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -137,7 +139,7 @@ export function ProductCombobox({
         placeholder={placeholder}
         disabled={disabled}
         autoComplete="off"
-        className="w-full"
+        className={cn("w-full", className)}
       />
       
       {open && filteredOptions.length > 0 && (

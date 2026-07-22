@@ -38,7 +38,7 @@ export function POLineItemsList({ items, onRemoveItem, storeType }: POLineItemsL
                   {item.product_name}
                 </p>
                 <div className="flex items-center gap-1.5 mt-1">
-                  <Badge variant="secondary" className="text-[9px] h-4 px-1.5 bg-muted">
+                  <Badge variant="secondary" className="text-[9px] h-4 px-1.5 bg-muted-foreground/15 text-foreground">
                     {item.bulk_quantity} {item.bulk_unit}(s)
                   </Badge>
                   <span className="text-[10px] text-muted-foreground">

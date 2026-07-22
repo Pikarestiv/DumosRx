@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,9 +35,26 @@ export function POAddItemForm({ products, onAddItem, onOpenAddProduct }: POAddIt
 
   const [currentProductId, setCurrentProductId] = useState("");
   const [currentProductName, setCurrentProductName] = useState("");
-  const [currentBulkQty, setCurrentBulkQty] = useState(1);
-  const [currentUoM, setCurrentUoM] = useState(1);
-  const [currentCost, setCurrentCost] = useState(0);
+  const [currentBulkQty, setCurrentBulkQty] = useState<number | "">("");
+  const [currentUoM, setCurrentUoM] = useState<number | "">("");
+  const [currentCost, setCurrentCost] = useState<number | "">("");
+
+  // Automatically select the product if it's created externally and added to the products list
+  useEffect(() => {
+    if (!currentProductId && currentProductName && products.length > 0) {
+      const newlyAddedProduct = products.find(
+        (p) => p.name.toLowerCase() === currentProductName.toLowerCase()
+      );
+      if (newlyAddedProduct) {
+        setCurrentProductId(newlyAddedProduct.id);
+        setCurrentProductName(newlyAddedProduct.name);
+        setCurrentUoM(newlyAddedProduct.units_per_bulk || 1);
+        setCurrentCost(
+          (newlyAddedProduct.cost_price || 0) * (newlyAddedProduct.units_per_bulk || 1)
+        );
+      }
+    }
+  }, [products, currentProductId, currentProductName]);
 
   const handleProductChange = (option: any) => {
     setCurrentProductName(option.name);
@@ -50,8 +67,8 @@ export function POAddItemForm({ products, onAddItem, onOpenAddProduct }: POAddIt
       }
     } else {
       setCurrentProductId("");
-      setCurrentUoM(1);
-      setCurrentCost(0);
+      setCurrentUoM("");
+      setCurrentCost("");
     }
   };
 
@@ -69,14 +86,18 @@ export function POAddItemForm({ products, onAddItem, onOpenAddProduct }: POAddIt
     const product = products.find((m) => m.id === currentProductId);
     if (!product) return;
 
+    const qty = Number(currentBulkQty) || 1;
+    const uom = Number(currentUoM) || 1;
+    const cost = Number(currentCost) || 0;
+
     const newItem = {
       product_id: currentProductId,
       product_name: product.name,
       bulk_unit: product.bulk_unit || "Carton",
-      bulk_quantity: currentBulkQty,
-      units_per_bulk: currentUoM,
-      unit_cost: currentCost,
-      subtotal: currentBulkQty * currentCost,
+      bulk_quantity: qty,
+      units_per_bulk: uom,
+      unit_cost: cost,
+      subtotal: qty * cost,
     };
 
     onAddItem(newItem);
@@ -84,9 +105,9 @@ export function POAddItemForm({ products, onAddItem, onOpenAddProduct }: POAddIt
     // Reset item state
     setCurrentProductId("");
     setCurrentProductName("");
-    setCurrentBulkQty(1);
-    setCurrentUoM(1);
-    setCurrentCost(0);
+    setCurrentBulkQty("");
+    setCurrentUoM("");
+    setCurrentCost("");
   };
 
   return (
@@ -112,7 +133,8 @@ export function POAddItemForm({ products, onAddItem, onOpenAddProduct }: POAddIt
             className="bg-card border-border h-10 px-3 text-[13px] rounded-[10px]"
             value={currentBulkQty}
             min={1}
-            onChange={(e) => setCurrentBulkQty(Number(e.target.value))}
+            onChange={(e) => setCurrentBulkQty(e.target.value === "" ? "" : Number(e.target.value))}
+            placeholder="Qty"
           />
         </div>
         <div className="space-y-1">
@@ -134,7 +156,7 @@ export function POAddItemForm({ products, onAddItem, onOpenAddProduct }: POAddIt
             className="bg-card border-border h-10 px-3 text-[13px] rounded-[10px]"
             value={currentUoM}
             min={1}
-            onChange={(e) => setCurrentUoM(Number(e.target.value))}
+            onChange={(e) => setCurrentUoM(e.target.value === "" ? "" : Number(e.target.value))}
             placeholder="E.g. 20"
           />
         </div>
@@ -147,7 +169,8 @@ export function POAddItemForm({ products, onAddItem, onOpenAddProduct }: POAddIt
             className="bg-card border-border h-10 px-3 text-[13px] rounded-[10px]"
             value={currentCost}
             min={0}
-            onChange={(e) => setCurrentCost(Number(e.target.value))}
+            onChange={(e) => setCurrentCost(e.target.value === "" ? "" : Number(e.target.value))}
+            placeholder="0.00"
           />
         </div>
         <div>

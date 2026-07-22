@@ -209,7 +209,7 @@ export function AddProductDialog({
       base_unit: formData.baseUnit,
       bulk_unit: formData.bulkUnit,
       units_per_bulk: formData.unitsPerBulk,
-      status: status,
+      is_active: status === "active" ? 1 : 0,
       show_online: formData.showOnline ? 1 : 0,
     };
 

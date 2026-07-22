@@ -76,7 +76,7 @@ export function PrescriptionManagement() {
       {/* FILTER CHIPS (using global Tabs) */}
       <div className="mb-4">
         <Tabs value={statusFilter} onValueChange={setStatusFilter}>
-          <TabsList className="w-full justify-start overflow-x-auto overflow-y-hidden hide-scrollbar">
+          <TabsList className="w-full md:w-max justify-start overflow-x-auto overflow-y-hidden hide-scrollbar">
             <TabsTrigger value="all">All</TabsTrigger>
             <TabsTrigger value="pending">Needs verification</TabsTrigger>
             <TabsTrigger value="refill_due">Refills due</TabsTrigger>

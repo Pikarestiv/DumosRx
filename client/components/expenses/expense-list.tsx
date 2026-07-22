@@ -7,6 +7,7 @@ import { Search, ReceiptText } from "lucide-react";
 import { useStore } from "@/lib/context/store-context";
 import { useExpenseList } from "@/lib/hooks/use-finance-data";
 import { ExpenseDetailDialog } from "./expense-detail-dialog";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const CATEGORIES = [
   "All",
@@ -124,39 +125,37 @@ export function ExpenseList() {
         </div>
       </div>
 
-      {/* FILTERS */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 mb-4">
-        <div className="flex-1 flex items-center gap-2 bg-card border border-border rounded-[10px] px-3.5 py-2.5">
-          <Search className="w-4 h-4 text-muted-foreground shrink-0" />
-          <input 
-            type="text" 
-            placeholder="Search by description" 
-            className="border-0 outline-none text-[13px] w-full bg-transparent text-foreground placeholder:text-muted-foreground"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        <div className="flex gap-1.5 bg-card border border-border rounded-[11px] p-1 overflow-x-auto hide-scrollbar w-full sm:w-auto">
-          {CATEGORIES.map(cat => (
-            <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              className={`px-3 py-1.5 rounded-lg text-[12px] font-semibold whitespace-nowrap transition-colors ${
-                selectedCategory === cat 
-                  ? "bg-primary text-primary-foreground" 
-                  : "bg-transparent text-muted-foreground hover:bg-muted"
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
+      {/* CATEGORIES (Tabs) ABOVE TABLE */}
+      <div className="mb-4">
+        <Tabs value={selectedCategory} onValueChange={setSelectedCategory}>
+          <TabsList className="w-full md:w-max justify-start overflow-x-auto overflow-y-hidden hide-scrollbar">
+            {CATEGORIES.map(cat => (
+              <TabsTrigger key={cat} value={cat}>
+                {cat}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
       </div>
 
       {/* TABLE */}
       <div className="bg-card border border-border rounded-2xl flex-1 flex flex-col overflow-hidden">
+        {/* Search */}
+        <div className="p-4 pb-3 border-b border-border">
+          <div className="flex items-center gap-2 bg-muted border border-border rounded-[10px] px-3.5 py-2.5 max-w-sm">
+            <Search className="w-4 h-4 text-muted-foreground shrink-0" />
+            <input 
+              type="text" 
+              placeholder="Search by description" 
+              className="border-0 outline-none text-[13px] w-full bg-transparent text-foreground placeholder:text-muted-foreground"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+        </div>
+
         {/* Desktop Header */}
-        <div className="hidden md:grid grid-cols-[110px_150px_1fr_130px_120px] gap-2 px-5 py-3 text-[11px] font-bold text-muted-foreground/80 uppercase tracking-wide border-b border-border">
+        <div className="hidden md:grid grid-cols-[110px_150px_1fr_130px_120px] gap-2 px-5 py-3 text-[11px] font-bold text-muted-foreground/80 uppercase tracking-wide border-b border-border bg-muted/20">
           <div>Date</div><div>Category</div><div>Description</div><div>Method</div><div className="text-right">Amount</div>
         </div>
         

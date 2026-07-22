@@ -1,21 +1,21 @@
 "use client";
 
-import { 
-  Search, 
-  Plus, 
-  Star, 
-  Mail, 
-  Phone 
-} from "lucide-react";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import { Search, Plus, Star, Mail, Phone } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -46,7 +46,7 @@ export function CustomerDirectory({
   onViewDetails,
   getTierColor,
   currencyCode,
-  isFuzzyFallback
+  isFuzzyFallback,
 }: CustomerDirectoryProps) {
   return (
     <div className="space-y-6">
@@ -60,13 +60,6 @@ export function CustomerDirectory({
             className="pl-10"
           />
         </div>
-        <Button
-          onClick={() => setIsAddCustomerOpen(true)}
-          className="cursor-pointer w-full sm:w-auto"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add Customer
-        </Button>
         <AddCustomerDialog
           open={isAddCustomerOpen}
           onOpenChange={setIsAddCustomerOpen}
@@ -113,9 +106,7 @@ export function CustomerDirectory({
                     <TableCell>
                       <div>
                         <p className="font-medium">{customer.name}</p>
-                        <p className="text-sm text-gray-500">
-                          {customer.id}
-                        </p>
+                        <p className="text-sm text-gray-500">{customer.id}</p>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -151,8 +142,17 @@ export function CustomerDirectory({
                       </div>
                     </TableCell>
                     <TableCell>
-                      <span className={customer.outstanding_balance > 0 ? "text-destructive font-bold" : ""}>
-                        {formatCurrency(customer.outstanding_balance, currencyCode)}
+                      <span
+                        className={
+                          customer.outstanding_balance > 0
+                            ? "text-destructive font-bold"
+                            : ""
+                        }
+                      >
+                        {formatCurrency(
+                          customer.outstanding_balance,
+                          currencyCode,
+                        )}
                       </span>
                     </TableCell>
                     <TableCell>

@@ -49,7 +49,8 @@ export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
       setOpen(true);
       const newParams = new URLSearchParams(searchParams.toString());
       newParams.delete("action");
-      const newUrl = pathname + (newParams.toString() ? `?${newParams.toString()}` : "");
+      const newUrl =
+        pathname + (newParams.toString() ? `?${newParams.toString()}` : "");
       router.replace(newUrl);
     }
   }, [searchParams, router, pathname]);
@@ -88,12 +89,12 @@ export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
     setIsSubmitting(true);
     try {
       await createPurchaseOrder(
-        selectedSupplierId, 
-        notes, 
+        selectedSupplierId,
+        notes,
         items,
         paymentStatus,
-        paymentStatus !== 'unpaid' ? (Number(amountPaid) || 0) : 0,
-        dueDate || null
+        paymentStatus !== "unpaid" ? Number(amountPaid) || 0 : 0,
+        dueDate || null,
       );
       toast.success("Purchase Order created successfully");
       setOpen(false);
@@ -115,22 +116,14 @@ export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
 
   return (
     <>
-      <Button 
-        onClick={() => setOpen(true)}
-        className="font-bold shadow-md h-10 px-6 bg-primary hover:bg-primary/95 text-primary-foreground"
-      >
-        <ShoppingCart className="h-4 w-4 mr-2" />
-        Create PO
-      </Button>
-      <ResponsiveModal 
-        open={open} 
-        onOpenChange={setOpen} 
-        title={<>Create Purchase Order</>} 
-        description={<>Draft a formal request for stock batch replenishment</>} 
-        className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col p-0 border-accent/20 bg-card/95 backdrop-blur-xl" 
+      <ResponsiveModal
+        open={open}
+        onOpenChange={setOpen}
+        title={<>Create Purchase Order</>}
+        description={<>Draft a formal request for stock batch replenishment</>}
+        className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col p-0 border-accent/20 bg-card/95 backdrop-blur-xl"
         headerClassName="p-6 border-b border-accent/10"
       >
-
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
@@ -174,10 +167,13 @@ export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
                 </SelectContent>
               </Select>
             </div>
-            
+
             {paymentStatus !== "unpaid" && (
               <div className="space-y-2">
-                <Label>Amount Paid ({paymentStatus === "paid" ? "Total" : "Initial Payment"})</Label>
+                <Label>
+                  Amount Paid (
+                  {paymentStatus === "paid" ? "Total" : "Initial Payment"})
+                </Label>
                 <Input
                   type="number"
                   placeholder="0.00"
@@ -188,7 +184,7 @@ export function CreatePODialog({ onPOCreated }: CreatePODialogProps) {
                 />
               </div>
             )}
-            
+
             <div className="space-y-2">
               <Label>Due Date (Optional)</Label>
               <Input

@@ -16,9 +16,10 @@ interface ExpenseDetailDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onDeleted: () => void;
+  onEdit: () => void;
 }
 
-export function ExpenseDetailDialog({ expense, open, onOpenChange, onDeleted }: ExpenseDetailDialogProps) {
+export function ExpenseDetailDialog({ expense, open, onOpenChange, onDeleted, onEdit }: ExpenseDetailDialogProps) {
   const { storeProfile } = useStore();
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
 
@@ -100,7 +101,8 @@ export function ExpenseDetailDialog({ expense, open, onOpenChange, onDeleted }: 
           <div className="px-6 pb-6 flex gap-2.5 mt-auto">
             <Button 
               variant="outline" 
-              className="flex-1 rounded-xl h-11 text-[13px] font-semibold border-border text-foreground hover:bg-muted"
+              className="flex-1 rounded-xl h-11 text-[13px] font-semibold border-border text-foreground hover:bg-muted hover:text-foreground"
+              onClick={onEdit}
             >
               <Edit2 className="w-4 h-4 mr-2" /> Edit
             </Button>

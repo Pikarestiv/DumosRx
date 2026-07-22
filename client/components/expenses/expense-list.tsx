@@ -7,6 +7,7 @@ import { Search, ReceiptText } from "lucide-react";
 import { useStore } from "@/lib/context/store-context";
 import { useExpenseList } from "@/lib/hooks/use-finance-data";
 import { ExpenseDetailDialog } from "./expense-detail-dialog";
+import { AddExpenseDialog } from "./add-expense-dialog";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Expense } from "@/lib/db/queries/finance";
 
@@ -37,6 +38,7 @@ export function ExpenseList() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [selectedExpenseId, setSelectedExpenseId] = useState<string | null>(null);
+  const [expenseToEdit, setExpenseToEdit] = useState<Expense | null>(null);
 
   const filteredExpenses = useMemo(() => {
     return expenses.filter(exp => {
@@ -235,6 +237,20 @@ export function ExpenseList() {
         onOpenChange={(open) => !open && setSelectedExpenseId(null)}
         onDeleted={() => {
           setSelectedExpenseId(null);
+          fetchExpenses();
+        }}
+        onEdit={() => {
+          setExpenseToEdit(selectedExpense || null);
+          setSelectedExpenseId(null);
+        }}
+      />
+      
+      <AddExpenseDialog 
+        open={!!expenseToEdit} 
+        onOpenChange={(open) => !open && setExpenseToEdit(null)}
+        expenseToEdit={expenseToEdit}
+        onSaved={() => {
+          setExpenseToEdit(null);
           fetchExpenses();
         }}
       />

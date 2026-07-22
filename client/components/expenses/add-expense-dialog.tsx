@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Button } from "@/components/ui/button";
-import { insert } from "@/lib/db/local-database";
+import { insert, update } from "@/lib/db/local-database";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/context/auth-context";
 import { Info } from "lucide-react";
@@ -12,6 +12,8 @@ import { DatePickerInput } from "@/components/ui/date-picker-input";
 interface AddExpenseDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  expenseToEdit?: any;
+  onSaved?: () => void;
 }
 
 const CATEGORIES = [
@@ -25,7 +27,7 @@ const CATEGORIES = [
 
 const PAYMENT_METHODS = ["Cash", "Bank Transfer", "Card"];
 
-export function AddExpenseDialog({ open, onOpenChange }: AddExpenseDialogProps) {
+export function AddExpenseDialog({ open, onOpenChange, expenseToEdit, onSaved }: AddExpenseDialogProps) {
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -37,6 +39,29 @@ export function AddExpenseDialog({ open, onOpenChange }: AddExpenseDialogProps) 
     notes: "",
   });
 
+  useEffect(() => {
+    if (expenseToEdit && open) {
+      setFormData({
+        category: expenseToEdit.category || "Rent",
+        amount: expenseToEdit.amount?.toString() || "",
+        description: expenseToEdit.description || "",
+        date: expenseToEdit.date ? new Date(expenseToEdit.date).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
+        payment_method: expenseToEdit.payment_method || "Cash",
+        notes: expenseToEdit.notes || "",
+      });
+    } else if (!open) {
+      // Reset form when closed
+      setFormData({
+        category: "Rent",
+        amount: "",
+        description: "",
+        date: new Date().toISOString().split("T")[0],
+        payment_method: "Cash",
+        notes: "",
+      });
+    }
+  }, [expenseToEdit, open]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.category || !formData.amount || !formData.date) {
@@ -46,24 +71,27 @@ export function AddExpenseDialog({ open, onOpenChange }: AddExpenseDialogProps) 
 
     setIsLoading(true);
     try {
-      await insert("expenses", {
+      const data = {
         ...formData,
         amount: parseFloat(formData.amount),
         user_id: user?.id,
-      });
-      toast.success("Expense added successfully");
+      };
+
+      if (expenseToEdit) {
+        await update("expenses", expenseToEdit.id, data);
+        toast.success("Expense updated successfully");
+      } else {
+        await insert("expenses", data);
+        toast.success("Expense added successfully");
+      }
+      
+      onSaved?.();
       onOpenChange(false);
-      setFormData({
-        category: "Rent",
-        amount: "",
-        description: "",
-        date: new Date().toISOString().split("T")[0],
-        payment_method: "Cash",
-        notes: "",
-      });
+      
+      // Form reset is handled by useEffect when modal closes
     } catch (error) {
-      console.error("Failed to add expense:", error);
-      toast.error("Failed to add expense");
+      console.error("Failed to save expense:", error);
+      toast.error("Failed to save expense");
     } finally {
       setIsLoading(false);
     }
@@ -73,7 +101,7 @@ export function AddExpenseDialog({ open, onOpenChange }: AddExpenseDialogProps) 
     <ResponsiveModal 
       open={open} 
       onOpenChange={onOpenChange} 
-      title={<span className="text-[17px] font-serif font-bold">Add Expense</span>}
+      title={<span className="text-[17px] font-serif font-bold">{expenseToEdit ? "Edit Expense" : "Add Expense"}</span>}
       className="p-0 sm:max-w-[520px] bg-card rounded-2xl overflow-hidden gap-0 border-border"
       headerClassName="px-6 py-5 border-b border-border m-0"
     >
@@ -160,7 +188,7 @@ export function AddExpenseDialog({ open, onOpenChange }: AddExpenseDialogProps) 
             className="w-full py-6 rounded-xl text-[14px] font-bold"
             disabled={isLoading}
           >
-            {isLoading ? "Saving..." : "Save Expense"}
+            {isLoading ? "Saving..." : expenseToEdit ? "Update Expense" : "Save Expense"}
           </Button>
         </div>
       </form>

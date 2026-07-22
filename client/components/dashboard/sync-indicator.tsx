@@ -140,10 +140,13 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
             ? "active"
             : "unlinked";
 
+  const iconClass = collapsed ? "h-[18px] w-[18px]" : "h-3 w-3";
+  const fillProp = collapsed ? { fill: "currentColor" } : {};
+
   const configMap = {
     syncing: {
       label: "Syncing...",
-      icon: <RefreshCw className="h-3 w-3 text-blue-500 animate-spin" />,
+      icon: <RefreshCw className={cn(iconClass, "text-blue-500 animate-spin")} />,
       border: "border-blue-500/50",
       desktopBg: "bg-blue-500/10 hover:bg-blue-500/20",
       mobileBg: "bg-blue-500/10",
@@ -151,7 +154,7 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
     },
     offline: {
       label: "Offline",
-      icon: <CloudOff className="h-3 w-3 text-muted-foreground" />,
+      icon: <CloudOff className={cn(iconClass, "text-muted-foreground")} {...fillProp} />,
       border: "border-muted-foreground/30",
       desktopBg: "bg-sidebar-accent/5 hover:bg-sidebar-accent/10",
       mobileBg: "bg-muted/50",
@@ -159,7 +162,7 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
     },
     error: {
       label: "Sync Error",
-      icon: <AlertCircle className="h-3 w-3 text-destructive" />,
+      icon: <AlertCircle className={cn(iconClass, "text-destructive")} {...fillProp} />,
       border: "border-destructive/50",
       desktopBg: "bg-destructive/10 hover:bg-destructive/20",
       mobileBg: "bg-destructive/10",
@@ -167,7 +170,7 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
     },
     pending: {
       label: "Pending Sync",
-      icon: <Cloud className="h-3 w-3 text-amber-500 animate-pulse" />,
+      icon: <Cloud className={cn(iconClass, "text-amber-500 animate-pulse")} {...fillProp} />,
       border: "border-amber-500/50",
       desktopBg: "bg-amber-500/10 hover:bg-amber-500/20",
       mobileBg: "bg-amber-500/10",
@@ -175,7 +178,7 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
     },
     active: {
       label: "Cloud Active",
-      icon: <Cloud className="h-3 w-3 text-emerald-500" />,
+      icon: <Cloud className={cn(iconClass, "text-emerald-500")} {...fillProp} />,
       border: "border-emerald-500/50",
       desktopBg: "bg-sidebar-accent/5 hover:bg-sidebar-accent/10",
       mobileBg: "bg-muted/50",
@@ -183,7 +186,7 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
     },
     unlinked: {
       label: "Not Linked",
-      icon: <Cloud className="h-3 w-3 text-emerald-500" />,
+      icon: <Cloud className={cn(iconClass, "text-emerald-500")} {...fillProp} />,
       border: "border-emerald-500/50",
       desktopBg: "bg-sidebar-accent/5 hover:bg-sidebar-accent/10",
       mobileBg: "bg-muted/50",

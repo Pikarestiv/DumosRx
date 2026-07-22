@@ -138,7 +138,7 @@ export function DashboardSidebar({
             {name === "Inventory" && actionableItemsCount > 0 && (
               <span className="bg-destructive text-destructive-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">
                 {actionableItemsCount > 99 && "99+"}
-                            {!(actionableItemsCount > 99) && actionableItemsCount}
+                {!(actionableItemsCount > 99) && actionableItemsCount}
               </span>
             )}
             {locked && (
@@ -168,15 +168,13 @@ export function DashboardSidebar({
               collapsed ? "font-medium text-xs" : "font-semibold text-xs ml-2"
             }
           >
-            {!!(collapsed) && (
-                                <>
-                                  {name} {!!(locked) && "🔒"}
-                          {!(locked) && ""}
-                                </>
-                              )}
-                  {!(collapsed) && (
-                                extraTooltip
-                              )}
+            {!!collapsed && (
+              <>
+                {name} {!!locked && "🔒"}
+                {!locked && ""}
+              </>
+            )}
+            {!collapsed && extraTooltip}
           </TooltipContent>
         </Tooltip>
       );
@@ -260,11 +258,11 @@ export function DashboardSidebar({
                       collapsed ? "justify-center px-2" : "",
                     )}
                   >
-                  <CollapseButtonContent 
-                    logicalCollapsed={logicalCollapsed} 
-                    collapsed={collapsed} 
-                  />
-                </button>
+                    <CollapseButtonContent
+                      logicalCollapsed={logicalCollapsed}
+                      collapsed={collapsed}
+                    />
+                  </button>
                 </TooltipTrigger>
                 {logicalCollapsed && (
                   <TooltipContent side="right" className="font-medium text-xs">
@@ -278,7 +276,7 @@ export function DashboardSidebar({
           {/* Footer Area */}
           <div className="bg-sidebar flex flex-col pt-2 pb-2 px-2 gap-0.5">
             <SyncIndicator collapsed={collapsed} />
-            <div className="px-1">
+            <div className="flex justify-center item-center w-full">
               <UserNav
                 showDetails={!collapsed}
                 onOpenFeedback={onOpenFeedback}
@@ -292,7 +290,13 @@ export function DashboardSidebar({
   );
 }
 
-function CollapseButtonContent({ logicalCollapsed, collapsed }: { logicalCollapsed: boolean, collapsed: boolean }) {
+function CollapseButtonContent({
+  logicalCollapsed,
+  collapsed,
+}: {
+  logicalCollapsed: boolean;
+  collapsed: boolean;
+}) {
   if (!logicalCollapsed) {
     return (
       <>

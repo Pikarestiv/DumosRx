@@ -68,32 +68,36 @@ export function PurchaseOrderTable({
   };
 
   return (
-    <Card className="border-accent/20 shadow-xl bg-card/50 backdrop-blur-sm">
-      <CardHeader className="border-b border-accent/10 pb-6">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <Card className="rounded-2xl border-border bg-card shadow-sm flex flex-col flex-1 overflow-hidden">
+      <div className="px-5 py-4 border-b border-border flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h3 className="text-[15px] font-semibold">Purchase Orders</h3>
+          <p className="text-[12.5px] text-muted-foreground">Manage stock replenishments</p>
+        </div>
+        <div className="flex flex-col md:flex-row items-center gap-3">
           <Tabs value={activeTab} className="w-full md:w-auto" onValueChange={onTabChange}>
-            <TabsList className="bg-muted/50">
-              <TabsTrigger value="all">All Orders</TabsTrigger>
-              <TabsTrigger value="draft">Drafts</TabsTrigger>
-              <TabsTrigger value="sent">Sent</TabsTrigger>
-              <TabsTrigger value="received">Received</TabsTrigger>
+            <TabsList className="h-9">
+              <TabsTrigger value="all" className="text-[13px]">All Orders</TabsTrigger>
+              <TabsTrigger value="draft" className="text-[13px]">Drafts</TabsTrigger>
+              <TabsTrigger value="sent" className="text-[13px]">Sent</TabsTrigger>
+              <TabsTrigger value="received" className="text-[13px]">Received</TabsTrigger>
             </TabsList>
           </Tabs>
-          <div className="relative w-full md:w-72">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <div className="relative w-full md:w-[280px]">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 pointer-events-none" />
             <Input 
               placeholder="Search vendor or PO#..." 
-              className="pl-10 bg-muted/30"
+              className="pl-9 h-9 text-[13px] rounded-[10px]"
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
             />
           </div>
         </div>
-      </CardHeader>
-      <CardContent className="p-0">
-        <div className="px-6 pt-4 pb-2">
+      </div>
+      <div className="flex-1 overflow-auto">
+        <div className="px-5 pt-4 pb-2">
           {isFuzzyFallback && orders.length > 0 && (
-            <div className="bg-amber-500/10 text-amber-600 px-4 py-2 text-sm border border-amber-500/20 text-center font-medium rounded-md mb-2">
+            <div className="bg-amber-500/10 text-amber-600 px-4 py-2 text-[13px] border border-amber-500/20 text-center font-medium rounded-md mb-2">
               Did you mean? (No exact matches found. Showing closest names.)
             </div>
           )}
@@ -184,7 +188,7 @@ export function PurchaseOrderTable({
             )}
           </TableBody>
         </Table>
-      </CardContent>
+      </div>
     </Card>
   );
 }

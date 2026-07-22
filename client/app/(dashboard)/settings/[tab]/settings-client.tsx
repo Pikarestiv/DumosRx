@@ -10,9 +10,11 @@ import {
   Palette,
   Globe,
   Users,
+  ChevronLeft
 } from "lucide-react";
 import { CloudLinkDialog } from "@/components/settings/cloud-link-dialog";
 import { StaffManagement } from "@/components/settings/staff-management";
+import Link from "next/link";
 
 import { AppearanceSettings } from "@/components/settings/appearance-settings";
 import { StoreSettings } from "@/components/settings/store-settings";
@@ -22,7 +24,7 @@ import { SecuritySettings } from "@/components/settings/security-settings";
 import { SystemSettings } from "@/components/settings/system-settings";
 import { useSettings } from "@/hooks/use-settings";
 
-export default function SettingsPage() {
+export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
   const {
     storeProfile,
     user,
@@ -105,9 +107,98 @@ export default function SettingsPage() {
 
   console.log("[DEBUG SETTINGS]", { user, isAdmin });
 
+  if (!isDesktop && isIndex) {
+    return (
+      <div className="flex flex-col gap-3 max-w-md mx-auto">
+        <Link href="/settings/appearance" className="flex items-center gap-4 p-4 bg-card border border-border/50 rounded-2xl shadow-sm hover:bg-accent/50 transition-colors">
+          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
+            <Palette className="w-5 h-5" />
+          </div>
+          <div className="flex flex-col">
+            <span className="font-semibold text-[15px]">General</span>
+            <span className="text-xs text-muted-foreground">Theme & Display settings</span>
+          </div>
+        </Link>
+        {isAdmin && (
+           <Link href="/settings/store" className="flex items-center gap-4 p-4 bg-card border border-border/50 rounded-2xl shadow-sm hover:bg-accent/50 transition-colors">
+             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
+               <Store className="w-5 h-5" />
+             </div>
+             <div className="flex flex-col">
+                <span className="font-semibold text-[15px]">Store Profile</span>
+                <span className="text-xs text-muted-foreground">Business details & receipts</span>
+             </div>
+           </Link>
+        )}
+        <Link href="/settings/notifications" className="flex items-center gap-4 p-4 bg-card border border-border/50 rounded-2xl shadow-sm hover:bg-accent/50 transition-colors">
+          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
+            <Bell className="w-5 h-5" />
+          </div>
+          <div className="flex flex-col">
+             <span className="font-semibold text-[15px]">Alerts</span>
+             <span className="text-xs text-muted-foreground">Stock & expiry warnings</span>
+          </div>
+        </Link>
+        {isAdmin && (
+           <Link href="/settings/data" className="flex items-center gap-4 p-4 bg-card border border-border/50 rounded-2xl shadow-sm hover:bg-accent/50 transition-colors">
+             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
+               <Database className="w-5 h-5" />
+             </div>
+             <div className="flex flex-col">
+                <span className="font-semibold text-[15px]">Data & Sync</span>
+                <span className="text-xs text-muted-foreground">Cloud backup & resets</span>
+             </div>
+           </Link>
+        )}
+        <Link href="/settings/security" className="flex items-center gap-4 p-4 bg-card border border-border/50 rounded-2xl shadow-sm hover:bg-accent/50 transition-colors">
+          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
+            <Shield className="w-5 h-5" />
+          </div>
+          <div className="flex flex-col">
+             <span className="font-semibold text-[15px]">Security</span>
+             <span className="text-xs text-muted-foreground">PIN & access control</span>
+          </div>
+        </Link>
+        {isAdmin && (
+           <Link href="/settings/staff" className="flex items-center gap-4 p-4 bg-card border border-border/50 rounded-2xl shadow-sm hover:bg-accent/50 transition-colors">
+             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
+               <Users className="w-5 h-5" />
+             </div>
+             <div className="flex flex-col">
+                <span className="font-semibold text-[15px]">Staff</span>
+                <span className="text-xs text-muted-foreground">Manage store personnel</span>
+             </div>
+           </Link>
+        )}
+        {isAdmin && (
+           <Link href="/settings/system" className="flex items-center gap-4 p-4 bg-card border border-border/50 rounded-2xl shadow-sm hover:bg-accent/50 transition-colors">
+             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
+               <Globe className="w-5 h-5" />
+             </div>
+             <div className="flex flex-col">
+                <span className="font-semibold text-[15px]">System</span>
+                <span className="text-xs text-muted-foreground">App information & logs</span>
+             </div>
+           </Link>
+        )}
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="max-w-5xl">
+        {(!isDesktop && !isIndex) && (
+          <div className="flex items-center gap-3 mb-6 pb-4 border-b border-border/50">
+            <Link href="/settings" className="w-10 h-10 rounded-xl bg-accent/50 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors shrink-0">
+              <ChevronLeft className="w-5 h-5" />
+            </Link>
+            <div className="text-lg font-semibold capitalize">
+              {activeTab === "appearance" ? "General" : activeTab === "notifications" ? "Alerts" : activeTab}
+            </div>
+          </div>
+        )}
+
         <div className="mb-6 flex flex-col md:flex-row md:items-start md:justify-between gap-4">
 
           {user && (
@@ -149,7 +240,7 @@ export default function SettingsPage() {
             style={{ top: isDesktop ? `${stickyTop + 16}px` : undefined }}
           >
             <TabsList
-              className="flex flex-row md:flex-col h-auto overflow-x-auto scrollbar-none md:overflow-visible bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b md:border-none p-2 md:p-0 gap-1 justify-start md:w-full sticky md:relative z-30"
+              className="hidden md:flex flex-col h-auto overflow-x-auto scrollbar-none md:overflow-visible bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b md:border-none p-2 md:p-0 gap-1 justify-start md:w-full sticky md:relative z-30"
               style={{ top: !isDesktop ? `${stickyTop}px` : undefined }}
             >
               <TabsTrigger

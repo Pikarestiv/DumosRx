@@ -169,16 +169,16 @@ export function AppearanceSettings({
                     }
                     className={`flex items-center justify-between p-4 rounded-lg border-2 transition-all cursor-pointer ${
                       activeTheme === t.id
-                        ? "bg-primary text-primary-foreground border-primary"
+                        ? "bg-primary/5 border-primary text-primary shadow-sm"
                         : isLocked
                           ? "border-border opacity-60 cursor-not-allowed hover:bg-transparent"
-                          : "border-border hover:bg-muted"
+                          : "border-border hover:bg-muted text-foreground"
                     }`}
                   >
                     <div className="flex items-center gap-3">
                       <div
                         className={`w-6 h-6 rounded-full border shadow-sm ${
-                          activeTheme === t.id ? "bg-primary-foreground" : ""
+                          activeTheme === t.id ? "ring-2 ring-primary ring-offset-1" : ""
                         }`}
                         // style={activeTheme === t.id ? undefined : t.style}
                         style={t.style}

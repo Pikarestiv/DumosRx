@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import SettingsClient from "./[tab]/settings-client";
 
 export default function SettingsIndexPage() {
-  redirect("/settings/appearance");
+  return <SettingsClient isIndex={true} />;
 }

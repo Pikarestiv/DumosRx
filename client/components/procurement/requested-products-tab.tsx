@@ -80,7 +80,7 @@ export function RequestedProductsTab() {
 
   return (
     <Card className="rounded-[14px] gap-0 border border-border bg-card shadow-[0_1px_2px_rgba(16,24,40,0.04)] flex flex-col flex-1 overflow-hidden">
-      <div className="px-[22px] py-[18px] border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="px-4 pb-[18px] border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h3 className="text-[16px] font-bold">Requested Products Log</h3>
           <p className="text-[13px] text-muted-foreground mt-0.5">

@@ -61,50 +61,51 @@ export function VendorList() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {vendors.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                    <div className="flex flex-col items-center gap-2">
-                      <Building2 className="h-8 w-8 opacity-20" />
-                      <p>No vendors found</p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                vendors.map((vendor) => (
-                  <TableRow key={vendor.id}>
-                    <TableCell className="font-medium">
-                      {vendor.name}
-                    </TableCell>
-                    <TableCell>{vendor.contact_person || "-"}</TableCell>
-                    <TableCell>
-                      <div className="flex flex-col gap-1 text-xs">
-                        {vendor.phone && (
-                          <div className="flex items-center gap-1 opacity-70">
-                            <Phone className="h-3 w-3" /> {vendor.phone}
-                          </div>
-                        )}
-                        {vendor.email && (
-                          <div className="flex items-center gap-1 opacity-70">
-                            <Mail className="h-3 w-3" /> {vendor.email}
-                          </div>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>{vendor.payment_terms || "-"}</TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDelete(vendor.id)}
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
+              {vendors.length === 0 && (
+                                          <TableRow>
+                                            <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                                              <div className="flex flex-col items-center gap-2">
+                                                <Building2 className="h-8 w-8 opacity-20" />
+                                                <p>No vendors found</p>
+                                              </div>
+                                            </TableCell>
+                                          </TableRow>
+                                        )}
+                          {!(vendors.length === 0) && (
+                                          vendors.map((vendor) => (
+                                            <TableRow key={vendor.id}>
+                                              <TableCell className="font-medium">
+                                                {vendor.name}
+                                              </TableCell>
+                                              <TableCell>{vendor.contact_person || "-"}</TableCell>
+                                              <TableCell>
+                                                <div className="flex flex-col gap-1 text-xs">
+                                                  {vendor.phone && (
+                                                    <div className="flex items-center gap-1 opacity-70">
+                                                      <Phone className="h-3 w-3" /> {vendor.phone}
+                                                    </div>
+                                                  )}
+                                                  {vendor.email && (
+                                                    <div className="flex items-center gap-1 opacity-70">
+                                                      <Mail className="h-3 w-3" /> {vendor.email}
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              </TableCell>
+                                              <TableCell>{vendor.payment_terms || "-"}</TableCell>
+                                              <TableCell>
+                                                <Button
+                                                  variant="ghost"
+                                                  size="icon"
+                                                  onClick={() => handleDelete(vendor.id)}
+                                                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                                >
+                                                  <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                              </TableCell>
+                                            </TableRow>
+                                          ))
+                                        )}
             </TableBody>
           </Table>
         </CardContent>

@@ -100,83 +100,84 @@ export function CustomerDirectory({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {customers.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="h-24 text-center">
-                    No customers found. Click "Add Customer" to create one.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                customers.map((customer) => (
-                  <TableRow key={customer.id}>
-                    <TableCell>
-                      <div>
-                        <p className="font-medium">{customer.name}</p>
-                        <p className="text-sm text-gray-500">{customer.id}</p>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="space-y-1">
-                        {customer.email && (
-                          <div className="flex items-center gap-1 text-sm">
-                            <Mail className="h-3 w-3" />
-                            {customer.email}
-                          </div>
-                        )}
-                        {customer.phone && (
-                          <div className="flex items-center gap-1 text-sm">
-                            <Phone className="h-3 w-3" />
-                            {customer.phone}
-                          </div>
-                        )}
-                        {!customer.email && !customer.phone && (
-                          <span className="text-sm text-gray-400">-</span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        className={`${getTierColor(customer.tier)} text-white`}
-                      >
-                        {customer.tier}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Star className="h-4 w-4 text-yellow-500" />
-                        {customer.points.toLocaleString()}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <span
-                        className={
-                          customer.outstanding_balance > 0
-                            ? "text-destructive font-bold"
-                            : ""
-                        }
-                      >
-                        {formatCurrency(
-                          customer.outstanding_balance,
-                          currencyCode,
-                        )}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      {formatCurrency(customer.totalSpent, currencyCode)}
-                    </TableCell>
-                    <TableCell>{customer.lastVisit}</TableCell>
-                    <TableCell>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onViewDetails(customer)}
-                      >
-                        View Details
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
+              {customers.length === 0 && (
+                                          <TableRow>
+                                            <TableCell colSpan={8} className="h-24 text-center">
+                                              No customers found. Click "Add Customer" to create one.
+                                            </TableCell>
+                                          </TableRow>
+                                        )}
+                          {!(customers.length === 0) && (
+                                          customers.map((customer) => (
+                                            <TableRow key={customer.id}>
+                                              <TableCell>
+                                                <div>
+                                                  <p className="font-medium">{customer.name}</p>
+                                                  <p className="text-sm text-gray-500">{customer.id}</p>
+                                                </div>
+                                              </TableCell>
+                                              <TableCell>
+                                                <div className="space-y-1">
+                                                  {customer.email && (
+                                                    <div className="flex items-center gap-1 text-sm">
+                                                      <Mail className="h-3 w-3" />
+                                                      {customer.email}
+                                                    </div>
+                                                  )}
+                                                  {customer.phone && (
+                                                    <div className="flex items-center gap-1 text-sm">
+                                                      <Phone className="h-3 w-3" />
+                                                      {customer.phone}
+                                                    </div>
+                                                  )}
+                                                  {!customer.email && !customer.phone && (
+                                                    <span className="text-sm text-gray-400">-</span>
+                                                  )}
+                                                </div>
+                                              </TableCell>
+                                              <TableCell>
+                                                <Badge
+                                                  className={`${getTierColor(customer.tier)} text-white`}
+                                                >
+                                                  {customer.tier}
+                                                </Badge>
+                                              </TableCell>
+                                              <TableCell>
+                                                <div className="flex items-center gap-1">
+                                                  <Star className="h-4 w-4 text-yellow-500" />
+                                                  {customer.points.toLocaleString()}
+                                                </div>
+                                              </TableCell>
+                                              <TableCell>
+                                                <span
+                                                  className={
+                                                    customer.outstanding_balance > 0
+                                                      ? "text-destructive font-bold"
+                                                      : ""
+                                                  }
+                                                >
+                                                  {formatCurrency(
+                                                    customer.outstanding_balance,
+                                                    currencyCode,
+                                                  )}
+                                                </span>
+                                              </TableCell>
+                                              <TableCell>
+                                                {formatCurrency(customer.totalSpent, currencyCode)}
+                                              </TableCell>
+                                              <TableCell>{customer.lastVisit}</TableCell>
+                                              <TableCell>
+                                                <Button
+                                                  variant="outline"
+                                                  size="sm"
+                                                  onClick={() => onViewDetails(customer)}
+                                                >
+                                                  View Details
+                                                </Button>
+                                              </TableCell>
+                                            </TableRow>
+                                          ))
+                                        )}
             </TableBody>
           </Table>
         </div>

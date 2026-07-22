@@ -192,127 +192,133 @@ export function StockAuditDialog({
           </div>
 
           <div className="space-y-6">
-            {!selectedProduct ? (
-              <div className="h-full flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-accent/10 rounded-2xl bg-accent/5">
-                <Package className="w-12 h-12 text-muted-foreground/30 mb-4" />
-                <p className="text-sm text-muted-foreground italic">
-                  Select a product from the list to start reconciliation
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-                <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10 space-y-3">
-                  <h4 className="font-bold text-lg">{selectedProduct.name}</h4>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">
-                      System Record:
-                    </span>
-                    <Badge
-                      variant="outline"
-                      className="font-mono text-primary border-primary/20 bg-primary/5"
-                    >
-                      {selectedProduct.stock_quantity}{" "}
-                      {selectedProduct.base_unit}
-                    </Badge>
-                  </div>
-                </div>
+            {!!(!selectedProduct) && (
+                                <div className="h-full flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-accent/10 rounded-2xl bg-accent/5">
+                                  <Package className="w-12 h-12 text-muted-foreground/30 mb-4" />
+                                  <p className="text-sm text-muted-foreground italic">
+                                    Select a product from the list to start reconciliation
+                                  </p>
+                                </div>
+                              )}
+                  {!(!selectedProduct) && (
+                                <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                                  <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10 space-y-3">
+                                    <h4 className="font-bold text-lg">{selectedProduct.name}</h4>
+                                    <div className="flex items-center justify-between text-sm">
+                                      <span className="text-muted-foreground">
+                                        System Record:
+                                      </span>
+                                      <Badge
+                                        variant="outline"
+                                        className="font-mono text-primary border-primary/20 bg-primary/5"
+                                      >
+                                        {selectedProduct.stock_quantity}{" "}
+                                        {selectedProduct.base_unit}
+                                      </Badge>
+                                    </div>
+                                  </div>
 
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                    Physical Count ({selectedProduct.base_unit})
-                  </Label>
-                  <div className="flex items-center gap-3">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() =>
-                        setActualQuantity((prev) =>
-                          Math.max(0, (Number(prev) || 0) - 1),
-                        )
-                      }
-                    >
-                      <Minus className="w-4 h-4" />
-                    </Button>
-                    <Input
-                      type="number"
-                      placeholder="Enter actual count"
-                      className="text-center text-lg font-bold bg-card border-accent/10"
-                      value={actualQuantity}
-                      onChange={(e) =>
-                        setActualQuantity(
-                          e.target.value === "" ? "" : Number(e.target.value),
-                        )
-                      }
-                    />
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() =>
-                        setActualQuantity((prev) => (Number(prev) || 0) + 1)
-                      }
-                    >
-                      <Plus className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
+                                  <div className="space-y-2">
+                                    <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                                      Physical Count ({selectedProduct.base_unit})
+                                    </Label>
+                                    <div className="flex items-center gap-3">
+                                      <Button
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={() =>
+                                          setActualQuantity((prev) =>
+                                            Math.max(0, (Number(prev) || 0) - 1),
+                                          )
+                                        }
+                                      >
+                                        <Minus className="w-4 h-4" />
+                                      </Button>
+                                      <Input
+                                        type="number"
+                                        placeholder="Enter actual count"
+                                        className="text-center text-lg font-bold bg-card border-accent/10"
+                                        value={actualQuantity}
+                                        onChange={(e) =>
+                                          setActualQuantity(
+                                            e.target.value === "" ? "" : Number(e.target.value),
+                                          )
+                                        }
+                                      />
+                                      <Button
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={() =>
+                                          setActualQuantity((prev) => (Number(prev) || 0) + 1)
+                                        }
+                                      >
+                                        <Plus className="w-4 h-4" />
+                                      </Button>
+                                    </div>
+                                  </div>
 
-                {actualQuantity !== "" && (
-                  <div
-                    className={`p-4 rounded-2xl border flex items-center gap-3 transition-all ${
-                      Number(actualQuantity) === selectedProduct.stock_quantity
-                        ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-500"
-                        : "bg-amber-500/10 border-amber-500/20 text-amber-500"
-                    }`}
-                  >
-                    {Number(actualQuantity) ===
-                    selectedProduct.stock_quantity ? (
-                      <>
-                        <CheckCircle2 className="w-5 h-5 shrink-0" />
-                        <p className="text-sm font-bold">
-                          Perfect Match! No discrepancy found.
-                        </p>
-                      </>
-                    ) : (
-                      <>
-                        <AlertTriangle className="w-5 h-5 shrink-0" />
-                        <div className="space-y-1">
-                          <p className="text-sm font-bold">Discrepancy Found</p>
-                          <p className="text-[10px] uppercase tracking-wider">
-                            Difference:{" "}
-                            {Number(actualQuantity) -
-                              selectedProduct.stock_quantity >
-                            0
-                              ? "+"
-                              : ""}
-                            {Number(actualQuantity) -
-                              selectedProduct.stock_quantity}{" "}
-                            units
-                          </p>
-                        </div>
-                        {Number(actualQuantity) <
-                        selectedProduct.stock_quantity ? (
-                          <TrendingDown className="w-5 h-5 ml-auto opacity-50" />
-                        ) : (
-                          <TrendingUp className="w-5 h-5 ml-auto opacity-50" />
-                        )}
-                      </>
-                    )}
-                  </div>
-                )}
+                                  {actualQuantity !== "" && (
+                                    <div
+                                      className={`p-4 rounded-2xl border flex items-center gap-3 transition-all ${
+                                        Number(actualQuantity) === selectedProduct.stock_quantity
+                                          ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-500"
+                                          : "bg-amber-500/10 border-amber-500/20 text-amber-500"
+                                      }`}
+                                    >
+                                      {Number(actualQuantity) ===
+                                                                        selectedProduct.stock_quantity && (
+                                                                          <>
+                                                                            <CheckCircle2 className="w-5 h-5 shrink-0" />
+                                                                            <p className="text-sm font-bold">
+                                                                              Perfect Match! No discrepancy found.
+                                                                            </p>
+                                                                          </>
+                                                                        )}
+                                  {!(Number(actualQuantity) ===
+                                                                        selectedProduct.stock_quantity) && (
+                                                                          <>
+                                                                            <AlertTriangle className="w-5 h-5 shrink-0" />
+                                                                            <div className="space-y-1">
+                                                                              <p className="text-sm font-bold">Discrepancy Found</p>
+                                                                              <p className="text-[10px] uppercase tracking-wider">
+                                                                                Difference:{" "}
+                                                                                {Number(actualQuantity) -
+                                                                                                                                    selectedProduct.stock_quantity >
+                                                                                                                                  0 && "+"}
+                                                  {!(Number(actualQuantity) -
+                                                                                                                                    selectedProduct.stock_quantity >
+                                                                                                                                  0) && ""}
+                                                                                {Number(actualQuantity) -
+                                                                                  selectedProduct.stock_quantity}{" "}
+                                                                                units
+                                                                              </p>
+                                                                            </div>
+                                                                            {Number(actualQuantity) <
+                                                                                                                      selectedProduct.stock_quantity && (
+                                                                                                                        <TrendingDown className="w-5 h-5 ml-auto opacity-50" />
+                                                                                                                      )}
+                                          {!(Number(actualQuantity) <
+                                                                                                                      selectedProduct.stock_quantity) && (
+                                                                                                                        <TrendingUp className="w-5 h-5 ml-auto opacity-50" />
+                                                                                                                      )}
+                                                                          </>
+                                                                        )}
+                                    </div>
+                                  )}
 
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                    Reconciliation Notes
-                  </Label>
-                  <Textarea
-                    placeholder="Reason for discrepancy (e.g. damage, expiry, theft...)"
-                    className="bg-card border-accent/10 resize-none h-20"
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                  />
-                </div>
-              </div>
-            )}
+                                  <div className="space-y-2">
+                                    <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                                      Reconciliation Notes
+                                    </Label>
+                                    <Textarea
+                                      placeholder="Reason for discrepancy (e.g. damage, expiry, theft...)"
+                                      className="bg-card border-accent/10 resize-none h-20"
+                                      value={notes}
+                                      onChange={(e) => setNotes(e.target.value)}
+                                    />
+                                  </div>
+                                </div>
+                              )}
           </div>
         </div>
 
@@ -325,7 +331,8 @@ export function StockAuditDialog({
             disabled={submitting || !selectedProduct || actualQuantity === ""}
             className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold cursor-pointer w-full sm:w-auto"
           >
-            {submitting ? "Processing..." : "Reconcile Stock Batch"}
+            {!!(submitting) && "Processing..."}
+                  {!(submitting) && "Reconcile Stock Batch"}
           </Button>
         </DialogFooter>
       </ResponsiveModal>

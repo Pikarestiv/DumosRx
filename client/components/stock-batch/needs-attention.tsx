@@ -104,38 +104,39 @@ export function NeedsAttention({ stockData }: { stockData: StockItem[] }) {
       </div>
 
       <div className="flex flex-col">
-        {items.length === 0 ? (
-          <div className="text-sm text-muted-foreground py-4 text-center">
-            No items need immediate attention.
-          </div>
-        ) : (
-          items.slice(0, 10).map((item, idx) => (
-            <div
-              key={item.id + idx}
-              className={`flex items-center gap-3 py-3 ${idx !== items.length - 1 && idx !== 9 ? "border-b border-border" : ""}`}
-            >
-              <div
-                className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${item.iconClass}`}
-              >
-                {item.icon}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-[13px] font-semibold truncate">
-                  {item.product_name}
-                </div>
-                <div className="text-[11.5px] text-muted-foreground">
-                  {item.description}
-                </div>
-              </div>
-              <button
-                className={`text-[11.5px] font-semibold px-3 py-1.5 rounded-lg shrink-0 transition-colors ${item.actionClass}`}
-                onClick={item.onClick}
-              >
-                {item.actionText}
-              </button>
-            </div>
-          ))
-        )}
+        {items.length === 0 && (
+                        <div className="text-sm text-muted-foreground py-4 text-center">
+                          No items need immediate attention.
+                        </div>
+                      )}
+              {!(items.length === 0) && (
+                        items.slice(0, 10).map((item, idx) => (
+                          <div
+                            key={item.id + idx}
+                            className={`flex items-center gap-3 py-3 ${idx !== items.length - 1 && idx !== 9 ? "border-b border-border" : ""}`}
+                          >
+                            <div
+                              className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${item.iconClass}`}
+                            >
+                              {item.icon}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-[13px] font-semibold truncate">
+                                {item.product_name}
+                              </div>
+                              <div className="text-[11.5px] text-muted-foreground">
+                                {item.description}
+                              </div>
+                            </div>
+                            <button
+                              className={`text-[11.5px] font-semibold px-3 py-1.5 rounded-lg shrink-0 transition-colors ${item.actionClass}`}
+                              onClick={item.onClick}
+                            >
+                              {item.actionText}
+                            </button>
+                          </div>
+                        ))
+                      )}
       </div>
     </div>
   );

@@ -237,54 +237,57 @@ export function PrescriptionHistory() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={11} className="text-center py-8">
-                      <div className="flex flex-col items-center justify-center space-y-3">
-                        <Skeleton className="h-12 w-full max-w-lg" />
-                        <Skeleton className="h-12 w-full max-w-lg" />
-                        <Skeleton className="h-12 w-full max-w-lg" />
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : preFilteredHistory.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
-                      No matching records found.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  preFilteredHistory.map((record) => (
-                    <TableRow key={record.id}>
-                      <TableCell>
-                        <code className="text-sm bg-muted px-2 py-1 rounded">{record.prescriptionNumber}</code>
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{record.patientName}</div>
-                          <div className="text-sm text-muted-foreground">{record.patientPhone}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="font-medium">{record.doctorName}</div>
-                      </TableCell>
-                      <TableCell>{formatDateTime(record.dateIssued)}</TableCell>
-                      <TableCell>{formatDateTime(record.dateDispensed || record.dateIssued)}</TableCell>
-                      <TableCell>{getStatusBadge(record.status)}</TableCell>
-                      <TableCell>
-                        <div className="text-center font-medium">{record.medications?.length || 0}</div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="font-medium">{record.totalCost > 0 ? formatCurrency(record.totalCost) : "—"}</div>
-                      </TableCell>
-                      <TableCell>
-                        <Button variant="ghost" size="sm" onClick={() => viewPrescriptionDetails(record)}>
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
+                {!!(loading) && (
+                                                <TableRow>
+                                                  <TableCell colSpan={11} className="text-center py-8">
+                                                    <div className="flex flex-col items-center justify-center space-y-3">
+                                                      <Skeleton className="h-12 w-full max-w-lg" />
+                                                      <Skeleton className="h-12 w-full max-w-lg" />
+                                                      <Skeleton className="h-12 w-full max-w-lg" />
+                                                    </div>
+                                                  </TableCell>
+                                                </TableRow>
+                                              )}
+                              {(!(loading) && preFilteredHistory.length === 0) && (
+                                                                              <TableRow>
+                                                                                <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
+                                                                                  No matching records found.
+                                                                                </TableCell>
+                                                                              </TableRow>
+                                                                            )}
+                              {!(!(loading) && preFilteredHistory.length === 0) && (
+                                                                              preFilteredHistory.map((record) => (
+                                                                                <TableRow key={record.id}>
+                                                                                  <TableCell>
+                                                                                    <code className="text-sm bg-muted px-2 py-1 rounded">{record.prescriptionNumber}</code>
+                                                                                  </TableCell>
+                                                                                  <TableCell>
+                                                                                    <div>
+                                                                                      <div className="font-medium">{record.patientName}</div>
+                                                                                      <div className="text-sm text-muted-foreground">{record.patientPhone}</div>
+                                                                                    </div>
+                                                                                  </TableCell>
+                                                                                  <TableCell>
+                                                                                    <div className="font-medium">{record.doctorName}</div>
+                                                                                  </TableCell>
+                                                                                  <TableCell>{formatDateTime(record.dateIssued)}</TableCell>
+                                                                                  <TableCell>{formatDateTime(record.dateDispensed || record.dateIssued)}</TableCell>
+                                                                                  <TableCell>{getStatusBadge(record.status)}</TableCell>
+                                                                                  <TableCell>
+                                                                                    <div className="text-center font-medium">{record.medications?.length || 0}</div>
+                                                                                  </TableCell>
+                                                                                  <TableCell>
+                                                                                    <div className="font-medium">{record.totalCost > 0 && formatCurrency(record.totalCost)}
+                                                                                          {!(record.totalCost > 0) && "—"}</div>
+                                                                                  </TableCell>
+                                                                                  <TableCell>
+                                                                                    <Button variant="ghost" size="sm" onClick={() => viewPrescriptionDetails(record)}>
+                                                                                      <Eye className="h-4 w-4" />
+                                                                                    </Button>
+                                                                                  </TableCell>
+                                                                                </TableRow>
+                                                                              ))
+                                                                            )}
               </TableBody>
             </Table>
           </div>

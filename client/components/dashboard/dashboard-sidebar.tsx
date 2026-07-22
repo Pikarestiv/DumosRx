@@ -137,7 +137,8 @@ export function DashboardSidebar({
           <div className="flex items-center gap-2">
             {name === "Inventory" && actionableItemsCount > 0 && (
               <span className="bg-destructive text-destructive-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">
-                {actionableItemsCount > 99 ? "99+" : actionableItemsCount}
+                {actionableItemsCount > 99 && "99+"}
+                            {!(actionableItemsCount > 99) && actionableItemsCount}
               </span>
             )}
             {locked && (
@@ -167,13 +168,15 @@ export function DashboardSidebar({
               collapsed ? "font-medium text-xs" : "font-semibold text-xs ml-2"
             }
           >
-            {collapsed ? (
-              <>
-                {name} {locked ? "🔒" : ""}
-              </>
-            ) : (
-              extraTooltip
-            )}
+            {!!(collapsed) && (
+                                <>
+                                  {name} {!!(locked) && "🔒"}
+                          {!(locked) && ""}
+                                </>
+                              )}
+                  {!(collapsed) && (
+                                extraTooltip
+                              )}
           </TooltipContent>
         </Tooltip>
       );

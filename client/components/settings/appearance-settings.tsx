@@ -210,11 +210,12 @@ export function AppearanceSettings({
               size="icon"
               onClick={() => setIsEditingRegional(!isEditingRegional)}
             >
-              {isEditingRegional ? (
-                <X className="h-4 w-4" />
-              ) : (
-                <Pencil className="h-4 w-4" />
-              )}
+              {!!(isEditingRegional) && (
+                                          <X className="h-4 w-4" />
+                                        )}
+                          {!(isEditingRegional) && (
+                                          <Pencil className="h-4 w-4" />
+                                        )}
             </Button>
           </CardHeader>
           <CardContent className="grid gap-6">
@@ -235,18 +236,19 @@ export function AppearanceSettings({
                   </Tooltip>
                 </TooltipProvider>
               </div>
-              {isEditingRegional ? (
-                <Input
-                  id="currency"
-                  value={localCurrency}
-                  onChange={(e) => setLocalCurrency(e.target.value.toUpperCase())}
-                  placeholder="e.g. NGN, USD, GHS"
-                />
-              ) : (
-                <p className="text-sm font-medium py-2">
-                  {localCurrency || "Not set"}
-                </p>
-              )}
+              {!!(isEditingRegional) && (
+                                          <Input
+                                            id="currency"
+                                            value={localCurrency}
+                                            onChange={(e) => setLocalCurrency(e.target.value.toUpperCase())}
+                                            placeholder="e.g. NGN, USD, GHS"
+                                          />
+                                        )}
+                          {!(isEditingRegional) && (
+                                          <p className="text-sm font-medium py-2">
+                                            {localCurrency || "Not set"}
+                                          </p>
+                                        )}
             </div>
             <div className="grid gap-2">
               <div className="flex items-center gap-2">
@@ -265,20 +267,22 @@ export function AppearanceSettings({
                   </Tooltip>
                 </TooltipProvider>
               </div>
-              {isEditingRegional ? (
-                <Input
-                  id="vat"
-                  type="number"
-                  step="0.1"
-                  value={localVat}
-                  onChange={(e) => setLocalVat(e.target.value)}
-                  placeholder="e.g. 7.5"
-                />
-              ) : (
-                <p className="text-sm font-medium py-2">
-                  {localVat ? `${localVat}%` : "0%"}
-                </p>
-              )}
+              {!!(isEditingRegional) && (
+                                          <Input
+                                            id="vat"
+                                            type="number"
+                                            step="0.1"
+                                            value={localVat}
+                                            onChange={(e) => setLocalVat(e.target.value)}
+                                            placeholder="e.g. 7.5"
+                                          />
+                                        )}
+                          {!(isEditingRegional) && (
+                                          <p className="text-sm font-medium py-2">
+                                            {!!(localVat) && `${localVat}%`}
+                                  {!(localVat) && "0%"}
+                                          </p>
+                                        )}
             </div>
           </CardContent>
           {isEditingRegional && (

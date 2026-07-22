@@ -161,64 +161,65 @@ export function ExpenseList() {
         
         {/* List Content */}
         <div className="flex-1 overflow-y-auto">
-          {filteredExpenses.length === 0 ? (
-            <div className="flex flex-col items-center justify-center p-10 text-muted-foreground">
-              <ReceiptText className="h-10 w-10 opacity-20 mb-3" />
-              <p className="text-sm font-medium">No expenses found</p>
-            </div>
-          ) : (
-            <div className="flex flex-col divide-y divide-border/50">
-              {filteredExpenses.map(expense => {
-                const meta = CATEGORY_META[expense.category] || CATEGORY_META['Unknown'];
-                return (
-                  <div 
-                    key={expense.id} 
-                    className="grid grid-cols-1 md:grid-cols-[110px_150px_1fr_130px_120px] gap-2 md:gap-2 items-center px-4 md:px-5 py-3.5 hover:bg-muted/50 cursor-pointer transition-colors"
-                    onClick={() => setSelectedExpenseId(expense.id)}
-                  >
-                    {/* Date */}
-                    <div className="text-[13px] font-medium hidden md:block">
-                      {format(new Date(expense.date), "MMM dd, yyyy")}
-                    </div>
-                    
-                    {/* Mobile top row: Description & Amount */}
-                    <div className="flex justify-between items-start md:hidden mb-1.5">
-                      <div className="text-[14px] font-semibold text-foreground truncate max-w-[75%]">{expense.description || "-"}</div>
-                      <div className="text-[15px] font-bold text-foreground">{formatCurrency(expense.amount, storeProfile?.currency || "NGN")}</div>
-                    </div>
+          {filteredExpenses.length === 0 && (
+                              <div className="flex flex-col items-center justify-center p-10 text-muted-foreground">
+                                <ReceiptText className="h-10 w-10 opacity-20 mb-3" />
+                                <p className="text-sm font-medium">No expenses found</p>
+                              </div>
+                            )}
+                  {!(filteredExpenses.length === 0) && (
+                              <div className="flex flex-col divide-y divide-border/50">
+                                {filteredExpenses.map(expense => {
+                                  const meta = CATEGORY_META[expense.category] || CATEGORY_META['Unknown'];
+                                  return (
+                                    <div 
+                                      key={expense.id} 
+                                      className="grid grid-cols-1 md:grid-cols-[110px_150px_1fr_130px_120px] gap-2 md:gap-2 items-center px-4 md:px-5 py-3.5 hover:bg-muted/50 cursor-pointer transition-colors"
+                                      onClick={() => setSelectedExpenseId(expense.id)}
+                                    >
+                                      {/* Date */}
+                                      <div className="text-[13px] font-medium hidden md:block">
+                                        {format(new Date(expense.date), "MMM dd, yyyy")}
+                                      </div>
+                                      
+                                      {/* Mobile top row: Description & Amount */}
+                                      <div className="flex justify-between items-start md:hidden mb-1.5">
+                                        <div className="text-[14px] font-semibold text-foreground truncate max-w-[75%]">{expense.description || "-"}</div>
+                                        <div className="text-[15px] font-bold text-foreground">{formatCurrency(expense.amount, storeProfile?.currency || "NGN")}</div>
+                                      </div>
 
-                    {/* Category */}
-                    <div className="flex items-center gap-2">
-                      <span className={`inline-flex items-center rounded-[6px] px-2 py-0.5 text-[11px] font-bold ${meta.badgeClass}`}>
-                        {expense.category}
-                      </span>
-                    </div>
-                    
-                    {/* Description (Desktop) */}
-                    <div className="text-[13px] text-foreground truncate hidden md:block">
-                      {expense.description || "-"}
-                    </div>
+                                      {/* Category */}
+                                      <div className="flex items-center gap-2">
+                                        <span className={`inline-flex items-center rounded-[6px] px-2 py-0.5 text-[11px] font-bold ${meta.badgeClass}`}>
+                                          {expense.category}
+                                        </span>
+                                      </div>
+                                      
+                                      {/* Description (Desktop) */}
+                                      <div className="text-[13px] text-foreground truncate hidden md:block">
+                                        {expense.description || "-"}
+                                      </div>
 
-                    {/* Mobile bottom row: Date & Method */}
-                    <div className="flex items-center justify-between md:hidden mt-1 text-[12px] text-muted-foreground">
-                      <div>{format(new Date(expense.date), "MMM dd, yyyy")}</div>
-                      <div>{expense.payment_method}</div>
-                    </div>
+                                      {/* Mobile bottom row: Date & Method */}
+                                      <div className="flex items-center justify-between md:hidden mt-1 text-[12px] text-muted-foreground">
+                                        <div>{format(new Date(expense.date), "MMM dd, yyyy")}</div>
+                                        <div>{expense.payment_method}</div>
+                                      </div>
 
-                    {/* Method (Desktop) */}
-                    <div className="text-[13px] text-muted-foreground hidden md:block">
-                      {expense.payment_method}
-                    </div>
-                    
-                    {/* Amount (Desktop) */}
-                    <div className="text-[14px] font-bold text-foreground text-right hidden md:block">
-                      {formatCurrency(expense.amount, storeProfile?.currency || "NGN")}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                                      {/* Method (Desktop) */}
+                                      <div className="text-[13px] text-muted-foreground hidden md:block">
+                                        {expense.payment_method}
+                                      </div>
+                                      
+                                      {/* Amount (Desktop) */}
+                                      <div className="text-[14px] font-bold text-foreground text-right hidden md:block">
+                                        {formatCurrency(expense.amount, storeProfile?.currency || "NGN")}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
         </div>
       </div>
 

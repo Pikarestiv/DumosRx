@@ -281,9 +281,8 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
 
               <div className="flex justify-between items-center pl-5">
                 <p className="text-[10px] text-sidebar-foreground/70 font-medium">
-                  Last synced {lastSync
-                    ? formatDistanceToNow(new Date(lastSync)).replace('about ', '').replace('less than a minute', '1 min') + " ago"
-                    : "never"}
+                  Last synced {!!(lastSync) && formatDistanceToNow(new Date(lastSync)).replace('about ', '').replace('less than a minute', '1 min') + " ago"}
+                                  {!(lastSync) && "never"}
                 </p>
               </div>
             </div>

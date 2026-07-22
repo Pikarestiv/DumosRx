@@ -81,11 +81,12 @@ export function CloudStep({ onCloudRestore, isLoading }: CloudStepProps) {
               className="w-full h-12 text-lg font-bold shadow-lg"
               disabled={isLoading}
             >
-              {isLoading ? (
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-              ) : (
-                "Start Cloud Sync"
-              )}
+              {!!(isLoading) && (
+                                          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                                        )}
+                          {!(isLoading) && (
+                                          "Start Cloud Sync"
+                                        )}
             </Button>
             <div className="text-center pt-2">
               <p className="text-sm text-muted-foreground">

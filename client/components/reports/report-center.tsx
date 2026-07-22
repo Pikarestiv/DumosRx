@@ -249,11 +249,12 @@ export function ReportCenter() {
                               className="h-8 gap-2 w-full"
                               disabled={isLoading}
                             >
-                              {isLoading ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                <Download className="h-3.5 w-3.5" />
-                              )}
+                              {!!(isLoading) && (
+                                                                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                                            )}
+                                              {!(isLoading) && (
+                                                                              <Download className="h-3.5 w-3.5" />
+                                                                            )}
                               Export
                             </Button>
                           </DropdownMenuTrigger>

@@ -145,49 +145,51 @@ export function StockMovements() {
 
         {/* List */}
         <div className="flex-1 overflow-y-auto">
-          {filteredMovements.length === 0 ? (
-            <div className="p-8 text-center text-muted-foreground text-[13px]">
-              No movements found.
-            </div>
-          ) : (
-            filteredMovements.map((movement) => {
-              const isPositive = movement.quantity > 0;
-              return (
-                <div
-                  key={movement.id}
-                  onClick={() => setSelectedMovement(movement)}
-                  className="grid grid-cols-1 md:grid-cols-[100px_1fr_130px_100px_1fr_120px] gap-2 px-4 py-3 items-center border-b border-border cursor-pointer hover:bg-accent/50 transition-colors"
-                >
-                  <div className="text-[12px] text-muted-foreground">
-                    <span className="md:hidden font-semibold mr-1">{formatDate(movement.date)}</span>
-                    {formatTime(movement.date)}
-                  </div>
-                  <div className="text-[13px] font-semibold truncate">
-                    {movement.product}
-                  </div>
-                  <div>
-                    <span className="text-[11px] font-semibold bg-muted/30 border border-border text-foreground px-2 py-0.5 rounded-md capitalize">
-                      {movement.type}
-                    </span>
-                  </div>
-                  <div
-                    className={`text-[14px] font-semibold ${
-                      isPositive ? "text-emerald-700" : "text-destructive"
-                    }`}
-                  >
-                    {isPositive ? "+" : ""}
-                    {movement.quantity}
-                  </div>
-                  <div className="text-[12px] text-muted-foreground truncate">
-                    {movement.reference || movement.reason || "-"}
-                  </div>
-                  <div className="text-[12px] text-foreground truncate">
-                    {movement.user}
-                  </div>
-                </div>
-              );
-            })
-          )}
+          {filteredMovements.length === 0 && (
+                              <div className="p-8 text-center text-muted-foreground text-[13px]">
+                                No movements found.
+                              </div>
+                            )}
+                  {!(filteredMovements.length === 0) && (
+                              filteredMovements.map((movement) => {
+                                const isPositive = movement.quantity > 0;
+                                return (
+                                  <div
+                                    key={movement.id}
+                                    onClick={() => setSelectedMovement(movement)}
+                                    className="grid grid-cols-1 md:grid-cols-[100px_1fr_130px_100px_1fr_120px] gap-2 px-4 py-3 items-center border-b border-border cursor-pointer hover:bg-accent/50 transition-colors"
+                                  >
+                                    <div className="text-[12px] text-muted-foreground">
+                                      <span className="md:hidden font-semibold mr-1">{formatDate(movement.date)}</span>
+                                      {formatTime(movement.date)}
+                                    </div>
+                                    <div className="text-[13px] font-semibold truncate">
+                                      {movement.product}
+                                    </div>
+                                    <div>
+                                      <span className="text-[11px] font-semibold bg-muted/30 border border-border text-foreground px-2 py-0.5 rounded-md capitalize">
+                                        {movement.type}
+                                      </span>
+                                    </div>
+                                    <div
+                                      className={`text-[14px] font-semibold ${
+                                        isPositive ? "text-emerald-700" : "text-destructive"
+                                      }`}
+                                    >
+                                      {!!(isPositive) && "+"}
+                                            {!(isPositive) && ""}
+                                      {movement.quantity}
+                                    </div>
+                                    <div className="text-[12px] text-muted-foreground truncate">
+                                      {movement.reference || movement.reason || "-"}
+                                    </div>
+                                    <div className="text-[12px] text-foreground truncate">
+                                      {movement.user}
+                                    </div>
+                                  </div>
+                                );
+                              })
+                            )}
         </div>
       </div>
 
@@ -225,7 +227,8 @@ export function StockMovements() {
                         : "text-destructive"
                     }`}
                   >
-                    {selectedMovement.quantity > 0 ? "+" : ""}
+                    {selectedMovement.quantity > 0 && "+"}
+                                      {!(selectedMovement.quantity > 0) && ""}
                     {selectedMovement.quantity}
                   </div>
                 </div>

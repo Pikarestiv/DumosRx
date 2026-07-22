@@ -49,11 +49,12 @@ export function SyncingStep({ progress, status }: SyncingStepProps) {
           <div className="space-y-2">
             <div className="flex justify-between text-xs font-medium">
               <span className="text-muted-foreground flex items-center gap-2">
-                {progress < 100 ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                ) : (
-                  <CheckCircle2 className="h-3 w-3 text-green-500" />
-                )}
+                {progress < 100 && (
+                                                <Loader2 className="h-3 w-3 animate-spin" />
+                                              )}
+                              {!(progress < 100) && (
+                                                <CheckCircle2 className="h-3 w-3 text-green-500" />
+                                              )}
                 {status}
               </span>
               <span className="text-primary font-bold">{progress}%</span>

@@ -93,64 +93,64 @@ export function PurchaseOrderTable({ orders, filteredOrders }: PurchaseOrderTabl
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredOrders.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={9} className="h-32 text-center">
-                    <div className="flex flex-col items-center justify-center text-muted-foreground">
-                      <PackageX className="h-8 w-8 mb-2 opacity-50" />
-                      <p className="font-medium">No purchase orders found</p>
-                      <p className="text-sm">
-                        {orders.length === 0
-                          ? "Create your first purchase order to get started"
-                          : "Try adjusting your search or filters"}
-                      </p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredOrders.map((order) => (
-                  <TableRow key={order.id}>
-                    <TableCell>
-                      <code className="text-sm bg-muted px-2 py-1 rounded">
-                        {order.orderNumber}
-                      </code>
-                    </TableCell>
-                    <TableCell>
-                      <div className="font-medium">{order.supplier}</div>
-                    </TableCell>
-                    <TableCell>{formatDate(order.orderDate)}</TableCell>
-                    <TableCell>{formatDate(order.expectedDate)}</TableCell>
-                    <TableCell>{getStatusBadge(order.status)}</TableCell>
-                    <TableCell>
-                      <div className="text-center">{order.itemCount}</div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="font-medium">
-                        {formatCurrency(order.totalAmount)}
-                      </div>
-                    </TableCell>
-                    <TableCell>{order.createdBy}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="cursor-pointer"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="cursor-pointer"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
+              {filteredOrders.length === 0 && (
+                                          <TableRow>
+                                            <TableCell colSpan={9} className="h-32 text-center">
+                                              <div className="flex flex-col items-center justify-center text-muted-foreground">
+                                                <PackageX className="h-8 w-8 mb-2 opacity-50" />
+                                                <p className="font-medium">No purchase orders found</p>
+                                                <p className="text-sm">
+                                                  {orders.length === 0 && "Create your first purchase order to get started"}
+                                              {!(orders.length === 0) && "Try adjusting your search or filters"}
+                                                </p>
+                                              </div>
+                                            </TableCell>
+                                          </TableRow>
+                                        )}
+                          {!(filteredOrders.length === 0) && (
+                                          filteredOrders.map((order) => (
+                                            <TableRow key={order.id}>
+                                              <TableCell>
+                                                <code className="text-sm bg-muted px-2 py-1 rounded">
+                                                  {order.orderNumber}
+                                                </code>
+                                              </TableCell>
+                                              <TableCell>
+                                                <div className="font-medium">{order.supplier}</div>
+                                              </TableCell>
+                                              <TableCell>{formatDate(order.orderDate)}</TableCell>
+                                              <TableCell>{formatDate(order.expectedDate)}</TableCell>
+                                              <TableCell>{getStatusBadge(order.status)}</TableCell>
+                                              <TableCell>
+                                                <div className="text-center">{order.itemCount}</div>
+                                              </TableCell>
+                                              <TableCell>
+                                                <div className="font-medium">
+                                                  {formatCurrency(order.totalAmount)}
+                                                </div>
+                                              </TableCell>
+                                              <TableCell>{order.createdBy}</TableCell>
+                                              <TableCell>
+                                                <div className="flex items-center gap-2">
+                                                  <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="cursor-pointer"
+                                                  >
+                                                    <Eye className="h-4 w-4" />
+                                                  </Button>
+                                                  <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="cursor-pointer"
+                                                  >
+                                                    <Edit className="h-4 w-4" />
+                                                  </Button>
+                                                </div>
+                                              </TableCell>
+                                            </TableRow>
+                                          ))
+                                        )}
             </TableBody>
           </Table>
         </div>

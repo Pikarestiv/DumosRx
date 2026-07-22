@@ -103,33 +103,34 @@ export function MobileMoreDrawer({
 
         <div className="flex-1 overflow-y-auto px-4">
           <div className="space-y-1">
-            {filteredModules.length > 0 ? (
-              filteredModules.map((item) => {
-                const isActive = pathname.startsWith(item.href);
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    onClick={() => onOpenChange(false)}
-                    className={cn(
-                      "flex items-center gap-4 px-4 py-4 rounded-xl font-medium transition-colors",
-                      isActive
-                        ? "bg-primary text-primary-foreground shadow-sm"
-                        : "text-foreground hover:bg-muted"
-                    )}
-                  >
-                    <Icon className="h-5 w-5 opacity-90" />
-                    <span>{item.name}</span>
-                  </Link>
-                );
-              })
-            ) : (
-              <div className="py-8 text-center text-muted-foreground text-sm flex flex-col items-center">
-                <span>No features found.</span>
-                <span className="text-primary mt-1">Press Enter to search inventory for "{searchQuery}"</span>
-              </div>
-            )}
+            {filteredModules.length > 0 && (
+                                        filteredModules.map((item) => {
+                                          const isActive = pathname.startsWith(item.href);
+                                          const Icon = item.icon;
+                                          return (
+                                            <Link
+                                              key={item.name}
+                                              href={item.href}
+                                              onClick={() => onOpenChange(false)}
+                                              className={cn(
+                                                "flex items-center gap-4 px-4 py-4 rounded-xl font-medium transition-colors",
+                                                isActive
+                                                  ? "bg-primary text-primary-foreground shadow-sm"
+                                                  : "text-foreground hover:bg-muted"
+                                              )}
+                                            >
+                                              <Icon className="h-5 w-5 opacity-90" />
+                                              <span>{item.name}</span>
+                                            </Link>
+                                          );
+                                        })
+                                      )}
+                          {!(filteredModules.length > 0) && (
+                                        <div className="py-8 text-center text-muted-foreground text-sm flex flex-col items-center">
+                                          <span>No features found.</span>
+                                          <span className="text-primary mt-1">Press Enter to search inventory for "{searchQuery}"</span>
+                                        </div>
+                                      )}
           </div>
 
           <div className="mt-8 mb-4 border-t border-border pt-4 space-y-1">

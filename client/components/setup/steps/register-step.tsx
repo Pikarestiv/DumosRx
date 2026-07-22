@@ -57,12 +57,12 @@ export function RegisterStep({ onRegister, isLoading, isCloudLinked, existingSto
             <UserPlus className="h-5 w-5 text-primary" />
           </div>
           <CardTitle className="text-xl font-bold">
-            {isCloudLinked ? "Cloud Setup" : "New Administrator"}
+            {!!(isCloudLinked) && "Cloud Setup"}
+                      {!(isCloudLinked) && "New Administrator"}
           </CardTitle>
           <CardDescription className="text-muted-foreground text-xs">
-            {isCloudLinked 
-              ? "Account linked! Now create your local master login." 
-              : "Create your master local account"}
+            {!!(isCloudLinked) && "Account linked! Now create your local master login."}
+                      {!(isCloudLinked) && "Create your master local account"}
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
@@ -94,7 +94,8 @@ export function RegisterStep({ onRegister, isLoading, isCloudLinked, existingSto
 
             <div className="space-y-1">
               <Label htmlFor="store-name" className="text-xs">
-                {selectedStoreId === "new" ? "New Store / Store Name" : "Shop Name (Selected)"}
+                {selectedStoreId === "new" && "New Store / Store Name"}
+                              {!(selectedStoreId === "new") && "Shop Name (Selected)"}
               </Label>
               <Input
                 id="store-name"
@@ -166,11 +167,12 @@ export function RegisterStep({ onRegister, isLoading, isCloudLinked, existingSto
               className="w-full h-11 text-base font-bold shadow-lg"
               disabled={isLoading}
             >
-              {isLoading ? (
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-              ) : (
-                "Complete Setup"
-              )}
+              {!!(isLoading) && (
+                                          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                                        )}
+                          {!(isLoading) && (
+                                          "Complete Setup"
+                                        )}
             </Button>
           </CardFooter>
         </form>

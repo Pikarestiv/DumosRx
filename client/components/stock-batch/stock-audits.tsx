@@ -126,38 +126,39 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
               <div className="text-[17px] font-semibold mb-1.5">What are you counting?</div>
               <div className="text-[13px] text-muted-foreground mb-5">Pick a category, then search and count items in any order.</div>
-              {isLoading ? (
-                <div className="text-center p-8 text-muted-foreground">Loading categories...</div>
-              ) : (
-                <div className="flex flex-col gap-2.5 mb-2">
-                  {categories.length === 0 && <div className="text-muted-foreground text-[13px]">No items found.</div>}
-                  
-                  {items.length > 0 && (
-                    <div 
-                      onClick={() => setSelectedCategory("__all__")}
-                      className={`flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-colors ${
-                        selectedCategory === "__all__" ? 'border-primary bg-primary/10' : 'border-border bg-card hover:bg-accent/50'
-                      }`}
-                    >
-                      <div className="font-semibold text-[14px] text-foreground">All Categories</div>
-                      <div className="text-[13px] text-muted-foreground">{items.length} items</div>
-                    </div>
-                  )}
+              {!!(isLoading) && (
+                                          <div className="text-center p-8 text-muted-foreground">Loading categories...</div>
+                                        )}
+                          {!(isLoading) && (
+                                          <div className="flex flex-col gap-2.5 mb-2">
+                                            {categories.length === 0 && <div className="text-muted-foreground text-[13px]">No items found.</div>}
+                                            
+                                            {items.length > 0 && (
+                                              <div 
+                                                onClick={() => setSelectedCategory("__all__")}
+                                                className={`flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-colors ${
+                                                  selectedCategory === "__all__" ? 'border-primary bg-primary/10' : 'border-border bg-card hover:bg-accent/50'
+                                                }`}
+                                              >
+                                                <div className="font-semibold text-[14px] text-foreground">All Categories</div>
+                                                <div className="text-[13px] text-muted-foreground">{items.length} items</div>
+                                              </div>
+                                            )}
 
-                  {categories.map(cat => (
-                    <div 
-                      key={cat.id} 
-                      onClick={() => setSelectedCategory(cat.id)}
-                      className={`flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-colors ${
-                        selectedCategory === cat.id ? 'border-primary bg-primary/10' : 'border-border bg-card hover:bg-accent/50'
-                      }`}
-                    >
-                      <div className="font-semibold text-[14px] text-foreground">{cat.label}</div>
-                      <div className="text-[13px] text-muted-foreground">{cat.count} items</div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                                            {categories.map(cat => (
+                                              <div 
+                                                key={cat.id} 
+                                                onClick={() => setSelectedCategory(cat.id)}
+                                                className={`flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-colors ${
+                                                  selectedCategory === cat.id ? 'border-primary bg-primary/10' : 'border-border bg-card hover:bg-accent/50'
+                                                }`}
+                                              >
+                                                <div className="font-semibold text-[14px] text-foreground">{cat.label}</div>
+                                                <div className="text-[13px] text-muted-foreground">{cat.count} items</div>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
             </div>
           )}
 
@@ -193,13 +194,14 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
                         <div className="text-[12px] text-muted-foreground/70">{item.sku}</div>
                       </div>
                       <div className="text-right">
-                        {isCounted ? (
-                          <div className={`text-[15px] font-bold ${isDelta ? 'text-destructive' : 'text-emerald-700'}`}>
-                            {item.countedQty}
-                          </div>
-                        ) : (
-                          <div className="text-[13px] text-muted-foreground/70 font-medium">uncounted</div>
-                        )}
+                        {!!(isCounted) && (
+                                                        <div className={`text-[15px] font-bold ${isDelta ? 'text-destructive' : 'text-emerald-700'}`}>
+                                                          {item.countedQty}
+                                                        </div>
+                                                      )}
+                              {!(isCounted) && (
+                                                        <div className="text-[13px] text-muted-foreground/70 font-medium">uncounted</div>
+                                                      )}
                         {isCounted && <div className="text-[11px] text-muted-foreground">was {item.systemQty}</div>}
                       </div>
                     </div>
@@ -256,7 +258,8 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
                 {currentCount !== activeItem.systemQty && (
                   <div className="border-t border-border mt-5 pt-4 animate-in fade-in duration-300">
                     <div className="text-[12.5px] font-semibold mb-2.5 text-destructive">
-                      {Math.abs((typeof currentCount === "number" ? currentCount : 0) - activeItem.systemQty)} {(typeof currentCount === "number" ? currentCount : 0) > activeItem.systemQty ? "more" : "fewer"} than expected — reason required
+                      {Math.abs((typeof currentCount === "number" ? currentCount : 0) - activeItem.systemQty)} {((typeof currentCount === "number" ? currentCount : 0) > activeItem.systemQty) && "more"}
+                      {!((typeof currentCount === "number" ? currentCount : 0) > activeItem.systemQty) && "fewer"} than expected — reason required
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {["Damaged", "Expired", "Missing", "Found", "Other"].map(r => (
@@ -294,27 +297,28 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
                 </div>
               </div>
 
-              {adjustedItems.length > 0 ? (
-                <div className="bg-card border border-border rounded-2xl divide-y divide-border mb-2">
-                  {adjustedItems.map(item => (
-                    <div key={item.id} className="p-4 flex items-center justify-between">
-                      <div>
-                        <div className="text-[14px] font-semibold text-foreground">{item.name}</div>
-                        <div className="text-[12px] text-muted-foreground/70">{item.sku}</div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-[14px] font-bold text-destructive">
-                          {item.systemQty} → {item.countedQty}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="p-6 bg-card border border-border rounded-2xl mb-2 text-center text-[13px] text-muted-foreground">
-                  No items were adjusted. All counts matched the system.
-                </div>
-              )}
+              {adjustedItems.length > 0 && (
+                                          <div className="bg-card border border-border rounded-2xl divide-y divide-border mb-2">
+                                            {adjustedItems.map(item => (
+                                              <div key={item.id} className="p-4 flex items-center justify-between">
+                                                <div>
+                                                  <div className="text-[14px] font-semibold text-foreground">{item.name}</div>
+                                                  <div className="text-[12px] text-muted-foreground/70">{item.sku}</div>
+                                                </div>
+                                                <div className="text-right">
+                                                  <div className="text-[14px] font-bold text-destructive">
+                                                    {item.systemQty} → {item.countedQty}
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
+                          {!(adjustedItems.length > 0) && (
+                                          <div className="p-6 bg-card border border-border rounded-2xl mb-2 text-center text-[13px] text-muted-foreground">
+                                            No items were adjusted. All counts matched the system.
+                                          </div>
+                                        )}
             </div>
           )}
 

@@ -68,74 +68,76 @@ export function StockStatusList({
         <CardDescription>Current stock batch levels and alerts</CardDescription>
       </CardHeader>
       <CardContent>
-        {stockData.length === 0 ? (
-          <StockStatusEmptyState />
-        ) : (
-          <div className="space-y-4">
-            {stockData.slice(0, 5).map((item) => (
-              <div key={item.id} className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <h4 className="font-medium text-sm">
-                        {item.product_name}
-                      </h4>
-                      {getStatusBadge(item.status)}
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      {item.quantity} units •{" "}
-                      {formatCurrency(item.quantity * item.unit_price)}
-                    </p>
-                  </div>
-                  <TooltipProvider delayDuration={0}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className={`h-8 w-8 text-muted-foreground hover:text-white`}
-                            onClick={withRestriction(
-                              () => onPrintBarcode?.(item),
-                              {
-                                featureAllowed: canUseBarcodeGeneration,
-                                featureKey: "barcode_generation",
-                              },
-                            )}
-                          >
-                            {!canUseBarcodeGeneration ? (
-                              <Lock className="h-4 w-4" />
-                            ) : (
-                              <BarcodeIcon className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </div>
-                      </TooltipTrigger>
-                      {!canUseBarcodeGeneration && (
-                        <TooltipContent>
-                          <p>{getUpgradeMessage("barcode_generation")}</p>
-                        </TooltipContent>
+        {stockData.length === 0 && (
+                        <StockStatusEmptyState />
                       )}
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-                <div className="space-y-1">
-                  <Progress
-                    value={Math.min(
-                      (item.quantity / (item.reorder_level * 3)) * 100,
-                      100,
-                    )}
-                    className="h-2"
-                  />
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Reorder: {item.reorder_level}</span>
-                    <span>Batch: {item.batch_number}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+              {!(stockData.length === 0) && (
+                        <div className="space-y-4">
+                          {stockData.slice(0, 5).map((item) => (
+                            <div key={item.id} className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <h4 className="font-medium text-sm">
+                                      {item.product_name}
+                                    </h4>
+                                    {getStatusBadge(item.status)}
+                                  </div>
+                                  <p className="text-xs text-muted-foreground">
+                                    {item.quantity} units •{" "}
+                                    {formatCurrency(item.quantity * item.unit_price)}
+                                  </p>
+                                </div>
+                                <TooltipProvider delayDuration={0}>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <div>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className={`h-8 w-8 text-muted-foreground hover:text-white`}
+                                          onClick={withRestriction(
+                                            () => onPrintBarcode?.(item),
+                                            {
+                                              featureAllowed: canUseBarcodeGeneration,
+                                              featureKey: "barcode_generation",
+                                            },
+                                          )}
+                                        >
+                                          {!!(!canUseBarcodeGeneration) && (
+                                                                                                      <Lock className="h-4 w-4" />
+                                                                                                    )}
+                                                          {!(!canUseBarcodeGeneration) && (
+                                                                                                      <BarcodeIcon className="h-4 w-4" />
+                                                                                                    )}
+                                        </Button>
+                                      </div>
+                                    </TooltipTrigger>
+                                    {!canUseBarcodeGeneration && (
+                                      <TooltipContent>
+                                        <p>{getUpgradeMessage("barcode_generation")}</p>
+                                      </TooltipContent>
+                                    )}
+                                  </Tooltip>
+                                </TooltipProvider>
+                              </div>
+                              <div className="space-y-1">
+                                <Progress
+                                  value={Math.min(
+                                    (item.quantity / (item.reorder_level * 3)) * 100,
+                                    100,
+                                  )}
+                                  className="h-2"
+                                />
+                                <div className="flex justify-between text-xs text-muted-foreground">
+                                  <span>Reorder: {item.reorder_level}</span>
+                                  <span>Batch: {item.batch_number}</span>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
       </CardContent>
     </Card>
   );

@@ -57,51 +57,53 @@ export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
         {/* Left side (Desktop & Mobile) */}
         <div className="flex flex-col gap-0.5">
           <div className="flex items-center gap-1.5">
-            {!pageInfo ? (
-              <>
-                <span className="text-foreground text-base sm:text-lg font-bold tracking-tight">
-                  {(() => {
-                    const hour = new Date().getHours();
-                    if (hour < 12) return "Good morning,";
-                    if (hour === 12) return "Good noon,";
-                    if (hour < 17) return "Good afternoon,";
-                    if (hour < 21) return "Good evening,";
-                    return "Good night,";
-                  })()}
-                </span>
-                <span className="text-foreground text-base sm:text-lg font-bold sm:hidden tracking-tight">
-                  {user?.first_name} {user?.last_name}
-                </span>
-                <span className="text-foreground text-base sm:text-lg font-bold hidden sm:inline-block tracking-tight">
-                  {user?.first_name}
-                </span>
-              </>
-            ) : (
-              <div className="flex items-center gap-2">
-                {pageInfo.desc ? (
-                  <TooltipProvider delayDuration={1000}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="text-foreground text-base sm:text-lg font-bold tracking-tight cursor-default">
-                          {pageInfo.title}
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent
-                        side="bottom"
-                        align="start"
-                        className="max-w-[300px] text-sm"
-                      >
-                        <p>{pageInfo.desc}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                ) : (
-                  <span className="text-foreground text-base sm:text-lg font-bold tracking-tight">
-                    {pageInfo.title}
-                  </span>
-                )}
-              </div>
-            )}
+            {!!(!pageInfo) && (
+                                    <>
+                                      <span className="text-foreground text-base sm:text-lg font-bold tracking-tight">
+                                        {(() => {
+                                          const hour = new Date().getHours();
+                                          if (hour < 12) return "Good morning,";
+                                          if (hour === 12) return "Good noon,";
+                                          if (hour < 17) return "Good afternoon,";
+                                          if (hour < 21) return "Good evening,";
+                                          return "Good night,";
+                                        })()}
+                                      </span>
+                                      <span className="text-foreground text-base sm:text-lg font-bold sm:hidden tracking-tight">
+                                        {user?.first_name} {user?.last_name}
+                                      </span>
+                                      <span className="text-foreground text-base sm:text-lg font-bold hidden sm:inline-block tracking-tight">
+                                        {user?.first_name}
+                                      </span>
+                                    </>
+                                  )}
+                      {!(!pageInfo) && (
+                                    <div className="flex items-center gap-2">
+                                      {!!(pageInfo.desc) && (
+                                                                      <TooltipProvider delayDuration={1000}>
+                                                                        <Tooltip>
+                                                                          <TooltipTrigger asChild>
+                                                                            <span className="text-foreground text-base sm:text-lg font-bold tracking-tight cursor-default">
+                                                                              {pageInfo.title}
+                                                                            </span>
+                                                                          </TooltipTrigger>
+                                                                          <TooltipContent
+                                                                            side="bottom"
+                                                                            align="start"
+                                                                            className="max-w-[300px] text-sm"
+                                                                          >
+                                                                            <p>{pageInfo.desc}</p>
+                                                                          </TooltipContent>
+                                                                        </Tooltip>
+                                                                      </TooltipProvider>
+                                                                    )}
+                              {!(pageInfo.desc) && (
+                                                                      <span className="text-foreground text-base sm:text-lg font-bold tracking-tight">
+                                                                        {pageInfo.title}
+                                                                      </span>
+                                                                    )}
+                                    </div>
+                                  )}
           </div>
 
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -130,7 +132,8 @@ export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
               onClick={() => router.push(pageInfo?.action ? pageInfo.action.path : "/pos")}
             >
               <Plus className="h-4 w-4" />
-              {pageInfo?.action ? pageInfo.action.label : "New Sale"}
+              {!!(pageInfo?.action) && pageInfo.action.label}
+                          {!(pageInfo?.action) && "New Sale"}
             </Button>
           </div>
 

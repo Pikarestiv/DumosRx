@@ -61,7 +61,8 @@ export function PaymentSettingsCard({
           size="icon"
           onClick={() => setIsEditing(!isEditing)}
         >
-          {isEditing ? <X className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
+          {!!(isEditing) && <X className="h-4 w-4" />}
+                  {!(isEditing) && <Pencil className="h-4 w-4" />}
         </Button>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -79,40 +80,42 @@ export function PaymentSettingsCard({
               </Tooltip>
             </TooltipProvider>
           </div>
-          {isEditing ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border rounded-lg p-4">
-              {PAYMENT_METHODS.map((method) => (
-                <div key={method.id} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`method-${method.id}`}
-                    checked={enabledPaymentMethods.includes(method.id)}
-                    onCheckedChange={(checked) => toggleMethod(method.id, checked as boolean)}
-                  />
-                  <Label
-                    htmlFor={`method-${method.id}`}
-                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                  >
-                    {method.label}
-                  </Label>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="flex flex-wrap gap-2 py-2">
-              {enabledPaymentMethods.length > 0 ? (
-                enabledPaymentMethods.map(id => {
-                  const method = PAYMENT_METHODS.find(m => m.id === id);
-                  return (
-                    <div key={id} className="px-2.5 py-1 rounded-md bg-muted text-sm font-medium border">
-                      {method?.label || id}
-                    </div>
-                  );
-                })
-              ) : (
-                <p className="text-sm text-muted-foreground italic">No payment methods enabled.</p>
-              )}
-            </div>
-          )}
+          {!!(isEditing) && (
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border rounded-lg p-4">
+                                {PAYMENT_METHODS.map((method) => (
+                                  <div key={method.id} className="flex items-center space-x-2">
+                                    <Checkbox
+                                      id={`method-${method.id}`}
+                                      checked={enabledPaymentMethods.includes(method.id)}
+                                      onCheckedChange={(checked) => toggleMethod(method.id, checked as boolean)}
+                                    />
+                                    <Label
+                                      htmlFor={`method-${method.id}`}
+                                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                    >
+                                      {method.label}
+                                    </Label>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                  {!(isEditing) && (
+                              <div className="flex flex-wrap gap-2 py-2">
+                                {enabledPaymentMethods.length > 0 && (
+                                                            enabledPaymentMethods.map(id => {
+                                                              const method = PAYMENT_METHODS.find(m => m.id === id);
+                                                              return (
+                                                                <div key={id} className="px-2.5 py-1 rounded-md bg-muted text-sm font-medium border">
+                                                                  {method?.label || id}
+                                                                </div>
+                                                              );
+                                                            })
+                                                          )}
+                          {!(enabledPaymentMethods.length > 0) && (
+                                                            <p className="text-sm text-muted-foreground italic">No payment methods enabled.</p>
+                                                          )}
+                              </div>
+                            )}
         </div>
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between rounded-lg border p-4 gap-4">
@@ -134,14 +137,16 @@ export function PaymentSettingsCard({
               Force cashiers to select which bank/terminal received Transfers or Card payments.
             </p>
           </div>
-          {isEditing ? (
-            <Switch
-              checked={requirePaymentAccount}
-              onCheckedChange={setRequirePaymentAccount}
-            />
-          ) : (
-            <p className="text-sm font-medium">{requirePaymentAccount ? "Enabled" : "Disabled"}</p>
-          )}
+          {!!(isEditing) && (
+                              <Switch
+                                checked={requirePaymentAccount}
+                                onCheckedChange={setRequirePaymentAccount}
+                              />
+                            )}
+                  {!(isEditing) && (
+                              <p className="text-sm font-medium">{!!(requirePaymentAccount) && "Enabled"}
+                      {!(requirePaymentAccount) && "Disabled"}</p>
+                            )}
         </div>
       </CardContent>
       {isEditing && (

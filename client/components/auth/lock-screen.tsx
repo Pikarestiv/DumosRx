@@ -63,28 +63,29 @@ export function LockScreen({
   return (
     <div className="flex-1 flex flex-col w-full">
       <AnimatePresence mode="wait">
-        {!selectedUser ? (
-          <UserSelection
-            key="grid"
-            recentUsers={recentUsers}
-            onSelectUser={setSelectedUser}
-            onLoginAsOther={onLoginAsOther}
-          />
-        ) : (
-          <PinEntry
-            key="pin"
-            selectedUser={selectedUser}
-            pin={pin}
-            setPin={setPin}
-            isLoading={isLoading}
-            hasError={hasError}
-            handleLogin={handleLogin}
-            onBack={() => {
-              setSelectedUser(null);
-              setPin("");
-            }}
-          />
-        )}
+        {!!(!selectedUser) && (
+                        <UserSelection
+                          key="grid"
+                          recentUsers={recentUsers}
+                          onSelectUser={setSelectedUser}
+                          onLoginAsOther={onLoginAsOther}
+                        />
+                      )}
+              {!(!selectedUser) && (
+                        <PinEntry
+                          key="pin"
+                          selectedUser={selectedUser}
+                          pin={pin}
+                          setPin={setPin}
+                          isLoading={isLoading}
+                          hasError={hasError}
+                          handleLogin={handleLogin}
+                          onBack={() => {
+                            setSelectedUser(null);
+                            setPin("");
+                          }}
+                        />
+                      )}
       </AnimatePresence>
     </div>
   );

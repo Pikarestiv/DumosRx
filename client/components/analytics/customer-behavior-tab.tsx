@@ -56,11 +56,12 @@ export function CustomerBehaviorTab({
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-1">
-                {metric.trend === "up" ? (
-                  <TrendingUp className="h-4 w-4 text-emerald-500" />
-                ) : (
-                  <TrendingDown className="h-4 w-4 text-red-500" />
-                )}
+                {metric.trend === "up" && (
+                                          <TrendingUp className="h-4 w-4 text-emerald-500" />
+                                        )}
+                        {!(metric.trend === "up") && (
+                                          <TrendingDown className="h-4 w-4 text-red-500" />
+                                        )}
                 <span
                   className={`text-sm font-medium ${
                     metric.trend === "up"

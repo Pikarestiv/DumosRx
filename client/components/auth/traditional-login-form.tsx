@@ -93,11 +93,12 @@ export function TraditionalLoginForm({
           className="w-full h-11 text-base font-bold shadow-lg active:scale-[0.98]"
           disabled={isLoading}
         >
-          {isLoading ? (
-            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-          ) : (
-            "Authorize Entry"
-          )}
+          {!!(isLoading) && (
+                              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                            )}
+                  {!(isLoading) && (
+                              "Authorize Entry"
+                            )}
         </Button>
         <div className="flex items-center gap-2 text-[10px] text-muted-foreground uppercase tracking-widest">
           <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />

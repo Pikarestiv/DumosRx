@@ -183,71 +183,75 @@ export function PaymentAccountsCard() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        {loading ? (
-          <div className="flex justify-center p-8">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
-        ) : accounts.length === 0 ? (
-          <div className="text-center p-8 border rounded-lg border-dashed">
-            <p className="text-muted-foreground text-sm">No payment accounts configured.</p>
-            {isAdmin && (
-              <Button variant="link" onClick={() => handleOpenDialog()} className="mt-2">
-                Add your first account
-              </Button>
-            )}
-          </div>
-        ) : (
-          <div className={`grid gap-3 ${accounts.length === 1 ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2"}`}>
-            {accounts.map((account) => (
-              <div key={account.id} className="flex flex-col justify-between p-4 border rounded-lg hover:bg-muted/30 transition-colors">
-                <div className="flex items-center gap-4">
-                  <div className="p-2 bg-muted rounded-full">
-                    {getIcon(account.account_type)}
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-sm">{account.name}</h4>
-                    <p className="text-xs text-muted-foreground">
-                      {account.account_type === "bank" ? "Bank Account" : 
-                       account.account_type === "pos_terminal" ? "POS Terminal" : "Mobile Money"}
-                      {account.bank_name && ` • ${account.bank_name}`}
-                      {account.account_number && ` • ${account.account_number}`}
-                    </p>
-                  </div>
-                </div>
-                {isAdmin && (
-                    <div className="flex items-center gap-2 mt-4 pt-4 border-t">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="flex-1"
-                        onClick={() => handleOpenDialog(account)}
-                      >
-                        <Edit2 className="h-4 w-4 mr-2" />
-                        Edit
-                      </Button>
-                      <Button 
-                        variant="destructive" 
-                        size="icon"
-                        className="shrink-0"
-                        onClick={() => {
-                          setAccountToDelete(account.id);
-                          setIsConfirmOpen(true);
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
+        {!!(loading) && (
+                        <div className="flex justify-center p-8">
+                          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                        </div>
+                      )}
+              {(!(loading) && accounts.length === 0) && (
+                                      <div className="text-center p-8 border rounded-lg border-dashed">
+                                        <p className="text-muted-foreground text-sm">No payment accounts configured.</p>
+                                        {isAdmin && (
+                                          <Button variant="link" onClick={() => handleOpenDialog()} className="mt-2">
+                                            Add your first account
+                                          </Button>
+                                        )}
+                                      </div>
+                                    )}
+              {!(!(loading) && accounts.length === 0) && (
+                                      <div className={`grid gap-3 ${accounts.length === 1 ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2"}`}>
+                                        {accounts.map((account) => (
+                                          <div key={account.id} className="flex flex-col justify-between p-4 border rounded-lg hover:bg-muted/30 transition-colors">
+                                            <div className="flex items-center gap-4">
+                                              <div className="p-2 bg-muted rounded-full">
+                                                {getIcon(account.account_type)}
+                                              </div>
+                                              <div className="flex-1">
+                                                <h4 className="font-semibold text-sm">{account.name}</h4>
+                                                <p className="text-xs text-muted-foreground">
+                                                  {account.account_type === "bank" && "Bank Account"}
+                                                            {(!(account.account_type === "bank") && account.account_type === "pos_terminal") && "POS Terminal"}
+                                                            {!(!(account.account_type === "bank") && account.account_type === "pos_terminal") && "Mobile Money"}
+                                                  {account.bank_name && ` • ${account.bank_name}`}
+                                                  {account.account_number && ` • ${account.account_number}`}
+                                                </p>
+                                              </div>
+                                            </div>
+                                            {isAdmin && (
+                                                <div className="flex items-center gap-2 mt-4 pt-4 border-t">
+                                                  <Button 
+                                                    variant="outline" 
+                                                    size="sm" 
+                                                    className="flex-1"
+                                                    onClick={() => handleOpenDialog(account)}
+                                                  >
+                                                    <Edit2 className="h-4 w-4 mr-2" />
+                                                    Edit
+                                                  </Button>
+                                                  <Button 
+                                                    variant="destructive" 
+                                                    size="icon"
+                                                    className="shrink-0"
+                                                    onClick={() => {
+                                                      setAccountToDelete(account.id);
+                                                      setIsConfirmOpen(true);
+                                                    }}
+                                                  >
+                                                    <Trash2 className="h-4 w-4" />
+                                                  </Button>
+                                                </div>
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
       </CardContent>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editingId ? "Edit Account" : "Add Payment Account"}</DialogTitle>
+            <DialogTitle>{!!(editingId) && "Edit Account"}
+                      {!(editingId) && "Add Payment Account"}</DialogTitle>
             <DialogDescription>
               Details for tracking where payments are received.
             </DialogDescription>
@@ -307,7 +311,8 @@ export function PaymentAccountsCard() {
                 onChange={(e) => setSetAsDefault(e.target.checked)}
               />
               <label htmlFor="setAsDefaultNew" className="text-sm cursor-pointer select-none">
-                Set as default for <span className="font-bold">{formData.account_type === "pos_terminal" ? "Card" : "Transfer"}</span> on this device
+                Set as default for <span className="font-bold">{formData.account_type === "pos_terminal" && "Card"}
+                              {!(formData.account_type === "pos_terminal") && "Transfer"}</span> on this device
               </label>
             </div>
           </div>

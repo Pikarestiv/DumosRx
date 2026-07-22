@@ -140,49 +140,51 @@ export function BatchTracking() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8">Loading batches...</TableCell>
-                </TableRow>
-              ) : filteredBatches.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8">No batches found.</TableCell>
-                </TableRow>
-              ) : (
-                filteredBatches.map((batch) => {
-                  const status = getExpiryStatus(batch.expiry_date);
-                  return (
-                    <TableRow key={batch.id}>
-                      <TableCell>
-                        <div className="font-medium">{batch.product_name}</div>
-                        <div className="text-xs text-muted-foreground">{batch.product_brand}</div>
-                      </TableCell>
-                      <TableCell className="font-mono">{batch.batch_number}</TableCell>
-                      <TableCell>{batch.quantity}</TableCell>
-                      <TableCell>₦{batch.cost_price?.toLocaleString() || "0.00"}</TableCell>
-                      <TableCell>{formatDateToDDMMYYYY(batch.expiry_date)}</TableCell>
-                      <TableCell>
-                        <Badge variant={status.variant}>{status.label}</Badge>
-                      </TableCell>
-                      {isAdmin && (
-                        <TableCell className="text-right">
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => {
-                              setSelectedBatch(batch);
-                              setIsEditDialogOpen(true);
-                            }}
-                          >
-                            <Pencil className="h-4 w-4 mr-2" />
-                            Edit
-                          </Button>
-                        </TableCell>
-                      )}
-                    </TableRow>
-                  );
-                })
-              )}
+              {!!(loading) && (
+                                          <TableRow>
+                                            <TableCell colSpan={6} className="text-center py-8">Loading batches...</TableCell>
+                                          </TableRow>
+                                        )}
+                          {(!(loading) && filteredBatches.length === 0) && (
+                                                                    <TableRow>
+                                                                      <TableCell colSpan={6} className="text-center py-8">No batches found.</TableCell>
+                                                                    </TableRow>
+                                                                  )}
+                          {!(!(loading) && filteredBatches.length === 0) && (
+                                                                    filteredBatches.map((batch) => {
+                                                                      const status = getExpiryStatus(batch.expiry_date);
+                                                                      return (
+                                                                        <TableRow key={batch.id}>
+                                                                          <TableCell>
+                                                                            <div className="font-medium">{batch.product_name}</div>
+                                                                            <div className="text-xs text-muted-foreground">{batch.product_brand}</div>
+                                                                          </TableCell>
+                                                                          <TableCell className="font-mono">{batch.batch_number}</TableCell>
+                                                                          <TableCell>{batch.quantity}</TableCell>
+                                                                          <TableCell>₦{batch.cost_price?.toLocaleString() || "0.00"}</TableCell>
+                                                                          <TableCell>{formatDateToDDMMYYYY(batch.expiry_date)}</TableCell>
+                                                                          <TableCell>
+                                                                            <Badge variant={status.variant}>{status.label}</Badge>
+                                                                          </TableCell>
+                                                                          {isAdmin && (
+                                                                            <TableCell className="text-right">
+                                                                              <Button 
+                                                                                variant="ghost" 
+                                                                                size="sm"
+                                                                                onClick={() => {
+                                                                                  setSelectedBatch(batch);
+                                                                                  setIsEditDialogOpen(true);
+                                                                                }}
+                                                                              >
+                                                                                <Pencil className="h-4 w-4 mr-2" />
+                                                                                Edit
+                                                                              </Button>
+                                                                            </TableCell>
+                                                                          )}
+                                                                        </TableRow>
+                                                                      );
+                                                                    })
+                                                                  )}
             </TableBody>
           </Table>
         </CardContent>

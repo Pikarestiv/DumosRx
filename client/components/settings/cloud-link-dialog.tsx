@@ -132,14 +132,15 @@ export function CloudLinkDialog({ open, onOpenChange, onSuccess }: CloudLinkDial
               Cancel
             </Button>
             <Button type="submit" disabled={isLoading}>
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Connecting...
-                </>
-              ) : (
-                "Link Account"
-              )}
+              {!!(isLoading) && (
+                                          <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            Connecting...
+                                          </>
+                                        )}
+                          {!(isLoading) && (
+                                          "Link Account"
+                                        )}
             </Button>
           </DialogFooter>
         </form>

@@ -80,11 +80,12 @@ export function SelectStoreStep({
             className="w-full h-12 text-lg font-bold shadow-lg"
             disabled={isLoading || !selectedStoreId}
           >
-            {isLoading ? (
-              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-            ) : (
-              "Initialize Selected Store"
-            )}
+            {!!(isLoading) && (
+                                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                                  )}
+                      {!(isLoading) && (
+                                    "Initialize Selected Store"
+                                  )}
           </Button>
 
           <Button

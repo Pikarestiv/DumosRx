@@ -102,107 +102,108 @@ export function RefillTable({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredRefills.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={9} className="h-48 text-center bg-muted/20">
-                    <div className="flex flex-col items-center justify-center space-y-3 py-6">
-                      <div className="bg-muted p-3 rounded-full">
-                        <RefreshCw className="h-8 w-8 text-muted-foreground opacity-50" />
-                      </div>
-                      <h3 className="font-semibold text-lg text-foreground">No Refill Requests Found</h3>
-                      <p className="text-muted-foreground text-sm max-w-sm">
-                        There are no refill requests matching your current filters. 
-                        Adjust your search or check back later for new requests.
-                      </p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredRefills.map((refill) => (
-                  <TableRow key={refill.id}>
-                  <TableCell>
-                    <div>
-                      <div className="font-medium">{refill.patientName}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {refill.patientPhone}
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div>
-                      <div className="font-medium">{refill.productName}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {refill.strength}
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <code className="text-sm bg-muted px-2 py-1 rounded">
-                      {refill.originalPrescription}
-                    </code>
-                  </TableCell>
-                  <TableCell>{formatDate(refill.lastFilled)}</TableCell>
-                  <TableCell>{formatDate(refill.nextRefillDate)}</TableCell>
-                  <TableCell>
-                    <div className="text-center">
-                      <span className="font-medium">
-                        {refill.refillsRemaining}/{refill.totalRefills}
-                      </span>
-                      <div className="text-xs text-muted-foreground">
-                        remaining
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      {getStatusIcon(refill.status)}
-                      {getStatusBadge(refill.status)}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="font-medium">
-                      {formatCurrency(refill.cost)}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      {(refill.status === "due" ||
-                        refill.status === "overdue") &&
-                        refill.refillsRemaining > 0 && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => processRefill(refill.id)}
-                            className="flex items-center gap-1"
-                          >
-                            <RefreshCw className="h-4 w-4" />
-                            Fill
-                          </Button>
-                        )}
-                      {refill.status === "early" && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled
-                          className="text-muted-foreground"
-                        >
-                          Too Early
-                        </Button>
-                      )}
-                      {refill.status === "completed" && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled
-                          className="text-muted-foreground"
-                        >
-                          Complete
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              )))}
+              {filteredRefills.length === 0 && (
+                                          <TableRow>
+                                            <TableCell colSpan={9} className="h-48 text-center bg-muted/20">
+                                              <div className="flex flex-col items-center justify-center space-y-3 py-6">
+                                                <div className="bg-muted p-3 rounded-full">
+                                                  <RefreshCw className="h-8 w-8 text-muted-foreground opacity-50" />
+                                                </div>
+                                                <h3 className="font-semibold text-lg text-foreground">No Refill Requests Found</h3>
+                                                <p className="text-muted-foreground text-sm max-w-sm">
+                                                  There are no refill requests matching your current filters. 
+                                                  Adjust your search or check back later for new requests.
+                                                </p>
+                                              </div>
+                                            </TableCell>
+                                          </TableRow>
+                                        )}
+                          {!(filteredRefills.length === 0) && (
+                                          filteredRefills.map((refill) => (
+                                            <TableRow key={refill.id}>
+                                            <TableCell>
+                                              <div>
+                                                <div className="font-medium">{refill.patientName}</div>
+                                                <div className="text-sm text-muted-foreground">
+                                                  {refill.patientPhone}
+                                                </div>
+                                              </div>
+                                            </TableCell>
+                                            <TableCell>
+                                              <div>
+                                                <div className="font-medium">{refill.productName}</div>
+                                                <div className="text-sm text-muted-foreground">
+                                                  {refill.strength}
+                                                </div>
+                                              </div>
+                                            </TableCell>
+                                            <TableCell>
+                                              <code className="text-sm bg-muted px-2 py-1 rounded">
+                                                {refill.originalPrescription}
+                                              </code>
+                                            </TableCell>
+                                            <TableCell>{formatDate(refill.lastFilled)}</TableCell>
+                                            <TableCell>{formatDate(refill.nextRefillDate)}</TableCell>
+                                            <TableCell>
+                                              <div className="text-center">
+                                                <span className="font-medium">
+                                                  {refill.refillsRemaining}/{refill.totalRefills}
+                                                </span>
+                                                <div className="text-xs text-muted-foreground">
+                                                  remaining
+                                                </div>
+                                              </div>
+                                            </TableCell>
+                                            <TableCell>
+                                              <div className="flex items-center gap-2">
+                                                {getStatusIcon(refill.status)}
+                                                {getStatusBadge(refill.status)}
+                                              </div>
+                                            </TableCell>
+                                            <TableCell>
+                                              <div className="font-medium">
+                                                {formatCurrency(refill.cost)}
+                                              </div>
+                                            </TableCell>
+                                            <TableCell>
+                                              <div className="flex items-center gap-2">
+                                                {(refill.status === "due" ||
+                                                  refill.status === "overdue") &&
+                                                  refill.refillsRemaining > 0 && (
+                                                    <Button
+                                                      variant="ghost"
+                                                      size="sm"
+                                                      onClick={() => processRefill(refill.id)}
+                                                      className="flex items-center gap-1"
+                                                    >
+                                                      <RefreshCw className="h-4 w-4" />
+                                                      Fill
+                                                    </Button>
+                                                  )}
+                                                {refill.status === "early" && (
+                                                  <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    disabled
+                                                    className="text-muted-foreground"
+                                                  >
+                                                    Too Early
+                                                  </Button>
+                                                )}
+                                                {refill.status === "completed" && (
+                                                  <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    disabled
+                                                    className="text-muted-foreground"
+                                                  >
+                                                    Complete
+                                                  </Button>
+                                                )}
+                                              </div>
+                                            </TableCell>
+                                          </TableRow>
+                                        )))}
             </TableBody>
           </Table>
         </div>

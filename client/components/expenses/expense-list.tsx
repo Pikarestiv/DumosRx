@@ -13,7 +13,6 @@ import { Expense } from "@/lib/db/queries/finance";
 const CATEGORIES = [
   "All",
   "Rent",
-  "Inventory Purchase",
   "Utilities",
   "Salaries",
   "Maintenance",
@@ -23,7 +22,6 @@ const CATEGORIES = [
 
 const CATEGORY_META: Record<string, { badgeClass: string }> = {
   'Rent':               { badgeClass: 'bg-chart-1/10 text-chart-1' },
-  'Inventory Purchase': { badgeClass: 'bg-primary/10 text-primary' },
   'Utilities':          { badgeClass: 'bg-chart-3/10 text-chart-3' },
   'Salaries':           { badgeClass: 'bg-emerald-600/10 text-emerald-600' },
   'Maintenance':        { badgeClass: 'bg-muted text-muted-foreground' },

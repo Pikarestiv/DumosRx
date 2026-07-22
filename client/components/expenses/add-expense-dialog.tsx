@@ -16,7 +16,6 @@ interface AddExpenseDialogProps {
 
 const CATEGORIES = [
   "Rent",
-  "Inventory Purchase",
   "Utilities",
   "Salaries",
   "Maintenance",

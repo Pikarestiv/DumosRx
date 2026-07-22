@@ -15,8 +15,21 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 
-export function RequestItemDialog({ triggerClassName }: { triggerClassName?: string }) {
-  const [open, setOpen] = useState(false);
+export function RequestItemDialog({ 
+  triggerClassName,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
+}: { 
+  triggerClassName?: string;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
+  const setOpen = isControlled && controlledOnOpenChange ? controlledOnOpenChange : setInternalOpen;
+
   const [productName, setProductName] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [customerSearch, setCustomerSearch] = useState("");

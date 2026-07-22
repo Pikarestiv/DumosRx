@@ -13,6 +13,7 @@ import { useStore } from "@/lib/context/store-context";
 import { SupplierStats } from "./supplier-stats";
 import { SupplierTable } from "./supplier-table";
 import { genericFuzzySearch } from "@/lib/utils/search";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 
 interface Supplier {
   id: string;
@@ -58,7 +59,20 @@ export function SupplierManagement() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filter, setFilter] = useState("all");
   const [showAddDialog, setShowAddDialog] = useState(false);
-  const [_loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
+
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    if (searchParams.get("action") === "add") {
+      setShowAddDialog(true);
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("action");
+      router.replace(`${pathname}?${params.toString()}`);
+    }
+  }, [searchParams, router, pathname]);
 
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(
     null,
@@ -301,13 +315,13 @@ export function SupplierManagement() {
               <div className="text-[14.5px] font-semibold text-foreground">
                 Supplier Directory
               </div>
-              <Button
+              {/* <Button
                 className="bg-primary hover:bg-primary/90 text-primary-foreground px-3.5 py-2 rounded-lg text-[12.5px] font-semibold h-auto"
                 onClick={() => setShowAddDialog(true)}
               >
                 <Plus className="h-3.5 w-3.5 mr-1.5" />
                 Add Supplier
-              </Button>
+              </Button> */}
             </div>
             <div className="flex items-center mb-3">
               <div className="flex-1 flex items-center gap-2 bg-muted border border-border rounded-[10px] px-3.5 py-2.5">

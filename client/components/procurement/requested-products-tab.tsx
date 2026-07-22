@@ -22,11 +22,34 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Check, Copy, Search, Trash2, Clock } from "lucide-react";
 import { genericFuzzySearch } from "@/lib/utils/search";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { RequestItemDialog } from "@/components/pos/request-item-dialog";
 
 export function RequestedProductsTab() {
   const [requests, setRequests] = useState<RequestedProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [showAddDialog, setShowAddDialog] = useState(false);
+
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    if (searchParams.get("action") === "add") {
+      setShowAddDialog(true);
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("action");
+      router.replace(`${pathname}?${params.toString()}`);
+    }
+  }, [searchParams, router, pathname]);
+
+  // Refresh requests if dialog is closed
+  useEffect(() => {
+    if (!showAddDialog) {
+      fetchRequests();
+    }
+  }, [showAddDialog]);
 
   useEffect(() => {
     fetchRequests();
@@ -97,6 +120,11 @@ export function RequestedProductsTab() {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
+        <RequestItemDialog 
+          open={showAddDialog} 
+          onOpenChange={setShowAddDialog} 
+          triggerClassName="sm:w-auto w-full bg-primary hover:bg-primary/90 text-primary-foreground border-0 h-9"
+        />
       </div>
 
       <div className="flex-1 overflow-auto">

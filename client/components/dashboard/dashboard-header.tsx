@@ -27,6 +27,8 @@ const PAGE_ROUTES = [
   { path: "/customers", title: "Customer Management", desc: "View and manage customer profiles, credit, and history.", action: { label: "Add Customer", path: "/customers?action=add" } },
   { path: "/sales", title: "Sales History", desc: "View and manage past transactions and returns." },
   { path: "/prescriptions", title: "Prescription Management", desc: "Track and fulfill patient prescriptions securely.", action: { label: "Create Prescription", path: "/prescriptions?action=add" } },
+  { path: "/procurement/vendors", title: "Vendors & Suppliers", desc: "Manage supplier directory and view debt.", action: { label: "Add Supplier", path: "/procurement/vendors?action=add" } },
+  { path: "/procurement/requests", title: "Requested Products", desc: "View and manage products requested by staff or customers.", action: { label: "Request Product", path: "/procurement/requests?action=add" } },
   { path: "/procurement", title: "Procurement & Orders", desc: "Manage suppliers, create purchase orders, and track deliveries.", action: { label: "Create Order", path: "/procurement/new" } },
   { path: "/expenses", title: "Expenses", desc: "Track and manage your pharmacy's operational expenses.", action: { label: "Add Expense", path: "/expenses?action=add" } },
   { path: "/reports", title: "Reporting Center", desc: "View performance metrics and generate detailed reports." },

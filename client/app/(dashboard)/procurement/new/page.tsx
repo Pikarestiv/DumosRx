@@ -144,11 +144,27 @@ export default function CreateOrderPage() {
                   <SelectValue placeholder="Choose a supplier..." />
                 </SelectTrigger>
                 <SelectContent className="bg-card border-border">
-                  {suppliers.map((v) => (
-                    <SelectItem key={v.id} value={v.id}>
-                      {v.name}
-                    </SelectItem>
-                  ))}
+                  {suppliers.length === 0 ? (
+                    <div className="py-4 text-center text-[12.5px] text-muted-foreground px-2 flex flex-col items-center justify-center gap-1.5">
+                      <span>No suppliers available</span>
+                      <Button 
+                        variant="link" 
+                        className="h-auto p-0 text-[11px]" 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          router.push("/procurement/vendors?action=add");
+                        }}
+                      >
+                        Add a supplier first
+                      </Button>
+                    </div>
+                  ) : (
+                    suppliers.map((v) => (
+                      <SelectItem key={v.id} value={v.id}>
+                        {v.name}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             </div>

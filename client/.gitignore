@@ -44,3 +44,8 @@ next-env.d.ts
 # Android signing
 *.jks
 *-base64.txt
+
+# Playwright
+playwright-report/
+test-results/
+

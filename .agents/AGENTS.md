@@ -31,7 +31,17 @@ DumosRx is an offline-first application (SQLite local, Laravel MySQL cloud) conn
 - **ALWAYS** use the `insert()`, `update()`, and `softDelete()` helpers in `local-database.ts`. This ensures the `_sync_queue` is properly populated and the `_version` / `_synced` flags are respected.
 - **Data Types:** SQLite is loosely typed. Ensure dates are consistently stored as ISO-8601 strings to avoid comparison logic errors during sync.
 
-## 5. 🎨 Design Language & Aesthetics
+## 5. 🧪 End-to-End Testing (Playwright)
+
+Since DumosRx is an offline-first application relying on IndexedDB via `sql.js`, E2E tests must be carefully designed to avoid flakiness:
+
+- **Database Seeding:** Do not rely on network interception for the initial state. Instead, use a `global.setup.ts` to pre-seed the `idb-keyval` store with a test account and necessary mock data before tests run. This test account will be used across all test suites to bypass the network sync requirement for the first load.
+- **Test Accounts:** Always ensure there is a dedicated test account created locally in the mock database (e.g., `admin@dumosrx.com` with PIN `1234`).
+- **Navigation:** Avoid using `page.goto()` for internal page transitions as it forces a full reload, resetting SPA state and potentially clearing in-memory DB references if not rehydrated properly. Instead, navigate using UI elements like sidebar links (e.g., `await page.locator('a[href="/expenses"]').first().click()`).
+- **Network Independence:** Tests must be able to run fully offline once the `global.setup.ts` has initialized the local database.
+- **Page Coverage:** Ensure you write E2E tests for all the core pages (Dashboard, POS, Inventory, Customers, Procurement, Expenses, Reports) so the entire app is covered.
+
+## 6. 🎨 Design Language & Aesthetics
 
 To maintain the DumosRx "Premium" feel:
 
@@ -52,3 +62,4 @@ To maintain the DumosRx "Premium" feel:
 
 - Whenever a new feature is implemented, an architectural change is made, or an existing calculation is modified, **you must check whether to update existing tests or add new ones.**
 - Data integrity calculations, sync operations, and offline reconciliation flows MUST always be covered by automated tests to prevent silent data corruption.
+- **E2E Testing (Playwright):** We use Playwright for E2E testing the frontend. Since DumosRx is offline-first, a fresh browser context starts with an empty IndexedDB. Instead of performing the "Setup New Store" flow in every test, we use a `global.setup.ts` script to create a seeded database and export it. Use the custom `test` fixture from `e2e/fixtures.ts` to automatically inject this seeded database into `window.restoreDatabase()` before navigating to the target page. Test files should import `test` and `expect` from `./fixtures` rather than `@playwright/test`.

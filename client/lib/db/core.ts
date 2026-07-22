@@ -619,10 +619,10 @@ export async function initDatabase(): Promise<any> {
   }
 }
 
-export function saveDatabase(): void {
+export async function saveDatabase(): Promise<void> {
   if (!db) return;
   const data = db.export();
-  set(`${APP_NAME.toLowerCase()}_db`, data).catch(err => {
+  await set(`${APP_NAME.toLowerCase()}_db`, data).catch(err => {
     console.error("Failed to save DB to IndexedDB", err);
   });
 }
@@ -702,11 +702,12 @@ export async function restoreDatabase(binaryData: Uint8Array): Promise<void> {
   }
 
   db = new SQL.Database(binaryData);
-  saveDatabase();
-  // Reload page to ensure all contexts pick up new data
-  if (typeof window !== "undefined") {
-    window.location.reload();
-  }
+  await saveDatabase();
+}
+
+if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
+  (window as any).getDatabaseBinary = getDatabaseBinary;
+  (window as any).restoreDatabase = restoreDatabase;
 }
 
 /**

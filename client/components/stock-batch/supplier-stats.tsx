@@ -60,7 +60,7 @@ export function SupplierStats({
           </div>
           <div className="text-2xl font-semibold font-serif tracking-tight flex items-end justify-between">
             {avgRating.toFixed(1)}
-            <div className="text-right text-[#EAB308] text-[15px] tracking-widest pb-1">
+            <div className="text-right text-amber-500 text-[15px] tracking-widest pb-1">
               {ratingStars}
             </div>
           </div>

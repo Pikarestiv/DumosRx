@@ -68,11 +68,11 @@ export function PurchaseOrderTable({
   };
 
   return (
-    <Card className="rounded-[14px] border border-[#E6EAF2] bg-[#FFFFFF] shadow-[0_1px_2px_rgba(16,24,40,0.04)] flex flex-col flex-1 overflow-hidden">
-      <div className="px-[22px] py-[18px] border-b border-[#E6EAF2] flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <Card className="rounded-[14px] border border-border bg-card shadow-[0_1px_2px_rgba(16,24,40,0.04)] flex flex-col flex-1 overflow-hidden">
+      <div className="px-[22px] py-[18px] border-b border-border flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h3 className="text-[16px] font-bold text-[#101828]">Purchase Orders</h3>
-          <p className="text-[13px] text-[#667085] mt-0.5">Manage stock replenishments</p>
+          <h3 className="text-[16px] font-bold text-foreground">Purchase Orders</h3>
+          <p className="text-[13px] text-muted-foreground mt-0.5">Manage stock replenishments</p>
         </div>
         <div className="flex flex-col md:flex-row items-center gap-3">
           <Tabs value={activeTab} className="w-full md:w-auto" onValueChange={onTabChange}>
@@ -87,7 +87,7 @@ export function PurchaseOrderTable({
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 pointer-events-none" />
             <Input 
               placeholder="Search vendor or PO#..." 
-              className="pl-9 h-9 text-[13px] rounded-[10px] bg-[#F5F8FC] border-[#E6EAF2]"
+              className="pl-9 h-9 text-[13px] rounded-[10px] bg-accent border-border"
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
             />
@@ -104,13 +104,13 @@ export function PurchaseOrderTable({
         </div>
         <Table>
           <TableHeader>
-            <TableRow className="hover:bg-transparent border-b border-[#E6EAF2]">
-              <TableHead className="w-[110px] text-[11px] font-bold text-[#98A2B3] uppercase tracking-wide h-11 align-middle">PO Number</TableHead>
-              <TableHead className="text-[11px] font-bold text-[#98A2B3] uppercase tracking-wide h-11 align-middle">Vendor</TableHead>
-              <TableHead className="w-[100px] text-[11px] font-bold text-[#98A2B3] uppercase tracking-wide h-11 align-middle">Date</TableHead>
-              <TableHead className="w-[120px] text-[11px] font-bold text-[#98A2B3] uppercase tracking-wide h-11 align-middle">Amount</TableHead>
-              <TableHead className="w-[100px] text-[11px] font-bold text-[#98A2B3] uppercase tracking-wide h-11 align-middle">Status</TableHead>
-              <TableHead className="w-[80px] text-right text-[11px] font-bold text-[#98A2B3] uppercase tracking-wide h-11 align-middle"></TableHead>
+            <TableRow className="hover:bg-transparent border-b border-border">
+              <TableHead className="w-[110px] text-[11px] font-bold text-muted-foreground uppercase tracking-wide h-11 align-middle">PO Number</TableHead>
+              <TableHead className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide h-11 align-middle">Vendor</TableHead>
+              <TableHead className="w-[100px] text-[11px] font-bold text-muted-foreground uppercase tracking-wide h-11 align-middle">Date</TableHead>
+              <TableHead className="w-[120px] text-[11px] font-bold text-muted-foreground uppercase tracking-wide h-11 align-middle">Amount</TableHead>
+              <TableHead className="w-[100px] text-[11px] font-bold text-muted-foreground uppercase tracking-wide h-11 align-middle">Status</TableHead>
+              <TableHead className="w-[80px] text-right text-[11px] font-bold text-muted-foreground uppercase tracking-wide h-11 align-middle"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -130,22 +130,22 @@ export function PurchaseOrderTable({
               </TableRow>
             )}
             {!loading && orders.length > 0 && orders.map((po) => (
-              <TableRow key={po.id} className="border-b border-[#E6EAF2]/50 hover:bg-[#F9FAFB] transition-colors group">
-                <TableCell className="font-mono text-xs text-[#667085] py-[14px]">
+              <TableRow key={po.id} className="border-b border-border/50 hover:bg-accent/20 transition-colors group">
+                <TableCell className="font-mono text-xs text-muted-foreground py-[14px]">
                   #{po.id.split('-')[0].toUpperCase()}
                 </TableCell>
                 <TableCell className="py-[14px]">
                   <div className="flex items-center gap-2">
-                    <div className="h-8 w-8 rounded-full bg-[#EAF0FE] flex items-center justify-center text-[#153C9E] text-xs font-bold uppercase">
+                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold uppercase">
                       {po.vendor_name ? po.vendor_name[0] : "V"}
                     </div>
-                    <span className="text-[13.5px] font-semibold text-[#101828]">{po.vendor_name || "Unknown Vendor"}</span>
+                    <span className="text-[13.5px] font-semibold text-foreground">{po.vendor_name || "Unknown Vendor"}</span>
                   </div>
                 </TableCell>
-                <TableCell className="text-[#667085] text-[13.5px] py-[14px]">
+                <TableCell className="text-muted-foreground text-[13.5px] py-[14px]">
                   {formatDateToDDMMYYYY(po.created_at)}
                 </TableCell>
-                <TableCell className="font-bold text-[14px] text-[#101828] py-[14px]">
+                <TableCell className="font-bold text-[14px] text-foreground py-[14px]">
                   {formatCurrency(po.total_amount)}
                 </TableCell>
                 <TableCell className="py-[14px]">

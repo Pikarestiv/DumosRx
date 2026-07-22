@@ -165,15 +165,15 @@ export function SupplierManagement() {
         formatCurrency={formatCurrency}
       />
 
-      <Card className="rounded-[14px] border border-[#E6EAF2] bg-[#FFFFFF] shadow-[0_1px_2px_rgba(16,24,40,0.04)] flex flex-col flex-1 overflow-hidden">
-        <div className="px-[22px] py-[18px] border-b border-[#E6EAF2] flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      <Card className="rounded-[14px] border border-border bg-card shadow-[0_1px_2px_rgba(16,24,40,0.04)] flex flex-col flex-1 overflow-hidden">
+        <div className="px-[22px] py-[18px] border-b border-border flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
-            <h3 className="text-[16px] font-bold text-[#101828]">Vendor Directory</h3>
-            <p className="text-[13px] text-[#667085] mt-0.5">Manage contacts and payables</p>
+            <h3 className="text-[16px] font-bold text-foreground">Vendor Directory</h3>
+            <p className="text-[13px] text-muted-foreground mt-0.5">Manage contacts and payables</p>
           </div>
-          <div className="flex flex-col md:flex-row items-center gap-3">
-            {debtSuppliersCount > 0 && (
-              <span className="text-[13px] text-[#D92D20] font-semibold bg-[#FEF3F2] px-3 py-1.5 rounded-full border border-[#FEE4E2]">
+          <div className="flex flex-col md:flex-row md:items-center gap-3">
+            {hasDebtFilter && (
+              <span className="text-[13px] text-destructive font-semibold bg-destructive/10 px-3 py-1.5 rounded-full border border-destructive/20">
                 {formatCurrency(totalDebtAmount)} owed to {debtSuppliersCount} suppliers
               </span>
             )}

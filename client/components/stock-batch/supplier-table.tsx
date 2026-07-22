@@ -65,14 +65,14 @@ export function SupplierTable({
       <div className="overflow-x-auto">
         <Table>
           <TableHeader>
-            <TableRow className="hover:bg-transparent border-b border-[#E6EAF2]">
-              <TableHead className="w-[1.3fr] text-[11px] font-bold text-[#98A2B3] uppercase tracking-wide h-11 align-middle">Supplier</TableHead>
-              <TableHead className="w-[1fr] text-[11px] font-bold text-[#98A2B3] uppercase tracking-wide h-11 align-middle">Contact</TableHead>
-              <TableHead className="w-[100px] text-[11px] font-bold text-[#98A2B3] uppercase tracking-wide h-11 align-middle">Status</TableHead>
-              <TableHead className="w-[90px] text-[11px] font-bold text-[#98A2B3] uppercase tracking-wide h-11 align-middle">Orders</TableHead>
-              <TableHead className="w-[90px] text-[11px] font-bold text-[#98A2B3] uppercase tracking-wide h-11 align-middle">Rating</TableHead>
-              <TableHead className="w-[120px] text-[11px] font-bold text-[#98A2B3] uppercase tracking-wide h-11 align-middle">Total Value</TableHead>
-              <TableHead className="w-[80px] text-right text-[11px] font-bold text-[#98A2B3] uppercase tracking-wide h-11 align-middle"></TableHead>
+            <TableRow className="hover:bg-transparent border-b border-border">
+              <TableHead className="w-[1.3fr] text-[11px] font-bold text-muted-foreground uppercase tracking-wide h-11 align-middle">Supplier</TableHead>
+              <TableHead className="w-[1fr] text-[11px] font-bold text-muted-foreground uppercase tracking-wide h-11 align-middle">Contact</TableHead>
+              <TableHead className="w-[100px] text-[11px] font-bold text-muted-foreground uppercase tracking-wide h-11 align-middle">Status</TableHead>
+              <TableHead className="w-[90px] text-[11px] font-bold text-muted-foreground uppercase tracking-wide h-11 align-middle">Orders</TableHead>
+              <TableHead className="w-[90px] text-[11px] font-bold text-muted-foreground uppercase tracking-wide h-11 align-middle">Rating</TableHead>
+              <TableHead className="w-[120px] text-[11px] font-bold text-muted-foreground uppercase tracking-wide h-11 align-middle">Total Value</TableHead>
+              <TableHead className="w-[80px] text-right text-[11px] font-bold text-muted-foreground uppercase tracking-wide h-11 align-middle"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -91,48 +91,48 @@ export function SupplierTable({
                 suppliers.map((supplier) => {
                   const hasDebt = parseInt(supplier.id, 16) % 2 === 0; // Mock debt condition
                   return (
-                    <TableRow key={supplier.id} className="border-b border-[#E6EAF2]/50 hover:bg-[#F9FAFB] transition-colors group">
+                    <TableRow key={supplier.id} className="border-b border-border/50 hover:bg-accent/20 transition-colors group">
                       <TableCell className="py-[14px]">
                         <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="w-8 h-8 rounded-full bg-[#EAF0FE] text-[#153C9E] flex items-center justify-center text-[11px] font-bold shrink-0">
+                          <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[11px] font-bold shrink-0">
                             {supplier.name[0]}
                           </div>
                           <div>
-                            <div className="font-semibold text-[#101828] text-[13.5px] truncate">{supplier.name}</div>
+                            <div className="font-semibold text-foreground text-[13.5px] truncate">{supplier.name}</div>
                             {hasDebt && (
-                              <div className="text-[11px] text-[#D92D20] font-medium mt-0.5">Owes ₦1,250,000</div>
+                              <div className="text-[11px] text-destructive font-medium mt-0.5">Owes ₦1,250,000</div>
                             )}
                           </div>
                         </div>
                       </TableCell>
                       <TableCell className="py-[14px]">
-                        <div className="text-[#667085] truncate text-[12.5px]">{supplier.contactPerson || supplier.email || supplier.phone}</div>
-                        <div className="text-[#98A2B3] truncate text-[11px] mt-0.5">{supplier.city}, {supplier.state}</div>
+                        <div className="text-muted-foreground truncate text-[12.5px]">{supplier.contactPerson || supplier.email || supplier.phone}</div>
+                        <div className="text-muted-foreground truncate text-[11px] mt-0.5">{supplier.city}, {supplier.state}</div>
                       </TableCell>
                       <TableCell className="py-[14px]">
                         {getStatusBadge(supplier.status)}
                       </TableCell>
                       <TableCell className="py-[14px]">
-                        <div className="text-[#667085] font-medium text-[13px]">
+                        <div className="text-muted-foreground font-medium text-[13px]">
                           {supplier.totalOrders}
                         </div>
                       </TableCell>
                       <TableCell className="py-[14px]">
-                        <div className="flex text-[#EAB308] text-[13px] tracking-widest">
+                        <div className="flex text-amber-500 text-[13px] tracking-widest">
                           {getRatingStars(supplier.rating)}
                         </div>
                       </TableCell>
                       <TableCell className="py-[14px]">
-                        <div className="font-semibold text-[#101828] text-[13px]">
+                        <div className="font-semibold text-foreground text-[13px]">
                           {formatCurrency(supplier.totalValue)}
                         </div>
                       </TableCell>
                       <TableCell className="text-right py-[14px]">
                         <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-[#667085] hover:text-[#101828]">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
                             <Eye className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-[#667085] hover:text-[#101828]">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
                             <Edit className="h-4 w-4" />
                           </Button>
                         </div>

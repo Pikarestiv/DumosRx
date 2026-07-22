@@ -18,8 +18,6 @@ interface Supplier {
   email: string;
   phone: string;
   address: string;
-  city: string;
-  state: string;
   status: "active" | "inactive";
   totalOrders: number;
   totalValue: number;
@@ -129,7 +127,7 @@ export function SupplierTable({
                           supplier.phone}
                       </div>
                       <div className="text-muted-foreground truncate text-[11px] mt-0.5">
-                        {supplier.city}{supplier.state ? `, ${supplier.state}` : ''}
+                        {supplier.address}
                       </div>
                     </TableCell>
                     <TableCell className="py-[14px]">

@@ -22,8 +22,6 @@ interface Supplier {
   email: string;
   phone: string;
   address: string;
-  city: string;
-  state: string;
   status: "active" | "inactive";
   totalOrders: number;
   totalValue: number;
@@ -41,8 +39,6 @@ const transformSupplier = (apiData: any): Supplier => ({
   email: apiData.email || "",
   phone: apiData.phone || "",
   address: apiData.address || "",
-  city: apiData.city || "",
-  state: apiData.state || "",
   status: apiData.is_active ? "active" : "inactive",
   totalOrders: 0,
   totalValue: 0,
@@ -124,7 +120,7 @@ export function SupplierManagement() {
   const { results: filteredSuppliers, isFuzzyFallback } = genericFuzzySearch(
     searchTerm,
     preFilteredSuppliers,
-    ["name", "contactPerson", "city"],
+    ["name", "contactPerson"],
   );
 
   const formatCurrency = (amount: number) => {
@@ -193,7 +189,6 @@ export function SupplierManagement() {
                 </h2>
                 <p className="text-[13px] text-muted-foreground mt-0.5">
                   {selectedSupplier.contactPerson}
-                  {selectedSupplier.city ? ` · ${selectedSupplier.city}` : ""}
                 </p>
               </div>
             </div>

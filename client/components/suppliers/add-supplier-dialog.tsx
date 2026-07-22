@@ -22,9 +22,6 @@ interface Supplier {
   email: string;
   phone: string;
   address: string;
-  city: string;
-  state: string;
-  country: string;
   taxId: string;
   paymentTerms: string;
   isActive: boolean;
@@ -49,9 +46,6 @@ export function AddSupplierDialog({
     email: "",
     phone: "",
     address: "",
-    city: "",
-    state: "",
-    country: "Nigeria",
     taxId: "",
     paymentTerms: "",
     isActive: true,
@@ -73,9 +67,6 @@ export function AddSupplierDialog({
       email: formData.email,
       phone: formData.phone,
       address: formData.address,
-      city: formData.city,
-      state: formData.state,
-      country: formData.country,
       tax_id: formData.taxId,
       payment_terms: formData.paymentTerms,
       is_active: formData.isActive,
@@ -90,9 +81,6 @@ export function AddSupplierDialog({
       email: "",
       phone: "",
       address: "",
-      city: "",
-      state: "",
-      country: "Nigeria",
       taxId: "",
       paymentTerms: "",
       isActive: true,
@@ -184,23 +172,24 @@ export function AddSupplierDialog({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="city">City</Label>
-              <SearchableInput
-                id="city"
-                value={formData.city}
-                onValueChange={(val) => handleInputChange("city", val)}
-                options={FORM_SUGGESTIONS.common.locations}
-                placeholder="Select or type"
+              <Label htmlFor="taxId">Tax ID (TIN)</Label>
+              <Input
+                id="taxId"
+                value={formData.taxId}
+                onChange={(e) => handleInputChange("taxId", e.target.value)}
+                placeholder="Tax Identification Number"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="state">State</Label>
-              <SearchableInput
-                id="state"
-                value={formData.state}
-                onValueChange={(val) => handleInputChange("state", val)}
-                options={FORM_SUGGESTIONS.common.states}
-                placeholder="Select or type"
+              <Label htmlFor="paymentTerms">Payment Terms</Label>
+              <Input
+                id="paymentTerms"
+                type="number"
+                value={formData.paymentTerms}
+                onChange={(e) =>
+                  handleInputChange("paymentTerms", e.target.value)
+                }
+                placeholder="Days (e.g., 30)"
               />
             </div>
           </div>

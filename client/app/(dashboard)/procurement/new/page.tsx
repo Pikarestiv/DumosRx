@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ShoppingCart, ArrowLeft, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -27,6 +27,7 @@ import { useProcurementData } from "@/lib/hooks/use-procurement-data";
 
 export default function CreateOrderPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { storeType } = useStore();
 
   const [selectedSupplierId, setSelectedSupplierId] = useState("");
@@ -45,6 +46,16 @@ export default function CreateOrderPage() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    const defaultSupplierId = searchParams.get("supplierId");
+    if (
+      defaultSupplierId &&
+      suppliers.some((s) => s.id === defaultSupplierId)
+    ) {
+      setSelectedSupplierId(defaultSupplierId);
+    }
+  }, [searchParams, suppliers]);
 
   const handleAddLineItem = (newItem: any) => {
     setItems([...items, newItem]);
@@ -260,7 +271,7 @@ export default function CreateOrderPage() {
         </div>
 
         {/* Right Pane (Summary) */}
-        <div className="bg-card border-l border-border flex flex-col min-h-0 hidden md:flex">
+        <div className="bg-card border-l border-border flex-col min-h-0 hidden md:flex">
           <div className="p-5 border-b border-border shrink-0">
             <div className="text-[14.5px] font-semibold text-foreground">
               Order Summary

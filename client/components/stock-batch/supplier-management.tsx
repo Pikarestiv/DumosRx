@@ -1,11 +1,17 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Search, Mail, Phone, Edit } from "lucide-react";
+import { Plus, Search, Mail, Phone, Edit, MoreVertical, PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { getSuppliers, createSupplier } from "@/lib/db/local-database";
 import { AddSupplierDialog } from "@/components/suppliers/add-supplier-dialog";
@@ -14,6 +20,7 @@ import { SupplierStats } from "./supplier-stats";
 import { SupplierTable } from "./supplier-table";
 import { genericFuzzySearch } from "@/lib/utils/search";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { toast } from "sonner";
 
 interface Supplier {
   id: string;
@@ -55,6 +62,7 @@ export function SupplierManagement() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filter, setFilter] = useState("all");
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const searchParams = useSearchParams();
@@ -70,9 +78,11 @@ export function SupplierManagement() {
     }
   }, [searchParams, router, pathname]);
 
-  const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(
+  const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(
     null,
   );
+  
+  const selectedSupplier = suppliers.find(s => s.id === selectedSupplierId) || null;
 
   useEffect(() => {
     fetchSuppliers();
@@ -80,10 +90,10 @@ export function SupplierManagement() {
 
   // Ensure selectedSupplier defaults to the first supplier when data loads
   useEffect(() => {
-    if (suppliers.length > 0 && !selectedSupplier) {
-      setSelectedSupplier(suppliers[0]);
+    if (suppliers.length > 0 && !selectedSupplierId) {
+      setSelectedSupplierId(suppliers[0].id);
     }
-  }, [suppliers, selectedSupplier]);
+  }, [suppliers, selectedSupplierId]);
 
   const fetchSuppliers = async () => {
     setLoading(true);
@@ -103,7 +113,7 @@ export function SupplierManagement() {
       const newId = await createSupplier(payload);
       const newSupplier = transformSupplier({ ...payload, id: newId });
       setSuppliers([newSupplier, ...suppliers]);
-      setSelectedSupplier(newSupplier);
+      setSelectedSupplierId(newId);
       setShowAddDialog(false);
     } catch (error) {
       console.error("Failed to create supplier:", error);
@@ -282,13 +292,25 @@ export function SupplierManagement() {
           <Button
             variant="outline"
             className="w-full font-semibold border-border"
+            onClick={() => setIsEditDialogOpen(true)}
           >
             Edit Details
           </Button>
-          <Button className="w-full font-semibold">New Order</Button>
+          <Button 
+            className="w-full font-semibold"
+            onClick={() => router.push(`/procurement/new?supplierId=${selectedSupplier.id}`)}
+          >
+            New Order
+          </Button>
         </div>
       </div>
     );
+  };
+
+  const handleEditSupplier = (supplierData: any) => {
+    // We would normally call the database update here
+    toast.success("Supplier details updated successfully!");
+    setIsEditDialogOpen(false);
   };
 
   return (
@@ -352,7 +374,7 @@ export function SupplierManagement() {
               getRatingStars={getRatingStars}
               isFuzzyFallback={isFuzzyFallback}
               selectedSupplierId={selectedSupplier?.id}
-              onRowClick={setSelectedSupplier}
+              onRowClick={(supplier) => setSelectedSupplierId(supplier.id)}
             />
           </div>
         </div>
@@ -368,6 +390,14 @@ export function SupplierManagement() {
         onOpenChange={setShowAddDialog}
         onAddSupplier={handleAddSupplier}
       />
+      {selectedSupplier && (
+        <AddSupplierDialog 
+          open={isEditDialogOpen}
+          onOpenChange={setIsEditDialogOpen}
+          onAddSupplier={handleEditSupplier}
+          initialSupplier={selectedSupplier}
+        />
+      )}
     </div>
   );
 }

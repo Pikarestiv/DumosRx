@@ -1,7 +1,7 @@
 "use client";
 
-import type React from "react";
-import { useState } from "react";
+import React from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   DialogFooter,
@@ -31,12 +31,14 @@ interface AddSupplierDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onAddSupplier: (supplier: any) => void;
+  initialSupplier?: any;
 }
 
 export function AddSupplierDialog({
   open,
   onOpenChange,
   onAddSupplier,
+  initialSupplier,
 }: AddSupplierDialogProps) {
   const { storeType } = useStore();
   const isPharmacy = storeType === "pharmacy";
@@ -46,11 +48,27 @@ export function AddSupplierDialog({
     email: "",
     phone: "",
     address: "",
-    taxId: "",
-    paymentTerms: "",
-    isActive: true,
+    taxId: initialSupplier?.taxId || "",
+    paymentTerms: initialSupplier?.paymentTerms || "",
+    isActive: initialSupplier ? initialSupplier.status === "active" : true,
   });
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
+
+  // Reset form when opened with new initialSupplier
+  useEffect(() => {
+    if (open) {
+      setFormData({
+        name: initialSupplier?.name || "",
+        contactPerson: initialSupplier?.contactPerson || "",
+        email: initialSupplier?.email || "",
+        phone: initialSupplier?.phone || "",
+        address: initialSupplier?.address || "",
+        taxId: initialSupplier?.taxId || "",
+        paymentTerms: initialSupplier?.paymentTerms || "",
+        isActive: initialSupplier ? initialSupplier.status === "active" : true,
+      });
+    }
+  }, [open, initialSupplier]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,10 +115,14 @@ export function AddSupplierDialog({
   return (
     <>
     <ResponsiveModal 
-      open={open} 
+      open={open}
       onOpenChange={onOpenChange}
-      title={<span className="font-serif font-bold">Add New Supplier</span>}
-      description={`Add a new ${isPharmacy ? "supplier or distributor" : "supplier"} to your database.`}
+      title={<span className="font-serif font-bold">{initialSupplier ? "Edit Supplier" : "Add New Supplier"}</span>}
+      description={
+        initialSupplier
+          ? "Update the supplier's details below."
+          : `Add a new ${isPharmacy ? "supplier or distributor" : "supplier"} to your database.`
+      }
       className="sm:max-w-xl max-h-[90vh] overflow-hidden flex flex-col"
     >
       <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
@@ -214,7 +236,7 @@ export function AddSupplierDialog({
               Cancel
             </Button>
             <Button type="submit" className="bg-accent hover:bg-accent/90">
-              Add Supplier
+              {initialSupplier ? "Save Changes" : "Add Supplier"}
             </Button>
           </DialogFooter>
         </form>

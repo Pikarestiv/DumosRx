@@ -17,6 +17,7 @@ import {
 import { POAddItemForm } from "@/components/procurement/po-add-item-form";
 import { POLineItemsList } from "@/components/procurement/po-line-items-list";
 import { AddProductDialog } from "@/components/products/add-product-dialog";
+import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { createProduct, createPurchaseOrder } from "@/lib/db/local-database";
 import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
@@ -109,21 +110,28 @@ export default function CreateOrderPage() {
   };
 
   const selectedSupplierName = useMemo(() => {
-    return suppliers.find(s => s.id === selectedSupplierId)?.name || "No vendor selected";
+    return (
+      suppliers.find((s) => s.id === selectedSupplierId)?.name ||
+      "No vendor selected"
+    );
   }, [suppliers, selectedSupplierId]);
 
   return (
     <div className="flex flex-col min-h-0 bg-card border border-border rounded-2xl overflow-hidden h-[calc(100vh-120px)] shadow-sm">
       <div className="flex items-center gap-3 px-6 py-5 border-b border-border bg-card shrink-0">
-        <div 
+        <div
           className="w-[38px] h-[38px] rounded-[10px] bg-muted flex items-center justify-center cursor-pointer text-muted-foreground shrink-0 hover:bg-muted/80 transition-colors"
           onClick={() => router.push("/procurement")}
         >
           <ArrowLeft className="w-[17px] h-[17px]" />
         </div>
         <div>
-          <div className="text-[17px] font-serif font-bold leading-tight">Create Purchase Order</div>
-          <div className="text-[12px] text-muted-foreground mt-0.5">Draft a formal request for stock batch replenishment</div>
+          <div className="text-[17px] font-serif font-bold leading-tight">
+            Create Purchase Order
+          </div>
+          <div className="text-[12px] text-muted-foreground mt-0.5">
+            Draft a formal request for stock batch replenishment
+          </div>
         </div>
         <div className="ml-auto text-[12.5px] text-muted-foreground font-medium">
           Draft · {items.length} items
@@ -135,7 +143,9 @@ export default function CreateOrderPage() {
         <div className="p-6 overflow-y-auto flex flex-col gap-4 bg-background/50">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label className="text-[12.5px] font-semibold text-foreground">Select Vendor</Label>
+              <Label className="text-[12.5px] font-semibold text-foreground">
+                Select Vendor
+              </Label>
               <Select
                 value={selectedSupplierId}
                 onValueChange={setSelectedSupplierId}
@@ -147,9 +157,9 @@ export default function CreateOrderPage() {
                   {suppliers.length === 0 ? (
                     <div className="py-4 text-center text-[12.5px] text-muted-foreground px-2 flex flex-col items-center justify-center gap-1.5">
                       <span>No suppliers available</span>
-                      <Button 
-                        variant="link" 
-                        className="h-auto p-0 text-[11px]" 
+                      <Button
+                        variant="link"
+                        className="h-auto p-0 text-[11px]"
                         onClick={(e) => {
                           e.stopPropagation();
                           router.push("/procurement/vendors?action=add");
@@ -169,7 +179,9 @@ export default function CreateOrderPage() {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-[12.5px] font-semibold text-foreground">Internal Notes</Label>
+              <Label className="text-[12.5px] font-semibold text-foreground">
+                Internal Notes
+              </Label>
               <Input
                 placeholder="Ref. # or special instructions"
                 className="w-full border border-border rounded-[10px] px-3.5 h-11 text-[13px] bg-card shadow-sm"
@@ -181,7 +193,9 @@ export default function CreateOrderPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label className="text-[12.5px] font-semibold text-foreground">Payment Status</Label>
+              <Label className="text-[12.5px] font-semibold text-foreground">
+                Payment Status
+              </Label>
               <Select value={paymentStatus} onValueChange={setPaymentStatus}>
                 <SelectTrigger className="w-full border border-border rounded-[10px] px-3.5 h-11 text-[13px] bg-card shadow-sm">
                   <SelectValue placeholder="Select status..." />
@@ -194,12 +208,13 @@ export default function CreateOrderPage() {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-[12.5px] font-semibold text-foreground">Due Date (Optional)</Label>
-              <Input
-                type="date"
-                className="w-full border border-border rounded-[10px] px-3.5 h-11 text-[13px] bg-card shadow-sm"
+              <Label className="text-[12.5px] font-semibold text-foreground">
+                Due Date (Optional)
+              </Label>
+              <DatePickerInput
                 value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
+                onChange={(val) => setDueDate(val)}
+                className="w-full [&_input]:bg-card [&_input]:shadow-sm [&_input]:border [&_input]:border-border [&_input]:rounded-[10px] [&_input]:px-3.5 [&_input]:h-11 [&_input]:text-[13px]"
               />
             </div>
           </div>
@@ -208,7 +223,8 @@ export default function CreateOrderPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label className="text-[12.5px] font-semibold text-foreground">
-                  Amount Paid ({paymentStatus === "paid" ? "Total" : "Initial Payment"})
+                  Amount Paid (
+                  {paymentStatus === "paid" ? "Total" : "Initial Payment"})
                 </Label>
                 <Input
                   type="number"
@@ -225,7 +241,9 @@ export default function CreateOrderPage() {
           <div className="border border-border rounded-xl bg-card mt-2 shadow-sm">
             <div className="bg-primary/5 px-4 py-3 flex items-center gap-2 border-b border-border rounded-t-[11px]">
               <ShoppingCart className="w-4 h-4 text-primary" />
-              <div className="text-[13.5px] font-semibold text-foreground">Add Items to Order</div>
+              <div className="text-[13.5px] font-semibold text-foreground">
+                Add Items to Order
+              </div>
             </div>
             <div className="p-4">
               <POAddItemForm
@@ -236,15 +254,20 @@ export default function CreateOrderPage() {
             </div>
           </div>
           <div className="text-[11.5px] text-muted-foreground px-1">
-            Items appear in the Order Summary panel on the right as you add them.
+            Items appear in the Order Summary panel on the right as you add
+            them.
           </div>
         </div>
 
         {/* Right Pane (Summary) */}
         <div className="bg-card border-l border-border flex flex-col min-h-0 hidden md:flex">
           <div className="p-5 border-b border-border shrink-0">
-            <div className="text-[14.5px] font-semibold text-foreground">Order Summary</div>
-            <div className="text-[12px] text-muted-foreground mt-0.5 truncate">{selectedSupplierName}</div>
+            <div className="text-[14.5px] font-semibold text-foreground">
+              Order Summary
+            </div>
+            <div className="text-[12px] text-muted-foreground mt-0.5 truncate">
+              {selectedSupplierName}
+            </div>
           </div>
           <div className="flex-1 overflow-y-auto p-4 bg-muted/10">
             <POLineItemsList
@@ -255,7 +278,9 @@ export default function CreateOrderPage() {
           </div>
           <div className="p-5 border-t border-border shrink-0 bg-card">
             <div className="flex items-center justify-between mb-4">
-              <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Estimated total</div>
+              <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+                Estimated total
+              </div>
               <div className="text-[20px] font-bold font-serif text-primary">
                 {formatCurrency(totalAmount)}
               </div>

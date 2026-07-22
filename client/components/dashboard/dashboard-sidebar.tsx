@@ -205,8 +205,7 @@ export function DashboardSidebar({
               collapsed ? "px-3 justify-center" : "px-5 gap-3",
             )}
           >
-            {collapsed ? (
-              /* Icon-only logo */
+            {collapsed && (
               <Image
                 src="/logo-icon.png"
                 alt="Logo"
@@ -215,8 +214,8 @@ export function DashboardSidebar({
                 className="object-contain shrink-0"
                 style={{ filter: "var(--logo-filter)" }}
               />
-            ) : (
-              /* Full wordmark logo */
+            )}
+            {!collapsed && (
               <img
                 src="/logo.png"
                 alt="Logo"
@@ -258,26 +257,11 @@ export function DashboardSidebar({
                       collapsed ? "justify-center px-2" : "",
                     )}
                   >
-                    {logicalCollapsed ? (
-                      collapsed ? (
-                        <ChevronsRight className="h-[18px] w-[18px] shrink-0" />
-                      ) : (
-                        <>
-                          <ChevronsRight className="h-[18px] w-[18px] shrink-0" />
-                          <span className="truncate text-xs">
-                            Pin sidebar open
-                          </span>
-                        </>
-                      )
-                    ) : (
-                      <>
-                        <ChevronsLeft className="h-[18px] w-[18px] shrink-0" />
-                        <span className="truncate text-xs">
-                          Collapse sidebar
-                        </span>
-                      </>
-                    )}
-                  </button>
+                  <CollapseButtonContent 
+                    logicalCollapsed={logicalCollapsed} 
+                    collapsed={collapsed} 
+                  />
+                </button>
                 </TooltipTrigger>
                 {logicalCollapsed && (
                   <TooltipContent side="right" className="font-medium text-xs">
@@ -302,5 +286,27 @@ export function DashboardSidebar({
         </div>
       </>
     </TooltipProvider>
+  );
+}
+
+function CollapseButtonContent({ logicalCollapsed, collapsed }: { logicalCollapsed: boolean, collapsed: boolean }) {
+  if (!logicalCollapsed) {
+    return (
+      <>
+        <ChevronsLeft className="h-[18px] w-[18px] shrink-0" />
+        <span className="truncate text-xs">Collapse sidebar</span>
+      </>
+    );
+  }
+
+  if (collapsed) {
+    return <ChevronsRight className="h-[18px] w-[18px] shrink-0" />;
+  }
+
+  return (
+    <>
+      <ChevronsRight className="h-[18px] w-[18px] shrink-0" />
+      <span className="truncate text-xs">Pin sidebar open</span>
+    </>
   );
 }

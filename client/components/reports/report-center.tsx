@@ -280,42 +280,51 @@ export function ReportCenter() {
         <h3 className="text-[15px] font-semibold mb-0.5">Recent Downloads</h3>
         <p className="text-[12.5px] text-muted-foreground mb-5">Reports generated in this browser session</p>
         <div>
-          {recentDownloads.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
-              <CheckCircle2 className="h-8 w-8 opacity-20 mb-3" />
-              <p className="font-semibold">No reports generated yet</p>
-              <p className="text-sm mt-1">Export a report above to see it here.</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {recentDownloads.map((dl) => (
-                <div
-                  key={dl.id}
-                  className="flex items-start gap-3 p-3 rounded-lg bg-muted/30"
-                >
-                  <FileText className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
-                  <div className="min-w-0 space-y-1 w-full">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-semibold truncate">{dl.name}</p>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      {dl.type}
-                    </p>
-                    <div className="flex flex-col gap-0.5 mt-1">
-                      <p className="text-[11px] text-muted-foreground/80">
-                        {format(new Date(dl.generatedAt), "MMM d, yyyy 'at' h:mm a")}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground/80">
-                        {dl.sizeLabel}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          {recentDownloads.length === 0 && <RecentDownloadsEmptyState />}
+          {recentDownloads.length > 0 && <RecentDownloadsList downloads={recentDownloads} />}
         </div>
       </Card>
+    </div>
+  );
+}
+
+function RecentDownloadsEmptyState() {
+  return (
+    <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
+      <CheckCircle2 className="h-8 w-8 opacity-20 mb-3" />
+      <p className="font-semibold">No reports generated yet</p>
+      <p className="text-sm mt-1">Export a report above to see it here.</p>
+    </div>
+  );
+}
+
+function RecentDownloadsList({ downloads }: { downloads: RecentDownload[] }) {
+  return (
+    <div className="space-y-3">
+      {downloads.map((dl) => (
+        <div
+          key={dl.id}
+          className="flex items-start gap-3 p-3 rounded-lg bg-muted/30"
+        >
+          <FileText className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+          <div className="min-w-0 space-y-1 w-full">
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-semibold truncate">{dl.name}</p>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {dl.type}
+            </p>
+            <div className="flex flex-col gap-0.5 mt-1">
+              <p className="text-[11px] text-muted-foreground/80">
+                {format(new Date(dl.generatedAt), "MMM d, yyyy 'at' h:mm a")}
+              </p>
+              <p className="text-[11px] text-muted-foreground/80">
+                {dl.sizeLabel}
+              </p>
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

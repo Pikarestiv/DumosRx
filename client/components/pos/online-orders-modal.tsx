@@ -103,15 +103,17 @@ export function OnlineOrdersModal() {
     <ResponsiveModal open={isOpen} onOpenChange={onClose} title={<>Online Orders</>}  className="max-w-4xl max-h-[80vh] flex flex-col">
         
         <div className="flex-1 pr-4 overflow-y-auto max-h-[60vh]">
-          {loading ? (
+          {loading && (
             <div className="flex justify-center p-8">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
-          ) : orders.length === 0 ? (
+          )}
+          {!loading && orders.length === 0 && (
             <div className="text-center p-8 text-muted-foreground">
               No online orders found.
             </div>
-          ) : (
+          )}
+          {!loading && orders.length > 0 && (
             <div className="space-y-4">
               {orders.map(order => (
                 <div key={order.id} className="border rounded-lg p-4 space-y-4 bg-card">

@@ -213,13 +213,9 @@ export function DevSeedButton() {
                     onClick={() => runSeed(cat.key)}
                     className="shrink-0 cursor-pointer"
                   >
-                    {isSeeding ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : isDone ? (
-                      <Check className="h-3.5 w-3.5 text-green-600" />
-                    ) : (
-                      "Seed"
-                    )}
+                    {isSeeding && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                    {!isSeeding && isDone && <Check className="h-3.5 w-3.5 text-green-600" />}
+                    {!isSeeding && !isDone && "Seed"}
                   </Button>
                 </div>
               );
@@ -232,12 +228,13 @@ export function DevSeedButton() {
               onClick={runSeedAll}
               disabled={anySeeding}
             >
-              {anySeeding ? (
+              {anySeeding && (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   Seeding...
                 </>
-              ) : (
+              )}
+              {!anySeeding && (
                 <>
                   <Database className="h-4 w-4 mr-2" />
                   Seed Everything
@@ -281,13 +278,9 @@ export function DevSeedButton() {
                     onClick={() => runReset(cat.key)}
                     className="shrink-0 cursor-pointer"
                   >
-                    {isResetting ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : isDone ? (
-                      <Check className="h-3.5 w-3.5 text-green-600" />
-                    ) : (
-                      "Reset"
-                    )}
+                    {isResetting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                    {!isResetting && isDone && <Check className="h-3.5 w-3.5 text-green-600" />}
+                    {!isResetting && !isDone && "Reset"}
                   </Button>
                 </div>
               );
@@ -305,12 +298,13 @@ export function DevSeedButton() {
               onClick={runResetAll}
               disabled={anyResetting}
             >
-              {resettingAll ? (
+              {resettingAll && (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   Resetting All...
                 </>
-              ) : (
+              )}
+              {!resettingAll && (
                 <>
                   <Trash2 className="h-4 w-4 mr-2" />
                   Reset Everything

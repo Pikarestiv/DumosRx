@@ -182,7 +182,7 @@ export function POSProductList({
         </div>
       )}
 
-      {loadingProducts ? (
+      {loadingProducts && (
         <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
           {[...Array(8)].map((_, i) => (
             <div key={i} className="p-3 border rounded-2xl space-y-2 h-[120px]">
@@ -192,7 +192,9 @@ export function POSProductList({
             </div>
           ))}
         </div>
-      ) : filteredProducts.length === 0 ? (
+      )}
+
+      {!loadingProducts && filteredProducts.length === 0 && (
         <div className="flex flex-col items-center justify-center py-12 text-muted-foreground border border-dashed rounded-2xl border-border bg-card/50">
           <PackageX className="h-12 w-12 mb-4" />
           <p className="font-medium">No {productTerm.toLowerCase()} found</p>
@@ -201,7 +203,9 @@ export function POSProductList({
             stock batch.
           </p>
         </div>
-      ) : (productTerm || "").trim().length > 0 ? (
+      )}
+
+      {!loadingProducts && filteredProducts.length > 0 && (productTerm || "").trim().length > 0 && (
         <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
           {sortedProducts.map((product) => (
             <POSProductCard
@@ -213,7 +217,9 @@ export function POSProductList({
             />
           ))}
         </div>
-      ) : (
+      )}
+
+      {!loadingProducts && filteredProducts.length > 0 && !((productTerm || "").trim().length > 0) && (
         <div className="flex flex-col gap-6">
           {/* Smart Suggestions */}
           <div>
@@ -222,7 +228,7 @@ export function POSProductList({
               Goes well with cart
             </div>
             
-            {!canUseSmartSuggestions ? (
+            {!canUseSmartSuggestions && (
               <div 
                 onClick={onUpgradeClick}
                 className="bg-primary/5 border border-primary/10 rounded-xl p-4 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-primary/10 transition-colors"
@@ -231,7 +237,8 @@ export function POSProductList({
                 <p className="text-sm font-semibold text-primary">Unlock Smart Suggestions</p>
                 <p className="text-xs text-muted-foreground mt-1 max-w-[250px]">Upgrade your plan to automatically recommend related products based on the customer's cart.</p>
               </div>
-            ) : suggestionsList.length > 0 ? (
+            )}
+            {canUseSmartSuggestions && suggestionsList.length > 0 && (
               <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 hide-scrollbar snap-x snap-mandatory">
                 {suggestionsList.map((product) => (
                   <div key={product.id} className="w-[150px] sm:w-[170px] shrink-0 snap-start">
@@ -244,7 +251,8 @@ export function POSProductList({
                   </div>
                 ))}
               </div>
-            ) : (
+            )}
+            {canUseSmartSuggestions && suggestionsList.length === 0 && (
               <div className="text-xs text-muted-foreground py-3 italic px-4 bg-muted/30 rounded-xl border border-dashed text-center">
                 Add items to cart to see smart suggestions
               </div>

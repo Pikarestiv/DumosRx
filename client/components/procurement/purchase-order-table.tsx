@@ -114,78 +114,78 @@ export function PurchaseOrderTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loading ? (
+            {loading && (
               <TableRow>
                 <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
                   <Clock className="w-6 h-6 animate-spin mx-auto mb-2 opacity-50" />
                   Loading orders...
                 </TableCell>
               </TableRow>
-            ) : orders.length === 0 ? (
+            )}
+            {!loading && orders.length === 0 && (
               <TableRow>
                 <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
                   No purchase orders found
                 </TableCell>
               </TableRow>
-            ) : (
-              orders.map((po) => (
-                <TableRow key={po.id} className="border-accent/5 hover:bg-accent/5 transition-colors group">
-                  <TableCell className="font-mono text-xs text-muted-foreground">
-                    #{po.id.split('-')[0].toUpperCase()}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold uppercase">
-                        {po.vendor_name ? po.vendor_name[0] : "V"}
-                      </div>
-                      <span className="font-medium">{po.vendor_name || "Unknown Vendor"}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground text-sm">
-                    {formatDateToDDMMYYYY(po.created_at)}
-                  </TableCell>
-                  <TableCell className="font-bold">
-                    {formatCurrency(po.total_amount)}
-                  </TableCell>
-                  <TableCell>
-                    {getStatusBadge(po.status)}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="hover:bg-accent/20">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-48 bg-card border-accent/20">
-                        <DropdownMenuLabel>PO Actions</DropdownMenuLabel>
-                        <DropdownMenuItem className="cursor-pointer">
-                          <FileText className="w-4 h-4 mr-2" /> View Details
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        {po.status === "draft" && (
-                          <DropdownMenuItem className="cursor-pointer text-blue-500">
-                            <ArrowRight className="w-4 h-4 mr-2" /> Mark as Sent
-                          </DropdownMenuItem>
-                        )}
-                        {po.status === "sent" && (
-                          <DropdownMenuItem 
-                            className="cursor-pointer text-emerald-500 font-bold"
-                            onClick={() => onReceivePO(po.id)}
-                          >
-                            <CheckCircle2 className="w-4 h-4 mr-2" /> Receive Goods
-                          </DropdownMenuItem>
-                        )}
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-destructive cursor-pointer">
-                          Cancel Order
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))
             )}
+            {!loading && orders.length > 0 && orders.map((po) => (
+              <TableRow key={po.id} className="border-accent/5 hover:bg-accent/5 transition-colors group">
+                <TableCell className="font-mono text-xs text-muted-foreground">
+                  #{po.id.split('-')[0].toUpperCase()}
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold uppercase">
+                      {po.vendor_name ? po.vendor_name[0] : "V"}
+                    </div>
+                    <span className="font-medium">{po.vendor_name || "Unknown Vendor"}</span>
+                  </div>
+                </TableCell>
+                <TableCell className="text-muted-foreground text-sm">
+                  {formatDateToDDMMYYYY(po.created_at)}
+                </TableCell>
+                <TableCell className="font-bold">
+                  {formatCurrency(po.total_amount)}
+                </TableCell>
+                <TableCell>
+                  {getStatusBadge(po.status)}
+                </TableCell>
+                <TableCell className="text-right">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="hover:bg-accent/20">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48 bg-card border-accent/20">
+                      <DropdownMenuLabel>PO Actions</DropdownMenuLabel>
+                      <DropdownMenuItem className="cursor-pointer">
+                        <FileText className="w-4 h-4 mr-2" /> View Details
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      {po.status === "draft" && (
+                        <DropdownMenuItem className="cursor-pointer text-blue-500">
+                          <ArrowRight className="w-4 h-4 mr-2" /> Mark as Sent
+                        </DropdownMenuItem>
+                      )}
+                      {po.status === "sent" && (
+                        <DropdownMenuItem 
+                          className="cursor-pointer text-emerald-500 font-bold"
+                          onClick={() => onReceivePO(po.id)}
+                        >
+                          <CheckCircle2 className="w-4 h-4 mr-2" /> Receive Goods
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem className="text-destructive cursor-pointer">
+                        Cancel Order
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TableCell>
+              </TableRow>
+            ))}
           </TableBody>
         </Table>
       </div>

@@ -158,30 +158,8 @@ function PrintReportContent() {
         </div>
       </div>
 
-      {data.length === 0 ? (
-        <p className="text-center text-gray-500 my-12">No data found for the selected criteria.</p>
-      ) : (
-        <div className="w-full overflow-x-auto print:overflow-visible">
-          <table className="w-full text-left border-collapse text-sm">
-            <thead>
-              <tr className="border-b-2 border-black">
-                {headers.map(h => (
-                  <th key={h} className="py-2 pr-2 font-bold whitespace-nowrap">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {data.map((row, i) => (
-                <tr key={i} className="border-b border-gray-200">
-                  {headers.map(h => (
-                    <td key={h} className="py-2 pr-2">{row[h] ?? "-"}</td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      {data.length === 0 && <EmptyState />}
+      {data.length > 0 && <ReportTable data={data} headers={headers} />}
       
       <style dangerouslySetInnerHTML={{__html: `
         @media print {
@@ -189,6 +167,35 @@ function PrintReportContent() {
           @page { margin: 1cm; size: landscape; }
         }
       `}} />
+    </div>
+  );
+}
+
+function EmptyState() {
+  return <p className="text-center text-gray-500 my-12">No data found for the selected criteria.</p>;
+}
+
+function ReportTable({ data, headers }: { data: Record<string, any>[], headers: string[] }) {
+  return (
+    <div className="w-full overflow-x-auto print:overflow-visible">
+      <table className="w-full text-left border-collapse text-sm">
+        <thead>
+          <tr className="border-b-2 border-black">
+            {headers.map(h => (
+              <th key={h} className="py-2 pr-2 font-bold whitespace-nowrap">{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((row, i) => (
+            <tr key={i} className="border-b border-gray-200">
+              {headers.map(h => (
+                <td key={h} className="py-2 pr-2">{row[h] ?? "-"}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

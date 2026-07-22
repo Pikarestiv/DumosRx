@@ -76,43 +76,46 @@ export function SalesListModal({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredSales.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={4}
-                    className="text-center py-8 text-muted-foreground"
-                  >
-                    No sales found.
+              {filteredSales.length === 0 && <EmptySalesRow />}
+              {filteredSales.length > 0 && filteredSales.map((sale: any) => (
+                <TableRow
+                  key={sale.id}
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={() => setSelectedSale(sale)}
+                >
+                  <TableCell>
+                    {new Date(sale.transaction_date).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </TableCell>
+                  <TableCell className="font-medium">
+                    {sale.transaction_number}
+                  </TableCell>
+                  <TableCell className="capitalize">
+                    {sale.payment_method}
+                  </TableCell>
+                  <TableCell className="text-right font-bold">
+                    {formatCurrency(sale.total_amount, currencyCode)}
                   </TableCell>
                 </TableRow>
-              ) : (
-                filteredSales.map((sale: any) => (
-                  <TableRow
-                    key={sale.id}
-                    className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => setSelectedSale(sale)}
-                  >
-                    <TableCell>
-                      {new Date(sale.transaction_date).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {sale.transaction_number}
-                    </TableCell>
-                    <TableCell className="capitalize">
-                      {sale.payment_method}
-                    </TableCell>
-                    <TableCell className="text-right font-bold">
-                      {formatCurrency(sale.total_amount, currencyCode)}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
+              ))}
             </TableBody>
           </Table>
         </div>
       </ResponsiveModal>
+  );
+}
+
+function EmptySalesRow() {
+  return (
+    <TableRow>
+      <TableCell
+        colSpan={4}
+        className="text-center py-8 text-muted-foreground"
+      >
+        No sales found.
+      </TableCell>
+    </TableRow>
   );
 }

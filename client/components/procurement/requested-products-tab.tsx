@@ -109,78 +109,78 @@ export function RequestedProductsTab() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loading ? (
+            {loading && (
               <TableRow>
                 <TableCell colSpan={6} className="text-center h-24">
                   Loading requests...
                 </TableCell>
               </TableRow>
-            ) : filteredRequests.length === 0 ? (
+            )}
+            {!loading && filteredRequests.length === 0 && (
               <TableRow>
                 <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">
                   No requested products found.
                 </TableCell>
               </TableRow>
-            ) : (
-              filteredRequests.map((req) => (
-                <TableRow key={req.id}>
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-2">
-                      {req.product_name}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6"
-                        onClick={() => copyToClipboard(req.product_name)}
-                        title="Copy to clipboard"
-                      >
-                        <Copy className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {req.requested_by_customer || "Anonymous"}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={req.request_count > 3 ? "destructive" : "secondary"}>
-                      {req.request_count} {req.request_count === 1 ? 'time' : 'times'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={req.status === 'pending' ? 'outline' : 'default'} className={req.status === 'ordered' ? 'bg-green-500/10 text-green-600 border-green-200' : 'bg-amber-500/10 text-amber-600 border-amber-200'}>
-                      {req.status === 'pending' ? 'Pending' : 'Ordered'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {new Date(req.created_at).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      {req.status === 'pending' && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleMarkAsOrdered(req.id)}
-                          title="Mark as ordered"
-                        >
-                          <Check className="h-4 w-4 mr-1 text-green-500" />
-                          Mark Ordered
-                        </Button>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-destructive/70 hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => handleDelete(req.id)}
-                        title="Delete request"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
             )}
+            {!loading && filteredRequests.length > 0 && filteredRequests.map((req) => (
+              <TableRow key={req.id}>
+                <TableCell className="font-medium">
+                  <div className="flex items-center gap-2">
+                    {req.product_name}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={() => copyToClipboard(req.product_name)}
+                      title="Copy to clipboard"
+                    >
+                      <Copy className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {req.requested_by_customer || "Anonymous"}
+                </TableCell>
+                <TableCell>
+                  <Badge variant={req.request_count > 3 ? "destructive" : "secondary"}>
+                    {req.request_count} {req.request_count === 1 ? 'time' : 'times'}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <Badge variant={req.status === 'pending' ? 'outline' : 'default'} className={req.status === 'ordered' ? 'bg-green-500/10 text-green-600 border-green-200' : 'bg-amber-500/10 text-amber-600 border-amber-200'}>
+                    {req.status === 'pending' ? 'Pending' : 'Ordered'}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-sm text-muted-foreground">
+                  {new Date(req.created_at).toLocaleDateString()}
+                </TableCell>
+                <TableCell className="text-right">
+                  <div className="flex items-center justify-end gap-2">
+                    {req.status === 'pending' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleMarkAsOrdered(req.id)}
+                        title="Mark as ordered"
+                      >
+                        <Check className="h-4 w-4 mr-1 text-green-500" />
+                        Mark Ordered
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive/70 hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => handleDelete(req.id)}
+                      title="Delete request"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
           </TableBody>
         </Table>
       </div>

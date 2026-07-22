@@ -26,11 +26,8 @@ export function WindowsWindowControls({
         onClick={onMaximize}
         className="w-12 h-full flex items-center justify-center hover:bg-muted transition-colors"
       >
-        {isMaximized ? (
-          <Copy className="h-3 w-3" />
-        ) : (
-          <Square className="h-3 w-3" />
-        )}
+        {isMaximized && <Copy className="h-3 w-3" />}
+        {!isMaximized && <Square className="h-3 w-3" />}
       </button>
       <button
         onClick={onClose}

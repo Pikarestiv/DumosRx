@@ -127,12 +127,13 @@ export function POSCustomerSelector({
               : "Tap to search or add"}
           </div>
         </div>
-        {selectedCustomer ? (
+        {selectedCustomer && (
           <X
             className="w-4 h-4 text-muted-foreground hover:text-foreground shrink-0"
             onClick={handleClear}
           />
-        ) : (
+        )}
+        {!selectedCustomer && (
           <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
         )}
       </div>
@@ -230,44 +231,43 @@ export function POSCustomerSelector({
                 )}
               </div>
 
-              {loadingCustomers ? (
+              {loadingCustomers && (
                 <div className="text-center py-4 text-sm text-muted-foreground">
                   Loading customers...
                 </div>
-              ) : (
-                filteredCustomers.map((c) => {
-                  const custInitials =
-                    `${c.first_name[0] || ""}${c.last_name?.[0] || ""}`.toUpperCase() ||
-                    "C";
-                  const isSelected = selectedCustomer?.id === c.id;
-                  return (
-                    <div
-                      key={c.id}
-                      className="flex items-center gap-3 px-3 py-[11px] border border-border rounded-xl cursor-pointer hover:border-primary hover:bg-primary/5 transition-colors"
-                      onClick={() => {
-                        onSelectCustomer(c);
-                        setOpen(false);
-                      }}
-                    >
-                      <div className="w-[30px] h-[30px] rounded-full bg-primary/10 text-primary flex items-center justify-center text-[11.5px] font-bold shrink-0">
-                        {custInitials}
+              )}
+              {!loadingCustomers && filteredCustomers.map((c) => {
+                const custInitials =
+                  `${c.first_name[0] || ""}${c.last_name?.[0] || ""}`.toUpperCase() ||
+                  "C";
+                const isSelected = selectedCustomer?.id === c.id;
+                return (
+                  <div
+                    key={c.id}
+                    className="flex items-center gap-3 px-3 py-[11px] border border-border rounded-xl cursor-pointer hover:border-primary hover:bg-primary/5 transition-colors"
+                    onClick={() => {
+                      onSelectCustomer(c);
+                      setOpen(false);
+                    }}
+                  >
+                    <div className="w-[30px] h-[30px] rounded-full bg-primary/10 text-primary flex items-center justify-center text-[11.5px] font-bold shrink-0">
+                      {custInitials}
+                    </div>
+                    <div className="flex-1 overflow-hidden">
+                      <div className="text-[13px] font-semibold truncate">
+                        {c.first_name} {c.last_name}
                       </div>
-                      <div className="flex-1 overflow-hidden">
-                        <div className="text-[13px] font-semibold truncate">
-                          {c.first_name} {c.last_name}
-                        </div>
-                        <div className="text-[11.5px] text-muted-foreground mt-0.5 truncate">
-                          {c.phone || "No phone"}
-                        </div>
-                      </div>
-                      <div className="text-[10.5px] font-bold px-2 py-[3px] rounded-md whitespace-nowrap bg-primary/10 text-primary flex items-center gap-1">
-                        {isSelected && <Check className="w-3 h-3" />}
-                        {c.loyalty_points || 0} pts
+                      <div className="text-[11.5px] text-muted-foreground mt-0.5 truncate">
+                        {c.phone || "No phone"}
                       </div>
                     </div>
-                  );
-                })
-              )}
+                    <div className="text-[10.5px] font-bold px-2 py-[3px] rounded-md whitespace-nowrap bg-primary/10 text-primary flex items-center gap-1">
+                      {isSelected && <Check className="w-3 h-3" />}
+                      {c.loyalty_points || 0} pts
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>

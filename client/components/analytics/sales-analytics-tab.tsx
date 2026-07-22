@@ -127,38 +127,37 @@ export function SalesAnalyticsTab({
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {products.length === 0 ? (
+              {products.length === 0 && (
                 <div className="text-center py-8 text-muted-foreground">
                   No sales data available for this period.
                 </div>
-              ) : (
-                products.map((product, index) => (
-                  <div
-                    key={product.name}
-                    className="flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-sm font-medium text-blue-600">
-                        {index + 1}
-                      </div>
-                      <div>
-                        <p className="font-medium">{product.name}</p>
-                        <p className="text-sm text-gray-500">
-                          {product.category}
-                        </p>
-                      </div>
+              )}
+              {products.length > 0 && products.map((product, index) => (
+                <div
+                  key={product.name}
+                  className="flex items-center justify-between"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-sm font-medium text-blue-600">
+                      {index + 1}
                     </div>
-                    <div className="text-right">
-                      <p className="font-medium">
-                        ₦{product.sales.toLocaleString()}
-                      </p>
+                    <div>
+                      <p className="font-medium">{product.name}</p>
                       <p className="text-sm text-gray-500">
-                        {product.units} units
+                        {product.category}
                       </p>
                     </div>
                   </div>
-                ))
-              )}
+                  <div className="text-right">
+                    <p className="font-medium">
+                      ₦{product.sales.toLocaleString()}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      {product.units} units
+                    </p>
+                  </div>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>

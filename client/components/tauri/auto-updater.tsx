@@ -163,15 +163,10 @@ export function AutoUpdater() {
           onClick={() => checkForUpdates(false)}
           className="flex items-center gap-2 px-3 py-2 bg-background/90 backdrop-blur-md border border-accent/20 dark:border-white/10 shadow-sm rounded-full text-xs font-medium text-muted-foreground hover:text-foreground hover:shadow-md transition-all hover:bg-accent/5 dark:hover:bg-white/5"
         >
-          {status === "up-to-date" ? (
-            <><CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> Up to date</>
-          ) : status === "error" ? (
-            <><AlertCircle className="h-3.5 w-3.5 text-rose-500" /> Update failed</>
-          ) : status === "downloading-silent" ? (
-            <><DownloadCloud className="h-3.5 w-3.5 animate-pulse text-primary" /> Downloading patch...</>
-          ) : (
-            <><RefreshCw className="h-3.5 w-3.5" /> Check for updates</>
-          )}
+          {status === "up-to-date" && <><CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> Up to date</>}
+          {status === "error" && <><AlertCircle className="h-3.5 w-3.5 text-rose-500" /> Update failed</>}
+          {status === "downloading-silent" && <><DownloadCloud className="h-3.5 w-3.5 animate-pulse text-primary" /> Downloading patch...</>}
+          {status === "idle" && <><RefreshCw className="h-3.5 w-3.5" /> Check for updates</>}
         </button>
       </div>
     );

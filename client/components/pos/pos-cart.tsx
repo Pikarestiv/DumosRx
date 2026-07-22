@@ -47,58 +47,51 @@ export function POSCart({
   return (
     <div className="flex flex-col h-full">
       <div className="flex-1 overflow-y-auto px-5 py-1.5 min-h-[120px]">
-        {cart.length === 0 ? (
-          <div className="text-center py-10 text-muted-foreground h-full flex flex-col items-center justify-center">
-            <ShoppingCart className="h-8 w-8 mb-3 opacity-30" />
-            <p className="text-sm font-medium">Cart is empty</p>
-            <p className="text-xs mt-1">Tap products to add them to the cart</p>
-          </div>
-        ) : (
-          cart.map((item, idx) => (
-            <div
-              key={item.id}
-              className={`flex items-center gap-3 py-3 ${
-                idx !== cart.length - 1 ? "border-b border-border" : ""
-              }`}
-            >
-              <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                 <Package className="w-5 h-5" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-[12.5px] font-semibold mb-0.5 truncate leading-tight">{item.name}</div>
-                <div className="text-[11.5px] text-muted-foreground leading-tight">
-                  {formatCurrency(item.unit_price, currencyCode)} each
-                </div>
-              </div>
-              <div className="flex items-center border border-border rounded-lg overflow-hidden shrink-0 bg-muted/30">
-                <button
-                  className="w-6 h-6 flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors cursor-pointer"
-                  onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                >
-                  <Minus className="w-3 h-3" strokeWidth={2.5} />
-                </button>
-                <span className="w-6 text-center text-xs font-semibold">
-                  {item.quantity}
-                </span>
-                <button
-                  className="w-6 h-6 flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors cursor-pointer"
-                  onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                >
-                  <Plus className="w-3 h-3" strokeWidth={2.5} />
-                </button>
-              </div>
-              <div className="text-[13px] font-bold min-w-[56px] text-right">
-                {formatCurrency(item.subtotal, currencyCode)}
-              </div>
-              <div 
-                className="text-muted-foreground hover:text-destructive cursor-pointer shrink-0 ml-1"
-                onClick={() => removeFromCart(item.id)}
-              >
-                <Trash2 className="w-3.5 h-3.5" />
+        {cart.length === 0 && <EmptyCart />}
+        {cart.length > 0 && cart.map((item, idx) => (
+          <div
+            key={item.id}
+            className={`flex items-center gap-3 py-3 ${
+              idx !== cart.length - 1 ? "border-b border-border" : ""
+            }`}
+          >
+            <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+               <Package className="w-5 h-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-[12.5px] font-semibold mb-0.5 truncate leading-tight">{item.name}</div>
+              <div className="text-[11.5px] text-muted-foreground leading-tight">
+                {formatCurrency(item.unit_price, currencyCode)} each
               </div>
             </div>
-          ))
-        )}
+            <div className="flex items-center border border-border rounded-lg overflow-hidden shrink-0 bg-muted/30">
+              <button
+                className="w-6 h-6 flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors cursor-pointer"
+                onClick={() => updateQuantity(item.id, item.quantity - 1)}
+              >
+                <Minus className="w-3 h-3" strokeWidth={2.5} />
+              </button>
+              <span className="w-6 text-center text-xs font-semibold">
+                {item.quantity}
+              </span>
+              <button
+                className="w-6 h-6 flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors cursor-pointer"
+                onClick={() => updateQuantity(item.id, item.quantity + 1)}
+              >
+                <Plus className="w-3 h-3" strokeWidth={2.5} />
+              </button>
+            </div>
+            <div className="text-[13px] font-bold min-w-[56px] text-right">
+              {formatCurrency(item.subtotal, currencyCode)}
+            </div>
+            <div 
+              className="text-muted-foreground hover:text-destructive cursor-pointer shrink-0 ml-1"
+              onClick={() => removeFromCart(item.id)}
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </div>
+          </div>
+        ))}
       </div>
 
       <div className="border-t border-border px-5 pt-4 pb-5 bg-muted/10">
@@ -113,7 +106,7 @@ export function POSCart({
             <span>{formatCurrency(tax, currencyCode)}</span>
           </div>
 
-          {showDiscount || discount > 0 ? (
+          {(showDiscount || discount > 0) && (
             <div className="flex justify-between text-[12.5px] items-center gap-2">
               <span className="text-muted-foreground">Discount</span>
               <div className="flex gap-1 items-center flex-1 max-w-[160px] justify-end">
@@ -143,7 +136,8 @@ export function POSCart({
                 </button>
               </div>
             </div>
-          ) : (
+          )}
+          {!(showDiscount || discount > 0) && (
             <div className="flex justify-between text-[12.5px] text-muted-foreground">
               <span 
                 className="text-primary font-semibold cursor-pointer hover:underline"
@@ -201,6 +195,16 @@ export function POSCart({
           </svg>
         </button>
       </div>
+    </div>
+  );
+}
+
+function EmptyCart() {
+  return (
+    <div className="text-center py-10 text-muted-foreground h-full flex flex-col items-center justify-center">
+      <ShoppingCart className="h-8 w-8 mb-3 opacity-30" />
+      <p className="text-sm font-medium">Cart is empty</p>
+      <p className="text-xs mt-1">Tap products to add them to the cart</p>
     </div>
   );
 }

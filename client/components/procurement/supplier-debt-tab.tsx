@@ -99,48 +99,48 @@ export function SupplierDebtTab() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {loading ? (
+                {loading && (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8">Loading...</TableCell>
                   </TableRow>
-                ) : unpaidOrders.length === 0 ? (
+                )}
+                {!loading && unpaidOrders.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                       No unpaid orders found.
                     </TableCell>
                   </TableRow>
-                ) : (
-                  unpaidOrders.map((po) => {
-                    const balance = po.total_amount - po.amount_paid;
-                    const poNumber = po.id.split('-')[0].toUpperCase();
-                    return (
-                      <TableRow key={po.id}>
-                        <TableCell className="font-medium">{poNumber}</TableCell>
-                        <TableCell>{new Date(po.created_at).toLocaleDateString()}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20">
-                            {po.payment_status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right font-bold">{formatCurrency(po.total_amount)}</TableCell>
-                        <TableCell className="text-right text-muted-foreground">{formatCurrency(po.amount_paid)}</TableCell>
-                        <TableCell className="text-right text-destructive font-bold">{formatCurrency(balance)}</TableCell>
-                        <TableCell className="text-right">
-                          <Button 
-                            size="sm" 
-                            variant="default"
-                            onClick={() => {
-                              setPaymentPO(po);
-                              setPaymentDialogOpen(true);
-                            }}
-                          >
-                            <CreditCard className="w-4 h-4 mr-2" /> Pay
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
                 )}
+                {!loading && unpaidOrders.length > 0 && unpaidOrders.map((po) => {
+                  const balance = po.total_amount - po.amount_paid;
+                  const poNumber = po.id.split('-')[0].toUpperCase();
+                  return (
+                    <TableRow key={po.id}>
+                      <TableCell className="font-medium">{poNumber}</TableCell>
+                      <TableCell>{new Date(po.created_at).toLocaleDateString()}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20">
+                          {po.payment_status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right font-bold">{formatCurrency(po.total_amount)}</TableCell>
+                      <TableCell className="text-right text-muted-foreground">{formatCurrency(po.amount_paid)}</TableCell>
+                      <TableCell className="text-right text-destructive font-bold">{formatCurrency(balance)}</TableCell>
+                      <TableCell className="text-right">
+                        <Button 
+                          size="sm" 
+                          variant="default"
+                          onClick={() => {
+                            setPaymentPO(po);
+                            setPaymentDialogOpen(true);
+                          }}
+                        >
+                          <CreditCard className="w-4 h-4 mr-2" /> Pay
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </CardContent>
@@ -175,37 +175,37 @@ export function SupplierDebtTab() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loading ? (
+            {loading && (
               <TableRow>
                 <TableCell colSpan={4} className="text-center py-8">Loading...</TableCell>
               </TableRow>
-            ) : balances.length === 0 ? (
+            )}
+            {!loading && balances.length === 0 && (
               <TableRow>
                 <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
                   No supplier debt found.
                 </TableCell>
               </TableRow>
-            ) : (
-              balances.map((balance) => (
-                <TableRow key={balance.supplier_id}>
-                  <TableCell className="font-bold text-primary">{balance.supplier_name}</TableCell>
-                  <TableCell className="text-right">{balance.unpaid_pos_count}</TableCell>
-                  <TableCell className="text-right text-destructive font-bold">{formatCurrency(balance.total_debt)}</TableCell>
-                  <TableCell className="text-right">
-                    <Button 
-                      size="sm" 
-                      variant="outline"
-                      onClick={() => {
-                        setSelectedSupplierId(balance.supplier_id);
-                        setSelectedSupplierName(balance.supplier_name);
-                      }}
-                    >
-                      View Details
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))
             )}
+            {!loading && balances.length > 0 && balances.map((balance) => (
+              <TableRow key={balance.supplier_id}>
+                <TableCell className="font-bold text-primary">{balance.supplier_name}</TableCell>
+                <TableCell className="text-right">{balance.unpaid_pos_count}</TableCell>
+                <TableCell className="text-right text-destructive font-bold">{formatCurrency(balance.total_debt)}</TableCell>
+                <TableCell className="text-right">
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => {
+                      setSelectedSupplierId(balance.supplier_id);
+                      setSelectedSupplierName(balance.supplier_name);
+                    }}
+                  >
+                    View Details
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
           </TableBody>
         </Table>
       </CardContent>

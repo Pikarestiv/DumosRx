@@ -65,83 +65,100 @@ export function ProductTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {filteredProducts.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={10} className="h-32 text-center">
-                <div className="flex flex-col items-center justify-center text-muted-foreground">
-                  <Package className="h-8 w-8 mb-2 opacity-50" />
-                  <p className="font-medium">No {productsLabel.toLowerCase()} found</p>
-                  <p className="text-sm">
-                    {totalCount === 0
-                      ? `Add your first ${productLabel.toLowerCase()} to get started`
-                      : "Try adjusting your search or filters"}
-                  </p>
+          {filteredProducts.length === 0 && (
+            <EmptyProductsRow
+              productsLabel={productsLabel}
+              productLabel={productLabel}
+              totalCount={totalCount}
+            />
+          )}
+          {filteredProducts.length > 0 && filteredProducts.map((product) => (
+            <TableRow key={product.id}>
+              <TableCell>
+                <div>
+                  <div className="font-medium">{product.name}</div>
+                  {isStore && product.genericName && (
+                    <div className="text-sm text-muted-foreground">
+                      {product.genericName}
+                    </div>
+                  )}
+                </div>
+              </TableCell>
+              <TableCell>{product.brand}</TableCell>
+              <TableCell>{product.category}</TableCell>
+              <TableCell className="font-mono text-sm">
+                {product.nafdacNumber}
+              </TableCell>
+              <TableCell>{product.strength}</TableCell>
+              <TableCell>
+                <div
+                  className={
+                    product.stockQuantity <= product.reorderLevel
+                      ? "text-destructive font-medium"
+                      : ""
+                  }
+                >
+                  {product.stockQuantity} {product.baseUnit}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Min: {product.reorderLevel}
+                </div>
+              </TableCell>
+              <TableCell>
+                {formatCurrency(product.costPrice)}
+              </TableCell>
+              <TableCell>
+                {formatCurrency(product.sellingPrice)}
+              </TableCell>
+              <TableCell>{getStatusBadge(product.status)}</TableCell>
+              <TableCell>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onViewDetails(product)}
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => onEditProduct(product)}
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
                 </div>
               </TableCell>
             </TableRow>
-          ) : (
-            filteredProducts.map((product) => (
-              <TableRow key={product.id}>
-                <TableCell>
-                  <div>
-                    <div className="font-medium">{product.name}</div>
-                    {isStore && product.genericName && (
-                      <div className="text-sm text-muted-foreground">
-                        {product.genericName}
-                      </div>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell>{product.brand}</TableCell>
-                <TableCell>{product.category}</TableCell>
-                <TableCell className="font-mono text-sm">
-                  {product.nafdacNumber}
-                </TableCell>
-                <TableCell>{product.strength}</TableCell>
-                <TableCell>
-                  <div
-                    className={
-                      product.stockQuantity <= product.reorderLevel
-                        ? "text-destructive font-medium"
-                        : ""
-                    }
-                  >
-                    {product.stockQuantity} {product.baseUnit}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    Min: {product.reorderLevel}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  {formatCurrency(product.costPrice)}
-                </TableCell>
-                <TableCell>
-                  {formatCurrency(product.sellingPrice)}
-                </TableCell>
-                <TableCell>{getStatusBadge(product.status)}</TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => onViewDetails(product)}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => onEditProduct(product)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))
-          )}
+          ))}
         </TableBody>
       </Table>
     </div>
+  );
+}
+
+function EmptyProductsRow({
+  productsLabel,
+  productLabel,
+  totalCount,
+}: {
+  productsLabel: string;
+  productLabel: string;
+  totalCount: number;
+}) {
+  return (
+    <TableRow>
+      <TableCell colSpan={10} className="h-32 text-center">
+        <div className="flex flex-col items-center justify-center text-muted-foreground">
+          <Package className="h-8 w-8 mb-2 opacity-50" />
+          <p className="font-medium">No {productsLabel.toLowerCase()} found</p>
+          <p className="text-sm">
+            {totalCount === 0
+              ? `Add your first ${productLabel.toLowerCase()} to get started`
+              : "Try adjusting your search or filters"}
+          </p>
+        </div>
+      </TableCell>
+    </TableRow>
   );
 }

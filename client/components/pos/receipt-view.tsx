@@ -141,7 +141,7 @@ export function ReceiptView({ transaction }: ReceiptProps) {
 
       {/* Payment details */}
       <div className="space-y-1 mb-6 text-xs">
-        {transaction.paymentMethod === "mixed" && transaction.paymentSplits ? (
+        {transaction.paymentMethod === "mixed" && transaction.paymentSplits && (
           <>
             <div className="font-bold border-b border-dashed border-black pb-1 mb-1">
               Payment Breakdown (MIXED)
@@ -153,7 +153,8 @@ export function ReceiptView({ transaction }: ReceiptProps) {
               </div>
             ))}
           </>
-        ) : (
+        )}
+        {!(transaction.paymentMethod === "mixed" && transaction.paymentSplits) && (
           <div className="flex justify-between">
             <span>Payment type:</span>
             <span className="uppercase font-bold">

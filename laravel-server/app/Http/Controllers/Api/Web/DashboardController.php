@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Web;
 use App\Http\Controllers\Controller;
 use App\Services\Web\DashboardService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class DashboardController extends Controller
 {
@@ -21,10 +22,11 @@ class DashboardController extends Controller
     public function summary(Request $request)
     {
         try {
-            $data = $this->dashboardService->getSummary($request->user());
+            $period = $request->query('period', '7d');
+            $data = $this->dashboardService->getSummary($request->user(), $period);
             return response()->json($data);
         } catch (\Exception $e) {
-            \Log::critical("Dashboard Controller Error: " . $e->getMessage());
+            Log::critical("Dashboard Controller Error: " . $e->getMessage());
             return response()->json([
                 'error' => 'Internal Server Error',
                 'message' => $e->getMessage()
@@ -42,7 +44,7 @@ class DashboardController extends Controller
             $result = $this->dashboardService->resetData($request->user(), $type);
             return response()->json($result);
         } catch (\Exception $e) {
-            \Log::error("Dashboard Reset Error: " . $e->getMessage());
+            Log::error("Dashboard Reset Error: " . $e->getMessage());
             return response()->json([
                 'error' => 'Reset Failed',
                 'message' => $e->getMessage()

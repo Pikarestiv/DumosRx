@@ -19,14 +19,41 @@ class DashboardService
     /**
      * Get summary data for the web dashboard.
      */
-    public function getSummary($user)
+    public function getSummary($user, $period = '7d')
     {
         $userId = $user->id;
 
         // Date ranges
         $now = Carbon::now();
-        $last7Days = $now->copy()->subDays(7);
-        $prev7Days = $now->copy()->subDays(14);
+        
+        switch ($period) {
+            case '30d':
+                $currentStartDate = $now->copy()->subDays(30);
+                $previousStartDate = $now->copy()->subDays(60);
+                $previousEndDate = $now->copy()->subDays(30);
+                break;
+            case 'this_month':
+                $currentStartDate = $now->copy()->startOfMonth();
+                $previousStartDate = $now->copy()->subMonth()->startOfMonth();
+                $previousEndDate = $now->copy()->subMonth()->endOfMonth();
+                break;
+            case 'this_year':
+                $currentStartDate = $now->copy()->startOfYear();
+                $previousStartDate = $now->copy()->subYear()->startOfYear();
+                $previousEndDate = $now->copy()->subYear()->endOfYear();
+                break;
+            case 'all_time':
+                $currentStartDate = Carbon::createFromTimestamp(0);
+                $previousStartDate = null;
+                $previousEndDate = null;
+                break;
+            case '7d':
+            default:
+                $currentStartDate = $now->copy()->subDays(7);
+                $previousStartDate = $now->copy()->subDays(14);
+                $previousEndDate = $now->copy()->subDays(7);
+                break;
+        }
 
         // Get store and cashier network for scoping
         $storeIds = Store::where('user_id', $userId)->pluck('id')->toArray();
@@ -37,17 +64,22 @@ class DashboardService
         $salesGrowth = 0;
         try {
             $totalSales = (float) Sale::whereIn('cashier_id', $userIds)->sum('total_amount');
-            $salesThisWeek = (float) Sale::whereIn('cashier_id', $userIds)
-                ->where('created_at', '>=', $last7Days)
+            
+            $salesThisPeriod = (float) Sale::whereIn('cashier_id', $userIds)
+                ->where('created_at', '>=', $currentStartDate)
                 ->sum('total_amount');
-            $salesPrevWeek = (float) Sale::whereIn('cashier_id', $userIds)
-                ->where('created_at', '>=', $prev7Days)
-                ->where('created_at', '<', $last7Days)
-                ->sum('total_amount');
+                
+            $salesPrevPeriod = 0;
+            if ($previousStartDate && $previousEndDate) {
+                $salesPrevPeriod = (float) Sale::whereIn('cashier_id', $userIds)
+                    ->where('created_at', '>=', $previousStartDate)
+                    ->where('created_at', '<', $previousEndDate)
+                    ->sum('total_amount');
+            }
 
-            if ($salesPrevWeek > 0) {
-                $salesGrowth = (($salesThisWeek - $salesPrevWeek) / $salesPrevWeek) * 100;
-            } elseif ($salesThisWeek > 0) {
+            if ($salesPrevPeriod > 0) {
+                $salesGrowth = (($salesThisPeriod - $salesPrevPeriod) / $salesPrevPeriod) * 100;
+            } elseif ($salesThisPeriod > 0) {
                 $salesGrowth = 100;
             }
         } catch (\Exception $e) {
@@ -68,10 +100,10 @@ class DashboardService
 
         // 3. Customer Stats
         $totalCustomers = 0;
-        $newCustomersThisWeek = 0;
+        $newCustomersThisPeriod = 0;
         try {
             $totalCustomers = Customer::whereIn('user_id', $userIds)->count();
-            $newCustomersThisWeek = Customer::whereIn('user_id', $userIds)->where('created_at', '>=', $last7Days)->count();
+            $newCustomersThisPeriod = Customer::whereIn('user_id', $userIds)->where('created_at', '>=', $currentStartDate)->count();
         } catch (\Exception $e) {
             Log::error('DashboardService [Customers]: '.$e->getMessage());
         }
@@ -251,7 +283,7 @@ class DashboardService
                 ],
                 'customers' => [
                     'value' => $totalCustomers,
-                    'growth' => '+'.$newCustomersThisWeek.' new',
+                    'growth' => '+'.$newCustomersThisPeriod.' new',
                 ],
                 'stores_count' => $storesCount,
                 'last_sync' => $lastSyncTime,

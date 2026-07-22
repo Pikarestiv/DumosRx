@@ -85,6 +85,11 @@ class SyncController extends Controller
 
                 $payload = is_array($change['payload']) ? $change['payload'] : json_decode($change['payload'], true);
                 
+                // Strip client-only state flags that should never reach the DB
+                if (isset($payload['_synced'])) {
+                    unset($payload['_synced']);
+                }
+                
                 // Apply ID mappings for foreign keys (if a previous record was merged due to conflict)
                 foreach ($payload as $key => $value) {
                     if (is_string($value) && isset($idMap[$value])) {

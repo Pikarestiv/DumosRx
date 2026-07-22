@@ -68,6 +68,7 @@ class SyncEndpointTest extends TestCase
                         'id' => 'prod_123',
                         'name' => 'Paracetamol',
                         'is_active' => true,
+                        '_synced' => 0,
                     ]
                 ]
             ]
@@ -112,6 +113,7 @@ class SyncEndpointTest extends TestCase
                         'id' => $productId,
                         'name' => 'Aspirin Forte', // Changed
                         '_version' => 2,
+                        '_synced' => 0,
                     ]
                 ]
             ]
@@ -157,6 +159,7 @@ class SyncEndpointTest extends TestCase
                         'id' => $productId,
                         'name' => 'Offline Older Aspirin',
                         '_version' => 2,
+                        '_synced' => 0,
                         'updated_at' => now()->subDay()->toDateTimeString() // Older update timestamp
                     ]
                 ]
@@ -197,6 +200,7 @@ class SyncEndpointTest extends TestCase
                         'id' => $productId,
                         'name' => 'To Be Deleted',
                         '_deleted' => 1, // Soft delete flag
+                        '_synced' => 0,
                         'updated_at' => now()->toDateTimeString()
                     ]
                 ]

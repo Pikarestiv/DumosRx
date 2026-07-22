@@ -11,9 +11,6 @@ import { toast } from "sonner";
 import { ProcurementStats } from "./procurement-stats";
 import { PurchaseOrderTable } from "./purchase-order-table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import Link from "next/link";
-import { Plus } from "lucide-react";
 import { SupplierManagement } from "@/components/stock-batch/supplier-management";
 import { RequestedProductsTab } from "./requested-products-tab";
 
@@ -64,35 +61,21 @@ export function ProcurementManagement() {
 
   return (
     <div className="flex flex-col min-h-0">
-      <div className="flex items-center gap-3 mb-5">
-        <div>
-          <div className="text-[12px] text-muted-foreground font-medium mb-0.5">DumosRx · Awka Main Pharmacy</div>
-          <div className="text-[22px] font-serif font-bold">Procurement</div>
-        </div>
-        <div className="ml-auto flex items-center gap-2.5">
-          <Button asChild className="gap-2">
-            <Link href="/procurement/new">
-              <Plus className="h-4 w-4" /> Create Order
-            </Link>
-          </Button>
-        </div>
-      </div>
-
       <Tabs defaultValue="orders" className="flex flex-col flex-1 min-h-0">
         <TabsList className="w-full md:w-max inline-flex gap-1 bg-card border border-border rounded-[11px] p-1 h-auto mb-5">
-          <TabsTrigger 
-            value="orders" 
+          <TabsTrigger
+            value="orders"
             className="px-5 py-2 rounded-lg text-[13px] font-semibold cursor-pointer data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent shadow-none"
           >
             Purchase Orders
           </TabsTrigger>
-          <TabsTrigger 
+          <TabsTrigger
             value="requests"
             className="px-5 py-2 rounded-lg text-[13px] font-semibold cursor-pointer data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent shadow-none"
           >
             Requested Products
           </TabsTrigger>
-          <TabsTrigger 
+          <TabsTrigger
             value="suppliers"
             className="px-5 py-2 rounded-lg text-[13px] font-semibold cursor-pointer data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent shadow-none"
           >
@@ -100,7 +83,10 @@ export function ProcurementManagement() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="orders" className="flex flex-col flex-1 min-h-0 mt-0 border-0 p-0">
+        <TabsContent
+          value="orders"
+          className="flex flex-col flex-1 min-h-0 mt-0 border-0 p-0"
+        >
           <ProcurementStats purchaseOrders={purchaseOrders} />
 
           <PurchaseOrderTable
@@ -115,11 +101,17 @@ export function ProcurementManagement() {
           />
         </TabsContent>
 
-        <TabsContent value="suppliers" className="flex flex-col flex-1 min-h-0 mt-0 border-0 p-0">
+        <TabsContent
+          value="suppliers"
+          className="flex flex-col flex-1 min-h-0 mt-0 border-0 p-0"
+        >
           <SupplierManagement />
         </TabsContent>
 
-        <TabsContent value="requests" className="flex flex-col flex-1 min-h-0 mt-0 border-0 p-0">
+        <TabsContent
+          value="requests"
+          className="flex flex-col flex-1 min-h-0 mt-0 border-0 p-0"
+        >
           <RequestedProductsTab />
         </TabsContent>
       </Tabs>

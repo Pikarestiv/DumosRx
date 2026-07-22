@@ -80,18 +80,19 @@ export function ProductCombobox({
   }, [localProducts]);
 
   const allSuggestions = [...localSuggestions, ...globalSuggestions];
+  const deferredValue = React.useDeferredValue(value);
 
   const filteredOptions = React.useMemo(() => {
-    if (!value) return allSuggestions.slice(0, 50); // Limit initial display
+    if (!deferredValue) return allSuggestions.slice(0, 50); // Limit initial display
     
-    const { results } = genericFuzzySearch(value, allSuggestions, [
+    const { results } = genericFuzzySearch(deferredValue, allSuggestions, [
       "name",
       "brand_name",
       "generic_name",
     ]);
 
     return results.slice(0, 50);
-  }, [value, allSuggestions]);
+  }, [deferredValue, allSuggestions]);
 
   // Handle clicks outside to close the menu
   React.useEffect(() => {

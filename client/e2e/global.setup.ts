@@ -45,6 +45,6 @@ setup('create mock store and extract database', async ({ page }) => {
     fs.mkdirSync(fixturePath, { recursive: true });
   }
   
-  const buffer = Buffer.from(dbBinary);
+  const buffer = Buffer.from(dbBinary as number[]);
   fs.writeFileSync(path.join(fixturePath, 'test-db.bin'), buffer);
 });

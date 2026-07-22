@@ -28,7 +28,7 @@ import { useProcurementData } from "@/lib/hooks/use-procurement-data";
 export default function CreateOrderPage() {
   const router = useRouter();
   const { storeType } = useStore();
-  
+
   const [selectedSupplierId, setSelectedSupplierId] = useState("");
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<any[]>([]);
@@ -59,7 +59,7 @@ export default function CreateOrderPage() {
     try {
       const newProduct = await createProduct(productData);
       toast.success(`${productData.name} added to catalog`);
-      
+
       // Refresh products list
       await fetchData();
 
@@ -112,14 +112,20 @@ export default function CreateOrderPage() {
   return (
     <div className="flex flex-col min-h-0 w-full max-w-5xl mx-auto pb-10">
       <div className="flex items-center gap-3 mb-6">
-        <Button variant="ghost" size="icon" onClick={() => router.push("/procurement")}>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => router.push("/procurement")}
+        >
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <div>
           <div className="text-[12px] text-muted-foreground font-medium mb-0.5">
             Procurement
           </div>
-          <div className="text-[22px] font-serif font-bold">Create Purchase Order</div>
+          <div className="text-[22px] font-serif font-bold">
+            Create Purchase Order
+          </div>
         </div>
       </div>
 
@@ -205,7 +211,8 @@ export default function CreateOrderPage() {
         <Card className="border-accent/10 bg-accent/5">
           <CardHeader className="py-3 px-4 bg-accent/10 border-b border-accent/10">
             <CardTitle className="text-sm font-bold flex items-center gap-2">
-              <ShoppingCart className="w-4 h-4 text-primary" /> Add Items to Order
+              <ShoppingCart className="w-4 h-4 text-primary" /> Add Items to
+              Order
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 space-y-4">
@@ -222,7 +229,9 @@ export default function CreateOrderPage() {
             <CardTitle className="text-sm font-bold flex items-center gap-2">
               Line Items
             </CardTitle>
-            <span className="text-primary text-sm font-medium">{items.length} items</span>
+            <span className="text-primary text-sm font-medium">
+              {items.length} items
+            </span>
           </CardHeader>
           <CardContent className="p-4">
             <POLineItemsList

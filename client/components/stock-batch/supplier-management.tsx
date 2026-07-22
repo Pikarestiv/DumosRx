@@ -238,26 +238,29 @@ export function SupplierManagement() {
                   {formatCurrency(selectedSupplier.debtAmount)}
                 </div>
               </div>
-              <Button className="w-full bg-[#2054E0] hover:bg-[#2054E0]/90 text-white font-semibold">
+              <Button className="w-full font-semibold">
                 Record Payment
               </Button>
             </div>
           )}
 
           <div className="grid grid-cols-2 gap-y-6 gap-x-4">
-            <div>
+            <div className="min-w-0">
               <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide mb-1">
                 Email
               </div>
-              <div className="text-[13.5px] font-medium text-foreground">
+              <div
+                className="text-[13.5px] font-medium text-foreground truncate"
+                title={selectedSupplier.email || "N/A"}
+              >
                 {selectedSupplier.email || "N/A"}
               </div>
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide mb-1">
                 Phone
               </div>
-              <div className="text-[13.5px] font-medium text-foreground">
+              <div className="text-[13.5px] font-medium text-foreground truncate">
                 {selectedSupplier.phone || "N/A"}
               </div>
             </div>
@@ -354,13 +357,13 @@ export function SupplierManagement() {
             <div className="flex items-center justify-between">
               <Tabs variant="chips" value={filter} onValueChange={setFilter}>
                 <TabsList className="w-full md:w-max justify-start overflow-x-auto hide-scrollbar">
-                  <TabsTrigger value="all">All</TabsTrigger>
-                  <TabsTrigger value="debt">Has debt</TabsTrigger>
+                  <TabsTrigger value="all" className="data-[state=inactive]:border data-[state=inactive]:border-border/50">All</TabsTrigger>
+                  <TabsTrigger value="debt" className="data-[state=inactive]:border data-[state=inactive]:border-border/50">Has debt</TabsTrigger>
                 </TabsList>
               </Tabs>
               <div className="text-[11.5px] text-destructive font-medium">
                 {formatCurrency(totalDebtAmount)} owed to {debtSuppliersCount}{" "}
-                suppliers
+                {debtSuppliersCount === 1 ? "supplier" : "suppliers"}
               </div>
             </div>
           </div>

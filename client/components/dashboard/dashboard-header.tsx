@@ -21,24 +21,83 @@ interface DashboardHeaderProps {
 }
 
 const PAGE_ROUTES = [
-  { path: "/inventory/catalog", title: "Product Catalog", desc: "Manage your pharmacy's core product database and pricing.", action: { label: "Add Product", path: "/inventory/catalog?action=add" } },
-  { path: "/inventory/batches", title: "Stock Batches", desc: "Manage inventory intake, expiration dates, and physical stock.", action: { label: "Add Batch", path: "/inventory/batches?action=add" } },
-  { path: "/inventory", title: "Inventory Dashboard", desc: "Overview of your inventory health and metrics." },
-  { path: "/customers", title: "Customer Management", desc: "View and manage customer profiles, credit, and history.", action: { label: "Add Customer", path: "/customers?action=add" } },
-  { path: "/sales", title: "Sales History", desc: "View and manage past transactions and returns." },
-  { path: "/prescriptions", title: "Prescription Management", desc: "Track and fulfill patient prescriptions securely.", action: { label: "Create Prescription", path: "/prescriptions?action=add" } },
-  { path: "/procurement/vendors", title: "Vendors & Suppliers", desc: "Manage supplier directory and view debt.", action: { label: "Add Supplier", path: "/procurement/vendors?action=add" } },
-  { path: "/procurement/requests", title: "Requested Products", desc: "View and manage products requested by staff or customers.", action: { label: "Request Product", path: "/procurement/requests?action=add" } },
-  { path: "/procurement", title: "Procurement & Orders", desc: "Manage suppliers, create purchase orders, and track deliveries.", action: { label: "Create Order", path: "/procurement/new" } },
-  { path: "/expenses", title: "Expenses", desc: "Track and manage your pharmacy's operational expenses.", action: { label: "Add Expense", path: "/expenses?action=add" } },
-  { path: "/reports", title: "Reporting Center", desc: "View performance metrics and generate detailed reports." },
-  { path: "/settings", title: "Settings", desc: "Manage your pharmacy configuration and preferences." }
+  {
+    path: "/inventory/catalog",
+    title: "Product Catalog",
+    desc: "Manage your pharmacy's core product database and pricing.",
+    action: { label: "Add Product", path: "/inventory/catalog?action=add" },
+  },
+  {
+    path: "/inventory/batches",
+    title: "Stock Batches",
+    desc: "Manage inventory intake, expiration dates, and physical stock.",
+    action: { label: "Add Batch", path: "/inventory/batches?action=add" },
+  },
+  {
+    path: "/inventory",
+    title: "Inventory Dashboard",
+    desc: "Overview of your inventory health and metrics.",
+  },
+  {
+    path: "/customers",
+    title: "Customer Management",
+    desc: "View and manage customer profiles, credit, and history.",
+    action: { label: "Add Customer", path: "/customers?action=add" },
+  },
+  {
+    path: "/sales",
+    title: "Sales History",
+    desc: "View and manage past transactions and returns.",
+  },
+  {
+    path: "/prescriptions",
+    title: "Prescription Management",
+    desc: "Track and fulfill patient prescriptions securely.",
+    action: { label: "Create Prescription", path: "/prescriptions?action=add" },
+  },
+  {
+    path: "/procurement/vendors",
+    title: "Vendors & Suppliers",
+    desc: "Manage supplier directory and view debt.",
+    action: { label: "Add Supplier", path: "/procurement/vendors?action=add" },
+  },
+  {
+    path: "/procurement/requests",
+    title: "Requested Products",
+    desc: "View and manage products requested by staff or customers.",
+    action: {
+      label: "Request Product",
+      path: "/procurement/requests?action=add",
+    },
+  },
+  {
+    path: "/procurement",
+    title: "Procurement",
+    desc: "Manage suppliers, create purchase orders, and track deliveries.",
+    action: { label: "Create Order", path: "/procurement/new" },
+  },
+  {
+    path: "/expenses",
+    title: "Expenses",
+    desc: "Track and manage your pharmacy's operational expenses.",
+    action: { label: "Add Expense", path: "/expenses?action=add" },
+  },
+  {
+    path: "/reports",
+    title: "Reporting Center",
+    desc: "View performance metrics and generate detailed reports.",
+  },
+  {
+    path: "/settings",
+    title: "Settings",
+    desc: "Manage your pharmacy configuration and preferences.",
+  },
 ];
 
 function getPageInfo(pathname: string) {
   if (pathname === "/" || pathname === "/dashboard") return null; // Use greeting
-  
-  const match = PAGE_ROUTES.find(route => pathname.startsWith(route.path));
+
+  const match = PAGE_ROUTES.find((route) => pathname.startsWith(route.path));
   return match || { title: APP_NAME, desc: "", action: null };
 }
 
@@ -76,53 +135,53 @@ export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
           </div>
 
           <div className="flex items-center gap-1.5">
-            {!!(!pageInfo) && (
-                                    <>
-                                      <span className="text-foreground text-base sm:text-xl font-bold tracking-tight font-serif">
-                                        {(() => {
-                                          const hour = new Date().getHours();
-                                          if (hour < 12) return "Good morning,";
-                                          if (hour === 12) return "Good noon,";
-                                          if (hour < 17) return "Good afternoon,";
-                                          if (hour < 21) return "Good evening,";
-                                          return "Good night,";
-                                        })()}
-                                      </span>
-                                      <span className="text-foreground text-base sm:text-xl font-bold sm:hidden tracking-tight font-serif">
-                                        {user?.first_name} {user?.last_name}
-                                      </span>
-                                      <span className="text-foreground text-base sm:text-xl font-bold hidden sm:inline-block tracking-tight font-serif">
-                                        {user?.first_name}
-                                      </span>
-                                    </>
-                                  )}
-                      {!(!pageInfo) && (
-                                    <div className="flex items-center gap-2">
-                                      {!!(pageInfo.desc) && (
-                                                                      <TooltipProvider delayDuration={1000}>
-                                                                        <Tooltip>
-                                                                          <TooltipTrigger asChild>
-                                                                            <span className="text-foreground text-base sm:text-xl font-bold tracking-tight cursor-default font-serif">
-                                                                              {pageInfo.title}
-                                                                            </span>
-                                                                          </TooltipTrigger>
-                                                                          <TooltipContent
-                                                                            side="bottom"
-                                                                            align="start"
-                                                                            className="max-w-[300px] text-sm"
-                                                                          >
-                                                                            <p>{pageInfo.desc}</p>
-                                                                          </TooltipContent>
-                                                                        </Tooltip>
-                                                                      </TooltipProvider>
-                                                                    )}
-                              {!(pageInfo.desc) && (
-                                                                      <span className="text-foreground text-base sm:text-xl font-bold tracking-tight font-serif">
-                                                                        {pageInfo.title}
-                                                                      </span>
-                                                                    )}
-                                    </div>
-                                  )}
+            {!!!pageInfo && (
+              <>
+                <span className="text-foreground text-base sm:text-xl font-bold tracking-tight font-serif">
+                  {(() => {
+                    const hour = new Date().getHours();
+                    if (hour < 12) return "Good morning,";
+                    if (hour === 12) return "Good noon,";
+                    if (hour < 17) return "Good afternoon,";
+                    if (hour < 21) return "Good evening,";
+                    return "Good night,";
+                  })()}
+                </span>
+                <span className="text-foreground text-base sm:text-xl font-bold sm:hidden tracking-tight font-serif">
+                  {user?.first_name} {user?.last_name}
+                </span>
+                <span className="text-foreground text-base sm:text-xl font-bold hidden sm:inline-block tracking-tight font-serif">
+                  {user?.first_name}
+                </span>
+              </>
+            )}
+            {!!pageInfo && (
+              <div className="flex items-center gap-2">
+                {!!pageInfo.desc && (
+                  <TooltipProvider delayDuration={1000}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="text-foreground text-base sm:text-xl font-bold tracking-tight cursor-default font-serif">
+                          {pageInfo.title}
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent
+                        side="bottom"
+                        align="start"
+                        className="max-w-[300px] text-sm"
+                      >
+                        <p>{pageInfo.desc}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+                {!pageInfo.desc && (
+                  <span className="text-foreground text-base sm:text-xl font-bold tracking-tight font-serif">
+                    {pageInfo.title}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -131,11 +190,13 @@ export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
           {/* Desktop only features */}
           <div className="hidden sm:flex items-center gap-3">
             <Button
-              onClick={() => router.push(pageInfo?.action ? pageInfo.action.path : "/pos")}
+              onClick={() =>
+                router.push(pageInfo?.action ? pageInfo.action.path : "/pos")
+              }
             >
               <Plus className="h-4 w-4" />
-              {!!(pageInfo?.action) && pageInfo.action.label}
-                          {!(pageInfo?.action) && "New Sale"}
+              {!!pageInfo?.action && pageInfo.action.label}
+              {!pageInfo?.action && "New Sale"}
             </Button>
           </div>
 
@@ -154,11 +215,13 @@ export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
       {/* Mobile Bottom Row (Sync Indicator & Action Button) */}
       <div className="sm:hidden mt-3 flex items-center justify-between w-full">
         <SyncIndicator collapsed={false} isMobileHeader={true} />
-        
+
         <Button
           size="sm"
           className="rounded-full h-8 px-4 text-xs font-semibold"
-          onClick={() => router.push(pageInfo?.action ? pageInfo.action.path : "/pos")}
+          onClick={() =>
+            router.push(pageInfo?.action ? pageInfo.action.path : "/pos")
+          }
         >
           <Plus className="h-3.5 w-3.5 mr-1" />
           New

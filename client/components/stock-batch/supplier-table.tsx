@@ -100,7 +100,7 @@ export function SupplierTable({
                     key={supplier.id}
                     onClick={() => onRowClick?.(supplier)}
                     className={`border-b border-border/50 cursor-pointer transition-colors group ${
-                      isSelected ? "bg-accent" : "hover:bg-accent/50"
+                      isSelected ? "bg-primary/5 hover:bg-primary/5" : "hover:bg-accent/50"
                     }`}
                   >
                     <TableCell className="py-[14px]">
@@ -114,7 +114,7 @@ export function SupplierTable({
                           </div>
                           {supplier.hasDebt && (
                             <div className="text-[11px] text-destructive font-medium mt-0.5">
-                              Owes {formatCurrency(supplier.debtAmount)}
+                              Owed {formatCurrency(supplier.debtAmount)}
                             </div>
                           )}
                         </div>

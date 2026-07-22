@@ -75,6 +75,40 @@ export async function getProductById(id: string) {
 }
 
 export async function createProduct(data: any) {
+  // Translate category string to id, or create
+  if (data.category_id && data.category_id.length !== 36) {
+    const categories = await query<any>(
+      "SELECT id FROM categories WHERE name = ? COLLATE NOCASE",
+      [data.category_id]
+    );
+    if (categories.length > 0) {
+      data.category_id = categories[0].id;
+    } else {
+      const newCatId = crypto.randomUUID();
+      await insert("categories", { id: newCatId, name: data.category_id });
+      data.category_id = newCatId;
+    }
+  }
+
+  // Same for supplier_id
+  if (data.supplier_id && data.supplier_id.length !== 36) {
+    const suppliers = await query<any>(
+      "SELECT id FROM suppliers WHERE name = ? COLLATE NOCASE",
+      [data.supplier_id]
+    );
+    if (suppliers.length > 0) {
+      data.supplier_id = suppliers[0].id;
+    } else {
+      const newSupId = crypto.randomUUID();
+      await insert("suppliers", {
+        id: newSupId,
+        name: data.supplier_id,
+        is_active: 1,
+      });
+      data.supplier_id = newSupId;
+    }
+  }
+
   return await insert("products", data);
 }
 

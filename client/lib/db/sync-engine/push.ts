@@ -22,15 +22,48 @@ export async function pushChanges(
     const batch = pending.slice(i, i + SYNC_BATCH_SIZE);
 
     try {
-      // payload needs to be parsed from string
-      const changes = batch.map((item) => {
-        const payload = JSON.parse(item.payload);
+      const changes = batch
+        .map((item) => {
+          const payload = JSON.parse(item.payload);
+          return {
+            ...item,
+            payload,
+          };
+        })
+        .filter((item) => {
+          if (item.table_name === "products") {
+            // Prevent bad payloads from blocking the entire sync queue
+            if (
+              item.payload.category_id &&
+              item.payload.category_id.length !== 36
+            ) {
+              return false;
+            }
+            if (
+              item.payload.supplier_id &&
+              item.payload.supplier_id.length !== 36
+            ) {
+              return false;
+            }
+          }
+          if (item.table_name === "purchase_order_items") {
+            // Hotfix for bad product_id that was dropped from sync queue earlier
+            if (
+              item.payload.product_id === "5c5d33b4-13e0-4826-a69b-7745fa5ffed6"
+            ) {
+              return false;
+            }
+          }
+          return true;
+        });
 
-        return {
-          ...item,
-          payload,
-        };
-      });
+      if (changes.length === 0) {
+        // If all items in this batch were filtered out due to invalid data,
+        // mark them as synced to remove them from the queue
+        const ids = batch.map((b) => b.id);
+        await markSynced(ids);
+        continue;
+      }
 
       const response = (await apiClient.pushChanges(
         {

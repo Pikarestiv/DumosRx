@@ -97,7 +97,7 @@ export function PurchaseOrderTable({
   return (
     <div className="flex flex-col lg:flex-row gap-5 flex-1 min-h-0 overflow-hidden">
       {/* Left Column - List */}
-      <Card className="flex-[2] flex flex-col gap-0 rounded-[14px] border border-border bg-card shadow-[0_1px_2px_rgba(16,24,40,0.04)] overflow-hidden">
+      <Card className="print:hidden flex-[2] flex flex-col gap-0 rounded-[14px] border border-border bg-card shadow-[0_1px_2px_rgba(16,24,40,0.04)] overflow-hidden">
         <div className="p-4 flex flex-col gap-4 border-b border-border">
           <div className="relative w-full">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 pointer-events-none" />
@@ -115,18 +115,10 @@ export function PurchaseOrderTable({
             variant="chips"
           >
             <TabsList className="w-full md:w-max justify-start overflow-x-auto hide-scrollbar">
-              <TabsTrigger value="all">
-                All Orders
-              </TabsTrigger>
-              <TabsTrigger value="draft">
-                Drafts
-              </TabsTrigger>
-              <TabsTrigger value="sent">
-                Sent
-              </TabsTrigger>
-              <TabsTrigger value="received">
-                Received
-              </TabsTrigger>
+              <TabsTrigger value="all">All Orders</TabsTrigger>
+              <TabsTrigger value="draft">Drafts</TabsTrigger>
+              <TabsTrigger value="sent">Sent</TabsTrigger>
+              <TabsTrigger value="received">Received</TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
@@ -189,7 +181,7 @@ export function PurchaseOrderTable({
                     className={`border-b border-border/50 cursor-pointer transition-colors ${selectedOrderId === po.id ? "bg-primary/5 hover:bg-primary/5" : "hover:bg-accent/50"}`}
                     onClick={() => setSelectedOrderId(po.id)}
                   >
-                    <TableCell className="font-mono text-xs font-semibold text-foreground py-[14px]">
+                    <TableCell className="font-mono pl-4 text-xs font-semibold text-foreground py-[14px]">
                       PO-{po.id.split("-")[0].toUpperCase()}
                     </TableCell>
                     <TableCell className="py-[14px]">
@@ -324,10 +316,11 @@ export function PurchaseOrderTable({
               </div>
             </div>
 
-            <div className="p-5 border-t border-border bg-card mt-auto flex items-center gap-3">
+            <div className="print:hidden p-5 border-t border-border bg-card mt-auto flex items-center gap-3">
               <Button
                 variant="outline"
                 className="flex-1 bg-transparent h-10 text-[13.5px] font-bold"
+                onClick={() => window.print()}
               >
                 Download PDF
               </Button>

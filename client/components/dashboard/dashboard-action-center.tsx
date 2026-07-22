@@ -7,6 +7,7 @@ import { useStore } from "@/lib/context/store-context";
 import { useQuery } from "@tanstack/react-query";
 import { getStaffCount } from "@/lib/db/queries/auth";
 import { getSyncQueueCount } from "@/lib/db/queries/setup";
+import { checkLicenseStatus } from "@/lib/licensing/licensing-manager";
 import {
   CloudOff,
   UserPlus,
@@ -15,6 +16,7 @@ import {
   PackageX,
   Clock,
   RefreshCw,
+  ShieldAlert,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 
@@ -51,6 +53,12 @@ function useActionCenterAlerts(expiringCount: number, lowStockCount: number) {
     refetchInterval: 5000,
   });
 
+  const { data: licenseStatus } = useQuery({
+    queryKey: ["licenseStatus"],
+    queryFn: () => checkLicenseStatus(),
+    refetchInterval: 5 * 60 * 1000, // 5 mins
+  });
+
   const staffCount = staffCountData || 0;
   const pendingSyncCount = pendingCountData || 0;
 
@@ -68,6 +76,34 @@ function useActionCenterAlerts(expiringCount: number, lowStockCount: number) {
           actionLabel: "Link Account",
           actionRoute: "/settings/cloud",
         });
+      }
+
+      if (licenseStatus && (licenseStatus.tier !== "free" || licenseStatus.isTrial)) {
+        if (!licenseStatus.isValid && licenseStatus.tier !== "free") {
+          items.push({
+            id: "subscription-expired",
+            title: "Subscription Expired",
+            description: "Renew to continue syncing your data.",
+            icon: ShieldAlert,
+            priority: "critical",
+            actionLabel: "Renew Now",
+            actionRoute: "/settings/cloud",
+          });
+        } else if (licenseStatus.expiryDate) {
+          const daysLeft = Math.floor((new Date(licenseStatus.expiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+          const isTrial = licenseStatus.isTrial;
+          if (isTrial || (daysLeft < 7 && licenseStatus.tier !== "free")) {
+            items.push({
+              id: "subscription-expiring",
+              title: isTrial ? `Trial (${daysLeft} Days Left)` : `Expiring (${daysLeft} Days Left)`,
+              description: "Renew to ensure uninterrupted cloud access.",
+              icon: ShieldAlert,
+              priority: "warning",
+              actionLabel: "Renew Now",
+              actionRoute: "/settings/cloud",
+            });
+          }
+        }
       }
 
       if (staffCount === 0) {
@@ -167,6 +203,7 @@ function useActionCenterAlerts(expiringCount: number, lowStockCount: number) {
     expiringCount,
     lowStockCount,
     pendingSyncCount,
+    licenseStatus,
   ]);
 
   return alerts;

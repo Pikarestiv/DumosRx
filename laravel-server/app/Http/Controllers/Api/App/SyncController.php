@@ -573,10 +573,10 @@ class SyncController extends Controller
                 $array = $item->toArray();
                 $array['_deleted'] = (\method_exists($item, 'trashed') && $item->trashed()) ? 1 : 0;
 
-                // Map subscription_tier for store_profile
                 if ($table === 'stores') {
                     $plan = 'free';
                     $expiry = null;
+                    $isTrial = false;
                     if ($item->user && $item->user->subscriptions->isNotEmpty()) {
                         $sub = $item->user->subscriptions()
                             ->where('status', 'active')
@@ -586,14 +586,16 @@ class SyncController extends Controller
                         if ($sub) {
                             $plan = $sub->plan_name;
                             $expiry = $sub->end_date;
+                            $isTrial = $sub->is_trial;
                         }
                     }
                     $array['subscription_tier'] = $plan;
                     // Generate license token for offline validation
-                    if ($plan !== 'free' && $expiry) {
+                    if (($plan !== 'free' || $isTrial) && !empty($expiry)) {
                         $array['license_token'] = json_encode([
                             'tier' => $plan,
-                            'expiry' => \Carbon\Carbon::parse($expiry)->toIso8601String()
+                            'expiry' => \Carbon\Carbon::parse($expiry)->toIso8601String(),
+                            'is_trial' => (bool) $isTrial
                         ]);
                     } else {
                         $array['license_token'] = null;

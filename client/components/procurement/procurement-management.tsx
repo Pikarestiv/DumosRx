@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   getPurchaseOrders,
   receivePurchaseOrder,
@@ -14,15 +15,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SupplierManagement } from "@/components/stock-batch/supplier-management";
 import { RequestedProductsTab } from "./requested-products-tab";
 
-export function ProcurementManagement() {
+interface ProcurementManagementProps {
+  initialTab?: "orders" | "requests" | "suppliers";
+}
+
+export function ProcurementManagement({ initialTab = "orders" }: ProcurementManagementProps) {
+  const router = useRouter();
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState("all");
+  const [poTab, setPoTab] = useState("all");
 
   useEffect(() => {
     fetchPurchaseOrders();
-  }, [activeTab]);
+  }, [poTab]);
 
   const fetchPurchaseOrders = async () => {
     setLoading(true);
@@ -49,8 +55,7 @@ export function ProcurementManagement() {
   };
 
   const preFilteredOrders = purchaseOrders.filter((po) => {
-    const matchesTab = activeTab === "all" || po.status === activeTab;
-    return matchesTab;
+    return poTab === "all" || po.status === poTab;
   });
 
   const { results: filteredOrders, isFuzzyFallback } = genericFuzzySearch(
@@ -59,9 +64,19 @@ export function ProcurementManagement() {
     ["vendor_name", "id"],
   );
 
+  const handleTabChange = (value: string) => {
+    if (value === "orders") {
+      router.push("/procurement");
+    } else if (value === "suppliers") {
+      router.push("/procurement/vendors");
+    } else if (value === "requests") {
+      router.push("/procurement/requests");
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-0">
-      <Tabs defaultValue="orders" className="flex flex-col flex-1 min-h-0">
+      <Tabs value={initialTab} onValueChange={handleTabChange} className="flex flex-col flex-1 min-h-0">
         <TabsList className="w-full md:w-max inline-flex gap-1 bg-card border border-border rounded-[11px] p-1 h-auto mb-5">
           <TabsTrigger
             value="orders"
@@ -94,8 +109,8 @@ export function ProcurementManagement() {
             loading={loading}
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
+            activeTab={poTab}
+            onTabChange={setPoTab}
             onReceivePO={handleReceivePO}
             isFuzzyFallback={isFuzzyFallback}
           />

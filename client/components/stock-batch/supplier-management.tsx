@@ -1,17 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Plus, Search, Mail, Phone, Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { getSuppliers, createSupplier } from "@/lib/db/local-database";
 import { AddSupplierDialog } from "@/components/suppliers/add-supplier-dialog";
@@ -35,6 +29,8 @@ interface Supplier {
   lastOrderDate: string;
   paymentTerms: string;
   rating: number;
+  hasDebt: boolean;
+  debtAmount: number;
 }
 
 const transformSupplier = (apiData: any): Supplier => ({
@@ -52,19 +48,32 @@ const transformSupplier = (apiData: any): Supplier => ({
   lastOrderDate: new Date().toISOString(),
   paymentTerms: apiData.payment_terms || "30 days",
   rating: isNaN(Number(apiData.rating)) ? 5.0 : Number(apiData.rating),
+  hasDebt: (apiData.total_debt || 0) > 0,
+  debtAmount: apiData.total_debt || 0,
 });
 
 export function SupplierManagement() {
   const { t } = useStore();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [hasDebtFilter, setHasDebtFilter] = useState(false);
+  const [filter, setFilter] = useState("all");
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [_loading, setLoading] = useState(true);
+
+  const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(
+    null,
+  );
 
   useEffect(() => {
     fetchSuppliers();
   }, []);
+
+  // Ensure selectedSupplier defaults to the first supplier when data loads
+  useEffect(() => {
+    if (suppliers.length > 0 && !selectedSupplier) {
+      setSelectedSupplier(suppliers[0]);
+    }
+  }, [suppliers, selectedSupplier]);
 
   const fetchSuppliers = async () => {
     setLoading(true);
@@ -84,6 +93,7 @@ export function SupplierManagement() {
       const newId = await createSupplier(payload);
       const newSupplier = transformSupplier({ ...payload, id: newId });
       setSuppliers([newSupplier, ...suppliers]);
+      setSelectedSupplier(newSupplier);
       setShowAddDialog(false);
     } catch (error) {
       console.error("Failed to create supplier:", error);
@@ -91,11 +101,8 @@ export function SupplierManagement() {
   };
 
   const preFilteredSuppliers = suppliers.filter((s) => {
-    // For now, mock the debt filter (e.g. if their ID ends with an even number, just to show functionality)
-    // Eventually, replace with real debt data field
-    if (hasDebtFilter) {
-      // Mocking debt condition for UI
-      return parseInt(s.id, 16) % 2 === 0;
+    if (filter === "debt") {
+      return s.hasDebt;
     }
     return true;
   });
@@ -118,17 +125,6 @@ export function SupplierManagement() {
     return formatDateToDDMMYYYY(dateString);
   };
 
-  const getStatusBadge = (status: Supplier["status"]) => {
-    return (
-      <Badge
-        variant={status === "active" ? "default" : "secondary"}
-        className="text-xs"
-      >
-        {status === "active" ? "Active" : "Inactive"}
-      </Badge>
-    );
-  };
-
   const getRatingStars = (rating: number) => {
     const safeRating = isNaN(rating) ? 0 : Math.min(5, Math.max(0, rating));
     return (
@@ -148,14 +144,146 @@ export function SupplierManagement() {
       ? suppliers.reduce((sum, s) => sum + s.rating, 0) / suppliers.length
       : 0;
 
-  // Mock debt data for the summary badge
-  const debtSuppliersCount = suppliers.filter(
-    (s) => parseInt(s.id, 16) % 2 === 0,
-  ).length;
-  const totalDebtAmount = 2610000;
+  // Use real debt data for the summary badge
+  const debtSuppliersCount = suppliers.filter((s) => s.hasDebt).length;
+  const totalDebtAmount = suppliers.reduce((sum, s) => sum + s.debtAmount, 0);
+
+  const renderDetailPane = () => {
+    if (!selectedSupplier) {
+      return (
+        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-muted-foreground h-full min-h-[400px]">
+          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+            <Search className="w-6 h-6 opacity-50" />
+          </div>
+          <p className="font-medium text-foreground">No Supplier Selected</p>
+          <p className="text-sm mt-1">
+            Select a supplier from the directory to view details
+          </p>
+        </div>
+      );
+    }
+
+    const hasDebt = selectedSupplier.hasDebt;
+
+    return (
+      <div className="flex flex-col h-full overflow-y-auto">
+        <div className="p-6 border-b border-border">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[18px] font-bold shrink-0">
+                {selectedSupplier.name[0]}
+              </div>
+              <div>
+                <h2 className="text-[18px] font-bold leading-tight text-foreground">
+                  {selectedSupplier.name}
+                </h2>
+                <p className="text-[13px] text-muted-foreground mt-0.5">
+                  {selectedSupplier.contactPerson}
+                  {selectedSupplier.city ? ` · ${selectedSupplier.city}` : ""}
+                </p>
+              </div>
+            </div>
+            <Badge
+              variant={
+                selectedSupplier.status === "active" ? "default" : "secondary"
+              }
+              className="bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 border-0"
+            >
+              {selectedSupplier.status === "active" ? "Active" : "Inactive"}
+            </Badge>
+          </div>
+
+          <div className="flex items-center gap-1.5 mt-4">
+            <div className="flex text-amber-500 text-[13px] tracking-widest">
+              {getRatingStars(selectedSupplier.rating)}
+            </div>
+            <span className="text-[13px] font-medium text-muted-foreground">
+              {selectedSupplier.rating.toFixed(1)}
+            </span>
+          </div>
+        </div>
+
+        <div className="p-6 flex-1">
+          {hasDebt && (
+            <div className="bg-destructive/5 border border-destructive/20 rounded-xl p-4 mb-6">
+              <div className="flex items-start justify-between mb-3">
+                <div>
+                  <div className="text-[10px] font-bold text-destructive uppercase tracking-wide">
+                    Outstanding Debt
+                  </div>
+                  <div className="text-[12px] text-destructive/80 mt-0.5">
+                    From unpaid purchase orders
+                  </div>
+                </div>
+                <div className="text-[15px] font-bold text-destructive">
+                  {formatCurrency(selectedSupplier.debtAmount)}
+                </div>
+              </div>
+              <Button className="w-full bg-[#2054E0] hover:bg-[#2054E0]/90 text-white font-semibold">
+                Record Payment
+              </Button>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-y-6 gap-x-4">
+            <div>
+              <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide mb-1">
+                Email
+              </div>
+              <div className="text-[13.5px] font-medium text-foreground">
+                {selectedSupplier.email || "N/A"}
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide mb-1">
+                Phone
+              </div>
+              <div className="text-[13.5px] font-medium text-foreground">
+                {selectedSupplier.phone || "N/A"}
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide mb-1">
+                Total Orders
+              </div>
+              <div className="text-[13.5px] font-medium text-foreground font-semibold">
+                {selectedSupplier.totalOrders}
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide mb-1">
+                Total Value
+              </div>
+              <div className="text-[13.5px] font-medium text-foreground font-semibold">
+                {formatCurrency(selectedSupplier.totalValue)}
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide mb-1">
+                Last Order
+              </div>
+              <div className="text-[13.5px] font-medium text-foreground font-semibold">
+                {formatDate(selectedSupplier.lastOrderDate)}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-6 border-t border-border mt-auto grid grid-cols-2 gap-3 shrink-0">
+          <Button
+            variant="outline"
+            className="w-full font-semibold border-border"
+          >
+            Edit Details
+          </Button>
+          <Button className="w-full font-semibold">New Order</Button>
+        </div>
+      </div>
+    );
+  };
 
   return (
-    <div className="space-y-6 flex flex-col flex-1 min-h-0">
+    <div className="flex flex-col flex-1 min-h-0">
       <SupplierStats
         totalSuppliers={suppliers.length}
         activeSuppliers={activeSuppliers}
@@ -165,63 +293,66 @@ export function SupplierManagement() {
         formatCurrency={formatCurrency}
       />
 
-      <Card className="rounded-[14px] gap-0 border border-border bg-card shadow-[0_1px_2px_rgba(16,24,40,0.04)] flex flex-col flex-1 overflow-hidden">
-        <div className="px-[22px] py-[18px] border-b border-border flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div>
-            <h3 className="text-[16px] font-bold text-foreground">
-              Vendor Directory
-            </h3>
-            <p className="text-[13px] text-muted-foreground mt-0.5">
-              Manage contacts and payables
-            </p>
-          </div>
-          <div className="flex flex-col md:flex-row md:items-center gap-3">
-            {hasDebtFilter && (
-              <span className="text-[13px] text-destructive font-semibold bg-destructive/10 px-3 py-1.5 rounded-full border border-destructive/20">
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-5 flex-1 min-h-0">
+        {/* Left Pane: Supplier Directory */}
+        <div className="bg-card border border-border rounded-2xl shadow-sm flex flex-col min-h-0">
+          <div className="p-4 pb-3 border-b border-border">
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-[14.5px] font-semibold text-foreground">
+                Supplier Directory
+              </div>
+              <Button
+                className="bg-primary hover:bg-primary/90 text-primary-foreground px-3.5 py-2 rounded-lg text-[12.5px] font-semibold h-auto"
+                onClick={() => setShowAddDialog(true)}
+              >
+                <Plus className="h-3.5 w-3.5 mr-1.5" />
+                Add Supplier
+              </Button>
+            </div>
+            <div className="flex items-center mb-3">
+              <div className="flex-1 flex items-center gap-2 bg-muted border border-border rounded-[10px] px-3.5 py-2.5">
+                <Search className="w-4 h-4 text-muted-foreground shrink-0" />
+                <Input
+                  placeholder="Search suppliers, contacts, locations"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="border-0 outline-none text-[13px] w-full bg-transparent h-auto p-0 focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none"
+                />
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <Tabs variant="chips" value={filter} onValueChange={setFilter}>
+                <TabsList className="w-full md:w-max justify-start overflow-x-auto hide-scrollbar">
+                  <TabsTrigger value="all">All</TabsTrigger>
+                  <TabsTrigger value="debt">Has debt</TabsTrigger>
+                </TabsList>
+              </Tabs>
+              <div className="text-[11.5px] text-destructive font-medium">
                 {formatCurrency(totalDebtAmount)} owed to {debtSuppliersCount}{" "}
                 suppliers
-              </span>
-            )}
-
-            <button
-              className={`px-4 py-2 rounded-full text-[13px] font-semibold cursor-pointer border transition-colors ${hasDebtFilter ? "bg-primary text-primary-foreground border-primary" : "bg-accent text-muted-foreground border-border hover:bg-accent/80"}`}
-              onClick={() => setHasDebtFilter(!hasDebtFilter)}
-            >
-              Has debt
-            </button>
-
-            <div className="relative w-full md:w-[280px]">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-              <Input
-                placeholder="Search vendor name..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 h-9 text-[13px] rounded-[10px] bg-muted border-border"
-              />
+              </div>
             </div>
+          </div>
 
-            <Button
-              className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-[10px] text-[13px] font-semibold transition-colors flex items-center gap-2 h-9 w-full md:w-auto"
-              onClick={() => setShowAddDialog(true)}
-            >
-              <Plus className="h-4 w-4" />
-              New Vendor
-            </Button>
+          <div className="flex-1 overflow-auto">
+            <SupplierTable
+              suppliers={filteredSuppliers}
+              totalCount={suppliers.length}
+              formatCurrency={formatCurrency}
+              formatDate={formatDate}
+              getRatingStars={getRatingStars}
+              isFuzzyFallback={isFuzzyFallback}
+              selectedSupplierId={selectedSupplier?.id}
+              onRowClick={setSelectedSupplier}
+            />
           </div>
         </div>
 
-        <div className="flex-1 overflow-auto">
-          <SupplierTable
-            suppliers={filteredSuppliers}
-            totalCount={suppliers.length}
-            formatCurrency={formatCurrency}
-            formatDate={formatDate}
-            getStatusBadge={getStatusBadge}
-            getRatingStars={getRatingStars}
-            isFuzzyFallback={isFuzzyFallback}
-          />
+        {/* Right Pane: Supplier Detail */}
+        <div className="bg-card border border-border rounded-2xl shadow-sm hidden xl:flex flex-col min-h-0">
+          {renderDetailPane()}
         </div>
-      </Card>
+      </div>
 
       <AddSupplierDialog
         open={showAddDialog}

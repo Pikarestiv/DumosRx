@@ -172,7 +172,13 @@ export async function receivePurchaseOrder(id: string) {
 export async function getSuppliers(page = 1, limit = 50) {
   const offset = (page - 1) * limit;
   const results = await query<any>(
-    `SELECT * FROM suppliers WHERE _deleted = 0 ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+    `SELECT s.*, 
+            COALESCE(SUM(po.total_amount - po.amount_paid), 0) as total_debt
+     FROM suppliers s
+     LEFT JOIN purchase_orders po ON s.id = po.supplier_id AND po._deleted = 0 AND po.payment_status != 'paid'
+     WHERE s._deleted = 0 
+     GROUP BY s.id
+     ORDER BY s.created_at DESC LIMIT ? OFFSET ?`,
     [limit, offset]
   );
   return { data: results, page, limit };

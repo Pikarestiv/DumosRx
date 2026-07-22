@@ -19,7 +19,8 @@ export default function ExpensesPage() {
       setIsAddDialogOpen(true);
       const newParams = new URLSearchParams(searchParams.toString());
       newParams.delete("action");
-      const newUrl = pathname + (newParams.toString() ? `?${newParams.toString()}` : "");
+      const newUrl =
+        pathname + (newParams.toString() ? `?${newParams.toString()}` : "");
       router.replace(newUrl);
     }
   }, [searchParams, router, pathname]);
@@ -29,17 +30,6 @@ export default function ExpensesPage() {
       <div className="relative w-full h-full min-h-[500px]">
         <LockedModuleOverlay featureName="Expenses" featureKey="expenses" />
         <div className="w-full">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-
-            <Button
-              onClick={() => setIsAddDialogOpen(true)}
-              className="gap-2 w-full sm:w-auto"
-            >
-              <Plus className="h-4 w-4" />
-              Add Expense
-            </Button>
-          </div>
-
           <ExpenseList key={isAddDialogOpen ? "open" : "closed"} />
 
           <AddExpenseDialog

@@ -298,10 +298,10 @@ export function DashboardActionCenter({
         onMouseLeave={() => setIsPaused(false)}
         onTouchStart={() => setIsPaused(true)}
         onTouchEnd={() => setIsPaused(false)}
-        className="flex overflow-x-auto lg:grid lg:grid-cols-4 gap-3 sm:gap-4 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 snap-x snap-mandatory hide-scrollbar"
+        className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 pb-2"
       >
         {alerts.map((alert) => (
-          <div key={alert.id} className="snap-start shrink-0 w-[160px] lg:w-full">
+          <div key={alert.id} className="w-full">
             <ActionCenterCard alert={alert} />
           </div>
         ))}

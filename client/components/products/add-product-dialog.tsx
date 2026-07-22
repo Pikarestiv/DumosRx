@@ -188,51 +188,8 @@ export function AddProductDialog({
       return;
     }
 
-    // Parse DD/MM/YYYY back to YYYY-MM-DD for backend
-    let formattedExpiry = formData.expiryDate;
-    if (formattedExpiry) {
-      if (formattedExpiry.length !== 10) {
-        setAlertMessage(
-          "Please enter a complete expiry date (DD/MM/YYYY) or leave it blank.",
-        );
-        return;
-      }
-
-      const parts = formattedExpiry.split("/");
-      if (parts.length === 3) {
-        const day = parseInt(parts[0], 10);
-        const month = parseInt(parts[1], 10);
-        const year = parseInt(parts[2], 10);
-
-        // Basic check for a realistic year (e.g., no 9999 or 1000)
-        if (year < 2000 || year > 2100) {
-          setAlertMessage("Please enter a realistic expiry year (e.g., 2024).");
-          return;
-        }
-
-        const date = new Date(year, month - 1, day);
-        if (
-          date.getFullYear() !== year ||
-          date.getMonth() !== month - 1 ||
-          date.getDate() !== day
-        ) {
-          setAlertMessage("The expiry date entered is not a valid date.");
-          return;
-        }
-
-        // DD/MM/YYYY -> YYYY-MM-DD
-        formattedExpiry = `${parts[2]}-${parts[1]}-${parts[0]}`;
-      }
-    }
-
-    // Determine status based on stock and expiry
-    let status: Product["status"] = "active";
-    if (formData.stockQuantity <= formData.reorderLevel) {
-      status = "low_stock";
-    }
-    if (formattedExpiry && new Date(formattedExpiry) < new Date()) {
-      status = "expired";
-    }
+    // Determine status
+    let status: Product["status"] = formData.status || "active";
 
     // Convert to snake_case for backend
     const payload = {
@@ -246,12 +203,8 @@ export function AddProductDialog({
       dosage_form: formData.dosageForm,
       manufacturer: formData.manufacturer,
       supplier_id: formData.supplier, // Storing as string name for now
-      cost_price: formData.costPrice,
       selling_price: formData.sellingPrice,
-      stock_quantity: formData.stockQuantity,
       reorder_level: formData.reorderLevel,
-      expiry_date: formattedExpiry,
-      batch_number: formData.batchNumber,
       barcode: formData.barcode,
       base_unit: formData.baseUnit,
       bulk_unit: formData.bulkUnit,
@@ -310,7 +263,7 @@ export function AddProductDialog({
           ? `Update the details for ${editingProduct.name}. All fields marked with * are required.`
           : `Enter the details for the new ${t("product").toLowerCase()}. All fields marked with * are required.`
       }
-      className="sm:max-w-3xl h-[95vh] sm:h-auto flex flex-col overflow-hidden px-0 sm:px-6 pb-0 sm:pb-6"
+      className="sm:max-w-3xl h-[95vh] sm:h-auto sm:max-h-[90vh] flex flex-col overflow-hidden px-0 sm:px-6 pb-0 sm:pb-6"
       headerClassName="px-4 pt-4 sm:p-0"
     >
 

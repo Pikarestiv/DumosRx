@@ -45,21 +45,7 @@ export function ProductFormPricing({
         />
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="costPrice">Cost Price (₦)</Label>
-        <Input
-          id="costPrice"
-          type="number"
-          value={formData.costPrice === 0 ? "" : formData.costPrice}
-          onChange={(e) =>
-            onInputChange("costPrice", parseFloat(e.target.value) || 0)
-          }
-          onFocus={(e) => e.target.select()}
-          placeholder="0.00"
-          min="0"
-          step="0.01"
-        />
-      </div>
+
 
       <div className="space-y-2">
         <Label htmlFor="sellingPrice">Selling Price (₦)</Label>

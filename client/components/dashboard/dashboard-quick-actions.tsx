@@ -29,7 +29,7 @@ const getQuickActionsConfig = (
   {
     label: `Add ${productTerm}`,
     icon: Package,
-    href: "/inventory/products?action=add",
+    href: "/inventory/catalog?action=add",
   },
   {
     label: "Close Register",

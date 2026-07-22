@@ -19,6 +19,8 @@ class RequestedProduct extends Model
         'product_name',
         'requested_by_customer',
         'request_count',
+        'quantity',
+        'notes',
         'status',
         '_version',
         '_synced',
@@ -32,6 +34,7 @@ class RequestedProduct extends Model
         '_deleted' => 'boolean',
         '_synced_at' => 'datetime',
         'request_count' => 'integer',
+        'quantity' => 'integer',
     ];
 
     protected static function boot()

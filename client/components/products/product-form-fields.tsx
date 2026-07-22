@@ -26,6 +26,8 @@ interface ProductFormFieldsProps {
   t: (key: string) => string;
 }
 
+
+
 export function ProductFormFields({
   formData,
   onInputChange,
@@ -38,6 +40,7 @@ export function ProductFormFields({
 
   return (
     <>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <ProductFormBasic
           formData={formData}

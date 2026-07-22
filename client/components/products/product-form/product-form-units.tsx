@@ -54,59 +54,61 @@ export function ProductFormUnits({
             required
           />
         </div>
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Label htmlFor="bulkUnit">Bulk Unit (Optional)</Label>
-            <TooltipProvider delayDuration={0}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="max-w-xs">
-                    The larger package you buy from suppliers (e.g. Carton,
-                    Pack, Box).
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-          <SearchableInput
-            id="bulkUnit"
-            value={formData.bulkUnit}
-            onValueChange={(val) => onInputChange("bulkUnit", val)}
-            options={commonSuggestions.units}
-            placeholder="e.g. Carton, Pack, Box"
-          />
-        </div>
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Label htmlFor="unitsPerBulk">Units per Bulk</Label>
-            <TooltipProvider delayDuration={0}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="max-w-xs">
-                    How many Base Units are inside one Bulk Unit (e.g. if 1
-                    Carton has 24 Sachets, put 24 here).
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-          <Input
-            id="unitsPerBulk"
-            type="number"
-            value={formData.unitsPerBulk === 0 ? "" : formData.unitsPerBulk}
-            onChange={(e) =>
-              onInputChange("unitsPerBulk", parseInt(e.target.value) || 0)
-            }
-            onFocus={(e) => e.target.select()}
-            min="1"
-          />
-        </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Label htmlFor="bulkUnit">Bulk Unit (Optional)</Label>
+                <TooltipProvider delayDuration={0}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="max-w-xs">
+                        The larger package you buy from suppliers (e.g. Carton,
+                        Pack, Box).
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              <SearchableInput
+                id="bulkUnit"
+                value={formData.bulkUnit}
+                onValueChange={(val) => onInputChange("bulkUnit", val)}
+                options={commonSuggestions.units}
+                placeholder="e.g. Carton, Pack, Box"
+              />
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Label htmlFor="unitsPerBulk">Units per Bulk</Label>
+                <TooltipProvider delayDuration={0}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="max-w-xs">
+                        How many Base Units are inside one Bulk Unit (e.g. if 1
+                        Carton has 24 Sachets, put 24 here).
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              <Input
+                id="unitsPerBulk"
+                type="number"
+                value={formData.unitsPerBulk === 0 ? "" : formData.unitsPerBulk}
+                onChange={(e) =>
+                  onInputChange("unitsPerBulk", parseInt(e.target.value) || 0)
+                }
+                onFocus={(e) => e.target.select()}
+                min="1"
+              />
+            </div>
+
       </div>
       <p className="text-[10px] text-muted-foreground">
         Example: 1 {formData.bulkUnit || "Bulk Unit"} = {formData.unitsPerBulk}{" "}

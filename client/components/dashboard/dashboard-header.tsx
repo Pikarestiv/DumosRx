@@ -21,13 +21,13 @@ interface DashboardHeaderProps {
 }
 
 const PAGE_ROUTES = [
-  { path: "/inventory/products", title: "Product Catalog", desc: "Manage your pharmacy's core product database and pricing.", action: { label: "Add Product", path: "/inventory/products?action=add" } },
+  { path: "/inventory/catalog", title: "Product Catalog", desc: "Manage your pharmacy's core product database and pricing.", action: { label: "Add Product", path: "/inventory/catalog?action=add" } },
   { path: "/inventory/batches", title: "Stock Batches", desc: "Manage inventory intake, expiration dates, and physical stock.", action: { label: "Add Batch", path: "/inventory/batches?action=add" } },
   { path: "/inventory", title: "Inventory Dashboard", desc: "Overview of your inventory health and metrics." },
   { path: "/customers", title: "Customer Management", desc: "View and manage customer profiles, credit, and history.", action: { label: "Add Customer", path: "/customers?action=add" } },
   { path: "/sales", title: "Sales History", desc: "View and manage past transactions and returns." },
   { path: "/prescriptions", title: "Prescription Management", desc: "Track and fulfill patient prescriptions securely.", action: { label: "Create Prescription", path: "/prescriptions?action=add" } },
-  { path: "/procurement", title: "Procurement & Orders", desc: "Manage suppliers, create purchase orders, and track deliveries.", action: { label: "Create Order", path: "/procurement?action=add" } },
+  { path: "/procurement", title: "Procurement & Orders", desc: "Manage suppliers, create purchase orders, and track deliveries.", action: { label: "Create Order", path: "/procurement/new" } },
   { path: "/expenses", title: "Expenses", desc: "Track and manage your pharmacy's operational expenses.", action: { label: "Add Expense", path: "/expenses?action=add" } },
   { path: "/reports", title: "Reporting Center", desc: "View performance metrics and generate detailed reports." },
   { path: "/settings", title: "Settings", desc: "Manage your pharmacy configuration and preferences." }

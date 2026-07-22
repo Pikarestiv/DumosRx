@@ -8,10 +8,12 @@ import {
 } from "@/lib/db/local-database";
 import { genericFuzzySearch } from "@/lib/utils/search";
 import { toast } from "sonner";
-import { CreatePODialog } from "@/components/procurement/create-po-dialog";
 import { ProcurementStats } from "./procurement-stats";
 import { PurchaseOrderTable } from "./purchase-order-table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { Plus } from "lucide-react";
 import { SupplierManagement } from "@/components/stock-batch/supplier-management";
 import { RequestedProductsTab } from "./requested-products-tab";
 
@@ -68,7 +70,11 @@ export function ProcurementManagement() {
           <div className="text-[22px] font-serif font-bold">Procurement</div>
         </div>
         <div className="ml-auto flex items-center gap-2.5">
-          <CreatePODialog onPOCreated={fetchPurchaseOrders} />
+          <Button asChild className="gap-2">
+            <Link href="/procurement/new">
+              <Plus className="h-4 w-4" /> Create Order
+            </Link>
+          </Button>
         </div>
       </div>
 

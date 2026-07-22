@@ -67,17 +67,6 @@ export function ProductFormBasic({
       )}
 
       <div className="space-y-2">
-        <Label htmlFor="brand">Brand Name</Label>
-        <SearchableInput
-          id="brand"
-          value={formData.brand}
-          onValueChange={(val) => onInputChange("brand", val)}
-          options={suggestions.names}
-          placeholder={`e.g., ${isPharmacy ? "Panadol" : "Brand Name"}`}
-        />
-      </div>
-
-      <div className="space-y-2">
         <Label htmlFor="category">{t("category")}</Label>
         <SearchableInput
           options={suggestions.categories}
@@ -87,30 +76,43 @@ export function ProductFormBasic({
         />
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="nafdacNumber">{t("registration_number")}</Label>
-        <Input
-          id="nafdacNumber"
-          value={formData.nafdacNumber}
-          onChange={(e) => onInputChange("nafdacNumber", e.target.value)}
-          placeholder="e.g., 04-1234"
-        />
-      </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="strength">Strength / Size</Label>
-        <SearchableInput
-          id="strength"
-          value={formData.strength}
-          onValueChange={(val) => onInputChange("strength", val)}
-          options={
-            isPharmacy
-              ? suggestions.strengths
-              : ["Small", "Medium", "Large", "1kg", "500g", "1L", "500ml"]
-          }
-          placeholder="e.g., 500mg or 1L"
-        />
-      </div>
+          <div className="space-y-2">
+            <Label htmlFor="brand">Brand Name</Label>
+            <SearchableInput
+              id="brand"
+              value={formData.brand}
+              onValueChange={(val) => onInputChange("brand", val)}
+              options={suggestions.names}
+              placeholder={`e.g., ${isPharmacy ? "Panadol" : "Brand Name"}`}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="nafdacNumber">{t("registration_number")}</Label>
+            <Input
+              id="nafdacNumber"
+              value={formData.nafdacNumber}
+              onChange={(e) => onInputChange("nafdacNumber", e.target.value)}
+              placeholder="e.g., 04-1234"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="strength">Strength / Size</Label>
+            <SearchableInput
+              id="strength"
+              value={formData.strength}
+              onValueChange={(val) => onInputChange("strength", val)}
+              options={
+                isPharmacy
+                  ? suggestions.strengths
+                  : ["Small", "Medium", "Large", "1kg", "500g", "1L", "500ml"]
+              }
+              placeholder="e.g., 500mg or 1L"
+            />
+          </div>
+
 
       {isPharmacy && (
         <div className="space-y-2">

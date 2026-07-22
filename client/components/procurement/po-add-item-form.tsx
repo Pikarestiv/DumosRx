@@ -27,9 +27,10 @@ interface Product {
 interface POAddItemFormProps {
   products: Product[];
   onAddItem: (item: any) => void;
+  onOpenAddProduct: (initialName: string) => void;
 }
 
-export function POAddItemForm({ products, onAddItem }: POAddItemFormProps) {
+export function POAddItemForm({ products, onAddItem, onOpenAddProduct }: POAddItemFormProps) {
   const { t } = useStore();
 
   const [currentProductId, setCurrentProductId] = useState("");
@@ -57,7 +58,8 @@ export function POAddItemForm({ products, onAddItem }: POAddItemFormProps) {
   const handleAddLineItem = () => {
     if (!currentProductId) {
       if (currentProductName) {
-        toast.error("Please add this product to your database first.");
+        // Trigger quick add product instead of error
+        onOpenAddProduct(currentProductName);
       } else {
         toast.error("Please select a product");
       }

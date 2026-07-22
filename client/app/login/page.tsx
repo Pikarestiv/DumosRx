@@ -130,16 +130,20 @@ export default function LoginPage() {
             </CardHeader>
           )}
 
-          {userCount === 0 ? (
+          {userCount === 0 && (
             <SetupPromptContent />
-          ) : recentUsers.length > 0 && !showTraditionalLogin ? (
+          )}
+
+          {userCount > 0 && recentUsers.length > 0 && !showTraditionalLogin && (
             <CardContent className="flex-1 flex flex-col pt-6 sm:pt-2 pb-0 px-4 sm:pb-6 sm:px-6">
               <LockScreen
                 recentUsers={recentUsers}
                 onLoginAsOther={() => setShowTraditionalLogin(true)}
               />
             </CardContent>
-          ) : (
+          )}
+
+          {userCount > 0 && (recentUsers.length === 0 || showTraditionalLogin) && (
             <TraditionalLoginForm
               username={username}
               setUsername={setUsername}

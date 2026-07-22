@@ -56,56 +56,6 @@ export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
       <div className="flex items-center justify-between w-full">
         {/* Left side (Desktop & Mobile) */}
         <div className="flex flex-col gap-0.5">
-          <div className="flex items-center gap-1.5">
-            {!!(!pageInfo) && (
-                                    <>
-                                      <span className="text-foreground text-base sm:text-lg font-bold tracking-tight">
-                                        {(() => {
-                                          const hour = new Date().getHours();
-                                          if (hour < 12) return "Good morning,";
-                                          if (hour === 12) return "Good noon,";
-                                          if (hour < 17) return "Good afternoon,";
-                                          if (hour < 21) return "Good evening,";
-                                          return "Good night,";
-                                        })()}
-                                      </span>
-                                      <span className="text-foreground text-base sm:text-lg font-bold sm:hidden tracking-tight">
-                                        {user?.first_name} {user?.last_name}
-                                      </span>
-                                      <span className="text-foreground text-base sm:text-lg font-bold hidden sm:inline-block tracking-tight">
-                                        {user?.first_name}
-                                      </span>
-                                    </>
-                                  )}
-                      {!(!pageInfo) && (
-                                    <div className="flex items-center gap-2">
-                                      {!!(pageInfo.desc) && (
-                                                                      <TooltipProvider delayDuration={1000}>
-                                                                        <Tooltip>
-                                                                          <TooltipTrigger asChild>
-                                                                            <span className="text-foreground text-base sm:text-lg font-bold tracking-tight cursor-default">
-                                                                              {pageInfo.title}
-                                                                            </span>
-                                                                          </TooltipTrigger>
-                                                                          <TooltipContent
-                                                                            side="bottom"
-                                                                            align="start"
-                                                                            className="max-w-[300px] text-sm"
-                                                                          >
-                                                                            <p>{pageInfo.desc}</p>
-                                                                          </TooltipContent>
-                                                                        </Tooltip>
-                                                                      </TooltipProvider>
-                                                                    )}
-                              {!(pageInfo.desc) && (
-                                                                      <span className="text-foreground text-base sm:text-lg font-bold tracking-tight">
-                                                                        {pageInfo.title}
-                                                                      </span>
-                                                                    )}
-                                    </div>
-                                  )}
-          </div>
-
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <span className="hidden sm:inline-block">
               {new Date().toLocaleDateString("en-US", {
@@ -121,6 +71,56 @@ export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
                 {storeProfile?.name || APP_NAME}
               </span>
             </div>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            {!!(!pageInfo) && (
+                                    <>
+                                      <span className="text-foreground text-base sm:text-xl font-bold tracking-tight font-serif">
+                                        {(() => {
+                                          const hour = new Date().getHours();
+                                          if (hour < 12) return "Good morning,";
+                                          if (hour === 12) return "Good noon,";
+                                          if (hour < 17) return "Good afternoon,";
+                                          if (hour < 21) return "Good evening,";
+                                          return "Good night,";
+                                        })()}
+                                      </span>
+                                      <span className="text-foreground text-base sm:text-xl font-bold sm:hidden tracking-tight font-serif">
+                                        {user?.first_name} {user?.last_name}
+                                      </span>
+                                      <span className="text-foreground text-base sm:text-xl font-bold hidden sm:inline-block tracking-tight font-serif">
+                                        {user?.first_name}
+                                      </span>
+                                    </>
+                                  )}
+                      {!(!pageInfo) && (
+                                    <div className="flex items-center gap-2">
+                                      {!!(pageInfo.desc) && (
+                                                                      <TooltipProvider delayDuration={1000}>
+                                                                        <Tooltip>
+                                                                          <TooltipTrigger asChild>
+                                                                            <span className="text-foreground text-base sm:text-xl font-bold tracking-tight cursor-default font-serif">
+                                                                              {pageInfo.title}
+                                                                            </span>
+                                                                          </TooltipTrigger>
+                                                                          <TooltipContent
+                                                                            side="bottom"
+                                                                            align="start"
+                                                                            className="max-w-[300px] text-sm"
+                                                                          >
+                                                                            <p>{pageInfo.desc}</p>
+                                                                          </TooltipContent>
+                                                                        </Tooltip>
+                                                                      </TooltipProvider>
+                                                                    )}
+                              {!(pageInfo.desc) && (
+                                                                      <span className="text-foreground text-base sm:text-xl font-bold tracking-tight font-serif">
+                                                                        {pageInfo.title}
+                                                                      </span>
+                                                                    )}
+                                    </div>
+                                  )}
           </div>
         </div>
 

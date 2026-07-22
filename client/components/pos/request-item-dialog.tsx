@@ -6,17 +6,30 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ClipboardList, Info } from "lucide-react";
+import { ClipboardList, Info, Check, ChevronsUpDown, UserPlus } from "lucide-react";
 import { logRequestedProduct } from "@/lib/db/requested-products-queries";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { getAllCustomers } from "@/lib/db/queries/customers";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 
 export function RequestItemDialog({ triggerClassName }: { triggerClassName?: string }) {
   const [open, setOpen] = useState(false);
   const [productName, setProductName] = useState("");
   const [customerName, setCustomerName] = useState("");
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [comboboxOpen, setComboboxOpen] = useState(false);
   const [quantity, setQuantity] = useState("1");
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const { data: customers = [] } = useQuery({
+    queryKey: ["customers"],
+    queryFn: getAllCustomers,
+    staleTime: 1000 * 60 * 5, // 5 mins
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,6 +50,7 @@ export function RequestItemDialog({ triggerClassName }: { triggerClassName?: str
       setOpen(false);
       setProductName("");
       setCustomerName("");
+      setCustomerSearch("");
       setQuantity("1");
       setNotes("");
     } catch (error) {
@@ -91,14 +105,92 @@ export function RequestItemDialog({ triggerClassName }: { triggerClassName?: str
                   onChange={(e) => setQuantity(e.target.value)}
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 flex flex-col">
                 <Label htmlFor="customer">Customer (Optional)</Label>
-                <Input
-                  id="customer"
-                  placeholder="Name or phone"
-                  value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                />
+                <Popover open={comboboxOpen} onOpenChange={setComboboxOpen} modal={true}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={comboboxOpen}
+                      className="w-full justify-between font-normal bg-transparent border-input shadow-none px-3"
+                    >
+                      <span className="truncate">{customerName || "Select or type..."}</span>
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                    <Command shouldFilter={false}>
+                      <CommandInput 
+                        placeholder="Search or add..." 
+                        value={customerSearch}
+                        onValueChange={setCustomerSearch}
+                      />
+                      <CommandList>
+                        <CommandEmpty className="py-2 px-2">
+                          <div
+                            className="flex items-center gap-2 cursor-pointer p-2 rounded-sm hover:bg-accent text-sm"
+                            onClick={() => {
+                              setCustomerName(customerSearch);
+                              setComboboxOpen(false);
+                            }}
+                          >
+                            <UserPlus className="h-4 w-4 text-muted-foreground" />
+                            <span>Use &quot;{customerSearch}&quot;</span>
+                          </div>
+                        </CommandEmpty>
+                        <CommandGroup>
+                          {customers
+                            .filter(
+                              (c: any) =>
+                                c.first_name.toLowerCase().includes(customerSearch.toLowerCase()) ||
+                                c.last_name.toLowerCase().includes(customerSearch.toLowerCase()) ||
+                                c.phone.includes(customerSearch)
+                            )
+                            .slice(0, 10)
+                            .map((c: any) => {
+                              const fullName = `${c.first_name} ${c.last_name}`.trim();
+                              return (
+                                <CommandItem
+                                  key={c.id}
+                                  value={fullName}
+                                  onSelect={(currentValue) => {
+                                    setCustomerName(currentValue === customerName ? "" : currentValue);
+                                    setComboboxOpen(false);
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      customerName === fullName ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                  <div className="flex flex-col">
+                                    <span>{fullName}</span>
+                                    {c.phone && <span className="text-[10px] text-muted-foreground">{c.phone}</span>}
+                                  </div>
+                                </CommandItem>
+                              );
+                            })}
+                          {customerSearch.trim() && 
+                            !customers.some((c: any) => `${c.first_name} ${c.last_name}`.trim().toLowerCase() === customerSearch.toLowerCase()) && (
+                              <CommandItem
+                                value={customerSearch}
+                                onSelect={(val) => {
+                                  setCustomerName(val);
+                                  setComboboxOpen(false);
+                                }}
+                                className="border-t border-border mt-1 pt-2 pb-2 text-primary font-medium"
+                              >
+                                <UserPlus className="mr-2 h-4 w-4" />
+                                Use &quot;{customerSearch}&quot;
+                              </CommandItem>
+                            )}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
 

@@ -6,12 +6,14 @@ export interface RequestedProduct {
   product_name: string;
   requested_by_customer?: string;
   request_count: number;
+  quantity: number;
+  notes?: string;
   status: 'pending' | 'ordered';
   created_at: string;
   updated_at: string;
 }
 
-export async function logRequestedProduct(product_name: string, requested_by_customer?: string): Promise<string> {
+export async function logRequestedProduct(product_name: string, requested_by_customer?: string, quantity: number = 1, note?: string): Promise<string> {
   
   // Check if a pending request for this product already exists
   const existing = await query<RequestedProduct>(
@@ -33,9 +35,21 @@ export async function logRequestedProduct(product_name: string, requested_by_cus
       }
     }
 
+    // Determine the new notes string if provided
+    let newNotesString = record.notes || '';
+    if (note) {
+      if (newNotesString && !newNotesString.includes(note)) {
+        newNotesString += ` | ${note}`;
+      } else if (!newNotesString) {
+        newNotesString = note;
+      }
+    }
+
     await update("requested_products", record.id, {
       request_count: newCount,
-      requested_by_customer: newCustomerString
+      quantity: (record.quantity || 0) + quantity,
+      requested_by_customer: newCustomerString,
+      notes: newNotesString || null
     });
 
     return record.id;
@@ -44,6 +58,8 @@ export async function logRequestedProduct(product_name: string, requested_by_cus
       product_name,
       requested_by_customer: requested_by_customer || null,
       request_count: 1,
+      quantity: quantity,
+      notes: note || null,
       status: 'pending'
     };
 

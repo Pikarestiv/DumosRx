@@ -518,6 +518,8 @@ CREATE TABLE IF NOT EXISTS requested_products (
   product_name TEXT NOT NULL,
   requested_by_customer TEXT,
   request_count INTEGER DEFAULT 1,
+  quantity INTEGER DEFAULT 1,
+  notes TEXT,
   status TEXT DEFAULT 'pending',
   created_at TEXT,
   updated_at TEXT,

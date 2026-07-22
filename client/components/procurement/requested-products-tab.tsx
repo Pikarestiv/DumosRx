@@ -18,6 +18,7 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Check, Copy, Search, Trash2, Clock } from "lucide-react";
 import { genericFuzzySearch } from "@/lib/utils/search";
@@ -78,34 +79,34 @@ export function RequestedProductsTab() {
   );
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <h3 className="text-lg font-semibold flex items-center gap-2">
-          <Clock className="w-5 h-5 text-muted-foreground" />
-          Requested Products Log
-        </h3>
+    <Card className="rounded-[14px] border border-border bg-card shadow-[0_1px_2px_rgba(16,24,40,0.04)] flex flex-col flex-1 overflow-hidden">
+      <div className="px-[22px] py-[18px] border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h3 className="text-[16px] font-bold">Requested Products Log</h3>
+          <p className="text-[13px] text-muted-foreground mt-0.5">Track products requested by customers</p>
+        </div>
         <div className="relative w-full sm:w-72">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
           <Input
             type="search"
             placeholder="Search requested items..."
-            className="pl-8"
+            className="pl-9 h-9 text-[13px] rounded-[10px] bg-accent/50 border-border"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
       </div>
 
-      <div className="border rounded-md bg-card">
+      <div className="flex-1 overflow-auto">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>Product Name</TableHead>
-              <TableHead>Requested By</TableHead>
-              <TableHead>Request Count</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+            <TableRow className="hover:bg-transparent border-b border-border">
+              <TableHead className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide h-11 align-middle">Product Name</TableHead>
+              <TableHead className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide h-11 align-middle">Requested By</TableHead>
+              <TableHead className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide h-11 align-middle">Quantity / Requests</TableHead>
+              <TableHead className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide h-11 align-middle">Status</TableHead>
+              <TableHead className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide h-11 align-middle">Date</TableHead>
+              <TableHead className="text-right text-[11px] font-bold text-muted-foreground uppercase tracking-wide h-11 align-middle">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -124,54 +125,65 @@ export function RequestedProductsTab() {
               </TableRow>
             )}
             {!loading && filteredRequests.length > 0 && filteredRequests.map((req) => (
-              <TableRow key={req.id}>
-                <TableCell className="font-medium">
+              <TableRow key={req.id} className="border-b border-border/50 hover:bg-accent/20 transition-colors group">
+                <TableCell className="font-medium py-[14px]">
                   <div className="flex items-center gap-2">
-                    {req.product_name}
+                    <span className="text-[13.5px] font-semibold text-primary">{req.product_name}</span>
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-6 w-6"
+                      className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
                       onClick={() => copyToClipboard(req.product_name)}
                       title="Copy to clipboard"
                     >
-                      <Copy className="h-3 w-3" />
+                      <Copy className="h-3 w-3 text-muted-foreground" />
                     </Button>
                   </div>
+                  {req.notes && (
+                    <div className="text-[11px] text-muted-foreground mt-1 truncate max-w-[200px]" title={req.notes}>
+                      Note: {req.notes}
+                    </div>
+                  )}
                 </TableCell>
-                <TableCell className="text-muted-foreground">
+                <TableCell className="text-muted-foreground text-[13.5px] py-[14px]">
                   {req.requested_by_customer || "Anonymous"}
                 </TableCell>
-                <TableCell>
-                  <Badge variant={req.request_count > 3 ? "destructive" : "secondary"}>
-                    {req.request_count} {req.request_count === 1 ? 'time' : 'times'}
-                  </Badge>
+                <TableCell className="py-[14px]">
+                  <div className="flex flex-col gap-1 items-start">
+                    <Badge variant={req.quantity > 5 ? "destructive" : "secondary"} className="text-xs">
+                      Qty: {req.quantity || 1}
+                    </Badge>
+                    <span className="text-[11px] text-muted-foreground">
+                      {req.request_count} {req.request_count === 1 ? 'request' : 'requests'}
+                    </span>
+                  </div>
                 </TableCell>
-                <TableCell>
-                  <Badge variant={req.status === 'pending' ? 'outline' : 'default'} className={req.status === 'ordered' ? 'bg-green-500/10 text-green-600 border-green-200' : 'bg-amber-500/10 text-amber-600 border-amber-200'}>
+                <TableCell className="py-[14px]">
+                  <Badge variant={req.status === 'pending' ? 'outline' : 'default'} className={req.status === 'ordered' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-200 shadow-none' : 'bg-amber-500/10 text-amber-600 border-amber-200 shadow-none'}>
                     {req.status === 'pending' ? 'Pending' : 'Ordered'}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-sm text-muted-foreground">
+                <TableCell className="text-sm text-muted-foreground py-[14px]">
                   {new Date(req.created_at).toLocaleDateString()}
                 </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex items-center justify-end gap-2">
+                <TableCell className="text-right py-[14px]">
+                  <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     {req.status === 'pending' && (
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => handleMarkAsOrdered(req.id)}
                         title="Mark as ordered"
+                        className="h-8 text-xs"
                       >
-                        <Check className="h-4 w-4 mr-1 text-green-500" />
+                        <Check className="h-3.5 w-3.5 mr-1.5 text-emerald-500" />
                         Mark Ordered
                       </Button>
                     )}
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="text-destructive/70 hover:text-destructive hover:bg-destructive/10"
+                      className="h-8 w-8 text-destructive/70 hover:text-destructive hover:bg-destructive/10"
                       onClick={() => handleDelete(req.id)}
                       title="Delete request"
                     >
@@ -184,6 +196,6 @@ export function RequestedProductsTab() {
           </TableBody>
         </Table>
       </div>
-    </div>
+    </Card>
   );
 }

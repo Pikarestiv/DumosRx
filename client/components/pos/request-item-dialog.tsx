@@ -5,7 +5,8 @@ import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ClipboardList } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { ClipboardList, Info } from "lucide-react";
 import { logRequestedProduct } from "@/lib/db/requested-products-queries";
 import { toast } from "sonner";
 
@@ -13,6 +14,8 @@ export function RequestItemDialog({ triggerClassName }: { triggerClassName?: str
   const [open, setOpen] = useState(false);
   const [productName, setProductName] = useState("");
   const [customerName, setCustomerName] = useState("");
+  const [quantity, setQuantity] = useState("1");
+  const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -24,11 +27,18 @@ export function RequestItemDialog({ triggerClassName }: { triggerClassName?: str
 
     setLoading(true);
     try {
-      await logRequestedProduct(productName.trim(), customerName.trim() || undefined);
+      await logRequestedProduct(
+        productName.trim(), 
+        customerName.trim() || undefined,
+        parseInt(quantity) || 1,
+        notes.trim() || undefined
+      );
       toast.success("Request logged successfully");
       setOpen(false);
       setProductName("");
       setCustomerName("");
+      setQuantity("1");
+      setNotes("");
     } catch (error) {
       console.error("Failed to log request:", error);
       toast.error("An error occurred");
@@ -58,7 +68,7 @@ export function RequestItemDialog({ triggerClassName }: { triggerClassName?: str
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Product Name *</Label>
+              <Label htmlFor="name">Product Name <span className="text-destructive">*</span></Label>
               <Input
                 id="name"
                 placeholder="e.g., Panadol Extra"
@@ -68,14 +78,44 @@ export function RequestItemDialog({ triggerClassName }: { triggerClassName?: str
                 required
               />
             </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="quantity">Quantity Asked For</Label>
+                <Input
+                  id="quantity"
+                  type="number"
+                  min="1"
+                  placeholder="1"
+                  value={quantity}
+                  onChange={(e) => setQuantity(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="customer">Customer (Optional)</Label>
+                <Input
+                  id="customer"
+                  placeholder="Name or phone"
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                />
+              </div>
+            </div>
+
             <div className="space-y-2">
-              <Label htmlFor="customer">Requested By (Optional)</Label>
-              <Input
-                id="customer"
-                placeholder="Customer name or number"
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
+              <Label htmlFor="notes">Note (Optional)</Label>
+              <Textarea
+                id="notes"
+                placeholder="Brand preference, urgency, etc."
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                className="resize-none h-16"
               />
+            </div>
+
+            <div className="text-[11.5px] text-primary/80 bg-primary/10 border border-primary/20 rounded-[10px] px-3 py-2.5 flex gap-2 items-start mt-2">
+              <Info className="w-[15px] h-[15px] shrink-0 mt-0.5" />
+              This gets logged for restocking and sent to your manager right away.
             </div>
           </div>
           <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 pt-4 border-t">

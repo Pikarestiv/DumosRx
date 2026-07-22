@@ -14,7 +14,6 @@ import { PurchaseOrderTable } from "./purchase-order-table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SupplierManagement } from "@/components/stock-batch/supplier-management";
 import { RequestedProductsTab } from "./requested-products-tab";
-import { SupplierDebtTab } from "./supplier-debt-tab";
 
 export function ProcurementManagement() {
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
@@ -62,29 +61,40 @@ export function ProcurementManagement() {
   );
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-
-        <CreatePODialog onPOCreated={fetchPurchaseOrders} />
+    <div className="flex flex-col min-h-0">
+      <div className="flex items-center gap-3 mb-5">
+        <div>
+          <div className="text-[12px] text-muted-foreground font-medium mb-0.5">DumosRx · Awka Main Pharmacy</div>
+          <div className="text-[22px] font-serif font-bold">Procurement</div>
+        </div>
+        <div className="ml-auto flex items-center gap-2.5">
+          <CreatePODialog onPOCreated={fetchPurchaseOrders} />
+        </div>
       </div>
 
-      <Tabs defaultValue="orders" className="space-y-6">
-        <TabsList className="w-full md:w-max">
-          <TabsTrigger value="orders">
+      <Tabs defaultValue="orders" className="flex flex-col flex-1 min-h-0">
+        <TabsList className="w-full md:w-max inline-flex gap-1 bg-card border border-border rounded-[11px] p-1 h-auto mb-5">
+          <TabsTrigger 
+            value="orders" 
+            className="px-5 py-2 rounded-lg text-[13px] font-semibold cursor-pointer data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent shadow-none"
+          >
             Purchase Orders
           </TabsTrigger>
-          <TabsTrigger value="requests">
+          <TabsTrigger 
+            value="requests"
+            className="px-5 py-2 rounded-lg text-[13px] font-semibold cursor-pointer data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent shadow-none"
+          >
             Requested Products
           </TabsTrigger>
-          <TabsTrigger value="debt">
-            Supplier Debt Ledger
-          </TabsTrigger>
-          <TabsTrigger value="suppliers">
-            Vendors Directory
+          <TabsTrigger 
+            value="suppliers"
+            className="px-5 py-2 rounded-lg text-[13px] font-semibold cursor-pointer data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent shadow-none"
+          >
+            Vendors
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="orders" className="space-y-6">
+        <TabsContent value="orders" className="flex flex-col flex-1 min-h-0 mt-0 border-0 p-0">
           <ProcurementStats purchaseOrders={purchaseOrders} />
 
           <PurchaseOrderTable
@@ -99,15 +109,11 @@ export function ProcurementManagement() {
           />
         </TabsContent>
 
-        <TabsContent value="suppliers">
+        <TabsContent value="suppliers" className="flex flex-col flex-1 min-h-0 mt-0 border-0 p-0">
           <SupplierManagement />
         </TabsContent>
 
-        <TabsContent value="debt">
-          <SupplierDebtTab />
-        </TabsContent>
-
-        <TabsContent value="requests">
+        <TabsContent value="requests" className="flex flex-col flex-1 min-h-0 mt-0 border-0 p-0">
           <RequestedProductsTab />
         </TabsContent>
       </Tabs>

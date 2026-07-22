@@ -61,6 +61,7 @@ export function SupplierManagement() {
   const { t } = useStore();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [hasDebtFilter, setHasDebtFilter] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [_loading, setLoading] = useState(true);
 
@@ -92,9 +93,19 @@ export function SupplierManagement() {
     }
   };
 
+  const preFilteredSuppliers = suppliers.filter(s => {
+    // For now, mock the debt filter (e.g. if their ID ends with an even number, just to show functionality)
+    // Eventually, replace with real debt data field
+    if (hasDebtFilter) {
+      // Mocking debt condition for UI
+      return parseInt(s.id, 16) % 2 === 0;
+    }
+    return true;
+  });
+
   const { results: filteredSuppliers, isFuzzyFallback } = genericFuzzySearch(
     searchTerm,
-    suppliers,
+    preFilteredSuppliers,
     ["name", "contactPerson", "city"]
   );
 
@@ -139,8 +150,12 @@ export function SupplierManagement() {
     ? suppliers.reduce((sum, s) => sum + s.rating, 0) / suppliers.length 
     : 0;
 
+  // Mock debt data for the summary badge
+  const debtSuppliersCount = suppliers.filter(s => parseInt(s.id, 16) % 2 === 0).length;
+  const totalDebtAmount = 2610000;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 flex flex-col flex-1 min-h-0">
       <SupplierStats 
         totalSuppliers={suppliers.length}
         activeSuppliers={activeSuppliers}
@@ -150,48 +165,58 @@ export function SupplierManagement() {
         formatCurrency={formatCurrency}
       />
 
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <CardTitle className="font-serif font-semibold">
-                Supplier Management
-              </CardTitle>
-              <CardDescription className="mt-1.5">
-                Manage your {t('store').toLowerCase()} suppliers and vendors
-              </CardDescription>
+      <Card className="rounded-[14px] border border-[#E6EAF2] bg-[#FFFFFF] shadow-[0_1px_2px_rgba(16,24,40,0.04)] flex flex-col flex-1 overflow-hidden">
+        <div className="px-[22px] py-[18px] border-b border-[#E6EAF2] flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div>
+            <h3 className="text-[16px] font-bold text-[#101828]">Vendor Directory</h3>
+            <p className="text-[13px] text-[#667085] mt-0.5">Manage contacts and payables</p>
+          </div>
+          <div className="flex flex-col md:flex-row items-center gap-3">
+            {debtSuppliersCount > 0 && (
+              <span className="text-[13px] text-[#D92D20] font-semibold bg-[#FEF3F2] px-3 py-1.5 rounded-full border border-[#FEE4E2]">
+                {formatCurrency(totalDebtAmount)} owed to {debtSuppliersCount} suppliers
+              </span>
+            )}
+            
+            <button 
+              className={`px-4 py-2 rounded-full text-[13px] font-semibold cursor-pointer border transition-colors ${hasDebtFilter ? 'bg-primary text-primary-foreground border-primary' : 'bg-accent text-muted-foreground border-border hover:bg-accent/80'}`}
+              onClick={() => setHasDebtFilter(!hasDebtFilter)}
+            >
+              Has debt
+            </button>
+            
+            <div className="relative w-full md:w-[280px]">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+              <Input
+                placeholder="Search vendor name..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9 h-9 text-[13px] rounded-[10px] bg-accent/50 border-border"
+              />
             </div>
+            
             <Button
-              className="bg-accent hover:bg-accent/90 w-full sm:w-auto"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-[10px] text-[13px] font-semibold transition-colors flex items-center gap-2 h-9 w-full md:w-auto"
               onClick={() => setShowAddDialog(true)}
             >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Supplier
+              <Plus className="h-4 w-4" />
+              New Vendor
             </Button>
           </div>
-        </CardHeader>
-        <CardContent>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-            <Input
-              placeholder="Search suppliers, contacts, locations..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      <SupplierTable 
-        suppliers={filteredSuppliers}
-        totalCount={suppliers.length}
-        formatCurrency={formatCurrency}
-        formatDate={formatDate}
-        getStatusBadge={getStatusBadge}
-        getRatingStars={getRatingStars}
-        isFuzzyFallback={isFuzzyFallback}
-      />
+        <div className="flex-1 overflow-auto">
+          <SupplierTable 
+            suppliers={filteredSuppliers}
+            totalCount={suppliers.length}
+            formatCurrency={formatCurrency}
+            formatDate={formatDate}
+            getStatusBadge={getStatusBadge}
+            getRatingStars={getRatingStars}
+            isFuzzyFallback={isFuzzyFallback}
+          />
+        </div>
+      </Card>
 
       <AddSupplierDialog
         open={showAddDialog}

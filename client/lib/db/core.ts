@@ -331,6 +331,8 @@ export async function initDatabase(): Promise<any> {
         "_synced INTEGER DEFAULT 0",
         "_synced_at TEXT",
         "_deleted INTEGER DEFAULT 0",
+        "quantity INTEGER DEFAULT 1",
+        "notes TEXT",
       ],
     },
     {

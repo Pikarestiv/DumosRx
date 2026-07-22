@@ -56,37 +56,26 @@ export function SupplierTable({
   isFuzzyFallback
 }: SupplierTableProps) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="font-serif font-semibold">
-          Supplier Directory
-        </CardTitle>
-        <CardDescription>
-          Showing {suppliers.length} of {totalCount} suppliers
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {isFuzzyFallback && suppliers.length > 0 && (
-          <div className="bg-amber-500/10 text-amber-600 px-4 py-2 text-sm border border-amber-500/20 text-center font-medium rounded-md mb-4">
-            Did you mean? (No exact matches found. Showing closest names.)
-          </div>
-        )}
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Supplier Details</TableHead>
-                <TableHead>Contact Information</TableHead>
-                <TableHead>Location</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Orders</TableHead>
-                <TableHead>Total Value</TableHead>
-                <TableHead>Last Order</TableHead>
-                <TableHead>Rating</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+    <div className="w-full">
+      {isFuzzyFallback && suppliers.length > 0 && (
+        <div className="bg-amber-500/10 text-amber-600 px-4 py-2 text-sm border border-amber-500/20 text-center font-medium rounded-md mb-4">
+          Did you mean? (No exact matches found. Showing closest names.)
+        </div>
+      )}
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow className="hover:bg-transparent border-b border-[#E6EAF2]">
+              <TableHead className="w-[1.3fr] text-[11px] font-bold text-[#98A2B3] uppercase tracking-wide h-11 align-middle">Supplier</TableHead>
+              <TableHead className="w-[1fr] text-[11px] font-bold text-[#98A2B3] uppercase tracking-wide h-11 align-middle">Contact</TableHead>
+              <TableHead className="w-[100px] text-[11px] font-bold text-[#98A2B3] uppercase tracking-wide h-11 align-middle">Status</TableHead>
+              <TableHead className="w-[90px] text-[11px] font-bold text-[#98A2B3] uppercase tracking-wide h-11 align-middle">Orders</TableHead>
+              <TableHead className="w-[90px] text-[11px] font-bold text-[#98A2B3] uppercase tracking-wide h-11 align-middle">Rating</TableHead>
+              <TableHead className="w-[120px] text-[11px] font-bold text-[#98A2B3] uppercase tracking-wide h-11 align-middle">Total Value</TableHead>
+              <TableHead className="w-[80px] text-right text-[11px] font-bold text-[#98A2B3] uppercase tracking-wide h-11 align-middle"></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
               {suppliers.length === 0 && (
                                           <TableRow>
                                             <TableCell colSpan={9} className="h-32 text-center">
@@ -98,91 +87,63 @@ export function SupplierTable({
                                             </TableCell>
                                           </TableRow>
                                         )}
-                          {!(suppliers.length === 0) && (
-                                          suppliers.map((supplier) => (
-                                            <TableRow key={supplier.id}>
-                                              <TableCell>
-                                                <div>
-                                                  <div className="font-medium">{supplier.name}</div>
-                                                  <div className="text-sm text-muted-foreground">
-                                                    {supplier.contactPerson}
-                                                  </div>
-                                                  <div className="text-xs text-muted-foreground">
-                                                    Terms: {supplier.paymentTerms}
-                                                  </div>
-                                                </div>
-                                              </TableCell>
-                                              <TableCell>
-                                                <div className="space-y-1">
-                                                  {supplier.email && (
-                                                    <div className="flex items-center gap-1 text-sm">
-                                                      <Mail className="h-3 w-3" />
-                                                      <span className="text-xs">{supplier.email}</span>
-                                                    </div>
-                                                  )}
-                                                  {supplier.phone && (
-                                                    <div className="flex items-center gap-1 text-sm">
-                                                      <Phone className="h-3 w-3" />
-                                                      <span className="text-xs">{supplier.phone}</span>
-                                                    </div>
-                                                  )}
-                                                  {!supplier.email && !supplier.phone && (
-                                                    <span className="text-xs text-muted-foreground">
-                                                      -
-                                                    </span>
-                                                  )}
-                                                </div>
-                                              </TableCell>
-                                              <TableCell>
-                                                <div className="flex items-start gap-1">
-                                                  <MapPin className="h-3 w-3 mt-0.5" />
-                                                  <div className="text-sm">
-                                                    <div>{supplier.city}</div>
-                                                    <div className="text-xs text-muted-foreground">
-                                                      {supplier.state}
-                                                    </div>
-                                                  </div>
-                                                </div>
-                                              </TableCell>
-                                              <TableCell>{getStatusBadge(supplier.status)}</TableCell>
-                                              <TableCell>
-                                                <div className="text-center font-medium">
-                                                  {supplier.totalOrders}
-                                                </div>
-                                              </TableCell>
-                                              <TableCell>
-                                                <div className="font-medium">
-                                                  {formatCurrency(supplier.totalValue)}
-                                                </div>
-                                              </TableCell>
-                                              <TableCell>
-                                                {formatDate(supplier.lastOrderDate)}
-                                              </TableCell>
-                                              <TableCell>
-                                                <div className="text-center">
-                                                  <div className="font-medium">{supplier.rating}</div>
-                                                  <div className="text-xs text-yellow-600">
-                                                    {getRatingStars(supplier.rating)}
-                                                  </div>
-                                                </div>
-                                              </TableCell>
-                                              <TableCell>
-                                                <div className="flex items-center gap-2">
-                                                  <Button variant="ghost" size="sm">
-                                                    <Eye className="h-4 w-4" />
-                                                  </Button>
-                                                  <Button variant="ghost" size="sm">
-                                                    <Edit className="h-4 w-4" />
-                                                  </Button>
-                                                </div>
-                                              </TableCell>
-                                            </TableRow>
-                                          ))
-                                        )}
+              {!(suppliers.length === 0) && (
+                suppliers.map((supplier) => {
+                  const hasDebt = parseInt(supplier.id, 16) % 2 === 0; // Mock debt condition
+                  return (
+                    <TableRow key={supplier.id} className="border-b border-[#E6EAF2]/50 hover:bg-[#F9FAFB] transition-colors group">
+                      <TableCell className="py-[14px]">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-8 h-8 rounded-full bg-[#EAF0FE] text-[#153C9E] flex items-center justify-center text-[11px] font-bold shrink-0">
+                            {supplier.name[0]}
+                          </div>
+                          <div>
+                            <div className="font-semibold text-[#101828] text-[13.5px] truncate">{supplier.name}</div>
+                            {hasDebt && (
+                              <div className="text-[11px] text-[#D92D20] font-medium mt-0.5">Owes ₦1,250,000</div>
+                            )}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-[14px]">
+                        <div className="text-[#667085] truncate text-[12.5px]">{supplier.contactPerson || supplier.email || supplier.phone}</div>
+                        <div className="text-[#98A2B3] truncate text-[11px] mt-0.5">{supplier.city}, {supplier.state}</div>
+                      </TableCell>
+                      <TableCell className="py-[14px]">
+                        {getStatusBadge(supplier.status)}
+                      </TableCell>
+                      <TableCell className="py-[14px]">
+                        <div className="text-[#667085] font-medium text-[13px]">
+                          {supplier.totalOrders}
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-[14px]">
+                        <div className="flex text-[#EAB308] text-[13px] tracking-widest">
+                          {getRatingStars(supplier.rating)}
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-[14px]">
+                        <div className="font-semibold text-[#101828] text-[13px]">
+                          {formatCurrency(supplier.totalValue)}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right py-[14px]">
+                        <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-[#667085] hover:text-[#101828]">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-[#667085] hover:text-[#101828]">
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
             </TableBody>
           </Table>
         </div>
-      </CardContent>
-    </Card>
+      </div>
   );
 }

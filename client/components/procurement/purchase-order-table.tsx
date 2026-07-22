@@ -112,18 +112,19 @@ export function PurchaseOrderTable({
             value={activeTab}
             onValueChange={onTabChange}
             className="w-full"
+            variant="chips"
           >
             <TabsList className="w-full md:w-max justify-start overflow-x-auto hide-scrollbar">
-              <TabsTrigger value="all" className="px-4">
+              <TabsTrigger value="all">
                 All Orders
               </TabsTrigger>
-              <TabsTrigger value="draft" className="px-4">
+              <TabsTrigger value="draft">
                 Drafts
               </TabsTrigger>
-              <TabsTrigger value="sent" className="px-4">
+              <TabsTrigger value="sent">
                 Sent
               </TabsTrigger>
-              <TabsTrigger value="received" className="px-4">
+              <TabsTrigger value="received">
                 Received
               </TabsTrigger>
             </TabsList>

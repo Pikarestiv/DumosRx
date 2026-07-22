@@ -35,7 +35,7 @@ export interface PurchaseOrderItem {
 export async function getPurchaseOrders(page = 1, limit = 50) {
   const offset = (page - 1) * limit;
   const results = await query<PurchaseOrder>(
-    `SELECT po.*, v.name as supplier_name 
+    `SELECT po.*, v.name as vendor_name 
      FROM purchase_orders po 
      JOIN suppliers v ON po.supplier_id = v.id 
      WHERE po._deleted = 0 
@@ -48,7 +48,7 @@ export async function getPurchaseOrders(page = 1, limit = 50) {
 
 export async function getPurchaseOrderById(id: string) {
   const po = await query<PurchaseOrder>(
-    `SELECT po.*, v.name as supplier_name 
+    `SELECT po.*, v.name as vendor_name 
      FROM purchase_orders po 
      JOIN suppliers v ON po.supplier_id = v.id 
      WHERE po.id = ? AND po._deleted = 0`,
@@ -87,7 +87,7 @@ export async function createPurchaseOrder(
   await insert("purchase_orders", {
     id: poId,
     supplier_id: supplierId,
-    status: "draft",
+    status: "pending",
     payment_status: paymentStatus,
     amount_paid: amountPaid,
     due_date: dueDate,

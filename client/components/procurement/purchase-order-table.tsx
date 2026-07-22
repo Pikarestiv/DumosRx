@@ -80,6 +80,7 @@ export function PurchaseOrderTable({
             <ArrowRight className="w-3 h-3 mr-1" /> Sent
           </Badge>
         );
+      case "pending":
       case "draft":
         return (
           <Badge
@@ -116,7 +117,7 @@ export function PurchaseOrderTable({
           >
             <TabsList className="w-full md:w-max justify-start overflow-x-auto hide-scrollbar">
               <TabsTrigger value="all">All Orders</TabsTrigger>
-              <TabsTrigger value="draft">Drafts</TabsTrigger>
+              <TabsTrigger value="pending">Drafts</TabsTrigger>
               <TabsTrigger value="sent">Sent</TabsTrigger>
               <TabsTrigger value="received">Received</TabsTrigger>
             </TabsList>
@@ -253,7 +254,7 @@ export function PurchaseOrderTable({
                       </div>
                     ))
                   ) : (
-                    <div className="text-[13px] text-muted-foreground italic bg-accent/50 p-3 rounded-lg text-center">
+                    <div className="text-[13px] text-accent-foreground/80 italic bg-accent/60 p-3 rounded-lg text-center">
                       Line items available in full view
                     </div>
                   )}
@@ -324,7 +325,7 @@ export function PurchaseOrderTable({
               >
                 Download PDF
               </Button>
-              {selectedPO.status === "draft" && (
+              {selectedPO.status === "pending" && (
                 <Button className="flex-1 h-10 text-[13.5px] font-bold">
                   Mark as Sent
                 </Button>

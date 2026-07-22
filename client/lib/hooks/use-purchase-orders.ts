@@ -6,7 +6,7 @@ export interface PurchaseOrder {
   supplier: string;
   orderDate: string;
   expectedDate: string;
-  status: "draft" | "sent" | "confirmed" | "received" | "cancelled";
+  status: "pending" | "sent" | "confirmed" | "received" | "cancelled";
   totalAmount: number;
   itemCount: number;
   createdBy: string;
@@ -30,7 +30,7 @@ export function usePurchaseOrders() {
             o.supplier?.name || o.supplier_name || o.vendor_name || "Unknown",
           orderDate: o.order_date || o.created_at,
           expectedDate: o.expected_date || o.order_date || o.created_at,
-          status: o.status || "draft",
+          status: o.status || "pending",
           totalAmount: Number(o.total_amount) || 0,
           itemCount: o.items?.length || o.item_count || 0,
           createdBy: o.created_by?.name || o.user_name || "System",
@@ -52,7 +52,7 @@ export function usePurchaseOrders() {
   const pendingOrders = orders.filter((order) =>
     ["sent", "confirmed"].includes(order.status),
   ).length;
-  const draftOrders = orders.filter((order) => order.status === "draft").length;
+  const draftOrders = orders.filter((order) => order.status === "pending").length;
 
   return {
     orders,

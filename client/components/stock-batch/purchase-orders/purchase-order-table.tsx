@@ -25,7 +25,7 @@ export function PurchaseOrderTable({ orders, filteredOrders }: PurchaseOrderTabl
     let label = "Confirmed";
 
     switch (status) {
-      case "draft":
+      case "pending":
         variant = "secondary";
         label = "Draft";
         break;

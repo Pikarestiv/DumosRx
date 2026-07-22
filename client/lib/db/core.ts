@@ -568,6 +568,10 @@ export async function initDatabase(): Promise<any> {
         console.error("Migration for stock_quantity skipped", e);
       }
 
+    try {
+      db.run("UPDATE purchase_orders SET status = 'pending' WHERE status = 'draft'");
+    } catch (_e) {}
+
     // Run migrations for Web (non-Tauri)
     for (const { table, columns } of syncColumns) {
       for (const colDef of columns) {

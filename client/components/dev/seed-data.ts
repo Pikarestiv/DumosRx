@@ -142,7 +142,7 @@ export async function seedProcurement() {
   });
 
   await insert("purchase_orders", {
-    id: "po2", order_number: "PO-2026-002", vendor_id: "v2", ordered_by: "u1", order_date: todayDate, status: "draft", total_amount: 50000, notes: "Urgent shortage", created_at: today, updated_at: today
+    id: "po2", order_number: "PO-2026-002", vendor_id: "v2", ordered_by: "u1", order_date: todayDate, status: "pending", total_amount: 50000, notes: "Urgent shortage", created_at: today, updated_at: today
   });
   await insert("purchase_order_items", {
     id: "poi2", po_id: "po2", product_id: "m2", bulk_quantity: 5, units_per_bulk: 50, unit_cost: 10000, subtotal: 50000, created_at: today, updated_at: today

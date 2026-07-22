@@ -361,7 +361,7 @@ CREATE TABLE IF NOT EXISTS purchase_orders (
   supplier_id TEXT NOT NULL,
   ordered_by TEXT,
   order_date TEXT,
-  status TEXT DEFAULT 'draft',
+  status TEXT DEFAULT 'pending',
   payment_status TEXT DEFAULT 'unpaid',
   amount_paid REAL DEFAULT 0,
   due_date TEXT,

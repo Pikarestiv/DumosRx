@@ -55,7 +55,8 @@ export function ProcurementManagement({ initialTab = "orders" }: ProcurementMana
   };
 
   const preFilteredOrders = purchaseOrders.filter((po) => {
-    return poTab === "all" || po.status === poTab;
+    if (poTab === "all") return true;
+    return po.status === poTab;
   });
 
   const { results: filteredOrders, isFuzzyFallback } = genericFuzzySearch(

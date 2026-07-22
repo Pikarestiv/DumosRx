@@ -65,7 +65,7 @@ export function PurchaseOrderFilters({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="draft">Draft</SelectItem>
+              <SelectItem value="pending">Draft</SelectItem>
               <SelectItem value="sent">Sent</SelectItem>
               <SelectItem value="confirmed">Confirmed</SelectItem>
               <SelectItem value="received">Received</SelectItem>

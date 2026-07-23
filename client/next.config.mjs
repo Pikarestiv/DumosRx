@@ -19,8 +19,9 @@ const devHost = localIps.length > 0 ? localIps[0] : "localhost";
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: "export",
+  // Allow Tauri to load chunks properly if needed
   allowedDevOrigins: ["tauri.localhost", "localhost", "127.0.0.1", "10.0.2.2", ...localIps],
-  assetPrefix: process.env.NODE_ENV === "development" ? `http://${devHost}:3000` : undefined,
+  // assetPrefix: process.env.NODE_ENV === "development" ? `http://${devHost}:3000` : undefined,
   // rewrites() are not supported in static export
   // async rewrites() {
   //   const REMOTE_API_ROOT = "https://api.dumosrx.com";

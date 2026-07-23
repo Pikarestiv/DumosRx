@@ -44,7 +44,7 @@ export function ProcurementStats({ purchaseOrders }: ProcurementStatsProps) {
             </div>
           </div>
           <div className="text-xl font-semibold font-serif tracking-tight">
-            {new Set(purchaseOrders.map(p => p.vendor_id)).size}
+            {new Set(purchaseOrders.map(p => p.supplier_id)).size}
           </div>
         </Card>
 

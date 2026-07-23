@@ -151,6 +151,7 @@ export async function getStockBatchStats(expiryDays: number = 30) {
       SUM(CASE WHEN COALESCE(sb.total_qty, 0) = 0 THEN 1 ELSE 0 END) AS critical_stock_count,
       SUM(CASE WHEN sb.expiring_soon > 0 THEN 1 ELSE 0 END) AS expiring_soon_count,
       SUM(CASE WHEN sb.expired > 0 THEN 1 ELSE 0 END) AS expired_count,
+      SUM(CASE WHEN sb.missing_expiry > 0 THEN 1 ELSE 0 END) AS missing_expiry_count,
       COALESCE(SUM(sb.total_value), 0) AS total_stock_batch_value,
       COUNT(DISTINCT p.category_id) as active_categories
     FROM products p
@@ -159,6 +160,7 @@ export async function getStockBatchStats(expiryDays: number = 30) {
         SUM(quantity) as total_qty,
         SUM(CASE WHEN expiry_date IS NOT NULL AND date(expiry_date) > date('now') AND date(expiry_date) <= date('now', '+' || ? || ' days') THEN 1 ELSE 0 END) as expiring_soon,
         SUM(CASE WHEN expiry_date IS NOT NULL AND date(expiry_date) <= date('now') THEN 1 ELSE 0 END) as expired,
+        SUM(CASE WHEN (expiry_date IS NULL OR expiry_date = '') AND quantity > 0 THEN 1 ELSE 0 END) as missing_expiry,
         SUM(quantity * cost_price) as total_value
       FROM stock_batches
       WHERE _deleted = 0 OR _deleted IS NULL

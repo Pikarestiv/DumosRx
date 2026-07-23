@@ -7,7 +7,7 @@ import { insert, update, softDelete } from "./base-helpers";
 
 export interface PurchaseOrder {
   id: string;
-  vendor_id: string;
+  supplier_id: string;
   status: string;
   total_amount: number;
   notes?: string;
@@ -17,6 +17,7 @@ export interface PurchaseOrder {
   payment_status: string;
   amount_paid: number;
   due_date?: string;
+  has_missing_expiry?: boolean;
   items?: PurchaseOrderItem[];
 }
 
@@ -36,7 +37,13 @@ export interface PurchaseOrderItem {
 export async function getPurchaseOrders(page = 1, limit = 50) {
   const offset = (page - 1) * limit;
   const results = await query<PurchaseOrder>(
-    `SELECT po.*, v.name as vendor_name 
+    `SELECT po.*, v.name as vendor_name,
+       CASE WHEN EXISTS (
+         SELECT 1 FROM stock_movements sm
+         JOIN stock_batches sb ON sm.stock_batch_id = sb.id
+         WHERE sm.reference_id = po.id AND sm.reference_type = 'purchase_order' 
+         AND (sb.expiry_date IS NULL OR sb.expiry_date = '')
+       ) THEN 1 ELSE 0 END as has_missing_expiry
      FROM purchase_orders po 
      LEFT JOIN suppliers v ON po.supplier_id = v.id 
      WHERE po._deleted = 0 
@@ -49,7 +56,13 @@ export async function getPurchaseOrders(page = 1, limit = 50) {
 
 export async function getPurchaseOrderById(id: string) {
   const po = await query<PurchaseOrder>(
-    `SELECT po.*, v.name as vendor_name 
+    `SELECT po.*, v.name as vendor_name,
+       CASE WHEN EXISTS (
+         SELECT 1 FROM stock_movements sm
+         JOIN stock_batches sb ON sm.stock_batch_id = sb.id
+         WHERE sm.reference_id = po.id AND sm.reference_type = 'purchase_order' 
+         AND (sb.expiry_date IS NULL OR sb.expiry_date = '')
+       ) THEN 1 ELSE 0 END as has_missing_expiry
      FROM purchase_orders po 
      LEFT JOIN suppliers v ON po.supplier_id = v.id 
      WHERE po.id = ? AND po._deleted = 0`,
@@ -145,14 +158,21 @@ export async function receivePurchaseOrder(id: string, receivedItems?: any[]) {
     const batchNumber = receivedItem?.lot_number?.trim() || poData.id.split('-')[0].toUpperCase();
     const expiryDate = receivedItem?.expiry_date ? new Date(receivedItem.expiry_date).toISOString() : null;
 
+    const safeUnitsPerBulk = unitsPerBulk || 1;
+    const baseUnitCost = Number(item.unit_cost) / safeUnitsPerBulk;
+
     const invId = await insert("stock_batches", {
       product_id: item.product_id,
       quantity: totalBaseUnits,
-      cost_price: Number(item.unit_cost) / unitsPerBulk,
+      cost_price: baseUnitCost,
       selling_price: sellingPrice,
       batch_number: batchNumber,
       expiry_date: expiryDate,
-      created_at: now
+      created_at: now,
+      is_active: 1,
+      _version: 1,
+      _synced: 0,
+      _deleted: 0
     });
 
     // Log local stock movement
@@ -163,7 +183,7 @@ export async function receivePurchaseOrder(id: string, receivedItems?: any[]) {
       stock_batch_id: invId,
       movement_type: "purchase",
       quantity: totalBaseUnits,
-      unit_cost: Number(item.unit_cost) / unitsPerBulk,
+      unit_cost: baseUnitCost,
       total_cost: Number(item.subtotal),
       reference_id: poData.id,
       reference_type: "purchase_order",

@@ -64,3 +64,5 @@ To maintain the DumosRx "Premium" feel:
 - Whenever a new feature is implemented, an architectural change is made, or an existing calculation is modified, **you must check whether to update existing tests or add new ones.**
 - Data integrity calculations, sync operations, and offline reconciliation flows MUST always be covered by automated tests to prevent silent data corruption.
 - **E2E Testing (Playwright):** We use Playwright for E2E testing the frontend. Since DumosRx is offline-first, a fresh browser context starts with an empty IndexedDB. Instead of performing the "Setup New Store" flow in every test, we use a `global.setup.ts` script to create a seeded database and export it. Use the custom `test` fixture from `e2e/fixtures.ts` to automatically inject this seeded database into `window.restoreDatabase()` before navigating to the target page. Test files should import `test` and `expect` from `./fixtures` rather than `@playwright/test`.
+
+- **UI/UX Interactions:** NEVER use `window.confirm` for user confirmations. ALWAYS use a custom modal or `AlertDialog` component (e.g. from Radix/Shadcn) to maintain consistent design and avoid native browser popups.

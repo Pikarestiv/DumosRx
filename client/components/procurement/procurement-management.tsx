@@ -79,6 +79,7 @@ export function ProcurementManagement({ initialTab = "orders" }: ProcurementMana
 
   const preFilteredOrders = purchaseOrders.filter((po) => {
     if (poTab === "all") return true;
+    if (poTab === "missing-expiry") return po.status === "received" && po.has_missing_expiry;
     return po.status === poTab;
   });
 

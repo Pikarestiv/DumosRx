@@ -11,7 +11,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
 import type { PurchaseOrder, PurchaseOrderItem } from "@/lib/db/local-database";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { formatCurrency } from "@/lib/utils";
+import { toast } from "sonner";
 
 export interface ReceivedItemPayload {
   po_item_id: string;
@@ -30,6 +41,7 @@ interface ReceivePOModalProps {
 
 export function ReceivePOModal({ po, isOpen, onClose, onConfirm }: ReceivePOModalProps) {
   const [receivedItems, setReceivedItems] = useState<Record<string, ReceivedItemPayload>>({});
+  const [showWarningModal, setShowWarningModal] = useState(false);
 
   // Initialize payload state when modal opens or PO changes
   useEffect(() => {
@@ -62,8 +74,23 @@ export function ReceivePOModal({ po, isOpen, onClose, onConfirm }: ReceivePOModa
     }));
   };
 
-  const handleConfirm = () => {
+  const handleConfirmClick = () => {
     const payload = Object.values(receivedItems);
+    
+    // Check if any items are missing an expiry date
+    const missingExpiry = payload.find(item => item.quantity > 0 && !item.expiry_date);
+    if (missingExpiry) {
+      setShowWarningModal(true);
+      return;
+    }
+
+    onConfirm(po.id, payload);
+    onClose();
+  };
+
+  const handleProceedWarning = () => {
+    const payload = Object.values(receivedItems);
+    setShowWarningModal(false);
     onConfirm(po.id, payload);
     onClose();
   };
@@ -129,9 +156,26 @@ export function ReceivePOModal({ po, isOpen, onClose, onConfirm }: ReceivePOModa
 
         <DialogFooter className="mt-6">
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleConfirm}>Confirm & Receive</Button>
+          <Button onClick={handleConfirmClick}>Confirm & Receive</Button>
         </DialogFooter>
       </DialogContent>
+
+      <AlertDialog open={showWarningModal} onOpenChange={setShowWarningModal}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Missing Expiry Date</AlertDialogTitle>
+            <AlertDialogDescription>
+              Some items are missing an expiry date. They will be marked with a warning badge. Are you sure you want to proceed?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Go Back</AlertDialogCancel>
+            <AlertDialogAction onClick={handleProceedWarning} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Proceed Anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }

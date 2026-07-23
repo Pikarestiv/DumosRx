@@ -137,6 +137,7 @@ export function PurchaseOrderTable({
               <TabsTrigger value="pending">Drafts</TabsTrigger>
               <TabsTrigger value="sent">Sent</TabsTrigger>
               <TabsTrigger value="received">Received</TabsTrigger>
+              <TabsTrigger value="missing-expiry" className="data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-600">Missing Expiry</TabsTrigger>
             </TabsList>
           </Tabs>
         </div>

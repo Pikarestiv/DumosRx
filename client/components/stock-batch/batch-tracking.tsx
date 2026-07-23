@@ -57,7 +57,7 @@ export function BatchTracking() {
   );
 
   const getExpiryStatus = (date: string) => {
-    if (!date) return { label: "No Date", variant: "secondary" as const };
+    if (!date) return { label: "No Expiry", variant: "destructive" as const };
     const days = Math.ceil(
       (new Date(date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
     );

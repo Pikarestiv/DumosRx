@@ -63,8 +63,9 @@ export function DashboardOverview() {
   const stats = {
     totalProducts: stock_batchStats.activeProducts,
     dailySalesRevenue: todayRevenue,
-    expiringSoon: stock_batchStats.expiringSoonCount,
+    expiringSoonCount: stock_batchStats.expiringSoonCount,
     lowStockCount: stock_batchStats.lowStockCount,
+    missingExpiryCount: stock_batchStats.missingExpiryCount,
   };
 
   const activities = recentActivities.slice(0, 5).map((activity: any) => {
@@ -194,9 +195,10 @@ export function DashboardOverview() {
 
       <DashboardStats statsCards={statsCards} />
 
-      <DashboardActionCenter
-        expiringCount={stats.expiringSoon}
+      <DashboardActionCenter 
+        expiringCount={stats.expiringSoonCount} 
         lowStockCount={stats.lowStockCount}
+        missingExpiryCount={stats.missingExpiryCount}
       />
 
       <div className="flex flex-col lg:grid lg:grid-cols-[1.4fr_1fr] gap-5">

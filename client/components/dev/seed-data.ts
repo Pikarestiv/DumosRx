@@ -135,14 +135,14 @@ export async function seedProcurement() {
   const todayDate = today.split("T")[0];
 
   await insert("purchase_orders", {
-    id: "po1", order_number: "PO-2026-001", vendor_id: "v1", ordered_by: "u1", order_date: todayDate, status: "received", total_amount: 150000, notes: "Monthly restock", created_at: today, received_at: today, updated_at: today
+    id: "po1", order_number: "PO-2026-001", supplier_id: "v1", ordered_by: "u1", order_date: todayDate, status: "received", total_amount: 150000, notes: "Monthly restock", created_at: today, received_at: today, updated_at: today
   });
   await insert("purchase_order_items", {
     id: "poi1", po_id: "po1", product_id: "m1", bulk_quantity: 10, units_per_bulk: 100, unit_cost: 15000, subtotal: 150000, created_at: today, updated_at: today
   });
 
   await insert("purchase_orders", {
-    id: "po2", order_number: "PO-2026-002", vendor_id: "v2", ordered_by: "u1", order_date: todayDate, status: "pending", total_amount: 50000, notes: "Urgent shortage", created_at: today, updated_at: today
+    id: "po2", order_number: "PO-2026-002", supplier_id: "v2", ordered_by: "u1", order_date: todayDate, status: "pending", total_amount: 50000, notes: "Urgent shortage", created_at: today, updated_at: today
   });
   await insert("purchase_order_items", {
     id: "poi2", po_id: "po2", product_id: "m2", bulk_quantity: 5, units_per_bulk: 50, unit_cost: 10000, subtotal: 50000, created_at: today, updated_at: today

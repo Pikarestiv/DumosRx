@@ -23,6 +23,7 @@ import { Card } from "@/components/ui/card";
 export interface ActionCenterProps {
   expiringCount: number;
   lowStockCount: number;
+  missingExpiryCount: number;
 }
 
 type AlertPriority = "critical" | "warning" | "info" | "success";
@@ -38,7 +39,7 @@ interface AlertItem {
 }
 
 // --- Extracted Hook for Logic ---
-function useActionCenterAlerts(expiringCount: number, lowStockCount: number) {
+function useActionCenterAlerts(expiringCount: number, lowStockCount: number, missingExpiryCount: number) {
   const { isAuthenticated, isAdmin } = useAuth();
   const { storeProfile } = useStore();
 
@@ -178,6 +179,18 @@ function useActionCenterAlerts(expiringCount: number, lowStockCount: number) {
         });
       }
 
+      if (missingExpiryCount > 0) {
+        items.push({
+          id: "missing-expiry",
+          title: `${missingExpiryCount} Batches Missing Expiry`,
+          description: "Update to maintain safety net.",
+          icon: Clock,
+          priority: "warning",
+          actionLabel: "Update Now",
+          actionRoute: "/inventory/overview", // Or a specific filtered view
+        });
+      }
+
       if (pendingSyncCount > 0) {
         items.push({
           id: "pending-sync",
@@ -199,44 +212,43 @@ function useActionCenterAlerts(expiringCount: number, lowStockCount: number) {
     isAuthenticated,
     isAdmin,
     staffCount,
+    pendingSyncCount,
     storeProfile,
     expiringCount,
     lowStockCount,
-    pendingSyncCount,
+    missingExpiryCount,
     licenseStatus,
   ]);
 
   return alerts;
 }
 
-// --- Extracted Component for Alert Card ---
-const getPriorityColors = (priority: AlertPriority) => {
-  switch (priority) {
-    case "critical":
-      return "bg-destructive/10 border-destructive/20 text-destructive";
-    case "warning":
-      return "bg-amber-500/10 border-amber-500/20 text-amber-500 dark:bg-amber-500/20";
-    case "info":
-      return "bg-primary/10 border-primary/20 text-primary";
-    case "success":
-      return "bg-emerald-500/10 border-emerald-500/20 text-emerald-500 dark:bg-emerald-500/20";
-  }
-};
-
+// --- Card Item Component ---
 function ActionCenterCard({ alert }: { alert: AlertItem }) {
   const router = useRouter();
+  const Icon = alert.icon;
+
+  const bgStyles = {
+    critical: "bg-destructive/10 border-destructive/20 text-destructive",
+    warning: "bg-orange-500/10 border-orange-500/20 text-orange-600",
+    info: "bg-blue-500/10 border-blue-500/20 text-blue-600",
+    success: "bg-emerald-500/10 border-emerald-500/20 text-emerald-600",
+  };
 
   return (
-    <Card
-      className={`border-border bg-card shadow-sm hover:shadow-md transition-all cursor-pointer overflow-hidden flex flex-col justify-between h-full group ${getPriorityColors(alert.priority).split(' ')[0].replace('/10', '/5')}`}
+    <Card 
       onClick={() => router.push(alert.actionRoute)}
+      className={`min-w-[240px] sm:min-w-[280px] h-[96px] snap-center shrink-0 border cursor-pointer hover:shadow-md transition-shadow duration-200 group relative overflow-hidden flex flex-col justify-center ${bgStyles[alert.priority]}`}
     >
-      <div className="px-2.5 py-1.5 sm:px-3 sm:py-2 flex flex-col h-full justify-center">
-        <div className="flex items-start gap-2">
-          <div className={`p-1.5 rounded-md shrink-0 ${getPriorityColors(alert.priority)}`}>
-            <alert.icon className="h-3.5 w-3.5" />
+      {/* Decorative gradient overlay */}
+      <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-transparent dark:from-black/20 pointer-events-none" />
+      
+      <div className="p-3 sm:p-4 relative z-10 flex flex-col h-full justify-center gap-3">
+        <div className="flex items-start gap-3">
+          <div className={`p-2 rounded-xl shrink-0 bg-background/50 shadow-sm backdrop-blur-sm ${bgStyles[alert.priority]}`}>
+            <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
           </div>
-          <div className="min-w-0 flex flex-col justify-center">
+          <div className="flex-1 min-w-0">
              <h4 className="font-bold text-xs sm:text-sm text-foreground line-clamp-1 leading-tight">
                {alert.title}
              </h4>
@@ -254,8 +266,9 @@ function ActionCenterCard({ alert }: { alert: AlertItem }) {
 export function DashboardActionCenter({
   expiringCount,
   lowStockCount,
+  missingExpiryCount,
 }: ActionCenterProps) {
-  const alerts = useActionCenterAlerts(expiringCount, lowStockCount);
+  const alerts = useActionCenterAlerts(expiringCount, lowStockCount, missingExpiryCount);
   const [isPaused, setIsPaused] = useState(false);
   const scrollRef = React.useRef<HTMLDivElement>(null);
 

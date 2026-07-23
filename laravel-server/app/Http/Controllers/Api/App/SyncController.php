@@ -358,14 +358,23 @@ class SyncController extends Controller
                     $model = \method_exists($modelClass, 'trashed') ? $modelClass::withTrashed()->find($recordId) : $modelClass::find($recordId);
                     
                     if ($model) {
-                        // Conflict Resolution: If online has a newer updated_at than incoming payload, ignore the update!
-                        if ($model->updated_at && isset($payload['updated_at'])) {
+                        // Conflict Resolution: Use _version if available, fallback to updated_at
+                        $payloadVersion = isset($payload['_version']) ? (int)$payload['_version'] : null;
+                        $modelVersion = isset($model->_version) ? (int)$model->_version : null;
+                        
+                        $isOlder = false;
+                        if ($payloadVersion !== null && $modelVersion !== null && $payloadVersion !== $modelVersion) {
+                            $isOlder = $payloadVersion < $modelVersion;
+                        } elseif ($model->updated_at && isset($payload['updated_at'])) {
+                            // Fallback to updated_at if versions are equal or missing
                             $modelUpdatedAt = \Carbon\Carbon::parse($model->updated_at);
                             $payloadUpdatedAt = \Carbon\Carbon::parse($payload['updated_at']);
-                            if ($payloadUpdatedAt->lt($modelUpdatedAt)) {
-                                Log::info("Sync push: Ignored older update for {$change['table_name']} {$recordId}");
-                                continue;
-                            }
+                            $isOlder = $payloadUpdatedAt->lt($modelUpdatedAt);
+                        }
+
+                        if ($isOlder) {
+                            Log::info("Sync push: Ignored older update for {$change['table_name']} {$recordId}");
+                            continue;
                         }
 
                         // Pre-process payload before forceFill

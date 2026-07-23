@@ -23,6 +23,7 @@ export function DashboardStats({ statsCards }: DashboardStatsProps) {
           icon: "text-blue-500",
           trend: "text-blue-600 dark:text-blue-400",
           border: "border-blue-200/50 hover:border-blue-500/50",
+          valueClassName: "font-serif",
         };
       case "green":
         return {
@@ -30,6 +31,7 @@ export function DashboardStats({ statsCards }: DashboardStatsProps) {
           icon: "text-emerald-500",
           trend: "text-emerald-600 dark:text-emerald-400",
           border: "border-emerald-200/50 hover:border-emerald-500/50",
+          valueClassName: "font-serif",
         };
       case "red":
         return {
@@ -37,6 +39,7 @@ export function DashboardStats({ statsCards }: DashboardStatsProps) {
           icon: "text-destructive",
           trend: "text-destructive",
           border: "border-destructive-200/50 hover:border-destructive-500/50",
+          valueClassName: "font-serif",
         };
       case "amber":
         return {
@@ -44,6 +47,7 @@ export function DashboardStats({ statsCards }: DashboardStatsProps) {
           icon: "text-amber-500",
           trend: "text-amber-600 dark:text-amber-400",
           border: "border-amber-200/50 hover:border-amber-500/50",
+          valueClassName: "font-amber font-serif",
         };
       default:
         return {
@@ -51,6 +55,7 @@ export function DashboardStats({ statsCards }: DashboardStatsProps) {
           icon: "text-primary",
           trend: "text-primary",
           border: "border-border-200/50 hover:border-border-500/50",
+          valueClassName: "font-serif",
         };
     }
   };
@@ -66,7 +71,7 @@ export function DashboardStats({ statsCards }: DashboardStatsProps) {
               className={`min-w-[140px] sm:min-w-0 snap-center shrink-0 ${colors.border}`}
               title={stat.title}
               value={stat.value}
-              valueClassName="font-black"
+              valueClassName={colors.valueClassName}
               icon={<stat.icon className={`h-4 w-4 ${colors.icon}`} />}
               iconBgClass={colors.wrapper}
               description={stat.comparison}

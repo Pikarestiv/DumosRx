@@ -5,6 +5,7 @@ import { PrescriptionList } from "./prescription-list";
 import { PrescriptionDetailPanel } from "./prescription-detail-panel";
 import { NewPrescription } from "./new-prescription";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -114,7 +115,7 @@ export function PrescriptionManagement() {
                               />
                             )}
                   {!(selectedPrescription) && (
-                              <div className="h-[calc(100vh-140px)] min-h-[600px] border border-border bg-card rounded-xl flex items-center justify-center flex-col text-center p-6 text-muted-foreground shadow-[0_1px_2px_rgba(28,25,23,0.04)]">
+                              <Card className="h-[calc(100vh-140px)] min-h-[600px] border border-border bg-card rounded-xl flex items-center justify-center flex-col text-center p-6 text-muted-foreground shadow-[0_1px_2px_rgba(28,25,23,0.04)]">
                                 <svg className="w-16 h-16 text-muted-foreground/30 mb-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
                                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                                   <polyline points="14 2 14 8 20 8" />
@@ -124,7 +125,7 @@ export function PrescriptionManagement() {
                                 </svg>
                                 <h3 className="text-lg font-medium text-foreground mb-1">No Prescription Selected</h3>
                                 <p className="text-sm max-w-[250px]">Select a prescription from the queue to view its details, medications, and verify instructions.</p>
-                              </div>
+                              </Card>
                             )}
         </div>
       </div>

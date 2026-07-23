@@ -1,6 +1,7 @@
 "use client";
 
 import { usePrescriptionQueue } from "@/lib/hooks/use-prescription-queue";
+import { Card } from "@/components/ui/card";
 
 interface PrescriptionStatsProps {
   stats: {
@@ -18,8 +19,8 @@ export function PrescriptionStats({ stats }: PrescriptionStatsProps) {
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
-      <div
-        className="bg-card border border-amber-200 rounded-[14px] p-[18px] px-5 shadow-[0_1px_2px_rgba(28,25,23,0.04),0_1px_3px_rgba(28,25,23,0.03)] cursor-pointer hover:border-amber-500 transition-colors"
+      <Card
+        className="border border-amber-200 rounded-[14px] p-[18px] px-5 shadow-[0_1px_2px_rgba(28,25,23,0.04),0_1px_3px_rgba(28,25,23,0.03)] cursor-pointer hover:border-amber-500 transition-colors"
         onClick={() => setStatusFilter("pending")}
       >
         <div className="flex justify-between items-start mb-4">
@@ -30,10 +31,10 @@ export function PrescriptionStats({ stats }: PrescriptionStatsProps) {
         </div>
         <div className="text-2xl font-semibold font-serif tracking-tight mb-1.5 text-amber-700">{stats.pending}</div>
         <div className="text-xs text-muted-foreground">awaiting pharmacist review</div>
-      </div>
+      </Card>
 
-      <div
-        className="bg-card border border-border rounded-[14px] p-[18px] px-5 shadow-[0_1px_2px_rgba(28,25,23,0.04),0_1px_3px_rgba(28,25,23,0.03)] cursor-pointer hover:border-primary transition-colors"
+      <Card
+        className="border border-border rounded-[14px] p-[18px] px-5 shadow-[0_1px_2px_rgba(28,25,23,0.04),0_1px_3px_rgba(28,25,23,0.03)] cursor-pointer hover:border-primary transition-colors"
         onClick={() => setStatusFilter("processing")}
       >
         <div className="flex justify-between items-start mb-4">
@@ -44,10 +45,10 @@ export function PrescriptionStats({ stats }: PrescriptionStatsProps) {
         </div>
         <div className="text-2xl font-semibold font-serif tracking-tight mb-1.5">{stats.inProgress}</div>
         <div className="text-xs text-muted-foreground">being filled right now</div>
-      </div>
+      </Card>
 
-      <div
-        className="bg-card border border-emerald-200 rounded-[14px] p-[18px] px-5 shadow-[0_1px_2px_rgba(28,25,23,0.04),0_1px_3px_rgba(28,25,23,0.03)] cursor-pointer hover:border-emerald-500 transition-colors"
+      <Card
+        className="border border-emerald-200 rounded-[14px] p-[18px] px-5 shadow-[0_1px_2px_rgba(28,25,23,0.04),0_1px_3px_rgba(28,25,23,0.03)] cursor-pointer hover:border-emerald-500 transition-colors"
         onClick={() => setStatusFilter("ready")}
       >
         <div className="flex justify-between items-start mb-4">
@@ -58,10 +59,10 @@ export function PrescriptionStats({ stats }: PrescriptionStatsProps) {
         </div>
         <div className="text-2xl font-semibold font-serif tracking-tight mb-1.5 text-emerald-700">{stats.ready}</div>
         <div className="text-xs text-muted-foreground">notify patients waiting</div>
-      </div>
+      </Card>
 
-      <div
-        className="bg-card border border-border rounded-[14px] p-[18px] px-5 shadow-[0_1px_2px_rgba(28,25,23,0.04),0_1px_3px_rgba(28,25,23,0.03)] cursor-pointer hover:border-primary transition-colors"
+      <Card
+        className="border border-border rounded-[14px] p-[18px] px-5 shadow-[0_1px_2px_rgba(28,25,23,0.04),0_1px_3px_rgba(28,25,23,0.03)] cursor-pointer hover:border-primary transition-colors"
         onClick={() => setStatusFilter("completed")}
       >
         <div className="flex justify-between items-start mb-4">
@@ -89,7 +90,7 @@ export function PrescriptionStats({ stats }: PrescriptionStatsProps) {
             return <span className="text-muted-foreground">Same as yesterday</span>;
           })()}
         </div>
-      </div>
+      </Card>
     </div>
   );
 }

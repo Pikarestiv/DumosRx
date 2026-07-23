@@ -28,13 +28,13 @@ export function PrescriptionDetailPanel({
 }: PrescriptionDetailPanelProps) {
   if (!prescription) {
     return (
-      <div className="hidden md:flex flex-col h-full items-center justify-center bg-card rounded-2xl border border-border text-muted-foreground p-6">
+      <Card className="hidden md:flex flex-col h-full items-center justify-center bg-card rounded-2xl border border-border text-muted-foreground p-6 shadow-sm">
         <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
           <FileText className="w-8 h-8 text-muted-foreground/60" />
         </div>
         <h3 className="text-lg font-semibold text-foreground mb-1">No Prescription Selected</h3>
         <p className="text-sm text-center max-w-[250px]">Select a prescription from the list to view its details, update status, or dispense medications.</p>
-      </div>
+      </Card>
     );
   }
 
@@ -88,7 +88,7 @@ export function PrescriptionDetailPanel({
   };
 
   return (
-    <div className="fixed inset-0 z-50 md:static md:z-auto bg-background md:bg-card md:rounded-xl md:border md:border-border flex flex-col h-full shadow-sm">
+    <Card className="fixed inset-0 z-50 md:static md:z-auto bg-background md:bg-card md:rounded-xl md:border md:border-border flex flex-col h-full shadow-sm">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-border">
         <div>
@@ -247,6 +247,6 @@ export function PrescriptionDetailPanel({
           </Card>
         )}
       </div>
-    </div>
+    </Card>
   );
 }

@@ -196,7 +196,7 @@ export function ReportCenter() {
 
       <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-5">
         {/* Report Center */}
-        <div className="bg-background border rounded-2xl p-5">
+        <Card className="border rounded-2xl p-5 shadow-sm">
           <div className="text-[14.5px] font-semibold mb-0.5">Report Center</div>
           <div className="text-[12px] text-muted-foreground mb-5">Generate and download structured data exports</div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -262,17 +262,17 @@ export function ReportCenter() {
               );
             })}
           </div>
-        </div>
+        </Card>
 
         {/* Recent Downloads */}
-        <div className="bg-background border rounded-2xl p-5">
+        <Card className="border rounded-2xl p-5 shadow-sm">
           <div className="text-[14.5px] font-semibold mb-0.5">Recent Downloads</div>
           <div className="text-[12px] text-muted-foreground mb-5">Reports generated in this browser session</div>
           <div>
             {recentDownloads.length === 0 && <RecentDownloadsEmptyState />}
             {recentDownloads.length > 0 && <RecentDownloadsList downloads={recentDownloads} />}
           </div>
-        </div>
+        </Card>
       </div>
     </div>
   );

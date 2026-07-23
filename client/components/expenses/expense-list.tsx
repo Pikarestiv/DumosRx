@@ -9,6 +9,8 @@ import { useExpenseList } from "@/lib/hooks/use-finance-data";
 import { ExpenseDetailDialog } from "./expense-detail-dialog";
 import { AddExpenseDialog } from "./add-expense-dialog";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import { Expense } from "@/lib/db/queries/finance";
 
 const CATEGORIES = [
@@ -146,7 +148,7 @@ export function ExpenseList() {
       
       {/* INSIGHTS STRIP */}
       <div className="flex overflow-x-auto sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-[10px] sm:gap-4 pb-4 sm:pb-0 hide-scrollbar snap-x snap-mandatory mb-5">
-        <div className="bg-card border border-border rounded-[14px] p-3.5 sm:p-[18px] px-4 sm:px-5 shadow-sm shrink-0 w-[220px] sm:w-auto snap-start">
+        <Card className="bg-card border border-border rounded-[14px] p-3.5 sm:p-[18px] px-4 sm:px-5 shadow-sm shrink-0 w-[220px] sm:w-auto snap-start">
           <div className="flex items-center justify-between mb-3.5">
             <div className="text-[12.5px] text-muted-foreground font-medium">Total expenses</div>
             <div className="w-8 h-8 rounded-lg hidden sm:flex items-center justify-center bg-primary/10 text-primary">
@@ -155,9 +157,9 @@ export function ExpenseList() {
           </div>
           <div className="text-2xl font-semibold font-serif tracking-tight mb-1.5">{formatCurrency(totalExpenses, storeProfile?.currency || "NGN")}</div>
           <div className="text-xs text-muted-foreground hidden sm:block">all time</div>
-        </div>
+        </Card>
         
-        <div className="bg-card border border-border rounded-[14px] p-3.5 sm:p-[18px] px-4 sm:px-5 shadow-sm shrink-0 w-[220px] sm:w-auto snap-start">
+        <Card className="bg-card border border-border rounded-[14px] p-3.5 sm:p-[18px] px-4 sm:px-5 shadow-sm shrink-0 w-[220px] sm:w-auto snap-start">
           <div className="flex items-center justify-between mb-3.5">
             <div className="text-[12.5px] text-muted-foreground font-medium">This month</div>
             <div className="w-8 h-8 rounded-lg hidden sm:flex items-center justify-center bg-chart-1/10 text-chart-1">
@@ -166,9 +168,9 @@ export function ExpenseList() {
           </div>
           <div className="text-2xl font-semibold font-serif tracking-tight mb-1.5">{formatCurrency(thisMonthExpenses, storeProfile?.currency || "NGN")}</div>
           <div className="text-xs text-muted-foreground hidden sm:block">{format(new Date(), "MMMM yyyy")}</div>
-        </div>
+        </Card>
         
-        <div className="bg-card border border-border rounded-[14px] p-3.5 sm:p-[18px] px-4 sm:px-5 shadow-sm shrink-0 w-[220px] sm:w-auto snap-start">
+        <Card className="bg-card border border-border rounded-[14px] p-3.5 sm:p-[18px] px-4 sm:px-5 shadow-sm shrink-0 w-[220px] sm:w-auto snap-start">
           <div className="flex items-center justify-between mb-3.5">
             <div className="text-[12.5px] text-muted-foreground font-medium">Top category</div>
             <div className="w-8 h-8 rounded-lg hidden sm:flex items-center justify-center bg-muted text-muted-foreground">
@@ -177,9 +179,9 @@ export function ExpenseList() {
           </div>
           <div className="text-2xl font-semibold font-serif tracking-tight mb-1.5 truncate">{topCategoryStr}</div>
           <div className="text-xs text-muted-foreground hidden sm:block">highest spend this month</div>
-        </div>
+        </Card>
         
-        <div className="bg-card border border-border rounded-[14px] p-3.5 sm:p-[18px] px-4 sm:px-5 shadow-sm shrink-0 w-[220px] sm:w-auto snap-start">
+        <Card className="bg-card border border-border rounded-[14px] p-3.5 sm:p-[18px] px-4 sm:px-5 shadow-sm shrink-0 w-[220px] sm:w-auto snap-start">
           <div className="flex items-center justify-between mb-3.5">
             <div className="text-[12.5px] text-muted-foreground font-medium">Transactions</div>
             <div className="w-8 h-8 rounded-lg hidden sm:flex items-center justify-center bg-muted text-muted-foreground">
@@ -188,7 +190,7 @@ export function ExpenseList() {
           </div>
           <div className="text-2xl font-semibold font-serif tracking-tight mb-1.5">{expenses.length}</div>
           <div className="text-xs text-muted-foreground hidden sm:block">recorded all time</div>
-        </div>
+        </Card>
       </div>
 
       {/* CATEGORIES (Tabs) ABOVE TABLE */}
@@ -204,9 +206,9 @@ export function ExpenseList() {
         </Tabs>
       </div>
 
-      {/* TABLE */}
-      <div className="bg-card border border-border rounded-2xl flex-1 flex flex-col overflow-hidden">
-        {/* Search */}
+      {/* Main Content Area */}
+      <Card className="bg-card border border-border rounded-2xl flex-1 flex flex-col overflow-hidden">
+        {/* Header Actions */}
         <div className="p-4 pb-3 border-b border-border">
           <div className="flex items-center gap-2 bg-muted border border-border rounded-[10px] px-3.5 py-2.5 max-w-sm">
             <Search className="w-4 h-4 text-muted-foreground shrink-0" />
@@ -229,7 +231,7 @@ export function ExpenseList() {
         <div className="flex-1 overflow-y-auto">
           {renderExpenseTable()}
         </div>
-      </div>
+      </Card>
 
       <ExpenseDetailDialog 
         expense={selectedExpense} 

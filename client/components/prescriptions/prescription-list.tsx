@@ -3,6 +3,7 @@
 import { Prescription } from "@/lib/hooks/use-prescription-queue";
 import { Search, Stethoscope } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import { Card } from "@/components/ui/card";
 
 interface PrescriptionListProps {
   prescriptions: Prescription[];
@@ -45,7 +46,7 @@ export function PrescriptionList({
   };
 
   return (
-    <div className="bg-card border border-border rounded-2xl flex flex-col min-h-0 h-[calc(100vh-320px)]">
+    <Card className="bg-card border border-border rounded-2xl flex flex-col min-h-0 h-[calc(100vh-320px)]">
       {/* Search */}
       <div className="p-4 pb-3 border-b border-border">
         <div className="flex items-center gap-2 bg-muted border border-border rounded-[10px] px-3.5 py-2.5">
@@ -126,6 +127,6 @@ export function PrescriptionList({
           </div>
         )}
       </div>
-    </div>
+    </Card>
   );
 }

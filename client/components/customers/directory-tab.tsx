@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Customer } from "@/lib/hooks/use-customer-data";
+import { Card } from "@/components/ui/card";
 
 interface DirectoryTabProps {
   customers: Customer[];
@@ -25,8 +26,8 @@ export function DirectoryTab({
   return (
     <div className="flex h-full gap-4 relative">
       {/* List Panel - Hidden on mobile if a customer is selected */}
-      <div
-        className={`flex-col bg-background border rounded-[14px] shadow-sm ${selectedCustomer ? "hidden md:flex" : "flex"} w-full md:w-1/3 flex-shrink-0 h-[600px] overflow-hidden`}
+      <Card
+        className={`flex-col border rounded-[14px] shadow-sm ${selectedCustomer ? "hidden md:flex" : "flex"} w-full md:w-1/3 flex-shrink-0 h-[600px] overflow-hidden`}
       >
         <div className="p-4 border-b">
           <div className="relative">
@@ -50,7 +51,7 @@ export function DirectoryTab({
               placeholder="Search customers..."
               value={searchTerm}
               onChange={(e) => onSearchChange(e.target.value)}
-              className="w-full bg-transparebt border-none rounded-[10px] pl-9 pr-4 py-2 text-[13px] focus:ring-1 focus:ring-primary outline-none"
+              className="w-full bg-muted border-none rounded-[10px] pl-9 pr-4 py-2 text-[13px] focus:ring-1 focus:ring-primary outline-none"
             />
           </div>
         </div>
@@ -87,11 +88,11 @@ export function DirectoryTab({
             </div>
           )}
         </div>
-      </div>
+      </Card>
 
       {/* Details Panel - Full width on mobile, 2/3 on desktop */}
-      <div
-        className={`flex-col bg-card border rounded-[14px] shadow-sm flex-1 ${!selectedCustomer ? "hidden md:flex items-center justify-center" : "flex"}`}
+      <Card
+        className={`flex-col border rounded-[14px] shadow-sm flex-1 ${!selectedCustomer ? "hidden md:flex items-center justify-center" : "flex"}`}
       >
         {!selectedCustomer ? (
           <div className="text-center text-muted-foreground">
@@ -283,7 +284,7 @@ export function DirectoryTab({
             </div>
           </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 }

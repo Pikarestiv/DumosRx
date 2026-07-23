@@ -1,6 +1,7 @@
 "use client";
 
 import { CustomerMetrics } from "@/lib/hooks/use-customer-data";
+import { Card } from "@/components/ui/card";
 
 export function OverviewTab({ metrics }: { metrics: CustomerMetrics | null }) {
   if (!metrics) return null;
@@ -22,7 +23,7 @@ export function OverviewTab({ metrics }: { metrics: CustomerMetrics | null }) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       {/* Customer Segmentation */}
-      <div className="bg-background border rounded-[14px] p-5 shadow-sm">
+      <Card className="border rounded-[14px] p-5 shadow-sm">
         <h3 className="text-[14px] font-semibold mb-4">
           Customer Segmentation
         </h3>
@@ -48,10 +49,10 @@ export function OverviewTab({ metrics }: { metrics: CustomerMetrics | null }) {
             </div>
           ))}
         </div>
-      </div>
+      </Card>
 
       {/* Customer Retention */}
-      <div className="bg-background border rounded-[14px] p-5 shadow-sm flex flex-col justify-center items-center text-center">
+      <Card className="border rounded-[14px] p-5 shadow-sm flex flex-col justify-center items-center text-center">
         <h3 className="text-[14px] font-semibold mb-4 w-full text-left">
           Retention & Engagement
         </h3>
@@ -84,7 +85,7 @@ export function OverviewTab({ metrics }: { metrics: CustomerMetrics | null }) {
             })}
           </div>
         </div>
-      </div>
+      </Card>
     </div>
   );
 }

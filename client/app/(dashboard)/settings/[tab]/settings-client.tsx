@@ -1,7 +1,6 @@
 "use client";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Store,
   Bell,
@@ -10,7 +9,7 @@ import {
   Palette,
   Globe,
   Users,
-  ChevronLeft
+  ChevronLeft,
 } from "lucide-react";
 import { CloudLinkDialog } from "@/components/settings/cloud-link-dialog";
 import { StaffManagement } from "@/components/settings/staff-management";
@@ -22,7 +21,6 @@ import { StoreSettings } from "@/components/settings/store-settings";
 import { AlertSettings } from "@/components/settings/alert-settings";
 import { DataSettings } from "@/components/settings/data-settings";
 import { SecuritySettings } from "@/components/settings/security-settings";
-import { Checkbox } from "@/components/ui/checkbox";
 import { UserProfileBadge } from "@/components/dashboard/user-profile-badge";
 import { SystemSettings } from "@/components/settings/system-settings";
 import { useSettings } from "@/hooks/use-settings";
@@ -117,13 +115,20 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
   return (
     <>
       <div className="max-w-5xl">
-        {(!isDesktop && !isIndex) && (
+        {!isDesktop && !isIndex && (
           <div className="flex items-center gap-3 mb-6 pb-4 border-b border-border/50">
-            <Link href="/settings" className="w-10 h-10 rounded-xl bg-accent/50 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors shrink-0">
+            <Link
+              href="/settings"
+              className="w-10 h-10 rounded-xl bg-accent/50 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors shrink-0"
+            >
               <ChevronLeft className="w-5 h-5" />
             </Link>
             <div className="text-lg font-semibold capitalize">
-              {activeTab === "appearance" ? "General" : activeTab === "notifications" ? "Alerts" : activeTab}
+              {activeTab === "appearance"
+                ? "General"
+                : activeTab === "notifications"
+                  ? "Alerts"
+                  : activeTab}
             </div>
           </div>
         )}

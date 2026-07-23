@@ -100,7 +100,7 @@ export function SupplierTable({
                     key={supplier.id}
                     onClick={() => onRowClick?.(supplier)}
                     className={`border-b border-border/50 cursor-pointer transition-colors group ${
-                      isSelected ? "bg-primary/5 hover:bg-primary/5" : "hover:bg-accent/50"
+                      isSelected ? "bg-muted/60 hover:bg-muted/60" : "hover:bg-accent/50"
                     }`}
                   >
                     <TableCell className="py-[14px]">

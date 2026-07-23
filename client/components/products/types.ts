@@ -39,7 +39,7 @@ export const transformProduct = (apiData: any): Product => ({
   sellingPrice: Number(apiData.selling_price) || 0,
   stockQuantity: Number(apiData.stock_quantity) || 0,
   reorderLevel: Number(apiData.reorder_level) || 0,
-  expiryDate: apiData.expiry_date
+  expiryDate: apiData.expiry_date && apiData.expiry_date !== "null"
     ? new Date(apiData.expiry_date).toISOString().split("T")[0]
     : "",
   batchNumber: apiData.batch_number || "",
@@ -51,10 +51,12 @@ export const transformProduct = (apiData: any): Product => ({
   status: (() => {
     const stock = Number(apiData.stock_quantity) || 0;
     const reorder = Number(apiData.reorder_level) || 0;
-    const expiry = apiData.expiry_date ? new Date(apiData.expiry_date) : null;
+    // Fix: If expiry_date is explicitly literal string "null" or JS null, handle it.
+    const hasValidExpiry = apiData.expiry_date && apiData.expiry_date !== "null";
+    const expiry = hasValidExpiry ? new Date(apiData.expiry_date) : null;
     const now = new Date();
 
-    if (expiry && expiry < now) return "expired";
+    if (expiry && !isNaN(expiry.getTime()) && expiry < now) return "expired";
     if (stock <= 0) return "out_of_stock";
     if (stock <= reorder) return "low_stock";
     return (apiData.status as any) || "active";

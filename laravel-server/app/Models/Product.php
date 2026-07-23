@@ -12,14 +12,7 @@ class Product extends Model
 {
     use HasFactory, HasUuids, SoftDeletes;
 
-    protected $fillable = [
-        'name', 'generic_name', 'brand_name', 'category_id', 'manufacturer',
-        'supplier_id', 'nafdac_number', 'dosage_form', 'strength', 'pack_size',
-        'unit_of_measure', 'description', 'indications', 'contraindications',
-        'side_effects', 'storage_conditions', 'requires_prescription',
-        'is_controlled', 'is_active', 'show_online', 'selling_price',
-        'markup_percentage', 'barcode', 'stock_quantity', 'reorder_level'
-    ];
+    protected $guarded = [];
 
     protected $casts = [
         'requires_prescription' => 'boolean',

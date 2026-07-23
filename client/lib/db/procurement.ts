@@ -37,7 +37,7 @@ export async function getPurchaseOrders(page = 1, limit = 50) {
   const results = await query<PurchaseOrder>(
     `SELECT po.*, v.name as vendor_name 
      FROM purchase_orders po 
-     JOIN suppliers v ON po.supplier_id = v.id 
+     LEFT JOIN suppliers v ON po.supplier_id = v.id 
      WHERE po._deleted = 0 
      ORDER BY po.created_at DESC 
      LIMIT ? OFFSET ?`,
@@ -50,7 +50,7 @@ export async function getPurchaseOrderById(id: string) {
   const po = await query<PurchaseOrder>(
     `SELECT po.*, v.name as vendor_name 
      FROM purchase_orders po 
-     JOIN suppliers v ON po.supplier_id = v.id 
+     LEFT JOIN suppliers v ON po.supplier_id = v.id 
      WHERE po.id = ? AND po._deleted = 0`,
     [id]
   );
@@ -131,13 +131,18 @@ export async function receivePurchaseOrder(id: string) {
     const unitsPerBulk = Number(item.units_per_bulk);
     const totalBaseUnits = bulkQty * unitsPerBulk;
     
-    
+    // Fetch product to get selling_price
+    const productArr = await query<any>(
+      "SELECT selling_price FROM products WHERE id = ? LIMIT 1",
+      [item.product_id]
+    );
+    const sellingPrice = productArr && productArr.length > 0 ? Number(productArr[0].selling_price) : 0;
 
     const invId = await insert("stock_batches", {
       product_id: item.product_id,
       quantity: totalBaseUnits,
       cost_price: Number(item.unit_cost) / unitsPerBulk,
-      selling_price: 0,
+      selling_price: sellingPrice,
       batch_number: poData.id.split('-')[0].toUpperCase(),
       expiry_date: null,
       created_at: now

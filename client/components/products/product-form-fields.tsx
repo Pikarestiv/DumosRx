@@ -19,6 +19,7 @@ interface ProductFormFieldsProps {
     categories: string[];
     dosageForms?: string[];
     manufacturers: string[];
+    suppliers: string[];
     strengths: string[];
   };
   commonSuggestions: {
@@ -111,6 +112,16 @@ export function ProductFormFields({
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="supplier">Supplier</Label>
+            <SearchableInput
+              options={suggestions.suppliers || []}
+              value={formData.supplier || ""}
+              onValueChange={(val) => onInputChange("supplier", val)}
+              placeholder="Select or type supplier"
+            />
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="nafdacNumber">{t("registration_number")}</Label>
             <Input
               id="nafdacNumber"
@@ -146,6 +157,31 @@ export function ProductFormFields({
               />
             </div>
           )}
+          
+          <div className="space-y-2">
+            <Label htmlFor="sellingPrice">Selling Price (₦)</Label>
+            <Input
+              id="sellingPrice"
+              type="number"
+              min="0"
+              step="0.01"
+              value={formData.sellingPrice || ""}
+              onChange={(e) => onInputChange("sellingPrice", parseFloat(e.target.value) || 0)}
+              placeholder="e.g., 1500"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="reorderLevel">Reorder Level</Label>
+            <Input
+              id="reorderLevel"
+              type="number"
+              min="0"
+              value={formData.reorderLevel || ""}
+              onChange={(e) => onInputChange("reorderLevel", parseInt(e.target.value) || 0)}
+              placeholder="e.g., 10"
+            />
+          </div>
 
           <div className="space-y-2 md:col-span-2">
             <Label htmlFor="barcode">Barcode (Optional)</Label>

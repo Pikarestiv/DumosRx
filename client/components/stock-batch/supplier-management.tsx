@@ -238,7 +238,7 @@ export function SupplierManagement() {
                   {formatCurrency(selectedSupplier.debtAmount)}
                 </div>
               </div>
-              <Button className="w-full font-semibold">
+              <Button className="w-full font-semibold bg-primary hover:bg-primary/90 text-primary-foreground">
                 Record Payment
               </Button>
             </div>
@@ -357,8 +357,8 @@ export function SupplierManagement() {
             <div className="flex items-center justify-between">
               <Tabs variant="chips" value={filter} onValueChange={setFilter}>
                 <TabsList className="w-full md:w-max justify-start overflow-x-auto hide-scrollbar">
-                  <TabsTrigger value="all" className="data-[state=inactive]:border data-[state=inactive]:border-border/50">All</TabsTrigger>
-                  <TabsTrigger value="debt" className="data-[state=inactive]:border data-[state=inactive]:border-border/50">Has debt</TabsTrigger>
+                  <TabsTrigger value="all" className="border border-border/50">All</TabsTrigger>
+                  <TabsTrigger value="debt" className="border border-border/50">Has debt</TabsTrigger>
                 </TabsList>
               </Tabs>
               <div className="text-[11.5px] text-destructive font-medium">

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   getPurchaseOrders,
   receivePurchaseOrder,
+  updatePurchaseOrderStatus,
   type PurchaseOrder,
 } from "@/lib/db/local-database";
 import { genericFuzzySearch } from "@/lib/utils/search";
@@ -54,8 +55,20 @@ export function ProcurementManagement({ initialTab = "orders" }: ProcurementMana
     }
   };
 
+  const handleSendPO = async (id: string) => {
+    try {
+      await updatePurchaseOrderStatus(id, "sent");
+      toast.success("Order marked as sent!");
+      fetchPurchaseOrders();
+    } catch (error) {
+      console.error("Failed to mark PO as sent:", error);
+      toast.error("Error updating order status");
+    }
+  };
+
   const preFilteredOrders = purchaseOrders.filter((po) => {
     if (poTab === "all") return true;
+    if (poTab === "pending" && (po.status === "draft" || po.status === "pending")) return true;
     return po.status === poTab;
   });
 
@@ -113,6 +126,7 @@ export function ProcurementManagement({ initialTab = "orders" }: ProcurementMana
             activeTab={poTab}
             onTabChange={setPoTab}
             onReceivePO={handleReceivePO}
+            onSendPO={handleSendPO}
             isFuzzyFallback={isFuzzyFallback}
           />
         </TabsContent>

@@ -33,6 +33,7 @@ interface PurchaseOrderTableProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
   onReceivePO: (id: string) => void;
+  onSendPO: (id: string) => void;
   isFuzzyFallback?: boolean;
 }
 
@@ -44,6 +45,7 @@ export function PurchaseOrderTable({
   activeTab,
   onTabChange,
   onReceivePO,
+  onSendPO,
   isFuzzyFallback,
 }: PurchaseOrderTableProps) {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
@@ -254,7 +256,7 @@ export function PurchaseOrderTable({
                       </div>
                     ))
                   ) : (
-                    <div className="text-[13px] text-accent-foreground/80 italic bg-accent/60 p-3 rounded-lg text-center">
+                    <div className="text-[13px] text-muted-foreground italic bg-muted/50 border border-border/50 p-3 rounded-lg text-center">
                       Line items available in full view
                     </div>
                   )}
@@ -326,7 +328,10 @@ export function PurchaseOrderTable({
                 Download PDF
               </Button>
               {selectedPO.status === "pending" && (
-                <Button className="flex-1 h-10 text-[13.5px] font-bold">
+                <Button 
+                  className="flex-1 h-10 text-[13.5px] font-bold"
+                  onClick={() => onSendPO(selectedPO.id)}
+                >
                   Mark as Sent
                 </Button>
               )}

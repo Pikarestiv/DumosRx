@@ -56,13 +56,13 @@ const tabsTriggerVariants = cva(
         default:
           "gap-1.5 rounded-lg border px-4 py-2 bg-card border-border text-muted-foreground hover:text-foreground hover:border-border data-[state=active]:bg-primary data-[state=active]:border-primary data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=active]:hover:text-white data-[state=active]:hover:border-primary",
         chips:
-          "gap-1.5 rounded-full border px-3.5 py-1.5 bg-transparent border-transparent text-muted-foreground hover:text-foreground hover:bg-accent data-[state=active]:bg-primary data-[state=active]:border-primary data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=active]:hover:text-white data-[state=active]:hover:border-primary",
+          "gap-1.5 rounded-full border px-3.5 py-1.5 bg-transparent border-transparent text-muted-foreground hover:text-muted hover:bg-accent data-[state=active]:bg-primary data-[state=active]:border-primary data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=active]:hover:text-white data-[state=active]:hover:border-primary",
       },
     },
     defaultVariants: {
       variant: "default",
     },
-  }
+  },
 );
 
 function TabsTrigger({

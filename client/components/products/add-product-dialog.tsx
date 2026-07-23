@@ -14,6 +14,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { FORM_SUGGESTIONS } from "@/lib/constants/suggestions";
 import { Product } from "./types";
 import { ProductFormFields } from "./product-form-fields";
+import { query } from "@/lib/db/core";
 
 interface AddProductDialogProps {
   open: boolean;
@@ -161,13 +162,24 @@ export function AddProductDialog({
           ),
           strengths: pharmList.strengths || [],
           dosageForms: pharmList.dosageForms || [],
+          suppliers: []
         });
       } else {
-        setSuggestions(pharmList);
+        setSuggestions({...pharmList, suppliers: []});
       }
     } else {
-      setSuggestions(retailList);
+      setSuggestions({...retailList, suppliers: []});
     }
+
+    query("SELECT name FROM suppliers WHERE _deleted = 0").then((res: any[]) => {
+      if (res && Array.isArray(res)) {
+        setSuggestions((prev: any) => ({
+          ...prev,
+          suppliers: res.map((s) => s.name),
+        }));
+      }
+    }).catch(console.error);
+
   }, [isPharmacy, storeProfile?.show_retail_suggestions]);
 
   const commonSuggestions = FORM_SUGGESTIONS.common;

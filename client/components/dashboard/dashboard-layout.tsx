@@ -159,17 +159,19 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         </div>
       )}
 
-      <DashboardSidebar
-        onOpenFeedback={() => setFeedbackOpen(true)}
-        collapsed={effectiveCollapsed}
-        logicalCollapsed={isLogicallyCollapsed}
-        onToggleCollapse={handleToggleCollapse}
-        onMouseEnter={() => setHoverExpanded(true)}
-        onMouseLeave={() => setHoverExpanded(false)}
-        onUserNavOpenChange={setUserNavOpen}
-      />
+      <div className="print:hidden">
+        <DashboardSidebar
+          onOpenFeedback={() => setFeedbackOpen(true)}
+          collapsed={effectiveCollapsed}
+          logicalCollapsed={isLogicallyCollapsed}
+          onToggleCollapse={handleToggleCollapse}
+          onMouseEnter={() => setHoverExpanded(true)}
+          onMouseLeave={() => setHoverExpanded(false)}
+          onUserNavOpenChange={setUserNavOpen}
+        />
+      </div>
 
-      {!isPosRoute && <MobileBottomNav onOpenFeedback={() => setFeedbackOpen(true)} />}
+      {!isPosRoute && <div className="print:hidden"><MobileBottomNav onOpenFeedback={() => setFeedbackOpen(true)} /></div>}
 
       <FeedbackForm open={feedbackOpen} onOpenChange={setFeedbackOpen} />
       <OnlineOrdersModal />
@@ -187,16 +189,18 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
-        <BroadcastBanner />
+        <div className="print:hidden">
+          <BroadcastBanner />
+        </div>
 
-        {!isPosRoute && <DashboardHeader onOpenFeedback={() => setFeedbackOpen(true)} />}
+        {!isPosRoute && <div className="print:hidden"><DashboardHeader onOpenFeedback={() => setFeedbackOpen(true)} /></div>}
 
         {/* Page content */}
         <div className="flex-1 relative overflow-x-clip">
           <main className={isPosRoute ? "" : "p-4 sm:p-6"}>{children}</main>
         </div>
       </div>
-      <DashboardTour />
+      <div className="print:hidden"><DashboardTour /></div>
     </div>
   );
 }

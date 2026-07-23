@@ -8,6 +8,7 @@ import { APP_NAME } from "@/lib/constants";
 import { SyncIndicator } from "./sync-indicator";
 import { NotificationBell } from "./notification-bell";
 import { UserNav } from "./user-nav";
+import { LiveClock } from "./live-clock";
 import {
   Tooltip,
   TooltipContent,
@@ -118,6 +119,13 @@ export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
         {/* Left side (Desktop & Mobile) */}
         <div className="flex flex-col gap-0.5">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <div className="flex items-center gap-1 font-medium text-foreground">
+              <StoreIcon className="h-3 w-3" />
+              <span className="truncate max-w-[120px] sm:max-w-[200px]">
+                {storeProfile?.name || APP_NAME}
+              </span>
+            </div>
+            <span className="hidden sm:inline-block text-border">•</span>
             <span className="hidden sm:inline-block">
               {new Date().toLocaleDateString("en-US", {
                 weekday: "long",
@@ -125,13 +133,7 @@ export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
                 day: "numeric",
               })}
             </span>
-            <span className="hidden sm:inline-block text-border">•</span>
-            <div className="flex items-center gap-1 font-medium text-foreground">
-              <StoreIcon className="h-3 w-3" />
-              <span className="truncate max-w-[120px] sm:max-w-[200px]">
-                {storeProfile?.name || APP_NAME}
-              </span>
-            </div>
+            <LiveClock />
           </div>
 
           <div className="flex items-center gap-1.5">

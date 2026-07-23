@@ -4,20 +4,7 @@ import { getProductsWithStock } from "@/lib/db/queries/products";
 import { getRecentSales, getRecentlySoldProductIds, getCommonlySoldProductIds } from "@/lib/db/queries/sales";
 import { getAllCustomers } from "@/lib/db/queries/customers";
 import { getPaymentAccounts } from "@/lib/db/queries/setup";
-
-export interface Product {
-  id: string;
-  name: string;
-  generic_name: string;
-  brand: string;
-  strength: string;
-  unit_price: number;
-  stock: number;
-  cost_price?: number;
-  barcode?: string;
-  batch_number?: string;
-  category_id?: string;
-}
+export type { POSProduct as Product } from "@/lib/types/product";
 
 export interface Customer {
   id: string;

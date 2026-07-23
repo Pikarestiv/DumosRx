@@ -1,6 +1,7 @@
 import { insert, remove } from "@/lib/db/local-database";
 import { toast } from "sonner";
-import { Customer, Product } from "./use-pos-data";
+import { Customer } from "./use-pos-data";
+import type { POSProduct as Product } from "@/lib/types/product";
 import { useQueryClient } from "@tanstack/react-query";
 
 interface UsePOSHeldTransactionsProps {

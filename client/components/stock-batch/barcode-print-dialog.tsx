@@ -15,18 +15,12 @@ import { Barcode as BarcodeIcon, Printer, Minus, Plus } from "lucide-react";
 import { printBarcodeLabels } from "@/lib/utils/barcode-generator";
 import { toast } from "sonner";
 import { useStore } from "@/lib/context/store-context";
-
-interface Product {
-  id: string;
-  name: string;
-  unit_price: number;
-  barcode?: string;
-}
+import type { POSProduct } from "@/lib/types/product";
 
 interface BarcodePrintDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  product: Product | null;
+  product: POSProduct | null;
 }
 
 export function BarcodePrintDialog({

@@ -11,20 +11,8 @@ import {
   calculateDiscountAmount,
   calculateTotal,
 } from "@/lib/utils/pos-calculations";
-
-export interface Product {
-  id: string;
-  name: string;
-  generic_name: string;
-  brand: string;
-  strength: string;
-  unit_price: number;
-  stock: number;
-  cost_price?: number;
-  barcode?: string;
-  batch_number?: string;
-  category_id?: string;
-}
+export type { POSProduct as Product } from "@/lib/types/product";
+import type { POSProduct as Product } from "@/lib/types/product";
 
 export interface CartItem extends Product {
   quantity: number;

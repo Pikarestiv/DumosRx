@@ -14,15 +14,7 @@ import {
 import { ProductCombobox } from "@/components/ui/product-combobox";
 import { toast } from "sonner";
 import { useStore } from "@/lib/context/store-context";
-
-interface Product {
-  id: string;
-  name: string;
-  bulk_unit: string;
-  base_unit: string;
-  units_per_bulk: number;
-  cost_price: number;
-}
+import type { Product } from "@/lib/types/product";
 
 interface POAddItemFormProps {
   products: Product[];
@@ -63,7 +55,7 @@ export function POAddItemForm({ products, onAddItem, onOpenAddProduct }: POAddIt
       const product = products.find((m) => m.id === option.localId);
       if (product) {
         setCurrentUoM(product.units_per_bulk || 1);
-        setCurrentCost(product.cost_price * (product.units_per_bulk || 1));
+        setCurrentCost((product.cost_price || 0) * (product.units_per_bulk || 1));
       }
     } else {
       setCurrentProductId("");

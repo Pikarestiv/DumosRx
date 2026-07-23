@@ -1,27 +1,6 @@
-export interface Product {
-  id: string;
-  name: string;
-  genericName: string;
-  brand: string;
-  category: string;
-  nafdacNumber: string;
-  strength: string;
-  dosageForm: string;
-  manufacturer: string;
-  supplier: string;
-  costPrice: number;
-  sellingPrice: number;
-  stockQuantity: number;
-  reorderLevel: number;
-  expiryDate: string;
-  batchNumber: string;
-  barcode: string;
-  baseUnit: string;
-  bulkUnit: string;
-  unitsPerBulk: number;
-  status: "active" | "inactive" | "expired" | "low_stock" | "out_of_stock";
-  showOnline: boolean;
-}
+import type { ProductViewModel } from "@/lib/types/product";
+
+export type Product = ProductViewModel;
 
 // Helper to transform API/Local response to UI model (camelCase)
 export const transformProduct = (apiData: any): Product => ({

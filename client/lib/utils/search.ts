@@ -46,7 +46,6 @@ export function searchProducts<
   T extends {
     name: string;
     generic_name?: string | null;
-    brand?: string | null;
     barcode?: string | null;
   },
 >(searchTerm: string, products: T[]): SearchProductResult<T> {
@@ -63,7 +62,6 @@ export function searchProducts<
     .map((med) => {
       const name = med.name.toLowerCase();
       const generic = (med.generic_name || "").toLowerCase();
-      const brand = (med.brand || "").toLowerCase();
       const barcode = (med.barcode || "").toLowerCase();
 
       let score = 0;
@@ -72,7 +70,6 @@ export function searchProducts<
       if (
         name === term ||
         barcode === term ||
-        brand === term ||
         generic === term
       ) {
         score += 100;
@@ -81,8 +78,7 @@ export function searchProducts<
       // Tier 2: Starts With
       if (
         name.startsWith(term) ||
-        generic.startsWith(term) ||
-        brand.startsWith(term)
+        generic.startsWith(term)
       ) {
         score += 50;
       }
@@ -93,7 +89,6 @@ export function searchProducts<
           (token) =>
             name.includes(token) ||
             generic.includes(token) ||
-            brand.includes(token) ||
             barcode.includes(token),
         );
         if (allTokensMatch) {
@@ -154,26 +149,6 @@ export function searchProducts<
           ),
         );
         for (const word of generic.split(/\s+/)) {
-          minDistance = Math.min(
-            minDistance,
-            calculateLevenshteinDistance(
-              term,
-              word.substring(0, term.length + 2),
-            ),
-          );
-        }
-      }
-
-      if (med.brand) {
-        const brand = med.brand.toLowerCase();
-        minDistance = Math.min(
-          minDistance,
-          calculateLevenshteinDistance(
-            term,
-            brand.substring(0, term.length + 2),
-          ),
-        );
-        for (const word of brand.split(/\s+/)) {
           minDistance = Math.min(
             minDistance,
             calculateLevenshteinDistance(

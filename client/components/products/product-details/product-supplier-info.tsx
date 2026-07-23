@@ -10,7 +10,7 @@ export function ProductSupplierInfo({ product }: ProductSupplierInfoProps) {
   return (
     <div className="space-y-4">
       <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground mb-2">
-        Supplier & Manufacturer
+        Manufacturer
       </h3>
       <div className="space-y-4">
         <div>

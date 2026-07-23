@@ -75,8 +75,10 @@ export async function getProductById(id: string) {
 }
 
 export async function createProduct(data: any) {
-  // Translate category string to id, or create
-  if (data.category_id && data.category_id.length !== 36) {
+  // Ensure we have a valid UUID for category, else wait for sync
+  const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  
+  if (data.category_id && !UUID_REGEX.test(data.category_id)) {
     const categories = await query<any>(
       "SELECT id FROM categories WHERE name = ? COLLATE NOCASE",
       [data.category_id]
@@ -91,7 +93,7 @@ export async function createProduct(data: any) {
   }
 
   // Same for supplier_id
-  if (data.supplier_id && data.supplier_id.length !== 36) {
+  if (data.supplier_id && !UUID_REGEX.test(data.supplier_id)) {
     const suppliers = await query<any>(
       "SELECT id FROM suppliers WHERE name = ? COLLATE NOCASE",
       [data.supplier_id]

@@ -15,6 +15,7 @@ import { useStore } from "@/lib/context/store-context";
 import { SearchableInput } from "@/components/ui/searchable-input";
 import { FORM_SUGGESTIONS } from "@/lib/constants/suggestions";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { query } from "@/lib/db/core";
 
 interface Supplier {
   name: string;
@@ -70,12 +71,22 @@ export function AddSupplierDialog({
     }
   }, [open, initialSupplier]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!formData.name) {
       setAlertMessage("Please fill in the supplier name");
       return;
+    }
+
+    try {
+      const existing = await query<any[]>("SELECT id FROM suppliers WHERE LOWER(name) = LOWER(?) LIMIT 1", [formData.name]);
+      if (existing && existing.length > 0) {
+        setAlertMessage(`A supplier with the name "${formData.name}" already exists.`);
+        return;
+      }
+    } catch (error) {
+      console.error("Failed to check supplier uniqueness:", error);
     }
 
     // Transform to snake_case for Laravel backend

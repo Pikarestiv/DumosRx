@@ -37,16 +37,17 @@ export async function pushChanges(
         })
         .filter((item) => {
           if (item.table_name === "products") {
+            const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
             // Prevent bad payloads from blocking the entire sync queue
             if (
               item.payload.category_id &&
-              item.payload.category_id.length !== 36
+              !UUID_REGEX.test(item.payload.category_id)
             ) {
               return false;
             }
             if (
               item.payload.supplier_id &&
-              item.payload.supplier_id.length !== 36
+              !UUID_REGEX.test(item.payload.supplier_id)
             ) {
               return false;
             }

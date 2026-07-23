@@ -39,8 +39,16 @@ interface ReceivePOModalProps {
   onConfirm: (poId: string, receivedItems: ReceivedItemPayload[]) => void;
 }
 
-export function ReceivePOModal({ po, isOpen, onClose, onConfirm }: ReceivePOModalProps) {
-  const [receivedItems, setReceivedItems] = useState<Record<string, ReceivedItemPayload>>({});
+export function ReceivePOModal({
+  po,
+  isOpen,
+  onClose,
+  onConfirm,
+}: ReceivePOModalProps) {
+  console.log("🚀 ~ ReceivePOModal ~ po:", po);
+  const [receivedItems, setReceivedItems] = useState<
+    Record<string, ReceivedItemPayload>
+  >({});
   const [showWarningModal, setShowWarningModal] = useState(false);
 
   // Initialize payload state when modal opens or PO changes
@@ -52,7 +60,7 @@ export function ReceivePOModal({ po, isOpen, onClose, onConfirm }: ReceivePOModa
           po_item_id: item.id,
           product_id: item.product_id,
           // Prefill with expected bulk_quantity.
-          quantity: item.bulk_quantity, 
+          quantity: item.bulk_quantity,
           lot_number: "",
           // Null by default since we don't know it
           expiry_date: "",
@@ -64,7 +72,11 @@ export function ReceivePOModal({ po, isOpen, onClose, onConfirm }: ReceivePOModa
 
   if (!po) return null;
 
-  const handleFieldChange = (itemId: string, field: keyof ReceivedItemPayload, value: any) => {
+  const handleFieldChange = (
+    itemId: string,
+    field: keyof ReceivedItemPayload,
+    value: any,
+  ) => {
     setReceivedItems((prev) => ({
       ...prev,
       [itemId]: {
@@ -76,9 +88,11 @@ export function ReceivePOModal({ po, isOpen, onClose, onConfirm }: ReceivePOModa
 
   const handleConfirmClick = () => {
     const payload = Object.values(receivedItems);
-    
+
     // Check if any items are missing an expiry date
-    const missingExpiry = payload.find(item => item.quantity > 0 && !item.expiry_date);
+    const missingExpiry = payload.find(
+      (item) => item.quantity > 0 && !item.expiry_date,
+    );
     if (missingExpiry) {
       setShowWarningModal(true);
       return;
@@ -99,12 +113,15 @@ export function ReceivePOModal({ po, isOpen, onClose, onConfirm }: ReceivePOModa
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-xl font-bold">Receive Goods: {po.id}</DialogTitle>
+          <DialogTitle className="text-xl font-bold">
+            Receive Goods: {po.id}
+          </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6 mt-4">
           <p className="text-sm text-muted-foreground">
-            Please confirm the quantities received and provide the batch/lot numbers and expiry dates for each item.
+            Please confirm the quantities received and provide the batch/lot
+            numbers and expiry dates for each item.
           </p>
 
           <div className="border rounded-lg divide-y">
@@ -114,36 +131,55 @@ export function ReceivePOModal({ po, isOpen, onClose, onConfirm }: ReceivePOModa
                 <div key={item.id} className="p-4 space-y-4">
                   <div className="flex justify-between items-start">
                     <div>
-                      <h4 className="font-semibold text-[15px]">{item.product_name}</h4>
+                      <h4 className="font-semibold text-[15px]">
+                        {item.product_name}
+                      </h4>
                       <p className="text-sm text-muted-foreground">
-                        Ordered: {item.bulk_quantity} units @ {formatCurrency(item.unit_cost)}
+                        Ordered: {item.bulk_quantity} units @{" "}
+                        {formatCurrency(item.unit_cost)}
                       </p>
                     </div>
                   </div>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-muted/20 p-4 rounded-lg">
                     <div className="space-y-2">
                       <Label className="text-xs">Qty Received</Label>
-                      <Input 
-                        type="number" 
+                      <Input
+                        type="number"
                         min="0"
-                        value={state.quantity ?? item.bulk_quantity} 
-                        onChange={(e) => handleFieldChange(item.id, "quantity", parseInt(e.target.value) || 0)}
+                        value={state.quantity ?? item.bulk_quantity}
+                        onChange={(e) =>
+                          handleFieldChange(
+                            item.id,
+                            "quantity",
+                            parseInt(e.target.value) || 0,
+                          )
+                        }
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-xs">Lot / Batch No. (Optional)</Label>
-                      <Input 
-                        placeholder="e.g. BATCH-123" 
+                      <Label className="text-xs">
+                        Lot / Batch No. (Optional)
+                      </Label>
+                      <Input
+                        placeholder="e.g. BATCH-123"
                         value={state.lot_number || ""}
-                        onChange={(e) => handleFieldChange(item.id, "lot_number", e.target.value)}
+                        onChange={(e) =>
+                          handleFieldChange(
+                            item.id,
+                            "lot_number",
+                            e.target.value,
+                          )
+                        }
                       />
                     </div>
                     <div className="space-y-2">
                       <Label className="text-xs">Expiry Date (Optional)</Label>
                       <DatePickerInput
                         value={state.expiry_date}
-                        onChange={(val) => handleFieldChange(item.id, "expiry_date", val)}
+                        onChange={(val) =>
+                          handleFieldChange(item.id, "expiry_date", val)
+                        }
                         placeholder="Select expiry date"
                       />
                     </div>
@@ -155,7 +191,9 @@ export function ReceivePOModal({ po, isOpen, onClose, onConfirm }: ReceivePOModa
         </div>
 
         <DialogFooter className="mt-6">
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
           <Button onClick={handleConfirmClick}>Confirm & Receive</Button>
         </DialogFooter>
       </DialogContent>
@@ -165,12 +203,16 @@ export function ReceivePOModal({ po, isOpen, onClose, onConfirm }: ReceivePOModa
           <AlertDialogHeader>
             <AlertDialogTitle>Missing Expiry Date</AlertDialogTitle>
             <AlertDialogDescription>
-              Some items are missing an expiry date. They will be marked with a warning badge. Are you sure you want to proceed?
+              Some items are missing an expiry date. They will be marked with a
+              warning badge. Are you sure you want to proceed?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Go Back</AlertDialogCancel>
-            <AlertDialogAction onClick={handleProceedWarning} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogAction
+              onClick={handleProceedWarning}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
               Proceed Anyway
             </AlertDialogAction>
           </AlertDialogFooter>

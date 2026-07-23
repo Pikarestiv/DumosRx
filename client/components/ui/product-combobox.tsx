@@ -57,11 +57,14 @@ export function ProductCombobox({
     const list: SelectedProduct[] = [];
     const source = isPharmacy ? FORM_SUGGESTIONS.store : FORM_SUGGESTIONS.retail;
     
-    if (source && source.names) {
-      source.names.forEach((name: string) => {
+    if (source && source.products) {
+      source.products.forEach((prod: any) => {
         list.push({
-          name,
+          name: prod.name,
           source: "global",
+          generic_name: prod.genericName,
+          manufacturer: prod.manufacturer,
+          // include other fields if needed, but these match SelectedProduct for now
         });
       });
     }

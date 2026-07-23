@@ -21,6 +21,7 @@ interface AddProductDialogProps {
   onOpenChange: (open: boolean) => void;
   onAddProduct: (product: any, keepOpen?: boolean) => void;
   editingProduct?: Product | null;
+  initialData?: Partial<Product>;
 }
 
 export function AddProductDialog({
@@ -28,26 +29,23 @@ export function AddProductDialog({
   onOpenChange,
   onAddProduct,
   editingProduct,
+  initialData,
 }: AddProductDialogProps) {
   const { withRestriction } = useFeatureGate();
   const { t, storeType, storeProfile } = useStore();
-  const [formData, setFormData] = useState<Product>({
+  const [formData, setFormData] = useState<Partial<Product>>({
     id: "",
-    name: "",
-    genericName: "",
-    brand: "",
+    name: initialData?.name || "",
+    genericName: initialData?.genericName || "",
+    brand: initialData?.brand || "",
     category: "",
     nafdacNumber: "",
-    strength: "",
-    dosageForm: "",
-    manufacturer: "",
+    strength: initialData?.strength || "",
+    dosageForm: initialData?.dosageForm || "",
+    manufacturer: initialData?.manufacturer || "",
     supplier: "",
-    costPrice: 0,
     sellingPrice: 0,
-    stockQuantity: 0,
     reorderLevel: 0,
-    expiryDate: "",
-    batchNumber: "",
     barcode: "",
     baseUnit: "Unit",
     bulkUnit: "",
@@ -71,12 +69,8 @@ export function AddProductDialog({
         dosageForm: editingProduct.dosageForm || "",
         manufacturer: editingProduct.manufacturer || "",
         supplier: editingProduct.supplier || "",
-        costPrice: editingProduct.costPrice || 0,
         sellingPrice: editingProduct.sellingPrice || 0,
-        stockQuantity: editingProduct.stockQuantity || 0,
         reorderLevel: editingProduct.reorderLevel || 0,
-        expiryDate: editingProduct.expiryDate || "",
-        batchNumber: editingProduct.batchNumber || "",
         barcode: editingProduct.barcode || "",
         baseUnit: editingProduct.baseUnit || "Unit",
         bulkUnit: editingProduct.bulkUnit || "",
@@ -84,35 +78,20 @@ export function AddProductDialog({
         status: editingProduct.status || "active",
         showOnline: editingProduct.showOnline || false,
       });
-
-      // Format YYYY-MM-DD to DD/MM/YYYY for the frontend if necessary
-      if (
-        editingProduct.expiryDate &&
-        editingProduct.expiryDate.includes("-")
-      ) {
-        setFormData((prev) => ({
-          ...prev,
-          expiryDate: editingProduct.expiryDate.split("-").reverse().join("/"),
-        }));
-      }
     } else if (!editingProduct && open) {
       setFormData({
         id: "",
-        name: "",
-        genericName: "",
-        brand: "",
+        name: initialData?.name || "",
+        genericName: initialData?.genericName || "",
+        brand: initialData?.brand || "",
         category: "",
         nafdacNumber: "",
-        strength: "",
-        dosageForm: "",
-        manufacturer: "",
+        strength: initialData?.strength || "",
+        dosageForm: initialData?.dosageForm || "",
+        manufacturer: initialData?.manufacturer || "",
         supplier: "",
-        costPrice: 0,
         sellingPrice: 0,
-        stockQuantity: 0,
         reorderLevel: 0,
-        expiryDate: "",
-        batchNumber: "",
         barcode: "",
         baseUnit: "Unit",
         bulkUnit: "",
@@ -121,7 +100,7 @@ export function AddProductDialog({
         showOnline: false,
       });
     }
-  }, [editingProduct, open]);
+  }, [editingProduct, open, initialData]);
 
   const isPharmacy = storeType === "pharmacy";
 
@@ -149,8 +128,10 @@ export function AddProductDialog({
         const mergeAndUnique = (arr1: string[] = [], arr2: string[] = []) => {
           return Array.from(new Set([...arr1, ...arr2]));
         };
+        const pharmNames = pharmList.products?.map((p: any) => p.name) || [];
+        const retailNames = retailList.products?.map((p: any) => p.name) || [];
         setSuggestions({
-          names: mergeAndUnique(pharmList.names, retailList.names),
+          names: mergeAndUnique(pharmNames, retailNames),
           generics: pharmList.generics || [],
           categories: mergeAndUnique(
             pharmList.categories,
@@ -165,10 +146,12 @@ export function AddProductDialog({
           suppliers: []
         });
       } else {
-        setSuggestions({...pharmList, suppliers: []});
+        const pharmNames = pharmList.products?.map((p: any) => p.name) || [];
+        setSuggestions({...pharmList, names: pharmNames, suppliers: []});
       }
     } else {
-      setSuggestions({...retailList, suppliers: []});
+      const retailNames = retailList.products?.map((p: any) => p.name) || [];
+      setSuggestions({...retailList, names: retailNames, suppliers: []});
     }
 
     query("SELECT name FROM suppliers WHERE _deleted = 0").then((res: any[]) => {
@@ -239,12 +222,8 @@ export function AddProductDialog({
       dosageForm: "",
       manufacturer: "",
       supplier: "",
-      costPrice: 0,
       sellingPrice: 0,
-      stockQuantity: 0,
       reorderLevel: 0,
-      expiryDate: "",
-      batchNumber: "",
       barcode: "",
       baseUnit: "Unit",
       bulkUnit: "",

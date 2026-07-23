@@ -5,13 +5,8 @@ import { Plus, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { ProductCombobox } from "@/components/ui/product-combobox";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { ProductCombobox, SelectedProduct } from "@/components/ui/product-combobox";
 import { toast } from "sonner";
 import { useStore } from "@/lib/context/store-context";
 import type { Product } from "@/lib/types/product";
@@ -19,7 +14,7 @@ import type { Product } from "@/lib/types/product";
 interface POAddItemFormProps {
   products: Product[];
   onAddItem: (item: any) => void;
-  onOpenAddProduct: (initialName: string) => void;
+  onOpenAddProduct: (productData: any) => void;
 }
 
 export function POAddItemForm({ products, onAddItem, onOpenAddProduct }: POAddItemFormProps) {
@@ -27,6 +22,7 @@ export function POAddItemForm({ products, onAddItem, onOpenAddProduct }: POAddIt
 
   const [currentProductId, setCurrentProductId] = useState("");
   const [currentProductName, setCurrentProductName] = useState("");
+  const [currentSelectedProduct, setCurrentSelectedProduct] = useState<SelectedProduct | null>(null);
   const [currentBulkQty, setCurrentBulkQty] = useState<number | "">("");
   const [currentUoM, setCurrentUoM] = useState<number | "">("");
   const [currentCost, setCurrentCost] = useState<number | "">("");
@@ -48,8 +44,9 @@ export function POAddItemForm({ products, onAddItem, onOpenAddProduct }: POAddIt
     }
   }, [products, currentProductId, currentProductName]);
 
-  const handleProductChange = (option: any) => {
+  const handleProductChange = (option: SelectedProduct) => {
     setCurrentProductName(option.name);
+    setCurrentSelectedProduct(option);
     if (option.source === "local" && option.localId) {
       setCurrentProductId(option.localId);
       const product = products.find((m) => m.id === option.localId);
@@ -66,9 +63,16 @@ export function POAddItemForm({ products, onAddItem, onOpenAddProduct }: POAddIt
 
   const handleAddLineItem = () => {
     if (!currentProductId) {
-      if (currentProductName) {
+      if (currentSelectedProduct) {
         // Trigger quick add product instead of error
-        onOpenAddProduct(currentProductName);
+        onOpenAddProduct({
+          name: currentSelectedProduct.name,
+          genericName: currentSelectedProduct.generic_name,
+          manufacturer: currentSelectedProduct.manufacturer,
+          brand: currentSelectedProduct.brand_name
+        });
+      } else if (currentProductName) {
+        onOpenAddProduct({ name: currentProductName });
       } else {
         toast.error("Please select a product");
       }
@@ -97,6 +101,7 @@ export function POAddItemForm({ products, onAddItem, onOpenAddProduct }: POAddIt
     // Reset item state
     setCurrentProductId("");
     setCurrentProductName("");
+    setCurrentSelectedProduct(null);
     setCurrentBulkQty("");
     setCurrentUoM("");
     setCurrentCost("");

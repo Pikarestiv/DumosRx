@@ -39,7 +39,7 @@ export default function CreateOrderPage() {
   const [dueDate, setDueDate] = useState("");
 
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
-  const [initialProductName, setInitialProductName] = useState("");
+  const [initialProductData, setInitialProductData] = useState<any>(null);
 
   const { suppliers, products, refetch: fetchData } = useProcurementData();
 
@@ -61,8 +61,8 @@ export default function CreateOrderPage() {
     setItems([...items, newItem]);
   };
 
-  const handleOpenAddProduct = (initialName: string) => {
-    setInitialProductName(initialName);
+  const handleOpenAddProduct = (productData: any) => {
+    setInitialProductData(productData);
     setIsAddProductOpen(true);
   };
 
@@ -311,7 +311,7 @@ export default function CreateOrderPage() {
         open={isAddProductOpen}
         onOpenChange={setIsAddProductOpen}
         onAddProduct={handleCreateProduct}
-        editingProduct={{ name: initialProductName } as any}
+        initialData={initialProductData}
       />
     </div>
   );

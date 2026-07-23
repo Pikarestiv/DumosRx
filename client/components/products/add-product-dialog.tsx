@@ -33,7 +33,7 @@ export function AddProductDialog({
 }: AddProductDialogProps) {
   const { withRestriction } = useFeatureGate();
   const { t, storeType, storeProfile } = useStore();
-  const [formData, setFormData] = useState<Partial<Product>>({
+  const [formData, setFormData] = useState<Product>({
     id: "",
     name: initialData?.name || "",
     genericName: initialData?.genericName || "",
@@ -44,8 +44,12 @@ export function AddProductDialog({
     dosageForm: initialData?.dosageForm || "",
     manufacturer: initialData?.manufacturer || "",
     supplier: "",
+    costPrice: 0,
     sellingPrice: 0,
+    stockQuantity: 0,
     reorderLevel: 0,
+    expiryDate: "",
+    batchNumber: "",
     barcode: "",
     baseUnit: "Unit",
     bulkUnit: "",
@@ -77,6 +81,10 @@ export function AddProductDialog({
         unitsPerBulk: editingProduct.unitsPerBulk || 1,
         status: editingProduct.status || "active",
         showOnline: editingProduct.showOnline || false,
+        costPrice: editingProduct.costPrice || 0,
+        stockQuantity: editingProduct.stockQuantity || 0,
+        expiryDate: editingProduct.expiryDate || "",
+        batchNumber: editingProduct.batchNumber || "",
       });
     } else if (!editingProduct && open) {
       setFormData({
@@ -98,6 +106,10 @@ export function AddProductDialog({
         unitsPerBulk: 1,
         status: "active",
         showOnline: false,
+        costPrice: 0,
+        stockQuantity: 0,
+        expiryDate: "",
+        batchNumber: "",
       });
     }
   }, [editingProduct, open, initialData]);
@@ -230,6 +242,10 @@ export function AddProductDialog({
       unitsPerBulk: 1,
       status: "active",
       showOnline: false,
+      costPrice: 0,
+      stockQuantity: 0,
+      expiryDate: "",
+      batchNumber: "",
     });
   };
 

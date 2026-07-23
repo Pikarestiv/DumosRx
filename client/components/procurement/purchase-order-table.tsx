@@ -36,6 +36,7 @@ import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrency } from "@/lib/utils";
 import { ReceivePOModal, type ReceivedItemPayload } from "./receive-po-modal";
+import { getPurchaseOrderById } from "@/lib/db/procurement";
 
 interface PurchaseOrderTableProps {
   orders: any[];
@@ -64,8 +65,9 @@ export function PurchaseOrderTable({
 }: PurchaseOrderTableProps) {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [isReceiveModalOpen, setIsReceiveModalOpen] = useState(false);
+  const [fullSelectedPO, setFullSelectedPO] = useState<any>(null);
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
 
-  // Keep selection valid or pick the first one by default when orders load
   useEffect(() => {
     if (!selectedOrderId && orders.length > 0) {
       setSelectedOrderId(orders[0].id);
@@ -81,7 +83,28 @@ export function PurchaseOrderTable({
     }
   }, [orders, selectedOrderId]);
 
-  const selectedPO = orders.find((o) => o.id === selectedOrderId) || null;
+  useEffect(() => {
+    async function loadDetails() {
+      if (!selectedOrderId) {
+        setFullSelectedPO(null);
+        return;
+      }
+      setIsLoadingDetails(true);
+      try {
+        const po = await getPurchaseOrderById(selectedOrderId);
+        setFullSelectedPO(po);
+      } catch (error) {
+        console.error("Failed to load PO details", error);
+        setFullSelectedPO(null);
+      } finally {
+        setIsLoadingDetails(false);
+      }
+    }
+    loadDetails();
+  }, [selectedOrderId]);
+
+  // Fallback to basic row data if full details haven't loaded yet
+  const selectedPO = fullSelectedPO || orders.find((o) => o.id === selectedOrderId) || null;
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -248,11 +271,18 @@ export function PurchaseOrderTable({
 
             <div className="flex-1 overflow-auto">
               <div className="p-5">
-                {selectedPO.notes && (
-                  <div className="bg-muted p-3.5 rounded-lg text-[13px] text-muted-foreground mb-6">
-                    {selectedPO.notes}
+                {isLoadingDetails ? (
+                  <div className="flex justify-center items-center h-32 text-muted-foreground">
+                    <Clock className="w-6 h-6 animate-spin mr-2 opacity-50" />
+                    Loading details...
                   </div>
-                )}
+                ) : (
+                  <>
+                    {selectedPO.notes && (
+                      <div className="bg-muted p-3.5 rounded-lg text-[13px] text-muted-foreground mb-6">
+                        {selectedPO.notes}
+                      </div>
+                    )}
 
                 <h4 className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide mb-3">
                   Line Items
@@ -337,8 +367,10 @@ export function PurchaseOrderTable({
                     </span>
                   </div>
                 </div>
-              </div>
-            </div>
+              </>
+            )}
+          </div>
+        </div>
 
             <div className="print:hidden p-5 border-t border-border bg-card mt-auto flex items-center gap-3">
               <Button

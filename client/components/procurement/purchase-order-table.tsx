@@ -35,6 +35,7 @@ import {
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrency } from "@/lib/utils";
+import { ReceivePOModal, type ReceivedItemPayload } from "./receive-po-modal";
 
 interface PurchaseOrderTableProps {
   orders: any[];
@@ -43,7 +44,7 @@ interface PurchaseOrderTableProps {
   onSearchChange: (query: string) => void;
   activeTab: string;
   onTabChange: (tab: string) => void;
-  onReceivePO: (id: string) => void;
+  onReceivePO: (id: string, receivedItems: ReceivedItemPayload[]) => void;
   onSendPO: (id: string) => void;
   onDeletePO?: (id: string) => void;
   isFuzzyFallback?: boolean;
@@ -62,6 +63,7 @@ export function PurchaseOrderTable({
   isFuzzyFallback,
 }: PurchaseOrderTableProps) {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [isReceiveModalOpen, setIsReceiveModalOpen] = useState(false);
 
   // Keep selection valid or pick the first one by default when orders load
   useEffect(() => {
@@ -382,7 +384,7 @@ export function PurchaseOrderTable({
               {selectedPO.status === "sent" && (
                 <Button
                   className="flex-1 h-10 text-[13.5px] font-bold"
-                  onClick={() => onReceivePO(selectedPO.id)}
+                  onClick={() => setIsReceiveModalOpen(true)}
                 >
                   Receive Goods
                 </Button>
@@ -403,6 +405,14 @@ export function PurchaseOrderTable({
           </div>
         )}
       </Card>
+      
+      <ReceivePOModal 
+        isOpen={isReceiveModalOpen}
+        onClose={() => setIsReceiveModalOpen(false)}
+        po={selectedPO}
+        onConfirm={onReceivePO}
+      />
     </div>
   );
 }
+

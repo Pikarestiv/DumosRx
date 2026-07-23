@@ -45,9 +45,9 @@ export function ProcurementManagement({ initialTab = "orders" }: ProcurementMana
     }
   };
 
-  const handleReceivePO = async (id: string) => {
+  const handleReceivePO = async (id: string, receivedItems: any[]) => {
     try {
-      await receivePurchaseOrder(id);
+      await receivePurchaseOrder(id, receivedItems);
       toast.success("Order received and stock updated!");
       fetchPurchaseOrders();
     } catch (error) {

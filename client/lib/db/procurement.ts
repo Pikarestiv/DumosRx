@@ -17,6 +17,7 @@ export interface PurchaseOrder {
   payment_status: string;
   amount_paid: number;
   due_date?: string;
+  items?: PurchaseOrderItem[];
 }
 
 export interface PurchaseOrderItem {
@@ -120,14 +121,17 @@ export async function updatePurchaseOrderStatus(id: string, status: string) {
   await update("purchase_orders", id, updateData);
 }
 
-export async function receivePurchaseOrder(id: string) {
+export async function receivePurchaseOrder(id: string, receivedItems?: any[]) {
   const poData = await getPurchaseOrderById(id);
   if (!poData || poData.status === "received") return;
 
   const now = new Date().toISOString();
 
   for (const item of poData.items) {
-    const bulkQty = Number(item.bulk_quantity);
+    const receivedItem = receivedItems?.find(ri => ri.po_item_id === item.id);
+    
+    // Default to the original ordered bulk quantity if not provided in payload
+    const bulkQty = receivedItem?.quantity !== undefined ? Number(receivedItem.quantity) : Number(item.bulk_quantity);
     const unitsPerBulk = Number(item.units_per_bulk);
     const totalBaseUnits = bulkQty * unitsPerBulk;
     
@@ -138,13 +142,16 @@ export async function receivePurchaseOrder(id: string) {
     );
     const sellingPrice = productArr && productArr.length > 0 ? Number(productArr[0].selling_price) : 0;
 
+    const batchNumber = receivedItem?.lot_number?.trim() || poData.id.split('-')[0].toUpperCase();
+    const expiryDate = receivedItem?.expiry_date ? new Date(receivedItem.expiry_date).toISOString() : null;
+
     const invId = await insert("stock_batches", {
       product_id: item.product_id,
       quantity: totalBaseUnits,
       cost_price: Number(item.unit_cost) / unitsPerBulk,
       selling_price: sellingPrice,
-      batch_number: poData.id.split('-')[0].toUpperCase(),
-      expiry_date: null,
+      batch_number: batchNumber,
+      expiry_date: expiryDate,
       created_at: now
     });
 

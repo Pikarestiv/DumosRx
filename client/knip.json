@@ -12,5 +12,10 @@
       "app/**/global-error.{js,jsx,ts,tsx}",
       "app/**/route.{js,ts}"
     ]
-  }
+  },
+  "ignore": [
+    "styles/globals.css",
+    "public/sw.js",
+    "e2e/global.setup.ts"
+  ]
 }

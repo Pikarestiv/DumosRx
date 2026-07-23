@@ -3,10 +3,6 @@ import React, { useState } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Scan } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { CameraScannerDialog } from "./camera-scanner-dialog";
 import { useStore } from "@/lib/context/store-context";
 import { usePOSCart } from "@/lib/hooks/use-pos-cart";
 import { usePOSPayment } from "@/lib/hooks/use-pos-payment";
@@ -18,14 +14,11 @@ import { getHeldTransactionCount } from "@/lib/db/queries/sales";
 import { POSProductList } from "./pos-product-list";
 import { POSTransactionHistory } from "./pos-transaction-history";
 import { POSCustomerSelector } from "./pos-customer-selector";
+import { POSMobileSearch } from "./pos-mobile-search";
 import { POSCart } from "./pos-cart";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
-import { POSPaymentDialog } from "./pos-payment-dialog";
-import { POSReceiptDialog } from "./pos-receipt-dialog";
-import { ReturnDialog } from "./return-dialog";
-import { HeldTransactionsDialog } from "./held-transactions-dialog";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { POSMobileCartDrawer } from "./pos-mobile-cart-drawer";
+import { POSDialogs } from "./pos-dialogs";
+import { POSMobileCartWrapper } from "./pos-mobile-cart-wrapper";
 import { usePOSData, Customer } from "@/lib/hooks/use-pos-data";
 import { usePOSPrescription } from "@/lib/hooks/use-pos-prescription";
 import { usePOSHeldTransactions } from "@/lib/hooks/use-pos-held-transactions";
@@ -101,21 +94,10 @@ export function POSSystem() {
     pathname,
   });
   const {
-    paymentMethod,
-    setPaymentMethod,
-    amountPaid,
-    setAmountPaid,
-    selectedAccountId,
-    setSelectedAccountId,
-    paymentSplits,
-    setPaymentSplits,
-    processingPayment,
-    handlePayment,
-    completedTransaction,
-    showPaymentDialog,
-    setShowPaymentDialog,
-    showReceiptDialog,
-    setShowReceiptDialog,
+    paymentMethod, setPaymentMethod, amountPaid, setAmountPaid,
+    selectedAccountId, setSelectedAccountId, paymentSplits, setPaymentSplits,
+    processingPayment, handlePayment, completedTransaction,
+    showPaymentDialog, setShowPaymentDialog, showReceiptDialog, setShowReceiptDialog,
   } = usePOSPayment({
     cart,
     subtotal,
@@ -180,6 +162,46 @@ export function POSSystem() {
       toast.error(`No product found for barcode: ${scannedBarcode}`);
     }
   };
+  
+  const posDialogProps = {
+    isMobileScannerOpen,
+    setIsMobileScannerOpen,
+    handleScanSuccess,
+    showPaymentDialog,
+    setShowPaymentDialog,
+    total,
+    paymentMethod,
+    setPaymentMethod,
+    amountPaid,
+    setAmountPaid,
+    selectedAccountId,
+    setSelectedAccountId,
+    paymentSplits,
+    setPaymentSplits,
+    processingPayment,
+    handlePayment,
+    selectedCustomer,
+    currencyCode: storeProfile?.currency,
+    requirePaymentAccount,
+    enabledPaymentMethods,
+    paymentAccounts: paymentAccounts || [],
+    showReceiptDialog,
+    setShowReceiptDialog,
+    completedTransaction,
+    showReturnDialog,
+    setShowReturnDialog,
+    saleToReturn,
+    refetchProducts,
+    refetchSales,
+    toast,
+    showHeldDialog,
+    setShowHeldDialog,
+    handleRecallTransaction,
+    showClearCartDialog,
+    setShowClearCartDialog,
+    clearCart,
+  };
+
   return (
     <div className="flex flex-col w-full h-screen overflow-hidden bg-background">
       <POSLayoutHeader
@@ -192,12 +214,6 @@ export function POSSystem() {
         onScanSuccess={handleScanSuccess}
       />
       
-      {/* Mobile Scanner Dialog */}
-      <CameraScannerDialog 
-        isOpen={isMobileScannerOpen} 
-        onClose={() => setIsMobileScannerOpen(false)} 
-        onScanSuccess={handleScanSuccess} 
-      />
 
       <div className="p-4 sm:p-6 sm:pt-3 sm:py-4 flex-1 overflow-hidden flex flex-col">
         <Tabs
@@ -219,47 +235,17 @@ export function POSSystem() {
                 className="absolute inset-0 overflow-y-auto mt-0 pr-1 flex flex-col gap-4"
               >
                 {/* Mobile specific Customer Selector & Search */}
-                <div className="flex flex-col gap-4 lg:hidden mb-2 shrink-0">
-                  <POSCustomerSelector
-                    selectedCustomer={selectedCustomer}
-                    customers={customers}
-                    loadingCustomers={loadingCustomers}
-                    onSelectCustomer={setSelectedCustomer as any}
-                    cartLength={cart.length}
-                  />
-                  <div className="flex gap-2">
-                    <div className="relative flex-1">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                        <Search className="h-4 w-4 text-muted-foreground" />
-                      </div>
-                      <Input
-                        type="text"
-                        placeholder="Search products or SKU"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        onKeyDown={handleKeyPress}
-                        className="h-10 pl-10 pr-10 bg-muted/30 border-border/50 rounded-xl text-sm w-full"
-                      />
-                      {searchTerm && (
-                        <button
-                          type="button"
-                          onClick={() => setSearchTerm("")}
-                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer flex items-center justify-center"
-                        >
-                          <span className="sr-only">Clear</span>
-                          <span aria-hidden="true" className="text-lg font-bold leading-none">&times;</span>
-                        </button>
-                      )}
-                    </div>
-                    <Button
-                      variant="default"
-                      className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl h-10 w-10 p-0 shrink-0 flex items-center justify-center"
-                      onClick={() => setIsMobileScannerOpen(true)}
-                    >
-                      <Scan className="h-5 w-5" />
-                    </Button>
-                  </div>
-                </div>
+                <POSMobileSearch
+                  selectedCustomer={selectedCustomer}
+                  customers={customers}
+                  loadingCustomers={loadingCustomers}
+                  onSelectCustomer={setSelectedCustomer as any}
+                  cartLength={cart.length}
+                  searchTerm={searchTerm}
+                  setSearchTerm={setSearchTerm}
+                  handleKeyPress={handleKeyPress}
+                  setIsMobileScannerOpen={setIsMobileScannerOpen}
+                />
 
                 <POSProductList
                   loadingProducts={loadingProducts}
@@ -325,87 +311,29 @@ export function POSSystem() {
             </div>
           </div>
         </Tabs>
-        {/* Mobile Cart Trigger */}
-        {cart.length > 0 && (
-          <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] bg-gradient-to-t from-background via-background to-transparent pointer-events-none">
-            <div className="pointer-events-auto">
-              <POSMobileCartDrawer
-                cart={cart}
-                subtotal={subtotal}
-                tax={tax}
-                total={total}
-                discount={discount}
-                calculatedDiscount={calculatedDiscount}
-                discountType={discountType}
-                setDiscount={setDiscount}
-                setDiscountType={setDiscountType}
-                vatPercentage={vatPercentage}
-                currencyCode={storeProfile?.currency}
-                updateQuantity={updateQuantity}
-                removeFromCart={removeFromCart}
-                clearCart={clearCart}
-                onCheckout={withRestriction(() => setShowPaymentDialog(true))}
-                onHoldSale={handleHoldTransaction}
-                selectedCustomer={selectedCustomer}
-                customers={customers}
-                loadingCustomers={loadingCustomers}
-                onSelectCustomer={setSelectedCustomer as any}
-              />
-            </div>
-          </div>
-        )}
-        <POSPaymentDialog
-          showPaymentDialog={showPaymentDialog}
-          setShowPaymentDialog={setShowPaymentDialog}
+        <POSMobileCartWrapper
+          cart={cart}
+          subtotal={subtotal}
+          tax={tax}
           total={total}
-          paymentMethod={paymentMethod}
-          setPaymentMethod={setPaymentMethod}
-          amountPaid={amountPaid}
-          setAmountPaid={setAmountPaid}
-          selectedAccountId={selectedAccountId}
-          setSelectedAccountId={setSelectedAccountId}
-          paymentSplits={paymentSplits}
-          setPaymentSplits={setPaymentSplits}
-          processingPayment={processingPayment}
-          handlePayment={handlePayment}
+          discount={discount}
+          calculatedDiscount={calculatedDiscount}
+          discountType={discountType}
+          setDiscount={setDiscount}
+          setDiscountType={setDiscountType}
+          vatPercentage={vatPercentage}
+          currencyCode={storeProfile?.currency}
+          updateQuantity={updateQuantity}
+          removeFromCart={removeFromCart}
+          clearCart={clearCart}
+          onCheckout={withRestriction(() => setShowPaymentDialog(true))}
+          onHoldSale={handleHoldTransaction}
           selectedCustomer={selectedCustomer}
-          currencyCode={storeProfile?.currency}
-          requirePaymentAccount={requirePaymentAccount}
-          enabledPaymentMethods={enabledPaymentMethods}
-          paymentAccounts={paymentAccounts || []}
+          customers={customers}
+          loadingCustomers={loadingCustomers}
+          onSelectCustomer={setSelectedCustomer as any}
         />
-        <POSReceiptDialog
-          showReceiptDialog={showReceiptDialog}
-          setShowReceiptDialog={setShowReceiptDialog}
-          completedTransaction={completedTransaction}
-        />
-        <ReturnDialog
-          open={showReturnDialog}
-          onOpenChange={setShowReturnDialog}
-          sale={saleToReturn}
-          onSuccess={() => {
-            refetchProducts();
-            refetchSales();
-            toast.success("Stock Batch updated after return");
-          }}
-          currencyCode={storeProfile?.currency}
-        />
-        <HeldTransactionsDialog
-          isOpen={showHeldDialog}
-          onClose={() => setShowHeldDialog(false)}
-          onRecall={handleRecallTransaction}
-        />
-        <ConfirmDialog
-          open={showClearCartDialog}
-          onOpenChange={setShowClearCartDialog}
-          title="Clear Cart?"
-          description="All items in the current cart will be removed. This cannot be undone."
-          confirmLabel="Clear Cart"
-          onConfirm={() => {
-            clearCart();
-            setShowClearCartDialog(false);
-          }}
-        />
+        <POSDialogs {...posDialogProps} />
       </div>
     </div>
   );

@@ -145,7 +145,7 @@ export function RequestedProductsTab() {
               <TableHead className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide h-11 align-middle">
                 Date
               </TableHead>
-              <TableHead className="text-right text-[11px] font-bold text-muted-foreground uppercase tracking-wide h-11 align-middle">
+              <TableHead className="text-right pr-4 text-[11px] font-bold text-muted-foreground uppercase tracking-wide h-11 align-middle">
                 Actions
               </TableHead>
             </TableRow>
@@ -175,7 +175,7 @@ export function RequestedProductsTab() {
                   key={req.id}
                   className="border-b border-border/50 hover:bg-accent/20 transition-colors group"
                 >
-                  <TableCell className="font-medium py-[14px]">
+                  <TableCell className="font-medium py-[14px] pl-4">
                     <div className="flex items-center gap-2">
                       <span className="text-[13.5px] font-semibold text-primary">
                         {req.product_name}
@@ -183,11 +183,11 @@ export function RequestedProductsTab() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="h-6 w-6 opacity-0 group-hover:opacity-100 text-muted-foreground hover:bg-primary hover:text-primary-foreground transition-all"
                         onClick={() => copyToClipboard(req.product_name)}
                         title="Copy to clipboard"
                       >
-                        <Copy className="h-3 w-3 text-muted-foreground" />
+                        <Copy className="h-2 w-2" />
                       </Button>
                     </div>
                     {req.notes && (

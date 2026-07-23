@@ -178,7 +178,7 @@ export function POSCart({
         <div
           className={`grid gap-2.5 mb-3.5 ${cart.length > 0 ? "grid-cols-3" : "grid-cols-2"}`}
         >
-          <RequestItemDialog triggerClassName="w-full flex items-center justify-center gap-1.5 p-2.5 rounded-[10px] border border-border bg-background text-[12.5px] font-semibold text-muted-foreground cursor-pointer hover:bg-primary/50 transition-colors h-auto" />
+          <RequestItemDialog />
 
           {cart.length > 0 && (
             <button

@@ -120,10 +120,9 @@ export function RequestedProductsTab() {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <RequestItemDialog 
-          open={showAddDialog} 
-          onOpenChange={setShowAddDialog} 
-          triggerClassName="sm:w-auto w-full bg-primary hover:bg-primary/90 text-primary-foreground border-0 h-9"
+        <RequestItemDialog
+          open={showAddDialog}
+          onOpenChange={setShowAddDialog}
         />
       </div>
 

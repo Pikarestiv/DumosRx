@@ -8,6 +8,7 @@ import { APP_NAME } from "@/lib/constants";
 import { SyncIndicator } from "./sync-indicator";
 import { NotificationBell } from "./notification-bell";
 import { UserNav } from "./user-nav";
+import { UserProfileBadge } from "./user-profile-badge";
 import { LiveClock } from "./live-clock";
 import {
   Tooltip,
@@ -214,20 +215,36 @@ export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
         </div>
       </div>
 
-      {/* Mobile Bottom Row (Sync Indicator & Action Button) */}
-      <div className="sm:hidden mt-3 flex items-center justify-between w-full">
-        <SyncIndicator collapsed={false} isMobileHeader={true} />
+      {/* Mobile Bottom Row */}
+      <div className="sm:hidden mt-3 flex items-center justify-between w-full gap-2">
+        {pathname?.startsWith("/settings") ? (
+          <>
+            <div className="flex-1 overflow-x-auto overflow-y-hidden no-scrollbar">
+              <UserProfileBadge />
+            </div>
 
-        <Button
-          size="sm"
-          className="rounded-full h-8 px-4 text-xs font-semibold"
-          onClick={() =>
-            router.push(pageInfo?.action ? pageInfo.action.path : "/pos")
-          }
-        >
-          <Plus className="h-3.5 w-3.5 mr-1" />
-          New
-        </Button>
+            <div className="flex items-center gap-2 shrink-0">
+              <SyncIndicator collapsed={true} isMobileHeader={true} />
+            </div>
+          </>
+        ) : (
+          <>
+            <SyncIndicator collapsed={false} isMobileHeader={true} />
+
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                size="sm"
+                className="rounded-full h-8 px-4 text-xs font-semibold"
+                onClick={() =>
+                  router.push(pageInfo?.action ? pageInfo.action.path : "/pos")
+                }
+              >
+                <Plus className="h-3.5 w-3.5 mr-1" />
+                New
+              </Button>
+            </div>
+          </>
+        )}
       </div>
     </header>
   );

@@ -1,11 +1,5 @@
 import React, { useState, useEffect } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,7 +16,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { formatCurrency } from "@/lib/utils";
-import { toast } from "sonner";
 
 export interface ReceivedItemPayload {
   po_item_id: string;
@@ -110,20 +103,15 @@ export function ReceivePOModal({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-bold">
-            Receive Goods: {po.id}
-          </DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-6 mt-4">
-          <p className="text-sm text-muted-foreground">
-            Please confirm the quantities received and provide the batch/lot
-            numbers and expiry dates for each item.
-          </p>
-
+    <>
+      <ResponsiveModal
+        open={isOpen}
+        onOpenChange={(open) => !open && onClose()}
+        title={`Receive Goods: ${po.id}`}
+        description="Please confirm the quantities received and provide the batch/lot numbers and expiry dates for each item."
+        className="max-w-xl max-h-[90vh] overflow-hidden flex flex-col"
+      >
+        <div className="space-y-6 flex-1 overflow-y-auto px-4 sm:px-0">
           <div className="border rounded-lg divide-y">
             {po.items?.map((item: PurchaseOrderItem) => {
               const state = receivedItems[item.id] || {};
@@ -141,7 +129,7 @@ export function ReceivePOModal({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-muted/20 p-4 rounded-lg">
+                  <div className="flex flex-col gap-4 bg-muted/20 p-4 rounded-lg">
                     <div className="space-y-2">
                       <Label className="text-xs">Qty Received</Label>
                       <Input
@@ -189,14 +177,13 @@ export function ReceivePOModal({
             })}
           </div>
         </div>
-
-        <DialogFooter className="mt-6">
+        <div className="mt-6 flex justify-end gap-3 shrink-0 pt-4 border-t">
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
           <Button onClick={handleConfirmClick}>Confirm & Receive</Button>
-        </DialogFooter>
-      </DialogContent>
+        </div>
+      </ResponsiveModal>
 
       <AlertDialog open={showWarningModal} onOpenChange={setShowWarningModal}>
         <AlertDialogContent>
@@ -218,6 +205,6 @@ export function ReceivePOModal({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </Dialog>
+    </>
   );
 }

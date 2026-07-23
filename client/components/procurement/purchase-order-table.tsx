@@ -104,7 +104,8 @@ export function PurchaseOrderTable({
   }, [selectedOrderId]);
 
   // Fallback to basic row data if full details haven't loaded yet
-  const selectedPO = fullSelectedPO || orders.find((o) => o.id === selectedOrderId) || null;
+  const selectedPO =
+    fullSelectedPO || orders.find((o) => o.id === selectedOrderId) || null;
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -284,93 +285,93 @@ export function PurchaseOrderTable({
                       </div>
                     )}
 
-                <h4 className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide mb-3">
-                  Line Items
-                </h4>
-                <div className="flex flex-col gap-3">
-                  {/* Since line items might not be fetched in the main query, we show a placeholder or render actual items if available */}
-                  {selectedPO.items && selectedPO.items.length > 0 ? (
-                    selectedPO.items.map((item: any, idx: number) => (
-                      <div
-                        key={idx}
-                        className="flex items-start justify-between text-[13px]"
-                      >
-                        <span className="font-medium text-foreground leading-tight">
-                          {item.product_name || "Unknown Product"}{" "}
-                          <span className="text-muted-foreground ml-1">
-                            × {item.quantity_ordered}
-                          </span>
-                        </span>
-                        <span className="font-bold shrink-0 ml-4">
-                          {formatCurrency(item.total_price || 0)}
+                    <h4 className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide mb-3">
+                      Line Items
+                    </h4>
+                    <div className="flex flex-col gap-3">
+                      {/* Since line items might not be fetched in the main query, we show a placeholder or render actual items if available */}
+                      {selectedPO.items && selectedPO.items.length > 0 ? (
+                        selectedPO.items.map((item: any, idx: number) => (
+                          <div
+                            key={idx}
+                            className="flex items-start justify-between text-[13px]"
+                          >
+                            <span className="font-medium text-foreground leading-tight">
+                              {item.product_name || "Unknown Product"}{" "}
+                              <span className="text-muted-foreground ml-1">
+                                × {item.bulk_quantity}
+                              </span>
+                            </span>
+                            <span className="font-bold shrink-0 ml-4">
+                              {formatCurrency(item.subtotal || 0)}
+                            </span>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-[13px] text-muted-foreground italic bg-muted/50 border border-border/50 p-3 rounded-lg text-center">
+                          Line items available in full view
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-between text-[14px] font-bold mt-4 pt-4 border-t border-border">
+                        <span>Total</span>
+                        <span>{formatCurrency(selectedPO.total_amount)}</span>
+                      </div>
+                    </div>
+
+                    <h4 className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide mt-8 mb-4">
+                      Order Status
+                    </h4>
+                    <div className="flex flex-col gap-4 relative">
+                      <div className="absolute left-[9px] top-[14px] bottom-[14px] w-[2px] bg-border z-0"></div>
+
+                      {/* Draft Step */}
+                      <div className="flex items-center gap-3 z-10">
+                        <div className="w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center border-2 border-background">
+                          <CheckCircle2 className="w-3 h-3" />
+                        </div>
+                        <span className="text-[13.5px] font-semibold text-foreground">
+                          Draft
                         </span>
                       </div>
-                    ))
-                  ) : (
-                    <div className="text-[13px] text-muted-foreground italic bg-muted/50 border border-border/50 p-3 rounded-lg text-center">
-                      Line items available in full view
+
+                      {/* Sent Step */}
+                      <div className="flex items-center gap-3 z-10">
+                        <div
+                          className={`w-5 h-5 rounded-full flex items-center justify-center border-2 border-background ${selectedPO.status === "sent" || selectedPO.status === "received" ? "bg-primary text-primary-foreground" : "bg-muted border border-border"}`}
+                        >
+                          {(selectedPO.status === "sent" ||
+                            selectedPO.status === "received") && (
+                            <CheckCircle2 className="w-3 h-3" />
+                          )}
+                        </div>
+                        <span
+                          className={`text-[13.5px] font-semibold ${selectedPO.status === "sent" || selectedPO.status === "received" ? "text-foreground" : "text-muted-foreground"}`}
+                        >
+                          Sent
+                        </span>
+                      </div>
+
+                      {/* Received Step */}
+                      <div className="flex items-center gap-3 z-10">
+                        <div
+                          className={`w-5 h-5 rounded-full flex items-center justify-center border-2 border-background ${selectedPO.status === "received" ? "bg-primary text-primary-foreground" : "bg-muted border border-border"}`}
+                        >
+                          {selectedPO.status === "received" && (
+                            <CheckCircle2 className="w-3 h-3" />
+                          )}
+                        </div>
+                        <span
+                          className={`text-[13.5px] font-semibold ${selectedPO.status === "received" ? "text-foreground" : "text-muted-foreground"}`}
+                        >
+                          Received
+                        </span>
+                      </div>
                     </div>
-                  )}
-
-                  <div className="flex items-center justify-between text-[14px] font-bold mt-4 pt-4 border-t border-border">
-                    <span>Total</span>
-                    <span>{formatCurrency(selectedPO.total_amount)}</span>
-                  </div>
-                </div>
-
-                <h4 className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide mt-8 mb-4">
-                  Order Status
-                </h4>
-                <div className="flex flex-col gap-4 relative">
-                  <div className="absolute left-[9px] top-[14px] bottom-[14px] w-[2px] bg-border z-0"></div>
-
-                  {/* Draft Step */}
-                  <div className="flex items-center gap-3 z-10">
-                    <div className="w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center border-2 border-background">
-                      <CheckCircle2 className="w-3 h-3" />
-                    </div>
-                    <span className="text-[13.5px] font-semibold text-foreground">
-                      Draft
-                    </span>
-                  </div>
-
-                  {/* Sent Step */}
-                  <div className="flex items-center gap-3 z-10">
-                    <div
-                      className={`w-5 h-5 rounded-full flex items-center justify-center border-2 border-background ${selectedPO.status === "sent" || selectedPO.status === "received" ? "bg-primary text-primary-foreground" : "bg-muted border border-border"}`}
-                    >
-                      {(selectedPO.status === "sent" ||
-                        selectedPO.status === "received") && (
-                        <CheckCircle2 className="w-3 h-3" />
-                      )}
-                    </div>
-                    <span
-                      className={`text-[13.5px] font-semibold ${selectedPO.status === "sent" || selectedPO.status === "received" ? "text-foreground" : "text-muted-foreground"}`}
-                    >
-                      Sent
-                    </span>
-                  </div>
-
-                  {/* Received Step */}
-                  <div className="flex items-center gap-3 z-10">
-                    <div
-                      className={`w-5 h-5 rounded-full flex items-center justify-center border-2 border-background ${selectedPO.status === "received" ? "bg-primary text-primary-foreground" : "bg-muted border border-border"}`}
-                    >
-                      {selectedPO.status === "received" && (
-                        <CheckCircle2 className="w-3 h-3" />
-                      )}
-                    </div>
-                    <span
-                      className={`text-[13.5px] font-semibold ${selectedPO.status === "received" ? "text-foreground" : "text-muted-foreground"}`}
-                    >
-                      Received
-                    </span>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
+                  </>
+                )}
+              </div>
+            </div>
 
             <div className="print:hidden p-5 border-t border-border bg-card mt-auto flex items-center gap-3">
               <Button

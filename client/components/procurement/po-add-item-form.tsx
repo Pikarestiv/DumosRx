@@ -15,9 +15,17 @@ interface POAddItemFormProps {
   products: Product[];
   onAddItem: (item: any) => void;
   onOpenAddProduct: (productData: any) => void;
+  newlyCreatedProductId?: string | null;
+  onNewlyCreatedProductConsumed?: () => void;
 }
 
-export function POAddItemForm({ products, onAddItem, onOpenAddProduct }: POAddItemFormProps) {
+export function POAddItemForm({ 
+  products, 
+  onAddItem, 
+  onOpenAddProduct,
+  newlyCreatedProductId,
+  onNewlyCreatedProductConsumed,
+}: POAddItemFormProps) {
   const { t } = useStore();
 
   const [currentProductId, setCurrentProductId] = useState("");
@@ -27,11 +35,11 @@ export function POAddItemForm({ products, onAddItem, onOpenAddProduct }: POAddIt
   const [currentUoM, setCurrentUoM] = useState<number | "">("");
   const [currentCost, setCurrentCost] = useState<number | "">("");
 
-  // Automatically select the product if it's created externally and added to the products list
+  // Automatically select the product if it's created externally and its ID is passed down
   useEffect(() => {
-    if (!currentProductId && currentProductName && products.length > 0) {
+    if (newlyCreatedProductId && products.length > 0) {
       const newlyAddedProduct = products.find(
-        (p) => p.name.toLowerCase() === currentProductName.toLowerCase()
+        (p) => p.id === newlyCreatedProductId
       );
       if (newlyAddedProduct) {
         setCurrentProductId(newlyAddedProduct.id);
@@ -40,9 +48,10 @@ export function POAddItemForm({ products, onAddItem, onOpenAddProduct }: POAddIt
         setCurrentCost(
           (newlyAddedProduct.cost_price || 0) * (newlyAddedProduct.units_per_bulk || 1)
         );
+        onNewlyCreatedProductConsumed?.();
       }
     }
-  }, [products, currentProductId, currentProductName]);
+  }, [products, newlyCreatedProductId, onNewlyCreatedProductConsumed]);
 
   const handleProductChange = (option: SelectedProduct) => {
     setCurrentProductName(option.name);
@@ -69,7 +78,9 @@ export function POAddItemForm({ products, onAddItem, onOpenAddProduct }: POAddIt
           name: currentSelectedProduct.name,
           genericName: currentSelectedProduct.generic_name,
           manufacturer: currentSelectedProduct.manufacturer,
-          brand: currentSelectedProduct.brand_name
+          brand: currentSelectedProduct.brand_name,
+          strength: currentSelectedProduct.strength,
+          dosageForm: currentSelectedProduct.dosageForm,
         });
       } else if (currentProductName) {
         onOpenAddProduct({ name: currentProductName });

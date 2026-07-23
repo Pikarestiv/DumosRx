@@ -21,6 +21,8 @@ export interface SelectedProduct {
   generic_name?: string;
   category?: string;
   manufacturer?: string;
+  strength?: string;
+  dosageForm?: string;
 }
 
 interface ProductComboboxProps {
@@ -64,7 +66,9 @@ export function ProductCombobox({
           source: "global",
           generic_name: prod.genericName,
           manufacturer: prod.manufacturer,
-          // include other fields if needed, but these match SelectedProduct for now
+          strength: prod.strength,
+          dosageForm: prod.dosageForm,
+          brand_name: prod.brand || prod.name,
         });
       });
     }

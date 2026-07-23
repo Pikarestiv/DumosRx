@@ -40,6 +40,7 @@ export default function CreateOrderPage() {
 
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
   const [initialProductData, setInitialProductData] = useState<any>(null);
+  const [newlyCreatedProductId, setNewlyCreatedProductId] = useState<string | null>(null);
 
   const { suppliers, products, refetch: fetchData } = useProcurementData();
 
@@ -68,11 +69,12 @@ export default function CreateOrderPage() {
 
   const handleCreateProduct = async (productData: any, keepOpen?: boolean) => {
     try {
-      const newProduct = await createProduct(productData);
+      const newProductId = await createProduct(productData);
       toast.success(`${productData.name} added to catalog`);
 
       // Refresh products list
       await fetchData();
+      setNewlyCreatedProductId(newProductId);
 
       if (!keepOpen) {
         setIsAddProductOpen(false);
@@ -261,6 +263,8 @@ export default function CreateOrderPage() {
                 products={products}
                 onAddItem={handleAddLineItem}
                 onOpenAddProduct={handleOpenAddProduct}
+                newlyCreatedProductId={newlyCreatedProductId}
+                onNewlyCreatedProductConsumed={() => setNewlyCreatedProductId(null)}
               />
             </div>
           </div>

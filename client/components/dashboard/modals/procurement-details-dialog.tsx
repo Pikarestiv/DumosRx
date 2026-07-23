@@ -32,7 +32,15 @@ export function ProcurementDetailsDialog({
   useEffect(() => {
     if (po?.id && open) {
       query<any>(
-        "SELECT * FROM purchase_order_items WHERE purchase_order_id = ?",
+        `SELECT 
+          poi.*, 
+          p.name as product_name, 
+          poi.bulk_quantity as quantity, 
+          poi.unit_cost as unit_price, 
+          poi.subtotal as total_price 
+         FROM purchase_order_items poi 
+         LEFT JOIN products p ON poi.product_id = p.id 
+         WHERE poi.po_id = ?`,
         [po.id]
       ).then((res) => setItems(res || []));
     }
@@ -45,7 +53,7 @@ export function ProcurementDetailsDialog({
       open={open}
       onOpenChange={onOpenChange}
       title="Procurement Details"
-      description={`PO Number: ${po.po_number}`}
+      description={`PO Number: ${po.order_number}`}
       className="sm:max-w-2xl"
     >
       <div className="space-y-6 pt-4">
@@ -71,7 +79,7 @@ export function ProcurementDetailsDialog({
           <div>
             <p className="text-sm text-muted-foreground">Expected Delivery</p>
             <p className="font-medium">
-              {po.expected_delivery_date ? formatDateTime(po.expected_delivery_date) : "N/A"}
+              {po.due_date ? formatDateTime(po.due_date) : "N/A"}
             </p>
           </div>
         </div>

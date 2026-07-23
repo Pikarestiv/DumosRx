@@ -137,7 +137,12 @@ export function PurchaseOrderTable({
               <TabsTrigger value="pending">Drafts</TabsTrigger>
               <TabsTrigger value="sent">Sent</TabsTrigger>
               <TabsTrigger value="received">Received</TabsTrigger>
-              <TabsTrigger value="missing-expiry" className="data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-600">Missing Expiry</TabsTrigger>
+              <TabsTrigger
+                value="missing-expiry"
+                className="data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-600"
+              >
+                Missing Expiry
+              </TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
@@ -348,7 +353,7 @@ export function PurchaseOrderTable({
                   {onDeletePO && (
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button 
+                        <Button
                           variant="destructive"
                           className="flex-[0.5] h-10 text-[13.5px] font-bold"
                         >
@@ -357,16 +362,20 @@ export function PurchaseOrderTable({
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
-                          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                          <AlertDialogTitle>
+                            Are you absolutely sure?
+                          </AlertDialogTitle>
                           <AlertDialogDescription>
-                            This action cannot be undone. This will permanently delete this draft purchase order and remove its data.
+                            This action cannot be undone. This will permanently
+                            delete this draft purchase order and remove its
+                            data.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction 
+                          <AlertDialogAction
                             onClick={() => onDeletePO(selectedPO.id)}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            className="!bg-destructive !text-destructive-foreground !hover:bg-destructive/90"
                           >
                             Delete Order
                           </AlertDialogAction>
@@ -374,7 +383,7 @@ export function PurchaseOrderTable({
                       </AlertDialogContent>
                     </AlertDialog>
                   )}
-                  <Button 
+                  <Button
                     className="flex-1 h-10 text-[13.5px] font-bold"
                     onClick={() => onSendPO(selectedPO.id)}
                   >
@@ -406,8 +415,8 @@ export function PurchaseOrderTable({
           </div>
         )}
       </Card>
-      
-      <ReceivePOModal 
+
+      <ReceivePOModal
         isOpen={isReceiveModalOpen}
         onClose={() => setIsReceiveModalOpen(false)}
         po={selectedPO}
@@ -416,4 +425,3 @@ export function PurchaseOrderTable({
     </div>
   );
 }
-

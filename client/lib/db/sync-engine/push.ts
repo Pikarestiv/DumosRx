@@ -25,6 +25,11 @@ export async function pushChanges(
       const changes = batch
         .map((item) => {
           const payload = JSON.parse(item.payload);
+          delete payload._deleted;
+          delete payload._version;
+          delete payload._synced;
+          delete payload._synced_at;
+          
           return {
             ...item,
             payload,
@@ -52,6 +57,11 @@ export async function pushChanges(
               item.payload.product_id === "5c5d33b4-13e0-4826-a69b-7745fa5ffed6"
             ) {
               return false;
+            }
+          }
+          if (item.table_name === "stock_batches") {
+            if (item.payload && "selling_price" in item.payload) {
+              delete item.payload.selling_price;
             }
           }
           return true;

@@ -148,13 +148,6 @@ export async function receivePurchaseOrder(id: string, receivedItems?: any[]) {
     const unitsPerBulk = Number(item.units_per_bulk);
     const totalBaseUnits = bulkQty * unitsPerBulk;
     
-    // Fetch product to get selling_price
-    const productArr = await query<any>(
-      "SELECT selling_price FROM products WHERE id = ? LIMIT 1",
-      [item.product_id]
-    );
-    const sellingPrice = productArr && productArr.length > 0 ? Number(productArr[0].selling_price) : 0;
-
     const batchNumber = receivedItem?.lot_number?.trim() || poData.id.split('-')[0].toUpperCase();
     const expiryDate = receivedItem?.expiry_date ? new Date(receivedItem.expiry_date).toISOString() : null;
 
@@ -165,7 +158,6 @@ export async function receivePurchaseOrder(id: string, receivedItems?: any[]) {
       product_id: item.product_id,
       quantity: totalBaseUnits,
       cost_price: baseUnitCost,
-      selling_price: sellingPrice,
       batch_number: batchNumber,
       expiry_date: expiryDate,
       created_at: now,

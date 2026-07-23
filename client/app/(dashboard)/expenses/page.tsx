@@ -4,8 +4,6 @@ import { ExpenseList } from "@/components/expenses/expense-list";
 import { AddExpenseDialog } from "@/components/expenses/add-expense-dialog";
 import { useState, useEffect } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
 import { LockedModuleOverlay } from "@/components/dashboard/locked-module-overlay";
 
 export default function ExpensesPage() {

@@ -98,7 +98,7 @@ export function ProductHistory({ productId }: { productId: string }) {
 
   return (
     <div className="relative border-l border-muted ml-3 space-y-6 pb-4">
-      {history.map((item, i) => {
+      {history.map((item) => {
         const Icon = getIconForAction(item);
         const colorClass = getColorForAction(item);
 

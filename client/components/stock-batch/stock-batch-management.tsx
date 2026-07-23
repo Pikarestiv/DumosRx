@@ -19,7 +19,7 @@ export function StockBatchManagement({
 }: {
   currentTab?: string;
 }) {
-  const { t } = useStore();
+  const { t: _t } = useStore();
   const { isAdmin } = useAuth();
   const router = useRouter();
   const [isAuditing, setIsAuditing] = useState(false);

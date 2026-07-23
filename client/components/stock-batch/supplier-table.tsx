@@ -1,6 +1,6 @@
 "use client";
 
-import { Users, Mail, Phone, MapPin, Eye, Edit } from "lucide-react";
+import { Users } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -9,7 +9,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
 
 interface Supplier {
   id: string;
@@ -30,9 +29,7 @@ interface Supplier {
 
 interface SupplierTableProps {
   suppliers: Supplier[];
-  totalCount: number;
   formatCurrency: (amount: number) => string;
-  formatDate: (dateString: string) => string;
   getRatingStars: (rating: number) => string;
   isFuzzyFallback?: boolean;
   selectedSupplierId?: string;
@@ -41,9 +38,7 @@ interface SupplierTableProps {
 
 export function SupplierTable({
   suppliers,
-  totalCount,
   formatCurrency,
-  formatDate,
   getRatingStars,
   isFuzzyFallback,
   selectedSupplierId,

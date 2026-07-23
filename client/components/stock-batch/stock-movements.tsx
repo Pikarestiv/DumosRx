@@ -2,9 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Search, Lock, X } from "lucide-react";
-import { apiClient } from "@/lib/api/client";
 import { genericFuzzySearch } from "@/lib/utils/search";
-import { isTauri } from "@/lib/db/local-database";
 import { StockMovementsSkeleton } from "./stock-movements-skeleton";
 import { useRouter } from "next/navigation";
 

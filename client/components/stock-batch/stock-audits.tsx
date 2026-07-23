@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { ChevronLeft, Search, Plus, Minus, CheckCircle2 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { getProductsWithDetails } from "@/lib/db/queries/products";
 import { genericFuzzySearch } from "@/lib/utils/search";

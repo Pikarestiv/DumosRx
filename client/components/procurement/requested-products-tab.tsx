@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/table";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Check, Copy, Search, Trash2, Clock } from "lucide-react";
+import { Check, Copy, Search, Trash2 } from "lucide-react";
 import { genericFuzzySearch } from "@/lib/utils/search";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { RequestItemDialog } from "@/components/pos/request-item-dialog";

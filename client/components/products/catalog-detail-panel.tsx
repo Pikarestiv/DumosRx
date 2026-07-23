@@ -39,7 +39,7 @@ export function CatalogDetailPanel({
     loadingBatches,
     formatPrice,
     formatDate,
-    getStatusBadge,
+    // getStatusBadge,
     expiryWarningDays,
     profitMargin,
     daysToExpiry,

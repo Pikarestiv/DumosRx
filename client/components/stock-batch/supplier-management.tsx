@@ -1,17 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Search, Mail, Phone, Edit, MoreVertical, PlusCircle } from "lucide-react";
+import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { getSuppliers, createSupplier } from "@/lib/db/local-database";
 import { AddSupplierDialog } from "@/components/suppliers/add-supplier-dialog";
@@ -57,13 +52,13 @@ const transformSupplier = (apiData: any): Supplier => ({
 });
 
 export function SupplierManagement() {
-  const { t } = useStore();
+  const { t: _t } = useStore();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filter, setFilter] = useState("all");
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [_loading, setLoading] = useState(true);
 
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -81,8 +76,9 @@ export function SupplierManagement() {
   const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(
     null,
   );
-  
-  const selectedSupplier = suppliers.find(s => s.id === selectedSupplierId) || null;
+
+  const selectedSupplier =
+    suppliers.find((s) => s.id === selectedSupplierId) || null;
 
   useEffect(() => {
     fetchSuppliers();
@@ -268,7 +264,7 @@ export function SupplierManagement() {
               <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide mb-1">
                 Total Orders
               </div>
-              <div className="text-[13.5px] font-medium text-foreground font-semibold">
+              <div className="text-[13.5px] text-foreground font-semibold">
                 {selectedSupplier.totalOrders}
               </div>
             </div>
@@ -276,7 +272,7 @@ export function SupplierManagement() {
               <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide mb-1">
                 Total Value
               </div>
-              <div className="text-[13.5px] font-medium text-foreground font-semibold">
+              <div className="text-[13.5px] text-foreground font-semibold">
                 {formatCurrency(selectedSupplier.totalValue)}
               </div>
             </div>
@@ -284,7 +280,7 @@ export function SupplierManagement() {
               <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide mb-1">
                 Last Order
               </div>
-              <div className="text-[13.5px] font-medium text-foreground font-semibold">
+              <div className="text-[13.5px] text-foreground font-semibold">
                 {formatDate(selectedSupplier.lastOrderDate)}
               </div>
             </div>
@@ -299,9 +295,11 @@ export function SupplierManagement() {
           >
             Edit Details
           </Button>
-          <Button 
+          <Button
             className="w-full font-semibold"
-            onClick={() => router.push(`/procurement/new?supplierId=${selectedSupplier.id}`)}
+            onClick={() =>
+              router.push(`/procurement/new?supplierId=${selectedSupplier.id}`)
+            }
           >
             New Order
           </Button>
@@ -310,7 +308,7 @@ export function SupplierManagement() {
     );
   };
 
-  const handleEditSupplier = (supplierData: any) => {
+  const handleEditSupplier = () => {
     // We would normally call the database update here
     toast.success("Supplier details updated successfully!");
     setIsEditDialogOpen(false);
@@ -357,8 +355,12 @@ export function SupplierManagement() {
             <div className="flex items-center justify-between">
               <Tabs variant="chips" value={filter} onValueChange={setFilter}>
                 <TabsList className="w-full md:w-max justify-start overflow-x-auto hide-scrollbar">
-                  <TabsTrigger value="all" className="border border-border/50">All</TabsTrigger>
-                  <TabsTrigger value="debt" className="border border-border/50">Has debt</TabsTrigger>
+                  <TabsTrigger value="all" className="border border-border/50">
+                    All
+                  </TabsTrigger>
+                  <TabsTrigger value="debt" className="border border-border/50">
+                    Has debt
+                  </TabsTrigger>
                 </TabsList>
               </Tabs>
               <div className="text-[11.5px] text-destructive font-medium">
@@ -371,9 +373,7 @@ export function SupplierManagement() {
           <div className="flex-1 overflow-auto">
             <SupplierTable
               suppliers={filteredSuppliers}
-              totalCount={suppliers.length}
               formatCurrency={formatCurrency}
-              formatDate={formatDate}
               getRatingStars={getRatingStars}
               isFuzzyFallback={isFuzzyFallback}
               selectedSupplierId={selectedSupplier?.id}
@@ -394,7 +394,7 @@ export function SupplierManagement() {
         onAddSupplier={handleAddSupplier}
       />
       {selectedSupplier && (
-        <AddSupplierDialog 
+        <AddSupplierDialog
           open={isEditDialogOpen}
           onOpenChange={setIsEditDialogOpen}
           onAddSupplier={handleEditSupplier}

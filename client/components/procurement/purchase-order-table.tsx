@@ -3,10 +3,8 @@
 import { useState, useEffect } from "react";
 import {
   Search,
-  FileText,
   CheckCircle2,
   Clock,
-  MoreHorizontal,
   ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";

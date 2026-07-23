@@ -3,7 +3,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import {
   DollarSign,
-  AlertTriangle,
   TrendingDown,
   Calendar,
   Package,

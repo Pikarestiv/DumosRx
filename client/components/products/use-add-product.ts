@@ -74,7 +74,7 @@ export function useAddProduct({
         await update("products", id, localPayload);
         toast.success(`${t("product")} updated successfully`);
       } else {
-        const productId = await insert("products", localPayload);
+        await insert("products", localPayload);
         toast.success(`${t("product")} added successfully`);
       }
 

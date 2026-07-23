@@ -1,12 +1,11 @@
 "use client"
-import { useState } from "react";
 import { usePrescriptionQueue, Prescription } from "@/lib/hooks/use-prescription-queue";
 import { PrescriptionStats } from "./prescription-stats";
 import { PrescriptionList } from "./prescription-list";
 import { PrescriptionDetailPanel } from "./prescription-detail-panel";
 import { NewPrescription } from "./new-prescription";
 import { Button } from "@/components/ui/button";
-import { Plus, X } from "lucide-react";
+import { X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -22,7 +21,7 @@ export function PrescriptionManagement() {
   };
 
   const {
-    loading,
+    loading: _loading,
     searchTerm,
     setSearchTerm,
     statusFilter,
@@ -95,8 +94,6 @@ export function PrescriptionManagement() {
           onSelect={setSelectedPrescription}
           searchTerm={searchTerm}
           setSearchTerm={setSearchTerm}
-          statusFilter={statusFilter}
-          setStatusFilter={setStatusFilter}
           isFuzzyFallback={isFuzzyFallback}
         />
 

@@ -196,7 +196,7 @@ export function AddProductDialog({
     }
 
     // Determine status
-    let status: Product["status"] = formData.status || "active";
+    const status: Product["status"] = formData.status || "active";
 
     // Convert to snake_case for backend
     const payload = {

@@ -1,7 +1,7 @@
 "use client";
 
 import { Prescription } from "@/lib/hooks/use-prescription-queue";
-import { Search, MapPin, Phone, User, Stethoscope } from "lucide-react";
+import { Search, Stethoscope } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
 interface PrescriptionListProps {
@@ -10,8 +10,7 @@ interface PrescriptionListProps {
   onSelect: (prescription: Prescription) => void;
   searchTerm: string;
   setSearchTerm: (term: string) => void;
-  statusFilter: string;
-  setStatusFilter: (filter: string) => void;
+
   isFuzzyFallback?: boolean;
 }
 
@@ -21,8 +20,7 @@ export function PrescriptionList({
   onSelect,
   searchTerm,
   setSearchTerm,
-  statusFilter,
-  setStatusFilter,
+
   isFuzzyFallback,
 }: PrescriptionListProps) {
   

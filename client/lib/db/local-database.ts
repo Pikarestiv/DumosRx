@@ -20,13 +20,12 @@ import { insert, update, softDelete } from "./base-helpers";
  */
 export async function getProducts(page = 1, limit = 50, search = "") {
   const offset = (page - 1) * limit;
-  let sql = `SELECT m.*, c.name as category_name, v.name as supplier_name, 
+  let sql = `SELECT m.*, c.name as category_name, 
                     COALESCE(sb.total_qty, 0) as stock_quantity,
                     sb.earliest_expiry as expiry_date,
                     sb.batches as batch_number
              FROM products m 
              LEFT JOIN categories c ON m.category_id = c.id 
-             LEFT JOIN suppliers v ON m.supplier_id = v.id 
              LEFT JOIN (
                SELECT product_id, 
                       SUM(quantity) as total_qty,

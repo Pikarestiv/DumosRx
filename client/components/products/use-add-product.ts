@@ -48,25 +48,6 @@ export function useAddProduct({
         localPayload.category_id = null;
       }
 
-      // Resolve supplier string to UUID (maps to client suppliers table)
-      if (payload.supplier_id) {
-        const supplierName = payload.supplier_id.trim();
-        const supplierId = await getSupplierByName(supplierName);
-        if (supplierId) {
-          localPayload.supplier_id = supplierId;
-        } else {
-          const newId = crypto.randomUUID();
-          await insert("suppliers", {
-            id: newId,
-            name: supplierName,
-            is_active: 1,
-            created_at: new Date().toISOString(),
-          });
-          localPayload.supplier_id = newId;
-        }
-      } else {
-        localPayload.supplier_id = null;
-      }
 
       if (isEditing) {
         const id = localPayload.id;

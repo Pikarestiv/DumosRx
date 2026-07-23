@@ -57,7 +57,7 @@ export function OverviewTab({ metrics }: { metrics: CustomerMetrics | null }) {
           Retention & Engagement
         </h3>
         <div className="grid grid-cols-2 w-full gap-4">
-          <div className="bg-secondary/10 rounded-lg p-4">
+          <div className="border border-border rounded-lg p-4">
             <div className="text-[12px] text-muted-foreground mb-1">
               Retention Rate
             </div>
@@ -65,7 +65,7 @@ export function OverviewTab({ metrics }: { metrics: CustomerMetrics | null }) {
               {metrics.retentionRate.toFixed(1)}%
             </div>
           </div>
-          <div className="bg-secondary/10 rounded-lg p-4">
+          <div className="border border-border rounded-lg p-4">
             <div className="text-[12px] text-muted-foreground mb-1">
               Avg Visits/Mo
             </div>
@@ -74,7 +74,7 @@ export function OverviewTab({ metrics }: { metrics: CustomerMetrics | null }) {
             </div>
           </div>
         </div>
-        <div className="mt-4 w-full bg-secondary/10 rounded-lg p-4 flex justify-between items-center">
+        <div className="mt-4 w-full border border-border rounded-lg p-4 flex justify-between items-center">
           <div className="text-[12px] text-muted-foreground">
             Average Transaction Value
           </div>

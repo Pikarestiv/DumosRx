@@ -12,8 +12,8 @@ interface Tier {
 
 export function LoyaltyTab({ tiers }: { tiers: Tier[] }) {
   return (
-    <Card className="border rounded-[14px] p-5 shadow-sm">
-      <div className="flex justify-between items-center mb-6">
+    <Card className="border rounded-[14px] p-4 shadow-sm">
+      <div className="flex justify-between items-center mb-0">
         <div>
           <h3 className="text-[16px] font-semibold">
             Loyalty Tiers Configuration
@@ -31,7 +31,7 @@ export function LoyaltyTab({ tiers }: { tiers: Tier[] }) {
         {tiers.map((tier) => (
           <div
             key={tier.name}
-            className="border rounded-[12px] p-4 relative overflow-hidden bg-secondary/20"
+            className="rounded-[12px] p-3 relative overflow-hidden border border-border"
           >
             <div className={`absolute top-0 left-0 w-full h-1 ${tier.color}`} />
             <div className="flex justify-between items-start mb-4 mt-2">
@@ -42,7 +42,7 @@ export function LoyaltyTab({ tiers }: { tiers: Tier[] }) {
                 {tier.pointsMultiplier}x Points
               </div>
             </div>
-            <div className="text-[12px] text-muted-foreground mb-4 pb-4 border-b">
+            <div className="text-[12px] text-muted-foreground mb-3">
               Min. spend: ₦ {tier.minSpent.toLocaleString()}
             </div>
             <div className="space-y-2">

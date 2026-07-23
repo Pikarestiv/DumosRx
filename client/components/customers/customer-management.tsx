@@ -46,7 +46,7 @@ export function CustomerManagement() {
       benefits: [
         "Premium rewards",
         "Birthday discount 15%",
-        "Free delivery",
+        // "Free delivery",
         "Exclusive offers",
       ],
       color: "bg-yellow-500",
@@ -58,7 +58,7 @@ export function CustomerManagement() {
       benefits: [
         "VIP rewards",
         "Birthday discount 20%",
-        "Free delivery",
+        // "Free delivery",
         isStore ? "Personal specialist" : "Shopping assistant",
         "Early access",
       ],

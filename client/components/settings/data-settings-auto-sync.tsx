@@ -58,8 +58,8 @@ export function DataSettingsAutoSync({
                   </TooltipTrigger>
                   <TooltipContent>
                     <p>
-                      Automatically pushes your local sales and data to the cloud,
-                      and pulls any new changes made by other devices.
+                      Automatically pushes your local sales and data to the
+                      cloud, and pulls any new changes made by other devices.
                     </p>
                   </TooltipContent>
                 </Tooltip>
@@ -72,7 +72,6 @@ export function DataSettingsAutoSync({
           <Switch
             checked={autoSyncEnabled}
             onCheckedChange={setAutoSyncEnabled}
-            disabled={!isCloudLinked}
           />
         </div>
         {autoSyncEnabled && (
@@ -120,10 +119,9 @@ export function DataSettingsAutoSync({
         )}
         <div className="pt-2">
           <Button
-            variant="secondary"
+            variant="default"
             size="sm"
             onClick={handleSaveAutoSyncSettings}
-            disabled={!isCloudLinked}
           >
             <Save className="w-4 h-4 mr-2" />
             Save Auto-Sync Settings

@@ -146,8 +146,7 @@ export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
                     if (hour < 12) return "Good morning,";
                     if (hour === 12) return "Good noon,";
                     if (hour < 17) return "Good afternoon,";
-                    if (hour < 21) return "Good evening,";
-                    return "Good night,";
+                    return "Good evening,";
                   })()}
                 </span>
                 <span className="text-foreground text-base sm:text-xl font-bold sm:hidden tracking-tight font-serif">

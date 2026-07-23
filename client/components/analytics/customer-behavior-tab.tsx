@@ -3,9 +3,12 @@
 import { 
   TrendingUp, 
   TrendingDown,
-  Clock
+  Clock,
+  Activity
 } from "lucide-react";
 import { useStore } from "@/lib/context/store-context";
+import { Card } from "@/components/ui/card";
+import { MetricCard } from "@/components/ui/metric-card";
 
 interface CustomerBehaviorTabProps {
   customerMetrics: {
@@ -33,24 +36,30 @@ export function CustomerBehaviorTab({
   return (
     <div className="flex flex-col gap-5">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-        {customerMetrics.map((metric) => (
-          <div key={metric.metric} className="bg-background border rounded-2xl p-5">
-            <div className="text-[12px] text-muted-foreground mb-1">{metric.metric}</div>
-            <div className="text-[24px] font-bold">{metric.value}</div>
-            <div className={`flex items-center gap-1 mt-2 text-[11px] font-semibold ${metric.trend === "up" ? "text-emerald-600" : "text-red-600"}`}>
-              {metric.trend === "up" ? (
-                <TrendingUp className="w-3.5 h-3.5" />
-              ) : (
-                <TrendingDown className="w-3.5 h-3.5" />
-              )}
-              <span>{metric.change}</span>
-              <span className="text-muted-foreground font-medium ml-1">vs last period</span>
-            </div>
-          </div>
-        ))}
+        {customerMetrics.map((metric) => {
+          const isUp = metric.trend === "up";
+          return (
+            <MetricCard
+              key={metric.metric}
+              title={metric.metric}
+              value={metric.value}
+              valueClassName="font-serif"
+              icon={<Activity className="w-4 h-4" />}
+              iconBgClass={isUp ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600"}
+              className={isUp ? "border-emerald-100" : "border-red-100"}
+              description={
+                <div className={`flex items-center gap-1 ${isUp ? "text-emerald-600" : "text-red-600"}`}>
+                  {isUp ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
+                  <span>{metric.change}</span>
+                  <span className="text-muted-foreground font-medium ml-1">vs last period</span>
+                </div>
+              }
+            />
+          );
+        })}
       </div>
 
-      <div className="bg-background border rounded-2xl p-5">
+      <Card className="p-5 border shadow-sm rounded-2xl">
         <div className="flex items-center gap-2 mb-0.5">
           <Clock className="w-4 h-4 text-primary" />
           <div className="text-[14.5px] font-semibold">Customer Purchase Patterns</div>
@@ -91,7 +100,7 @@ export function CustomerBehaviorTab({
             </table>
           </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 }

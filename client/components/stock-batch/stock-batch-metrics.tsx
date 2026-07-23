@@ -1,6 +1,6 @@
 "use client";
 
-import { Card, CardContent } from "@/components/ui/card";
+import { MetricCard } from "@/components/ui/metric-card";
 import {
   DollarSign,
   TrendingDown,
@@ -37,86 +37,56 @@ export function StockBatchMetrics({
       <div className="flex overflow-x-auto sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 pb-4 sm:pb-0 hide-scrollbar snap-x snap-mandatory">
         
         {/* Total Stock Value */}
-        <Card className="min-w-[140px] sm:min-w-0 snap-center shrink-0 border-border rounded-[14px] shadow-sm !p-0 !gap-0">
-          <CardContent className="!p-3 sm:!p-[18px] !px-3.5 sm:!px-5 hover-scale flex flex-col">
-            <div className="flex items-center justify-between mb-2 sm:mb-3.5">
-              <div className="text-[12.5px] text-muted-foreground font-medium">
-                Total stock value
-              </div>
-              <div className="hidden sm:flex w-8 h-8 rounded-lg items-center justify-center bg-blue-50 text-blue-700 shrink-0">
-                <DollarSign className="h-4 w-4" />
-              </div>
-            </div>
-            <div className="text-2xl font-semibold tracking-tight mb-1">
-              {formatCurrency(stock_batchValue)}
-            </div>
-            {momData && (
-              <div className="text-[11px] text-muted-foreground font-medium mt-auto">
+        <MetricCard
+          className="min-w-[140px] sm:min-w-0 snap-center shrink-0 border-border"
+          title="Total stock value"
+          value={formatCurrency(stock_batchValue)}
+          icon={<DollarSign className="h-4 w-4" />}
+          iconBgClass="bg-blue-50 text-blue-700"
+          description={
+            momData ? (
+              <>
                 <span className={momData.percentChange >= 0 ? "text-emerald-600" : "text-rose-600"}>
                   {momData.percentChange >= 0 ? "+" : ""}{momData.percentChange.toFixed(1)}%
                 </span> from last month
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              </>
+            ) : undefined
+          }
+        />
 
         {/* Total Products */}
-        <Card className="min-w-[140px] sm:min-w-0 snap-center shrink-0 border-border rounded-[14px] shadow-sm !p-0 !gap-0">
-          <CardContent className="!p-3 sm:!p-[18px] !px-3.5 sm:!px-5 hover-scale flex flex-col">
-            <div className="flex items-center justify-between mb-2 sm:mb-3.5">
-              <div className="text-[12.5px] text-muted-foreground font-medium">
-                Total products
-              </div>
-              <div className="hidden sm:flex w-8 h-8 rounded-lg items-center justify-center bg-sky-50 text-sky-700 shrink-0">
-                <Package className="h-4 w-4 hover-rotate-icon" />
-              </div>
-            </div>
-            <div className="text-2xl font-semibold tracking-tight mb-1">
-              {totalProducts}
-            </div>
-            <div className="text-[11px] text-muted-foreground font-medium mt-auto">
-              Across {activeCategories} categories
-            </div>
-          </CardContent>
-        </Card>
+        <MetricCard
+          className="min-w-[140px] sm:min-w-0 snap-center shrink-0 border-border"
+          title="Total products"
+          value={totalProducts}
+          icon={<Package className="h-4 w-4 hover-rotate-icon" />}
+          iconBgClass="bg-sky-50 text-sky-700"
+          description={`Across ${activeCategories} categories`}
+        />
 
         {/* Low Stock Items */}
-        <Card className="min-w-[140px] sm:min-w-0 snap-center shrink-0 border-amber-200/50 hover:border-amber-500/50 rounded-[14px] shadow-sm cursor-pointer transition-colors !p-0 !gap-0">
-          <CardContent className="!p-3 sm:!p-[18px] !px-3.5 sm:!px-5 flex flex-col">
-            <div className="flex items-center justify-between mb-2 sm:mb-3.5">
-              <div className="text-[12.5px] text-muted-foreground font-medium">Low stock</div>
-              <div className="hidden sm:flex w-8 h-8 rounded-lg items-center justify-center bg-amber-50 text-amber-700 shrink-0">
-                <TrendingDown className="h-4 w-4 hover-rotate-icon" />
-              </div>
-            </div>
-            <div className="text-2xl font-semibold tracking-tight mb-1 text-amber-700">
-              {lowStockCount}
-            </div>
-            <div className="text-[11px] text-amber-700/70 font-medium mt-auto">
-              Below reorder level
-            </div>
-          </CardContent>
-        </Card>
+        <MetricCard
+          className="min-w-[140px] sm:min-w-0 snap-center shrink-0 border-amber-200/50 hover:border-amber-500/50"
+          title="Low stock"
+          value={lowStockCount}
+          valueClassName="text-amber-700"
+          icon={<TrendingDown className="h-4 w-4 hover-rotate-icon" />}
+          iconBgClass="bg-amber-50 text-amber-700"
+          description="Below reorder level"
+          descriptionClassName="text-amber-700/70"
+        />
 
         {/* Expiring Soon */}
-        <Card className="min-w-[140px] sm:min-w-0 snap-center shrink-0 border-red-200/50 hover:border-red-500/50 rounded-[14px] shadow-sm cursor-pointer transition-colors !p-0 !gap-0">
-          <CardContent className="!p-3 sm:!p-[18px] !px-3.5 sm:!px-5 flex flex-col">
-            <div className="flex items-center justify-between mb-2 sm:mb-3.5">
-              <div className="text-[12.5px] text-muted-foreground font-medium">
-                Expiring soon
-              </div>
-              <div className="hidden sm:flex w-8 h-8 rounded-lg items-center justify-center bg-red-50 text-red-700 shrink-0">
-                <Calendar className="h-4 w-4" />
-              </div>
-            </div>
-            <div className="text-2xl font-semibold tracking-tight mb-1 text-red-700">
-              {expiringCount}
-            </div>
-            <div className="text-[11px] text-red-700/70 font-medium mt-auto">
-              Within {expiryDays} days
-            </div>
-          </CardContent>
-        </Card>
+        <MetricCard
+          className="min-w-[140px] sm:min-w-0 snap-center shrink-0 border-red-200/50 hover:border-red-500/50"
+          title="Expiring soon"
+          value={expiringCount}
+          valueClassName="text-red-700"
+          icon={<Calendar className="h-4 w-4" />}
+          iconBgClass="bg-red-50 text-red-700"
+          description={`Within ${expiryDays} days`}
+          descriptionClassName="text-red-700/70"
+        />
         
       </div>
     </div>

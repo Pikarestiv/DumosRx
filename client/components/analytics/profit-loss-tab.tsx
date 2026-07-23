@@ -1,12 +1,6 @@
 "use client";
 
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardHeader, 
-  CardTitle 
-} from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { 
   Calculator, 
   ArrowDownRight, 
@@ -64,7 +58,7 @@ export function ProfitLossTab({
 }: ProfitLossTabProps) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-5">
-      <div className="bg-background border rounded-2xl p-5">
+      <Card className="p-5 border shadow-sm rounded-2xl">
         <div className="flex items-center gap-2 mb-0.5">
           <Calculator className="w-4 h-4 text-primary" />
           <div className="text-[14.5px] font-semibold">Financial Performance Statement</div>
@@ -100,9 +94,9 @@ export function ProfitLossTab({
             </div>
           </div>
         </div>
-      </div>
+      </Card>
 
-      <div className="bg-background border rounded-2xl p-5">
+      <Card className="p-5 border shadow-sm rounded-2xl">
         <div className="flex items-center gap-2 mb-5">
           <PieChartIcon className="w-4 h-4 text-primary" />
           <div className="text-[13.5px] font-bold uppercase tracking-wide">Burn Distribution</div>
@@ -154,9 +148,9 @@ export function ProfitLossTab({
             <div className="text-[12.5px] font-bold text-emerald-600">{totalRevenue > 0 ? ((netProfit / totalRevenue) * 100).toFixed(0) : 0}%</div>
           </div>
         </div>
-      </div>
+      </Card>
 
-      <div className="bg-background border rounded-2xl p-5 lg:col-span-2">
+      <Card className="p-5 border shadow-sm rounded-2xl lg:col-span-2">
         <div className="text-[14.5px] font-semibold mb-0.5">Financial Health Over Time</div>
         <div className="text-[12px] text-muted-foreground mb-5">Revenue vs. net profit across recent months</div>
         <div className="h-[180px] w-full">
@@ -202,7 +196,7 @@ export function ProfitLossTab({
             </AreaChart>
           </ChartContainer>
         </div>
-      </div>
+      </Card>
     </div>
   );
 }

@@ -18,7 +18,7 @@ export function CustomerManagement() {
   const { storeType, storeProfile } = useStore();
   const isStore = storeType === "pharmacy";
 
-  const { customers, metrics, addCustomer, fetchCustomers } = useCustomerData();
+  const { customers, metrics, addCustomer } = useCustomerData();
 
   const loyaltyTiers = [
     {

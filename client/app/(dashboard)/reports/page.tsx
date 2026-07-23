@@ -5,8 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { ReportCenter } from "@/components/reports/report-center";
 import { BusinessIntelligenceDashboard } from "@/components/analytics/business-intelligence-dashboard";
 import { useStore } from "@/lib/context/store-context";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, TrendingUp } from "lucide-react";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { useAuth } from "@/lib/context/auth-context";
 
 import { DailyCloseReport } from "@/components/reports/daily-close-report";

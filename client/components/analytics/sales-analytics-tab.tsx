@@ -1,12 +1,6 @@
 "use client";
 
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardHeader, 
-  CardTitle 
-} from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { 
   PieChart, 
   Pie, 
@@ -44,7 +38,7 @@ export function SalesAnalyticsTab({
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.5fr] gap-5">
       {/* Sales by Category */}
-      <div className="bg-background border rounded-2xl p-5">
+      <Card className="p-5 border shadow-sm rounded-2xl">
         <div className="flex items-center gap-2 mb-0.5">
           <svg className="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>
           <div className="text-[14.5px] font-semibold">Sales by Category</div>
@@ -84,11 +78,11 @@ export function SalesAnalyticsTab({
             </div>
           ))}
         </div>
-      </div>
+      </Card>
 
       <div className="flex flex-col gap-5">
         {/* Revenue Trend */}
-        <div className="bg-background border rounded-2xl p-5">
+        <Card className="p-5 border shadow-sm rounded-2xl">
           <div className="text-[14.5px] font-semibold mb-0.5">Revenue Trend</div>
           <div className="text-[12px] text-muted-foreground mb-5">Monthly revenue and profit analysis</div>
           
@@ -134,10 +128,10 @@ export function SalesAnalyticsTab({
               </AreaChart>
             </ChartContainer>
           </div>
-        </div>
+        </Card>
 
         {/* Top Selling Products */}
-        <div className="bg-background border rounded-2xl p-5">
+        <Card className="p-5 border shadow-sm rounded-2xl">
           <div className="flex items-center justify-between mb-5">
             <div>
               <div className="text-[14.5px] font-semibold">Top Selling Products</div>
@@ -187,7 +181,7 @@ export function SalesAnalyticsTab({
               </div>
             ))}
           </div>
-        </div>
+        </Card>
       </div>
     </div>
   );

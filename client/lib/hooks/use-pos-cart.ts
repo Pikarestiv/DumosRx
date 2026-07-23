@@ -28,7 +28,7 @@ interface POSCartState {
   setDiscountType: (type: "fixed" | "percentage") => void;
 }
 
-export const usePOSCartStore = create<POSCartState>()(
+const usePOSCartStore = create<POSCartState>()(
   persist(
     (set) => ({
       cart: [],

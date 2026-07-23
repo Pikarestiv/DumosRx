@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { Customer } from "@/lib/hooks/use-customer-data";
 import { Card } from "@/components/ui/card";
 

@@ -20,7 +20,6 @@ import {
 interface DataSettingsAutoSyncProps {
   canCloudSync: boolean;
   minimumSyncIntervalMinutes: number;
-  isCloudLinked: boolean;
   autoSyncEnabled: boolean;
   setAutoSyncEnabled: (val: boolean) => void;
   autoSyncInterval: string;
@@ -31,7 +30,6 @@ interface DataSettingsAutoSyncProps {
 export function DataSettingsAutoSync({
   canCloudSync,
   minimumSyncIntervalMinutes,
-  isCloudLinked,
   autoSyncEnabled,
   setAutoSyncEnabled,
   autoSyncInterval,

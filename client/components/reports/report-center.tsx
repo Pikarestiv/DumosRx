@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import {
   FileText,
   Download,
-  Printer,
   BarChart,
   ClipboardList,
   Wallet,

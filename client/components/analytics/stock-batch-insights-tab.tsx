@@ -1,6 +1,7 @@
 "use client";
 
-import { AlertTriangle, CheckCircle2 } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
+import { Card } from "@/components/ui/card";
 import { 
   BarChart, 
   Bar, 
@@ -50,7 +51,7 @@ export function StockBatchInsightsTab({
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
       {/* StockBatch Alerts */}
-      <div className="bg-background border rounded-2xl p-5">
+      <Card className="p-5 border shadow-sm rounded-2xl">
         <div className="flex items-center gap-2 mb-0.5 text-destructive">
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4m0 4h.01"/></svg>
           <div className="text-[14.5px] font-semibold">Critical Stock Batch Alerts</div>
@@ -89,10 +90,10 @@ export function StockBatchInsightsTab({
             ))}
           </div>
         )}
-      </div>
+      </Card>
 
       {/* Sales by Category */}
-      <div className="bg-background border rounded-2xl p-5">
+      <Card className="p-5 border shadow-sm rounded-2xl">
         <div className="text-[14.5px] font-semibold mb-0.5">Sales by Category</div>
         <div className="text-[12px] text-muted-foreground mb-5">Distribution of sales across product categories</div>
         
@@ -126,7 +127,7 @@ export function StockBatchInsightsTab({
             </ChartContainer>
           </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 }

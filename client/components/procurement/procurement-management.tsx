@@ -6,6 +6,7 @@ import {
   getPurchaseOrders,
   receivePurchaseOrder,
   updatePurchaseOrderStatus,
+  deletePurchaseOrder,
   type PurchaseOrder,
 } from "@/lib/db/local-database";
 import { genericFuzzySearch } from "@/lib/utils/search";
@@ -65,10 +66,19 @@ export function ProcurementManagement({ initialTab = "orders" }: ProcurementMana
       toast.error("Error updating order status");
     }
   };
+  const handleDeletePO = async (id: string) => {
+    try {
+      await deletePurchaseOrder(id);
+      toast.success("Purchase order deleted successfully");
+      fetchPurchaseOrders();
+    } catch (error) {
+      console.error("Failed to delete PO:", error);
+      toast.error("Error deleting purchase order");
+    }
+  };
 
   const preFilteredOrders = purchaseOrders.filter((po) => {
     if (poTab === "all") return true;
-    if (poTab === "pending" && (po.status === "draft" || po.status === "pending")) return true;
     return po.status === poTab;
   });
 
@@ -127,6 +137,7 @@ export function ProcurementManagement({ initialTab = "orders" }: ProcurementMana
             onTabChange={setPoTab}
             onReceivePO={handleReceivePO}
             onSendPO={handleSendPO}
+            onDeletePO={handleDeletePO}
             isFuzzyFallback={isFuzzyFallback}
           />
         </TabsContent>

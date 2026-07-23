@@ -34,6 +34,7 @@ interface PurchaseOrderTableProps {
   onTabChange: (tab: string) => void;
   onReceivePO: (id: string) => void;
   onSendPO: (id: string) => void;
+  onDeletePO?: (id: string) => void;
   isFuzzyFallback?: boolean;
 }
 
@@ -46,6 +47,7 @@ export function PurchaseOrderTable({
   onTabChange,
   onReceivePO,
   onSendPO,
+  onDeletePO,
   isFuzzyFallback,
 }: PurchaseOrderTableProps) {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
@@ -328,12 +330,23 @@ export function PurchaseOrderTable({
                 Download PDF
               </Button>
               {selectedPO.status === "pending" && (
-                <Button 
-                  className="flex-1 h-10 text-[13.5px] font-bold"
-                  onClick={() => onSendPO(selectedPO.id)}
-                >
-                  Mark as Sent
-                </Button>
+                <div className="flex flex-1 gap-2">
+                  {onDeletePO && (
+                    <Button 
+                      variant="destructive"
+                      className="flex-[0.5] h-10 text-[13.5px] font-bold"
+                      onClick={() => onDeletePO(selectedPO.id)}
+                    >
+                      Delete
+                    </Button>
+                  )}
+                  <Button 
+                    className="flex-1 h-10 text-[13.5px] font-bold"
+                    onClick={() => onSendPO(selectedPO.id)}
+                  >
+                    Mark as Sent
+                  </Button>
+                </div>
               )}
               {selectedPO.status === "sent" && (
                 <Button

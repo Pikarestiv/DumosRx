@@ -3,7 +3,7 @@
  */
 
 import { query, logAction, generateId } from "./core";
-import { insert, update } from "./base-helpers";
+import { insert, update, softDelete } from "./base-helpers";
 
 export interface PurchaseOrder {
   id: string;
@@ -191,4 +191,8 @@ export async function getSuppliers(page = 1, limit = 50) {
 
 export async function createSupplier(data: any) {
   return await insert("suppliers", data);
+}
+
+export async function deletePurchaseOrder(id: string) {
+  return await softDelete('purchase_orders', id);
 }

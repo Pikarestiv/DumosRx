@@ -3,7 +3,7 @@
 import { MetricCard } from "@/components/ui/metric-card";
 import { LucideIcon } from "lucide-react";
 
-interface StatCard {
+export interface StatCard {
   title: string;
   value: string;
   comparison?: string;
@@ -14,7 +14,6 @@ interface StatCard {
 interface DashboardStatsProps {
   statsCards: StatCard[];
 }
-
 export function DashboardStats({ statsCards }: DashboardStatsProps) {
   const getColorStyles = (color?: string) => {
     switch (color) {
@@ -23,30 +22,35 @@ export function DashboardStats({ statsCards }: DashboardStatsProps) {
           wrapper: "border-blue-500/20 bg-blue-500/5",
           icon: "text-blue-500",
           trend: "text-blue-600 dark:text-blue-400",
+          border: "border-blue-200/50 hover:border-blue-500/50",
         };
       case "green":
         return {
           wrapper: "border-emerald-500/20 bg-emerald-500/5",
           icon: "text-emerald-500",
           trend: "text-emerald-600 dark:text-emerald-400",
+          border: "border-emerald-200/50 hover:border-emerald-500/50",
         };
       case "red":
         return {
           wrapper: "border-destructive/20 bg-destructive/5",
           icon: "text-destructive",
           trend: "text-destructive",
+          border: "border-destructive-200/50 hover:border-destructive-500/50",
         };
       case "amber":
         return {
           wrapper: "border-amber-500/20 bg-amber-500/5",
           icon: "text-amber-500",
           trend: "text-amber-600 dark:text-amber-400",
+          border: "border-amber-200/50 hover:border-amber-500/50",
         };
       default:
         return {
           wrapper: "border-border",
           icon: "text-primary",
           trend: "text-primary",
+          border: "border-border-200/50 hover:border-border-500/50",
         };
     }
   };
@@ -59,7 +63,7 @@ export function DashboardStats({ statsCards }: DashboardStatsProps) {
           return (
             <MetricCard
               key={stat.title}
-              className="min-w-[140px] sm:min-w-0 snap-center shrink-0 border-border"
+              className={`min-w-[140px] sm:min-w-0 snap-center shrink-0 ${colors.border}`}
               title={stat.title}
               value={stat.value}
               valueClassName="font-black"

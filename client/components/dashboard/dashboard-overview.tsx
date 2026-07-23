@@ -46,8 +46,6 @@ export function DashboardOverview() {
   const salesYesterday = dashboardData?.salesYesterday?.total || 0;
   const activeCategories = dashboardData?.activeCategories || 0;
 
-  
-
   const todayRevenue =
     (salesToday[0]?.total || 0) - (refundsToday[0]?.total || 0);
 
@@ -74,7 +72,11 @@ export function DashboardOverview() {
 
     if (activity.activity_type === "sale") {
       message = `${t("product")} sale: ${activity.transaction_number || activity.id.slice(0, 8)}`;
-      const val = Number(activity.total_amount !== undefined ? activity.total_amount : activity.total);
+      const val = Number(
+        activity.total_amount !== undefined
+          ? activity.total_amount
+          : activity.total,
+      );
       amount = isNaN(val) ? "N/A" : formatCurrency(val, storeProfile?.currency);
     } else if (activity.activity_type === "stock_movement") {
       message = `Stock ${activity.movement_type}: ${Math.abs(activity.quantity)} units`;
@@ -84,20 +86,25 @@ export function DashboardOverview() {
       }
     } else if (activity.activity_type === "prescription") {
       message = `Prescription logged: ${activity.patient_name || "Patient"}`;
-      amount = activity.total_cost ? formatCurrency(activity.total_cost, storeProfile?.currency) : "";
+      amount = activity.total_cost
+        ? formatCurrency(activity.total_cost, storeProfile?.currency)
+        : "";
     } else if (activity.activity_type === "expense") {
       message = `Expense: ${activity.category}`;
       amount = formatCurrency(activity.amount, storeProfile?.currency);
     } else if (activity.activity_type === "purchase_order") {
       message = `Procurement PO: ${activity.po_number || activity.id.slice(0, 8)}`;
-      amount = activity.total_amount ? formatCurrency(activity.total_amount, storeProfile?.currency) : "";
+      amount = activity.total_amount
+        ? formatCurrency(activity.total_amount, storeProfile?.currency)
+        : "";
     }
 
     return {
       id: activity.id,
       type: activity.activity_type,
       message,
-      timestamp: activity.created_at || activity.date || activity.transaction_date,
+      timestamp:
+        activity.created_at || activity.date || activity.transaction_date,
       amount,
       rawSale: activity.activity_type === "sale" ? activity : undefined,
       rawActivity: activity,
@@ -184,19 +191,10 @@ export function DashboardOverview() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-serif font-bold text-3xl text-foreground">
-          Overview
-        </h1>
-        <p className="text-muted-foreground mt-1.5 text-sm">
-          A real-time summary of your store's operations, inventory status, and sales
-        </p>
-      </div>
-
       <DashboardStats statsCards={statsCards} />
 
-      <DashboardActionCenter 
-        expiringCount={stats.expiringSoonCount} 
+      <DashboardActionCenter
+        expiringCount={stats.expiringSoonCount}
         lowStockCount={stats.lowStockCount}
         missingExpiryCount={stats.missingExpiryCount}
       />
@@ -216,31 +214,51 @@ export function DashboardOverview() {
       </div>
 
       <TransactionDetailsDialog
-        sale={selectedActivity?.type === "sale" ? selectedActivity.rawActivity : null}
+        sale={
+          selectedActivity?.type === "sale"
+            ? selectedActivity.rawActivity
+            : null
+        }
         open={selectedActivity?.type === "sale"}
         onOpenChange={(open) => !open && setSelectedActivity(null)}
         currencyCode={storeProfile?.currency}
       />
       <ExpenseDetailsDialog
-        expense={selectedActivity?.type === "expense" ? selectedActivity.rawActivity : null}
+        expense={
+          selectedActivity?.type === "expense"
+            ? selectedActivity.rawActivity
+            : null
+        }
         open={selectedActivity?.type === "expense"}
         onOpenChange={(open) => !open && setSelectedActivity(null)}
         currencyCode={storeProfile?.currency}
       />
       <ProcurementDetailsDialog
-        po={selectedActivity?.type === "purchase_order" ? selectedActivity.rawActivity : null}
+        po={
+          selectedActivity?.type === "purchase_order"
+            ? selectedActivity.rawActivity
+            : null
+        }
         open={selectedActivity?.type === "purchase_order"}
         onOpenChange={(open) => !open && setSelectedActivity(null)}
         currencyCode={storeProfile?.currency}
       />
       <DashboardPrescriptionDetailsDialog
-        prescription={selectedActivity?.type === "prescription" ? selectedActivity.rawActivity : null}
+        prescription={
+          selectedActivity?.type === "prescription"
+            ? selectedActivity.rawActivity
+            : null
+        }
         open={selectedActivity?.type === "prescription"}
         onOpenChange={(open) => !open && setSelectedActivity(null)}
         currencyCode={storeProfile?.currency}
       />
       <StockMovementDetailsDialog
-        movement={selectedActivity?.type === "stock_movement" ? selectedActivity.rawActivity : null}
+        movement={
+          selectedActivity?.type === "stock_movement"
+            ? selectedActivity.rawActivity
+            : null
+        }
         open={selectedActivity?.type === "stock_movement"}
         onOpenChange={(open) => !open && setSelectedActivity(null)}
         currencyCode={storeProfile?.currency}

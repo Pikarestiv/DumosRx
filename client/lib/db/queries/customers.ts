@@ -1,7 +1,17 @@
 import { query } from "@/lib/db/local-database";
 
 export async function getCustomers() {
-  return query<any>("SELECT * FROM customers WHERE _deleted = 0 ORDER BY created_at DESC");
+  return query<any>(`
+    SELECT 
+      c.*,
+      COALESCE(SUM(s.total_amount), 0) as total_spent,
+      MAX(s.transaction_date) as last_visit
+    FROM customers c
+    LEFT JOIN sales s ON c.id = s.customer_id AND s._deleted = 0
+    WHERE c._deleted = 0
+    GROUP BY c.id
+    ORDER BY c.first_name ASC
+  `);
 }
 
 export async function getDebtors() {

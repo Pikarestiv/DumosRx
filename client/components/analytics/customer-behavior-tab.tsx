@@ -1,21 +1,6 @@
 "use client";
 
 import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardHeader, 
-  CardTitle 
-} from "@/components/ui/card";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from "@/components/ui/table";
-import { 
   TrendingUp, 
   TrendingDown,
   Clock
@@ -46,86 +31,67 @@ export function CustomerBehaviorTab({
   const symbol = currency === "NGN" ? "₦" : currency === "USD" ? "$" : currency === "GBP" ? "£" : "₦";
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div className="flex flex-col gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
         {customerMetrics.map((metric) => (
-          <Card key={metric.metric}>
-            <CardHeader className="pb-2">
-              <CardDescription>{metric.metric}</CardDescription>
-              <CardTitle className="text-2xl">{metric.value}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-1">
-                {metric.trend === "up" && (
-                                          <TrendingUp className="h-4 w-4 text-emerald-500" />
-                                        )}
-                        {!(metric.trend === "up") && (
-                                          <TrendingDown className="h-4 w-4 text-red-500" />
-                                        )}
-                <span
-                  className={`text-sm font-medium ${
-                    metric.trend === "up"
-                      ? "text-emerald-500"
-                      : "text-red-500"
-                  }`}
-                >
-                  {metric.change}
-                </span>
-                <span className="text-xs text-muted-foreground ml-1">
-                  vs last period
-                </span>
-              </div>
-            </CardContent>
-          </Card>
+          <div key={metric.metric} className="bg-background border rounded-2xl p-5">
+            <div className="text-[12px] text-muted-foreground mb-1">{metric.metric}</div>
+            <div className="text-[24px] font-bold">{metric.value}</div>
+            <div className={`flex items-center gap-1 mt-2 text-[11px] font-semibold ${metric.trend === "up" ? "text-emerald-600" : "text-red-600"}`}>
+              {metric.trend === "up" ? (
+                <TrendingUp className="w-3.5 h-3.5" />
+              ) : (
+                <TrendingDown className="w-3.5 h-3.5" />
+              )}
+              <span>{metric.change}</span>
+              <span className="text-muted-foreground font-medium ml-1">vs last period</span>
+            </div>
+          </div>
         ))}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Clock className="h-5 w-5 text-primary" />
-            Customer Purchase Patterns
-          </CardTitle>
-          <CardDescription>
-            Peak hours and transaction frequency based on real sales data
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {purchasePatterns.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-              <Clock className="h-10 w-10 opacity-20 mb-3" />
-              <p className="font-semibold">No transaction data available</p>
-              <p className="text-sm mt-1">Sales will appear here once transactions are recorded.</p>
-            </div>
-          )}
-          {purchasePatterns.length > 0 && (
-            <div className="w-full overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Time Period</TableHead>
-                    <TableHead>Transactions</TableHead>
-                    <TableHead>Avg. Value</TableHead>
-                    <TableHead>Top Category</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {purchasePatterns.map((row) => (
-                    <TableRow key={row.slot}>
-                      <TableCell className="font-medium">{row.slot}</TableCell>
-                      <TableCell>{row.transactions.toLocaleString()}</TableCell>
-                      <TableCell>
-                        {symbol}{Math.round(row.avgValue).toLocaleString()}
-                      </TableCell>
-                      <TableCell>{row.topCategory}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <div className="bg-background border rounded-2xl p-5">
+        <div className="flex items-center gap-2 mb-0.5">
+          <Clock className="w-4 h-4 text-primary" />
+          <div className="text-[14.5px] font-semibold">Customer Purchase Patterns</div>
+        </div>
+        <div className="text-[12px] text-muted-foreground mb-5">Peak hours and transaction frequency based on real sales data</div>
+        
+        {purchasePatterns.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+            <Clock className="h-10 w-10 opacity-20 mb-3" />
+            <p className="font-semibold text-[13.5px]">No transaction data available</p>
+            <p className="text-[12px] mt-1">Sales will appear here once transactions are recorded.</p>
+          </div>
+        )}
+        
+        {purchasePatterns.length > 0 && (
+          <div className="w-full overflow-hidden border rounded-xl">
+            <table className="w-full text-[13px] text-left">
+              <thead className="bg-secondary/50 border-b text-muted-foreground font-semibold text-[11.5px] uppercase">
+                <tr>
+                  <th className="px-5 py-3">Time Period</th>
+                  <th className="px-5 py-3">Transactions</th>
+                  <th className="px-5 py-3">Avg. Value</th>
+                  <th className="px-5 py-3">Top Category</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {purchasePatterns.map((row) => (
+                  <tr key={row.slot} className="hover:bg-muted/30">
+                    <td className="px-5 py-3.5 font-medium">{row.slot}</td>
+                    <td className="px-5 py-3.5">{row.transactions.toLocaleString()}</td>
+                    <td className="px-5 py-3.5">
+                      {symbol}{Math.round(row.avgValue).toLocaleString()}
+                    </td>
+                    <td className="px-5 py-3.5">{row.topCategory}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

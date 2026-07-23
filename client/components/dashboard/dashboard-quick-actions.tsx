@@ -95,7 +95,7 @@ export function DashboardQuickActions({
           Quick Actions
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-0 sm:px-4 pt-0">
+      <CardContent className="p-0 sm:px-4 pt-0 pb-4">
         <div className="flex overflow-x-auto sm:grid sm:grid-cols-2 gap-1 sm:gap-4 pb-0 hide-scrollbar snap-x snap-mandatory -mx-4 sm:mx-0 px-4 sm:px-0">
           {getQuickActionsConfig(productTerm, setIsReportOpen).map(
             (action, i) => (

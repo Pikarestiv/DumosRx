@@ -16,6 +16,9 @@
   "ignore": [
     "styles/globals.css",
     "public/sw.js",
-    "e2e/global.setup.ts"
+    "e2e/global.setup.ts",
+    "components/ui/**",
+    "lib/db/queries/**",
+    "postcss.config.mjs"
   ]
 }

@@ -1,6 +1,7 @@
 import React from "react";
 import { Package, ChevronRight } from "lucide-react";
 import { Product } from "./types";
+import { useStore } from "@/lib/context/store-context";
 
 interface CatalogListProps {
   filteredProducts: Product[];
@@ -19,6 +20,9 @@ export function CatalogList({
   onSelectProduct,
   selectedProductId,
 }: CatalogListProps) {
+  const { storeType } = useStore();
+  const isPharmacy = storeType === "pharmacy";
+
   return (
     <div className="flex flex-col h-full min-h-0">
       {isFuzzyFallback && filteredProducts.length > 0 && (
@@ -57,8 +61,13 @@ export function CatalogList({
                 {/* Mobile View */}
                 <div className="flex sm:hidden items-center justify-between">
                   <div className="min-w-0 pr-2 flex-1">
-                    <div className="text-[15px] font-bold text-foreground truncate">
+                    <div className="text-[15px] font-bold text-foreground truncate flex items-center gap-2">
                       {product.name}
+                      {isPharmacy && !product.genericName && (
+                        <span className="text-[10px] font-medium bg-amber-500/10 text-amber-600 px-1.5 py-0.5 rounded border border-amber-500/20" title="Missing Generic Name">
+                          No Generic
+                        </span>
+                      )}
                     </div>
                     <div className="text-[13px] text-muted-foreground mt-0.5 truncate flex">
                       {product.barcode || product.id.slice(0, 8)} ·{" "}
@@ -84,8 +93,13 @@ export function CatalogList({
                 {/* Desktop View */}
                 <div className="hidden sm:grid grid-cols-[1fr_110px_90px_100px_90px] gap-2 items-center">
                   <div className="min-w-0 pr-2">
-                    <div className="text-[13px] font-semibold truncate">
+                    <div className="text-[13px] font-semibold truncate flex items-center gap-2">
                       {product.name}
+                      {isPharmacy && !product.genericName && (
+                        <span className="text-[9px] font-medium bg-amber-500/10 text-amber-600 px-1.5 py-0.5 rounded border border-amber-500/20" title="Missing Generic Name">
+                          No Generic
+                        </span>
+                      )}
                     </div>
                     <div className="text-[11px] text-muted-foreground truncate">
                       {product.barcode || product.id.slice(0, 8)}

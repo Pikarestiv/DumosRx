@@ -2,8 +2,6 @@ export interface Product {
   id: string;
   name: string;
   generic_name?: string;
-  brand_name?: string;
-  brand?: string;
   category_id?: string;
   nafdac_number?: string;
   strength?: string;
@@ -17,13 +15,14 @@ export interface Product {
   selling_price?: number;
   reorder_level?: number;
   show_online?: boolean;
+  requires_prescription?: boolean;
+  is_controlled?: boolean;
 }
 
 export interface POSProduct {
   id: string;
   name: string;
   generic_name: string;
-  brand: string;
   strength: string;
   unit_price: number;
   stock: number;
@@ -37,18 +36,16 @@ export interface ProductViewModel {
   id: string;
   name: string;
   genericName: string;
-  brand: string;
   category: string;
   nafdacNumber: string;
   strength: string;
   dosageForm: string;
   manufacturer: string;
-  supplier: string;
   costPrice: number;
   sellingPrice: number;
   stockQuantity: number;
   reorderLevel: number;
-  expiryDate: string;
+  expiryDate: string | null;
   batchNumber: string;
   barcode: string;
   baseUnit: string;
@@ -56,4 +53,6 @@ export interface ProductViewModel {
   unitsPerBulk: number;
   status: "active" | "inactive" | "expired" | "low_stock" | "out_of_stock";
   showOnline: boolean;
+  requiresPrescription: boolean;
+  isControlled: boolean;
 }

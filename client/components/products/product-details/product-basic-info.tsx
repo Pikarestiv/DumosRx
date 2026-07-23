@@ -13,8 +13,8 @@ export function ProductBasicInfo({ product }: ProductBasicInfoProps) {
       </h3>
       <div className="grid grid-cols-2 gap-y-4 gap-x-2">
         <div>
-          <p className="text-sm text-muted-foreground">Brand Name</p>
-          <p className="font-medium">{product.brand || "N/A"}</p>
+          <p className="text-sm text-muted-foreground">Generic Name</p>
+          <p className="font-medium">{product.genericName || "N/A"}</p>
         </div>
         <div>
           <p className="text-sm text-muted-foreground">Category</p>

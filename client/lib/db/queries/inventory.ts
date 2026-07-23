@@ -8,7 +8,7 @@ export async function getAvailableStockBatches() {
 
 export async function getBatchTrackingData() {
   return query<any>(
-    `SELECT sb.id, p.name as product_name, p.brand_name as product_brand, sb.batch_number, sb.expiry_date, sb.quantity, sb.cost_price FROM stock_batches sb JOIN products p ON sb.product_id = p.id WHERE sb._deleted = 0 AND p._deleted = 0 ORDER BY sb.expiry_date ASC`
+    `SELECT sb.id, p.name as product_name, sb.batch_number, sb.expiry_date, sb.quantity, sb.cost_price FROM stock_batches sb JOIN products p ON sb.product_id = p.id WHERE sb._deleted = 0 AND p._deleted = 0 ORDER BY sb.expiry_date ASC`
   );
 }
 
@@ -27,7 +27,7 @@ export async function getStockBatchById(id: string) {
 export async function getStockOverviewData() {
   return query<any>(
     `SELECT 
-      p.id, p.name as product_name, p.brand_name, p.reorder_level, p.selling_price, p.barcode,
+      p.id, p.name as product_name, p.reorder_level, p.selling_price, p.barcode,
       sb.avg_cost as cost_price,
       COALESCE(sb.total_qty, 0) as quantity,
       sb.earliest_expiry as expiry_date,

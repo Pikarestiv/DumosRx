@@ -123,7 +123,7 @@ export function ProductDatabase() {
   const { results: filteredProducts, isFuzzyFallback } = genericFuzzySearch(
     searchTerm,
     preFilteredProducts,
-    ["name", "genericName", "brand", "nafdacNumber", "barcode", "id"],
+    ["name", "genericName", "nafdacNumber", "barcode", "id"],
   );
 
   const formatCurrency = (amount: number) => {

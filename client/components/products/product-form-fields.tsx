@@ -7,12 +7,21 @@ import { Label } from "@/components/ui/label";
 import { SearchableInput } from "@/components/ui/searchable-input";
 import { ProductCombobox } from "@/components/ui/product-combobox";
 import { Button } from "@/components/ui/button";
-import { ScanLine } from "lucide-react";
+import { ScanLine, Info, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Switch } from "@/components/ui/switch";
+import { cn } from "@/lib/utils";
 
 interface ProductFormFieldsProps {
   formData: Product;
   onInputChange: (field: keyof Product, value: any) => void;
   isPharmacy: boolean;
+  isQuickAdd?: boolean;
   suggestions: {
     names: string[];
     generics?: string[];
@@ -32,11 +41,13 @@ export function ProductFormFields({
   formData,
   onInputChange,
   isPharmacy,
+  isQuickAdd = false,
   suggestions,
   commonSuggestions,
   t,
 }: ProductFormFieldsProps) {
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(!isQuickAdd);
 
   return (
     <div className="flex flex-col gap-6">
@@ -51,83 +62,39 @@ export function ProductFormFields({
               onChange={(option) => {
                 onInputChange("name", option.name);
                 if (option.source === "local") {
-                  onInputChange("brand", option.brand_name || "");
                   onInputChange("genericName", option.generic_name || "");
                   onInputChange("manufacturer", option.manufacturer || "");
                 }
               }}
-              placeholder={`e.g., ${isPharmacy ? "Paracetamol" : "Product Name"}`}
+              placeholder={`e.g., ${isPharmacy ? "Panadol Extra" : "Product Name"}`}
             />
           </div>
 
-          {isPharmacy && (
-            <div className="space-y-2">
-              <Label htmlFor="genericName">Generic Name *</Label>
-              <SearchableInput
-                id="genericName"
-                value={formData.genericName}
-                onValueChange={(val) => onInputChange("genericName", val)}
-                options={suggestions.generics || []}
-                placeholder="e.g., Acetaminophen"
-                required
-              />
+          <div className="space-y-2">
+            <div className="flex items-center gap-1">
+              <Label htmlFor="category">
+                {isPharmacy && t("category") === "Therapeutic Class"
+                  ? "Therapeutic Class / Drug Category"
+                  : t("category")}
+              </Label>
+              {isPharmacy && (
+                <TooltipProvider>
+                  <Tooltip delayDuration={300}>
+                    <TooltipTrigger asChild>
+                      <Info className="w-3 h-3 opacity-50 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>What type of medicine is this? E.g., Pain Relief, Antibiotic, Vitamin.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
             </div>
-          )}
-
-          <div className="space-y-2">
-            <Label htmlFor="brand">Brand Name</Label>
-            <SearchableInput
-              id="brand"
-              value={formData.brand}
-              onValueChange={(val) => onInputChange("brand", val)}
-              options={suggestions.names}
-              placeholder={`e.g., ${isPharmacy ? "Panadol" : "Brand Name"}`}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="category">{t("category")}</Label>
             <SearchableInput
               options={suggestions.categories}
               value={formData.category}
               onValueChange={(val) => onInputChange("category", val)}
               placeholder="Select or type category"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Identifiers & Details */}
-      <div className="space-y-4">
-        <h3 className="font-serif font-bold text-lg border-b pb-2">Details & Identifiers</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="manufacturer">Manufacturer</Label>
-            <SearchableInput
-              options={suggestions.manufacturers}
-              value={formData.manufacturer}
-              onValueChange={(val) => onInputChange("manufacturer", val)}
-              placeholder="Select or type manufacturer"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="supplier">Supplier</Label>
-            <SearchableInput
-              options={suggestions.suppliers || []}
-              value={formData.supplier || ""}
-              onValueChange={(val) => onInputChange("supplier", val)}
-              placeholder="Select or type supplier"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="nafdacNumber">{t("registration_number")}</Label>
-            <Input
-              id="nafdacNumber"
-              value={formData.nafdacNumber}
-              onChange={(e) => onInputChange("nafdacNumber", e.target.value)}
-              placeholder="e.g., 04-1234"
             />
           </div>
 
@@ -204,6 +171,82 @@ export function ProductFormFields({
               </Button>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Additional Details (Collapsible) */}
+      <div className="space-y-4">
+        <button
+          type="button"
+          onClick={() => setIsDetailsOpen(!isDetailsOpen)}
+          className="flex items-center justify-between w-full font-serif font-bold text-lg border-b pb-2 text-left hover:text-primary transition-colors focus:outline-none"
+        >
+          <span>Additional Details (Optional)</span>
+          {isDetailsOpen ? (
+            <ChevronUp className="w-5 h-5 text-muted-foreground" />
+          ) : (
+            <ChevronDown className="w-5 h-5 text-muted-foreground" />
+          )}
+        </button>
+        
+        <div className={cn("grid grid-cols-1 md:grid-cols-2 gap-4 transition-all overflow-hidden", isDetailsOpen ? "max-h-[1000px] opacity-100 mt-4" : "max-h-0 opacity-0 m-0")}>
+          {isPharmacy && (
+            <div className="space-y-2">
+              <Label htmlFor="genericName">Generic Name</Label>
+              <SearchableInput
+                id="genericName"
+                value={formData.genericName}
+                onValueChange={(val) => onInputChange("genericName", val)}
+                options={suggestions.generics || []}
+                placeholder="e.g., Acetaminophen"
+              />
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <Label htmlFor="manufacturer">Manufacturer</Label>
+            <SearchableInput
+              options={suggestions.manufacturers}
+              value={formData.manufacturer}
+              onValueChange={(val) => onInputChange("manufacturer", val)}
+              placeholder="Select or type manufacturer"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="nafdacNumber">{t("registration_number")}</Label>
+            <Input
+              id="nafdacNumber"
+              value={formData.nafdacNumber}
+              onChange={(e) => onInputChange("nafdacNumber", e.target.value)}
+              placeholder="e.g., 04-1234"
+            />
+          </div>
+
+          {isPharmacy && (
+            <div className="space-y-4 pt-2 md:col-span-2 flex flex-col sm:flex-row sm:items-center gap-6">
+              <div className="flex items-center justify-between space-x-2">
+                <Label htmlFor="requiresPrescription" className="flex-1 cursor-pointer">
+                  Requires Prescription (Rx)
+                </Label>
+                <Switch
+                  id="requiresPrescription"
+                  checked={formData.requiresPrescription}
+                  onCheckedChange={(checked) => onInputChange("requiresPrescription", checked)}
+                />
+              </div>
+              <div className="flex items-center justify-between space-x-2">
+                <Label htmlFor="isControlled" className="flex-1 cursor-pointer">
+                  Controlled Substance
+                </Label>
+                <Switch
+                  id="isControlled"
+                  checked={formData.isControlled}
+                  onCheckedChange={(checked) => onInputChange("isControlled", checked)}
+                />
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

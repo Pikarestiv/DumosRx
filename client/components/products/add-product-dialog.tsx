@@ -37,25 +37,25 @@ export function AddProductDialog({
     id: "",
     name: initialData?.name || "",
     genericName: initialData?.genericName || "",
-    brand: initialData?.brand || "",
     category: "",
     nafdacNumber: "",
     strength: initialData?.strength || "",
     dosageForm: initialData?.dosageForm || "",
     manufacturer: initialData?.manufacturer || "",
-    supplier: "",
-    costPrice: 0,
     sellingPrice: 0,
-    stockQuantity: 0,
     reorderLevel: 0,
-    expiryDate: "",
-    batchNumber: "",
     barcode: "",
     baseUnit: "Unit",
     bulkUnit: "",
     unitsPerBulk: 1,
     status: "active",
     showOnline: false,
+    requiresPrescription: false,
+    isControlled: false,
+    costPrice: 0,
+    stockQuantity: 0,
+    batchNumber: "",
+    expiryDate: "",
   });
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
 
@@ -66,13 +66,11 @@ export function AddProductDialog({
         id: editingProduct.id || "",
         name: editingProduct.name || "",
         genericName: editingProduct.genericName || "",
-        brand: editingProduct.brand || "",
         category: editingProduct.category || "",
         nafdacNumber: editingProduct.nafdacNumber || "",
         strength: editingProduct.strength || "",
         dosageForm: editingProduct.dosageForm || "",
         manufacturer: editingProduct.manufacturer || "",
-        supplier: editingProduct.supplier || "",
         sellingPrice: editingProduct.sellingPrice || 0,
         reorderLevel: editingProduct.reorderLevel || 0,
         barcode: editingProduct.barcode || "",
@@ -81,23 +79,23 @@ export function AddProductDialog({
         unitsPerBulk: editingProduct.unitsPerBulk || 1,
         status: editingProduct.status || "active",
         showOnline: editingProduct.showOnline || false,
+        requiresPrescription: editingProduct.requiresPrescription || false,
+        isControlled: editingProduct.isControlled || false,
         costPrice: editingProduct.costPrice || 0,
         stockQuantity: editingProduct.stockQuantity || 0,
-        expiryDate: editingProduct.expiryDate || "",
         batchNumber: editingProduct.batchNumber || "",
+        expiryDate: editingProduct.expiryDate || "",
       });
     } else if (!editingProduct && open) {
       setFormData({
         id: "",
         name: initialData?.name || "",
         genericName: initialData?.genericName || "",
-        brand: initialData?.brand || "",
         category: "",
         nafdacNumber: "",
         strength: initialData?.strength || "",
         dosageForm: initialData?.dosageForm || "",
         manufacturer: initialData?.manufacturer || "",
-        supplier: "",
         sellingPrice: 0,
         reorderLevel: 0,
         barcode: "",
@@ -106,10 +104,12 @@ export function AddProductDialog({
         unitsPerBulk: 1,
         status: "active",
         showOnline: false,
+        requiresPrescription: false,
+        isControlled: false,
         costPrice: 0,
         stockQuantity: 0,
-        expiryDate: "",
         batchNumber: "",
+        expiryDate: "",
       });
     }
   }, [editingProduct, open, initialData]);
@@ -188,12 +188,6 @@ export function AddProductDialog({
       return;
     }
 
-    if (isPharmacy && !formData.genericName) {
-      setAlertMessage(
-        `Generic Name is required for ${t("store").toLowerCase()}s`,
-      );
-      return;
-    }
 
     // Determine status
     const status: Product["status"] = formData.status || "active";
@@ -203,13 +197,11 @@ export function AddProductDialog({
       ...(editingProduct?.id ? { id: editingProduct.id } : {}),
       name: formData.name,
       generic_name: formData.genericName,
-      brand_name: formData.brand,
       category_id: formData.category, // Storing as string name for now
       nafdac_number: formData.nafdacNumber,
       strength: formData.strength,
       dosage_form: formData.dosageForm,
       manufacturer: formData.manufacturer,
-      supplier_id: formData.supplier, // Storing as string name for now
       selling_price: formData.sellingPrice,
       reorder_level: formData.reorderLevel,
       barcode: formData.barcode,
@@ -218,6 +210,8 @@ export function AddProductDialog({
       units_per_bulk: formData.unitsPerBulk,
       is_active: status === "active" ? 1 : 0,
       show_online: formData.showOnline ? 1 : 0,
+      requires_prescription: formData.requiresPrescription ? 1 : 0,
+      is_controlled: formData.isControlled ? 1 : 0,
     };
 
     onAddProduct(payload as any, keepOpen);
@@ -227,13 +221,11 @@ export function AddProductDialog({
       id: "",
       name: "",
       genericName: "",
-      brand: "",
       category: "",
       nafdacNumber: "",
       strength: "",
       dosageForm: "",
       manufacturer: "",
-      supplier: "",
       sellingPrice: 0,
       reorderLevel: 0,
       barcode: "",
@@ -242,10 +234,12 @@ export function AddProductDialog({
       unitsPerBulk: 1,
       status: "active",
       showOnline: false,
+      requiresPrescription: false,
+      isControlled: false,
       costPrice: 0,
       stockQuantity: 0,
-      expiryDate: "",
       batchNumber: "",
+      expiryDate: "",
     });
   };
 
@@ -280,6 +274,7 @@ export function AddProductDialog({
               formData={formData}
               onInputChange={handleInputChange}
               isPharmacy={isPharmacy}
+              isQuickAdd={!initialData && !editingProduct}
               suggestions={suggestions as any}
               commonSuggestions={commonSuggestions}
               t={t}

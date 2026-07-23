@@ -7,13 +7,11 @@ export const transformProduct = (apiData: any): Product => ({
   id: apiData.id,
   name: apiData.name,
   genericName: apiData.generic_name || "",
-  brand: apiData.brand_name || apiData.brand || "",
   category: apiData.category_name || apiData.category || apiData.category_id || (apiData.category as any)?.name || "Uncategorized",
   nafdacNumber: apiData.nafdac_number || "",
   strength: apiData.strength || "",
   dosageForm: apiData.dosage_form || "",
   manufacturer: apiData.manufacturer || "",
-  supplier: apiData.supplier_name || apiData.supplier || apiData.supplier_id || (apiData.supplier as any)?.name || "Unknown",
   costPrice: Number(apiData.cost_price) || 0,
   sellingPrice: Number(apiData.selling_price) || 0,
   stockQuantity: Number(apiData.stock_quantity) || 0,
@@ -27,6 +25,8 @@ export const transformProduct = (apiData: any): Product => ({
   bulkUnit: apiData.bulk_unit || "",
   unitsPerBulk: Number(apiData.units_per_bulk) || 1,
   showOnline: apiData.show_online === 1 || apiData.show_online === true,
+  requiresPrescription: apiData.requires_prescription === 1 || apiData.requires_prescription === true,
+  isControlled: apiData.is_controlled === 1 || apiData.is_controlled === true,
   status: (() => {
     const stock = Number(apiData.stock_quantity) || 0;
     const reorder = Number(apiData.reorder_level) || 0;

@@ -20,14 +20,6 @@ export function ProductSupplierInfo({ product }: ProductSupplierInfoProps) {
           </p>
           <p className="font-medium">{product.manufacturer}</p>
         </div>
-        <Separator />
-        <div>
-          <p className="text-sm text-muted-foreground flex items-center gap-2">
-            <Truck className="h-4 w-4" />
-            Supplier
-          </p>
-          <p className="font-medium">{product.supplier}</p>
-        </div>
       </div>
     </div>
   );

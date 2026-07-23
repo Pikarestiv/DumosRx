@@ -92,24 +92,6 @@ export async function createProduct(data: any) {
     }
   }
 
-  // Same for supplier_id
-  if (data.supplier_id && !UUID_REGEX.test(data.supplier_id)) {
-    const suppliers = await query<any>(
-      "SELECT id FROM suppliers WHERE name = ? COLLATE NOCASE",
-      [data.supplier_id]
-    );
-    if (suppliers.length > 0) {
-      data.supplier_id = suppliers[0].id;
-    } else {
-      const newSupId = crypto.randomUUID();
-      await insert("suppliers", {
-        id: newSupId,
-        name: data.supplier_id,
-        is_active: 1,
-      });
-      data.supplier_id = newSupId;
-    }
-  }
 
   return await insert("products", data);
 }

@@ -107,7 +107,7 @@ export function DatePickerInput({
           disabled={disabled}
           className="pr-10"
         />
-        <Popover open={isOpen} onOpenChange={setIsOpen}>
+        <Popover open={isOpen} onOpenChange={setIsOpen} modal={true}>
           <PopoverTrigger asChild>
             <Button
               variant="ghost"

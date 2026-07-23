@@ -75,6 +75,24 @@ export async function getProductById(id: string) {
 }
 
 export async function createProduct(data: any) {
+  // Ensure we have a valid UUID for category, else wait for sync
+  const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  
+  if (data.category_id && !UUID_REGEX.test(data.category_id)) {
+    const categories = await query<any>(
+      "SELECT id FROM categories WHERE name = ? COLLATE NOCASE",
+      [data.category_id]
+    );
+    if (categories.length > 0) {
+      data.category_id = categories[0].id;
+    } else {
+      const newCatId = crypto.randomUUID();
+      await insert("categories", { id: newCatId, name: data.category_id });
+      data.category_id = newCatId;
+    }
+  }
+
+
   return await insert("products", data);
 }
 

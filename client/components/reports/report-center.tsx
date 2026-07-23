@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { format, subDays, subMonths } from "date-fns";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   FileText,
@@ -173,35 +173,32 @@ export function ReportCenter() {
   return (
     <div className="space-y-6">
       {/* Date filter */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 mb-5">
+        <div className="flex items-center gap-2 bg-card border border-border rounded-[10px] px-3.5 py-1.5 w-full sm:w-[220px]">
           <CalendarIcon className="h-4 w-4 text-muted-foreground shrink-0" />
           <Select value={datePreset} onValueChange={setDatePreset}>
-            <SelectTrigger className="w-44 h-9">
+            <SelectTrigger className="border-0 shadow-none focus:ring-0 p-0 h-auto text-[13px] w-full bg-transparent outline-none">
               <SelectValue placeholder="Select period" />
             </SelectTrigger>
             <SelectContent>
               {DATE_PRESETS.map((p) => (
-                <SelectItem key={p.value} value={p.value}>
+                <SelectItem key={p.value} value={p.value} className="text-[13px]">
                   {p.label}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
-        <span className="text-sm text-muted-foreground">
+        <span className="text-[12.5px] text-muted-foreground">
           Reports will be generated for this time range
         </span>
       </div>
 
       {/* Report grid */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="font-serif font-bold">Standard Reports</CardTitle>
-          <CardDescription>Select a report to generate or export as CSV</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <Card className="rounded-2xl border-border bg-card shadow-sm p-5 overflow-hidden">
+        <h3 className="text-[15px] font-semibold mb-0.5">Standard Reports</h3>
+        <p className="text-[12.5px] text-muted-foreground mb-5">Select a report to generate or export as CSV</p>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {reports.map((report) => {
               const isLoading = loadingReport === report.id;
               return (
@@ -252,11 +249,12 @@ export function ReportCenter() {
                               className="h-8 gap-2 w-full"
                               disabled={isLoading}
                             >
-                              {isLoading ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                <Download className="h-3.5 w-3.5" />
-                              )}
+                              {!!(isLoading) && (
+                                                                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                                            )}
+                                              {!(isLoading) && (
+                                                                              <Download className="h-3.5 w-3.5" />
+                                                                            )}
                               Export
                             </Button>
                           </DropdownMenuTrigger>
@@ -276,52 +274,58 @@ export function ReportCenter() {
               );
             })}
           </div>
-        </CardContent>
       </Card>
 
       {/* Recent Downloads */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="font-serif font-bold">Recent Downloads</CardTitle>
-          <CardDescription>Reports generated in this browser session</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {recentDownloads.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
-              <CheckCircle2 className="h-8 w-8 opacity-20 mb-3" />
-              <p className="font-semibold">No reports generated yet</p>
-              <p className="text-sm mt-1">Export a report above to see it here.</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {recentDownloads.map((dl) => (
-                <div
-                  key={dl.id}
-                  className="flex items-start gap-3 p-3 rounded-lg bg-muted/30"
-                >
-                  <FileText className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
-                  <div className="min-w-0 space-y-1 w-full">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-semibold truncate">{dl.name}</p>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      {dl.type}
-                    </p>
-                    <div className="flex flex-col gap-0.5 mt-1">
-                      <p className="text-[11px] text-muted-foreground/80">
-                        {format(new Date(dl.generatedAt), "MMM d, yyyy 'at' h:mm a")}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground/80">
-                        {dl.sizeLabel}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
+      <Card className="rounded-2xl border-border bg-card shadow-sm p-5 overflow-hidden">
+        <h3 className="text-[15px] font-semibold mb-0.5">Recent Downloads</h3>
+        <p className="text-[12.5px] text-muted-foreground mb-5">Reports generated in this browser session</p>
+        <div>
+          {recentDownloads.length === 0 && <RecentDownloadsEmptyState />}
+          {recentDownloads.length > 0 && <RecentDownloadsList downloads={recentDownloads} />}
+        </div>
       </Card>
+    </div>
+  );
+}
+
+function RecentDownloadsEmptyState() {
+  return (
+    <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
+      <CheckCircle2 className="h-8 w-8 opacity-20 mb-3" />
+      <p className="font-semibold">No reports generated yet</p>
+      <p className="text-sm mt-1">Export a report above to see it here.</p>
+    </div>
+  );
+}
+
+function RecentDownloadsList({ downloads }: { downloads: RecentDownload[] }) {
+  return (
+    <div className="space-y-3">
+      {downloads.map((dl) => (
+        <div
+          key={dl.id}
+          className="flex items-start gap-3 p-3 rounded-lg bg-muted/30"
+        >
+          <FileText className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+          <div className="min-w-0 space-y-1 w-full">
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-semibold truncate">{dl.name}</p>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {dl.type}
+            </p>
+            <div className="flex flex-col gap-0.5 mt-1">
+              <p className="text-[11px] text-muted-foreground/80">
+                {format(new Date(dl.generatedAt), "MMM d, yyyy 'at' h:mm a")}
+              </p>
+              <p className="text-[11px] text-muted-foreground/80">
+                {dl.sizeLabel}
+              </p>
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

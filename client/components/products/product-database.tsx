@@ -2,8 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
 import { ProductDatabaseFilters } from "./product-database-filters";
 import { AddProductDialog } from "./add-product-dialog";
 import { useAddProduct } from "./use-add-product";
@@ -17,7 +15,7 @@ import { CatalogDetailPanel } from "./catalog-detail-panel";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 
 export function ProductDatabase() {
-  const { t, storeType } = useStore();
+  const { storeType } = useStore();
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -125,7 +123,7 @@ export function ProductDatabase() {
   const { results: filteredProducts, isFuzzyFallback } = genericFuzzySearch(
     searchTerm,
     preFilteredProducts,
-    ["name", "genericName", "brand", "nafdacNumber", "barcode", "id"],
+    ["name", "genericName", "nafdacNumber", "barcode", "id"],
   );
 
   const formatCurrency = (amount: number) => {

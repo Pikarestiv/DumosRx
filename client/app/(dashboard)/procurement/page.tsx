@@ -6,7 +6,7 @@ export default function ProcurementPage() {
     <>
       <div className="relative w-full h-full min-h-[500px]">
         <LockedModuleOverlay featureName="Procurement & Vendors" featureKey="procurement" />
-        <ProcurementManagement />
+        <ProcurementManagement initialTab="orders" />
       </div>
     </>
   )

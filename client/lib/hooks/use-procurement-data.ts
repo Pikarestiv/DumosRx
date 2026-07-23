@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getActiveSuppliersForPO, getActiveProductsForPO, POVendor, POProduct } from '../db/queries/procurement';
 
 export function useProcurementData() {
@@ -7,7 +7,7 @@ export function useProcurementData() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const [vendorData, productData] = await Promise.all([
@@ -23,7 +23,7 @@ export function useProcurementData() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchData();

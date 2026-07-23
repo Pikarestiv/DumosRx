@@ -29,7 +29,7 @@ const getQuickActionsConfig = (
   {
     label: `Add ${productTerm}`,
     icon: Package,
-    href: "/inventory/products?action=add",
+    href: "/inventory/catalog?action=add",
   },
   {
     label: "Close Register",
@@ -89,8 +89,8 @@ export function DashboardQuickActions({
   const [isReportOpen, setIsReportOpen] = useState(false);
 
   return (
-    <Card className="border-none shadow-none bg-transparent sm:border-solid sm:border-border sm:shadow-sm sm:bg-card pb-0 !gap-0 sm:gap-6">
-      <CardHeader className="px-0 sm:px-6 pb-3 sm:pb-6">
+    <Card className="h-full flex flex-col border-none shadow-none bg-transparent sm:border-solid sm:border-border sm:shadow-sm sm:bg-card pb-0 !gap-0 sm:gap-6">
+      <CardHeader className="px-0 sm:px-6 pb-3 sm:pb-6 mt-4">
         <CardTitle className="font-serif font-semibold !px-0">
           Quick Actions
         </CardTitle>

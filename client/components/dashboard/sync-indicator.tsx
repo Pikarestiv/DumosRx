@@ -128,72 +128,79 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
     }
   };
 
-  const statusLabel = isSyncInProgress
-    ? "Syncing..."
+  const stateKey = isSyncInProgress
+    ? "syncing"
     : status === "offline"
-      ? "Offline"
+      ? "offline"
       : status === "error"
-        ? "Sync Error"
+        ? "error"
         : needsSync
-          ? "Pending Sync"
+          ? "pending"
           : isLinked
-            ? "Cloud Active"
-            : "Not Linked";
+            ? "active"
+            : "unlinked";
 
-  const statusIcon = isSyncInProgress ? (
-    <RefreshCw className="h-3 w-3 text-blue-500 animate-spin" />
-  ) : status === "offline" ? (
-    <CloudOff className="h-3 w-3 text-muted-foreground" />
-  ) : status === "error" ? (
-    <AlertCircle className="h-3 w-3 text-destructive" />
-  ) : needsSync ? (
-    <Cloud className="h-3 w-3 text-amber-500 animate-pulse" />
-  ) : (
-    <Cloud className="h-3 w-3 text-emerald-500" />
-  );
+  const iconClass = collapsed ? "h-[18px] w-[18px]" : "h-3 w-3";
+  const fillProp = collapsed ? { fill: "currentColor" } : {};
 
-  const statusBorder = isSyncInProgress
-    ? "border-blue-500/50"
-    : status === "offline"
-      ? "border-muted-foreground/30"
-      : status === "error"
-        ? "border-destructive/50"
-        : needsSync
-          ? "border-amber-500/50"
-          : "border-emerald-500/50";
+  const configMap = {
+    syncing: {
+      label: "Syncing...",
+      icon: <RefreshCw className={cn(iconClass, "text-blue-500 animate-spin")} />,
+      border: "border-blue-500/50",
+      desktopBg: "bg-blue-500/10 hover:bg-blue-500/20",
+      mobileBg: "bg-blue-500/10",
+      tooltip: "Syncing your changes to the cloud...",
+    },
+    offline: {
+      label: "Offline",
+      icon: <CloudOff className={cn(iconClass, "text-muted-foreground")} {...fillProp} />,
+      border: "border-muted-foreground/30",
+      desktopBg: "bg-sidebar-accent/5 hover:bg-sidebar-accent/10",
+      mobileBg: "bg-muted/50",
+      tooltip: "Offline mode. Changes are saved locally.",
+    },
+    error: {
+      label: "Sync Error",
+      icon: <AlertCircle className={cn(iconClass, "text-destructive")} {...fillProp} />,
+      border: "border-destructive/50",
+      desktopBg: "bg-destructive/10 hover:bg-destructive/20",
+      mobileBg: "bg-destructive/10",
+      tooltip: errorMessage || "Sync failed. Please try again.",
+    },
+    pending: {
+      label: "Pending Sync",
+      icon: <Cloud className={cn(iconClass, "text-amber-500 animate-pulse")} {...fillProp} />,
+      border: "border-amber-500/50",
+      desktopBg: "bg-amber-500/10 hover:bg-amber-500/20",
+      mobileBg: "bg-amber-500/10",
+      tooltip: `${pendingCount} local change${pendingCount > 1 ? "s" : ""} pending sync since ${lastSync ? formatDistanceToNow(new Date(lastSync)) + " ago" : "a while"}.`,
+    },
+    active: {
+      label: "Cloud Active",
+      icon: <Cloud className={cn(iconClass, "text-emerald-500")} {...fillProp} />,
+      border: "border-emerald-500/50",
+      desktopBg: "bg-sidebar-accent/5 hover:bg-sidebar-accent/10",
+      mobileBg: "bg-muted/50",
+      tooltip: "Your data is securely backed up to the DumosRx cloud.",
+    },
+    unlinked: {
+      label: "Not Linked",
+      icon: <Cloud className={cn(iconClass, "text-emerald-500")} {...fillProp} />,
+      border: "border-emerald-500/50",
+      desktopBg: "bg-sidebar-accent/5 hover:bg-sidebar-accent/10",
+      mobileBg: "bg-muted/50",
+      tooltip: "Connect your cloud account to enable backups.",
+    },
+  } as const;
 
-  const desktopBg = isSyncInProgress
-    ? "bg-blue-500/10 hover:bg-blue-500/20"
-    : status === "offline"
-      ? "bg-sidebar-accent/5 hover:bg-sidebar-accent/10"
-      : status === "error"
-        ? "bg-destructive/10 hover:bg-destructive/20"
-        : needsSync
-          ? "bg-amber-500/10 hover:bg-amber-500/20"
-          : "bg-sidebar-accent/5 hover:bg-sidebar-accent/10";
-
-  const mobileBg = isSyncInProgress
-    ? "bg-blue-500/10"
-    : status === "offline"
-      ? "bg-muted/50"
-      : status === "error"
-        ? "bg-destructive/10"
-        : needsSync
-          ? "bg-amber-500/10"
-          : "bg-muted/50";
-
-
-  const tooltipText = isSyncInProgress
-    ? "Syncing your changes to the cloud..."
-    : status === "offline"
-      ? "Offline mode. Changes are saved locally."
-      : status === "error"
-        ? errorMessage || "Sync failed. Please try again."
-        : needsSync
-          ? `${pendingCount} local change${pendingCount > 1 ? "s" : ""} pending sync since ${lastSync ? formatDistanceToNow(new Date(lastSync)) + " ago" : "a while"}.`
-          : isLinked
-            ? "Your data is securely backed up to the DumosRx cloud."
-            : "Connect your cloud account to enable backups.";
+  const currentConfig = configMap[stateKey];
+  const statusLabel = currentConfig.label;
+  const statusIcon = currentConfig.icon;
+  const statusBorder = currentConfig.border;
+  const desktopBg = currentConfig.desktopBg;
+  const mobileBg = currentConfig.mobileBg;
+  const tooltipText = currentConfig.tooltip;
 
   if (isMobileHeader) {
     return (
@@ -281,9 +288,8 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
 
               <div className="flex justify-between items-center pl-5">
                 <p className="text-[10px] text-sidebar-foreground/70 font-medium">
-                  Last synced {lastSync
-                    ? formatDistanceToNow(new Date(lastSync)).replace('about ', '').replace('less than a minute', '1 min') + " ago"
-                    : "never"}
+                  Last synced {!!(lastSync) && formatDistanceToNow(new Date(lastSync)).replace('about ', '').replace('less than a minute', '1 min') + " ago"}
+                                  {!(lastSync) && "never"}
                 </p>
               </div>
             </div>

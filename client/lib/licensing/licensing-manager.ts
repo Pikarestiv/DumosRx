@@ -11,6 +11,7 @@ export interface LicenseInfo {
   tier: "free" | "local" | "pro" | "enterprise";
   expiryDate: string | null;
   isClockTampered: boolean;
+  isTrial?: boolean;
   message?: string;
 }
 
@@ -50,8 +51,8 @@ export async function checkLicenseStatus(): Promise<LicenseInfo> {
   // 2. Update monotonic time for next check
   await updateStoreMonotonicTime(profile.id, nowIso);
 
-  // 3. Free tier is always valid (but with limited features)
-  if (!profile.subscription_tier || profile.subscription_tier === "free") {
+  // 3. Free tier is always valid if there's no license token
+  if ((!profile.subscription_tier || profile.subscription_tier === "free") && !profile.license_token) {
     return { isValid: true, tier: "free", expiryDate: null, isClockTampered: false };
   }
 
@@ -75,6 +76,15 @@ export async function checkLicenseStatus(): Promise<LicenseInfo> {
     }
 
     if (nowIso > tokenData.expiry) {
+      if (tokenData.tier === "free" || profile.subscription_tier === "free") {
+        return { 
+          isValid: true, 
+          tier: "free", 
+          expiryDate: null, 
+          isTrial: false,
+          isClockTampered: false 
+        };
+      }
       return { 
         isValid: false, 
         tier: tokenData.tier as any, 
@@ -88,6 +98,7 @@ export async function checkLicenseStatus(): Promise<LicenseInfo> {
       isValid: true, 
       tier: tokenData.tier as any, 
       expiryDate: tokenData.expiry, 
+      isTrial: tokenData.is_trial,
       isClockTampered: false 
     };
   } catch (_e) {

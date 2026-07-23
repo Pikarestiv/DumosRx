@@ -22,6 +22,7 @@ export interface StockBatchStats {
   criticalStockCount: number;
   expiringSoonCount: number;
   expiredCount: number;
+  missingExpiryCount: number;
   totalStockBatchValue: number;
   activeCategories: number;
   loading: boolean;
@@ -45,6 +46,7 @@ export function useStockBatchStats(): StockBatchStats {
     criticalStockCount: row?.critical_stock_count ?? 0,
     expiringSoonCount: row?.expiring_soon_count ?? 0,
     expiredCount: row?.expired_count ?? 0,
+    missingExpiryCount: row?.missing_expiry_count ?? 0,
     totalStockBatchValue: row?.total_stock_batch_value ?? 0,
     activeCategories: row?.active_categories ?? 0,
     loading,

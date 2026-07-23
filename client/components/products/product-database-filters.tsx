@@ -8,7 +8,6 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useStore } from "@/lib/context/store-context";
 
 interface ProductDatabaseFiltersProps {
   searchTerm: string;
@@ -31,7 +30,7 @@ export function ProductDatabaseFilters({
   categories,
   statuses,
 }: ProductDatabaseFiltersProps) {
-  const { t } = useStore();
+
 
   return (
     <div className="p-4 border-b border-border space-y-4">

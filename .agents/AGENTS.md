@@ -31,18 +31,38 @@ DumosRx is an offline-first application (SQLite local, Laravel MySQL cloud) conn
 - **ALWAYS** use the `insert()`, `update()`, and `softDelete()` helpers in `local-database.ts`. This ensures the `_sync_queue` is properly populated and the `_version` / `_synced` flags are respected.
 - **Data Types:** SQLite is loosely typed. Ensure dates are consistently stored as ISO-8601 strings to avoid comparison logic errors during sync.
 
-## 5. 🎨 Design Language & Aesthetics
+## 5. 🧪 End-to-End Testing (Playwright)
+
+Since DumosRx is an offline-first application relying on IndexedDB via `sql.js`, E2E tests must be carefully designed to avoid flakiness:
+
+- **Database Seeding:** Do not rely on network interception for the initial state. Instead, use a `global.setup.ts` to pre-seed the `idb-keyval` store with a test account and necessary mock data before tests run. This test account will be used across all test suites to bypass the network sync requirement for the first load.
+- **Test Accounts:** Always ensure there is a dedicated test account created locally in the mock database (e.g., `admin@dumosrx.com` with PIN `1234`).
+- **Navigation:** Avoid using `page.goto()` for internal page transitions as it forces a full reload, resetting SPA state and potentially clearing in-memory DB references if not rehydrated properly. Instead, navigate using UI elements like sidebar links (e.g., `await page.locator('a[href="/expenses"]').first().click()`).
+- **Network Independence:** Tests must be able to run fully offline once the `global.setup.ts` has initialized the local database.
+- **Page Coverage:** Ensure you write E2E tests for all the core pages (Dashboard, POS, Inventory, Customers, Procurement, Expenses, Reports) so the entire app is covered.
+
+## 6. 🎨 Design Language & Aesthetics
 
 To maintain the DumosRx "Premium" feel:
 
 - **Typography:** Use `Geist` or `Inter` for body text, and a Serif font (e.g., `Playfair Display`) for headings.
 
 - **Accents:** Primary color is deep emerald or navy, with gold/muted-yellow accents for alerts/ratings.
+- **No Hardcoded Colors:** Never use arbitrary hardcoded hex codes (like `text-[#123456]` or `bg-[#FFFFFF]`) in Tailwind classes. Always use the predefined semantic theme variables (e.g., `bg-primary`, `text-muted-foreground`, `border-border`, `bg-card`) to ensure light/dark mode compatibility and a consistent design language.
 - **Glassmorphism:** Use backdrop-blur (`bg-background/95 backdrop-blur-sm border shadow-sm`) for dialogs, tooltips, and secondary cards.
 - **Tooltips:** Use Radix UI tooltips with a subtle 1000ms delay to prevent flickering.
+- **Localization (Dates):** Always maintain Nigeria's date structure (`DD/MM/YYYY`) for UI elements instead of the US format (`MM/DD/YYYY`). Use custom DatePicker components (like `DatePickerInput`) rather than native `<input type="date">` to enforce this visual format across all browsers.
 
 ## 6. 🔒 Security & Optimization Standards
 
 - **Prototype Pollution:** Never perform dynamic bracket lookup `obj[key]` using values fetched directly from inputs. Use ES6 `Map` or strict `switch` statements.
 - **JWT & Anti-Tampering:** Subscription licenses are verified via offline JWT checks. Do not alter the `LicenseGuard` anti-backdating logic without explicit instruction.
 - **Pagination:** Always use pagination, limit offsets, or cursor-based scrolling to limit page results to 50 items to prevent UI thrashing.
+
+## 7. 🧪 Testing & Validation
+
+- Whenever a new feature is implemented, an architectural change is made, or an existing calculation is modified, **you must check whether to update existing tests or add new ones.**
+- Data integrity calculations, sync operations, and offline reconciliation flows MUST always be covered by automated tests to prevent silent data corruption.
+- **E2E Testing (Playwright):** We use Playwright for E2E testing the frontend. Since DumosRx is offline-first, a fresh browser context starts with an empty IndexedDB. Instead of performing the "Setup New Store" flow in every test, we use a `global.setup.ts` script to create a seeded database and export it. Use the custom `test` fixture from `e2e/fixtures.ts` to automatically inject this seeded database into `window.restoreDatabase()` before navigating to the target page. Test files should import `test` and `expect` from `./fixtures` rather than `@playwright/test`.
+
+- **UI/UX Interactions:** NEVER use `window.confirm` for user confirmations. ALWAYS use a custom modal or `AlertDialog` component (e.g. from Radix/Shadcn) to maintain consistent design and avoid native browser popups.

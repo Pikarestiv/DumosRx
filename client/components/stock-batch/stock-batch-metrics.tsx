@@ -3,13 +3,13 @@
 import { Card, CardContent } from "@/components/ui/card";
 import {
   DollarSign,
-  AlertTriangle,
   TrendingDown,
   Calendar,
   Package,
 } from "lucide-react";
 
 import { useStore } from "@/lib/context/store-context";
+import { useStockMoM } from "@/lib/hooks/use-analytics";
 
 interface StockBatchMetricsProps {
   stock_batchValue: number;
@@ -29,6 +29,7 @@ export function StockBatchMetrics({
   formatCurrency,
 }: StockBatchMetricsProps) {
   const { storeProfile } = useStore();
+  const { data: momData } = useStockMoM();
   const expiryDays = storeProfile?.expiry_warning_days || 90;
 
   return (
@@ -49,9 +50,13 @@ export function StockBatchMetrics({
             <div className="text-2xl font-semibold tracking-tight mb-1">
               {formatCurrency(stock_batchValue)}
             </div>
-            <div className="text-[11px] text-muted-foreground font-medium mt-auto">
-              <span className="text-emerald-600">+2.4%</span> from last month
-            </div>
+            {momData && (
+              <div className="text-[11px] text-muted-foreground font-medium mt-auto">
+                <span className={momData.percentChange >= 0 ? "text-emerald-600" : "text-rose-600"}>
+                  {momData.percentChange >= 0 ? "+" : ""}{momData.percentChange.toFixed(1)}%
+                </span> from last month
+              </div>
+            )}
           </CardContent>
         </Card>
 

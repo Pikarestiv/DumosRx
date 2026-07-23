@@ -68,52 +68,13 @@ export function useAddProduct({
         localPayload.supplier_id = null;
       }
 
-      const initialStock = localPayload.stock_quantity;
-      const initialExpiry = localPayload.expiry_date;
-      const initialBatch = localPayload.batch_number;
-
-      delete localPayload.stock_quantity;
-      delete localPayload.expiry_date;
-      delete localPayload.batch_number;
-      const initialCostPrice = localPayload.cost_price;
-      delete localPayload.cost_price;
-
       if (isEditing) {
         const id = localPayload.id;
         delete localPayload.id;
-        // Use generic update from base-helpers
         await update("products", id, localPayload);
         toast.success(`${t("product")} updated successfully`);
       } else {
-        const productId = await insert("products", localPayload);
-
-        // Also create an initial stock batch if there's stock
-        if (initialStock > 0) {
-          await insert("stock_batches", {
-            product_id: productId,
-            quantity: initialStock,
-            cost_price: initialCostPrice || 0,
-            batch_number: initialBatch || "INITIAL",
-            expiry_date:
-              initialExpiry ||
-              new Date(Date.now() + 365 * 2 * 24 * 60 * 60 * 1000)
-                .toISOString()
-                .split("T")[0],
-            is_active: 1,
-          });
-
-          const dumosUser = JSON.parse(localStorage.getItem("dumos_user") || "{}");
-          await insert("stock_movements", {
-            product_id: productId,
-            movement_type: "adjustment",
-            quantity: initialStock,
-            unit_cost: initialCostPrice || 0,
-            total_cost: (initialCostPrice || 0) * initialStock,
-            reason: "Initial stock load",
-            performed_by: dumosUser?.id || null,
-            movement_date: new Date().toISOString(),
-          });
-        }
+        await insert("products", localPayload);
         toast.success(`${t("product")} added successfully`);
       }
 

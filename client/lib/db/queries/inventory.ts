@@ -8,7 +8,7 @@ export async function getAvailableStockBatches() {
 
 export async function getBatchTrackingData() {
   return query<any>(
-    `SELECT sb.id, p.name as product_name, p.brand_name as product_brand, sb.batch_number, sb.expiry_date, sb.quantity, sb.cost_price FROM stock_batches sb JOIN products p ON sb.product_id = p.id WHERE sb._deleted = 0 AND p._deleted = 0 ORDER BY sb.expiry_date ASC`
+    `SELECT sb.id, p.name as product_name, sb.batch_number, sb.expiry_date, sb.quantity, sb.cost_price FROM stock_batches sb JOIN products p ON sb.product_id = p.id WHERE sb._deleted = 0 AND p._deleted = 0 ORDER BY sb.expiry_date ASC`
   );
 }
 
@@ -27,7 +27,7 @@ export async function getStockBatchById(id: string) {
 export async function getStockOverviewData() {
   return query<any>(
     `SELECT 
-      p.id, p.name as product_name, p.brand_name, p.reorder_level, p.selling_price, p.barcode,
+      p.id, p.name as product_name, p.reorder_level, p.selling_price, p.barcode,
       sb.avg_cost as cost_price,
       COALESCE(sb.total_qty, 0) as quantity,
       sb.earliest_expiry as expiry_date,
@@ -151,6 +151,7 @@ export async function getStockBatchStats(expiryDays: number = 30) {
       SUM(CASE WHEN COALESCE(sb.total_qty, 0) = 0 THEN 1 ELSE 0 END) AS critical_stock_count,
       SUM(CASE WHEN sb.expiring_soon > 0 THEN 1 ELSE 0 END) AS expiring_soon_count,
       SUM(CASE WHEN sb.expired > 0 THEN 1 ELSE 0 END) AS expired_count,
+      SUM(CASE WHEN sb.missing_expiry > 0 THEN 1 ELSE 0 END) AS missing_expiry_count,
       COALESCE(SUM(sb.total_value), 0) AS total_stock_batch_value,
       COUNT(DISTINCT p.category_id) as active_categories
     FROM products p
@@ -159,6 +160,7 @@ export async function getStockBatchStats(expiryDays: number = 30) {
         SUM(quantity) as total_qty,
         SUM(CASE WHEN expiry_date IS NOT NULL AND date(expiry_date) > date('now') AND date(expiry_date) <= date('now', '+' || ? || ' days') THEN 1 ELSE 0 END) as expiring_soon,
         SUM(CASE WHEN expiry_date IS NOT NULL AND date(expiry_date) <= date('now') THEN 1 ELSE 0 END) as expired,
+        SUM(CASE WHEN (expiry_date IS NULL OR expiry_date = '') AND quantity > 0 THEN 1 ELSE 0 END) as missing_expiry,
         SUM(quantity * cost_price) as total_value
       FROM stock_batches
       WHERE _deleted = 0 OR _deleted IS NULL
@@ -268,4 +270,51 @@ export async function getFastMovers(days: number = 7) {
   });
 
   return { items };
+}
+
+export async function getStockMoM() {
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const dateFilter30 = thirtyDaysAgo.toISOString();
+
+  // Value added in last 30 days
+  const added30 = await query<any>(`
+    SELECT SUM(ABS(quantity) * IFNULL(unit_cost, 0)) as total_added
+    FROM stock_movements
+    WHERE created_at >= ? AND movement_type IN ('addition', 'IN', 'purchase', 'return') AND (_deleted = 0 OR _deleted IS NULL)
+  `, [dateFilter30]);
+
+  // Value removed in last 30 days
+  const removed30 = await query<any>(`
+    SELECT SUM(ABS(quantity) * IFNULL(unit_cost, 0)) as total_removed
+    FROM stock_movements
+    WHERE created_at >= ? AND movement_type IN ('deduction', 'OUT', 'sale', 'damaged', 'adjustment') AND (_deleted = 0 OR _deleted IS NULL) AND quantity < 0
+  `, [dateFilter30]);
+  
+  // Adjusted additions from positive adjustments
+  const positiveAdjustments = await query<any>(`
+    SELECT SUM(ABS(quantity) * IFNULL(unit_cost, 0)) as total_added
+    FROM stock_movements
+    WHERE created_at >= ? AND movement_type = 'adjustment' AND (_deleted = 0 OR _deleted IS NULL) AND quantity > 0
+  `, [dateFilter30]);
+
+  const currentStock = await query<any>(`
+    SELECT SUM(cost_price * quantity) as total_value
+    FROM stock_batches
+    WHERE is_active = 1 AND (_deleted = 0 OR _deleted IS NULL)
+  `);
+
+  const currentVal = currentStock[0]?.total_value || 0;
+  const addedVal = (added30[0]?.total_added || 0) + (positiveAdjustments[0]?.total_added || 0);
+  const removedVal = removed30[0]?.total_removed || 0;
+  const netChange30 = addedVal - removedVal;
+
+  const previousVal = currentVal - netChange30;
+  const percentChange = previousVal > 0 ? (netChange30 / previousVal) * 100 : 0;
+
+  return {
+    currentValue: currentVal,
+    previousValue: previousVal,
+    percentChange: percentChange,
+  };
 }

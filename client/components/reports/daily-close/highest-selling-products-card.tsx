@@ -44,29 +44,32 @@ export function HighestSellingProductsCard({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {topSellingMeds.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={3}
-                  className="text-center text-muted-foreground py-4"
-                >
-                  No items sold today.
+            {topSellingMeds.length === 0 && <EmptyProductsRow />}
+            {topSellingMeds.length > 0 && topSellingMeds.map((med, idx) => (
+              <TableRow key={idx}>
+                <TableCell className="font-medium">{med.name}</TableCell>
+                <TableCell className="text-right">{med.quantity}</TableCell>
+                <TableCell className="text-right">
+                  {formatCurrency(med.revenue, currencyCode)}
                 </TableCell>
               </TableRow>
-            ) : (
-              topSellingMeds.map((med, idx) => (
-                <TableRow key={idx}>
-                  <TableCell className="font-medium">{med.name}</TableCell>
-                  <TableCell className="text-right">{med.quantity}</TableCell>
-                  <TableCell className="text-right">
-                    {formatCurrency(med.revenue, currencyCode)}
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
+            ))}
           </TableBody>
         </Table>
       </CardContent>
     </Card>
+  );
+}
+
+function EmptyProductsRow() {
+  return (
+    <TableRow>
+      <TableCell
+        colSpan={3}
+        className="text-center text-muted-foreground py-4"
+      >
+        No items sold today.
+      </TableCell>
+    </TableRow>
   );
 }

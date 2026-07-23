@@ -207,15 +207,16 @@ export function QuickSetupWizard() {
                 Back
               </Button>
             )}
-            {step < 2 ? (
-              <Button onClick={() => setStep(step + 1)}>
-                Next <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            ) : (
-              <Button onClick={handleComplete} className="bg-accent hover:bg-accent/90">
-                Finish Setup
-              </Button>
-            )}
+            {step < 2 && (
+                                <Button onClick={() => setStep(step + 1)}>
+                                  Next <ArrowRight className="ml-2 h-4 w-4" />
+                                </Button>
+                              )}
+                  {!(step < 2) && (
+                                <Button onClick={handleComplete} className="bg-accent hover:bg-accent/90">
+                                  Finish Setup
+                                </Button>
+                              )}
           </div>
         </DialogFooter>
       </ResponsiveModal>

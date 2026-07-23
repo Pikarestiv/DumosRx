@@ -331,6 +331,8 @@ export async function initDatabase(): Promise<any> {
         "_synced INTEGER DEFAULT 0",
         "_synced_at TEXT",
         "_deleted INTEGER DEFAULT 0",
+        "quantity INTEGER DEFAULT 1",
+        "notes TEXT",
       ],
     },
     {
@@ -542,9 +544,15 @@ export async function initDatabase(): Promise<any> {
       db.run(SCHEMA_SQL);
     }
 
-    
-      // --- Data migration: stock_quantity to stock_batches ---
-      try {
+    // --- Data migrations ---
+
+    try {
+      db.run('ALTER TABLE expenses ADD COLUMN notes TEXT;');
+    } catch (_e) {
+      // Ignore if column already exists
+    }
+
+    try {
         const hasProductsStock = db.exec("SELECT 1 FROM pragma_table_info('products') WHERE name='stock_quantity'");
         if (hasProductsStock && hasProductsStock.length > 0 && hasProductsStock[0].values.length > 0) {
           db.run(`
@@ -559,6 +567,10 @@ export async function initDatabase(): Promise<any> {
       } catch (e) {
         console.error("Migration for stock_quantity skipped", e);
       }
+
+    try {
+      db.run("UPDATE purchase_orders SET status = 'pending' WHERE status = 'draft'");
+    } catch (_e) {}
 
     // Run migrations for Web (non-Tauri)
     for (const { table, columns } of syncColumns) {
@@ -613,10 +625,10 @@ export async function initDatabase(): Promise<any> {
   }
 }
 
-export function saveDatabase(): void {
+export async function saveDatabase(): Promise<void> {
   if (!db) return;
   const data = db.export();
-  set(`${APP_NAME.toLowerCase()}_db`, data).catch(err => {
+  await set(`${APP_NAME.toLowerCase()}_db`, data).catch(err => {
     console.error("Failed to save DB to IndexedDB", err);
   });
 }
@@ -696,11 +708,12 @@ export async function restoreDatabase(binaryData: Uint8Array): Promise<void> {
   }
 
   db = new SQL.Database(binaryData);
-  saveDatabase();
-  // Reload page to ensure all contexts pick up new data
-  if (typeof window !== "undefined") {
-    window.location.reload();
-  }
+  await saveDatabase();
+}
+
+if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
+  (window as any).getDatabaseBinary = getDatabaseBinary;
+  (window as any).restoreDatabase = restoreDatabase;
 }
 
 /**

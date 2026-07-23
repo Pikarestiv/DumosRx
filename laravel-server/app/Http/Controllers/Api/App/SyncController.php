@@ -85,6 +85,11 @@ class SyncController extends Controller
 
                 $payload = is_array($change['payload']) ? $change['payload'] : json_decode($change['payload'], true);
                 
+                // Strip client-only state flags that should never reach the DB
+                if (isset($payload['_synced'])) {
+                    unset($payload['_synced']);
+                }
+                
                 // Apply ID mappings for foreign keys (if a previous record was merged due to conflict)
                 foreach ($payload as $key => $value) {
                     if (is_string($value) && isset($idMap[$value])) {
@@ -295,6 +300,14 @@ class SyncController extends Controller
                             $model->id = $recordId;
                         }
                         
+                        $isDeleted = null;
+                        if (isset($payload['_deleted'])) {
+                            $isDeleted = $payload['_deleted'];
+                            unset($payload['_deleted']);
+                        }
+
+                        $model->forceFill($payload);
+
                         $table = $model->getTable();
                         if (!isset($hasSyncedAtCache[$table])) {
                             $hasSyncedAtCache[$table] = \Illuminate\Support\Facades\Schema::hasColumn($table, '_synced_at');
@@ -321,8 +334,19 @@ class SyncController extends Controller
                         
                         $model->save();
 
+                        // Process stock_movements deltas
+                        if ($change['table_name'] === 'stock_movements') {
+                            $stockBatchId = $payload['stock_batch_id'] ?? null;
+                            $qtyDelta = $payload['quantity'] ?? 0;
+                            if ($stockBatchId && $qtyDelta != 0) {
+                                DB::table('stock_batches')
+                                    ->where('id', $stockBatchId)
+                                    ->increment('quantity', $qtyDelta);
+                            }
+                        }
+
                         // Handle _deleted flag for soft deletes
-                        if (isset($payload['_deleted']) && $payload['_deleted']) {
+                        if ($isDeleted) {
                             if (\method_exists($model, 'trashed')) {
                                 $model->delete();
                             }
@@ -334,6 +358,30 @@ class SyncController extends Controller
                     $model = \method_exists($modelClass, 'trashed') ? $modelClass::withTrashed()->find($recordId) : $modelClass::find($recordId);
                     
                     if ($model) {
+                        // Conflict Resolution: If online has a newer updated_at than incoming payload, ignore the update!
+                        if ($model->updated_at && isset($payload['updated_at'])) {
+                            $modelUpdatedAt = \Carbon\Carbon::parse($model->updated_at);
+                            $payloadUpdatedAt = \Carbon\Carbon::parse($payload['updated_at']);
+                            if ($payloadUpdatedAt->lt($modelUpdatedAt)) {
+                                Log::info("Sync push: Ignored older update for {$change['table_name']} {$recordId}");
+                                continue;
+                            }
+                        }
+
+                        // Pre-process payload before forceFill
+                        $isDeleted = null;
+                        if (isset($payload['_deleted'])) {
+                            $isDeleted = $payload['_deleted'];
+                            unset($payload['_deleted']);
+                        }
+
+                        // Inventory Reconciliation: Ignore quantity updates for stock_batches, rely on stock_movements
+                        if ($change['table_name'] === 'stock_batches') {
+                            if (isset($payload['quantity'])) {
+                                unset($payload['quantity']);
+                            }
+                        }
+
                         $model->forceFill($payload);
                         
                         if ($change['table_name'] === 'users') {
@@ -375,11 +423,11 @@ class SyncController extends Controller
                         $model->save();
 
                         // Handle _deleted flag for soft deletes on update
-                        if (isset($payload['_deleted'])) {
+                        if ($isDeleted !== null) {
                             if (\method_exists($model, 'trashed')) {
-                                if ($payload['_deleted'] && !$model->trashed()) {
+                                if ($isDeleted && !$model->trashed()) {
                                     $model->delete();
-                                } elseif (!$payload['_deleted'] && $model->trashed()) {
+                                } elseif (!$isDeleted && $model->trashed()) {
                                     $model->restore();
                                 }
                             }
@@ -525,10 +573,10 @@ class SyncController extends Controller
                 $array = $item->toArray();
                 $array['_deleted'] = (\method_exists($item, 'trashed') && $item->trashed()) ? 1 : 0;
 
-                // Map subscription_tier for store_profile
                 if ($table === 'stores') {
                     $plan = 'free';
                     $expiry = null;
+                    $isTrial = false;
                     if ($item->user && $item->user->subscriptions->isNotEmpty()) {
                         $sub = $item->user->subscriptions()
                             ->where('status', 'active')
@@ -538,14 +586,16 @@ class SyncController extends Controller
                         if ($sub) {
                             $plan = $sub->plan_name;
                             $expiry = $sub->end_date;
+                            $isTrial = $sub->is_trial;
                         }
                     }
                     $array['subscription_tier'] = $plan;
                     // Generate license token for offline validation
-                    if ($plan !== 'free' && $expiry) {
+                    if (($plan !== 'free' || $isTrial) && !empty($expiry)) {
                         $array['license_token'] = json_encode([
                             'tier' => $plan,
-                            'expiry' => \Carbon\Carbon::parse($expiry)->toIso8601String()
+                            'expiry' => \Carbon\Carbon::parse($expiry)->toIso8601String(),
+                            'is_trial' => (bool) $isTrial
                         ]);
                     } else {
                         $array['license_token'] = null;

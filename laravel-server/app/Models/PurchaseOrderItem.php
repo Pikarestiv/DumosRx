@@ -10,10 +10,7 @@ class PurchaseOrderItem extends Model
 {
     use HasFactory, HasUuids;
 
-    protected $fillable = [
-        'purchase_order_id', 'product_id', 'quantity_ordered', 'quantity_received',
-        'unit_cost', 'total_cost', 'batch_number', 'expiry_date', 'status', '_synced_at'
-    ];
+    protected $guarded = [];
 
     protected $casts = [
         'expiry_date' => 'date',

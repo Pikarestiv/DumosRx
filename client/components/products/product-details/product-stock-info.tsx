@@ -63,16 +63,22 @@ export function ProductStockInfo({
             <Calendar className="h-4 w-4" />
             Expiry Date
           </p>
-          <p
-            className={`font-medium ${daysToExpiry < 30 ? "text-destructive" : daysToExpiry < expiryWarningDays ? "text-orange-600" : "text-primary"}`}
-          >
-            {formatDate(product.expiryDate)}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {daysToExpiry > 0
-              ? `${daysToExpiry} days remaining`
-              : `Expired ${Math.abs(daysToExpiry)} days ago`}
-          </p>
+          {product.expiryDate ? (
+            <>
+              <p
+                className={`font-medium ${daysToExpiry < 30 ? "text-destructive" : daysToExpiry < expiryWarningDays ? "text-orange-600" : "text-primary"}`}
+              >
+                {formatDate(product.expiryDate)}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {daysToExpiry > 0
+                  ? `${daysToExpiry} days remaining`
+                  : `Expired ${Math.abs(daysToExpiry)} days ago`}
+              </p>
+            </>
+          ) : (
+            <p className="font-medium text-muted-foreground">No expiry set</p>
+          )}
         </div>
 
         {product.stockQuantity <= product.reorderLevel && (
@@ -97,7 +103,7 @@ export function ProductStockInfo({
           </div>
         )}
 
-        {daysToExpiry <= 0 && (
+        {product.expiryDate && daysToExpiry <= 0 && (
           <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
             <p className="text-sm font-medium text-destructive">
               Expired Product

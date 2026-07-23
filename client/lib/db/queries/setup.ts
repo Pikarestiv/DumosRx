@@ -131,7 +131,6 @@ export async function importQuickbooksData(
           id: med.id,
           name: med.name,
           generic_name: med.generic_name || "",
-          brand_name: med.brand || "",
           strength: med.strength || "",
           selling_price: med.unit_price,
           barcode: med.barcode || "",

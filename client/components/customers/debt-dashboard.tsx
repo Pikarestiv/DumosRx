@@ -142,51 +142,53 @@ export function DebtDashboard() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8">
-                    Loading debtors...
-                  </TableCell>
-                </TableRow>
-              ) : filteredDebtors.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8">
-                    No debtors found.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredDebtors.map((debtor) => (
-                  <TableRow key={debtor.id}>
-                    <TableCell>
-                      <span className="font-medium">
-                        {debtor.first_name} {debtor.last_name}
-                      </span>
-                    </TableCell>
-                    <TableCell>{debtor.phone}</TableCell>
-                    <TableCell className="text-right">
-                      {formatCurrency(debtor.credit_limit || 0, storeProfile?.currency)}
-                    </TableCell>
-                    <TableCell className="text-right font-bold text-destructive">
-                      {formatCurrency(debtor.outstanding_balance, storeProfile?.currency)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          setSelectedCustomer({
-                            ...debtor,
-                            name: `${debtor.first_name} ${debtor.last_name}`,
-                          });
-                          setIsRepaymentOpen(true);
-                        }}
-                      >
-                        <CreditCard className="h-4 w-4 mr-2" />
-                        Record Pay
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
+              {!!(loading) && (
+                                          <TableRow>
+                                            <TableCell colSpan={5} className="text-center py-8">
+                                              Loading debtors...
+                                            </TableCell>
+                                          </TableRow>
+                                        )}
+                          {(!(loading) && filteredDebtors.length === 0) && (
+                                                                    <TableRow>
+                                                                      <TableCell colSpan={5} className="text-center py-8">
+                                                                        No debtors found.
+                                                                      </TableCell>
+                                                                    </TableRow>
+                                                                  )}
+                          {!(!(loading) && filteredDebtors.length === 0) && (
+                                                                    filteredDebtors.map((debtor) => (
+                                                                      <TableRow key={debtor.id}>
+                                                                        <TableCell>
+                                                                          <span className="font-medium">
+                                                                            {debtor.first_name} {debtor.last_name}
+                                                                          </span>
+                                                                        </TableCell>
+                                                                        <TableCell>{debtor.phone}</TableCell>
+                                                                        <TableCell className="text-right">
+                                                                          {formatCurrency(debtor.credit_limit || 0, storeProfile?.currency)}
+                                                                        </TableCell>
+                                                                        <TableCell className="text-right font-bold text-destructive">
+                                                                          {formatCurrency(debtor.outstanding_balance, storeProfile?.currency)}
+                                                                        </TableCell>
+                                                                        <TableCell className="text-right">
+                                                                          <Button
+                                                                            size="sm"
+                                                                            onClick={() => {
+                                                                              setSelectedCustomer({
+                                                                                ...debtor,
+                                                                                name: `${debtor.first_name} ${debtor.last_name}`,
+                                                                              });
+                                                                              setIsRepaymentOpen(true);
+                                                                            }}
+                                                                          >
+                                                                            <CreditCard className="h-4 w-4 mr-2" />
+                                                                            Record Pay
+                                                                          </Button>
+                                                                        </TableCell>
+                                                                      </TableRow>
+                                                                    ))
+                                                                  )}
             </TableBody>
           </Table>
         </CardContent>

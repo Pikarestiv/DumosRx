@@ -5,15 +5,41 @@ import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ClipboardList } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Info } from "lucide-react";
 import { logRequestedProduct } from "@/lib/db/requested-products-queries";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { getAllCustomers } from "@/lib/db/queries/customers";
+import { SearchableInput } from "@/components/ui/searchable-input";
 
-export function RequestItemDialog({ triggerClassName }: { triggerClassName?: string }) {
-  const [open, setOpen] = useState(false);
+export function RequestItemDialog({
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
+}: {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}) {
+  const [internalOpen, setInternalOpen] = useState(false);
+
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
+  const setOpen =
+    isControlled && controlledOnOpenChange
+      ? controlledOnOpenChange
+      : setInternalOpen;
+
   const [productName, setProductName] = useState("");
   const [customerName, setCustomerName] = useState("");
+  const [quantity, setQuantity] = useState("1");
+  const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const { data: customers = [] } = useQuery({
+    queryKey: ["customers"],
+    queryFn: getAllCustomers,
+    staleTime: 1000 * 60 * 5, // 5 mins
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,11 +50,18 @@ export function RequestItemDialog({ triggerClassName }: { triggerClassName?: str
 
     setLoading(true);
     try {
-      await logRequestedProduct(productName.trim(), customerName.trim() || undefined);
+      await logRequestedProduct(
+        productName.trim(),
+        customerName.trim() || undefined,
+        parseInt(quantity) || 1,
+        notes.trim() || undefined,
+      );
       toast.success("Request logged successfully");
       setOpen(false);
       setProductName("");
       setCustomerName("");
+      setQuantity("1");
+      setNotes("");
     } catch (error) {
       console.error("Failed to log request:", error);
       toast.error("An error occurred");
@@ -39,18 +72,8 @@ export function RequestItemDialog({ triggerClassName }: { triggerClassName?: str
 
   return (
     <>
-      <Button 
-        variant="outline" 
-        size="sm" 
-        onClick={() => setOpen(true)}
-        className={triggerClassName || "cursor-pointer flex items-center gap-1.5 shrink-0 border-blue-500/20 text-blue-600 hover:bg-blue-500/10 hover:text-blue-700 dark:hover:text-blue-400"}
-      >
-        <ClipboardList className="h-4 w-4" />
-        Request Item
-      </Button>
-
-      <ResponsiveModal 
-        open={open} 
+      <ResponsiveModal
+        open={open}
         onOpenChange={setOpen}
         title="Log Missing Product"
         className="sm:max-w-[425px]"
@@ -58,7 +81,9 @@ export function RequestItemDialog({ triggerClassName }: { triggerClassName?: str
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Product Name *</Label>
+              <Label htmlFor="name">
+                Product Name <span className="text-destructive">*</span>
+              </Label>
               <Input
                 id="name"
                 placeholder="e.g., Panadol Extra"
@@ -68,18 +93,60 @@ export function RequestItemDialog({ triggerClassName }: { triggerClassName?: str
                 required
               />
             </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="quantity">Quantity Asked For</Label>
+                <Input
+                  id="quantity"
+                  type="number"
+                  min="1"
+                  placeholder="1"
+                  value={quantity}
+                  onChange={(e) => setQuantity(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2 flex flex-col">
+                <Label htmlFor="customer">Customer (Optional)</Label>
+                <SearchableInput
+                  id="customer"
+                  placeholder="Select or type..."
+                  value={customerName}
+                  onValueChange={setCustomerName}
+                  options={customers.map((c: any) => ({
+                    label:
+                      `${c.first_name} ${c.last_name}${c.phone ? ` (${c.phone})` : ""}`.trim(),
+                    value: `${c.first_name} ${c.last_name}`.trim(),
+                  }))}
+                />
+              </div>
+            </div>
+
             <div className="space-y-2">
-              <Label htmlFor="customer">Requested By (Optional)</Label>
-              <Input
-                id="customer"
-                placeholder="Customer name or number"
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
+              <Label htmlFor="notes">Note (Optional)</Label>
+              <Textarea
+                id="notes"
+                placeholder="Brand preference, urgency, etc."
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                className="resize-none h-16"
               />
+            </div>
+
+            <div className="text-[11.5px] text-primary/80 bg-primary/10 border border-primary/20 rounded-[10px] px-3 py-2.5 flex gap-2 items-start mt-2">
+              <Info className="w-[15px] h-[15px] shrink-0 mt-0.5" />
+              This gets logged for restocking and sent to your manager right
+              away.
             </div>
           </div>
           <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 pt-4 border-t">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={loading} className="mt-2 sm:mt-0">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpen(false)}
+              disabled={loading}
+              className="mt-2 sm:mt-0"
+            >
               Cancel
             </Button>
             <Button type="submit" disabled={loading}>

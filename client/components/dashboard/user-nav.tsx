@@ -30,17 +30,42 @@ import { getUserInitials } from "@/lib/utils";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
 
-const NavTrigger = ({ initials, user, showDetails }: { initials: string, user?: any, showDetails?: boolean }) => (
-  <Button variant="ghost" className={cn("relative rounded-xl hover:bg-muted/50 transition-colors text-foreground hover:text-foreground", showDetails ? "h-auto w-full flex items-center justify-start gap-3 p-2" : "h-8 w-8 rounded-full p-0")}>
-    <Avatar className={cn("border border-border shrink-0", showDetails ? "h-9 w-9" : "h-8 w-8")}>
-      <AvatarFallback className="bg-primary/10 text-primary hover:text-accent-foreground text-xs font-semibold">
+const NavTrigger = ({
+  initials,
+  user,
+  showDetails,
+}: {
+  initials: string;
+  user?: any;
+  showDetails?: boolean;
+}) => (
+  <Button
+    variant="ghost"
+    className={cn(
+      "relative rounded-xl hover:bg-muted/50 transition-colors text-foreground hover:text-foreground",
+      showDetails
+        ? "h-auto w-full flex items-center justify-start gap-3 p-2"
+        : "h-8 w-8 rounded-full p-0",
+    )}
+  >
+    <Avatar
+      className={cn(
+        "border border-border shrink-0",
+        showDetails ? "h-9 w-9" : "h-8 w-8",
+      )}
+    >
+      <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
         {initials}
       </AvatarFallback>
     </Avatar>
     {showDetails && user && (
       <div className="flex flex-col items-start overflow-hidden">
-        <span className="text-sm font-semibold truncate w-full text-left">{user.first_name} {user.last_name}</span>
-        <span className="text-xs text-muted-foreground capitalize truncate w-full text-left">{user.role.replace(/_/g, " ")}</span>
+        <span className="text-sm font-semibold truncate w-full text-left">
+          {user.first_name} {user.last_name}
+        </span>
+        <span className="text-xs text-muted-foreground capitalize truncate w-full text-left">
+          {user.role.replace(/_/g, " ")}
+        </span>
       </div>
     )}
   </Button>
@@ -65,7 +90,11 @@ interface UserNavProps {
   onOpenChange?: (open: boolean) => void;
 }
 
-export function UserNav({ showDetails, onOpenFeedback, onOpenChange }: UserNavProps) {
+export function UserNav({
+  showDetails,
+  onOpenFeedback,
+  onOpenChange,
+}: UserNavProps) {
   const { user, logout } = useAuth();
   const router = useRouter();
   const isDesktop = useMediaQuery("(min-width: 768px)");
@@ -121,11 +150,20 @@ export function UserNav({ showDetails, onOpenFeedback, onOpenChange }: UserNavPr
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
         <div className={cn(showDetails ? "w-full" : "")}>
-          <NavTrigger initials={initials} user={user} showDetails={showDetails} />
+          <NavTrigger
+            initials={initials}
+            user={user}
+            showDetails={showDetails}
+          />
         </div>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent className="w-56" align={showDetails ? "end" : "end"} side={showDetails ? "right" : "bottom"} forceMount>
+      <DropdownMenuContent
+        className="w-56"
+        align={showDetails ? "end" : "end"}
+        side={showDetails ? "right" : "bottom"}
+        forceMount
+      >
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1 overflow-hidden">
             <p className="text-sm font-medium leading-none truncate">
@@ -137,7 +175,7 @@ export function UserNav({ showDetails, onOpenFeedback, onOpenChange }: UserNavPr
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        
+
         <div className="px-2 py-1.5 flex items-center justify-between">
           <span className="text-sm text-muted-foreground">Appearance</span>
           <div className="flex items-center gap-1">

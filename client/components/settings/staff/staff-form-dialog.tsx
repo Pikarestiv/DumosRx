@@ -141,9 +141,9 @@ export function StaffFormDialog({
   };
 
   return (
-    <ResponsiveModal open={isOpen} onOpenChange={onOpenChange} title={<>{isEditing ? "Edit Staff Member" : "Add New Staff Member"}</>} description={<>{isEditing
-              ? "Update sub-account details and permissions."
-              : "Create a sub-account with specific permissions."}</>} >
+    <ResponsiveModal open={isOpen} onOpenChange={onOpenChange} title={<>{!!(isEditing) && "Edit Staff Member"}
+      {!(isEditing) && "Add New Staff Member"}</>} description={<>{!!(isEditing) && "Update sub-account details and permissions."}
+      {!(isEditing) && "Create a sub-account with specific permissions."}</>} >
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
@@ -195,7 +195,8 @@ export function StaffFormDialog({
             </div>
             <div className="grid gap-2">
               <Label htmlFor="pin">
-                {isEditing ? "New Login PIN" : "Login PIN *"}
+                {!!(isEditing) && "New Login PIN"}
+                          {!(isEditing) && "Login PIN *"}
               </Label>
               <div className="flex justify-start">
                 <InputOTP
@@ -286,16 +287,19 @@ export function StaffFormDialog({
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {isEditing ? "Saving..." : "Creating..."}
-                </>
-              ) : isEditing ? (
-                "Save Changes"
-              ) : (
-                "Create Account"
-              )}
+              {!!(isSubmitting) && (
+                                      <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        {!!(isEditing) && "Saving..."}
+                              {!(isEditing) && "Creating..."}
+                                      </>
+                                    )}
+                      {!!(!(isSubmitting) && isEditing) && (
+                                                            "Save Changes"
+                                                          )}
+                      {!(!(isSubmitting) && isEditing) && (
+                                                            "Create Account"
+                                                          )}
             </Button>
           </DialogFooter>
         </form>

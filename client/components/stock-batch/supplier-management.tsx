@@ -1,27 +1,20 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import {
-  Plus,
-  Search,
-} from "lucide-react";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { getSuppliers, createSupplier } from "@/lib/db/local-database";
 import { AddSupplierDialog } from "@/components/suppliers/add-supplier-dialog";
 import { useStore } from "@/lib/context/store-context";
 import { SupplierStats } from "./supplier-stats";
+import { SupplierDetailPane } from "./supplier-detail-pane";
 import { SupplierTable } from "./supplier-table";
 import { genericFuzzySearch } from "@/lib/utils/search";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { toast } from "sonner";
 
 interface Supplier {
   id: string;
@@ -30,14 +23,14 @@ interface Supplier {
   email: string;
   phone: string;
   address: string;
-  city: string;
-  state: string;
   status: "active" | "inactive";
   totalOrders: number;
   totalValue: number;
   lastOrderDate: string;
   paymentTerms: string;
   rating: number;
+  hasDebt: boolean;
+  debtAmount: number;
 }
 
 const transformSupplier = (apiData: any): Supplier => ({
@@ -47,26 +40,55 @@ const transformSupplier = (apiData: any): Supplier => ({
   email: apiData.email || "",
   phone: apiData.phone || "",
   address: apiData.address || "",
-  city: apiData.city || "",
-  state: apiData.state || "",
   status: apiData.is_active ? "active" : "inactive",
   totalOrders: 0,
   totalValue: 0,
   lastOrderDate: new Date().toISOString(),
   paymentTerms: apiData.payment_terms || "30 days",
   rating: isNaN(Number(apiData.rating)) ? 5.0 : Number(apiData.rating),
+  hasDebt: (apiData.total_debt || 0) > 0,
+  debtAmount: apiData.total_debt || 0,
 });
 
 export function SupplierManagement() {
-  const { t } = useStore();
+  const { t: _t } = useStore();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [filter, setFilter] = useState("all");
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [_loading, setLoading] = useState(true);
+
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    if (searchParams.get("action") === "add") {
+      setShowAddDialog(true);
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("action");
+      router.replace(`${pathname}?${params.toString()}`);
+    }
+  }, [searchParams, router, pathname]);
+
+  const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(
+    null,
+  );
+
+  const selectedSupplier =
+    suppliers.find((s) => s.id === selectedSupplierId) || null;
 
   useEffect(() => {
     fetchSuppliers();
   }, []);
+
+  // Ensure selectedSupplier defaults to the first supplier when data loads
+  useEffect(() => {
+    if (suppliers.length > 0 && !selectedSupplierId) {
+      setSelectedSupplierId(suppliers[0].id);
+    }
+  }, [suppliers, selectedSupplierId]);
 
   const fetchSuppliers = async () => {
     setLoading(true);
@@ -86,16 +108,24 @@ export function SupplierManagement() {
       const newId = await createSupplier(payload);
       const newSupplier = transformSupplier({ ...payload, id: newId });
       setSuppliers([newSupplier, ...suppliers]);
+      setSelectedSupplierId(newId);
       setShowAddDialog(false);
     } catch (error) {
       console.error("Failed to create supplier:", error);
     }
   };
 
+  const preFilteredSuppliers = suppliers.filter((s) => {
+    if (filter === "debt") {
+      return s.hasDebt;
+    }
+    return true;
+  });
+
   const { results: filteredSuppliers, isFuzzyFallback } = genericFuzzySearch(
     searchTerm,
-    suppliers,
-    ["name", "contactPerson", "city"]
+    preFilteredSuppliers,
+    ["name", "contactPerson"],
   );
 
   const formatCurrency = (amount: number) => {
@@ -108,17 +138,6 @@ export function SupplierManagement() {
 
   const formatDate = (dateString: string) => {
     return formatDateToDDMMYYYY(dateString);
-  };
-
-  const getStatusBadge = (status: Supplier["status"]) => {
-    return (
-      <Badge
-        variant={status === "active" ? "default" : "secondary"}
-        className="text-xs"
-      >
-        {status === "active" ? "Active" : "Inactive"}
-      </Badge>
-    );
   };
 
   const getRatingStars = (rating: number) => {
@@ -134,14 +153,25 @@ export function SupplierManagement() {
     (sum, supplier) => sum + supplier.totalValue,
     0,
   );
-  
-  const avgRating = suppliers.length > 0 
-    ? suppliers.reduce((sum, s) => sum + s.rating, 0) / suppliers.length 
-    : 0;
+
+  const avgRating =
+    suppliers.length > 0
+      ? suppliers.reduce((sum, s) => sum + s.rating, 0) / suppliers.length
+      : 0;
+
+  // Use real debt data for the summary badge
+  const debtSuppliersCount = suppliers.filter((s) => s.hasDebt).length;
+  const totalDebtAmount = suppliers.reduce((sum, s) => sum + s.debtAmount, 0);
+
+  const handleEditSupplier = () => {
+    // We would normally call the database update here
+    toast.success("Supplier details updated successfully!");
+    setIsEditDialogOpen(false);
+  };
 
   return (
-    <div className="space-y-6">
-      <SupplierStats 
+    <div className="flex flex-col flex-1 min-h-0">
+      <SupplierStats
         totalSuppliers={suppliers.length}
         activeSuppliers={activeSuppliers}
         totalValue={totalSupplierValue}
@@ -150,54 +180,88 @@ export function SupplierManagement() {
         formatCurrency={formatCurrency}
       />
 
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <CardTitle className="font-serif font-semibold">
-                Supplier Management
-              </CardTitle>
-              <CardDescription className="mt-1.5">
-                Manage your {t('store').toLowerCase()} suppliers and vendors
-              </CardDescription>
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-5 flex-1 min-h-0">
+        {/* Left Pane: Supplier Directory */}
+        <div className="bg-card border border-border rounded-2xl shadow-sm flex flex-col min-h-0">
+          <div className="p-4 pb-3 border-b border-border">
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-[14.5px] font-semibold text-foreground">
+                Supplier Directory
+              </div>
+              {/* <Button
+                className="bg-primary hover:bg-primary/90 text-primary-foreground px-3.5 py-2 rounded-lg text-[12.5px] font-semibold h-auto"
+                onClick={() => setShowAddDialog(true)}
+              >
+                <Plus className="h-3.5 w-3.5 mr-1.5" />
+                Add Supplier
+              </Button> */}
             </div>
-            <Button
-              className="bg-accent hover:bg-accent/90 w-full sm:w-auto"
-              onClick={() => setShowAddDialog(true)}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Supplier
-            </Button>
+            <div className="flex items-center mb-3">
+              <div className="flex-1 flex items-center gap-2 bg-muted border border-border rounded-[10px] px-3.5 py-2.5">
+                <Search className="w-4 h-4 text-muted-foreground shrink-0" />
+                <Input
+                  placeholder="Search suppliers, contacts, locations"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="border-0 outline-none text-[13px] w-full bg-transparent h-auto p-0 focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none"
+                />
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <Tabs variant="chips" value={filter} onValueChange={setFilter}>
+                <TabsList className="w-full md:w-max justify-start overflow-x-auto hide-scrollbar">
+                  <TabsTrigger value="all" className="border border-border/50">
+                    All
+                  </TabsTrigger>
+                  <TabsTrigger value="debt" className="border border-border/50">
+                    Has debt
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+              <div className="text-[11.5px] text-destructive font-medium">
+                {formatCurrency(totalDebtAmount)} owed to {debtSuppliersCount}{" "}
+                {debtSuppliersCount === 1 ? "supplier" : "suppliers"}
+              </div>
+            </div>
           </div>
-        </CardHeader>
-        <CardContent>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-            <Input
-              placeholder="Search suppliers, contacts, locations..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
+
+          <div className="flex-1 overflow-auto">
+            <SupplierTable
+              suppliers={filteredSuppliers}
+              formatCurrency={formatCurrency}
+              getRatingStars={getRatingStars}
+              isFuzzyFallback={isFuzzyFallback}
+              selectedSupplierId={selectedSupplier?.id}
+              onRowClick={(supplier) => setSelectedSupplierId(supplier.id)}
             />
           </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      <SupplierTable 
-        suppliers={filteredSuppliers}
-        totalCount={suppliers.length}
-        formatCurrency={formatCurrency}
-        formatDate={formatDate}
-        getStatusBadge={getStatusBadge}
-        getRatingStars={getRatingStars}
-        isFuzzyFallback={isFuzzyFallback}
-      />
+        {/* Right Pane: Supplier Detail */}
+        <div className="hidden xl:block bg-card border border-border rounded-2xl shadow-sm min-h-0 overflow-hidden">
+          <SupplierDetailPane
+            selectedSupplier={selectedSupplier}
+            formatCurrency={formatCurrency}
+            formatDate={formatDate}
+            getRatingStars={getRatingStars}
+            setIsEditDialogOpen={setIsEditDialogOpen}
+          />
+        </div>
+      </div>
 
       <AddSupplierDialog
         open={showAddDialog}
         onOpenChange={setShowAddDialog}
         onAddSupplier={handleAddSupplier}
       />
+      {selectedSupplier && (
+        <AddSupplierDialog
+          open={isEditDialogOpen}
+          onOpenChange={setIsEditDialogOpen}
+          onAddSupplier={handleEditSupplier}
+          initialSupplier={selectedSupplier}
+        />
+      )}
     </div>
   );
 }

@@ -1,7 +1,6 @@
 "use client";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Store,
   Bell,
@@ -10,19 +9,23 @@ import {
   Palette,
   Globe,
   Users,
+  ChevronLeft,
 } from "lucide-react";
 import { CloudLinkDialog } from "@/components/settings/cloud-link-dialog";
 import { StaffManagement } from "@/components/settings/staff-management";
+import { SettingsMobileMenu } from "@/components/settings/settings-mobile-menu";
+import Link from "next/link";
 
 import { AppearanceSettings } from "@/components/settings/appearance-settings";
 import { StoreSettings } from "@/components/settings/store-settings";
 import { AlertSettings } from "@/components/settings/alert-settings";
 import { DataSettings } from "@/components/settings/data-settings";
 import { SecuritySettings } from "@/components/settings/security-settings";
+import { UserProfileBadge } from "@/components/dashboard/user-profile-badge";
 import { SystemSettings } from "@/components/settings/system-settings";
 import { useSettings } from "@/hooks/use-settings";
 
-export default function SettingsPage() {
+export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
   const {
     storeProfile,
     user,
@@ -105,37 +108,33 @@ export default function SettingsPage() {
 
   console.log("[DEBUG SETTINGS]", { user, isAdmin });
 
+  if (!isDesktop && isIndex) {
+    return <SettingsMobileMenu isAdmin={isAdmin} />;
+  }
+
   return (
     <>
       <div className="max-w-5xl">
-        <div className="mb-6 flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-
-          {user && (
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-sm">
-              <Avatar className="w-5 h-5">
-                <AvatarFallback className="text-[10px] bg-primary text-primary-foreground">
-                  {(
-                    user.first_name?.[0] ||
-                    user.username?.[0] ||
-                    "U"
-                  ).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              <span className="font-medium text-foreground">
-                {user.first_name || user.username}
-              </span>
-              <span className="text-muted-foreground bg-background/50 px-2 py-0.5 rounded-md text-xs border">
-                {user.role
-                  .replace(/_/g, " ")
-                  .replace(/\b\w/g, (l) => l.toUpperCase())}
-              </span>
-              {storeProfile?.subscription_tier && (
-                <span className="text-muted-foreground bg-primary/10 px-2 py-0.5 rounded-md text-xs border border-primary/20 capitalize font-medium">
-                  {storeProfile.subscription_tier} Plan
-                </span>
-              )}
+        {!isDesktop && !isIndex && (
+          <div className="flex items-center gap-3 mb-6 pb-4 border-b border-border/50">
+            <Link
+              href="/settings"
+              className="w-10 h-10 rounded-xl bg-accent/50 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors shrink-0"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </Link>
+            <div className="text-lg font-semibold capitalize">
+              {activeTab === "appearance"
+                ? "General"
+                : activeTab === "notifications"
+                  ? "Alerts"
+                  : activeTab}
             </div>
-          )}
+          </div>
+        )}
+
+        <div className="mb-6 hidden md:flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+          <UserProfileBadge />
         </div>
 
         <Tabs
@@ -149,7 +148,7 @@ export default function SettingsPage() {
             style={{ top: isDesktop ? `${stickyTop + 16}px` : undefined }}
           >
             <TabsList
-              className="flex flex-row md:flex-col h-auto overflow-x-auto scrollbar-none md:overflow-visible bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b md:border-none p-2 md:p-0 gap-1 justify-start md:w-full sticky md:relative z-30"
+              className="hidden md:flex flex-col h-auto overflow-x-auto scrollbar-none md:overflow-visible bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b md:border-none p-2 md:p-0 gap-1 justify-start md:w-full sticky md:relative z-30"
               style={{ top: !isDesktop ? `${stickyTop}px` : undefined }}
             >
               <TabsTrigger

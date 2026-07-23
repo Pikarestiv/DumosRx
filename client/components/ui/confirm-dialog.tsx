@@ -59,13 +59,14 @@ export function ConfirmDialog({
       <DialogContent showCloseButton={false}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
-          {typeof description === "string" ? (
-            <DialogDescription>{description}</DialogDescription>
-          ) : (
-            <DialogDescription asChild>
-              <div className="text-muted-foreground text-sm font-normal mt-1.5">{description}</div>
-            </DialogDescription>
-          )}
+          {typeof description === "string" && (
+                              <DialogDescription>{description}</DialogDescription>
+                            )}
+                  {!(typeof description === "string") && (
+                              <DialogDescription asChild>
+                                <div className="text-muted-foreground text-sm font-normal mt-1.5">{description}</div>
+                              </DialogDescription>
+                            )}
         </DialogHeader>
 
         {requirePin && (

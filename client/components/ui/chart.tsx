@@ -194,14 +194,13 @@ function ChartTooltipContent({
                 indicator === "dot" && "items-center",
               )}
             >
-              {formatter && item?.value !== undefined && item.name ? (
+              {!!(formatter && item?.value !== undefined && item.name) && (
                 formatter(item.value, item.name, item, index, item.payload)
-              ) : (
+              )}
+              {!(formatter && item?.value !== undefined && item.name) && (
                 <>
-                  {itemConfig?.icon ? (
-                    <itemConfig.icon />
-                  ) : (
-                    !hideIndicator && (
+                  {itemConfig?.icon && <itemConfig.icon />}
+                  {!itemConfig?.icon && !hideIndicator && (
                       <div
                         className={cn(
                           "shrink-0 rounded-[2px] border-(--color-border) bg-(--color-bg)",
@@ -220,7 +219,6 @@ function ChartTooltipContent({
                           } as React.CSSProperties
                         }
                       />
-                    )
                   )}
                   <div
                     className={cn(
@@ -229,7 +227,7 @@ function ChartTooltipContent({
                     )}
                   >
                     <div className="grid gap-1.5">
-                      {nestLabel ? tooltipLabel : null}
+                      {nestLabel && tooltipLabel}
                       <span className="text-muted-foreground">
                         {itemConfig?.label || item.name}
                       </span>

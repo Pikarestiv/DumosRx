@@ -117,11 +117,12 @@ export function PinEntry({
             className="h-11 rounded-lg font-medium shadow-sm transition-all hover:shadow-md"
             disabled={isLoading || pin.length < 4}
           >
-            {isLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              "Unlock"
-            )}
+            {!!(isLoading) && (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  )}
+                      {!(isLoading) && (
+                                    "Unlock"
+                                  )}
           </Button>
         </div>
       </form>

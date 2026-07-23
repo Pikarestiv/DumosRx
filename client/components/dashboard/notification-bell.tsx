@@ -155,22 +155,23 @@ export function NotificationBell() {
           <DropdownMenuLabel>Notifications</DropdownMenuLabel>
           <DropdownMenuSeparator />
           <div className="max-h-96 overflow-y-auto">
-            {notifications.length === 0 ? (
-              <EmptyState />
-            ) : (
-              notifications.map((notif) => (
-                <DropdownMenuItem 
-                  key={notif.id} 
-                  className={cn(
-                    "flex flex-col items-start gap-1 p-3 cursor-pointer",
-                    notif.isRead ? "opacity-70" : "bg-primary/5 font-medium"
-                  )}
-                  onClick={() => handleNotificationClick(notif)}
-                >
-                  <NotificationItemContent notif={notif} />
-                </DropdownMenuItem>
-              ))
-            )}
+            {notifications.length === 0 && (
+                                  <EmptyState />
+                                )}
+                    {!(notifications.length === 0) && (
+                                  notifications.map((notif) => (
+                                    <DropdownMenuItem 
+                                      key={notif.id} 
+                                      className={cn(
+                                        "flex flex-col items-start gap-1 p-3 cursor-pointer",
+                                        notif.isRead ? "opacity-70" : "bg-primary/5 font-medium"
+                                      )}
+                                      onClick={() => handleNotificationClick(notif)}
+                                    >
+                                      <NotificationItemContent notif={notif} />
+                                    </DropdownMenuItem>
+                                  ))
+                                )}
           </div>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -189,26 +190,27 @@ export function NotificationBell() {
           <DrawerTitle className="font-serif font-black text-2xl">Notifications</DrawerTitle>
         </DrawerHeader>
         <div className="flex-1 overflow-y-auto px-4 mt-2">
-          {notifications.length === 0 ? (
-            <EmptyState />
-          ) : (
-            <div className="space-y-2">
-              {notifications.map((notif) => (
-                <button
-                  key={notif.id}
-                  onClick={() => handleNotificationClick(notif)}
-                  className={cn(
-                    "w-full text-left flex flex-col items-start gap-1 p-4 rounded-xl transition-colors",
-                    notif.isRead 
-                      ? "bg-muted/50 text-muted-foreground hover:bg-muted" 
-                      : "bg-primary/10 text-foreground hover:bg-primary/15"
-                  )}
-                >
-                  <NotificationItemContent notif={notif} />
-                </button>
-              ))}
-            </div>
-          )}
+          {notifications.length === 0 && (
+                              <EmptyState />
+                            )}
+                  {!(notifications.length === 0) && (
+                              <div className="space-y-2">
+                                {notifications.map((notif) => (
+                                  <button
+                                    key={notif.id}
+                                    onClick={() => handleNotificationClick(notif)}
+                                    className={cn(
+                                      "w-full text-left flex flex-col items-start gap-1 p-4 rounded-xl transition-colors",
+                                      notif.isRead 
+                                        ? "bg-muted/50 text-muted-foreground hover:bg-muted" 
+                                        : "bg-primary/10 text-foreground hover:bg-primary/15"
+                                    )}
+                                  >
+                                    <NotificationItemContent notif={notif} />
+                                  </button>
+                                ))}
+                              </div>
+                            )}
         </div>
       </DrawerContent>
     </Drawer>

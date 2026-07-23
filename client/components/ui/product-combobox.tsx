@@ -21,6 +21,8 @@ export interface SelectedProduct {
   generic_name?: string;
   category?: string;
   manufacturer?: string;
+  strength?: string;
+  dosageForm?: string;
 }
 
 interface ProductComboboxProps {
@@ -28,6 +30,7 @@ interface ProductComboboxProps {
   onChange: (product: SelectedProduct) => void;
   placeholder?: string;
   disabled?: boolean;
+  className?: string;
 }
 
 export function ProductCombobox({
@@ -35,6 +38,7 @@ export function ProductCombobox({
   onChange,
   placeholder = "Search products...",
   disabled = false,
+  className,
 }: ProductComboboxProps) {
   const [open, setOpen] = React.useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -55,11 +59,16 @@ export function ProductCombobox({
     const list: SelectedProduct[] = [];
     const source = isPharmacy ? FORM_SUGGESTIONS.store : FORM_SUGGESTIONS.retail;
     
-    if (source && source.names) {
-      source.names.forEach((name: string) => {
+    if (source && source.products) {
+      source.products.forEach((prod: any) => {
         list.push({
-          name,
+          name: prod.name,
           source: "global",
+          generic_name: prod.genericName,
+          manufacturer: prod.manufacturer,
+          strength: prod.strength,
+          dosageForm: prod.dosageForm,
+          brand_name: prod.brand || prod.name,
         });
       });
     }
@@ -80,18 +89,19 @@ export function ProductCombobox({
   }, [localProducts]);
 
   const allSuggestions = [...localSuggestions, ...globalSuggestions];
+  const deferredValue = React.useDeferredValue(value);
 
   const filteredOptions = React.useMemo(() => {
-    if (!value) return allSuggestions.slice(0, 50); // Limit initial display
+    if (!deferredValue) return allSuggestions.slice(0, 50); // Limit initial display
     
-    const { results } = genericFuzzySearch(value, allSuggestions, [
+    const { results } = genericFuzzySearch(deferredValue, allSuggestions, [
       "name",
       "brand_name",
       "generic_name",
     ]);
 
     return results.slice(0, 50);
-  }, [value, allSuggestions]);
+  }, [deferredValue, allSuggestions]);
 
   // Handle clicks outside to close the menu
   React.useEffect(() => {
@@ -136,7 +146,7 @@ export function ProductCombobox({
         placeholder={placeholder}
         disabled={disabled}
         autoComplete="off"
-        className="w-full"
+        className={cn("w-full", className)}
       />
       
       {open && filteredOptions.length > 0 && (

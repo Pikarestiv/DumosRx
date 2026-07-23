@@ -1,7 +1,7 @@
 "use client";
 
-import type React from "react";
-import { useState } from "react";
+import React from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   DialogFooter,
@@ -15,6 +15,7 @@ import { useStore } from "@/lib/context/store-context";
 import { SearchableInput } from "@/components/ui/searchable-input";
 import { FORM_SUGGESTIONS } from "@/lib/constants/suggestions";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { query } from "@/lib/db/core";
 
 interface Supplier {
   name: string;
@@ -22,9 +23,6 @@ interface Supplier {
   email: string;
   phone: string;
   address: string;
-  city: string;
-  state: string;
-  country: string;
   taxId: string;
   paymentTerms: string;
   isActive: boolean;
@@ -34,12 +32,14 @@ interface AddSupplierDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onAddSupplier: (supplier: any) => void;
+  initialSupplier?: any;
 }
 
 export function AddSupplierDialog({
   open,
   onOpenChange,
   onAddSupplier,
+  initialSupplier,
 }: AddSupplierDialogProps) {
   const { storeType } = useStore();
   const isPharmacy = storeType === "pharmacy";
@@ -49,21 +49,44 @@ export function AddSupplierDialog({
     email: "",
     phone: "",
     address: "",
-    city: "",
-    state: "",
-    country: "Nigeria",
-    taxId: "",
-    paymentTerms: "",
-    isActive: true,
+    taxId: initialSupplier?.taxId || "",
+    paymentTerms: initialSupplier?.paymentTerms || "",
+    isActive: initialSupplier ? initialSupplier.status === "active" : true,
   });
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Reset form when opened with new initialSupplier
+  useEffect(() => {
+    if (open) {
+      setFormData({
+        name: initialSupplier?.name || "",
+        contactPerson: initialSupplier?.contactPerson || "",
+        email: initialSupplier?.email || "",
+        phone: initialSupplier?.phone || "",
+        address: initialSupplier?.address || "",
+        taxId: initialSupplier?.taxId || "",
+        paymentTerms: initialSupplier?.paymentTerms || "",
+        isActive: initialSupplier ? initialSupplier.status === "active" : true,
+      });
+    }
+  }, [open, initialSupplier]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!formData.name) {
       setAlertMessage("Please fill in the supplier name");
       return;
+    }
+
+    try {
+      const existing = await query<any[]>("SELECT id FROM suppliers WHERE LOWER(name) = LOWER(?) LIMIT 1", [formData.name]);
+      if (existing && existing.length > 0) {
+        setAlertMessage(`A supplier with the name "${formData.name}" already exists.`);
+        return;
+      }
+    } catch (error) {
+      console.error("Failed to check supplier uniqueness:", error);
     }
 
     // Transform to snake_case for Laravel backend
@@ -73,9 +96,6 @@ export function AddSupplierDialog({
       email: formData.email,
       phone: formData.phone,
       address: formData.address,
-      city: formData.city,
-      state: formData.state,
-      country: formData.country,
       tax_id: formData.taxId,
       payment_terms: formData.paymentTerms,
       is_active: formData.isActive,
@@ -90,9 +110,6 @@ export function AddSupplierDialog({
       email: "",
       phone: "",
       address: "",
-      city: "",
-      state: "",
-      country: "Nigeria",
       taxId: "",
       paymentTerms: "",
       isActive: true,
@@ -109,10 +126,14 @@ export function AddSupplierDialog({
   return (
     <>
     <ResponsiveModal 
-      open={open} 
+      open={open}
       onOpenChange={onOpenChange}
-      title={<span className="font-serif font-bold">Add New Supplier</span>}
-      description={`Add a new ${isPharmacy ? "supplier or distributor" : "supplier"} to your database.`}
+      title={<span className="font-serif font-bold">{initialSupplier ? "Edit Supplier" : "Add New Supplier"}</span>}
+      description={
+        initialSupplier
+          ? "Update the supplier's details below."
+          : `Add a new ${isPharmacy ? "supplier or distributor" : "supplier"} to your database.`
+      }
       className="sm:max-w-xl max-h-[90vh] overflow-hidden flex flex-col"
     >
       <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
@@ -184,23 +205,24 @@ export function AddSupplierDialog({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="city">City</Label>
-              <SearchableInput
-                id="city"
-                value={formData.city}
-                onValueChange={(val) => handleInputChange("city", val)}
-                options={FORM_SUGGESTIONS.common.locations}
-                placeholder="Select or type"
+              <Label htmlFor="taxId">Tax ID (TIN)</Label>
+              <Input
+                id="taxId"
+                value={formData.taxId}
+                onChange={(e) => handleInputChange("taxId", e.target.value)}
+                placeholder="Tax Identification Number"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="state">State</Label>
-              <SearchableInput
-                id="state"
-                value={formData.state}
-                onValueChange={(val) => handleInputChange("state", val)}
-                options={FORM_SUGGESTIONS.common.states}
-                placeholder="Select or type"
+              <Label htmlFor="paymentTerms">Payment Terms</Label>
+              <Input
+                id="paymentTerms"
+                type="number"
+                value={formData.paymentTerms}
+                onChange={(e) =>
+                  handleInputChange("paymentTerms", e.target.value)
+                }
+                placeholder="Days (e.g., 30)"
               />
             </div>
           </div>
@@ -225,7 +247,7 @@ export function AddSupplierDialog({
               Cancel
             </Button>
             <Button type="submit" className="bg-accent hover:bg-accent/90">
-              Add Supplier
+              {initialSupplier ? "Save Changes" : "Add Supplier"}
             </Button>
           </DialogFooter>
         </form>

@@ -137,7 +137,8 @@ export function DashboardSidebar({
           <div className="flex items-center gap-2">
             {name === "Inventory" && actionableItemsCount > 0 && (
               <span className="bg-destructive text-destructive-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">
-                {actionableItemsCount > 99 ? "99+" : actionableItemsCount}
+                {actionableItemsCount > 99 && "99+"}
+                {!(actionableItemsCount > 99) && actionableItemsCount}
               </span>
             )}
             {locked && (
@@ -167,13 +168,13 @@ export function DashboardSidebar({
               collapsed ? "font-medium text-xs" : "font-semibold text-xs ml-2"
             }
           >
-            {collapsed ? (
+            {!!collapsed && (
               <>
-                {name} {locked ? "🔒" : ""}
+                {name} {!!locked && "🔒"}
+                {!locked && ""}
               </>
-            ) : (
-              extraTooltip
             )}
+            {!collapsed && extraTooltip}
           </TooltipContent>
         </Tooltip>
       );
@@ -205,8 +206,7 @@ export function DashboardSidebar({
               collapsed ? "px-3 justify-center" : "px-5 gap-3",
             )}
           >
-            {collapsed ? (
-              /* Icon-only logo */
+            {collapsed && (
               <Image
                 src="/logo-icon.png"
                 alt="Logo"
@@ -215,8 +215,8 @@ export function DashboardSidebar({
                 className="object-contain shrink-0"
                 style={{ filter: "var(--logo-filter)" }}
               />
-            ) : (
-              /* Full wordmark logo */
+            )}
+            {!collapsed && (
               <img
                 src="/logo.png"
                 alt="Logo"
@@ -258,25 +258,10 @@ export function DashboardSidebar({
                       collapsed ? "justify-center px-2" : "",
                     )}
                   >
-                    {logicalCollapsed ? (
-                      collapsed ? (
-                        <ChevronsRight className="h-[18px] w-[18px] shrink-0" />
-                      ) : (
-                        <>
-                          <ChevronsRight className="h-[18px] w-[18px] shrink-0" />
-                          <span className="truncate text-xs">
-                            Pin sidebar open
-                          </span>
-                        </>
-                      )
-                    ) : (
-                      <>
-                        <ChevronsLeft className="h-[18px] w-[18px] shrink-0" />
-                        <span className="truncate text-xs">
-                          Collapse sidebar
-                        </span>
-                      </>
-                    )}
+                    <CollapseButtonContent
+                      logicalCollapsed={logicalCollapsed}
+                      collapsed={collapsed}
+                    />
                   </button>
                 </TooltipTrigger>
                 {logicalCollapsed && (
@@ -291,7 +276,7 @@ export function DashboardSidebar({
           {/* Footer Area */}
           <div className="bg-sidebar flex flex-col pt-2 pb-2 px-2 gap-0.5">
             <SyncIndicator collapsed={collapsed} />
-            <div className="px-1">
+            <div className="flex justify-center item-center w-full">
               <UserNav
                 showDetails={!collapsed}
                 onOpenFeedback={onOpenFeedback}
@@ -302,5 +287,33 @@ export function DashboardSidebar({
         </div>
       </>
     </TooltipProvider>
+  );
+}
+
+function CollapseButtonContent({
+  logicalCollapsed,
+  collapsed,
+}: {
+  logicalCollapsed: boolean;
+  collapsed: boolean;
+}) {
+  if (!logicalCollapsed) {
+    return (
+      <>
+        <ChevronsLeft className="h-[18px] w-[18px] shrink-0" />
+        <span className="truncate text-xs">Collapse sidebar</span>
+      </>
+    );
+  }
+
+  if (collapsed) {
+    return <ChevronsRight className="h-[18px] w-[18px] shrink-0" />;
+  }
+
+  return (
+    <>
+      <ChevronsRight className="h-[18px] w-[18px] shrink-0" />
+      <span className="truncate text-xs">Pin sidebar open</span>
+    </>
   );
 }

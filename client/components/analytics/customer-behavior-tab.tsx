@@ -56,11 +56,12 @@ export function CustomerBehaviorTab({
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-1">
-                {metric.trend === "up" ? (
-                  <TrendingUp className="h-4 w-4 text-emerald-500" />
-                ) : (
-                  <TrendingDown className="h-4 w-4 text-red-500" />
-                )}
+                {metric.trend === "up" && (
+                                          <TrendingUp className="h-4 w-4 text-emerald-500" />
+                                        )}
+                        {!(metric.trend === "up") && (
+                                          <TrendingDown className="h-4 w-4 text-red-500" />
+                                        )}
                 <span
                   className={`text-sm font-medium ${
                     metric.trend === "up"
@@ -90,13 +91,14 @@ export function CustomerBehaviorTab({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {purchasePatterns.length === 0 ? (
+          {purchasePatterns.length === 0 && (
             <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
               <Clock className="h-10 w-10 opacity-20 mb-3" />
               <p className="font-semibold">No transaction data available</p>
               <p className="text-sm mt-1">Sales will appear here once transactions are recorded.</p>
             </div>
-          ) : (
+          )}
+          {purchasePatterns.length > 0 && (
             <div className="w-full overflow-x-auto">
               <Table>
                 <TableHeader>

@@ -60,13 +60,14 @@ export function TauriTitleBar() {
           isMac ? "pl-[13px] gap-[6px]" : "px-2",
         )}
       >
-        {isMac ? (
+        {isMac && (
           <MacWindowControls
             onClose={handleClose}
             onMinimize={handleMinimize}
             onMaximize={handleMaximize}
           />
-        ) : (
+        )}
+        {!isMac && (
           <WindowsWindowControls
             isMaximized={isMaximized}
             onMinimize={handleMinimize}

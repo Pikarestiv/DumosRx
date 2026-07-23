@@ -85,77 +85,80 @@ export function QuickBooksImportDialog({
       title="QuickBooks Migration (Beta)"
       description="Review the parsed data before importing into your database."
       className="sm:max-w-[425px]"
-    >        {importComplete ? (
-          <div className="py-6 flex flex-col items-center justify-center space-y-4">
-             <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center text-green-600">
-               <CheckCircle2 className="h-6 w-6" />
-             </div>
-             <p className="text-center font-medium">Import Successful!</p>
-          </div>
-        ) : !parsedData ? (
-          <div className="py-12 flex justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-        ) : (
-          <div className="space-y-6 py-4">
-            <div className="space-y-4">
-              <h4 className="text-sm font-medium">Found Records:</h4>
-              <div className="flex items-center space-x-2">
-                <Switch 
-                  id="import-meds" 
-                  checked={importProducts} 
-                  onCheckedChange={(c: boolean) => setImportProducts(c)}
-                  disabled={parsedData.products.length === 0}
-                />
-                <Label htmlFor="import-meds" className="font-normal">
-                  Products / Stock Batch Items ({parsedData.products.length})
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Switch 
-                  id="import-custs" 
-                  checked={importCustomers} 
-                  onCheckedChange={(c: boolean) => setImportCustomers(c)}
-                  disabled={parsedData.customers.length === 0}
-                />
-                <Label htmlFor="import-custs" className="font-normal">
-                  Customers ({parsedData.customers.length})
-                </Label>
-              </div>
-            </div>
+    >        {!!(importComplete) && (
+                    <div className="py-6 flex flex-col items-center justify-center space-y-4">
+                       <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center text-green-600">
+                         <CheckCircle2 className="h-6 w-6" />
+                       </div>
+                       <p className="text-center font-medium">Import Successful!</p>
+                    </div>
+                  )}
+          {!!(!(importComplete) && !parsedData) && (
+                              <div className="py-12 flex justify-center">
+                                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                              </div>
+                            )}
+          {!(!(importComplete) && !parsedData) && (
+                              <div className="space-y-6 py-4">
+                                <div className="space-y-4">
+                                  <h4 className="text-sm font-medium">Found Records:</h4>
+                                  <div className="flex items-center space-x-2">
+                                    <Switch 
+                                      id="import-meds" 
+                                      checked={importProducts} 
+                                      onCheckedChange={(c: boolean) => setImportProducts(c)}
+                                      disabled={parsedData?.products.length === 0}
+                                    />
+                                    <Label htmlFor="import-meds" className="font-normal">
+                                      Products / Stock Batch Items ({parsedData?.products.length})
+                                    </Label>
+                                  </div>
+                                  <div className="flex items-center space-x-2">
+                                    <Switch 
+                                      id="import-custs" 
+                                      checked={importCustomers} 
+                                      onCheckedChange={(c: boolean) => setImportCustomers(c)}
+                                      disabled={parsedData?.customers.length === 0}
+                                    />
+                                    <Label htmlFor="import-custs" className="font-normal">
+                                      Customers ({parsedData?.customers.length})
+                                    </Label>
+                                  </div>
+                                </div>
 
-            <div className="space-y-3">
-              <h4 className="text-sm font-medium">Duplicate Handling:</h4>
-              <Select 
-                value={duplicateStrategy} 
-                onValueChange={(v: "skip" | "overwrite") => setDuplicateStrategy(v)}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select strategy" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="skip">Skip existing records</SelectItem>
-                  <SelectItem value="overwrite">Overwrite prices and stock for existing records</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        )}
+                                <div className="space-y-3">
+                                  <h4 className="text-sm font-medium">Duplicate Handling:</h4>
+                                  <Select 
+                                    value={duplicateStrategy} 
+                                    onValueChange={(v: "skip" | "overwrite") => setDuplicateStrategy(v)}
+                                  >
+                                    <SelectTrigger className="w-full">
+                                      <SelectValue placeholder="Select strategy" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="skip">Skip existing records</SelectItem>
+                                      <SelectItem value="overwrite">Overwrite prices and stock for existing records</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              </div>
+                            )}
 
         <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 pt-4 border-t mt-4">
-          {importComplete ? (
-             <Button onClick={handleClose}>Done</Button>
-          ) : (
-            <>
-              <Button variant="outline" onClick={handleClose} disabled={isImporting} className="mt-2 sm:mt-0">
-                Cancel
-              </Button>
-              <Button onClick={handleImport} disabled={isImporting || (!importProducts && !importCustomers)}>
-                {isImporting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Import Data
-              </Button>
-            </>
-          )}
+          {!!(importComplete) && (
+                           <Button onClick={handleClose}>Done</Button>
+                        )}
+              {!(importComplete) && (
+                          <>
+                            <Button variant="outline" onClick={handleClose} disabled={isImporting} className="mt-2 sm:mt-0">
+                              Cancel
+                            </Button>
+                            <Button onClick={handleImport} disabled={isImporting || (!importProducts && !importCustomers)}>
+                              {isImporting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                              Import Data
+                            </Button>
+                          </>
+                        )}
         </div>
     </ResponsiveModal>
   );

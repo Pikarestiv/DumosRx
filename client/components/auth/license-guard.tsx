@@ -190,18 +190,17 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
       <Card className="max-w-md w-full border-destructive/50 shadow-2xl shadow-destructive/10">
         <CardHeader className="text-center">
           <div className="mx-auto w-16 h-16 bg-destructive/10 text-destructive rounded-full flex items-center justify-center mb-4">
-            {license?.isClockTampered ? (
-              <Clock className="h-8 w-8" />
-            ) : (
-              <Lock className="h-8 w-8" />
-            )}
+            {!!(license?.isClockTampered) && (
+                                    <Clock className="h-8 w-8" />
+                                  )}
+                      {!(license?.isClockTampered) && (
+                                    <Lock className="h-8 w-8" />
+                                  )}
           </div>
           <CardTitle className="text-2xl font-black">
-            {license?.isClockTampered
-              ? "Clock Discrepancy"
-              : isSuspended
-                ? "Account Suspended"
-                : "Subscription Expired"}
+            {!!(license?.isClockTampered) && "Clock Discrepancy"}
+                      {!!(!(license?.isClockTampered) && isSuspended) && "Account Suspended"}
+                      {!(!(license?.isClockTampered) && isSuspended) && "Subscription Expired"}
           </CardTitle>
           <CardDescription>{license?.message}</CardDescription>
         </CardHeader>

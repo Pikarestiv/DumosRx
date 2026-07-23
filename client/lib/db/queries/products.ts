@@ -2,14 +2,13 @@ import { query } from "@/lib/db/local-database";
 
 export async function getProductsWithDetails() {
   return query<any>(
-    `SELECT m.*, c.name as category_name, v.name as supplier_name,
+    `SELECT m.*, c.name as category_name,
        (SELECT SUM(quantity) FROM stock_batches WHERE product_id = m.id AND _deleted = 0 AND is_active = 1) as stock_quantity,
        (SELECT cost_price FROM stock_batches WHERE product_id = m.id AND _deleted = 0 ORDER BY created_at DESC LIMIT 1) as cost_price,
        (SELECT expiry_date FROM stock_batches WHERE product_id = m.id AND _deleted = 0 AND quantity > 0 ORDER BY expiry_date ASC LIMIT 1) as expiry_date,
        (SELECT batch_number FROM stock_batches WHERE product_id = m.id AND _deleted = 0 AND quantity > 0 ORDER BY expiry_date ASC LIMIT 1) as batch_number
      FROM products m
      LEFT JOIN categories c ON m.category_id = c.id
-     LEFT JOIN suppliers v ON m.supplier_id = v.id
      WHERE m._deleted = 0
      ORDER BY m.created_at DESC`
   );
@@ -53,7 +52,7 @@ export async function getProductByName(name: string) {
 
 export async function getProductList() {
   return query<any>(
-    "SELECT id, name, brand_name, generic_name, category_id, manufacturer FROM products WHERE _deleted = 0 ORDER BY name ASC",
+    "SELECT id, name, generic_name, category_id, manufacturer FROM products WHERE _deleted = 0 ORDER BY name ASC",
   );
 }
 
@@ -66,7 +65,6 @@ export async function getProductsWithStock() {
     id: m.id,
     name: m.name,
     generic_name: m.generic_name || "",
-    brand: m.brand_name || m.brand || "",
     strength: m.strength || "",
     unit_price: m.selling_price || 0,
     stock: m.stock_quantity || 0,

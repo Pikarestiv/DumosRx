@@ -51,7 +51,8 @@ export function AlertSettings({
           size="icon"
           onClick={() => setIsEditing(!isEditing)}
         >
-          {isEditing ? <X className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
+          {!!(isEditing) && <X className="h-4 w-4" />}
+                  {!(isEditing) && <Pencil className="h-4 w-4" />}
         </Button>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -74,14 +75,16 @@ export function AlertSettings({
               Notify when stock hits reorder level
             </p>
           </div>
-          {isEditing ? (
-            <Switch
-              checked={lowStockAlert}
-              onCheckedChange={setLowStockAlert}
-            />
-          ) : (
-            <p className="text-sm font-medium">{lowStockAlert ? "Enabled" : "Disabled"}</p>
-          )}
+          {!!(isEditing) && (
+                              <Switch
+                                checked={lowStockAlert}
+                                onCheckedChange={setLowStockAlert}
+                              />
+                            )}
+                  {!(isEditing) && (
+                              <p className="text-sm font-medium">{!!(lowStockAlert) && "Enabled"}
+                      {!(lowStockAlert) && "Disabled"}</p>
+                            )}
         </div>
         <div className="flex items-center justify-between rounded-lg border p-4">
           <div className="space-y-0.5">
@@ -102,27 +105,30 @@ export function AlertSettings({
               Notify before products expire
             </p>
           </div>
-          {isEditing ? (
-            <Switch
-              checked={expiryAlert}
-              onCheckedChange={setExpiryAlert}
-            />
-          ) : (
-            <p className="text-sm font-medium">{expiryAlert ? "Enabled" : "Disabled"}</p>
-          )}
+          {!!(isEditing) && (
+                              <Switch
+                                checked={expiryAlert}
+                                onCheckedChange={setExpiryAlert}
+                              />
+                            )}
+                  {!(isEditing) && (
+                              <p className="text-sm font-medium">{!!(expiryAlert) && "Enabled"}
+                      {!(expiryAlert) && "Disabled"}</p>
+                            )}
         </div>
         <div className="grid gap-2 pt-4">
           <Label>Days before expiry to warn</Label>
-          {isEditing ? (
-            <Input
-              type="number"
-              value={expiryDays}
-              onChange={(e) => setExpiryDays(e.target.value)}
-              className="max-w-[150px]"
-            />
-          ) : (
-            <p className="text-sm font-medium py-2">{expiryDays || "Not set"} days</p>
-          )}
+          {!!(isEditing) && (
+                              <Input
+                                type="number"
+                                value={expiryDays}
+                                onChange={(e) => setExpiryDays(e.target.value)}
+                                className="max-w-[150px]"
+                              />
+                            )}
+                  {!(isEditing) && (
+                              <p className="text-sm font-medium py-2">{expiryDays || "Not set"} days</p>
+                            )}
         </div>
       </CardContent>
       {isEditing && (

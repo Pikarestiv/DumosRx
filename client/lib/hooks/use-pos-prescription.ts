@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { getPrescriptionItems } from "@/lib/db/queries/prescriptions";
 import { toast } from "sonner";
-import { Product } from "./use-pos-data";
+import type { POSProduct as Product } from "@/lib/types/product";
 
 interface UsePOSPrescriptionProps {
   searchParams: URLSearchParams;

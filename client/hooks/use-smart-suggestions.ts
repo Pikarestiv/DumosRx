@@ -1,5 +1,6 @@
 import { useMemo } from "react";
-import { CartItem, Product } from "@/lib/hooks/use-pos-cart";
+import { CartItem } from "@/lib/hooks/use-pos-cart";
+import type { POSProduct as Product } from "@/lib/types/product";
 import { SMART_SUGGESTIONS_RULES } from "@/lib/constants/smart-suggestions-rules";
 
 export function useSmartSuggestions(cart: CartItem[], products: Product[]) {

@@ -1,0 +1,24 @@
+{
+  "$schema": "https://unpkg.com/knip@3/schema.json",
+  "next": {
+    "entry": [
+      "next.config.js",
+      "next.config.mjs",
+      "app/**/page.{js,jsx,ts,tsx}",
+      "app/**/layout.{js,jsx,ts,tsx}",
+      "app/**/loading.{js,jsx,ts,tsx}",
+      "app/**/error.{js,jsx,ts,tsx}",
+      "app/**/not-found.{js,jsx,ts,tsx}",
+      "app/**/global-error.{js,jsx,ts,tsx}",
+      "app/**/route.{js,ts}"
+    ]
+  },
+  "ignore": [
+    "styles/globals.css",
+    "public/sw.js",
+    "e2e/global.setup.ts",
+    "components/ui/**",
+    "lib/db/queries/**",
+    "postcss.config.mjs"
+  ]
+}

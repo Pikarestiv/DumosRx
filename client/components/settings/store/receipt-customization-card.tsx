@@ -81,7 +81,8 @@ export function ReceiptCustomizationCard({
           size="icon"
           onClick={() => setIsEditing(!isEditing)}
         >
-          {isEditing ? <X className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
+          {!!(isEditing) && <X className="h-4 w-4" />}
+                  {!(isEditing) && <Pencil className="h-4 w-4" />}
         </Button>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -90,27 +91,28 @@ export function ReceiptCustomizationCard({
             <div className="space-y-3">
               <Label>Store Logo</Label>
               <div className="flex items-center gap-4">
-                {localLogo ? (
-                  <div className="relative group">
-                    <img
-                      src={localLogo}
-                      alt="Logo Preview"
-                      className="h-20 w-20 object-contain border rounded-lg p-1 bg-white"
-                    />
-                    {isEditing && (
-                      <button
-                        onClick={handleRemoveLogo}
-                        className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <X className="h-3 w-3 cursor-pointer" />
-                      </button>
-                    )}
-                  </div>
-                ) : (
-                  <div className="h-20 w-20 border-2 border-dashed rounded-lg flex items-center justify-center text-muted-foreground bg-muted/30">
-                    <Upload className="h-6 w-6" />
-                  </div>
-                )}
+                {!!(localLogo) && (
+                                                <div className="relative group">
+                                                  <img
+                                                    src={localLogo}
+                                                    alt="Logo Preview"
+                                                    className="h-20 w-20 object-contain border rounded-lg p-1 bg-white"
+                                                  />
+                                                  {isEditing && (
+                                                    <button
+                                                      onClick={handleRemoveLogo}
+                                                      className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    >
+                                                      <X className="h-3 w-3 cursor-pointer" />
+                                                    </button>
+                                                  )}
+                                                </div>
+                                              )}
+                              {!(localLogo) && (
+                                                <div className="h-20 w-20 border-2 border-dashed rounded-lg flex items-center justify-center text-muted-foreground bg-muted/30">
+                                                  <Upload className="h-6 w-6" />
+                                                </div>
+                                              )}
                 {isEditing && (
                   <div className="flex-1">
                     <TooltipProvider delayDuration={0}>
@@ -126,7 +128,8 @@ export function ReceiptCustomizationCard({
                               {!canCustomizeTheme && (
                                 <Lock className="h-3 w-3 mr-2" />
                               )}
-                              {localLogo ? "Change Logo" : "Upload Logo"}
+                              {!!(localLogo) && "Change Logo"}
+                                                          {!(localLogo) && "Upload Logo"}
                             </Label>
                           </div>
                         </TooltipTrigger>
@@ -174,16 +177,17 @@ export function ReceiptCustomizationCard({
                   </Tooltip>
                 </TooltipProvider>
               </div>
-              {isEditing ? (
-                <Input
-                  id="receipt-header"
-                  placeholder="e.g. Thanks for your patronage!"
-                  value={localReceiptHeader}
-                  onChange={(e) => setLocalReceiptHeader(e.target.value)}
-                />
-              ) : (
-                <p className="text-sm font-medium py-2">{localReceiptHeader || "Not set"}</p>
-              )}
+              {!!(isEditing) && (
+                                          <Input
+                                            id="receipt-header"
+                                            placeholder="e.g. Thanks for your patronage!"
+                                            value={localReceiptHeader}
+                                            onChange={(e) => setLocalReceiptHeader(e.target.value)}
+                                          />
+                                        )}
+                          {!(isEditing) && (
+                                          <p className="text-sm font-medium py-2">{localReceiptHeader || "Not set"}</p>
+                                        )}
             </div>
             <div className="grid gap-2">
               <div className="flex items-center gap-2">
@@ -202,16 +206,17 @@ export function ReceiptCustomizationCard({
                   </Tooltip>
                 </TooltipProvider>
               </div>
-              {isEditing ? (
-                <Input
-                  id="receipt-footer"
-                  placeholder="e.g. No refund after 24 hours"
-                  value={localReceiptFooter}
-                  onChange={(e) => setLocalReceiptFooter(e.target.value)}
-                />
-              ) : (
-                <p className="text-sm font-medium py-2">{localReceiptFooter || "Not set"}</p>
-              )}
+              {!!(isEditing) && (
+                                          <Input
+                                            id="receipt-footer"
+                                            placeholder="e.g. No refund after 24 hours"
+                                            value={localReceiptFooter}
+                                            onChange={(e) => setLocalReceiptFooter(e.target.value)}
+                                          />
+                                        )}
+                          {!(isEditing) && (
+                                          <p className="text-sm font-medium py-2">{localReceiptFooter || "Not set"}</p>
+                                        )}
             </div>
             <div className="flex items-center justify-between rounded-lg border p-4">
               <div className="space-y-0.5">
@@ -220,14 +225,16 @@ export function ReceiptCustomizationCard({
                   Display store logo at the top
                 </p>
               </div>
-              {isEditing ? (
-                <Switch
-                  checked={showLogo && canCustomizeTheme}
-                  onCheckedChange={(checked) => checked ? withRestriction(() => handleToggleLogo(checked), { featureAllowed: canCustomizeTheme, featureKey: 'custom_branding' })() : withRestriction(() => handleToggleLogo(checked))()}
-                />
-              ) : (
-                <p className="text-sm font-medium">{(showLogo && canCustomizeTheme) ? "Enabled" : "Disabled"}</p>
-              )}
+              {!!(isEditing) && (
+                                          <Switch
+                                            checked={showLogo && canCustomizeTheme}
+                                            onCheckedChange={(checked) => checked ? withRestriction(() => handleToggleLogo(checked), { featureAllowed: canCustomizeTheme, featureKey: 'custom_branding' })() : withRestriction(() => handleToggleLogo(checked))()}
+                                          />
+                                        )}
+                          {!(isEditing) && (
+                                          <p className="text-sm font-medium">{!!((showLogo && canCustomizeTheme)) && "Enabled"}
+                              {!((showLogo && canCustomizeTheme)) && "Disabled"}</p>
+                                        )}
             </div>
             <div className="flex items-center justify-between rounded-lg border p-4">
               <div className="space-y-0.5">
@@ -236,11 +243,13 @@ export function ReceiptCustomizationCard({
                   Include contact details on receipt
                 </p>
               </div>
-              {isEditing ? (
-                <Switch checked={showContact} onCheckedChange={setShowContact} />
-              ) : (
-                <p className="text-sm font-medium">{showContact ? "Enabled" : "Disabled"}</p>
-              )}
+              {!!(isEditing) && (
+                                          <Switch checked={showContact} onCheckedChange={setShowContact} />
+                                        )}
+                          {!(isEditing) && (
+                                          <p className="text-sm font-medium">{!!(showContact) && "Enabled"}
+                              {!(showContact) && "Disabled"}</p>
+                                        )}
             </div>
           </div>
 

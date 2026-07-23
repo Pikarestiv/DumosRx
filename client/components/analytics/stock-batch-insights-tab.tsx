@@ -69,13 +69,14 @@ export function StockBatchInsightsTab({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {stock_batchAlerts.length === 0 ? (
+          {stock_batchAlerts.length === 0 && (
             <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
               <CheckCircle2 className="h-10 w-10 text-emerald-500 mb-3 opacity-70" />
               <p className="font-semibold text-foreground">All clear!</p>
               <p className="text-sm mt-1">No low stock or expiring items found.</p>
             </div>
-          ) : (
+          )}
+          {stock_batchAlerts.length > 0 && (
             <div className="space-y-3">
               {stock_batchAlerts.map((alert, idx) => (
                 <div
@@ -111,12 +112,13 @@ export function StockBatchInsightsTab({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {salesByCategory.length === 0 ? (
+          {salesByCategory.length === 0 && (
             <div className="flex flex-col items-center justify-center h-80 text-muted-foreground">
               <p className="font-semibold">No data yet</p>
               <p className="text-sm mt-1">Record some sales to see category breakdown.</p>
             </div>
-          ) : (
+          )}
+          {salesByCategory.length > 0 && (
             <div className="h-80">
               <ChartContainer config={chartConfig} className="h-full w-full">
                 <BarChart data={salesByCategory}>

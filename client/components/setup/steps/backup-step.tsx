@@ -67,27 +67,28 @@ export function BackupStep({
               accept=".drx"
               onChange={handleFileChange}
             />
-            {isLoading ? (
-              <>
-                <Loader2 className="h-10 w-10 text-primary animate-spin mb-4" />
-                <p className="text-sm font-medium text-foreground">
-                  Restoring database...
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Please do not close the app
-                </p>
-              </>
-            ) : (
-              <>
-                <FileUp className="h-10 w-10 text-muted-foreground group-hover:text-primary transition-colors mb-4" />
-                <p className="text-sm font-medium text-foreground">
-                  Click to select backup file
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  .drx backup files supported
-                </p>
-              </>
-            )}
+            {!!(isLoading) && (
+                                    <>
+                                      <Loader2 className="h-10 w-10 text-primary animate-spin mb-4" />
+                                      <p className="text-sm font-medium text-foreground">
+                                        Restoring database...
+                                      </p>
+                                      <p className="text-xs text-muted-foreground mt-1">
+                                        Please do not close the app
+                                      </p>
+                                    </>
+                                  )}
+                      {!(isLoading) && (
+                                    <>
+                                      <FileUp className="h-10 w-10 text-muted-foreground group-hover:text-primary transition-colors mb-4" />
+                                      <p className="text-sm font-medium text-foreground">
+                                        Click to select backup file
+                                      </p>
+                                      <p className="text-xs text-muted-foreground mt-1">
+                                        .drx backup files supported
+                                      </p>
+                                    </>
+                                  )}
           </div>
         </CardContent>
         <CardFooter className="pb-8 px-6 flex flex-col space-y-4">

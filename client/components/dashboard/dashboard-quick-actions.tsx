@@ -89,13 +89,13 @@ export function DashboardQuickActions({
   const [isReportOpen, setIsReportOpen] = useState(false);
 
   return (
-    <Card className="h-full flex flex-col border-none shadow-none bg-transparent sm:border-solid sm:border-border sm:shadow-sm sm:bg-card pb-0 !gap-0 sm:gap-6">
-      <CardHeader className="px-0 sm:px-6 pb-3 sm:pb-6 mt-4">
-        <CardTitle className="font-serif font-semibold !px-0">
+    <Card className="h-full p-0 sm:p-5 gap-1 sm:gap-5 flex flex-col border-none shadow-none bg-transparent sm:border-solid sm:border-border sm:shadow-sm sm:bg-card ">
+      <CardHeader className="p-0">
+        <CardTitle className="p-0 font-serif font-semibold">
           Quick Actions
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-0 sm:px-4 pt-0 pb-4">
+      <CardContent className="p-0 px-2.5 sm:px-0">
         <div className="flex overflow-x-auto sm:grid sm:grid-cols-2 gap-1 sm:gap-4 pb-0 hide-scrollbar snap-x snap-mandatory -mx-4 sm:mx-0 px-4 sm:px-0">
           {getQuickActionsConfig(productTerm, setIsReportOpen).map(
             (action, i) => (

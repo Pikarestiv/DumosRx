@@ -43,7 +43,7 @@ export function BackupStep({
       exit={{ opacity: 0, x: -20 }}
       className="flex-1 flex flex-col w-full"
     >
-      <Card className="flex-1 sm:flex-initial flex flex-col border-none sm:border-solid sm:border-border shadow-[0_-20px_40px_rgba(0,0,0,0.15)] sm:shadow-2xl bg-background sm:bg-card/60 sm:backdrop-blur-2xl rounded-t-[2.5rem] sm:rounded-xl overflow-hidden relative">
+      <Card className="flex-1 px-4 sm:px-6 py-6 sm:flex-initial flex flex-col border-none sm:border-solid sm:border-border shadow-[0_-20px_40px_rgba(0,0,0,0.15)] sm:shadow-2xl bg-background sm:bg-card/60 sm:backdrop-blur-2xl rounded-t-[2.5rem] sm:rounded-xl overflow-hidden relative">
         <CardHeader className="space-y-1 flex flex-col items-center text-center pb-2">
           <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
             <FileUp className="h-6 w-6 text-primary" />
@@ -67,28 +67,28 @@ export function BackupStep({
               accept=".drx"
               onChange={handleFileChange}
             />
-            {!!(isLoading) && (
-                                    <>
-                                      <Loader2 className="h-10 w-10 text-primary animate-spin mb-4" />
-                                      <p className="text-sm font-medium text-foreground">
-                                        Restoring database...
-                                      </p>
-                                      <p className="text-xs text-muted-foreground mt-1">
-                                        Please do not close the app
-                                      </p>
-                                    </>
-                                  )}
-                      {!(isLoading) && (
-                                    <>
-                                      <FileUp className="h-10 w-10 text-muted-foreground group-hover:text-primary transition-colors mb-4" />
-                                      <p className="text-sm font-medium text-foreground">
-                                        Click to select backup file
-                                      </p>
-                                      <p className="text-xs text-muted-foreground mt-1">
-                                        .drx backup files supported
-                                      </p>
-                                    </>
-                                  )}
+            {!!isLoading && (
+              <>
+                <Loader2 className="h-10 w-10 text-primary animate-spin mb-4" />
+                <p className="text-sm font-medium text-foreground">
+                  Restoring database...
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Please do not close the app
+                </p>
+              </>
+            )}
+            {!isLoading && (
+              <>
+                <FileUp className="h-10 w-10 text-muted-foreground group-hover:text-primary transition-colors mb-4" />
+                <p className="text-sm font-medium text-foreground">
+                  Click to select backup file
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  .drx backup files supported
+                </p>
+              </>
+            )}
           </div>
         </CardContent>
         <CardFooter className="pb-8 px-6 flex flex-col space-y-4">

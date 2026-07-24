@@ -199,7 +199,7 @@ export function DashboardOverview() {
         missingExpiryCount={stats.missingExpiryCount}
       />
 
-      <div className="flex flex-col lg:grid lg:grid-cols-[1.4fr_1fr] gap-5">
+      <div className="flex flex-col lg:grid lg:grid-cols-[1.4fr_1fr] gap-y-6 gap-x-5">
         <div className="order-2 lg:order-1 h-full">
           <DashboardRecentActivity
             activities={activities}

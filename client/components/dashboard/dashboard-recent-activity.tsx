@@ -3,7 +3,13 @@
 import { Activity } from "lucide-react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ShoppingCart, PackagePlus, FileText, Banknote, Truck } from "lucide-react";
+import {
+  ShoppingCart,
+  PackagePlus,
+  FileText,
+  Banknote,
+  Truck,
+} from "lucide-react";
 
 interface ActivityItem {
   id: string;
@@ -26,7 +32,7 @@ export function DashboardRecentActivity({
   getActivityColor,
   onActivityClick,
 }: DashboardRecentActivityProps) {
-    const getActivityIcon = (type: string) => {
+  const getActivityIcon = (type: string) => {
     switch (type) {
       case "sale":
         return ShoppingCart;
@@ -44,13 +50,11 @@ export function DashboardRecentActivity({
   };
 
   return (
-    <Card className="h-full flex flex-col border-none shadow-none bg-transparent sm:border-solid sm:border-border sm:shadow-sm sm:bg-card">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0 px-1 sm:px-6 mt-4">
-        <div>
-          <CardTitle className="font-serif font-semibold">
-            Recent Activity
-          </CardTitle>
-        </div>
+    <Card className="h-full gap-1 sm:gap-5 p-0 sm:p-5 flex flex-col border-none shadow-none bg-transparent sm:border-solid sm:border-border sm:shadow-sm sm:bg-card">
+      <CardHeader className="p-0 flex flex-row items-center justify-between gap-y-0">
+        <CardTitle className="font-serif font-semibold">
+          Recent Activity
+        </CardTitle>
         <Link
           href="/reports"
           className="text-xs font-medium text-primary hover:text-primary/80 flex items-center shrink-0 whitespace-nowrap"
@@ -58,12 +62,13 @@ export function DashboardRecentActivity({
           View All
         </Link>
       </CardHeader>
-      <CardContent className="px-1 sm:px-6 pt-0 flex-1 flex flex-col">
+
+      <CardContent className="flex-1 flex flex-col p-0">
         {activities.length === 0 && <EmptyActivityState />}
         {activities.length > 0 && (
-          <ActivityList 
-            activities={activities} 
-            onActivityClick={onActivityClick} 
+          <ActivityList
+            activities={activities}
+            onActivityClick={onActivityClick}
             getActivityIcon={getActivityIcon}
             getActivityColor={getActivityColor}
           />
@@ -78,23 +83,21 @@ function EmptyActivityState() {
     <div className="flex-1 flex flex-col items-center justify-center py-8 text-muted-foreground">
       <Activity className="h-8 w-8 mb-2 opacity-50" />
       <p className="text-sm">No recent activity</p>
-      <p className="text-xs">
-        Activities will appear here as they happen
-      </p>
+      <p className="text-xs">Activities will appear here as they happen</p>
     </div>
   );
 }
 
-function ActivityList({ 
-  activities, 
-  onActivityClick, 
-  getActivityIcon, 
-  getActivityColor 
-}: { 
-  activities: ActivityItem[], 
-  onActivityClick?: (activity: ActivityItem) => void,
-  getActivityIcon: (type: string) => any,
-  getActivityColor: (type: string) => string
+function ActivityList({
+  activities,
+  onActivityClick,
+  getActivityIcon,
+  getActivityColor,
+}: {
+  activities: ActivityItem[];
+  onActivityClick?: (activity: ActivityItem) => void;
+  getActivityIcon: (type: string) => any;
+  getActivityColor: (type: string) => string;
 }) {
   return (
     <div className="flex flex-col">

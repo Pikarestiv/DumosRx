@@ -234,7 +234,9 @@ export async function receivePurchaseOrder(id: string, receivedItems?: any[]) {
       movement_type: "purchase",
       quantity: totalBaseUnits,
       unit_cost: baseUnitCost,
-      total_cost: Number(item.subtotal),
+      // Recalculated from what was actually received, not item.subtotal (the full
+      // ordered-line total) — those diverge whenever this is a partial receipt.
+      total_cost: baseUnitCost * totalBaseUnits,
       reference_id: poData.id,
       reference_type: "purchase_order",
       reason: "Purchase order received",

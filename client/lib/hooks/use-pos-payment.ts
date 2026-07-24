@@ -171,16 +171,20 @@ export function usePOSPayment({
       });
 
       for (const item of cart) {
-        await insert("sale_items", {
+        const batches = await getBatchesForProduct(item.id);
+
+        const saleItemId = await insert("sale_items", {
           sale_id: saleId,
           product_id: item.id,
+          // Primary/first batch consumed — retained for backward-compat display
+          // only. Accurate per-batch accounting (for FEFO splits) lives in
+          // sale_item_batches below.
+          stock_batch_id: batches[0]?.id || null,
           quantity: item.quantity,
           unit_price: item.unit_price,
           cost_price: item.cost_price || 0,
           total_price: item.subtotal,
         });
-
-        const batches = await getBatchesForProduct(item.id);
 
         let remainingToDeduct = item.quantity;
         for (const batch of batches) {
@@ -189,7 +193,13 @@ export function usePOSPayment({
           await update("stock_batches", batch.id, {
             quantity: batch.quantity - deduction,
           });
-          
+
+          await insert("sale_item_batches", {
+            sale_item_id: saleItemId,
+            stock_batch_id: batch.id,
+            quantity: deduction,
+          });
+
           await insert("stock_movements", {
             product_id: item.id,
             stock_batch_id: batch.id,

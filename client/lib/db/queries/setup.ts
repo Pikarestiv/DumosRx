@@ -159,7 +159,10 @@ export async function importQuickbooksData(
   // Import Customers
   if (importCustomers && parsedData.customers.length > 0) {
     const existingCustomers = await query<any>("SELECT first_name, last_name FROM customers");
-    const getFullName = (c: any) => `${c.first_name} ${c.last_name}`.toLowerCase();
+    // Must match the SQL-side comparison below exactly: SQLite's `||` returns NULL
+    // if any operand is NULL, so a customer with no last_name would never match
+    // here unless both sides treat a missing last_name as an empty string.
+    const getFullName = (c: any) => `${c.first_name || ""} ${c.last_name || ""}`.trim().toLowerCase();
     const existingNames = new Set(existingCustomers.map(getFullName));
 
     for (const cust of parsedData.customers) {
@@ -169,7 +172,7 @@ export async function importQuickbooksData(
       if (isDuplicate) {
         if (duplicateStrategy === "overwrite") {
           await execute(
-            "UPDATE customers SET phone = ?, outstanding_balance = ?, updated_at = ? WHERE LOWER(first_name || ' ' || last_name) = ?",
+            "UPDATE customers SET phone = ?, outstanding_balance = ?, updated_at = ? WHERE TRIM(LOWER(first_name || ' ' || COALESCE(last_name, ''))) = ?",
             [cust.phone, cust.outstanding_balance, now, fullName]
           );
         }

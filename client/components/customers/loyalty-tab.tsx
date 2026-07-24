@@ -1,9 +1,12 @@
 "use client";
 
-import type React from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
-import { Truck, Tag } from "lucide-react";
+import { Tag } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import { getLoyaltyRedemptionOptions } from "@/lib/db/queries/loyalty";
+import { LoyaltySettingsDialog, REDEMPTION_ICONS } from "./loyalty-settings-dialog";
 
 interface Tier {
   name: string;
@@ -13,37 +16,13 @@ interface Tier {
   color: string;
 }
 
-interface RedemptionOption {
-  label: string;
-  points: number;
-  description: string;
-  icon: React.ElementType;
-  iconClassName: string;
-}
-
-const REDEMPTION_OPTIONS: RedemptionOption[] = [
-  {
-    label: "₦500 Discount",
-    points: 500,
-    description: "Get ₦500 off your next purchase",
-    icon: Tag,
-    iconClassName: "bg-sky-100 text-sky-700",
-  },
-  {
-    label: "₦1,000 Discount",
-    points: 900,
-    description: "Get ₦1,000 off your next purchase",
-    icon: Tag,
-    iconClassName: "bg-emerald-100 text-emerald-700",
-  },
-  {
-    label: "Free Delivery",
-    points: 200,
-    description: "Free delivery on your next order",
-    icon: Truck,
-    iconClassName: "bg-violet-100 text-violet-700",
-  },
-];
+const ICON_BG: Record<string, string> = {
+  tag: "bg-sky-100 text-sky-700",
+  truck: "bg-violet-100 text-violet-700",
+  gift: "bg-emerald-100 text-emerald-700",
+  star: "bg-amber-100 text-amber-700",
+  percent: "bg-rose-100 text-rose-700",
+};
 
 export function LoyaltyTab({
   tiers,
@@ -52,6 +31,14 @@ export function LoyaltyTab({
   tiers: Tier[];
   currencyCode?: string;
 }) {
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  const { data: optionsData } = useQuery({
+    queryKey: ["loyalty_redemption_options"],
+    queryFn: getLoyaltyRedemptionOptions,
+  });
+  const redemptionOptions = (optionsData || []).filter((o) => o.is_active);
+
   return (
     <div className="space-y-4">
       <Card className="border rounded-[14px] p-4 shadow-sm">
@@ -64,7 +51,10 @@ export function LoyaltyTab({
               Manage customer rewards and point multipliers
             </p>
           </div>
-          <button className="text-[13px] font-medium border px-3 py-1.5 rounded-[8px] hover:bg-primary/10 hover:text-primary transition-colors">
+          <button
+            onClick={() => setSettingsOpen(true)}
+            className="text-[13px] font-medium border px-3 py-1.5 rounded-[8px] hover:bg-primary/10"
+          >
             Edit Settings
           </button>
         </div>
@@ -122,34 +112,45 @@ export function LoyaltyTab({
           </p>
         </div>
 
+        {redemptionOptions.length === 0 && (
+          <p className="text-[12px] text-muted-foreground text-center py-4">
+            No redemption options configured yet.
+          </p>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {REDEMPTION_OPTIONS.map((option) => (
-            <div
-              key={option.label}
-              className="rounded-[12px] p-4 border border-border"
-            >
-              <div className="flex items-center gap-2.5 mb-2">
-                <div
-                  className={`w-9 h-9 rounded-[10px] flex items-center justify-center shrink-0 ${option.iconClassName}`}
-                >
-                  <option.icon className="w-4 h-4" />
+          {redemptionOptions.map((option) => {
+            const Icon = REDEMPTION_ICONS[option.icon_key] || Tag;
+            return (
+              <div
+                key={option.id}
+                className="rounded-[12px] p-4 border border-border"
+              >
+                <div className="flex items-center gap-2.5 mb-2">
+                  <div
+                    className={`w-9 h-9 rounded-[10px] flex items-center justify-center shrink-0 ${ICON_BG[option.icon_key] || ICON_BG.tag}`}
+                  >
+                    <Icon className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-[13.5px] font-semibold">
+                      {option.label}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground">
+                      {Number(option.points_cost).toLocaleString()} points
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <div className="text-[13.5px] font-semibold">
-                    {option.label}
-                  </div>
-                  <div className="text-[11px] text-muted-foreground">
-                    {option.points.toLocaleString()} points
-                  </div>
+                <div className="text-[12px] text-muted-foreground">
+                  {option.description}
                 </div>
               </div>
-              <div className="text-[12px] text-muted-foreground">
-                {option.description}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </Card>
+
+      <LoyaltySettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </div>
   );
 }

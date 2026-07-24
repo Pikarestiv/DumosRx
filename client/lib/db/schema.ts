@@ -148,6 +148,19 @@ CREATE TABLE IF NOT EXISTS sale_items (
   _deleted INTEGER DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS sale_item_batches (
+  id TEXT PRIMARY KEY,
+  sale_item_id TEXT NOT NULL,
+  stock_batch_id TEXT NOT NULL,
+  quantity INTEGER NOT NULL,
+  created_at TEXT,
+  updated_at TEXT,
+  _version INTEGER DEFAULT 1,
+  _synced INTEGER DEFAULT 0,
+  _synced_at TEXT,
+  _deleted INTEGER DEFAULT 0
+);
+
 CREATE TABLE IF NOT EXISTS prescriptions (
   id TEXT PRIMARY KEY,
   prescription_number TEXT,
@@ -164,6 +177,7 @@ CREATE TABLE IF NOT EXISTS prescriptions (
   total_cost REAL DEFAULT 0,
   notes TEXT,
   issued_at TEXT,
+  dispensed_at TEXT,
   created_at TEXT,
   updated_at TEXT,
   deleted_at TEXT,
@@ -233,7 +247,8 @@ CREATE TABLE IF NOT EXISTS _sync_queue (
   payload TEXT,
   created_at TEXT NOT NULL,
   retry_count INTEGER DEFAULT 0,
-  last_error TEXT
+  last_error TEXT,
+  next_retry_at TEXT
 );
 
 CREATE TABLE IF NOT EXISTS _sync_state (
@@ -451,6 +466,40 @@ CREATE TABLE IF NOT EXISTS loyalty_transactions (
   _synced_at TEXT,
   _deleted INTEGER DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS loyalty_tiers (
+  id TEXT PRIMARY KEY,
+  user_id TEXT,
+  name TEXT NOT NULL,
+  min_spend REAL DEFAULT 0,
+  points_multiplier REAL DEFAULT 1,
+  benefits TEXT,
+  color TEXT DEFAULT 'bg-gray-400',
+  sort_order INTEGER DEFAULT 0,
+  created_at TEXT,
+  updated_at TEXT,
+  _version INTEGER DEFAULT 1,
+  _synced INTEGER DEFAULT 0,
+  _synced_at TEXT,
+  _deleted INTEGER DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS loyalty_redemption_options (
+  id TEXT PRIMARY KEY,
+  user_id TEXT,
+  label TEXT NOT NULL,
+  points_cost REAL DEFAULT 0,
+  description TEXT,
+  icon_key TEXT DEFAULT 'tag',
+  is_active INTEGER DEFAULT 1,
+  sort_order INTEGER DEFAULT 0,
+  created_at TEXT,
+  updated_at TEXT,
+  _version INTEGER DEFAULT 1,
+  _synced INTEGER DEFAULT 0,
+  _synced_at TEXT,
+  _deleted INTEGER DEFAULT 0
+);
+
 CREATE TABLE IF NOT EXISTS feedback (
   id TEXT PRIMARY KEY,
   user_id TEXT,

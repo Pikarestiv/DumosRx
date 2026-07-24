@@ -135,21 +135,6 @@ export async function fetchStockBatchReportData() {
   );
 }
 
-export async function getMonthlySalesData(dateFilter: string) {
-  const result = await query<any>(
-    `SELECT
-      strftime('%Y-%m', transaction_date) as month,
-      SUM(total_amount) as sales,
-      SUM(total_amount) * 0.8 as profit 
-     FROM sales
-     WHERE transaction_date >= ? AND _deleted = 0
-     GROUP BY strftime('%Y-%m', transaction_date)
-     ORDER BY month ASC`,
-    [dateFilter]
-  );
-  return result;
-}
-
 export async function getBIMetrics(dateFilter: string, prevDateFilter: string) {
   // Current Period
   const revenueData = await query<{ total: number }>(`SELECT SUM(total_amount) as total FROM sales WHERE transaction_date >= ? AND (_deleted = 0 OR _deleted IS NULL)`, [dateFilter]);

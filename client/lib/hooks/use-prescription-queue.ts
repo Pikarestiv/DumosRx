@@ -77,7 +77,7 @@ export function usePrescriptionQueue() {
         doctorName: p.doctor_name,
         doctorLicense: p.doctor_license,
         dateIssued: p.issued_at,
-        dateDispensed: p.dispensed_at,
+        dateDispensed: p.dispensed_at || undefined,
         status: p.status,
         priority: p.priority,
         medications: itemsMap.get(p.id) || [],

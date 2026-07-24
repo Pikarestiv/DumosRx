@@ -155,9 +155,10 @@ class SyncController extends Controller
 
                 // Inject user_id for core tables if missing
                 $tablesWithUserId = [
-                    'sales', 'customers', 'products', 'stock_batches', 
-                    'subscriptions', 'payment_transactions', 'categories', 
-                    'suppliers', 'prescriptions', 'stores'
+                    'sales', 'customers', 'products', 'stock_batches',
+                    'subscriptions', 'payment_transactions', 'categories',
+                    'suppliers', 'prescriptions', 'stores',
+                    'loyalty_tiers', 'loyalty_redemption_options'
                 ];
                 if (in_array($change['table_name'], $tablesWithUserId)) {
                     if (!isset($payload['user_id']) || empty($payload['user_id'])) {
@@ -508,7 +509,7 @@ class SyncController extends Controller
         $lastSyncedMap = $request->input('last_synced', []);
         $changes = [];
         $serverTimestamp = now()->toIso8601String();
-        $tables = ['products', 'stock_batches', 'categories', 'customers', 'suppliers', 'sales', 'sale_items', 'stores', 'users', 'stock_movements', 'purchase_orders', 'purchase_order_items', 'expenses', 'payment_accounts', 'requested_products', 'supplier_payments', 'returns', 'return_items', 'prescriptions', 'prescription_items'];
+        $tables = ['products', 'stock_batches', 'categories', 'customers', 'suppliers', 'sales', 'sale_items', 'sale_item_batches', 'stores', 'users', 'stock_movements', 'purchase_orders', 'purchase_order_items', 'expenses', 'payment_accounts', 'requested_products', 'supplier_payments', 'returns', 'return_items', 'prescriptions', 'prescription_items', 'loyalty_tiers', 'loyalty_redemption_options'];
 
         foreach ($tables as $table) {
             $lastSynced = $lastSyncedMap[$table] ?? null;
@@ -559,6 +560,9 @@ class SyncController extends Controller
                     'stock_batches' => $query->whereIn('product_id', Product::where('user_id', $ownerId)->pluck('id')),
                     'supplier_payments' => $query->whereIn('supplier_id', Supplier::where('user_id', $ownerId)->pluck('id')),
                     'requested_products' => $query->whereIn('store_id', $storeIds),
+                    'loyalty_tiers' => $query->where('user_id', $ownerId),
+                    'loyalty_redemption_options' => $query->where('user_id', $ownerId),
+                    'sale_item_batches' => $query->whereIn('sale_item_id', SaleItem::whereIn('sale_id', Sale::whereIn('cashier_id', $userIds)->pluck('id'))->pluck('id')),
                     default => $query->where('user_id', $ownerId),
                 };
             }
@@ -687,6 +691,9 @@ class SyncController extends Controller
             'supplier_payments' => \App\Models\SupplierPayment::class,
             'prescriptions' => \App\Models\Prescription::class,
             'prescription_items' => \App\Models\PrescriptionItem::class,
+            'loyalty_tiers' => \App\Models\LoyaltyTier::class,
+            'loyalty_redemption_options' => \App\Models\LoyaltyRedemptionOption::class,
+            'sale_item_batches' => \App\Models\SaleItemBatch::class,
         ];
         return $map[$tableName] ?? null;
     }

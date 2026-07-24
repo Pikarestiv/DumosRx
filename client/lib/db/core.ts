@@ -150,6 +150,7 @@ export async function initDatabase(): Promise<any> {
         "_synced_at TEXT",
         "_deleted INTEGER DEFAULT 0",
         "user_id TEXT",
+        "dispensed_at TEXT",
       ],
     },
     {
@@ -345,6 +346,7 @@ export async function initDatabase(): Promise<any> {
         "_deleted INTEGER DEFAULT 0",
       ],
     },
+    { table: "_sync_queue", columns: ["next_retry_at TEXT"] },
   ];
 
   if (isTauri()) {

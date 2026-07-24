@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useStore } from "@/lib/context/store-context";
 import { useCustomerData, Customer } from "@/lib/hooks/use-customer-data";
 import { genericFuzzySearch } from "@/lib/utils/search";
+import { getLoyaltyTiers } from "@/lib/db/queries/loyalty";
 
 import { InsightsStrip } from "./insights-strip";
 import { OverviewTab } from "./overview-tab";
@@ -23,7 +25,7 @@ export function CustomerManagement() {
   const { customers, metrics, addCustomer, updateCustomer, recordPayment } =
     useCustomerData();
 
-  const loyaltyTiers = [
+  const FALLBACK_TIERS = [
     {
       name: "Bronze",
       minSpent: 0,
@@ -49,7 +51,6 @@ export function CustomerManagement() {
       benefits: [
         "Premium rewards",
         "Birthday discount 15%",
-        // "Free delivery",
         "Exclusive offers",
       ],
       color: "bg-yellow-500",
@@ -61,13 +62,29 @@ export function CustomerManagement() {
       benefits: [
         "VIP rewards",
         "Birthday discount 20%",
-        // "Free delivery",
         isStore ? "Personal specialist" : "Shopping assistant",
         "Early access",
       ],
       color: "bg-purple-600",
     },
   ];
+
+  const { data: dbTiers } = useQuery({
+    queryKey: ["loyalty_tiers"],
+    queryFn: getLoyaltyTiers,
+  });
+
+  const loyaltyTiers = dbTiers && dbTiers.length > 0
+    ? dbTiers
+        .map((t) => ({
+          name: t.name,
+          minSpent: t.min_spend,
+          pointsMultiplier: t.points_multiplier,
+          benefits: JSON.parse(t.benefits || "[]") as string[],
+          color: t.color,
+        }))
+        .sort((a, b) => a.minSpent - b.minSpent)
+    : FALLBACK_TIERS;
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(

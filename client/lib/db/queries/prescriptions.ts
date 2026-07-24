@@ -93,5 +93,9 @@ export async function getAllPrescriptionItems() {
 
 export async function updatePrescriptionStatus(id: string, status: string) {
   const { update } = await import("@/lib/db/local-database");
-  return update("prescriptions", id, { status });
+  const data: Record<string, unknown> = { status };
+  if (status === "dispensed" || status === "completed") {
+    data.dispensed_at = new Date().toISOString();
+  }
+  return update("prescriptions", id, data);
 }

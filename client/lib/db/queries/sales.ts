@@ -80,6 +80,13 @@ export async function getStockBatchesForProduct(productId: string) {
   );
 }
 
+export async function getSaleItemBatches(saleItemId: string) {
+  return query<{ id: string; stock_batch_id: string; quantity: number }>(
+    "SELECT * FROM sale_item_batches WHERE sale_item_id = ? AND (_deleted = 0 OR _deleted IS NULL)",
+    [saleItemId]
+  );
+}
+
 export async function getStockBatchById(batchId: string) {
   const invs = await query<any>(
     "SELECT * FROM stock_batches WHERE id = ?",
@@ -122,7 +129,7 @@ export async function getTopStaffByDate(dateStr: string) {
   const endIso = new Date(year, month - 1, day, 23, 59, 59, 999).toISOString();
 
   return query<{ user_name: string; total_sales: number }>(
-    `SELECT u.first_name || ' ' || u.last_name as user_name, SUM(s.total_amount) as total_sales
+    `SELECT TRIM(u.first_name || ' ' || COALESCE(u.last_name, '')) as user_name, SUM(s.total_amount) as total_sales
      FROM sales s
      JOIN users u ON s.user_id = u.id
      WHERE s.transaction_date >= ? AND s.transaction_date <= ? AND (s._deleted = 0 OR s._deleted IS NULL)
@@ -138,7 +145,7 @@ export async function getRecentSales(userId?: string) {
   return query<any>(
     `SELECT 
       s.*, 
-      c.first_name || ' ' || c.last_name as customer_name,
+      TRIM(c.first_name || ' ' || COALESCE(c.last_name, '')) as customer_name,
       (SELECT SUM(quantity) FROM sale_items si WHERE si.sale_id = s.id AND (si._deleted = 0 OR si._deleted IS NULL)) as item_count
      FROM sales s 
      LEFT JOIN customers c ON s.customer_id = c.id 

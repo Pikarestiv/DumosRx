@@ -21,7 +21,7 @@ import { formatCurrency } from "@/lib/utils";
 import { insert, update } from "@/lib/db/local-database";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { getSaleItems } from "@/lib/db/queries/sales";
+import { getSaleItems, getSaleItemBatches } from "@/lib/db/queries/sales";
 import { getStockBatchById } from "@/lib/db/queries/inventory";
 import { Loader2, Minus, Plus, RotateCcw } from "lucide-react";
 import { useAuth } from "@/lib/context/auth-context";
@@ -126,30 +126,70 @@ export function ReturnDialog({
           subtotal: item.unit_price * item.returnQuantity,
         });
 
-        // Update stock_batch if applicable
-        if (item.stock_batch_id) {
-          const currentInv = await getStockBatchById(item.stock_batch_id);
-          if (currentInv) {
-            await update("stock_batches", item.stock_batch_id, {
-              quantity: (currentInv.quantity || 0) + item.returnQuantity,
+        const dumosUser = JSON.parse(localStorage.getItem("dumos_user") || "{}");
+
+        // Restore stock to the exact batches this line was drawn from, in the
+        // proportions recorded at sale time (FEFO splits may span >1 batch).
+        // Falls back to the legacy single stock_batch_id for sales made before
+        // sale_item_batches existed.
+        const consumedBatches = await getSaleItemBatches(item.id);
+        let remainingToRestore = item.returnQuantity;
+
+        if (consumedBatches.length > 0) {
+          for (const consumed of consumedBatches) {
+            if (remainingToRestore <= 0) break;
+            const restoreQty = Math.min(consumed.quantity, remainingToRestore);
+            if (restoreQty <= 0) continue;
+
+            const currentInv = await getStockBatchById(consumed.stock_batch_id);
+            if (currentInv) {
+              await update("stock_batches", consumed.stock_batch_id, {
+                quantity: (currentInv.quantity || 0) + restoreQty,
+              });
+            }
+
+            await insert("stock_movements", {
+              product_id: item.product_id,
+              stock_batch_id: consumed.stock_batch_id,
+              movement_type: "return",
+              quantity: Math.abs(restoreQty),
+              unit_cost: item.unit_price,
+              total_cost: item.unit_price * restoreQty,
+              reference_id: returnId,
+              reference_type: "return",
+              reason: "Customer return",
+              performed_by: dumosUser?.id || null,
+              movement_date: new Date().toISOString(),
             });
+
+            remainingToRestore -= restoreQty;
           }
         }
 
-        const dumosUser = JSON.parse(localStorage.getItem("dumos_user") || "{}");
-        await insert("stock_movements", {
-          product_id: item.product_id,
-          stock_batch_id: item.stock_batch_id || null,
-          movement_type: "return",
-          quantity: Math.abs(item.returnQuantity),
-          unit_cost: item.unit_price,
-          total_cost: item.unit_price * item.returnQuantity,
-          reference_id: returnId,
-          reference_type: "return",
-          reason: "Customer return",
-          performed_by: dumosUser?.id || null,
-          movement_date: new Date().toISOString(),
-        });
+        if (remainingToRestore > 0) {
+          if (item.stock_batch_id) {
+            const currentInv = await getStockBatchById(item.stock_batch_id);
+            if (currentInv) {
+              await update("stock_batches", item.stock_batch_id, {
+                quantity: (currentInv.quantity || 0) + remainingToRestore,
+              });
+            }
+          }
+
+          await insert("stock_movements", {
+            product_id: item.product_id,
+            stock_batch_id: item.stock_batch_id || null,
+            movement_type: "return",
+            quantity: Math.abs(remainingToRestore),
+            unit_cost: item.unit_price,
+            total_cost: item.unit_price * remainingToRestore,
+            reference_id: returnId,
+            reference_type: "return",
+            reason: "Customer return",
+            performed_by: dumosUser?.id || null,
+            movement_date: new Date().toISOString(),
+          });
+        }
       }
 
       // 3. Mark sale as returned

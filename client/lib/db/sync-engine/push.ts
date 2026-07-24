@@ -52,7 +52,11 @@ export async function pushChanges(
               return false;
             }
           }
-          if (item.table_name === "purchase_order_items") {
+          if (
+            item.table_name === "purchase_order_items" ||
+            item.table_name === "stock_batches" ||
+            item.table_name === "stock_movements"
+          ) {
             // Hotfix for bad product_id that was dropped from sync queue earlier
             if (
               item.payload.product_id === "5c5d33b4-13e0-4826-a69b-7745fa5ffed6"

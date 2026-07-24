@@ -25,6 +25,7 @@ interface UsePOSPaymentProps {
   rawDiscount?: number;
   discountType?: "fixed" | "percentage";
   selectedCustomer: Customer | null;
+  setSelectedCustomer?: (customer: Customer | null) => void;
   clearCart: () => void;
   refetchProducts: () => void;
   refetchSales?: () => void;
@@ -42,6 +43,7 @@ export function usePOSPayment({
   rawDiscount = 0,
   discountType = "fixed",
   selectedCustomer,
+  setSelectedCustomer,
   clearCart,
   refetchProducts,
   refetchSales,
@@ -271,6 +273,7 @@ export function usePOSPayment({
 
       setCompletedTransaction(transaction);
       clearCart();
+      setSelectedCustomer?.(null);
       if (refetchSales) refetchSales();
       refetchProducts();
       setPaymentMethod("cash");

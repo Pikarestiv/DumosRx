@@ -58,7 +58,7 @@ export function POSCustomerSelector({
     },
     onSuccess: (data) => {
       toast.success("Customer created successfully");
-      queryClient.invalidateQueries({ queryKey: ["pos-customers"] });
+      queryClient.invalidateQueries({ queryKey: ["posCustomers"] });
       onSelectCustomer(data as any);
       setOpen(false);
       setShowAddForm(false);

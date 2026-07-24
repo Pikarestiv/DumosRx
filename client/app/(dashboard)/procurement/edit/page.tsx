@@ -24,10 +24,12 @@ import { toast } from "sonner";
 
 import { useStore } from "@/lib/context/store-context";
 import { useProcurementData } from "@/lib/hooks/use-procurement-data";
+import { useQueryClient } from "@tanstack/react-query";
 
 function EditOrderContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
   const id = searchParams.get("id");
   const { storeType } = useStore();
 
@@ -93,6 +95,7 @@ function EditOrderContent() {
 
       // Refresh products list
       await fetchData();
+      await queryClient.invalidateQueries({ queryKey: ['productList'] });
       setNewlyCreatedProductId(newProductId);
 
       if (!keepOpen) {

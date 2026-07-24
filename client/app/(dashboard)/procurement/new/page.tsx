@@ -24,11 +24,13 @@ import { toast } from "sonner";
 
 import { useStore } from "@/lib/context/store-context";
 import { useProcurementData } from "@/lib/hooks/use-procurement-data";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function CreateOrderPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { storeType } = useStore();
+  const queryClient = useQueryClient();
 
   const [selectedSupplierId, setSelectedSupplierId] = useState("");
   const [notes, setNotes] = useState("");
@@ -74,6 +76,7 @@ export default function CreateOrderPage() {
 
       // Refresh products list
       await fetchData();
+      await queryClient.invalidateQueries({ queryKey: ['productList'] });
       setNewlyCreatedProductId(newProductId);
 
       if (!keepOpen) {

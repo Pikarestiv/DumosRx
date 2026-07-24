@@ -1,5 +1,6 @@
 import React from "react";
-import { Clock, CheckCircle2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Clock, CheckCircle2, Edit2 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { Card } from "@/components/ui/card";
@@ -33,6 +34,8 @@ export function PurchaseOrderDetails({
   onDeletePO,
   setIsReceiveModalOpen,
 }: PurchaseOrderDetailsProps) {
+  const router = useRouter();
+
   return (
     <Card className="flex-[1] flex flex-col rounded-[14px] border border-border bg-card shadow-[0_1px_2px_rgba(16,24,40,0.04)] overflow-hidden">
       {selectedPO ? (
@@ -152,73 +155,89 @@ export function PurchaseOrderDetails({
             </div>
           </div>
 
-          <div className="print:hidden p-5 border-t border-border bg-card mt-auto flex items-center gap-3">
-            <Button
-              variant="outline"
-              className="flex-1 bg-transparent h-10 text-[13.5px] font-bold"
-              onClick={() => window.print()}
-            >
-              Download PDF
-            </Button>
-            {selectedPO.status === "pending" && (
-              <div className="flex flex-1 gap-2">
-                {onDeletePO && (
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        variant="destructive"
-                        className="flex-[0.5] h-10 text-[13.5px] font-bold"
+          <div className="print:hidden p-5 border-t border-border bg-card mt-auto flex flex-col gap-3">
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                className="flex-1 bg-transparent h-10 text-[13.5px] font-bold"
+                onClick={() => window.print()}
+              >
+                Download PDF
+              </Button>
+              
+              {(selectedPO.status === "pending" || selectedPO.status === "sent") && (
+                <Button
+                  variant="outline"
+                  className="flex-1 bg-transparent h-10 text-[13.5px] font-bold text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                  onClick={() => router.push(`/procurement/edit?id=${selectedPO.id}`)}
+                >
+                  <Edit2 className="w-4 h-4 mr-2" />
+                  Edit Order
+                </Button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              {(selectedPO.status === "pending" || selectedPO.status === "sent") && onDeletePO && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="destructive"
+                      className="flex-1 h-10 text-[13.5px] font-bold"
+                    >
+                      Delete
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>
+                        Are you absolutely sure?
+                      </AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This action cannot be undone. This will permanently
+                        delete this purchase order and remove its data.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => onDeletePO(selectedPO.id)}
+                        className="!bg-destructive !text-destructive-foreground !hover:bg-destructive/90"
                       >
-                        Delete
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>
-                          Are you absolutely sure?
-                        </AlertDialogTitle>
-                        <AlertDialogDescription>
-                          This action cannot be undone. This will permanently
-                          delete this draft purchase order and remove its
-                          data.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => onDeletePO(selectedPO.id)}
-                          className="!bg-destructive !text-destructive-foreground !hover:bg-destructive/90"
-                        >
-                          Delete Order
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                )}
+                        Delete Order
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
+
+              {selectedPO.status === "pending" && (
                 <Button
                   className="flex-1 h-10 text-[13.5px] font-bold"
                   onClick={() => onSendPO(selectedPO.id)}
                 >
                   Mark as Sent
                 </Button>
-              </div>
-            )}
-            {selectedPO.status === "sent" && (
-              <Button
-                className="flex-1 h-10 text-[13.5px] font-bold"
-                onClick={() => setIsReceiveModalOpen(true)}
-              >
-                Receive Goods
-              </Button>
-            )}
-            {selectedPO.status === "received" && (
-              <Button
-                className="flex-1 h-10 text-[13.5px] font-bold"
-                disabled
-              >
-                Completed
-              </Button>
-            )}
+              )}
+
+              {selectedPO.status === "sent" && (
+                <Button
+                  className="flex-1 h-10 text-[13.5px] font-bold"
+                  onClick={() => setIsReceiveModalOpen(true)}
+                >
+                  Receive Goods
+                </Button>
+              )}
+
+              {selectedPO.status === "received" && (
+                <Button
+                  className="flex-1 h-10 text-[13.5px] font-bold"
+                  disabled
+                >
+                  Completed
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       ) : (

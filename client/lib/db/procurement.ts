@@ -183,7 +183,7 @@ export async function updatePurchaseOrder(
 export async function updatePurchaseOrderStatus(id: string, status: string) {
   const updateData: any = { status };
   if (status === "received") {
-    updateData.received_at = new Date().toISOString();
+    updateData.received_at = new Date().toISOString().slice(0, 19).replace('T', ' ');
   }
   await update("purchase_orders", id, updateData);
 }
@@ -192,7 +192,7 @@ export async function receivePurchaseOrder(id: string, receivedItems?: any[]) {
   const poData = await getPurchaseOrderById(id);
   if (!poData || poData.status === "received") return;
 
-  const now = new Date().toISOString();
+  const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
 
   for (const item of poData.items) {
     const receivedItem = receivedItems?.find(ri => ri.po_item_id === item.id);
@@ -203,7 +203,7 @@ export async function receivePurchaseOrder(id: string, receivedItems?: any[]) {
     const totalBaseUnits = bulkQty * unitsPerBulk;
     
     const batchNumber = receivedItem?.lot_number?.trim() || poData.id.split('-')[0].toUpperCase();
-    const expiryDate = receivedItem?.expiry_date ? new Date(receivedItem.expiry_date).toISOString() : null;
+    const expiryDate = receivedItem?.expiry_date ? new Date(receivedItem.expiry_date).toISOString().slice(0, 10) : null;
 
     const safeUnitsPerBulk = unitsPerBulk || 1;
     const baseUnitCost = Number(item.unit_cost) / safeUnitsPerBulk;

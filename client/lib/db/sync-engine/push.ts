@@ -29,6 +29,10 @@ export async function pushChanges(
           delete payload._version;
           delete payload._synced;
           delete payload._synced_at;
+
+          if (payload.received_at && typeof payload.received_at === 'string' && payload.received_at.includes("T")) {
+            payload.received_at = payload.received_at.slice(0, 19).replace('T', ' ');
+          }
           
           return {
             ...item,
@@ -55,12 +59,19 @@ export async function pushChanges(
           if (
             item.table_name === "purchase_order_items" ||
             item.table_name === "stock_batches" ||
-            item.table_name === "stock_movements"
+            item.table_name === "stock_movements" ||
+            item.table_name === "sale_items"
           ) {
             // Hotfix for bad product_id that was dropped from sync queue earlier
             if (
               item.payload.product_id === "5c5d33b4-13e0-4826-a69b-7745fa5ffed6"
             ) {
+              return false;
+            }
+          }
+          if (item.table_name === "stock_movements") {
+            // Laravel backend requires stock_batch_id for stock_movements. Drop if null.
+            if (!item.payload.stock_batch_id) {
               return false;
             }
           }

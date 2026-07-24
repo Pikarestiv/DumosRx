@@ -102,22 +102,24 @@ export function ProcurementManagement({ initialTab = "orders" }: ProcurementMana
   return (
     <div className="flex flex-col min-h-0">
       <Tabs value={initialTab} onValueChange={handleTabChange} className="flex flex-col flex-1 min-h-0">
-        <TabsList className="w-full md:w-max inline-flex gap-1 bg-card border border-border rounded-[11px] p-1 h-auto mb-5">
+        <TabsList className="w-full md:w-max inline-flex gap-1 bg-card border border-border rounded-[11px] p-1 h-auto mb-5 overflow-x-auto">
           <TabsTrigger
             value="orders"
-            className="px-5 py-2 rounded-lg text-[13px] font-semibold cursor-pointer data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent shadow-none"
+            className="px-5 py-2 rounded-lg text-[13px] font-semibold cursor-pointer whitespace-nowrap shrink-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent shadow-none"
           >
-            Purchase Orders
+            <span className="md:hidden">Orders</span>
+            <span className="hidden md:inline">Purchase Orders</span>
           </TabsTrigger>
           <TabsTrigger
             value="requests"
-            className="px-5 py-2 rounded-lg text-[13px] font-semibold cursor-pointer data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent shadow-none"
+            className="px-5 py-2 rounded-lg text-[13px] font-semibold cursor-pointer whitespace-nowrap shrink-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent shadow-none"
           >
-            Requested Products
+            <span className="md:hidden">Requests</span>
+            <span className="hidden md:inline">Requested Products</span>
           </TabsTrigger>
           <TabsTrigger
             value="suppliers"
-            className="px-5 py-2 rounded-lg text-[13px] font-semibold cursor-pointer data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent shadow-none"
+            className="px-5 py-2 rounded-lg text-[13px] font-semibold cursor-pointer whitespace-nowrap shrink-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent shadow-none"
           >
             Vendors
           </TabsTrigger>

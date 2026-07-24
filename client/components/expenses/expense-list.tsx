@@ -203,7 +203,7 @@ export function ExpenseList() {
       </div>
 
       {/* Main Content Area */}
-      <Card className="bg-card border border-border rounded-2xl flex-1 flex flex-col overflow-hidden">
+      <Card className="bg-card border border-border rounded-2xl flex-1 flex flex-col gap-0 py-0 overflow-hidden">
         {/* Header Actions */}
         <div className="p-4 pb-3 border-b border-border">
           <div className="flex items-center gap-2 bg-muted border border-border rounded-[10px] px-3.5 py-2.5 max-w-sm">

@@ -1,16 +1,13 @@
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { useStore } from "@/lib/context/store-context";
-import { getLocalTodayDate } from "@/lib/utils";
 import { getDailyCloseData } from "@/lib/db/queries/sales";
 import { getPaymentAccounts } from "@/lib/db/queries/setup";
 
-export function useDailyCloseData() {
+export function useDailyCloseData(reportDate: string) {
   const { storeProfile } = useStore();
   const currencyCode = storeProfile?.currency;
-
-  const [reportDate, setReportDate] = useState(getLocalTodayDate());
 
   const { data: dailyCloseData } = useQuery({
     queryKey: ['dailyCloseData', reportDate],
@@ -196,8 +193,6 @@ export function useDailyCloseData() {
 
   return {
     currencyCode,
-    reportDate,
-    setReportDate,
     salesToday,
     aggregatedTotals,
     totalProfit,

@@ -59,7 +59,7 @@ export function useMonthlySalesData(dateFilter: string) {
       const netProfit = grossProfit - expenses;
 
       result.push({
-        name: `${monthNames[m]} ${y.toString().slice(2)}`,
+        month: `${monthNames[m]} ${y.toString().slice(2)}`,
         revenue: Math.max(0, netRevenue),
         profit: Math.max(0, netProfit),
         grossProfit: Math.max(0, grossProfit),

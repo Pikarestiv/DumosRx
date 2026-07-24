@@ -70,46 +70,99 @@ export function ActivityTab({
     ["customerName", "transactionNumber"],
   );
 
+  const SearchInput = (
+    <div className="relative">
+      <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+      <input
+        type="text"
+        placeholder="Search by customer or transaction ID"
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        className="w-full bg-card border border-border md:bg-muted md:border-none rounded-[10px] pl-9 pr-4 py-2 text-[13px] focus:ring-1 focus:ring-primary outline-none"
+      />
+    </div>
+  );
+
+  const FilterChip = filterCustomerId && (
+    <div className="flex items-center gap-2">
+      <div className="inline-flex items-center gap-1.5 bg-primary/10 text-primary px-3 py-1 rounded-full text-[12px] font-medium">
+        Showing history for {filterCustomerName || "customer"}
+        <button
+          onClick={onClearFilter}
+          className="hover:bg-primary/20 rounded-full p-0.5 transition-colors"
+        >
+          <X className="w-3 h-3" />
+        </button>
+      </div>
+    </div>
+  );
+
+  const EmptyState = (
+    <div className="flex items-center justify-center text-muted-foreground text-[13px] py-12">
+      {loading ? "Loading activity..." : "No transactions found."}
+    </div>
+  );
+
   return (
-    <Card className="border rounded-[14px] shadow-sm flex flex-col h-[600px] overflow-hidden">
-      <div className="p-4 border-b space-y-3">
-        <div className="relative">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Search by customer or transaction ID"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-muted border-none rounded-[10px] pl-9 pr-4 py-2 text-[13px] focus:ring-1 focus:ring-primary outline-none"
-          />
-        </div>
-        {filterCustomerId && (
-          <div className="flex items-center gap-2">
-            <div className="inline-flex items-center gap-1.5 bg-primary/10 text-primary px-3 py-1 rounded-full text-[12px] font-medium">
-              Showing history for {filterCustomerName || "customer"}
-              <button
-                onClick={onClearFilter}
-                className="hover:bg-primary/20 rounded-full p-0.5 transition-colors"
+    <div className="flex flex-col md:h-[600px] md:overflow-hidden gap-4">
+      {/* Mobile — flat, no wrapping card */}
+      <div className="flex md:hidden flex-col gap-3">
+        {SearchInput}
+        {FilterChip}
+
+        {loading || filtered.length === 0 ? (
+          EmptyState
+        ) : (
+          <div className="flex flex-col gap-2">
+            {filtered.map((txn) => (
+              <div
+                key={txn.id}
+                className="p-3 rounded-xl border bg-card space-y-2"
               >
-                <X className="w-3 h-3" />
-              </button>
-            </div>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <div className="text-[13px] font-semibold">
+                      {txn.customerName}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground">
+                      {txn.transactionNumber}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[13px] font-semibold">
+                      {formatCurrency(txn.amount, currencyCode)}
+                    </div>
+                    {txn.pointsEarned > 0 && (
+                      <div className="inline-flex items-center gap-1 text-[11px] text-amber-600">
+                        <Star className="w-3 h-3 fill-amber-600" />
+                        {txn.pointsEarned} pts
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="text-[11.5px] text-muted-foreground truncate">
+                  <ItemsCell txn={txn} />
+                </div>
+                <div className="text-[11px] text-muted-foreground">
+                  {formatDateTime(txn.date)}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
 
-      {loading ? (
-        <div className="flex-1 flex items-center justify-center text-muted-foreground text-[13px]">
-          Loading activity...
+      {/* Desktop — Card-wrapped table */}
+      <Card className="hidden md:flex flex-col gap-0 py-0 border rounded-[14px] shadow-sm flex-1 overflow-hidden">
+        <div className="p-4 border-b space-y-3">
+          {SearchInput}
+          {FilterChip}
         </div>
-      ) : filtered.length === 0 ? (
-        <div className="flex-1 flex items-center justify-center text-muted-foreground text-[13px]">
-          No transactions found.
-        </div>
-      ) : (
-        <>
-          {/* Desktop table */}
-          <div className="hidden md:block flex-1 overflow-y-auto">
+
+        {loading || filtered.length === 0 ? (
+          EmptyState
+        ) : (
+          <div className="flex-1 overflow-y-auto">
             <Table>
               <TableHeader className="sticky top-0 bg-background z-10">
                 <TableRow>
@@ -154,46 +207,8 @@ export function ActivityTab({
               </TableBody>
             </Table>
           </div>
-
-          {/* Mobile card list */}
-          <div className="md:hidden flex-1 overflow-y-auto p-2 space-y-2">
-            {filtered.map((txn) => (
-              <div
-                key={txn.id}
-                className="p-3 rounded-[10px] border bg-secondary/20 space-y-2"
-              >
-                <div className="flex justify-between items-start">
-                  <div>
-                    <div className="text-[13px] font-semibold">
-                      {txn.customerName}
-                    </div>
-                    <div className="text-[11px] text-muted-foreground">
-                      {txn.transactionNumber}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-[13px] font-semibold">
-                      {formatCurrency(txn.amount, currencyCode)}
-                    </div>
-                    {txn.pointsEarned > 0 && (
-                      <div className="inline-flex items-center gap-1 text-[11px] text-amber-600">
-                        <Star className="w-3 h-3 fill-amber-600" />
-                        {txn.pointsEarned} pts
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="text-[11.5px] text-muted-foreground truncate">
-                  <ItemsCell txn={txn} />
-                </div>
-                <div className="text-[11px] text-muted-foreground">
-                  {formatDateTime(txn.date)}
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-    </Card>
+        )}
+      </Card>
+    </div>
   );
 }

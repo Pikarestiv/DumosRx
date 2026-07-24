@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Search, ChevronLeft, AlertCircle } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, AlertCircle } from "lucide-react";
 import { Customer } from "@/lib/hooks/use-customer-data";
 import { Card } from "@/components/ui/card";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
@@ -84,6 +84,19 @@ export function DirectoryTab({
     <div className="text-[11.5px] text-destructive font-medium whitespace-nowrap">
       {formatCurrency(debtSummary.total, currencyCode)} outstanding across{" "}
       {debtSummary.count} customer{debtSummary.count === 1 ? "" : "s"}
+    </div>
+  );
+
+  const SearchInput = (
+    <div className="relative">
+      <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+      <input
+        type="text"
+        placeholder="Search customers by name, email, or phone"
+        value={searchTerm}
+        onChange={(e) => onSearchChange(e.target.value)}
+        className="w-full bg-card border border-border md:bg-muted md:border-none rounded-[10px] pl-9 pr-4 py-2 text-[13px] focus:ring-1 focus:ring-primary outline-none"
+      />
     </div>
   );
 
@@ -192,19 +205,55 @@ export function DirectoryTab({
 
   return (
     <div className="flex flex-col md:flex-row h-full gap-4 relative">
-      {/* List Panel */}
-      <Card className="flex flex-col border rounded-[14px] shadow-sm w-full flex-1 h-[600px] overflow-hidden">
+      {/* Mobile List — flat, no wrapping card */}
+      <div className="flex md:hidden flex-col w-full gap-3">
+        {SearchInput}
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          {FilterChips}
+        </div>
+        {DebtSummary}
+
+        <div className="flex flex-col gap-2">
+          {filteredCustomers.map((customer) => {
+            const isSelected = selectedCustomer?.id === customer.id;
+            return (
+              <div
+                key={customer.id}
+                onClick={() => setSelectedCustomer(customer)}
+                className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${isSelected ? "bg-primary/10 border-primary/30" : "bg-card hover:bg-primary/5"}`}
+              >
+                <div className="w-10 h-10 shrink-0 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-[13px]">
+                  {customer.name.substring(0, 2).toUpperCase()}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[13.5px] font-semibold truncate">
+                    {customer.name}
+                  </div>
+                  <div className="text-[11.5px] text-muted-foreground truncate">
+                    {customer.phone || customer.email || "No contact info"}
+                  </div>
+                </div>
+                <div
+                  className={`shrink-0 text-[10px] font-medium px-2 py-1 rounded-full text-white ${getTierColor(customer.tier)}`}
+                >
+                  {customer.tier}
+                </div>
+                <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+              </div>
+            );
+          })}
+          {filteredCustomers.length === 0 && (
+            <div className="p-8 text-center text-muted-foreground text-[13px]">
+              No customers found.
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Desktop List Panel */}
+      <Card className="hidden md:flex flex-col gap-0 py-0 border rounded-[14px] shadow-sm w-full flex-1 h-[600px] overflow-hidden">
         <div className="p-4 border-b space-y-3">
-          <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Search customers by name, email, or phone"
-              value={searchTerm}
-              onChange={(e) => onSearchChange(e.target.value)}
-              className="w-full bg-muted border-none rounded-[10px] pl-9 pr-4 py-2 text-[13px] focus:ring-1 focus:ring-primary outline-none"
-            />
-          </div>
+          {SearchInput}
           <div className="flex items-center justify-between gap-2 flex-wrap">
             {FilterChips}
             {DebtSummary}
@@ -228,7 +277,7 @@ export function DirectoryTab({
               <div
                 key={customer.id}
                 onClick={() => setSelectedCustomer(customer)}
-                className={`grid grid-cols-[1fr_auto] md:grid-cols-[1.6fr_1.1fr_80px_70px_100px_110px] items-center gap-2 px-4 py-2.5 cursor-pointer border-b last:border-0 transition-colors ${isSelected ? "bg-primary/10" : "hover:bg-primary/5"}`}
+                className={`grid grid-cols-[1.6fr_1.1fr_80px_70px_100px_110px] items-center gap-2 px-4 py-2.5 cursor-pointer border-b last:border-0 transition-colors ${isSelected ? "bg-primary/10" : "hover:bg-primary/5"}`}
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-9 h-9 shrink-0 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-[13px]">
@@ -238,39 +287,29 @@ export function DirectoryTab({
                     <div className="text-[13.5px] font-semibold truncate">
                       {customer.name}
                     </div>
-                    <div className="text-[11.5px] text-muted-foreground truncate md:hidden">
-                      {customer.phone || customer.email || "No contact info"}
-                    </div>
                   </div>
                 </div>
-                <div className="hidden md:block text-[12px] text-muted-foreground truncate">
+                <div className="text-[12px] text-muted-foreground truncate">
                   {customer.phone || customer.email || "No contact info"}
                 </div>
-                <div className="md:hidden">
-                  <div
-                    className={`text-[10px] font-medium px-2 py-1 rounded-full text-white ${getTierColor(customer.tier)}`}
-                  >
-                    {customer.tier}
-                  </div>
-                </div>
-                <div className="hidden md:block">
+                <div>
                   <span
                     className={`text-[10px] font-medium px-2 py-0.5 rounded-full text-white ${getTierColor(customer.tier)}`}
                   >
                     {customer.tier}
                   </span>
                 </div>
-                <div className="hidden md:block text-[12.5px] text-right text-emerald-600 font-medium">
+                <div className="text-[12.5px] text-right text-emerald-600 font-medium">
                   {customer.points.toLocaleString()}
                 </div>
                 <div
-                  className={`hidden md:block text-[12.5px] text-right font-medium ${customer.outstanding_balance > 0 ? "text-destructive" : "text-muted-foreground"}`}
+                  className={`text-[12.5px] text-right font-medium ${customer.outstanding_balance > 0 ? "text-destructive" : "text-muted-foreground"}`}
                 >
                   {customer.outstanding_balance > 0
                     ? formatCurrency(customer.outstanding_balance, currencyCode)
                     : "-"}
                 </div>
-                <div className="hidden md:block text-[12px] text-right text-muted-foreground">
+                <div className="text-[12px] text-right text-muted-foreground">
                   {customer.lastVisit}
                 </div>
               </div>
@@ -286,7 +325,7 @@ export function DirectoryTab({
 
       {/* Desktop Detail Panel */}
       <Card
-        className={`hidden md:flex flex-col border rounded-[14px] shadow-sm w-full md:w-[380px] md:flex-shrink-0 ${!selectedCustomer ? "items-center justify-center" : ""}`}
+        className={`hidden md:flex flex-col gap-0 py-0 border rounded-[14px] shadow-sm w-full md:w-[380px] md:flex-shrink-0 ${!selectedCustomer ? "items-center justify-center py-5" : ""}`}
       >
         {!selectedCustomer ? (
           <div className="text-center text-muted-foreground">

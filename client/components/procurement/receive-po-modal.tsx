@@ -73,8 +73,10 @@ const ReceiveItemCard = React.memo(
                     <p>
                       Enter the number of {item.bulk_unit}s received, not base
                       units. This is automatically converted to{" "}
-                      {item.units_per_bulk * (Number(state.quantity ?? item.bulk_quantity) || 0)}{" "}
-                      base units in stock.
+                      {(item.product_units_per_bulk || item.units_per_bulk) *
+                        (Number(state.quantity ?? item.bulk_quantity) || 0)}{" "}
+                      base units in stock, using the product&apos;s current
+                      packaging setting.
                     </p>
                   </TooltipContent>
                 </Tooltip>

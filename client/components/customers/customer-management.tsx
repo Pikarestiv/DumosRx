@@ -183,7 +183,8 @@ export function CustomerManagement() {
             value="loyalty"
             className="rounded-lg text-[13px] font-semibold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-5 py-2"
           >
-            Loyalty Program
+            <span className="md:hidden">Loyalty</span>
+            <span className="hidden md:inline">Loyalty Program</span>
           </TabsTrigger>
         </TabsList>
 

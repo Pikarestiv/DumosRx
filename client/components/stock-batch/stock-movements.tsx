@@ -7,6 +7,7 @@ import { genericFuzzySearch } from "@/lib/utils/search";
 import { StockMovementsSkeleton } from "./stock-movements-skeleton";
 import { useRouter } from "next/navigation";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ResponsiveModal } from "@/components/ui/responsive-modal";
 
 interface StockMovement {
   id: string;
@@ -298,75 +299,72 @@ export function StockMovements() {
           )}
         </div>
       </div>
-      {/* Detail Modal overlay */}
-      {selectedMovement && (
-        <div className="fixed inset-0 bg-[rgba(16,24,40,0.42)] z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-[440px] bg-card rounded-2xl overflow-hidden shadow-[0_8px_24px_rgba(16,24,40,0.14)] animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-              <div className="text-[15px] font-semibold">Movement detail</div>
-              <div
-                className="w-[30px] h-[30px] rounded-lg bg-muted/30 flex items-center justify-center text-muted-foreground cursor-pointer hover:bg-accent transition-colors"
-                onClick={() => setSelectedMovement(null)}
-              >
-                <X className="w-4 h-4" />
+      {/* Detail Modal */}
+      <ResponsiveModal
+        open={!!selectedMovement}
+        onOpenChange={(open) => {
+          if (!open) setSelectedMovement(null);
+        }}
+        title="Movement detail"
+        className="sm:max-w-[440px] p-0 gap-0 overflow-hidden"
+        headerClassName="px-5 py-4 border-b border-border m-0"
+      >
+        {selectedMovement && (
+          <div className="px-5 py-[18px]">
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <div className="text-[15px] font-semibold">
+                  {selectedMovement.product}
+                </div>
+                <div className="text-[12px] text-muted-foreground/70">
+                  {formatDate(selectedMovement.date)}, {formatTime(selectedMovement.date)}
+                </div>
+              </div>
+              <div className="text-right">
+                <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-md capitalize inline-block ${getTypeColor(selectedMovement.type)}`}>
+                  {selectedMovement.type}
+                </span>
+                <div
+                  className={`text-[18px] font-semibold mt-1 ${
+                    selectedMovement.quantity > 0
+                      ? "text-emerald-700"
+                      : "text-destructive"
+                  }`}
+                >
+                  {selectedMovement.quantity > 0 && "+"}
+                                    {!(selectedMovement.quantity > 0) && ""}
+                  {selectedMovement.quantity}
+                </div>
               </div>
             </div>
-            <div className="px-5 py-[18px]">
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <div className="text-[15px] font-semibold">
-                    {selectedMovement.product}
-                  </div>
-                  <div className="text-[12px] text-muted-foreground/70">
-                    {formatDate(selectedMovement.date)}, {formatTime(selectedMovement.date)}
-                  </div>
+            <div className="border-t border-border pt-3.5 flex flex-col gap-3">
+              <div>
+                <div className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wide mb-1">
+                  Reference / reason
                 </div>
-                <div className="text-right">
-                  <span className="text-[11px] font-semibold bg-muted/30 border border-border text-foreground px-2 py-0.5 rounded-md capitalize inline-block">
-                    {selectedMovement.type}
-                  </span>
-                  <div
-                    className={`text-[18px] font-semibold mt-1 ${
-                      selectedMovement.quantity > 0
-                        ? "text-emerald-700"
-                        : "text-destructive"
-                    }`}
-                  >
-                    {selectedMovement.quantity > 0 && "+"}
-                                      {!(selectedMovement.quantity > 0) && ""}
-                    {selectedMovement.quantity}
-                  </div>
+                <div className="text-[13px] text-foreground">
+                  {selectedMovement.reference || selectedMovement.reason || "-"}
                 </div>
               </div>
-              <div className="border-t border-border pt-3.5 flex flex-col gap-3">
-                <div>
-                  <div className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wide mb-1">
-                    Reference / reason
-                  </div>
-                  <div className="text-[13px] text-foreground">
-                    {selectedMovement.reference || selectedMovement.reason || "-"}
-                  </div>
+              <div>
+                <div className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wide mb-1">
+                  Recorded by
                 </div>
-                <div>
-                  <div className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wide mb-1">
-                    Recorded by
-                  </div>
-                  <div className="text-[13px] text-foreground">{selectedMovement.user}</div>
-                </div>
+                <div className="text-[13px] text-foreground">{selectedMovement.user}</div>
               </div>
-              <div 
-                className="text-[12px] font-semibold text-primary mt-5 cursor-pointer hover:underline"
-                onClick={() => {
-                  setSelectedMovement(null);
-                  router.push('/inventory/catalog')
-                }}
-              >
-                View product in Catalog →
-              </div>
+            </div>
+            <div 
+              className="text-[12px] font-semibold text-primary mt-5 cursor-pointer hover:underline"
+              onClick={() => {
+                setSelectedMovement(null);
+                router.push('/inventory/catalog')
+              }}
+            >
+              View product in Catalog →
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </ResponsiveModal>
     </div>
   );
 }

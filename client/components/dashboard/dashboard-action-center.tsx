@@ -19,6 +19,7 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { pluralize } from "@/lib/utils";
 
 export interface ActionCenterProps {
   expiringCount: number;
@@ -170,7 +171,7 @@ function useActionCenterAlerts(
       if (expiringCount > 0) {
         items.push({
           id: "expiring-soon",
-          title: `${expiringCount} Items Expiring`,
+          title: `${expiringCount} ${pluralize(expiringCount, "Item")} Expiring`,
           description: "Discount or remove items.",
           icon: Clock,
           priority: "warning",
@@ -182,7 +183,7 @@ function useActionCenterAlerts(
       if (lowStockCount > 0) {
         items.push({
           id: "low-stock",
-          title: `${lowStockCount} Items Low Stock`,
+          title: `${lowStockCount} ${pluralize(lowStockCount, "Item")} Low Stock`,
           description: "Below designated reorder level.",
           icon: PackageX,
           priority: "warning",
@@ -194,7 +195,7 @@ function useActionCenterAlerts(
       if (missingExpiryCount > 0) {
         items.push({
           id: "missing-expiry",
-          title: `${missingExpiryCount} Batches Missing Expiry`,
+          title: `${missingExpiryCount} ${pluralize(missingExpiryCount, "Batch", "Batches")} Missing Expiry`,
           description: "Update to maintain safety net.",
           icon: Clock,
           priority: "warning",
@@ -206,7 +207,7 @@ function useActionCenterAlerts(
       if (pendingSyncCount > 0) {
         items.push({
           id: "pending-sync",
-          title: `${pendingSyncCount} Changes Unsynced`,
+          title: `${pendingSyncCount} ${pluralize(pendingSyncCount, "Change")} Unsynced`,
           description: "Sync to cloud to backup safely.",
           icon: RefreshCw,
           priority: "warning", // or info depending on severity

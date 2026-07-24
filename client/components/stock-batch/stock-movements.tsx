@@ -5,6 +5,7 @@ import { Search, Lock, X } from "lucide-react";
 import { genericFuzzySearch } from "@/lib/utils/search";
 import { StockMovementsSkeleton } from "./stock-movements-skeleton";
 import { useRouter } from "next/navigation";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface StockMovement {
   id: string;
@@ -114,21 +115,19 @@ export function StockMovements() {
               Immutable log — entries can't be edited
             </div>
           </div>
-          <div className="flex gap-2 overflow-x-auto scrollbar-hide">
-            {FILTER_TYPES.map((ft) => (
-              <div
-                key={ft.id}
-                onClick={() => setTypeFilter(ft.id)}
-                className={`px-3.5 py-1.5 rounded-full border text-[12px] font-semibold whitespace-nowrap cursor-pointer transition-colors ${
-                  typeFilter === ft.id
-                    ? "border-primary bg-primary text-white"
-                    : "border-border bg-card text-muted-foreground hover:bg-muted/30"
-                }`}
-              >
-                {ft.label}
-              </div>
-            ))}
-          </div>
+          <Tabs
+            value={typeFilter}
+            onValueChange={setTypeFilter as any}
+            variant="chips"
+          >
+            <TabsList>
+              {FILTER_TYPES.map((ft) => (
+                <TabsTrigger key={ft.id} value={ft.id}>
+                  {ft.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
         </div>
 
         {/* Desktop Grid Header */}

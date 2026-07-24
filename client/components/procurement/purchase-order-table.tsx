@@ -92,9 +92,11 @@ export function PurchaseOrderTable({
     loadDetails();
   }, [selectedOrderId]);
 
-  // Fallback to basic row data if full details haven't loaded yet
-  const selectedPO =
-    fullSelectedPO || orders.find((o) => o.id === selectedOrderId) || null;
+  // Merge full details with the latest row data from the list (so status updates reflect immediately)
+  const listOrder = orders.find((o) => o.id === selectedOrderId);
+  const selectedPO = fullSelectedPO && listOrder
+    ? { ...fullSelectedPO, ...listOrder } 
+    : fullSelectedPO || listOrder || null;
 
   const getStatusBadge = (status: string) => {
     switch (status) {

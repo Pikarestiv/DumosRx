@@ -197,28 +197,28 @@ export function ReceivePOModal({
           </Button>
           <Button onClick={handleConfirmClick}>Confirm & Receive</Button>
         </div>
-      </ResponsiveModal>
 
-      <AlertDialog open={showWarningModal} onOpenChange={setShowWarningModal}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Missing Expiry Date</AlertDialogTitle>
-            <AlertDialogDescription>
-              Some items are missing an expiry date. They will be marked with a
-              warning badge. Are you sure you want to proceed?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Go Back</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleProceedWarning}
-              className="!bg-destructive !text-destructive-foreground !hover:bg-destructive/90"
-            >
-              Proceed Anyway
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        <AlertDialog open={showWarningModal} onOpenChange={setShowWarningModal}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Missing Expiry Date</AlertDialogTitle>
+              <AlertDialogDescription>
+                Some items are missing an expiry date. They will be marked with a
+                warning badge. Are you sure you want to proceed?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Go Back</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleProceedWarning}
+                className="!bg-destructive !text-destructive-foreground !hover:bg-destructive/90"
+              >
+                Proceed Anyway
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </ResponsiveModal>
     </>
   );
 }

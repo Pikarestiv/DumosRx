@@ -113,8 +113,7 @@ export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
 
   return (
     <header
-      className="h-auto min-h-16 py-4 bg-card sm:bg-background border-b border-border sm:border-transparent flex flex-col justify-center px-4 sm:px-6 sticky z-40 before:absolute before:inset-x-0 before:bottom-full before:h-[100vh] before:bg-card sm:before:bg-background before:-z-10"
-      style={{ top: "var(--tauri-top, 0px)" }}
+      className="h-auto min-h-16 py-4 bg-card sm:bg-background border-b border-border sm:border-b-0 flex flex-col justify-center px-4 sm:px-6 shrink-0"
     >
       <div className="flex items-center justify-between w-full">
         {/* Left side (Desktop & Mobile) */}

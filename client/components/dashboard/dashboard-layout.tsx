@@ -186,31 +186,34 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* Main content — shifts right to clear the sidebar */}
       <div
         className={cn(
-          "flex flex-col min-h-screen transition-all duration-300",
+          "flex flex-col overflow-hidden transition-all duration-300",
           contentCollapsed ? "lg:pl-[68px]" : "lg:pl-60",
         )}
         style={{
+          height: "100dvh",
           paddingTop: "var(--tauri-top, 0px)",
-          paddingBottom: isPosRoute
-            ? "var(--tauri-bottom, env(safe-area-inset-bottom))"
-            : "calc(5.5rem + var(--tauri-bottom, env(safe-area-inset-bottom)))",
         }}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
-        <div className="print:hidden">
+        <div className="print:hidden shrink-0">
           <BroadcastBanner />
         </div>
 
         {!isPosRoute && (
-          <div className="print:hidden">
+          <div className="print:hidden shrink-0">
             <DashboardHeader onOpenFeedback={() => setFeedbackOpen(true)} />
           </div>
         )}
 
-        {/* Page content */}
-        <div className="flex-1 relative overflow-x-clip">
-          <main className={isPosRoute ? "" : "p-4 sm:p-6 sm:pt-3"}>
+        {/* Page content — scrolls internally */}
+        <div className={cn("flex-1 relative overflow-x-clip", !isPosRoute && "overflow-y-auto")}>
+          <main
+            className={isPosRoute ? "" : "p-4 sm:p-6 sm:pt-3"}
+            style={!isPosRoute ? {
+              paddingBottom: "calc(5.5rem + var(--tauri-bottom, env(safe-area-inset-bottom, 0px)))",
+            } : undefined}
+          >
             {children}
           </main>
         </div>

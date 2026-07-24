@@ -44,7 +44,7 @@ export function POSLayoutHeader({
 
   return (
     <header
-      className="h-auto min-h-16 py-3 bg-background flex items-center px-4 sm:px-6 shrink-0 border-b border-border/50 relative"
+      className="h-auto min-h-16 py-3 bg-background flex items-center px-4 sm:px-6 sticky top-0 z-10 shrink-0 border-b border-border/50"
     >
       {/* Left side: Title and Back button */}
       <div className="flex items-center gap-3">

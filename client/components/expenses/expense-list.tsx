@@ -9,6 +9,8 @@ import { useExpenseList } from "@/lib/hooks/use-finance-data";
 import { ExpenseDetailDialog } from "./expense-detail-dialog";
 import { AddExpenseDialog } from "./add-expense-dialog";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card } from "@/components/ui/card";
+import { MetricCard } from "@/components/ui/metric-card";
 import { Expense } from "@/lib/db/queries/finance";
 
 const CATEGORIES = [
@@ -146,49 +148,45 @@ export function ExpenseList() {
       
       {/* INSIGHTS STRIP */}
       <div className="flex overflow-x-auto sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-[10px] sm:gap-4 pb-4 sm:pb-0 hide-scrollbar snap-x snap-mandatory mb-5">
-        <div className="bg-card border border-border rounded-[14px] p-3.5 sm:p-[18px] px-4 sm:px-5 shadow-sm shrink-0 w-[220px] sm:w-auto snap-start">
-          <div className="flex items-center justify-between mb-3.5">
-            <div className="text-[12.5px] text-muted-foreground font-medium">Total expenses</div>
-            <div className="w-8 h-8 rounded-lg hidden sm:flex items-center justify-center bg-primary/10 text-primary">
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 3H8v4h8V3z"/></svg>
-            </div>
-          </div>
-          <div className="text-2xl font-semibold font-serif tracking-tight mb-1.5">{formatCurrency(totalExpenses, storeProfile?.currency || "NGN")}</div>
-          <div className="text-xs text-muted-foreground hidden sm:block">all time</div>
-        </div>
+        <MetricCard
+          className="shrink-0 w-[220px] sm:w-auto snap-start border-border"
+          title="Total expenses"
+          value={formatCurrency(totalExpenses, storeProfile?.currency || "NGN")}
+          valueClassName="font-serif"
+          icon={<svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 3H8v4h8V3z"/></svg>}
+          iconBgClass="bg-primary/10 text-primary"
+          description={<span className="hidden sm:inline">all time</span>}
+        />
         
-        <div className="bg-card border border-border rounded-[14px] p-3.5 sm:p-[18px] px-4 sm:px-5 shadow-sm shrink-0 w-[220px] sm:w-auto snap-start">
-          <div className="flex items-center justify-between mb-3.5">
-            <div className="text-[12.5px] text-muted-foreground font-medium">This month</div>
-            <div className="w-8 h-8 rounded-lg hidden sm:flex items-center justify-center bg-chart-1/10 text-chart-1">
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-            </div>
-          </div>
-          <div className="text-2xl font-semibold font-serif tracking-tight mb-1.5">{formatCurrency(thisMonthExpenses, storeProfile?.currency || "NGN")}</div>
-          <div className="text-xs text-muted-foreground hidden sm:block">{format(new Date(), "MMMM yyyy")}</div>
-        </div>
+        <MetricCard
+          className="shrink-0 w-[220px] sm:w-auto snap-start border-border"
+          title="This month"
+          value={formatCurrency(thisMonthExpenses, storeProfile?.currency || "NGN")}
+          valueClassName="font-serif"
+          icon={<svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>}
+          iconBgClass="bg-chart-1/10 text-chart-1"
+          description={<span className="hidden sm:inline">{format(new Date(), "MMMM yyyy")}</span>}
+        />
         
-        <div className="bg-card border border-border rounded-[14px] p-3.5 sm:p-[18px] px-4 sm:px-5 shadow-sm shrink-0 w-[220px] sm:w-auto snap-start">
-          <div className="flex items-center justify-between mb-3.5">
-            <div className="text-[12.5px] text-muted-foreground font-medium">Top category</div>
-            <div className="w-8 h-8 rounded-lg hidden sm:flex items-center justify-center bg-muted text-muted-foreground">
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 3v18h18"/><path d="M7 15l4-6 3 4 4-7"/></svg>
-            </div>
-          </div>
-          <div className="text-2xl font-semibold font-serif tracking-tight mb-1.5 truncate">{topCategoryStr}</div>
-          <div className="text-xs text-muted-foreground hidden sm:block">highest spend this month</div>
-        </div>
+        <MetricCard
+          className="shrink-0 w-[220px] sm:w-auto snap-start border-border"
+          title="Top category"
+          value={topCategoryStr}
+          valueClassName="font-serif truncate"
+          icon={<svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 3v18h18"/><path d="M7 15l4-6 3 4 4-7"/></svg>}
+          iconBgClass="bg-muted text-muted-foreground"
+          description={<span className="hidden sm:inline">highest spend this month</span>}
+        />
         
-        <div className="bg-card border border-border rounded-[14px] p-3.5 sm:p-[18px] px-4 sm:px-5 shadow-sm shrink-0 w-[220px] sm:w-auto snap-start">
-          <div className="flex items-center justify-between mb-3.5">
-            <div className="text-[12.5px] text-muted-foreground font-medium">Transactions</div>
-            <div className="w-8 h-8 rounded-lg hidden sm:flex items-center justify-center bg-muted text-muted-foreground">
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>
-            </div>
-          </div>
-          <div className="text-2xl font-semibold font-serif tracking-tight mb-1.5">{expenses.length}</div>
-          <div className="text-xs text-muted-foreground hidden sm:block">recorded all time</div>
-        </div>
+        <MetricCard
+          className="shrink-0 w-[220px] sm:w-auto snap-start border-border"
+          title="Transactions"
+          value={expenses.length}
+          valueClassName="font-serif"
+          icon={<svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>}
+          iconBgClass="bg-muted text-muted-foreground"
+          description={<span className="hidden sm:inline">recorded all time</span>}
+        />
       </div>
 
       {/* CATEGORIES (Tabs) ABOVE TABLE */}
@@ -204,9 +202,9 @@ export function ExpenseList() {
         </Tabs>
       </div>
 
-      {/* TABLE */}
-      <div className="bg-card border border-border rounded-2xl flex-1 flex flex-col overflow-hidden">
-        {/* Search */}
+      {/* Main Content Area */}
+      <Card className="bg-card border border-border rounded-2xl flex-1 flex flex-col overflow-hidden">
+        {/* Header Actions */}
         <div className="p-4 pb-3 border-b border-border">
           <div className="flex items-center gap-2 bg-muted border border-border rounded-[10px] px-3.5 py-2.5 max-w-sm">
             <Search className="w-4 h-4 text-muted-foreground shrink-0" />
@@ -229,7 +227,7 @@ export function ExpenseList() {
         <div className="flex-1 overflow-y-auto">
           {renderExpenseTable()}
         </div>
-      </div>
+      </Card>
 
       <ExpenseDetailDialog 
         expense={selectedExpense} 

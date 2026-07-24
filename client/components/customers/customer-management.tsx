@@ -6,20 +6,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useStore } from "@/lib/context/store-context";
 import { useCustomerData, Customer } from "@/lib/hooks/use-customer-data";
 import { genericFuzzySearch } from "@/lib/utils/search";
-import { LoyaltyTiersView } from "./loyalty-tiers-view";
-import { CustomerTransactions } from "./customer-transactions";
-import { CustomerDetailsDialog } from "./customer-details-dialog";
-import { DebtDashboard } from "./debt-dashboard";
-import { CustomerStats } from "./customer-stats";
-import { CustomerDirectory } from "./customer-directory";
-import { LoyaltyRedemptionCard } from "./loyalty-redemption-card";
-import { CustomerAnalyticsTab } from "./customer-analytics-tab";
+
+import { InsightsStrip } from "./insights-strip";
+import { OverviewTab } from "./overview-tab";
+import { DirectoryTab } from "./directory-tab";
+import { ActivityTab } from "./activity-tab";
+import { LoyaltyTab } from "./loyalty-tab";
+import { AddCustomerModal } from "./add-customer-modal";
 
 export function CustomerManagement() {
   const { storeType, storeProfile } = useStore();
   const isStore = storeType === "pharmacy";
 
-  const { customers, addCustomer, fetchCustomers } = useCustomerData();
+  const { customers, metrics, addCustomer } = useCustomerData();
 
   const loyaltyTiers = [
     {
@@ -33,7 +32,11 @@ export function CustomerManagement() {
       name: "Silver",
       minSpent: 100000,
       pointsMultiplier: 1.5,
-      benefits: ["Enhanced rewards", "Birthday discount 10%", "Priority support"],
+      benefits: [
+        "Enhanced rewards",
+        "Birthday discount 10%",
+        "Priority support",
+      ],
       color: "bg-gray-400",
     },
     {
@@ -43,7 +46,7 @@ export function CustomerManagement() {
       benefits: [
         "Premium rewards",
         "Birthday discount 15%",
-        "Free delivery",
+        // "Free delivery",
         "Exclusive offers",
       ],
       color: "bg-yellow-500",
@@ -55,7 +58,7 @@ export function CustomerManagement() {
       benefits: [
         "VIP rewards",
         "Birthday discount 20%",
-        "Free delivery",
+        // "Free delivery",
         isStore ? "Personal specialist" : "Shopping assistant",
         "Early access",
       ],
@@ -64,19 +67,26 @@ export function CustomerManagement() {
   ];
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
+    null,
+  );
   const [isAddCustomerOpen, setIsAddCustomerOpen] = useState(false);
 
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
 
+  const tabParam = searchParams.get("tab") || "overview";
+
+  const [activeTab, setActiveTab] = useState(tabParam);
+
   useEffect(() => {
     if (searchParams.get("action") === "add") {
       setIsAddCustomerOpen(true);
       const newParams = new URLSearchParams(searchParams.toString());
       newParams.delete("action");
-      const newUrl = pathname + (newParams.toString() ? `?${newParams.toString()}` : "");
+      const newUrl =
+        pathname + (newParams.toString() ? `?${newParams.toString()}` : "");
       router.replace(newUrl);
     }
   }, [searchParams, router, pathname]);
@@ -86,10 +96,10 @@ export function CustomerManagement() {
     setIsAddCustomerOpen(false);
   };
 
-  const { results: filteredCustomers, isFuzzyFallback } = genericFuzzySearch(
+  const { results: filteredCustomers } = genericFuzzySearch(
     searchTerm,
     customers,
-    ["name", "email", "phone"]
+    ["name", "email", "phone"],
   );
 
   const getTierColor = (tier: string) => {
@@ -97,57 +107,93 @@ export function CustomerManagement() {
     return tierInfo?.color || "bg-gray-400";
   };
 
-  return (
-    <div className="space-y-6">
-      <CustomerStats customers={customers} />
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    const newParams = new URLSearchParams(searchParams.toString());
+    newParams.set("tab", value);
+    router.replace(`${pathname}?${newParams.toString()}`, { scroll: false });
+  };
 
-      <Tabs defaultValue="customers" className="space-y-6">
-        <TabsList className="w-full md:w-max">
-          <TabsTrigger value="customers">Customer Directory</TabsTrigger>
-          <TabsTrigger value="debt">Debt Management</TabsTrigger>
-          <TabsTrigger value="loyalty">Loyalty Program</TabsTrigger>
-          <TabsTrigger value="transactions">Recent Activity</TabsTrigger>
-          <TabsTrigger value="analytics">Customer Analytics</TabsTrigger>
+  return (
+    <div className="flex flex-col h-full min-h-0 space-y-6">
+      <InsightsStrip metrics={metrics} />
+
+      <Tabs
+        value={activeTab}
+        onValueChange={handleTabChange}
+        className="flex-1 flex flex-col min-h-0 space-y-4"
+      >
+        <TabsList className="w-full md:w-max bg-background border rounded-[11px] p-1 h-auto overflow-x-auto justify-start">
+          <TabsTrigger
+            value="overview"
+            className="rounded-lg text-[13px] font-semibold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-5 py-2"
+          >
+            Overview
+          </TabsTrigger>
+          <TabsTrigger
+            value="directory"
+            className="rounded-lg text-[13px] font-semibold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-5 py-2"
+          >
+            Directory
+          </TabsTrigger>
+          <TabsTrigger
+            value="activity"
+            className="rounded-lg text-[13px] font-semibold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-5 py-2"
+          >
+            Activity
+          </TabsTrigger>
+          <TabsTrigger
+            value="loyalty"
+            className="rounded-lg text-[13px] font-semibold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-5 py-2"
+          >
+            Loyalty Program
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="customers">
-          <CustomerDirectory 
+        <TabsContent
+          value="overview"
+          className="flex-1 min-h-0 mt-0 border-none p-0"
+        >
+          <OverviewTab metrics={metrics} />
+        </TabsContent>
+
+        <TabsContent
+          value="directory"
+          className="flex-1 min-h-0 mt-0 border-none p-0"
+        >
+          <DirectoryTab
             customers={filteredCustomers}
             searchTerm={searchTerm}
             onSearchChange={setSearchTerm}
-            isFuzzyFallback={isFuzzyFallback}
-            onAddCustomer={handleAddCustomer}
-            isAddCustomerOpen={isAddCustomerOpen}
-            setIsAddCustomerOpen={setIsAddCustomerOpen}
-            onViewDetails={setSelectedCustomer}
+            selectedCustomer={selectedCustomer}
+            setSelectedCustomer={setSelectedCustomer}
             getTierColor={getTierColor}
             currencyCode={storeProfile?.currency}
           />
         </TabsContent>
 
-        <TabsContent value="debt" className="space-y-6">
-          <DebtDashboard />
+        <TabsContent
+          value="activity"
+          className="flex-1 min-h-0 mt-0 border-none p-0"
+        >
+          <ActivityTab
+            customers={customers}
+            currencyCode={storeProfile?.currency}
+          />
         </TabsContent>
 
-        <TabsContent value="loyalty" className="space-y-6">
-          <LoyaltyTiersView tiers={loyaltyTiers} />
-          <LoyaltyRedemptionCard />
-        </TabsContent>
-
-        <TabsContent value="transactions" className="space-y-6">
-          <CustomerTransactions />
-        </TabsContent>
-
-        <TabsContent value="analytics" className="space-y-6">
-          <CustomerAnalyticsTab />
+        <TabsContent
+          value="loyalty"
+          className="flex-1 min-h-0 mt-0 border-none p-0"
+        >
+          <LoyaltyTab tiers={loyaltyTiers} />
         </TabsContent>
       </Tabs>
 
-      <CustomerDetailsDialog
-        selectedCustomer={selectedCustomer}
-        setSelectedCustomer={setSelectedCustomer}
-        getTierColor={getTierColor}
-        onRefresh={fetchCustomers}
+      <AddCustomerModal
+        isOpen={isAddCustomerOpen}
+        onClose={() => setIsAddCustomerOpen(false)}
+        onSubmit={handleAddCustomer}
       />
     </div>
   );

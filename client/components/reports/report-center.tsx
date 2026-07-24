@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import {
   FileText,
   Download,
-  Printer,
   BarChart,
   ClipboardList,
   Wallet,
@@ -171,10 +170,10 @@ export function ReportCenter() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Date filter */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 mb-5">
-        <div className="flex items-center gap-2 bg-card border border-border rounded-[10px] px-3.5 py-1.5 w-full sm:w-[220px]">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2.5">
+        <div className="flex items-center gap-2 bg-background border rounded-[10px] px-3.5 py-1.5 w-full sm:w-[220px]">
           <CalendarIcon className="h-4 w-4 text-muted-foreground shrink-0" />
           <Select value={datePreset} onValueChange={setDatePreset}>
             <SelectTrigger className="border-0 shadow-none focus:ring-0 p-0 h-auto text-[13px] w-full bg-transparent outline-none">
@@ -194,97 +193,86 @@ export function ReportCenter() {
         </span>
       </div>
 
-      {/* Report grid */}
-      <Card className="rounded-2xl border-border bg-card shadow-sm p-5 overflow-hidden">
-        <h3 className="text-[15px] font-semibold mb-0.5">Standard Reports</h3>
-        <p className="text-[12.5px] text-muted-foreground mb-5">Select a report to generate or export as CSV</p>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-5">
+        {/* Report Center */}
+        <Card className="border rounded-2xl p-5 shadow-sm">
+          <div className="text-[14.5px] font-semibold mb-0.5">Report Center</div>
+          <div className="text-[12px] text-muted-foreground mb-5">Generate and download structured data exports</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {reports.map((report) => {
               const isLoading = loadingReport === report.id;
               return (
                 <div
                   key={report.id}
-                  className="flex items-start gap-4 p-4 rounded-xl border border-border hover:bg-muted/50 transition-all group"
+                  className="flex items-start gap-3 p-4 rounded-[14px] border hover:bg-secondary/50 transition-all group"
                 >
-                  <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform shrink-0">
-                    <report.icon className="h-6 w-6" />
+                  <div className="h-10 w-10 rounded-[10px] bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform shrink-0">
+                    <report.icon className="h-5 w-5" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <h3 className="font-bold text-sm">{report.title}</h3>
-                      <Badge variant="secondary" className="text-[10px] shrink-0">
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <h3 className="font-bold text-[13px]">{report.title}</h3>
+                      <Badge variant="secondary" className="text-[9px] shrink-0 font-bold bg-secondary text-muted-foreground border-none">
                         {report.category}
                       </Badge>
                     </div>
-                    <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                    <p className="text-[11.5px] text-muted-foreground line-clamp-2 leading-snug">
                       {report.description}
                     </p>
-                    <div className="flex flex-wrap items-center gap-2 mt-4">
+                    <div className="flex flex-wrap items-center gap-2 mt-3">
                       <Button
                         size="sm"
                         variant="outline"
-                        className="h-8 gap-2 flex-1 sm:flex-none"
+                        className="h-7 text-[11px] gap-1.5 flex-1 md:flex-none border-border"
                         onClick={() => runPreview(report.id)}
                         disabled={isLoading}
                       >
-                        <Eye className="h-3.5 w-3.5" />
+                        <Eye className="h-3 w-3" />
                         Preview
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-8 gap-2 flex-1 sm:flex-none"
-                        onClick={() => runPrint(report.id)}
-                        disabled={isLoading}
-                      >
-                        <Printer className="h-3.5 w-3.5" />
-                        Print
-                      </Button>
-                      <div className="w-full sm:w-auto">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-8 gap-2 w-full"
-                              disabled={isLoading}
-                            >
-                              {!!(isLoading) && (
-                                                                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                                                            )}
-                                              {!(isLoading) && (
-                                                                              <Download className="h-3.5 w-3.5" />
-                                                                            )}
-                              Export
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => runExport(report.id)} className="cursor-pointer">
-                              Export CSV
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => runPrint(report.id)} className="cursor-pointer">
-                              Export PDF
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-[11px] gap-1.5 flex-1 md:flex-none border-border"
+                            disabled={isLoading}
+                          >
+                            {isLoading ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <Download className="h-3 w-3" />
+                            )}
+                            Export
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => runExport(report.id)} className="cursor-pointer text-[12px]">
+                            Export CSV
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => runPrint(report.id)} className="cursor-pointer text-[12px]">
+                            Export PDF
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
                 </div>
               );
             })}
           </div>
-      </Card>
+        </Card>
 
-      {/* Recent Downloads */}
-      <Card className="rounded-2xl border-border bg-card shadow-sm p-5 overflow-hidden">
-        <h3 className="text-[15px] font-semibold mb-0.5">Recent Downloads</h3>
-        <p className="text-[12.5px] text-muted-foreground mb-5">Reports generated in this browser session</p>
-        <div>
-          {recentDownloads.length === 0 && <RecentDownloadsEmptyState />}
-          {recentDownloads.length > 0 && <RecentDownloadsList downloads={recentDownloads} />}
-        </div>
-      </Card>
+        {/* Recent Downloads */}
+        <Card className="border rounded-2xl p-5 shadow-sm">
+          <div className="text-[14.5px] font-semibold mb-0.5">Recent Downloads</div>
+          <div className="text-[12px] text-muted-foreground mb-5">Reports generated in this browser session</div>
+          <div>
+            {recentDownloads.length === 0 && <RecentDownloadsEmptyState />}
+            {recentDownloads.length > 0 && <RecentDownloadsList downloads={recentDownloads} />}
+          </div>
+        </Card>
+      </div>
     </div>
   );
 }
@@ -293,8 +281,8 @@ function RecentDownloadsEmptyState() {
   return (
     <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
       <CheckCircle2 className="h-8 w-8 opacity-20 mb-3" />
-      <p className="font-semibold">No reports generated yet</p>
-      <p className="text-sm mt-1">Export a report above to see it here.</p>
+      <p className="font-semibold text-[13.5px]">No reports generated yet</p>
+      <p className="text-[12px] mt-1">Export a report to see it here.</p>
     </div>
   );
 }
@@ -305,21 +293,21 @@ function RecentDownloadsList({ downloads }: { downloads: RecentDownload[] }) {
       {downloads.map((dl) => (
         <div
           key={dl.id}
-          className="flex items-start gap-3 p-3 rounded-lg bg-muted/30"
+          className="flex items-start gap-3 p-3 rounded-xl border bg-secondary/20"
         >
           <FileText className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
           <div className="min-w-0 space-y-1 w-full">
             <div className="flex items-center gap-2">
-              <p className="text-sm font-semibold truncate">{dl.name}</p>
+              <p className="text-[13px] font-semibold truncate">{dl.name}</p>
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-[11.5px] text-muted-foreground">
               {dl.type}
             </p>
             <div className="flex flex-col gap-0.5 mt-1">
-              <p className="text-[11px] text-muted-foreground/80">
+              <p className="text-[11px] text-muted-foreground">
                 {format(new Date(dl.generatedAt), "MMM d, yyyy 'at' h:mm a")}
               </p>
-              <p className="text-[11px] text-muted-foreground/80">
+              <p className="text-[11px] text-muted-foreground">
                 {dl.sizeLabel}
               </p>
             </div>

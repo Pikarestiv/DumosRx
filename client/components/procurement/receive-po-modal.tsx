@@ -32,13 +32,79 @@ interface ReceivePOModalProps {
   onConfirm: (poId: string, receivedItems: ReceivedItemPayload[]) => void;
 }
 
+const ReceiveItemCard = React.memo(
+  ({
+    item,
+    state,
+    onFieldChange,
+  }: {
+    item: PurchaseOrderItem;
+    state: ReceivedItemPayload;
+    onFieldChange: (
+      itemId: string,
+      field: keyof ReceivedItemPayload,
+      value: any,
+    ) => void;
+  }) => {
+    return (
+      <div className="p-4 space-y-4">
+        <div className="flex justify-between items-start">
+          <div>
+            <h4 className="font-semibold text-[15px]">{item.product_name}</h4>
+            <p className="text-sm text-muted-foreground">
+              Ordered: {item.bulk_quantity} units @{" "}
+              {formatCurrency(item.unit_cost)}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-4 bg-muted/20 p-4 rounded-lg">
+          <div className="space-y-2">
+            <Label className="text-xs">Qty Received</Label>
+            <Input
+              type="number"
+              min="0"
+              value={state.quantity ?? item.bulk_quantity}
+              onChange={(e) =>
+                onFieldChange(
+                  item.id,
+                  "quantity",
+                  parseInt(e.target.value) || 0,
+                )
+              }
+            />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-xs">Lot / Batch No. (Optional)</Label>
+            <Input
+              placeholder="e.g. BATCH-123"
+              value={state.lot_number || ""}
+              onChange={(e) =>
+                onFieldChange(item.id, "lot_number", e.target.value)
+              }
+            />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-xs">Expiry Date (Optional)</Label>
+            <DatePickerInput
+              value={state.expiry_date}
+              onChange={(val) => onFieldChange(item.id, "expiry_date", val)}
+              placeholder="Select expiry date"
+            />
+          </div>
+        </div>
+      </div>
+    );
+  },
+);
+ReceiveItemCard.displayName = "ReceiveItemCard";
+
 export function ReceivePOModal({
   po,
   isOpen,
   onClose,
   onConfirm,
 }: ReceivePOModalProps) {
-  console.log("🚀 ~ ReceivePOModal ~ po:", po);
   const [receivedItems, setReceivedItems] = useState<
     Record<string, ReceivedItemPayload>
   >({});
@@ -63,21 +129,20 @@ export function ReceivePOModal({
     }
   }, [isOpen, po]);
 
-  if (!po) return null;
+  const handleFieldChange = React.useCallback(
+    (itemId: string, field: keyof ReceivedItemPayload, value: any) => {
+      setReceivedItems((prev) => ({
+        ...prev,
+        [itemId]: {
+          ...prev[itemId],
+          [field]: value,
+        },
+      }));
+    },
+    [],
+  );
 
-  const handleFieldChange = (
-    itemId: string,
-    field: keyof ReceivedItemPayload,
-    value: any,
-  ) => {
-    setReceivedItems((prev) => ({
-      ...prev,
-      [itemId]: {
-        ...prev[itemId],
-        [field]: value,
-      },
-    }));
-  };
+  if (!po) return null;
 
   const handleConfirmClick = () => {
     const payload = Object.values(receivedItems);
@@ -116,63 +181,12 @@ export function ReceivePOModal({
             {po.items?.map((item: PurchaseOrderItem) => {
               const state = receivedItems[item.id] || {};
               return (
-                <div key={item.id} className="p-4 space-y-4">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="font-semibold text-[15px]">
-                        {item.product_name}
-                      </h4>
-                      <p className="text-sm text-muted-foreground">
-                        Ordered: {item.bulk_quantity} units @{" "}
-                        {formatCurrency(item.unit_cost)}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-4 bg-muted/20 p-4 rounded-lg">
-                    <div className="space-y-2">
-                      <Label className="text-xs">Qty Received</Label>
-                      <Input
-                        type="number"
-                        min="0"
-                        value={state.quantity ?? item.bulk_quantity}
-                        onChange={(e) =>
-                          handleFieldChange(
-                            item.id,
-                            "quantity",
-                            parseInt(e.target.value) || 0,
-                          )
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-xs">
-                        Lot / Batch No. (Optional)
-                      </Label>
-                      <Input
-                        placeholder="e.g. BATCH-123"
-                        value={state.lot_number || ""}
-                        onChange={(e) =>
-                          handleFieldChange(
-                            item.id,
-                            "lot_number",
-                            e.target.value,
-                          )
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-xs">Expiry Date (Optional)</Label>
-                      <DatePickerInput
-                        value={state.expiry_date}
-                        onChange={(val) =>
-                          handleFieldChange(item.id, "expiry_date", val)
-                        }
-                        placeholder="Select expiry date"
-                      />
-                    </div>
-                  </div>
-                </div>
+                <ReceiveItemCard
+                  key={item.id}
+                  item={item}
+                  state={state}
+                  onFieldChange={handleFieldChange}
+                />
               );
             })}
           </div>
@@ -183,28 +197,28 @@ export function ReceivePOModal({
           </Button>
           <Button onClick={handleConfirmClick}>Confirm & Receive</Button>
         </div>
-      </ResponsiveModal>
 
-      <AlertDialog open={showWarningModal} onOpenChange={setShowWarningModal}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Missing Expiry Date</AlertDialogTitle>
-            <AlertDialogDescription>
-              Some items are missing an expiry date. They will be marked with a
-              warning badge. Are you sure you want to proceed?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Go Back</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleProceedWarning}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Proceed Anyway
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        <AlertDialog open={showWarningModal} onOpenChange={setShowWarningModal}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Missing Expiry Date</AlertDialogTitle>
+              <AlertDialogDescription>
+                Some items are missing an expiry date. They will be marked with a
+                warning badge. Are you sure you want to proceed?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Go Back</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleProceedWarning}
+                className="!bg-destructive !text-destructive-foreground !hover:bg-destructive/90"
+              >
+                Proceed Anyway
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </ResponsiveModal>
     </>
   );
 }

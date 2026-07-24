@@ -1,5 +1,3 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowRight } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
 interface DailyCloseMetricsProps {
@@ -21,82 +19,51 @@ export function DailyCloseMetrics({
   openSalesModal,
 }: DailyCloseMetricsProps) {
   return (
-    <div className="-mx-4 sm:mx-0 px-4 sm:px-0">
-      <div className="flex overflow-x-auto sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-[10px] sm:gap-4 pb-4 sm:pb-0 hide-scrollbar snap-x snap-mandatory">
-        <Card
-          className="min-w-[140px] sm:min-w-0 snap-center shrink-0 border-border cursor-pointer hover:bg-muted/50 transition-colors"
+    <div className="flex flex-col gap-5">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div 
+          className="bg-background border rounded-[14px] p-5 shadow-sm cursor-pointer hover:bg-secondary/50 transition-colors"
           onClick={() => openSalesModal("all")}
         >
-          <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
-            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
-              Total Sales
-            </CardTitle>
-            <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl sm:text-2xl font-bold">
-              {formatCurrency(aggregatedTotals.total, currencyCode)}
-            </div>
-          </CardContent>
-        </Card>
-        <Card
-          className="min-w-[140px] sm:min-w-0 snap-center shrink-0 border-border cursor-pointer hover:bg-muted/50 transition-colors"
+          <div className="text-[12.5px] text-muted-foreground font-medium mb-3">Total Sales</div>
+          <div className="text-[22px] font-semibold font-['Playfair_Display']">
+            {formatCurrency(aggregatedTotals.total, currencyCode)}
+          </div>
+        </div>
+        
+        <div 
+          className="bg-background border rounded-[14px] p-5 shadow-sm cursor-pointer hover:bg-secondary/50 transition-colors"
           onClick={() => openSalesModal("cash")}
         >
-          <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
-            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
-              Cash Expected
-            </CardTitle>
-            <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl sm:text-2xl font-bold">
-              {formatCurrency(aggregatedTotals.cash, currencyCode)}
-            </div>
-          </CardContent>
-        </Card>
-        <Card
-          className="min-w-[140px] sm:min-w-0 snap-center shrink-0 border-border cursor-pointer hover:bg-muted/50 transition-colors"
+          <div className="text-[12.5px] text-muted-foreground font-medium mb-3">Cash Expected</div>
+          <div className="text-[22px] font-semibold font-['Playfair_Display']">
+            {formatCurrency(aggregatedTotals.cash, currencyCode)}
+          </div>
+        </div>
+
+        <div 
+          className="bg-background border rounded-[14px] p-5 shadow-sm cursor-pointer hover:bg-secondary/50 transition-colors"
           onClick={() => openSalesModal("transfer")}
         >
-          <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
-            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
-              Transfer / Mobile
-            </CardTitle>
-            <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl sm:text-2xl font-bold">
-              {formatCurrency(aggregatedTotals.transfer, currencyCode)}
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="min-w-[140px] sm:min-w-0 snap-center shrink-0 border-border bg-destructive/5">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs sm:text-sm font-medium text-destructive">
-              Total Refunds
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl sm:text-2xl font-bold text-destructive">
-              {formatCurrency(aggregatedTotals.refunds, currencyCode)}
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="min-w-[140px] sm:min-w-0 snap-center shrink-0 border-border bg-muted/30 lg:col-span-4">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
-              Total Profit (Est.)
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div
-              className={`text-xl sm:text-2xl font-bold ${totalProfit >= 0 ? "text-green-600" : "text-red-600"}`}
-            >
-              {formatCurrency(totalProfit, currencyCode)}
-            </div>
-          </CardContent>
-        </Card>
+          <div className="text-[12.5px] text-muted-foreground font-medium mb-3">Transfer / Mobile</div>
+          <div className="text-[22px] font-semibold font-['Playfair_Display']">
+            {formatCurrency(aggregatedTotals.transfer, currencyCode)}
+          </div>
+        </div>
+
+        <div className="bg-destructive/10 border border-destructive/20 rounded-[14px] p-5">
+          <div className="text-[12.5px] text-destructive font-medium mb-3">Total Refunds</div>
+          <div className="text-[22px] font-semibold font-['Playfair_Display'] text-destructive">
+            {formatCurrency(aggregatedTotals.refunds, currencyCode)}
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-background border rounded-[14px] p-5">
+        <div className="text-[12.5px] text-muted-foreground font-medium mb-2">Total Profit (Est.)</div>
+        <div className={`text-[28px] font-bold font-['Playfair_Display'] ${totalProfit >= 0 ? "text-emerald-600" : "text-destructive"}`}>
+          {formatCurrency(totalProfit, currencyCode)}
+        </div>
       </div>
     </div>
   );

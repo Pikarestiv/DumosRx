@@ -1,5 +1,4 @@
-import { Separator } from "@/components/ui/separator";
-import { Building, Truck } from "lucide-react";
+import { Building } from "lucide-react";
 import type { Product } from "./use-product-details";
 
 interface ProductSupplierInfoProps {

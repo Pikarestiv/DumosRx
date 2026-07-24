@@ -38,7 +38,7 @@ export function CloudStep({ onCloudRestore, isLoading }: CloudStepProps) {
       exit={{ opacity: 0, x: -20 }}
       className="flex-1 flex flex-col w-full"
     >
-      <Card className="flex-1 sm:flex-initial flex flex-col border-none sm:border-solid sm:border-border shadow-[0_-20px_40px_rgba(0,0,0,0.15)] sm:shadow-2xl bg-background sm:bg-card/60 sm:backdrop-blur-2xl rounded-t-[2.5rem] sm:rounded-xl overflow-hidden relative">
+      <Card className="flex-1 px-4 sm:px-6 p-6 sm:flex-initial flex flex-col border-none sm:border-solid sm:border-border shadow-[0_-20px_40px_rgba(0,0,0,0.15)] sm:shadow-2xl bg-background sm:bg-card/60 sm:backdrop-blur-2xl rounded-t-[2.5rem] sm:rounded-xl overflow-hidden relative">
         <CardHeader className="space-y-1 flex flex-col items-center text-center pb-2">
           <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
             <CloudDownload className="h-6 w-6 text-primary" />
@@ -81,12 +81,8 @@ export function CloudStep({ onCloudRestore, isLoading }: CloudStepProps) {
               className="w-full h-12 text-lg font-bold shadow-lg"
               disabled={isLoading}
             >
-              {!!(isLoading) && (
-                                          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                                        )}
-                          {!(isLoading) && (
-                                          "Start Cloud Sync"
-                                        )}
+              {!!isLoading && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
+              {!isLoading && "Start Cloud Sync"}
             </Button>
             <div className="text-center pt-2">
               <p className="text-sm text-muted-foreground">

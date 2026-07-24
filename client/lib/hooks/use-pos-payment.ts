@@ -25,6 +25,7 @@ interface UsePOSPaymentProps {
   rawDiscount?: number;
   discountType?: "fixed" | "percentage";
   selectedCustomer: Customer | null;
+  setSelectedCustomer?: (customer: Customer | null) => void;
   clearCart: () => void;
   refetchProducts: () => void;
   refetchSales?: () => void;
@@ -42,6 +43,7 @@ export function usePOSPayment({
   rawDiscount = 0,
   discountType = "fixed",
   selectedCustomer,
+  setSelectedCustomer,
   clearCart,
   refetchProducts,
   refetchSales,
@@ -187,21 +189,23 @@ export function usePOSPayment({
           await update("stock_batches", batch.id, {
             quantity: batch.quantity - deduction,
           });
+          
+          await insert("stock_movements", {
+            product_id: item.id,
+            stock_batch_id: batch.id,
+            movement_type: "sale",
+            quantity: -Math.abs(deduction),
+            unit_cost: item.cost_price || 0,
+            total_cost: (item.cost_price || 0) * deduction,
+            reference_id: saleId,
+            reference_type: "sale",
+            reason: "Customer sale",
+            performed_by: cashierId,
+            movement_date: new Date().toISOString(),
+          });
+
           remainingToDeduct -= deduction;
         }
-
-        await insert("stock_movements", {
-          product_id: item.id,
-          movement_type: "sale",
-          quantity: -Math.abs(item.quantity),
-          unit_cost: item.cost_price || 0,
-          total_cost: (item.cost_price || 0) * item.quantity,
-          reference_id: saleId,
-          reference_type: "sale",
-          reason: "Customer sale",
-          performed_by: cashierId,
-          movement_date: new Date().toISOString(),
-        });
       }
 
       if (paymentMethod === "credit" && selectedCustomer) {
@@ -271,6 +275,7 @@ export function usePOSPayment({
 
       setCompletedTransaction(transaction);
       clearCart();
+      setSelectedCustomer?.(null);
       if (refetchSales) refetchSales();
       refetchProducts();
       setPaymentMethod("cash");

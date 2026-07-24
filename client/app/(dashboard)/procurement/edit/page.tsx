@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ShoppingCart, ArrowLeft } from "lucide-react";
+import { ShoppingCart, ArrowLeft, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 import { Input } from "@/components/ui/input";
@@ -18,7 +18,7 @@ import { POAddItemForm } from "@/components/procurement/po-add-item-form";
 import { POLineItemsList } from "@/components/procurement/po-line-items-list";
 import { AddProductDialog } from "@/components/products/add-product-dialog";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
-import { createProduct, createPurchaseOrder } from "@/lib/db/local-database";
+import { createProduct, getPurchaseOrderById, updatePurchaseOrder } from "@/lib/db/local-database";
 import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -26,16 +26,18 @@ import { useStore } from "@/lib/context/store-context";
 import { useProcurementData } from "@/lib/hooks/use-procurement-data";
 import { useQueryClient } from "@tanstack/react-query";
 
-export default function CreateOrderPage() {
+function EditOrderContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { storeType } = useStore();
   const queryClient = useQueryClient();
+  const id = searchParams.get("id");
+  const { storeType } = useStore();
 
   const [selectedSupplierId, setSelectedSupplierId] = useState("");
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [paymentStatus, setPaymentStatus] = useState("unpaid");
   const [amountPaid, setAmountPaid] = useState("");
   const [dueDate, setDueDate] = useState("");
@@ -51,14 +53,31 @@ export default function CreateOrderPage() {
   }, [fetchData]);
 
   useEffect(() => {
-    const defaultSupplierId = searchParams.get("supplierId");
-    if (
-      defaultSupplierId &&
-      suppliers.some((s) => s.id === defaultSupplierId)
-    ) {
-      setSelectedSupplierId(defaultSupplierId);
+    async function loadPO() {
+      if (!id) return;
+      setIsLoading(true);
+      try {
+        const poData = await getPurchaseOrderById(id);
+        if (poData) {
+          setSelectedSupplierId(poData.supplier_id);
+          setNotes(poData.notes || "");
+          setItems(poData.items || []);
+          setPaymentStatus(poData.payment_status || "unpaid");
+          setAmountPaid(poData.amount_paid?.toString() || "");
+          setDueDate(poData.due_date || "");
+        } else {
+          toast.error("Purchase order not found");
+          router.push("/procurement");
+        }
+      } catch (err) {
+        console.error("Failed to load PO", err);
+        toast.error("Failed to load PO");
+      } finally {
+        setIsLoading(false);
+      }
     }
-  }, [searchParams, suppliers]);
+    loadPO();
+  }, [id, router]);
 
   const handleAddLineItem = (newItem: any) => {
     setItems([...items, newItem]);
@@ -95,6 +114,11 @@ export default function CreateOrderPage() {
   const totalAmount = items.reduce((sum, item) => sum + item.subtotal, 0);
 
   const handleSubmit = async () => {
+    if (!id) {
+      toast.error("Purchase order ID is missing");
+      return;
+    }
+    
     if (!selectedSupplierId) {
       toast.error("Please select a vendor");
       return;
@@ -107,7 +131,8 @@ export default function CreateOrderPage() {
 
     setIsSubmitting(true);
     try {
-      await createPurchaseOrder(
+      await updatePurchaseOrder(
+        id,
         selectedSupplierId,
         notes,
         items,
@@ -115,7 +140,7 @@ export default function CreateOrderPage() {
         paymentStatus !== "unpaid" ? Number(amountPaid) || 0 : 0,
         dueDate || null,
       );
-      toast.success("Purchase Order created successfully");
+      toast.success("Purchase Order updated successfully");
       router.push("/procurement");
     } catch (error) {
       console.error("Failed to create PO:", error);
@@ -132,6 +157,15 @@ export default function CreateOrderPage() {
     );
   }, [suppliers, selectedSupplierId]);
 
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[calc(100vh-120px)] bg-card border border-border rounded-2xl">
+        <Clock className="w-8 h-8 animate-spin text-muted-foreground mb-4" />
+        <p className="text-muted-foreground font-medium text-sm">Loading order...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col min-h-0 bg-card border border-border rounded-2xl overflow-hidden h-[calc(100vh-120px)] shadow-sm">
       <div className="flex items-center gap-3 px-6 py-5 border-b border-border bg-card shrink-0">
@@ -143,14 +177,14 @@ export default function CreateOrderPage() {
         </div>
         <div>
           <div className="text-[17px] font-serif font-bold leading-tight">
-            Create Purchase Order
+            Edit Purchase Order
           </div>
           <div className="text-[12px] text-muted-foreground mt-0.5">
-            Draft a formal request for stock batch replenishment
+            Modify draft or sent purchase order
           </div>
         </div>
         <div className="ml-auto text-[12.5px] text-muted-foreground font-medium">
-          Draft · {items.length} items
+          PO-{id ? id.split("-")[0]?.toUpperCase() : ""} · {items.length} items
         </div>
       </div>
 
@@ -321,5 +355,13 @@ export default function CreateOrderPage() {
         initialData={initialProductData}
       />
     </div>
+  );
+}
+
+export default function EditOrderPage() {
+  return (
+    <Suspense fallback={<div className="p-10 flex items-center justify-center"><Clock className="animate-spin text-muted-foreground w-6 h-6" /></div>}>
+      <EditOrderContent />
+    </Suspense>
   );
 }

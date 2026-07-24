@@ -1,5 +1,6 @@
 import React from 'react';
 import { formatCurrency } from '@/lib/utils';
+import { MetricCard } from '@/components/ui/metric-card';
 
 export function TransactionMetrics({
   metrics,
@@ -9,32 +10,31 @@ export function TransactionMetrics({
   currencyCode?: string;
 }) {
   return (
-    <div className="flex overflow-x-auto gap-4 pb-2 px-4 md:mx-0 md:px-0 md:grid md:grid-cols-4 hide-scrollbar snap-x snap-mandatory">
+    <div className="flex overflow-x-auto gap-[10px] md:gap-4 pb-4 md:pb-0 px-4 md:mx-0 md:px-0 md:grid md:grid-cols-4 hide-scrollbar snap-x snap-mandatory">
       <MetricCard
+        className="min-w-[140px] md:min-w-0 snap-center shrink-0"
         title="Today's sales"
         value={formatCurrency(metrics.totalSales, currencyCode)}
+        valueClassName="font-serif"
       />
-      <MetricCard title="Transactions" value={metrics.transactions} />
-      <MetricCard title="Refunded" value={metrics.refunded} />
       <MetricCard
+        className="min-w-[140px] md:min-w-0 snap-center shrink-0"
+        title="Transactions" 
+        value={metrics.transactions}
+        valueClassName="font-serif"
+      />
+      <MetricCard
+        className="min-w-[140px] md:min-w-0 snap-center shrink-0"
+        title="Refunded" 
+        value={metrics.refunded}
+        valueClassName="font-serif"
+      />
+      <MetricCard
+        className="min-w-[140px] md:min-w-0 snap-center shrink-0"
         title="Avg. basket"
         value={formatCurrency(metrics.avgBasket, currencyCode)}
+        valueClassName="font-serif"
       />
-    </div>
-  );
-}
-
-export function MetricCard({
-  title,
-  value,
-}: {
-  title: string;
-  value: React.ReactNode;
-}) {
-  return (
-    <div className="bg-card text-card-foreground p-3 shadow-sm border border-border/50 min-w-[130px] shrink-0 md:min-w-0 rounded-xl flex flex-col justify-center snap-start">
-      <p className="text-sm text-muted-foreground font-medium mb-1">{title}</p>
-      <p className="text-2xl font-bold font-serif">{value}</p>
     </div>
   );
 }

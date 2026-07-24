@@ -18,6 +18,12 @@ import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 
+const SolidAlertCircle = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className={className} xmlns="http://www.w3.org/2000/svg">
+    <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM13 17H11V15H13V17ZM13 13H11V7H13V13Z" />
+  </svg>
+);
+
 export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { collapsed?: boolean; isMobileHeader?: boolean }) {
   const [status, setStatus] = useState<
     "online" | "offline" | "syncing" | "error"
@@ -141,7 +147,7 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
             : "unlinked";
 
   const iconClass = collapsed ? "h-[18px] w-[18px]" : "h-3 w-3";
-  const fillProp = collapsed ? { fill: "currentColor" } : {};
+  const fillProp = collapsed ? { fill: "currentColor", strokeWidth: 0 } : {};
 
   const configMap = {
     syncing: {
@@ -154,7 +160,7 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
     },
     offline: {
       label: "Offline",
-      icon: <CloudOff className={cn(iconClass, "text-muted-foreground")} {...fillProp} />,
+      icon: <CloudOff className={cn(iconClass, "text-muted-foreground")} />,
       border: "border-muted-foreground/30",
       desktopBg: "bg-sidebar-accent/5 hover:bg-sidebar-accent/10",
       mobileBg: "bg-muted/50",
@@ -162,7 +168,9 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
     },
     error: {
       label: "Sync Error",
-      icon: <AlertCircle className={cn(iconClass, "text-destructive")} {...fillProp} />,
+      icon: collapsed 
+        ? <SolidAlertCircle className={cn(iconClass, "text-destructive")} />
+        : <AlertCircle className={cn(iconClass, "text-destructive")} />,
       border: "border-destructive/50",
       desktopBg: "bg-destructive/10 hover:bg-destructive/20",
       mobileBg: "bg-destructive/10",
@@ -204,13 +212,15 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
 
   if (isMobileHeader) {
     return (
-      <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full ${mobileBg} border ${statusBorder} max-w-fit transition-colors [&_svg]:w-3.5 [&_svg]:h-3.5`} onClick={handleManualSync}>
-        {statusIcon}
-        <span className="text-[12px] font-medium text-muted-foreground whitespace-nowrap">
-          {statusLabel}
-        </span>
+      <>
+        <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full ${mobileBg} border ${statusBorder} max-w-fit transition-colors [&_svg]:w-3.5 [&_svg]:h-3.5 cursor-pointer`} onClick={handleManualSync}>
+          {statusIcon}
+          <span className="text-[12px] font-medium text-muted-foreground whitespace-nowrap">
+            {statusLabel}
+          </span>
+        </div>
         <AuthModal open={showAuthModal} onOpenChange={setShowAuthModal} />
-      </div>
+      </>
     );
   }
 
@@ -304,9 +314,9 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
+      </div>
 
       <AuthModal open={showAuthModal} onOpenChange={setShowAuthModal} />
-      </div>
     </div>
   );
 }

@@ -105,21 +105,19 @@ export function DataSettings({
               <div
                 className={`h-10 w-10 ${isCloudLinked ? "bg-green-100 text-green-600" : "bg-amber-100 text-amber-600"} rounded-full flex items-center justify-center`}
               >
-                {!!(isCloudLinked) && (
-                                                <Database className="h-5 w-5" />
-                                              )}
-                              {!(isCloudLinked) && (
-                                                <CloudOff className="h-5 w-5" />
-                                              )}
+                {!!isCloudLinked && <Database className="h-5 w-5" />}
+                {!isCloudLinked && <CloudOff className="h-5 w-5" />}
               </div>
               <div>
                 <p className="font-medium">
-                  {!!(isCloudLinked) && "Connected to Cloud"}
-                                  {!(isCloudLinked) && "Local Mode (Not Linked)"}
+                  {!!isCloudLinked && "Connected to Cloud"}
+                  {!isCloudLinked && "Local Mode (Not Linked)"}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  {!!(isCloudLinked) && `Last synced: ${localStorage.getItem("last_sync_time") ? new Date(localStorage.getItem("last_sync_time")!).toLocaleString() : "Never"}`}
-                                  {!(isCloudLinked) && "Connect your cloud account to enable sync"}
+                  {!!isCloudLinked &&
+                    `Last synced: ${localStorage.getItem("last_sync_time") ? new Date(localStorage.getItem("last_sync_time")!).toLocaleString() : "Never"}`}
+                  {!isCloudLinked &&
+                    "Connect your cloud account to enable sync"}
                 </p>
               </div>
             </div>
@@ -141,8 +139,8 @@ export function DataSettings({
                 size="sm"
                 onClick={handleSync}
               >
-                {!!(isCloudLinked) && "Sync Now"}
-                              {!(isCloudLinked) && "Link & Sync"}
+                {!!isCloudLinked && "Sync Now"}
+                {!isCloudLinked && "Link & Sync"}
               </Button>
             </div>
           </div>
@@ -152,7 +150,6 @@ export function DataSettings({
           <DataSettingsAutoSync
             canCloudSync={canCloudSync}
             minimumSyncIntervalMinutes={minimumSyncIntervalMinutes}
-            isCloudLinked={isCloudLinked}
             autoSyncEnabled={autoSyncEnabled}
             setAutoSyncEnabled={setAutoSyncEnabled}
             autoSyncInterval={autoSyncInterval}

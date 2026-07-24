@@ -27,7 +27,6 @@ import { useSettings } from "@/hooks/use-settings";
 
 export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
   const {
-    storeProfile,
     user,
     theme,
     setTheme,

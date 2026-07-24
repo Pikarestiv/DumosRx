@@ -1,9 +1,9 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { MetricCard } from "@/components/ui/metric-card";
 import { LucideIcon } from "lucide-react";
 
-interface StatCard {
+export interface StatCard {
   title: string;
   value: string;
   comparison?: string;
@@ -14,7 +14,6 @@ interface StatCard {
 interface DashboardStatsProps {
   statsCards: StatCard[];
 }
-
 export function DashboardStats({ statsCards }: DashboardStatsProps) {
   const getColorStyles = (color?: string) => {
     switch (color) {
@@ -23,30 +22,40 @@ export function DashboardStats({ statsCards }: DashboardStatsProps) {
           wrapper: "border-blue-500/20 bg-blue-500/5",
           icon: "text-blue-500",
           trend: "text-blue-600 dark:text-blue-400",
+          border: "border-blue-200/50 hover:border-blue-500/50",
+          valueClassName: "font-serif",
         };
       case "green":
         return {
           wrapper: "border-emerald-500/20 bg-emerald-500/5",
           icon: "text-emerald-500",
           trend: "text-emerald-600 dark:text-emerald-400",
+          border: "border-emerald-200/50 hover:border-emerald-500/50",
+          valueClassName: "font-serif",
         };
       case "red":
         return {
           wrapper: "border-destructive/20 bg-destructive/5",
           icon: "text-destructive",
           trend: "text-destructive",
+          border: "border-destructive-200/50 hover:border-destructive-500/50",
+          valueClassName: "font-serif",
         };
       case "amber":
         return {
           wrapper: "border-amber-500/20 bg-amber-500/5",
           icon: "text-amber-500",
           trend: "text-amber-600 dark:text-amber-400",
+          border: "border-amber-200/50 hover:border-amber-500/50",
+          valueClassName: "font-amber font-serif",
         };
       default:
         return {
           wrapper: "border-border",
           icon: "text-primary",
           trend: "text-primary",
+          border: "border-border-200/50 hover:border-border-500/50",
+          valueClassName: "font-serif",
         };
     }
   };
@@ -57,31 +66,16 @@ export function DashboardStats({ statsCards }: DashboardStatsProps) {
         {statsCards.map((stat) => {
           const colors = getColorStyles(stat.colorScheme);
           return (
-            <Card
+            <MetricCard
               key={stat.title}
-              className="min-w-[140px] sm:min-w-0 snap-center shrink-0 border-border bg-card shadow-sm hover:shadow-md transition-all !py-3 gap-2"
-            >
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 px-2 py-0">
-                <CardTitle className="text-xs sm:text-sm font-semibold text-muted-foreground">
-                  {stat.title}
-                </CardTitle>
-                <div className={`p-1.5 rounded-md ${colors.wrapper}`}>
-                  <stat.icon className={`h-3.5 w-3.5 ${colors.icon}`} />
-                </div>
-              </CardHeader>
-              <CardContent className="px-2 py-0">
-                <div className="text-xl sm:text-2xl font-black text-foreground tracking-tight">
-                  {stat.value}
-                </div>
-                {stat.comparison && (
-                  <div className="flex items-center gap-1.5 mt-1">
-                    <span className="text-[11px] sm:text-xs text-muted-foreground font-medium truncate">
-                      {stat.comparison}
-                    </span>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+              className={`min-w-[140px] sm:min-w-0 snap-center shrink-0 ${colors.border}`}
+              title={stat.title}
+              value={stat.value}
+              valueClassName={colors.valueClassName}
+              icon={<stat.icon className={`h-4 w-4 ${colors.icon}`} />}
+              iconBgClass={colors.wrapper}
+              description={stat.comparison}
+            />
           );
         })}
       </div>

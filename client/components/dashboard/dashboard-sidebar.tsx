@@ -18,17 +18,17 @@ import { UserNav } from "@/components/dashboard/user-nav";
 import {
   LayoutDashboard,
   ShoppingCart,
-  FileText,
   Users,
   BarChart3,
   Settings,
   Pill,
-  ShoppingBasket,
   Wallet,
-  ClipboardList,
   ChevronsLeft,
   ChevronsRight,
   Lock,
+  PackagePlus,
+  ClipboardPlus,
+  Package,
 } from "lucide-react";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { useStockBatchStats } from "@/lib/hooks/use-stock-batch-stats";
@@ -73,11 +73,11 @@ export function DashboardSidebar({
     {
       name: "Inventory",
       href: "/inventory",
-      icon: storeType === "pharmacy" ? Pill : ShoppingBasket,
+      icon: storeType === "pharmacy" ? Pill : Package,
     },
     { name: "Point of Sale", href: "/pos", icon: ShoppingCart },
     ...(storeType === "pharmacy"
-      ? [{ name: "Prescriptions", href: "/prescriptions", icon: FileText }]
+      ? [{ name: "Prescriptions", href: "/prescriptions", icon: ClipboardPlus }]
       : []),
     { name: "Customers", href: "/customers", icon: Users },
     ...(isAdmin || canManageStockBatch
@@ -85,7 +85,7 @@ export function DashboardSidebar({
           {
             name: "Procurement",
             href: "/procurement",
-            icon: ClipboardList,
+            icon: PackagePlus,
           },
           { name: "Expenses", href: "/expenses", icon: Wallet },
           { name: "Reports", href: "/reports", icon: BarChart3 },

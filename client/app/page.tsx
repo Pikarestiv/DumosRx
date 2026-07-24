@@ -101,7 +101,7 @@ export default function HomePage() {
           transition={{ duration: 0.8, ease: "circOut" }}
           className="w-full max-w-md mx-auto"
         >
-          <Card className="border-border shadow-[0_0_50px_-12px_rgba(0,0,0,0.1)] dark:shadow-[0_0_50px_-12px_rgba(0,0,0,0.5)] bg-card/60 backdrop-blur-2xl overflow-hidden relative group">
+          <Card className="border-border px-6 shadow-[0_0_50px_-12px_rgba(0,0,0,0.1)] dark:shadow-[0_0_50px_-12px_rgba(0,0,0,0.5)] bg-card/60 backdrop-blur-2xl overflow-hidden relative group">
             <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/50 to-accent/50 rounded-xl opacity-0 group-hover:opacity-5 transition duration-1000" />
 
             <CardHeader className="space-y-1 relative pt-10">

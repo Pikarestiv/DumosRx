@@ -78,7 +78,7 @@ export function TransactionFilters({
   );
 }
 
-export function FilterPill({
+function FilterPill({
   label,
   current,
   onClick,

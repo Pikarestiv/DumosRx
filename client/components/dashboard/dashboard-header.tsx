@@ -113,7 +113,7 @@ export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
 
   return (
     <header
-      className="h-auto min-h-16 py-3 bg-card sm:bg-background border-b border-border sm:border-transparent flex flex-col justify-center px-4 sm:px-6 sticky z-40 before:absolute before:inset-x-0 before:bottom-full before:h-[100vh] before:bg-card sm:before:bg-background before:-z-10"
+      className="h-auto min-h-16 py-4 bg-card sm:bg-background border-b border-border sm:border-transparent flex flex-col justify-center px-4 sm:px-6 sticky z-40 before:absolute before:inset-x-0 before:bottom-full before:h-[100vh] before:bg-card sm:before:bg-background before:-z-10"
       style={{ top: "var(--tauri-top, 0px)" }}
     >
       <div className="flex items-center justify-between w-full">
@@ -137,7 +137,7 @@ export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
             <LiveClock />
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1 sm:gap-1.5">
             {!!!pageInfo && (
               <>
                 <span className="text-foreground text-base sm:text-xl font-bold tracking-tight font-serif">
@@ -146,14 +146,13 @@ export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
                     if (hour < 12) return "Good morning,";
                     if (hour === 12) return "Good noon,";
                     if (hour < 17) return "Good afternoon,";
-                    if (hour < 21) return "Good evening,";
-                    return "Good night,";
+                    return "Good evening,";
                   })()}
                 </span>
-                <span className="text-foreground text-base sm:text-xl font-bold sm:hidden tracking-tight font-serif">
+                <span className="text-foreground text-base sm:text-xl font-bold hidden sm:inline-block tracking-tight font-serif truncate">
                   {user?.first_name} {user?.last_name}
                 </span>
-                <span className="text-foreground text-base sm:text-xl font-bold hidden sm:inline-block tracking-tight font-serif">
+                <span className="text-foreground text-base sm:text-xl font-bold sm:hidden tracking-tight font-serif truncate">
                   {user?.first_name}
                 </span>
               </>

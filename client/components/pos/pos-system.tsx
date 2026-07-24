@@ -107,6 +107,7 @@ export function POSSystem() {
     rawDiscount: discount,
     discountType,
     selectedCustomer,
+    setSelectedCustomer,
     clearCart,
     refetchProducts,
     refetchSales,

@@ -52,7 +52,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [hoverExpanded, setHoverExpanded] = useState(false);
   const [userNavOpen, setUserNavOpen] = useState(false);
   const isLogicallyCollapsed = isPosRoute ? true : sidebarCollapsed;
-  const effectiveCollapsed = isLogicallyCollapsed && !hoverExpanded && !userNavOpen;
+  const effectiveCollapsed =
+    isLogicallyCollapsed && !hoverExpanded && !userNavOpen;
   const contentCollapsed = isLogicallyCollapsed;
 
   /* Hydrate collapse preference from localStorage */
@@ -70,7 +71,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const handleToggleCollapse = () => {
     if (isPosRoute) {
-      toast.info("The POS view is collapsed by default to maximize workspace width.");
+      toast.info(
+        "The POS view is collapsed by default to maximize workspace width.",
+      );
       return;
     }
     setSidebarCollapsed((prev) => {
@@ -171,7 +174,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         />
       </div>
 
-      {!isPosRoute && <div className="print:hidden"><MobileBottomNav onOpenFeedback={() => setFeedbackOpen(true)} /></div>}
+      {!isPosRoute && (
+        <div className="print:hidden">
+          <MobileBottomNav onOpenFeedback={() => setFeedbackOpen(true)} />
+        </div>
+      )}
 
       <FeedbackForm open={feedbackOpen} onOpenChange={setFeedbackOpen} />
       <OnlineOrdersModal />
@@ -184,7 +191,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         )}
         style={{
           paddingTop: "var(--tauri-top, 0px)",
-          paddingBottom: isPosRoute ? "var(--tauri-bottom, env(safe-area-inset-bottom))" : "calc(5.5rem + var(--tauri-bottom, env(safe-area-inset-bottom)))",
+          paddingBottom: isPosRoute
+            ? "var(--tauri-bottom, env(safe-area-inset-bottom))"
+            : "calc(5.5rem + var(--tauri-bottom, env(safe-area-inset-bottom)))",
         }}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
@@ -193,14 +202,22 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           <BroadcastBanner />
         </div>
 
-        {!isPosRoute && <div className="print:hidden"><DashboardHeader onOpenFeedback={() => setFeedbackOpen(true)} /></div>}
+        {!isPosRoute && (
+          <div className="print:hidden">
+            <DashboardHeader onOpenFeedback={() => setFeedbackOpen(true)} />
+          </div>
+        )}
 
         {/* Page content */}
         <div className="flex-1 relative overflow-x-clip">
-          <main className={isPosRoute ? "" : "p-4 sm:p-6"}>{children}</main>
+          <main className={isPosRoute ? "" : "p-4 sm:p-6 sm:pt-3"}>
+            {children}
+          </main>
         </div>
       </div>
-      <div className="print:hidden"><DashboardTour /></div>
+      <div className="print:hidden">
+        <DashboardTour />
+      </div>
     </div>
   );
 }

@@ -70,3 +70,10 @@ export function getUserInitials(firstName?: string | null, lastName?: string | n
   const initials = `${f}${l}`.toUpperCase();
   return initials || "U";
 }
+
+/**
+ * Simple string pluralization based on count.
+ */
+export function pluralize(count: number, singular: string, plural?: string): string {
+  return count === 1 ? singular : (plural || `${singular}s`);
+}

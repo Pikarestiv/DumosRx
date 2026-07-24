@@ -52,7 +52,7 @@ export function POSLayoutHeader({
         <Button 
           variant="outline" 
           size="icon" 
-          className="h-9 w-9 rounded-xl bg-muted/50 border-border/50 text-muted-foreground hover:text-foreground shrink-0"
+          className="md:hidden h-9 w-9 rounded-xl bg-muted/50 border-border/50 text-muted-foreground hover:text-foreground shrink-0"
           onClick={() => router.push('/dashboard')}
         >
           <ChevronLeft className="h-5 w-5" />

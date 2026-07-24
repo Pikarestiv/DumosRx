@@ -75,7 +75,7 @@ export async function getPurchaseOrderById(id: string) {
     `SELECT poi.*, m.name as product_name, m.base_unit, m.bulk_unit 
      FROM purchase_order_items poi 
      JOIN products m ON poi.product_id = m.id 
-     WHERE poi.po_id = ?`,
+     WHERE poi.po_id = ? AND poi._deleted = 0`,
     [id]
   );
 
@@ -126,10 +126,64 @@ export async function createPurchaseOrder(
   return poId;
 }
 
+export async function updatePurchaseOrder(
+  poId: string,
+  supplierId: string, 
+  notes: string, 
+  items: any[],
+  paymentStatus: string = 'unpaid',
+  amountPaid: number = 0,
+  dueDate: string | null = null
+) {
+  const now = new Date().toISOString();
+  let totalAmount = 0;
+
+  for (const item of items) {
+    totalAmount += item.subtotal;
+  }
+
+  // Soft delete existing items
+  const existingItems = await query<any>(
+    "SELECT id FROM purchase_order_items WHERE po_id = ? AND _deleted = 0",
+    [poId]
+  );
+  
+  for (const item of existingItems) {
+    await softDelete("purchase_order_items", item.id);
+  }
+
+  // Update PO details
+  await update("purchase_orders", poId, {
+    supplier_id: supplierId,
+    payment_status: paymentStatus,
+    amount_paid: amountPaid,
+    due_date: dueDate,
+    total_amount: totalAmount,
+    notes,
+    updated_at: now
+  });
+
+  // Insert new items
+  for (const item of items) {
+    await insert("purchase_order_items", {
+      id: generateId(),
+      po_id: poId,
+      product_id: item.product_id,
+      bulk_quantity: item.bulk_quantity,
+      units_per_bulk: item.units_per_bulk,
+      unit_cost: item.unit_cost,
+      subtotal: item.subtotal,
+      created_at: now
+    });
+  }
+
+  return poId;
+}
+
 export async function updatePurchaseOrderStatus(id: string, status: string) {
   const updateData: any = { status };
   if (status === "received") {
-    updateData.received_at = new Date().toISOString();
+    updateData.received_at = new Date().toISOString().slice(0, 19).replace('T', ' ');
   }
   await update("purchase_orders", id, updateData);
 }
@@ -138,7 +192,7 @@ export async function receivePurchaseOrder(id: string, receivedItems?: any[]) {
   const poData = await getPurchaseOrderById(id);
   if (!poData || poData.status === "received") return;
 
-  const now = new Date().toISOString();
+  const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
 
   for (const item of poData.items) {
     const receivedItem = receivedItems?.find(ri => ri.po_item_id === item.id);
@@ -149,7 +203,7 @@ export async function receivePurchaseOrder(id: string, receivedItems?: any[]) {
     const totalBaseUnits = bulkQty * unitsPerBulk;
     
     const batchNumber = receivedItem?.lot_number?.trim() || poData.id.split('-')[0].toUpperCase();
-    const expiryDate = receivedItem?.expiry_date ? new Date(receivedItem.expiry_date).toISOString() : null;
+    const expiryDate = receivedItem?.expiry_date ? new Date(receivedItem.expiry_date).toISOString().slice(0, 10) : null;
 
     const safeUnitsPerBulk = unitsPerBulk || 1;
     const baseUnitCost = Number(item.unit_cost) / safeUnitsPerBulk;

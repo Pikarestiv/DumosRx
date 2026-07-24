@@ -1,6 +1,6 @@
 import { toast } from "sonner";
 import { insert, update } from "@/lib/db/local-database";
-import { getCategoryByName, getSupplierByName } from "@/lib/db/queries/products";
+import { getCategoryByName } from "@/lib/db/queries/products";
 import { Product } from "./types";
 import { useStore } from "@/lib/context/store-context";
 

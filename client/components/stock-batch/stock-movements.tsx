@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, Lock, X } from "lucide-react";
+import { Search, Lock, X, DollarSign, RefreshCw, AlertTriangle, Shield, Undo2 } from "lucide-react";
+import { format, isToday, isYesterday, differenceInDays } from "date-fns";
 import { genericFuzzySearch } from "@/lib/utils/search";
 import { StockMovementsSkeleton } from "./stock-movements-skeleton";
 import { useRouter } from "next/navigation";
@@ -28,6 +29,46 @@ const FILTER_TYPES = [
   { id: "damaged", label: "Damage" },
   { id: "adjustment", label: "Adjustments" },
 ];
+
+
+const getTypeColor = (type: string) => {
+  switch (type.toLowerCase()) {
+    case 'adjustment': return 'bg-amber-100 text-amber-700 border border-amber-200 dark:bg-amber-500/20 dark:text-amber-400 dark:border-amber-500/30';
+    case 'purchase':
+    case 'restock': return 'bg-blue-100 text-blue-700 border border-blue-200 dark:bg-blue-500/20 dark:text-blue-400 dark:border-blue-500/30';
+    case 'return': return 'bg-purple-100 text-purple-700 border border-purple-200 dark:bg-purple-500/20 dark:text-purple-400 dark:border-purple-500/30';
+    case 'damaged':
+    case 'damage': return 'bg-red-100 text-red-700 border border-red-200 dark:bg-red-500/20 dark:text-red-400 dark:border-red-500/30';
+    case 'sale': return 'bg-emerald-100 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/30';
+    default: return 'bg-muted/30 border border-border text-foreground';
+  }
+}
+
+const getTypeIcon = (type: string) => {
+  switch (type.toLowerCase()) {
+    case 'adjustment': return <Shield className="w-4 h-4 text-amber-600 dark:text-amber-400" />;
+    case 'purchase':
+    case 'restock': return <RefreshCw className="w-4 h-4 text-blue-600 dark:text-blue-400" />;
+    case 'return': return <Undo2 className="w-4 h-4 text-purple-600 dark:text-purple-400" />;
+    case 'damaged':
+    case 'damage': return <AlertTriangle className="w-4 h-4 text-red-600 dark:text-red-400" />;
+    case 'sale': return <DollarSign className="w-4 h-4 text-emerald-600 dark:text-emerald-500" />;
+    default: return <Search className="w-4 h-4 text-muted-foreground" />;
+  }
+}
+
+const getTypeIconBg = (type: string) => {
+  switch (type.toLowerCase()) {
+    case 'adjustment': return 'bg-amber-50 dark:bg-amber-500/10';
+    case 'purchase':
+    case 'restock': return 'bg-blue-50 dark:bg-blue-500/10';
+    case 'return': return 'bg-purple-50 dark:bg-purple-500/10';
+    case 'damaged':
+    case 'damage': return 'bg-red-50 dark:bg-red-500/10';
+    case 'sale': return 'bg-emerald-50 dark:bg-emerald-500/10';
+    default: return 'bg-muted/30';
+  }
+}
 
 export function StockMovements() {
   const [movements, setMovements] = useState<StockMovement[]>([]);
@@ -90,6 +131,22 @@ export function StockMovements() {
     return d.toLocaleDateString("en-US", { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
+  const groupedMovements = filteredMovements.reduce((acc, movement) => {
+    const date = new Date(movement.date);
+    let groupLabel = format(date, "MMM d, yyyy").toUpperCase();
+    
+    if (isToday(date)) groupLabel = 'TODAY';
+    else if (isYesterday(date)) groupLabel = 'YESTERDAY';
+    else {
+      const diff = differenceInDays(new Date(), date);
+      if (diff > 1 && diff <= 7) groupLabel = `${diff} DAYS AGO`;
+    }
+    
+    if (!acc[groupLabel]) acc[groupLabel] = [];
+    acc[groupLabel].push(movement);
+    return acc;
+  }, {} as Record<string, StockMovement[]>);
+
   if (loading) {
     return <StockMovementsSkeleton />;
   }
@@ -141,55 +198,106 @@ export function StockMovements() {
         </div>
 
         {/* List */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto pb-6">
           {filteredMovements.length === 0 && (
-                              <div className="p-8 text-center text-muted-foreground text-[13px]">
-                                No movements found.
+            <div className="p-8 text-center text-muted-foreground text-[13px]">
+              No movements found.
+            </div>
+          )}
+          {filteredMovements.length > 0 && (
+            <>
+              {/* Desktop View */}
+              <div className="hidden md:block">
+                {filteredMovements.map((movement) => {
+                  const isPositive = movement.quantity > 0;
+                  return (
+                    <div
+                      key={movement.id}
+                      onClick={() => setSelectedMovement(movement)}
+                      className="grid grid-cols-[100px_1fr_130px_100px_1fr_120px] gap-2 px-4 py-3 items-center border-b border-border cursor-pointer hover:bg-accent/50 transition-colors"
+                    >
+                      <div className="text-[12px] text-muted-foreground">
+                        {formatTime(movement.date)}
+                      </div>
+                      <div className="text-[13px] font-semibold truncate">
+                        {movement.product}
+                      </div>
+                      <div>
+                        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-md capitalize ${getTypeColor(movement.type)}`}>
+                          {movement.type}
+                        </span>
+                      </div>
+                      <div
+                        className={`text-[14px] font-semibold ${
+                          isPositive ? "text-emerald-700" : "text-destructive"
+                        }`}
+                      >
+                        {isPositive ? "+" : ""}{movement.quantity}
+                      </div>
+                      <div className="text-[12px] text-muted-foreground truncate">
+                        {movement.reference || movement.reason || "-"}
+                      </div>
+                      <div className="text-[12px] text-foreground truncate">
+                        {movement.user}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Mobile View */}
+              <div className="md:hidden mt-4">
+                {Object.entries(groupedMovements).map(([groupLabel, groupItems]) => (
+                  <div key={groupLabel} className="mb-6">
+                    <div className="text-[11px] font-bold text-muted-foreground/70 uppercase tracking-wide px-4 mb-2">
+                      {groupLabel}
+                    </div>
+                    <div className="bg-card border border-border rounded-[14px] mx-4 shadow-sm overflow-hidden">
+                      {groupItems.map((movement, i) => {
+                        const isPositive = movement.quantity > 0;
+                        const Icon = getTypeIcon(movement.type);
+                        const iconBg = getTypeIconBg(movement.type);
+                        const isLast = i === groupItems.length - 1;
+                        
+                        let displayReason = movement.reason || movement.reference || "-";
+                        if (movement.type.toLowerCase() === 'sale') displayReason = `Sale ${movement.reference}`;
+                        else if (movement.type.toLowerCase() === 'purchase' || movement.type.toLowerCase() === 'restock') displayReason = `PO-${movement.reference}`;
+
+                        const signColor = 
+                          movement.type.toLowerCase() === 'sale' ? 'text-foreground' : 
+                          isPositive ? 'text-emerald-600' : 'text-destructive';
+
+                        return (
+                          <div
+                            key={movement.id}
+                            onClick={() => setSelectedMovement(movement)}
+                            className={`flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-accent/50 transition-colors ${!isLast ? 'border-b border-border/40' : ''}`}
+                          >
+                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${iconBg}`}>
+                              {Icon}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-[14px] font-semibold text-foreground truncate">
+                                {movement.product}
                               </div>
-                            )}
-                  {!(filteredMovements.length === 0) && (
-                              filteredMovements.map((movement) => {
-                                const isPositive = movement.quantity > 0;
-                                return (
-                                  <div
-                                    key={movement.id}
-                                    onClick={() => setSelectedMovement(movement)}
-                                    className="grid grid-cols-1 md:grid-cols-[100px_1fr_130px_100px_1fr_120px] gap-2 px-4 py-3 items-center border-b border-border cursor-pointer hover:bg-accent/50 transition-colors"
-                                  >
-                                    <div className="text-[12px] text-muted-foreground">
-                                      <span className="md:hidden font-semibold mr-1">{formatDate(movement.date)}</span>
-                                      {formatTime(movement.date)}
-                                    </div>
-                                    <div className="text-[13px] font-semibold truncate">
-                                      {movement.product}
-                                    </div>
-                                    <div>
-                                      <span className="text-[11px] font-semibold bg-muted/30 border border-border text-foreground px-2 py-0.5 rounded-md capitalize">
-                                        {movement.type}
-                                      </span>
-                                    </div>
-                                    <div
-                                      className={`text-[14px] font-semibold ${
-                                        isPositive ? "text-emerald-700" : "text-destructive"
-                                      }`}
-                                    >
-                                      {!!(isPositive) && "+"}
-                                            {!(isPositive) && ""}
-                                      {movement.quantity}
-                                    </div>
-                                    <div className="text-[12px] text-muted-foreground truncate">
-                                      {movement.reference || movement.reason || "-"}
-                                    </div>
-                                    <div className="text-[12px] text-foreground truncate">
-                                      {movement.user}
-                                    </div>
-                                  </div>
-                                );
-                              })
-                            )}
+                              <div className="text-[12px] text-muted-foreground truncate mt-0.5">
+                                {displayReason} · {movement.user.split(' ')[0]}
+                              </div>
+                            </div>
+                            <div className={`text-[15px] font-bold shrink-0 ${signColor}`}>
+                              {isPositive ? "+" : ""}{movement.quantity}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </div>
-
       {/* Detail Modal overlay */}
       {selectedMovement && (
         <div className="fixed inset-0 bg-[rgba(16,24,40,0.42)] z-50 flex items-center justify-center p-4">

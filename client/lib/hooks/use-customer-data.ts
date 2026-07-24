@@ -2,11 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { insert, generateId } from "@/lib/db/local-database";
-import { getCustomers, getCustomerRetentionMetrics } from "@/lib/db/queries/customers";
+import { insert, update, generateId } from "@/lib/db/local-database";
+import { getCustomers, getCustomerRetentionMetrics, getCustomerTransactions } from "@/lib/db/queries/customers";
 export interface Customer {
   id: string;
   name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   phone: string;
   address: string;
@@ -33,6 +35,8 @@ const transformCustomer = (dbData: any): Customer => {
   return {
     id: dbData.id,
     name: `${dbData.first_name} ${dbData.last_name || ""}`.trim(),
+    firstName: dbData.first_name || "",
+    lastName: dbData.last_name || "",
     email: dbData.email || "",
     phone: dbData.phone || "",
     address: dbData.address || "",
@@ -143,11 +147,131 @@ export function useCustomerData() {
     }
   };
 
+  const updateCustomer = async (id: string, payload: any): Promise<Customer | null> => {
+    try {
+      const existing = customers.find((c) => c.id === id);
+      if (!existing) return null;
+
+      const customerData = {
+        first_name: payload.first_name ?? null,
+        last_name: payload.last_name ?? null,
+        email: payload.email ?? null,
+        phone: payload.phone ?? null,
+        address: payload.address ?? null,
+        date_of_birth: payload.date_of_birth || null,
+        gender: payload.gender ?? null,
+        allergies: payload.allergies ?? null,
+        medical_conditions: payload.medical_conditions ?? null,
+      };
+
+      await update("customers", id, customerData);
+
+      const updatedCustomer = transformCustomer({
+        ...customerData,
+        id,
+        total_spent: existing.totalSpent,
+        loyalty_points: existing.points,
+        last_visit: existing.lastVisit === "-" ? null : existing.lastVisit,
+        created_at: existing.joinDate,
+        is_active: existing.status === "active",
+        outstanding_balance: existing.outstanding_balance,
+      });
+
+      setCustomers((prev) => prev.map((c) => (c.id === id ? updatedCustomer : c)));
+      toast.success("Customer updated successfully");
+      return updatedCustomer;
+    } catch (error: any) {
+      console.error("Failed to update customer", error);
+      toast.error("Failed to update customer");
+      throw error;
+    }
+  };
+
+  const recordPayment = async (
+    id: string,
+    amount: number,
+    paymentMethod: string,
+    notes?: string,
+  ): Promise<Customer | null> => {
+    try {
+      const existing = customers.find((c) => c.id === id);
+      if (!existing) return null;
+
+      const now = new Date().toISOString();
+      await insert("customer_payments", {
+        customer_id: id,
+        amount,
+        payment_method: paymentMethod,
+        notes: notes || null,
+        payment_date: now,
+      });
+
+      const newBalance = Math.max(0, existing.outstanding_balance - amount);
+      await update("customers", id, { outstanding_balance: newBalance });
+
+      const updatedCustomer: Customer = { ...existing, outstanding_balance: newBalance };
+      setCustomers((prev) => prev.map((c) => (c.id === id ? updatedCustomer : c)));
+      toast.success("Payment recorded successfully");
+      return updatedCustomer;
+    } catch (error: any) {
+      console.error("Failed to record payment", error);
+      toast.error("Failed to record payment");
+      throw error;
+    }
+  };
+
   return {
     customers,
     metrics,
     loading,
     fetchCustomers,
     addCustomer,
+    updateCustomer,
+    recordPayment,
   };
+}
+
+export interface CustomerTransaction {
+  id: string;
+  transactionNumber: string;
+  customerId: string;
+  customerName: string;
+  amount: number;
+  pointsEarned: number;
+  date: string;
+  itemCount: number;
+  itemNames: string[];
+}
+
+const transformTransaction = (row: any): CustomerTransaction => ({
+  id: row.id,
+  transactionNumber: row.transaction_number,
+  customerId: row.customer_id,
+  customerName: `${row.first_name} ${row.last_name || ""}`.trim(),
+  amount: row.total_amount || 0,
+  pointsEarned: row.points_earned || 0,
+  date: row.transaction_date,
+  itemCount: row.item_count || 0,
+  itemNames: row.item_names ? String(row.item_names).split("||").filter(Boolean) : [],
+});
+
+export function useCustomerTransactions() {
+  const [transactions, setTransactions] = useState<CustomerTransaction[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      try {
+        const data = await getCustomerTransactions();
+        setTransactions(data.map(transformTransaction));
+      } catch (error) {
+        console.error("Failed to fetch customer transactions", error);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  return { transactions, loading };
 }

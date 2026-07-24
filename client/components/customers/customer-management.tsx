@@ -13,12 +13,15 @@ import { DirectoryTab } from "./directory-tab";
 import { ActivityTab } from "./activity-tab";
 import { LoyaltyTab } from "./loyalty-tab";
 import { AddCustomerModal } from "./add-customer-modal";
+import { EditCustomerModal } from "./edit-customer-modal";
+import { RecordPaymentModal } from "./record-payment-modal";
 
 export function CustomerManagement() {
   const { storeType, storeProfile } = useStore();
   const isStore = storeType === "pharmacy";
 
-  const { customers, metrics, addCustomer } = useCustomerData();
+  const { customers, metrics, addCustomer, updateCustomer, recordPayment } =
+    useCustomerData();
 
   const loyaltyTiers = [
     {
@@ -71,6 +74,10 @@ export function CustomerManagement() {
     null,
   );
   const [isAddCustomerOpen, setIsAddCustomerOpen] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [payingCustomer, setPayingCustomer] = useState<Customer | null>(null);
+  const [activityFilterCustomer, setActivityFilterCustomer] =
+    useState<Customer | null>(null);
 
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -94,6 +101,36 @@ export function CustomerManagement() {
   const handleAddCustomer = async (payload: any) => {
     await addCustomer(payload);
     setIsAddCustomerOpen(false);
+  };
+
+  const handleUpdateCustomer = async (payload: any) => {
+    if (!editingCustomer) return;
+    const updated = await updateCustomer(editingCustomer.id, payload);
+    if (updated) {
+      setSelectedCustomer(updated);
+      if (activityFilterCustomer?.id === updated.id) {
+        setActivityFilterCustomer(updated);
+      }
+    }
+    setEditingCustomer(null);
+  };
+
+  const handleViewHistory = (customer: Customer) => {
+    setActivityFilterCustomer(customer);
+    handleTabChange("activity");
+  };
+
+  const handleRecordPayment = async (
+    amount: number,
+    paymentMethod: string,
+    notes: string,
+  ) => {
+    if (!payingCustomer) return;
+    const updated = await recordPayment(payingCustomer.id, amount, paymentMethod, notes);
+    if (updated) {
+      setSelectedCustomer(updated);
+    }
+    setPayingCustomer(null);
   };
 
   const { results: filteredCustomers } = genericFuzzySearch(
@@ -169,6 +206,9 @@ export function CustomerManagement() {
             setSelectedCustomer={setSelectedCustomer}
             getTierColor={getTierColor}
             currencyCode={storeProfile?.currency}
+            onViewHistory={handleViewHistory}
+            onEditProfile={setEditingCustomer}
+            onRecordPayment={setPayingCustomer}
           />
         </TabsContent>
 
@@ -177,8 +217,10 @@ export function CustomerManagement() {
           className="flex-1 min-h-0 mt-0 border-none p-0"
         >
           <ActivityTab
-            customers={customers}
             currencyCode={storeProfile?.currency}
+            filterCustomerId={activityFilterCustomer?.id}
+            filterCustomerName={activityFilterCustomer?.name}
+            onClearFilter={() => setActivityFilterCustomer(null)}
           />
         </TabsContent>
 
@@ -186,7 +228,7 @@ export function CustomerManagement() {
           value="loyalty"
           className="flex-1 min-h-0 mt-0 border-none p-0"
         >
-          <LoyaltyTab tiers={loyaltyTiers} />
+          <LoyaltyTab tiers={loyaltyTiers} currencyCode={storeProfile?.currency} />
         </TabsContent>
       </Tabs>
 
@@ -194,6 +236,19 @@ export function CustomerManagement() {
         isOpen={isAddCustomerOpen}
         onClose={() => setIsAddCustomerOpen(false)}
         onSubmit={handleAddCustomer}
+      />
+
+      <EditCustomerModal
+        customer={editingCustomer}
+        onClose={() => setEditingCustomer(null)}
+        onSubmit={handleUpdateCustomer}
+      />
+
+      <RecordPaymentModal
+        customer={payingCustomer}
+        currencyCode={storeProfile?.currency}
+        onClose={() => setPayingCustomer(null)}
+        onSubmit={handleRecordPayment}
       />
     </div>
   );

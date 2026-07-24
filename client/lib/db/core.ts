@@ -321,6 +321,7 @@ export async function initDatabase(): Promise<any> {
         "_synced INTEGER DEFAULT 0",
         "_synced_at TEXT",
         "_deleted INTEGER DEFAULT 0",
+        "stock_batch_id TEXT",
       ],
     },
     { table: "payment_accounts", columns: ["user_id TEXT", "store_id TEXT"] },

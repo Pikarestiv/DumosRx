@@ -29,7 +29,7 @@ export function POSLayoutHeader({
   searchInputRef,
   heldSalesCount,
   onOpenHeldSales,
-  onScanSuccess
+  onScanSuccess,
 }: POSLayoutHeaderProps) {
   const router = useRouter();
   const { storeProfile } = useStore();
@@ -44,16 +44,15 @@ export function POSLayoutHeader({
 
   return (
     <header
-      className="h-auto min-h-16 py-3 bg-background flex items-center px-4 sm:px-6 sticky z-40 border-b border-border/50 before:absolute before:inset-x-0 before:bottom-full before:h-[100vh] before:bg-background before:-z-10"
-      style={{ top: "var(--tauri-top, 0px)" }}
+      className="h-auto min-h-16 py-3 bg-background flex items-center px-4 sm:px-6 shrink-0 border-b border-border/50 relative"
     >
       {/* Left side: Title and Back button */}
       <div className="flex items-center gap-3">
-        <Button 
-          variant="outline" 
-          size="icon" 
+        <Button
+          variant="outline"
+          size="icon"
           className="md:hidden h-9 w-9 rounded-xl bg-muted/50 border-border/50 text-muted-foreground hover:text-foreground shrink-0"
-          onClick={() => router.push('/dashboard')}
+          onClick={() => router.push("/dashboard")}
         >
           <ChevronLeft className="h-5 w-5" />
         </Button>
@@ -93,7 +92,12 @@ export function POSLayoutHeader({
                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground focus:outline-none cursor-pointer flex items-center justify-center"
               >
                 <span className="sr-only">Clear</span>
-                <span aria-hidden="true" className="text-lg font-bold leading-none">&times;</span>
+                <span
+                  aria-hidden="true"
+                  className="text-lg font-bold leading-none"
+                >
+                  &times;
+                </span>
               </button>
             )}
           </div>
@@ -110,9 +114,9 @@ export function POSLayoutHeader({
       {/* Right side: Actions */}
       <div className="flex items-center gap-2 sm:gap-3 ml-auto">
         {/* Fullscreen toggle (Desktop only) */}
-        <Button 
-          variant="outline" 
-          size="icon" 
+        <Button
+          variant="outline"
+          size="icon"
           className="hidden sm:flex h-10 w-10 shrink-0 rounded-xl border-border/50 bg-background text-muted-foreground hover:text-foreground"
           onClick={() => {
             if (!document.fullscreenElement) {
@@ -126,13 +130,15 @@ export function POSLayoutHeader({
         </Button>
 
         {/* Held Sales Button */}
-        <Button 
-          variant="outline" 
-          size="icon" 
+        <Button
+          variant="outline"
+          size="icon"
           onClick={onOpenHeldSales}
           className={cn(
             "relative h-10 w-10 shrink-0 rounded-xl border-border/50 bg-background hover:text-foreground transition-colors",
-            heldSalesCount > 0 ? "text-amber-600 hover:text-amber-700 hover:bg-amber-500/10 border-amber-500/20" : "text-muted-foreground"
+            heldSalesCount > 0
+              ? "text-amber-600 hover:text-amber-700 hover:bg-amber-500/10 border-amber-500/20"
+              : "text-muted-foreground",
           )}
         >
           <FileClock className="h-5 w-5" />
@@ -144,10 +150,10 @@ export function POSLayoutHeader({
         </Button>
       </div>
 
-      <CameraScannerDialog 
-        isOpen={isScannerOpen} 
-        onClose={() => setIsScannerOpen(false)} 
-        onScanSuccess={onScanSuccess} 
+      <CameraScannerDialog
+        isOpen={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        onScanSuccess={onScanSuccess}
       />
     </header>
   );

@@ -1,17 +1,47 @@
 "use client";
 
 import { useState } from "react";
+import { subDays } from "date-fns";
+import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar } from "lucide-react";
+import { Calendar, Download } from "lucide-react";
 import { useBIData } from "@/lib/hooks/use-bi-data";
+import { useReportExport } from "@/lib/hooks/use-report-export";
 import { BIKeyMetrics } from "./bi-key-metrics";
 import { SalesAnalyticsTab } from "./sales-analytics-tab";
 import { ProfitLossTab } from "./profit-loss-tab";
 import { StockBatchInsightsTab } from "./stock-batch-insights-tab";
 import { CustomerBehaviorTab } from "./customer-behavior-tab";
 
+const TIME_RANGE_DAYS: Record<string, number> = {
+  "7d": 7,
+  "30d": 30,
+  "90d": 90,
+  "1y": 365,
+};
+
 export function BusinessIntelligenceDashboard() {
   const [timeRange, setTimeRange] = useState("30d");
+  const [exporting, setExporting] = useState(false);
+  const { exportProfitLossReport } = useReportExport();
+
+  const handleExportReports = async () => {
+    setExporting(true);
+    try {
+      const days = TIME_RANGE_DAYS[timeRange] ?? 30;
+      const to = new Date().toISOString();
+      const from = subDays(new Date(), days).toISOString();
+      await exportProfitLossReport(from, to);
+      toast.success("Export successful", { description: "Your report has been downloaded." });
+    } catch (err) {
+      console.error(err);
+      toast.error("Export failed", {
+        description: "Something went wrong generating the report.",
+      });
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const {
     totalRevenue,
@@ -47,9 +77,13 @@ export function BusinessIntelligenceDashboard() {
             <option value="1y">Last Year</option>
           </select>
         </div>
-        <button className="flex items-center gap-1.5 border bg-background text-foreground text-[13px] font-semibold px-4 py-2.5 rounded-[10px] cursor-pointer hover:bg-secondary/50 transition-colors">
-          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-          Export Reports
+        <button
+          onClick={handleExportReports}
+          disabled={exporting}
+          className="flex items-center gap-1.5 border bg-background text-foreground text-[13px] font-semibold px-4 py-2.5 rounded-[10px] cursor-pointer hover:bg-secondary/50 transition-colors disabled:opacity-50"
+        >
+          <Download className="w-4 h-4" />
+          {exporting ? "Exporting..." : "Export Reports"}
         </button>
       </div>
 

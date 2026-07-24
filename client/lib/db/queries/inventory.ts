@@ -149,9 +149,9 @@ export async function getStockBatchStats(expiryDays: number = 30) {
       SUM(CASE WHEN p.is_active = 1 THEN 1 ELSE 0 END) AS active_products,
       SUM(CASE WHEN COALESCE(sb.total_qty, 0) <= p.reorder_level AND COALESCE(sb.total_qty, 0) > 0 THEN 1 ELSE 0 END) AS low_stock_count,
       SUM(CASE WHEN COALESCE(sb.total_qty, 0) = 0 THEN 1 ELSE 0 END) AS critical_stock_count,
-      SUM(CASE WHEN sb.expiring_soon > 0 THEN 1 ELSE 0 END) AS expiring_soon_count,
-      SUM(CASE WHEN sb.expired > 0 THEN 1 ELSE 0 END) AS expired_count,
-      SUM(CASE WHEN sb.missing_expiry > 0 THEN 1 ELSE 0 END) AS missing_expiry_count,
+      SUM(COALESCE(sb.expiring_soon, 0)) AS expiring_soon_count,
+      SUM(COALESCE(sb.expired, 0)) AS expired_count,
+      SUM(COALESCE(sb.missing_expiry, 0)) AS missing_expiry_count,
       COALESCE(SUM(sb.total_value), 0) AS total_stock_batch_value,
       COUNT(DISTINCT p.category_id) as active_categories
     FROM products p
@@ -310,7 +310,7 @@ export async function getStockMoM() {
   const netChange30 = addedVal - removedVal;
 
   const previousVal = currentVal - netChange30;
-  const percentChange = previousVal > 0 ? (netChange30 / previousVal) * 100 : 0;
+  const percentChange = previousVal > 0 ? (netChange30 / previousVal) * 100 : (netChange30 > 0 ? 100 : 0);
 
   return {
     currentValue: currentVal,

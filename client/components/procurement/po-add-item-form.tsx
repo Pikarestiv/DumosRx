@@ -133,8 +133,21 @@ export function POAddItemForm({
       </div>
       <div className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 items-end">
         <div className="space-y-1">
-          <Label className="text-[10.5px] font-semibold text-muted-foreground uppercase tracking-wide">
-            Qty (Bulk)
+          <Label className="text-[10.5px] font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+            Qty ({products.find((m) => m.id === currentProductId)?.bulk_unit || "Bulk"})
+            <TooltipProvider delayDuration={0}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="w-3 h-3 opacity-50 cursor-pointer" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>
+                    How many bulk units (e.g. Cartons) you&apos;re ordering — not
+                    individual base units.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </Label>
           <Input
             type="number"
@@ -154,7 +167,10 @@ export function POAddItemForm({
                   <Info className="w-3 h-3 opacity-50 cursor-pointer" />
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Number of base units inside one bulk unit</p>
+                  <p>
+                    Number of base units (e.g. Tablets) inside one bulk unit (e.g.
+                    Carton) — received stock is converted to base units automatically.
+                  </p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>

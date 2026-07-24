@@ -42,7 +42,7 @@ export function POLineItemsList({ items, onRemoveItem, storeType }: POLineItemsL
                     {item.bulk_quantity} {item.bulk_unit}(s)
                   </Badge>
                   <span className="text-[10px] text-muted-foreground">
-                    ({item.units_per_bulk} / unit)
+                    ({item.units_per_bulk} base units per {item.bulk_unit})
                   </span>
                 </div>
               </div>

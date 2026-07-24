@@ -139,7 +139,25 @@ export function ProductFormFields({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="reorderLevel">Reorder Level</Label>
+            <div className="flex items-center gap-1">
+              <Label htmlFor="reorderLevel">
+                Reorder Level {formData.baseUnit ? `(in ${formData.baseUnit}s)` : "(in base units)"}
+              </Label>
+              <TooltipProvider>
+                <Tooltip delayDuration={300}>
+                  <TooltipTrigger asChild>
+                    <Info className="w-3 h-3 opacity-50 cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>
+                      Always entered in base units (see Packaging & Units below), not
+                      bulk units. You&apos;ll be alerted when stock falls to or below
+                      this number.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
             <Input
               id="reorderLevel"
               type="number"
@@ -252,12 +270,40 @@ export function ProductFormFields({
 
       {/* Packaging & Units */}
       <div className="space-y-4">
-        <h3 className="font-serif font-bold text-lg border-b pb-2">Packaging & Units</h3>
+        <div className="flex items-center gap-1 border-b pb-2">
+          <h3 className="font-serif font-bold text-lg">Packaging & Units</h3>
+          <TooltipProvider>
+            <Tooltip delayDuration={300}>
+              <TooltipTrigger asChild>
+                <Info className="w-3.5 h-3.5 opacity-50 cursor-help" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-[280px]">
+                <p>
+                  You buy in bulk (e.g., Carton) but sell and track stock in base
+                  units (e.g., Tablet). Reorder level, stock counts, and sales are
+                  always in base units — this section just defines the conversion.
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end bg-accent/5 p-4 rounded-lg border border-accent/10">
           <div className="space-y-2">
-            <Label htmlFor="bulkUnit" className="text-xs font-semibold text-primary">
-              Bulk Unit
-            </Label>
+            <div className="flex items-center gap-1">
+              <Label htmlFor="bulkUnit" className="text-xs font-semibold text-primary">
+                Bulk Unit (purchasing)
+              </Label>
+              <TooltipProvider>
+                <Tooltip delayDuration={300}>
+                  <TooltipTrigger asChild>
+                    <Info className="w-3 h-3 opacity-50 cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>The unit you order from suppliers in, e.g. Carton, Box, Pack.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
             <SearchableInput
               id="bulkUnit"
               value={formData.bulkUnit || ""}
@@ -266,7 +312,7 @@ export function ProductFormFields({
               placeholder="e.g., Carton"
             />
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="unitsPerBulk" className="text-xs font-semibold text-muted-foreground">
               Contains how many base units?
@@ -286,9 +332,24 @@ export function ProductFormFields({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="baseUnit" className="text-xs font-semibold text-primary">
-              Base Unit
-            </Label>
+            <div className="flex items-center gap-1">
+              <Label htmlFor="baseUnit" className="text-xs font-semibold text-primary">
+                Base Unit (selling & stock)
+              </Label>
+              <TooltipProvider>
+                <Tooltip delayDuration={300}>
+                  <TooltipTrigger asChild>
+                    <Info className="w-3 h-3 opacity-50 cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>
+                      The smallest unit you sell, e.g. Tablet, Capsule, Softgel.
+                      Stock levels and Reorder Level are always shown in this unit.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
             <SearchableInput
               id="baseUnit"
               value={formData.baseUnit || ""}

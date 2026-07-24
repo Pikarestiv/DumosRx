@@ -6,7 +6,8 @@ import { Card } from "@/components/ui/card";
 import { Tag } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { getLoyaltyRedemptionOptions } from "@/lib/db/queries/loyalty";
-import { LoyaltySettingsDialog, REDEMPTION_ICONS } from "./loyalty-settings-dialog";
+import { LoyaltySettingsDialog } from "./loyalty-settings-dialog";
+import { REDEMPTION_ICONS, REDEMPTION_ICON_BG } from "./loyalty-icons";
 
 interface Tier {
   name: string;
@@ -15,14 +16,6 @@ interface Tier {
   benefits: string[];
   color: string;
 }
-
-const ICON_BG: Record<string, string> = {
-  tag: "bg-sky-100 text-sky-700",
-  truck: "bg-violet-100 text-violet-700",
-  gift: "bg-emerald-100 text-emerald-700",
-  star: "bg-amber-100 text-amber-700",
-  percent: "bg-rose-100 text-rose-700",
-};
 
 export function LoyaltyTab({
   tiers,
@@ -128,7 +121,7 @@ export function LoyaltyTab({
               >
                 <div className="flex items-center gap-2.5 mb-2">
                   <div
-                    className={`w-9 h-9 rounded-[10px] flex items-center justify-center shrink-0 ${ICON_BG[option.icon_key] || ICON_BG.tag}`}
+                    className={`w-9 h-9 rounded-[10px] flex items-center justify-center shrink-0 ${REDEMPTION_ICON_BG[option.icon_key] || REDEMPTION_ICON_BG.tag}`}
                   >
                     <Icon className="w-4 h-4" />
                   </div>

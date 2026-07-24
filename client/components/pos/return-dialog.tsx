@@ -6,13 +6,11 @@ import {
 } from "@/components/ui/dialog";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Table,
   TableBody,
-  TableCell,
   TableHead,
   TableHeader,
   TableRow,
@@ -21,11 +19,12 @@ import { formatCurrency } from "@/lib/utils";
 import { insert, update } from "@/lib/db/local-database";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { getSaleItems, getSaleItemBatches } from "@/lib/db/queries/sales";
-import { getStockBatchById } from "@/lib/db/queries/inventory";
-import { Loader2, Minus, Plus, RotateCcw } from "lucide-react";
+import { getSaleItems } from "@/lib/db/queries/sales";
+import { restoreReturnedStock } from "@/lib/db/queries/returns";
+import { Loader2, RotateCcw } from "lucide-react";
 import { useAuth } from "@/lib/context/auth-context";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { ReturnItemRow } from "./return-item-row";
 
 interface ReturnDialogProps {
   open: boolean;
@@ -116,7 +115,8 @@ export function ReturnDialog({
         created_at: new Date().toISOString(),
       });
 
-      // 2. Create return items and update stock
+      // 2. Create return items and restore stock
+      const dumosUser = JSON.parse(localStorage.getItem("dumos_user") || "{}");
       for (const item of itemsToReturn) {
         await insert("return_items", {
           return_id: returnId,
@@ -126,70 +126,15 @@ export function ReturnDialog({
           subtotal: item.unit_price * item.returnQuantity,
         });
 
-        const dumosUser = JSON.parse(localStorage.getItem("dumos_user") || "{}");
-
-        // Restore stock to the exact batches this line was drawn from, in the
-        // proportions recorded at sale time (FEFO splits may span >1 batch).
-        // Falls back to the legacy single stock_batch_id for sales made before
-        // sale_item_batches existed.
-        const consumedBatches = await getSaleItemBatches(item.id);
-        let remainingToRestore = item.returnQuantity;
-
-        if (consumedBatches.length > 0) {
-          for (const consumed of consumedBatches) {
-            if (remainingToRestore <= 0) break;
-            const restoreQty = Math.min(consumed.quantity, remainingToRestore);
-            if (restoreQty <= 0) continue;
-
-            const currentInv = await getStockBatchById(consumed.stock_batch_id);
-            if (currentInv) {
-              await update("stock_batches", consumed.stock_batch_id, {
-                quantity: (currentInv.quantity || 0) + restoreQty,
-              });
-            }
-
-            await insert("stock_movements", {
-              product_id: item.product_id,
-              stock_batch_id: consumed.stock_batch_id,
-              movement_type: "return",
-              quantity: Math.abs(restoreQty),
-              unit_cost: item.unit_price,
-              total_cost: item.unit_price * restoreQty,
-              reference_id: returnId,
-              reference_type: "return",
-              reason: "Customer return",
-              performed_by: dumosUser?.id || null,
-              movement_date: new Date().toISOString(),
-            });
-
-            remainingToRestore -= restoreQty;
-          }
-        }
-
-        if (remainingToRestore > 0) {
-          if (item.stock_batch_id) {
-            const currentInv = await getStockBatchById(item.stock_batch_id);
-            if (currentInv) {
-              await update("stock_batches", item.stock_batch_id, {
-                quantity: (currentInv.quantity || 0) + remainingToRestore,
-              });
-            }
-          }
-
-          await insert("stock_movements", {
-            product_id: item.product_id,
-            stock_batch_id: item.stock_batch_id || null,
-            movement_type: "return",
-            quantity: Math.abs(remainingToRestore),
-            unit_cost: item.unit_price,
-            total_cost: item.unit_price * remainingToRestore,
-            reference_id: returnId,
-            reference_type: "return",
-            reason: "Customer return",
-            performed_by: dumosUser?.id || null,
-            movement_date: new Date().toISOString(),
-          });
-        }
+        await restoreReturnedStock({
+          saleItemId: item.id,
+          productId: item.product_id,
+          unitPrice: item.unit_price,
+          legacyStockBatchId: item.stock_batch_id,
+          returnQuantity: item.returnQuantity,
+          returnId,
+          performedBy: dumosUser?.id,
+        });
       }
 
       // 3. Mark sale as returned
@@ -243,88 +188,15 @@ export function ReturnDialog({
               </TableHeader>
               <TableBody>
                 {saleItems?.map((item: any) => (
-                  <TableRow key={item.id}>
-                    <TableCell>
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 rounded border-gray-300 text-accent focus:ring-accent"
-                        checked={selectedItems.get(item.id)?.selected || false}
-                        onChange={() =>
-                          handleToggleItem(item.id, item.quantity)
-                        }
-                      />
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {item.product_name}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {item.quantity}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-0">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-8 w-8 rounded-r-none border-r-0"
-                          onClick={() =>
-                            handleQtyChange(
-                              item.id,
-                              (selectedItems.get(item.id)?.quantity ??
-                                item.quantity) - 1,
-                              item.quantity,
-                            )
-                          }
-                          disabled={
-                            (selectedItems.get(item.id)?.quantity ??
-                              item.quantity) <= 1
-                          }
-                        >
-                          <Minus className="h-3 w-3" />
-                        </Button>
-                        <Input
-                          type="number"
-                          className="w-14 h-8 text-center rounded-none px-1"
-                          value={
-                            selectedItems.get(item.id)?.quantity ??
-                            item.quantity
-                          }
-                          onChange={(e) =>
-                            handleQtyChange(
-                              item.id,
-                              parseInt(e.target.value) || 1,
-                              item.quantity,
-                            )
-                          }
-                        />
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-8 w-8 rounded-l-none border-l-0"
-                          onClick={() =>
-                            handleQtyChange(
-                              item.id,
-                              (selectedItems.get(item.id)?.quantity ??
-                                item.quantity) + 1,
-                              item.quantity,
-                            )
-                          }
-                          disabled={
-                            (selectedItems.get(item.id)?.quantity ??
-                              item.quantity) >= item.quantity
-                          }
-                        >
-                          <Plus className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {formatCurrency(
-                        (selectedItems.get(item.id)?.quantity ??
-                          item.quantity) * item.unit_price,
-                        currencyCode,
-                      )}
-                    </TableCell>
-                  </TableRow>
+                  <ReturnItemRow
+                    key={item.id}
+                    item={item}
+                    quantity={selectedItems.get(item.id)?.quantity ?? item.quantity}
+                    selected={selectedItems.get(item.id)?.selected || false}
+                    currencyCode={currencyCode}
+                    onToggle={() => handleToggleItem(item.id, item.quantity)}
+                    onQtyChange={(qty) => handleQtyChange(item.id, qty, item.quantity)}
+                  />
                 ))}
               </TableBody>
             </Table>

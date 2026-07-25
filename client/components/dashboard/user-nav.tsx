@@ -147,87 +147,88 @@ export function UserNav({
   };
 
   const renderDesktopMenu = () => (
-    <DropdownMenu open={open} onOpenChange={setOpen}>
-      <DropdownMenuTrigger asChild>
-        <div className={cn(showDetails ? "w-full" : "")}>
-          <NavTrigger
-            initials={initials}
-            user={user}
-            showDetails={showDetails}
-          />
-        </div>
-      </DropdownMenuTrigger>
-
-      <DropdownMenuContent
-        className="w-56"
-        align={showDetails ? "end" : "end"}
-        side={showDetails ? "right" : "bottom"}
-        forceMount
-      >
-        <DropdownMenuLabel className="font-normal">
-          <div className="flex flex-col space-y-1 overflow-hidden">
-            <p className="text-sm font-medium leading-none truncate">
-              {user.first_name} {user.last_name}
-            </p>
-            <p className="text-xs leading-none text-muted-foreground capitalize truncate">
-              {user.role.replace(/_/g, " ")}
-            </p>
+    <div className={cn("flex items-center gap-1", showDetails ? "w-full" : "")}>
+      <DropdownMenu open={open} onOpenChange={setOpen}>
+        <DropdownMenuTrigger asChild>
+          <div className={cn(showDetails ? "flex-1 min-w-0" : "")}>
+            <NavTrigger
+              initials={initials}
+              user={user}
+              showDetails={showDetails}
+            />
           </div>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
+        </DropdownMenuTrigger>
 
-        <div className="px-2 py-1.5 flex items-center justify-between">
-          <span className="text-sm text-muted-foreground">Appearance</span>
-          <div className="flex items-center gap-1">
-            <ThemeToggle />
-            <ThemeCustomizer />
+        <DropdownMenuContent
+          className="w-56"
+          align={showDetails ? "end" : "end"}
+          side={showDetails ? "right" : "bottom"}
+          forceMount
+        >
+          <DropdownMenuLabel className="font-normal">
+            <div className="flex flex-col space-y-1 overflow-hidden">
+              <p className="text-sm font-medium leading-none truncate">
+                {user.first_name} {user.last_name}
+              </p>
+              <p className="text-xs leading-none text-muted-foreground capitalize truncate">
+                {user.role.replace(/_/g, " ")}
+              </p>
+            </div>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+
+          <div className="px-2 py-1.5 flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Appearance</span>
+            <div className="flex items-center gap-1">
+              <ThemeToggle />
+              <ThemeCustomizer />
+            </div>
           </div>
-        </div>
 
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          onClick={() => {
-            setOpen(false);
-            router.push("/settings");
-          }}
-          className="cursor-pointer group"
+          <DropdownMenuSeparator />
+          {onOpenFeedback && (
+            <>
+              <DropdownMenuItem
+                onClick={() => {
+                  setOpen(false);
+                  onOpenFeedback();
+                }}
+                className="cursor-pointer group"
+              >
+                <MessageSquare className="mr-2 h-4 w-4 group-hover:text-white group-focus:text-white transition-colors" />
+                <span>Help & Feedback</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+            </>
+          )}
+          <DropdownMenuItem
+            onClick={handleSwitchAccount}
+            className="cursor-pointer group"
+          >
+            <Repeat className="mr-2 h-4 w-4 group-hover:text-white group-focus:text-white transition-colors" />
+            <span>Switch Account</span>
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={handleFullLogout}
+            className="cursor-pointer text-destructive focus:text-destructive"
+          >
+            <LogOut className="mr-2 h-4 w-4 text-destructive" />
+            <span>Log out completely</span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      {!!showDetails && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 shrink-0 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50"
+          onClick={() => router.push("/settings")}
         >
-          <Settings className="mr-2 h-4 w-4 group-hover:text-white group-focus:text-white transition-colors" />
-          <span>Settings</span>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        {onOpenFeedback && (
-          <>
-            <DropdownMenuItem
-              onClick={() => {
-                setOpen(false);
-                onOpenFeedback();
-              }}
-              className="cursor-pointer group"
-            >
-              <MessageSquare className="mr-2 h-4 w-4 group-hover:text-white group-focus:text-white transition-colors" />
-              <span>Help & Feedback</span>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-          </>
-        )}
-        <DropdownMenuItem
-          onClick={handleSwitchAccount}
-          className="cursor-pointer group"
-        >
-          <Repeat className="mr-2 h-4 w-4 group-hover:text-white group-focus:text-white transition-colors" />
-          <span>Switch Account</span>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          onClick={handleFullLogout}
-          className="cursor-pointer text-destructive focus:text-destructive"
-        >
-          <LogOut className="mr-2 h-4 w-4 text-destructive" />
-          <span>Log out completely</span>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          <Settings className="h-4 w-4" />
+        </Button>
+      )}
+    </div>
   );
 
   const renderMobileDrawer = () => (
@@ -248,7 +249,7 @@ export function UserNav({
               {initials}
             </AvatarFallback>
           </Avatar>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <DrawerTitle className="text-[15px] font-semibold truncate">
               {user.first_name} {user.last_name}
             </DrawerTitle>
@@ -256,21 +257,21 @@ export function UserNav({
               {user.role.replace(/_/g, " ")}
             </p>
           </div>
-        </DrawerHeader>
-
-        <div className="px-4 pt-4 space-y-1.5">
-          <MobileAppearanceSettings />
-
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50"
             onClick={() => {
               setOpen(false);
               router.push("/settings");
             }}
-            className="w-full flex items-center gap-3 p-3.5 rounded-xl text-sm font-medium text-foreground hover:bg-muted transition-colors border border-transparent"
           >
-            <Settings className="h-[18px] w-[18px] opacity-90" />
-            <span>Settings</span>
-          </button>
+            <Settings className="h-4 w-4" />
+          </Button>
+        </DrawerHeader>
+
+        <div className="px-4 pt-3 space-y-0.5">
+          <MobileAppearanceSettings />
 
           {onOpenFeedback && (
             <button
@@ -278,7 +279,7 @@ export function UserNav({
                 setOpen(false);
                 onOpenFeedback();
               }}
-              className="w-full flex items-center gap-3 p-3.5 rounded-xl text-sm font-medium text-foreground hover:bg-muted transition-colors border border-transparent"
+              className="w-full flex items-center gap-3 p-3 rounded-xl text-sm font-medium text-foreground hover:bg-muted transition-colors border border-transparent"
             >
               <MessageSquare className="h-[18px] w-[18px] opacity-90" />
               <span>Help & Feedback</span>
@@ -287,7 +288,7 @@ export function UserNav({
 
           <button
             onClick={handleSwitchAccount}
-            className="w-full flex items-center gap-3 p-3.5 rounded-xl text-sm font-medium text-foreground hover:bg-muted transition-colors border border-transparent"
+            className="w-full flex items-center gap-3 p-3 rounded-xl text-sm font-medium text-foreground hover:bg-muted transition-colors border border-transparent"
           >
             <Repeat className="h-[18px] w-[18px] opacity-90" />
             <span>Switch Account</span>
@@ -295,7 +296,7 @@ export function UserNav({
 
           <button
             onClick={handleFullLogout}
-            className="w-full flex items-center gap-3 p-3.5 rounded-xl text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors border border-transparent"
+            className="w-full flex items-center gap-3 p-3 rounded-xl text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors border border-transparent"
           >
             <LogOut className="h-[18px] w-[18px] opacity-90" />
             <span>Log out completely</span>

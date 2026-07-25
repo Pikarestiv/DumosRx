@@ -58,7 +58,13 @@ export async function getProductList() {
 
 export async function getProductsWithStock() {
   const items = await query<any>(
-    "SELECT p.*, COALESCE(SUM(sb.quantity), 0) as stock_quantity, GROUP_CONCAT(sb.batch_number, ', ') as batch_number, AVG(sb.cost_price) as avg_cost_price FROM products p LEFT JOIN stock_batches sb ON p.id = sb.product_id AND sb._deleted = 0 AND sb.is_active = 1 WHERE p._deleted = 0 GROUP BY p.id ORDER BY p.name ASC",
+    `SELECT p.*, c.name as category_name, COALESCE(SUM(sb.quantity), 0) as stock_quantity, GROUP_CONCAT(sb.batch_number, ', ') as batch_number, AVG(sb.cost_price) as avg_cost_price
+     FROM products p
+     LEFT JOIN categories c ON p.category_id = c.id AND c._deleted = 0
+     LEFT JOIN stock_batches sb ON p.id = sb.product_id AND sb._deleted = 0 AND sb.is_active = 1
+     WHERE p._deleted = 0
+     GROUP BY p.id
+     ORDER BY p.name ASC`,
   );
 
   return items.map((m: any) => ({
@@ -73,6 +79,7 @@ export async function getProductsWithStock() {
     barcode: m.barcode || "",
     batch_number: m.batch_number || "",
     category_id: m.category_id || "",
+    category_name: m.category_name || "",
   }));
 }
 

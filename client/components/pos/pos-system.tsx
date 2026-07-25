@@ -7,11 +7,13 @@ import { useStore } from "@/lib/context/store-context";
 import { usePOSCart } from "@/lib/hooks/use-pos-cart";
 import { usePOSPayment } from "@/lib/hooks/use-pos-payment";
 import { useSmartSuggestions } from "@/hooks/use-smart-suggestions";
-import { searchProducts } from "@/lib/utils/search";
+import { usePOSProductFilter } from "@/lib/hooks/use-pos-product-filter";
+import { usePOSScan } from "@/lib/hooks/use-pos-scan";
 import { POSLayoutHeader } from "./pos-layout-header";
 import { useQuery } from "@tanstack/react-query";
 import { getHeldTransactionCount } from "@/lib/db/queries/sales";
 import { POSProductList } from "./pos-product-list";
+import { POSCategoryFilter } from "./pos-category-filter";
 import { POSTransactionHistory } from "./pos-transaction-history";
 import { POSCustomerSelector } from "./pos-customer-selector";
 import { POSMobileSearch } from "./pos-mobile-search";
@@ -36,6 +38,7 @@ export function POSSystem() {
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   };
   const [searchTerm, setSearchTerm] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
   const [isMobileScannerOpen, setIsMobileScannerOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
     null,
@@ -140,30 +143,18 @@ export function POSSystem() {
       customers,
       setShowHeldDialog,
     });
-  const { results: filteredProducts, isFuzzyFallback } = React.useMemo(() => {
-    return searchProducts(searchTerm, products);
-  }, [searchTerm, products]);
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && searchTerm.trim()) {
-      handleScanSuccess(searchTerm.trim());
-    }
-  };
-  const handleScanSuccess = (scannedBarcode: string) => {
-    const query = scannedBarcode.toLowerCase().trim();
-    const barcodeMatch = products.find(
-      (m) =>
-        m.barcode?.toLowerCase() === query ||
-        m.batch_number?.toLowerCase() === query,
-    );
-    if (barcodeMatch) {
-      addToCart(barcodeMatch);
-      setSearchTerm("");
-      toast.success(`Scanned: ${barcodeMatch.name}`);
-    } else {
-      toast.error(`No product found for barcode: ${scannedBarcode}`);
-    }
-  };
-  
+  const { categories, filteredProducts, isFuzzyFallback } = usePOSProductFilter(
+    products,
+    searchTerm,
+    categoryFilter,
+  );
+  const { handleKeyPress, handleScanSuccess } = usePOSScan({
+    products,
+    searchTerm,
+    setSearchTerm,
+    addToCart,
+  });
+
   const posDialogProps = {
     isMobileScannerOpen,
     setIsMobileScannerOpen,
@@ -238,6 +229,12 @@ export function POSSystem() {
                 value="products"
                 className="absolute inset-0 overflow-y-auto mt-0 pr-1 flex flex-col gap-4"
               >
+                <POSCategoryFilter
+                  categories={categories}
+                  value={categoryFilter}
+                  onChange={setCategoryFilter}
+                />
+
                 {/* Mobile specific Customer Selector & Search */}
                 <POSMobileSearch
                   selectedCustomer={selectedCustomer}
@@ -311,6 +308,8 @@ export function POSSystem() {
                 clearCart={clearCart}
                 onCheckout={withRestriction(() => setShowPaymentDialog(true))}
                 onHoldSale={handleHoldTransaction}
+                heldSalesCount={heldSalesCount}
+                onOpenHeldSales={() => setShowHeldDialog(true)}
               />
             </div>
           </div>

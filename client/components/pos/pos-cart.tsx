@@ -8,6 +8,7 @@ import {
   Trash2,
   Package,
   PauseCircle,
+  ClipboardList,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { RequestItemDialog } from "./request-item-dialog";
@@ -29,6 +30,8 @@ interface POSCartProps {
   clearCart: () => void;
   onCheckout: () => void;
   onHoldSale?: () => void;
+  heldSalesCount?: number;
+  onOpenHeldSales?: () => void;
 }
 
 export function POSCart({
@@ -48,8 +51,11 @@ export function POSCart({
   clearCart,
   onCheckout,
   onHoldSale,
+  heldSalesCount = 0,
+  onOpenHeldSales,
 }: POSCartProps) {
   const [showDiscount, setShowDiscount] = useState(false);
+  const [showRequestDialog, setShowRequestDialog] = useState(false);
 
   return (
     <div className="flex flex-col h-full">
@@ -105,6 +111,21 @@ export function POSCart({
       </div>
 
       <div className="border-t border-border px-5 pt-4 pb-5 bg-muted/10">
+        {heldSalesCount > 0 && (
+          <button
+            onClick={onOpenHeldSales}
+            className="w-full flex items-center justify-between gap-2 px-3 py-2 mb-3 rounded-[10px] border border-amber-500/20 bg-amber-500/10 text-amber-700 hover:bg-amber-500/15 transition-colors cursor-pointer"
+          >
+            <span className="flex items-center gap-1.5 text-[12.5px] font-semibold">
+              <PauseCircle className="w-[15px] h-[15px]" />
+              {heldSalesCount} sale{heldSalesCount === 1 ? "" : "s"} on hold
+            </span>
+            <span className="text-[12px] font-bold underline underline-offset-2">
+              View
+            </span>
+          </button>
+        )}
+
         <div className="space-y-2 mb-4">
           <div className="flex justify-between text-[12.5px] text-muted-foreground">
             <span>Subtotal</span>
@@ -176,9 +197,15 @@ export function POSCart({
         </div>
 
         <div
-          className={`grid gap-2.5 mb-3.5 ${cart.length > 0 ? "grid-cols-3" : "grid-cols-2"}`}
+          className={`grid gap-2.5 mb-3.5 ${cart.length > 0 ? "grid-cols-3" : "grid-cols-1"}`}
         >
-          <RequestItemDialog />
+          <button
+            onClick={() => setShowRequestDialog(true)}
+            className="w-full flex items-center justify-center gap-1.5 p-2.5 rounded-[10px] border border-border bg-card text-[12.5px] font-semibold text-foreground cursor-pointer hover:bg-muted/50 transition-colors"
+          >
+            <ClipboardList className="w-[15px] h-[15px]" />
+            Request Item
+          </button>
 
           {cart.length > 0 && (
             <button
@@ -190,15 +217,18 @@ export function POSCart({
             </button>
           )}
 
-          <button
-            onClick={clearCart}
-            disabled={cart.length === 0}
-            className="w-full flex items-center justify-center gap-1.5 p-2.5 rounded-[10px] border border-destructive/20 bg-destructive/5 text-[12.5px] font-semibold text-destructive cursor-pointer hover:bg-destructive/10 transition-colors disabled:opacity-50 disabled:grayscale"
-          >
-            <Trash2 className="w-[15px] h-[15px]" />
-            Clear cart
-          </button>
+          {cart.length > 0 && (
+            <button
+              onClick={clearCart}
+              className="w-full flex items-center justify-center gap-1.5 p-2.5 rounded-[10px] border border-destructive/20 bg-destructive/5 text-[12.5px] font-semibold text-destructive cursor-pointer hover:bg-destructive/10 transition-colors"
+            >
+              <Trash2 className="w-[15px] h-[15px]" />
+              Clear cart
+            </button>
+          )}
         </div>
+
+        <RequestItemDialog open={showRequestDialog} onOpenChange={setShowRequestDialog} />
 
         <button
           onClick={onCheckout}

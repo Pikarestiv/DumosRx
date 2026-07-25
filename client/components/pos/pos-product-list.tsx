@@ -13,6 +13,7 @@ import {
   Lock,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import { getCategoryIcon } from "@/lib/constants/category-icons";
 
 interface POSProductListProps {
   loadingProducts: boolean;
@@ -73,6 +74,7 @@ function POSProductCard({
   const isLowStock =
     product.stock > 0 && product.stock <= (product.reorder_level || 10);
   const isOutOfStock = product.stock === 0;
+  const CategoryIcon = getCategoryIcon(product.category_name);
 
   return (
     <div
@@ -89,7 +91,7 @@ function POSProductCard({
 
       {/* Icon Area */}
       <div className="w-full h-14 rounded-xl bg-primary/5 text-primary/70 flex items-center justify-center mb-2.5">
-        <Package className="h-5 w-5" />
+        <CategoryIcon className="h-5 w-5" />
       </div>
 
       <div className="text-[13px] font-semibold leading-tight mb-1 line-clamp-2">

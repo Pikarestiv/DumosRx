@@ -6,11 +6,11 @@ import {
   Minus,
   Plus,
   Trash2,
-  Package,
   PauseCircle,
   ClipboardList,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import { getCategoryIcon } from "@/lib/constants/category-icons";
 import { RequestItemDialog } from "./request-item-dialog";
 
 interface POSCartProps {
@@ -62,7 +62,9 @@ export function POSCart({
       <div className="flex-1 overflow-y-auto px-5 py-1.5 min-h-[120px]">
         {cart.length === 0 && <EmptyCart />}
         {cart.length > 0 &&
-          cart.map((item, idx) => (
+          cart.map((item, idx) => {
+            const CategoryIcon = getCategoryIcon(item.category_name);
+            return (
             <div
               key={item.id}
               className={`flex items-center gap-3 py-3 ${
@@ -70,7 +72,7 @@ export function POSCart({
               }`}
             >
               <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                <Package className="w-5 h-5" />
+                <CategoryIcon className="w-5 h-5" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-[12.5px] font-semibold mb-0.5 truncate leading-tight">
@@ -107,20 +109,21 @@ export function POSCart({
                 <Trash2 className="w-3.5 h-3.5" />
               </div>
             </div>
-          ))}
+            );
+          })}
       </div>
 
       <div className="border-t border-border px-5 pt-4 pb-5 bg-muted/10">
         {heldSalesCount > 0 && (
           <button
             onClick={onOpenHeldSales}
-            className="w-full flex items-center justify-between gap-2 px-3 py-2 mb-3 rounded-[10px] border border-amber-500/20 bg-amber-500/10 text-amber-700 hover:bg-amber-500/15 transition-colors cursor-pointer"
+            className="w-1/2 flex items-center justify-between gap-1.5 px-2 py-1 mb-2.5 rounded-md border border-amber-500/20 bg-amber-500/10 text-amber-700 hover:bg-amber-500/15 transition-colors cursor-pointer"
           >
-            <span className="flex items-center gap-1.5 text-[12.5px] font-semibold">
-              <PauseCircle className="w-[15px] h-[15px]" />
-              {heldSalesCount} sale{heldSalesCount === 1 ? "" : "s"} on hold
+            <span className="flex items-center gap-1 text-[11px] font-semibold">
+              <PauseCircle className="w-3 h-3" />
+              {heldSalesCount} on hold
             </span>
-            <span className="text-[12px] font-bold underline underline-offset-2">
+            <span className="text-[10.5px] font-bold underline underline-offset-2">
               View
             </span>
           </button>
@@ -197,22 +200,22 @@ export function POSCart({
         </div>
 
         <div
-          className={`grid gap-2.5 mb-3.5 ${cart.length > 0 ? "grid-cols-3" : "grid-cols-1"}`}
+          className={`grid gap-2 mb-3 ${cart.length > 0 ? "grid-cols-3" : "grid-cols-1"}`}
         >
           <button
             onClick={() => setShowRequestDialog(true)}
-            className="w-full flex items-center justify-center gap-1.5 p-2.5 rounded-[10px] border border-border bg-card text-[12.5px] font-semibold text-foreground cursor-pointer hover:bg-muted/50 transition-colors"
+            className="w-full flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg border border-border bg-card text-[11.5px] font-semibold text-foreground cursor-pointer hover:bg-muted/50 transition-colors"
           >
-            <ClipboardList className="w-[15px] h-[15px]" />
+            <ClipboardList className="w-3.5 h-3.5" />
             Request Item
           </button>
 
           {cart.length > 0 && (
             <button
               onClick={onHoldSale}
-              className="w-full flex items-center justify-center gap-1.5 p-2.5 rounded-[10px] border border-amber-500/20 bg-amber-500/5 text-[12.5px] font-semibold text-amber-600 cursor-pointer hover:bg-amber-500/10 transition-colors"
+              className="w-full flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg border border-amber-500/20 bg-amber-500/5 text-[11.5px] font-semibold text-amber-600 cursor-pointer hover:bg-amber-500/10 transition-colors"
             >
-              <PauseCircle className="w-[15px] h-[15px]" />
+              <PauseCircle className="w-3.5 h-3.5" />
               Hold Sale
             </button>
           )}
@@ -220,9 +223,9 @@ export function POSCart({
           {cart.length > 0 && (
             <button
               onClick={clearCart}
-              className="w-full flex items-center justify-center gap-1.5 p-2.5 rounded-[10px] border border-destructive/20 bg-destructive/5 text-[12.5px] font-semibold text-destructive cursor-pointer hover:bg-destructive/10 transition-colors"
+              className="w-full flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg border border-destructive/20 bg-destructive/5 text-[11.5px] font-semibold text-destructive cursor-pointer hover:bg-destructive/10 transition-colors"
             >
-              <Trash2 className="w-[15px] h-[15px]" />
+              <Trash2 className="w-3.5 h-3.5" />
               Clear cart
             </button>
           )}

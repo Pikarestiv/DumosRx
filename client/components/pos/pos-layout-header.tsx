@@ -43,9 +43,7 @@ export function POSLayoutHeader({
   }, [searchParams]);
 
   return (
-    <header
-      className="h-auto min-h-16 py-3 bg-background flex items-center px-4 sm:px-6 sticky top-0 z-10 shrink-0 border-b border-border/50"
-    >
+    <header className="h-auto min-h-16 py-3 bg-background flex items-center px-4 sm:px-6 sticky top-0 z-10 shrink-0 border-b border-border/50">
       {/* Left side: Title and Back button */}
       <div className="flex items-center gap-3">
         <Button
@@ -102,7 +100,7 @@ export function POSLayoutHeader({
             )}
           </div>
           <Button
-            className="flex items-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl h-10 px-4"
+            className="flex items-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl h-10 px-4 md:mr-3"
             onClick={() => setIsScannerOpen(true)}
           >
             <Scan className="h-4 w-4" />
@@ -112,7 +110,7 @@ export function POSLayoutHeader({
       </div>
 
       {/* Right side: Actions */}
-      <div className="flex items-center gap-2 sm:gap-3 ml-auto">
+      <div className="items-center gap-2 sm:gap-3 ml-auto hidden lg:flex">
         {/* Fullscreen toggle (Desktop only) */}
         <Button
           variant="outline"

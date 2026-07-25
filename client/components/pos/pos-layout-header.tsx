@@ -110,12 +110,12 @@ export function POSLayoutHeader({
       </div>
 
       {/* Right side: Actions */}
-      <div className="items-center gap-2 sm:gap-3 ml-auto hidden lg:flex">
+      <div className="flex items-center gap-2 sm:gap-3 ml-auto">
         {/* Fullscreen toggle (Desktop only) */}
         <Button
           variant="outline"
           size="icon"
-          className="hidden sm:flex h-10 w-10 shrink-0 rounded-xl border-border/50 bg-background text-muted-foreground hover:text-foreground"
+          className="h-10 w-10 shrink-0 rounded-xl border-border/50 bg-background text-muted-foreground hover:text-foreground hidden lg:flex"
           onClick={() => {
             if (!document.fullscreenElement) {
               document.documentElement.requestFullscreen().catch(() => {});

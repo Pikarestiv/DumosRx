@@ -14,9 +14,18 @@ export function POSCategoryFilter({ categories, value, onChange }: Props) {
   return (
     <Tabs value={value} onValueChange={onChange} variant="chips">
       <TabsList>
-        <TabsTrigger value="all">All</TabsTrigger>
+        <TabsTrigger
+          value="all"
+          className="data-[state=inactive]:border-border data-[state=inactive]:bg-card"
+        >
+          All
+        </TabsTrigger>
         {categories.map((category) => (
-          <TabsTrigger key={category} value={category}>
+          <TabsTrigger
+            key={category}
+            value={category}
+            className="data-[state=inactive]:border-border data-[state=inactive]:bg-card"
+          >
             {category}
           </TabsTrigger>
         ))}

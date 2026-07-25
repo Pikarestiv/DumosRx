@@ -1,7 +1,5 @@
 "use client";
 
-
-
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   PackageX,
@@ -171,7 +169,7 @@ export function POSProductList({
   ];
 
   return (
-    <div className="gap-y-3">
+    <div className=" pb-19">
       {isFuzzyFallback && filteredProducts.length > 0 && (
         <div className="mb-2 bg-amber-500/10 border border-amber-500/20 text-amber-600 px-4 py-3 rounded-lg flex items-center gap-3">
           <AlertCircle className="h-5 w-5 shrink-0" />
@@ -207,102 +205,117 @@ export function POSProductList({
         </div>
       )}
 
-      {!loadingProducts && filteredProducts.length > 0 && (productTerm || "").trim().length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-          {sortedProducts.map((product) => (
-            <POSProductCard
-              key={product.id}
-              product={product}
-              currencyCode={currencyCode}
-              addToCart={addToCart}
-              cartQuantity={cartQuantityMap.get(product.id) || 0}
-            />
-          ))}
-        </div>
-      )}
-
-      {!loadingProducts && filteredProducts.length > 0 && !((productTerm || "").trim().length > 0) && (
-        <div className="flex flex-col gap-6">
-          {/* Smart Suggestions */}
-          <div>
-            <div className="flex items-center gap-1.5 text-[13px] font-semibold text-muted-foreground mb-3">
-              <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-              Goes well with cart
-            </div>
-            
-            {!canUseSmartSuggestions && (
-              <div 
-                onClick={onUpgradeClick}
-                className="bg-primary/5 border border-primary/10 rounded-xl p-4 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-primary/10 transition-colors"
-              >
-                <Lock className="h-5 w-5 text-primary mb-2" />
-                <p className="text-sm font-semibold text-primary">Unlock Smart Suggestions</p>
-                <p className="text-xs text-muted-foreground mt-1 max-w-[250px]">Upgrade your plan to automatically recommend related products based on the customer's cart.</p>
-              </div>
-            )}
-            {canUseSmartSuggestions && suggestionsList.length > 0 && (
-              <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 hide-scrollbar snap-x snap-mandatory">
-                {suggestionsList.map((product) => (
-                  <div key={product.id} className="w-[150px] sm:w-[170px] shrink-0 snap-start">
-                    <POSProductCard
-                      product={product}
-                      currencyCode={currencyCode}
-                      addToCart={addToCart}
-                      cartQuantity={cartQuantityMap.get(product.id) || 0}
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-            {canUseSmartSuggestions && suggestionsList.length === 0 && (
-              <div className="text-xs text-muted-foreground py-3 italic px-4 bg-muted/30 rounded-xl border border-dashed text-center">
-                Add items to cart to see smart suggestions
-              </div>
-            )}
+      {!loadingProducts &&
+        filteredProducts.length > 0 &&
+        (productTerm || "").trim().length > 0 && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            {sortedProducts.map((product) => (
+              <POSProductCard
+                key={product.id}
+                product={product}
+                currencyCode={currencyCode}
+                addToCart={addToCart}
+                cartQuantity={cartQuantityMap.get(product.id) || 0}
+              />
+            ))}
           </div>
+        )}
 
-          {/* Recently Sold */}
-          {recentlySoldList.length > 0 && (
+      {!loadingProducts &&
+        filteredProducts.length > 0 &&
+        !((productTerm || "").trim().length > 0) && (
+          <div className="flex flex-col gap-6">
+            {/* Smart Suggestions */}
             <div>
               <div className="flex items-center gap-1.5 text-[13px] font-semibold text-muted-foreground mb-3">
-                <Clock className="h-3.5 w-3.5 text-blue-500" />
-                Recently sold
+                <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                Goes well with cart
               </div>
-              <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 hide-scrollbar snap-x snap-mandatory">
-                {recentlySoldList.map((product) => (
-                  <div key={product.id} className="w-[150px] sm:w-[170px] shrink-0 snap-start">
-                    <POSProductCard
-                      product={product}
-                      currencyCode={currencyCode}
-                      addToCart={addToCart}
-                      cartQuantity={cartQuantityMap.get(product.id) || 0}
-                    />
-                  </div>
+
+              {!canUseSmartSuggestions && (
+                <div
+                  onClick={onUpgradeClick}
+                  className="bg-primary/5 border border-primary/10 rounded-xl p-4 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-primary/10 transition-colors"
+                >
+                  <Lock className="h-5 w-5 text-primary mb-2" />
+                  <p className="text-sm font-semibold text-primary">
+                    Unlock Smart Suggestions
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1 max-w-[250px]">
+                    Upgrade your plan to automatically recommend related
+                    products based on the customer's cart.
+                  </p>
+                </div>
+              )}
+              {canUseSmartSuggestions && suggestionsList.length > 0 && (
+                <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 hide-scrollbar snap-x snap-mandatory">
+                  {suggestionsList.map((product) => (
+                    <div
+                      key={product.id}
+                      className="w-[150px] sm:w-[170px] shrink-0 snap-start"
+                    >
+                      <POSProductCard
+                        product={product}
+                        currencyCode={currencyCode}
+                        addToCart={addToCart}
+                        cartQuantity={cartQuantityMap.get(product.id) || 0}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+              {canUseSmartSuggestions && suggestionsList.length === 0 && (
+                <div className="text-xs text-muted-foreground py-3 italic px-4 bg-muted/30 rounded-xl border border-dashed text-center">
+                  Add items to cart to see smart suggestions
+                </div>
+              )}
+            </div>
+
+            {/* Recently Sold */}
+            {recentlySoldList.length > 0 && (
+              <div>
+                <div className="flex items-center gap-1.5 text-[13px] font-semibold text-muted-foreground mb-3">
+                  <Clock className="h-3.5 w-3.5 text-blue-500" />
+                  Recently sold
+                </div>
+                <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 hide-scrollbar snap-x snap-mandatory">
+                  {recentlySoldList.map((product) => (
+                    <div
+                      key={product.id}
+                      className="w-[150px] sm:w-[170px] shrink-0 snap-start"
+                    >
+                      <POSProductCard
+                        product={product}
+                        currencyCode={currencyCode}
+                        addToCart={addToCart}
+                        cartQuantity={cartQuantityMap.get(product.id) || 0}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* All Products */}
+            <div>
+              <div className="flex items-center gap-1.5 text-[13px] font-semibold text-muted-foreground mb-3">
+                <Package className="h-3.5 w-3.5 text-gray-500" />
+                All products
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                {[...commonlySoldList, ...remainingList].map((product) => (
+                  <POSProductCard
+                    key={product.id}
+                    product={product}
+                    currencyCode={currencyCode}
+                    addToCart={addToCart}
+                    cartQuantity={cartQuantityMap.get(product.id) || 0}
+                  />
                 ))}
               </div>
             </div>
-          )}
-
-          {/* All Products */}
-          <div>
-            <div className="flex items-center gap-1.5 text-[13px] font-semibold text-muted-foreground mb-3">
-              <Package className="h-3.5 w-3.5 text-gray-500" />
-              All products
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-              {[...commonlySoldList, ...remainingList].map((product) => (
-                <POSProductCard
-                  key={product.id}
-                  product={product}
-                  currencyCode={currencyCode}
-                  addToCart={addToCart}
-                  cartQuantity={cartQuantityMap.get(product.id) || 0}
-                />
-              ))}
-            </div>
           </div>
-        </div>
-      )}
+        )}
     </div>
   );
 }

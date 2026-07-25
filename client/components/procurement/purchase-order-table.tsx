@@ -1,12 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import {
-  Search,
-  CheckCircle2,
-  Clock,
-  ArrowRight,
-} from "lucide-react";
+import { Search, CheckCircle2, Clock, ArrowRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +13,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-
 
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -100,9 +94,10 @@ export function PurchaseOrderTable({
 
   // Merge full details with the latest row data from the list (so status updates reflect immediately)
   const listOrder = orders.find((o) => o.id === selectedOrderId);
-  const selectedPO = fullSelectedPO && listOrder
-    ? { ...fullSelectedPO, ...listOrder } 
-    : fullSelectedPO || listOrder || null;
+  const selectedPO =
+    fullSelectedPO && listOrder
+      ? { ...fullSelectedPO, ...listOrder }
+      : fullSelectedPO || listOrder || null;
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -136,8 +131,8 @@ export function PurchaseOrderTable({
   return (
     <div className="flex flex-col lg:flex-row gap-5 flex-1 min-h-0 overflow-hidden">
       {/* Left Column - List */}
-      <Card className="print:hidden flex-[2] flex flex-col gap-0 md:rounded-[14px] border-0 md:border md:border-border bg-transparent md:bg-card shadow-none md:shadow-[0_1px_2px_rgba(16,24,40,0.04)] overflow-hidden">
-        <div className="p-4 flex flex-col gap-4 border-b-0 md:border-b border-border">
+      <Card className="print:hidden py-0 flex-[2] flex flex-col gap-0 md:rounded-[14px] border-0 md:border md:border-border bg-transparent md:bg-card shadow-none md:shadow-[0_1px_2px_rgba(16,24,40,0.04)] overflow-hidden">
+        <div className="p-0 md:p-4 flex flex-col gap-4 border-b-0 md:border-b border-border">
           <div className="relative w-full">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 pointer-events-none" />
             <Input
@@ -197,7 +192,7 @@ export function PurchaseOrderTable({
             </div>
           )}
           {/* Mobile: card list */}
-          <div className="md:hidden flex flex-col gap-2 p-3">
+          <div className="md:hidden flex flex-col gap-2 px-0 py-3 md:px-3 md:p-3">
             {loading && (
               <div className="h-32 flex flex-col items-center justify-center text-muted-foreground">
                 <Clock className="w-6 h-6 animate-spin mb-2 opacity-50" />
@@ -225,7 +220,8 @@ export function PurchaseOrderTable({
                       {po.vendor_name || "Unknown Vendor"}
                     </div>
                     <div className="text-[11.5px] text-muted-foreground truncate">
-                      PO-{po.id.split("-")[0].toUpperCase()} &middot; {formatDateToDDMMYYYY(po.created_at)}
+                      PO-{po.id.split("-")[0].toUpperCase()} &middot;{" "}
+                      {formatDateToDDMMYYYY(po.created_at)}
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-1 shrink-0">

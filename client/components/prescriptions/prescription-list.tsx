@@ -3,7 +3,10 @@
 import { Prescription } from "@/lib/hooks/use-prescription-queue";
 import { AlertTriangle } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { PRESCRIPTION_STATUS_META, getInitials } from "./prescription-status-meta";
+import {
+  PRESCRIPTION_STATUS_META,
+  getInitials,
+} from "./prescription-status-meta";
 import { PrescriptionSearchBar } from "./prescription-search-bar";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 
@@ -30,7 +33,10 @@ export function PrescriptionList({
     <Card className="bg-transparent border-0 shadow-none rounded-none lg:bg-card lg:border lg:border-border lg:rounded-2xl lg:shadow-sm flex flex-col min-h-0 lg:h-full p-0 gap-0">
       {/* Search — renders standalone above on mobile (see PrescriptionManagement) */}
       <div className="hidden lg:block p-4 pb-3 border-b border-border">
-        <PrescriptionSearchBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
+        <PrescriptionSearchBar
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+        />
       </div>
 
       {isFuzzyFallback && prescriptions.length > 0 && (
@@ -40,7 +46,7 @@ export function PrescriptionList({
       )}
 
       {/* List */}
-      <div className="flex-1 overflow-y-auto p-3">
+      <div className="flex-1 overflow-y-auto p-0 lg:p-3">
         {prescriptions.length === 0 && (
           <div className="text-center text-[12.5px] text-muted-foreground py-10">
             No prescriptions match.

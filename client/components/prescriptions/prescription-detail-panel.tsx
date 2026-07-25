@@ -197,13 +197,13 @@ export function PrescriptionDetailPanel({
                 <div>
                   <p className="text-xs text-muted-foreground">Phone</p>
                   <p className="font-medium text-sm">
-                    {prescription.patientPhone || "-"}
+                    {prescription.patientPhone || "N/A"}
                   </p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Age</p>
                   <p className="font-medium text-sm">
-                    {prescription.patientAge || "-"} years
+                    {prescription.patientAge || "N/A"}
                   </p>
                 </div>
               </div>

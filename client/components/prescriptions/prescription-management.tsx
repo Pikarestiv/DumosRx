@@ -1,6 +1,9 @@
-"use client"
+"use client";
 import { useState } from "react";
-import { usePrescriptionQueue, Prescription } from "@/lib/hooks/use-prescription-queue";
+import {
+  usePrescriptionQueue,
+  Prescription,
+} from "@/lib/hooks/use-prescription-queue";
 import { getSaleForPrescription } from "@/lib/db/queries/sales";
 import { PrescriptionStats } from "./prescription-stats";
 import { PrescriptionList } from "./prescription-list";
@@ -26,7 +29,8 @@ const STATUS_FILTERS = [
 export function PrescriptionManagement() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const showNewPrescription = searchParams.get("action") === "add" || !!searchParams.get("edit_rx");
+  const showNewPrescription =
+    searchParams.get("action") === "add" || !!searchParams.get("edit_rx");
 
   const closeNewPrescription = () => {
     router.push("/prescriptions");
@@ -57,7 +61,9 @@ export function PrescriptionManagement() {
       urgent: "Urgent",
       stat: "STAT",
     };
-    return <span className={`text-xs ${colors[priority]}`}>{labels[priority]}</span>;
+    return (
+      <span className={`text-xs ${colors[priority]}`}>{labels[priority]}</span>
+    );
   };
 
   const formatDateTime = (dateString: string) => {
@@ -88,7 +94,9 @@ export function PrescriptionManagement() {
     router.push(`/pos?dispense_rx=${prescription.id}&refill=1`);
   };
 
-  const [processingReturnRxId, setProcessingReturnRxId] = useState<string | null>(null);
+  const [processingReturnRxId, setProcessingReturnRxId] = useState<
+    string | null
+  >(null);
 
   const handleProcessReturn = async (prescription: Prescription) => {
     // A prescription-linked sale is the actual source of truth for stock/
@@ -100,7 +108,9 @@ export function PrescriptionManagement() {
     try {
       const sale = await getSaleForPrescription(prescription.id);
       if (!sale) {
-        toast.error("No linked sale found for this prescription — nothing to return.");
+        toast.error(
+          "No linked sale found for this prescription — nothing to return.",
+        );
         return;
       }
       router.push(`/pos?tab=history&return_sale=${sale.id}`);
@@ -111,18 +121,25 @@ export function PrescriptionManagement() {
 
   return (
     <div className="space-y-6">
-
       <PrescriptionStats stats={stats} />
 
       {/* Mobile: search bar stands alone above the filter chips, own bg-card to contrast with the page */}
       <div className="lg:hidden">
-        <PrescriptionSearchBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} className="bg-card border-border" />
+        <PrescriptionSearchBar
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          className="bg-card border-border"
+        />
       </div>
 
       {/* FILTER CHIPS — mobile: chips variant with bg-card/border-border inactive state; desktop: unchanged default Tabs */}
       <div className="mb-4">
         <div className="lg:hidden">
-          <Tabs value={statusFilter} onValueChange={setStatusFilter} variant="chips">
+          <Tabs
+            value={statusFilter}
+            onValueChange={setStatusFilter}
+            variant="chips"
+          >
             <TabsList className="w-full justify-start overflow-x-auto overflow-y-hidden hide-scrollbar">
               {STATUS_FILTERS.map((f) => (
                 <TabsTrigger
@@ -162,37 +179,54 @@ export function PrescriptionManagement() {
         />
 
         {/* Right Detail Panel */}
-        <div className={`
+        <div
+          className={`
           ${selectedPrescription ? "block" : "hidden"}
           lg:block lg:h-full
-        `}>
-          {!!(selectedPrescription) && (
-                              <PrescriptionDetailPanel
-                                prescription={selectedPrescription}
-                                getPriorityBadge={getPriorityBadge}
-                                formatDateTime={formatDateTime}
-                                onClose={() => setSelectedPrescription(null)}
-                                onEdit={handleEdit}
-                                onDispense={handleDispense}
-                                onDispenseRefill={handleDispenseRefill}
-                                onProcessReturn={handleProcessReturn}
-                                isProcessingReturn={processingReturnRxId === selectedPrescription?.id}
-                                updateStatus={updatePrescriptionStatus}
-                              />
-                            )}
-                  {!(selectedPrescription) && (
-                              <Card className="lg:h-full min-h-[400px] border border-border bg-card rounded-xl flex items-center justify-center flex-col text-center p-6 text-muted-foreground shadow-[0_1px_2px_rgba(28,25,23,0.04)]">
-                                <svg className="w-16 h-16 text-muted-foreground/30 mb-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
-                                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                                  <polyline points="14 2 14 8 20 8" />
-                                  <line x1="16" y1="13" x2="8" y2="13" />
-                                  <line x1="16" y1="17" x2="8" y2="17" />
-                                  <polyline points="10 9 9 9 8 9" />
-                                </svg>
-                                <h3 className="text-lg font-medium text-foreground mb-1">No Prescription Selected</h3>
-                                <p className="text-sm max-w-[250px]">Select a prescription from the queue to view its details, medications, and verify instructions.</p>
-                              </Card>
-                            )}
+        `}
+        >
+          {!!selectedPrescription && (
+            <PrescriptionDetailPanel
+              prescription={selectedPrescription}
+              getPriorityBadge={getPriorityBadge}
+              formatDateTime={formatDateTime}
+              onClose={() => setSelectedPrescription(null)}
+              onEdit={handleEdit}
+              onDispense={handleDispense}
+              onDispenseRefill={handleDispenseRefill}
+              onProcessReturn={handleProcessReturn}
+              isProcessingReturn={
+                processingReturnRxId === selectedPrescription?.id
+              }
+              updateStatus={updatePrescriptionStatus}
+            />
+          )}
+          {!selectedPrescription && (
+            <Card className="lg:h-full min-h-[400px] border border-border bg-card rounded-xl flex items-center justify-center flex-col text-center p-6 text-muted-foreground shadow-[0_1px_2px_rgba(28,25,23,0.04)]">
+              <svg
+                className="w-16 h-16 text-muted-foreground/30 mb-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+                <polyline points="10 9 9 9 8 9" />
+              </svg>
+              <h3 className="text-lg font-medium text-foreground mb-1">
+                No Prescription Selected
+              </h3>
+              <p className="text-sm max-w-[250px]">
+                Select a prescription from the queue to view its details,
+                medications, and verify instructions.
+              </p>
+            </Card>
+          )}
         </div>
       </div>
 
@@ -209,11 +243,16 @@ export function PrescriptionManagement() {
             >
               <ArrowLeft className="w-[17px] h-[17px]" />
             </div>
-            <h2 className="text-[17px] font-serif font-bold">New Prescription</h2>
+            <h2 className="text-[17px] font-serif font-bold">
+              New Prescription
+            </h2>
           </div>
           <div
             className="flex-1 overflow-y-auto p-4"
-            style={{ paddingBottom: "calc(var(--tauri-bottom, env(safe-area-inset-bottom, 0px)) + 1rem)" }}
+            style={{
+              paddingBottom:
+                "calc(var(--tauri-bottom, env(safe-area-inset-bottom, 0px)) + 1rem)",
+            }}
           >
             <div className="max-w-4xl mx-auto">
               <NewPrescription />

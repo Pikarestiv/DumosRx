@@ -43,6 +43,8 @@ interface StoreSettingsProps {
   setShowLogo: (val: boolean) => void;
   showContact: boolean;
   setShowContact: (val: boolean) => void;
+  hidePoweredBy: boolean;
+  setHidePoweredBy: (val: boolean) => void;
   handleSaveReceiptSettings: () => void;
   showRetailSuggestions?: boolean;
   setShowRetailSuggestions?: (val: boolean) => void;
@@ -79,6 +81,8 @@ export function StoreSettings({
   setShowLogo,
   showContact,
   setShowContact,
+  hidePoweredBy,
+  setHidePoweredBy,
   handleSaveReceiptSettings,
   showRetailSuggestions = false,
   setShowRetailSuggestions,
@@ -128,6 +132,8 @@ export function StoreSettings({
         setShowLogo={setShowLogo}
         showContact={showContact}
         setShowContact={setShowContact}
+        hidePoweredBy={hidePoweredBy}
+        setHidePoweredBy={setHidePoweredBy}
         handleSaveReceiptSettings={handleSaveReceiptSettings}
       />
 

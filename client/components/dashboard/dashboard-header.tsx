@@ -119,7 +119,7 @@ export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <div className="flex items-center gap-1 font-medium text-foreground">
               <StoreIcon className="h-3 w-3" />
-              <span className="truncate max-w-[120px] sm:max-w-[200px]">
+              <span className="truncate max-w-[40vw] sm:max-w-[200px]">
                 {storeProfile?.name || APP_NAME}
               </span>
             </div>

@@ -10,6 +10,7 @@ interface ReceiptPreviewProps {
   localReceiptFooter: string;
   showLogo: boolean;
   showContact: boolean;
+  hidePoweredBy?: boolean;
 }
 
 export function ReceiptPreview({
@@ -21,6 +22,7 @@ export function ReceiptPreview({
   localReceiptFooter,
   showLogo,
   showContact,
+  hidePoweredBy = false,
 }: ReceiptPreviewProps) {
   return (
     <div className="w-full md:w-64 flex-shrink-0">
@@ -136,7 +138,9 @@ export function ReceiptPreview({
           <div className="mt-1">
             {localReceiptFooter || "Thank you for your patronage!"}
           </div>
-          <div className="text-[7px] mt-1 opacity-50">Powered by DumosRx</div>
+          {!hidePoweredBy && (
+            <div className="text-[7px] mt-1 opacity-50">Powered by dumosrx.com</div>
+          )}
         </div>
       </div>
     </div>

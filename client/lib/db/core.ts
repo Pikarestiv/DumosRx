@@ -289,6 +289,7 @@ export async function initDatabase(): Promise<any> {
         "receipt_footer TEXT",
         "show_logo_on_receipt INTEGER DEFAULT 1",
         "show_contact_on_receipt INTEGER DEFAULT 1",
+        "hide_powered_by INTEGER DEFAULT 0",
         "low_stock_warning INTEGER DEFAULT 1",
         "expiry_warning INTEGER DEFAULT 1",
         "expiry_warning_days INTEGER DEFAULT 90",

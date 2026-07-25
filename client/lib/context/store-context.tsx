@@ -25,6 +25,7 @@ interface StoreProfile {
   receipt_footer?: string;
   show_logo_on_receipt?: number;
   show_contact_on_receipt?: number;
+  hide_powered_by?: number;
   low_stock_warning?: number;
   expiry_warning?: number;
   expiry_warning_days?: number;

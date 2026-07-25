@@ -124,6 +124,8 @@ export function useFeatureGate() {
     canUseExpenses: getFeature('expenses', 'expenses', !isFree),
     canUseAuditMode: getFeature('audit_mode', 'audit_mode', !isFree),
     canCustomizeTheme: getFeature('custom_branding', 'theme_customizer', !isFree),
+    // Ability to hide the "Powered by dumosrx.com" receipt footer — free/starter stores must keep it.
+    canRemoveBranding: getFeature('remove_branding', 'white_label', isPro || isEnterprise),
     canUseDarkMode: getFeature('dark_mode', 'dark_mode', !isFree),
     canUseSmartSuggestions: getFeature('smart_suggestions', 'smart_suggestions', isPro || isEnterprise),
     canUseStoreUrl: getFeature('ecommerce', 'store_url', isPro || isEnterprise),

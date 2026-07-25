@@ -37,6 +37,8 @@ interface ReceiptCustomizationCardProps {
   setShowLogo: (val: boolean) => void;
   showContact: boolean;
   setShowContact: (val: boolean) => void;
+  hidePoweredBy: boolean;
+  setHidePoweredBy: (val: boolean) => void;
   handleSaveReceiptSettings: () => void;
 }
 
@@ -55,9 +57,11 @@ export function ReceiptCustomizationCard({
   setShowLogo,
   showContact,
   setShowContact,
+  hidePoweredBy,
+  setHidePoweredBy,
   handleSaveReceiptSettings,
 }: ReceiptCustomizationCardProps) {
-  const { canCustomizeTheme, withRestriction, getUpgradeMessage } = useFeatureGate();
+  const { canCustomizeTheme, canRemoveBranding, withRestriction, getUpgradeMessage } = useFeatureGate();
   const [isEditing, setIsEditing] = useState(false);
 
   const handleToggleLogo = (checked: boolean) => {
@@ -251,6 +255,44 @@ export function ReceiptCustomizationCard({
                               {!(showContact) && "Disabled"}</p>
                                         )}
             </div>
+            <div className="flex items-center justify-between rounded-lg border p-4">
+              <div className="space-y-0.5">
+                <Label className="text-base">Hide "Powered by dumosrx.com"</Label>
+                <p className="text-sm text-muted-foreground">
+                  Remove the DumosRx branding line from printed receipts
+                </p>
+              </div>
+              {isEditing && (
+                <TooltipProvider delayDuration={0}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="inline-block">
+                        <Switch
+                          checked={hidePoweredBy && canRemoveBranding}
+                          disabled={!canRemoveBranding}
+                          onCheckedChange={(checked) =>
+                            withRestriction(() => setHidePoweredBy(checked), {
+                              featureAllowed: canRemoveBranding,
+                              featureKey: "remove_branding",
+                            })()
+                          }
+                        />
+                      </div>
+                    </TooltipTrigger>
+                    {!canRemoveBranding && (
+                      <TooltipContent>
+                        <p>{getUpgradeMessage("remove_branding")}</p>
+                      </TooltipContent>
+                    )}
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+              {!isEditing && (
+                <p className="text-sm font-medium">
+                  {hidePoweredBy && canRemoveBranding ? "Hidden" : "Shown"}
+                </p>
+              )}
+            </div>
           </div>
 
           <ReceiptPreview
@@ -262,6 +304,7 @@ export function ReceiptCustomizationCard({
             localReceiptFooter={localReceiptFooter}
             showLogo={showLogo && canCustomizeTheme}
             showContact={showContact}
+            hidePoweredBy={hidePoweredBy && canRemoveBranding}
           />
         </div>
       </CardContent>

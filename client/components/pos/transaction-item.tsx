@@ -1,6 +1,6 @@
 import React from 'react';
 import { format, parseISO } from 'date-fns';
-import { Receipt, RotateCcw, Banknote, CreditCard, ArrowLeftRight } from 'lucide-react';
+import { Receipt, RotateCcw, Banknote, CreditCard, ArrowLeftRight, Pill } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/utils';
@@ -95,9 +95,20 @@ export function TransactionItem({
           {getPaymentIcon(sale.payment_method)}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="font-bold text-[15px] text-foreground mb-0.5 truncate">
-            Sale #{sale.transaction_number} &middot;{" "}
-            {sale.customer_name || "Walk-in"}
+          <div className="font-bold text-[15px] text-foreground mb-0.5 truncate flex items-center gap-1.5">
+            <span className="truncate">
+              Sale #{sale.transaction_number} &middot;{" "}
+              {sale.customer_name || "Walk-in"}
+            </span>
+            {!!sale.prescription_id && (
+              <Badge
+                variant="secondary"
+                className="bg-primary/10 text-primary hover:bg-primary/10 border-0 shrink-0 gap-1 px-1.5"
+              >
+                <Pill className="h-3 w-3" />
+                Rx
+              </Badge>
+            )}
           </div>
           <div className="text-xs text-muted-foreground truncate">
             {time && `${time} · `}

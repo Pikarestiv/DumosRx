@@ -79,6 +79,12 @@ export function PrescriptionManagement() {
     router.push(`/pos?dispense_rx=${prescription.id}`);
   };
 
+  const handleDispenseRefill = (prescription: Prescription) => {
+    // Same POS flow, but flagged as a refill so payment completion bumps
+    // refills_used/next_refill_date instead of re-marking the rx "completed".
+    router.push(`/pos?dispense_rx=${prescription.id}&refill=1`);
+  };
+
   return (
     <div className="space-y-6">
 
@@ -144,6 +150,7 @@ export function PrescriptionManagement() {
                                 onClose={() => setSelectedPrescription(null)}
                                 onEdit={handleEdit}
                                 onDispense={handleDispense}
+                                onDispenseRefill={handleDispenseRefill}
                                 updateStatus={updatePrescriptionStatus}
                               />
                             )}

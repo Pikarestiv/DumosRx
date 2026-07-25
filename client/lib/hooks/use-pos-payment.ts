@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { insert, update } from "@/lib/db/local-database";
 import { getBatchesForProduct } from "@/lib/db/queries/inventory";
+import { updatePrescriptionStatus, dispensePrescriptionRefill } from "@/lib/db/queries/prescriptions";
 import { CartItem } from "./use-pos-cart";
 import { calculateEarnedPoints } from "@/lib/utils/loyalty-calculator";
 
@@ -32,6 +33,7 @@ interface UsePOSPaymentProps {
   requirePaymentAccount?: boolean;
   dispensedRxId?: string | null;
   setDispensedRxId?: (id: string | null) => void;
+  isRefillDispense?: boolean;
 }
 
 export function usePOSPayment({
@@ -50,6 +52,7 @@ export function usePOSPayment({
   requirePaymentAccount = false,
   dispensedRxId,
   setDispensedRxId,
+  isRefillDispense = false,
 }: UsePOSPaymentProps) {
   const [paymentMethod, setPaymentMethod] = useState<
     "cash" | "card" | "transfer" | "credit" | "mixed"
@@ -168,6 +171,7 @@ export function usePOSPayment({
         transaction_date: new Date().toISOString(),
         receipt_printed: 0,
         notes: "POS Sale",
+        prescription_id: dispensedRxId || null,
       });
 
       for (const item of cart) {
@@ -295,9 +299,11 @@ export function usePOSPayment({
 
       // Update prescription status if this was a dispensed prescription
       if (dispensedRxId) {
-        await update("prescriptions", dispensedRxId, {
-          status: "completed",
-        });
+        if (isRefillDispense) {
+          await dispensePrescriptionRefill(dispensedRxId);
+        } else {
+          await updatePrescriptionStatus(dispensedRxId, "completed");
+        }
         setDispensedRxId?.(null);
       }
 

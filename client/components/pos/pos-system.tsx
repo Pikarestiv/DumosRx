@@ -88,7 +88,7 @@ export function POSSystem() {
     if (storeProfile?.enabled_payment_methods)
       enabledPaymentMethods = JSON.parse(storeProfile.enabled_payment_methods);
   } catch (_e) {}
-  const { dispensedRxId, setDispensedRxId } = usePOSPrescription({
+  const { dispensedRxId, setDispensedRxId, isRefillDispense } = usePOSPrescription({
     searchParams,
     products,
     cartLength: cart.length,
@@ -117,6 +117,7 @@ export function POSSystem() {
     requirePaymentAccount,
     dispensedRxId,
     setDispensedRxId,
+    isRefillDispense,
   });
   usePOSKeyboardShortcuts({
     searchInputRef,

@@ -14,6 +14,10 @@ export interface PrescriptionMedication {
   instructions: string;
   available: boolean;
   cost: number;
+  refillsAuthorized: number;
+  refillsUsed: number;
+  refillIntervalDays: number;
+  nextRefillDate?: string;
 }
 
 export interface Prescription {
@@ -32,6 +36,7 @@ export interface Prescription {
   insurance?: string;
   totalCost: number;
   notes?: string;
+  hasRefillDue: boolean;
 }
 
 async function fetchPrescriptions(): Promise<Prescription[]> {
@@ -54,27 +59,45 @@ async function fetchPrescriptions(): Promise<Prescription[]> {
       instructions: item.instructions,
       available: true,
       cost: item.cost,
+      refillsAuthorized: item.refills_authorized || 0,
+      refillsUsed: item.refills_used || 0,
+      refillIntervalDays: item.refill_interval_days || 30,
+      nextRefillDate: item.next_refill_date || undefined,
     });
   });
 
+  const nowIso = new Date().toISOString();
+
   // 3. Map to Prescription objects
-  return pData.map((p: any) => ({
-    id: p.id,
-    prescriptionNumber: p.prescription_number,
-    patientName: p.patient_name,
-    patientPhone: p.patient_phone,
-    patientAge: p.patient_age,
-    doctorName: p.doctor_name,
-    doctorLicense: p.doctor_license,
-    dateIssued: p.issued_at,
-    dateDispensed: p.dispensed_at || undefined,
-    status: p.status,
-    priority: p.priority,
-    medications: itemsMap.get(p.id) || [],
-    insurance: p.insurance,
-    totalCost: p.total_cost,
-    notes: p.notes,
-  }));
+  return pData.map((p: any) => {
+    const medications = itemsMap.get(p.id) || [];
+    const isDispensable = p.status === "dispensed" || p.status === "completed";
+    const hasRefillDue = isDispensable && medications.some(
+      (m) =>
+        m.refillsUsed < m.refillsAuthorized &&
+        !!m.nextRefillDate &&
+        m.nextRefillDate <= nowIso
+    );
+
+    return {
+      id: p.id,
+      prescriptionNumber: p.prescription_number,
+      patientName: p.patient_name,
+      patientPhone: p.patient_phone,
+      patientAge: p.patient_age,
+      doctorName: p.doctor_name,
+      doctorLicense: p.doctor_license,
+      dateIssued: p.issued_at,
+      dateDispensed: p.dispensed_at || undefined,
+      status: p.status,
+      priority: p.priority,
+      medications,
+      insurance: p.insurance,
+      totalCost: p.total_cost,
+      notes: p.notes,
+      hasRefillDue,
+    };
+  });
 }
 
 export function usePrescriptionQueue() {
@@ -99,7 +122,13 @@ export function usePrescriptionQueue() {
       if (statusFilter === "filled") {
         return prescription.status === "dispensed" || prescription.status === "completed";
       }
-      
+
+      // "refill_due" isn't a prescription status — it's derived from whether
+      // any medication has refills remaining and its next_refill_date has passed.
+      if (statusFilter === "refill_due") {
+        return prescription.hasRefillDue;
+      }
+
       const matchesStatus = statusFilter === "all" || prescription.status === statusFilter;
       const matchesPriority = priorityFilter === "all" || prescription.priority === priorityFilter;
 

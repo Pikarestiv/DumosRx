@@ -102,6 +102,7 @@ CREATE TABLE IF NOT EXISTS sales (
   transaction_number TEXT UNIQUE NOT NULL,
   customer_id TEXT,
   user_id TEXT,
+  prescription_id TEXT,
   subtotal REAL NOT NULL,
   tax_amount REAL DEFAULT 0,
   discount_total REAL DEFAULT 0,

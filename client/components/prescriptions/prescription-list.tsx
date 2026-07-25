@@ -82,11 +82,18 @@ export function PrescriptionList({
                     {formatDateToDDMMYYYY(rx.dateIssued)}
                   </div>
                 </div>
-                <span
-                  className={`text-[10.5px] font-semibold px-2.5 py-1 rounded-md shrink-0 whitespace-nowrap ${meta.badgeClass}`}
-                >
-                  {meta.label}
-                </span>
+                <div className="flex flex-col items-end gap-1 shrink-0">
+                  <span
+                    className={`text-[10.5px] font-semibold px-2.5 py-1 rounded-md whitespace-nowrap ${meta.badgeClass}`}
+                  >
+                    {meta.label}
+                  </span>
+                  {!!rx.hasRefillDue && (
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md whitespace-nowrap bg-primary/10 text-primary">
+                      Refill due
+                    </span>
+                  )}
+                </div>
               </div>
             );
           })}

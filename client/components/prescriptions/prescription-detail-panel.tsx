@@ -27,6 +27,7 @@ interface PrescriptionDetailPanelProps {
   onClose: () => void;
   onEdit: (prescription: Prescription) => void;
   onDispense: (prescription: Prescription) => void;
+  onDispenseRefill: (prescription: Prescription) => void;
   updateStatus: (id: string, status: Prescription["status"]) => void;
 }
 
@@ -37,6 +38,7 @@ export function PrescriptionDetailPanel({
   onClose,
   onEdit,
   onDispense,
+  onDispenseRefill,
   updateStatus,
 }: PrescriptionDetailPanelProps) {
   if (!prescription) {
@@ -103,7 +105,13 @@ export function PrescriptionDetailPanel({
       case "dispensed":
       case "completed":
         return (
-          <div className="flex gap-2">
+          <div className="flex w-full justify-between gap-2">
+            {!!prescription.hasRefillDue && (
+              <Button size="sm" onClick={() => onDispenseRefill(prescription)}>
+                <PillIcon className="w-4 h-4 mr-1" />
+                Dispense Refill
+              </Button>
+            )}
             <Button
               size="sm"
               variant="outline"

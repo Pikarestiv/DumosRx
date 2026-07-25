@@ -33,7 +33,7 @@ export function PrescriptionStats({ stats }: PrescriptionStatsProps) {
 
       <MetricCard
         className="min-w-[140px] sm:min-w-0 snap-center shrink-0 border-border hover:border-primary"
-        onClick={() => setStatusFilter("processing")}
+        onClick={() => setStatusFilter("in_progress")}
         title="In Progress"
         value={stats.inProgress}
         valueClassName="font-serif"

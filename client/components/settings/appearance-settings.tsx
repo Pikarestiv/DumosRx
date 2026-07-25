@@ -22,6 +22,14 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { CURRENCIES, getCurrencyByCode, DEFAULT_CURRENCY_CODE } from "@/lib/constants/currencies";
 
 interface AppearanceSettingsProps {
   theme: string | undefined;
@@ -225,8 +233,10 @@ export function AppearanceSettings({
                   <Banknote className="h-4 w-4 text-primary" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Currency Code</p>
-                  <p className="text-sm font-semibold">{localCurrency || "Not set"}</p>
+                  <p className="text-xs text-muted-foreground">Currency</p>
+                  <p className="text-sm font-semibold">
+                    {getCurrencyByCode(localCurrency).name} ({getCurrencyByCode(localCurrency).symbol})
+                  </p>
                 </div>
               </div>
               <div className="flex items-center gap-3 rounded-lg border p-4 bg-muted/20">
@@ -244,7 +254,7 @@ export function AppearanceSettings({
             <CardContent className="grid gap-6">
               <div className="grid gap-2">
                 <div className="flex items-center gap-2">
-                  <Label htmlFor="currency">Currency Code (ISO)</Label>
+                  <Label htmlFor="currency">Currency</Label>
                   <TooltipProvider delayDuration={0}>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -252,19 +262,28 @@ export function AppearanceSettings({
                       </TooltipTrigger>
                       <TooltipContent>
                         <p>
-                          Enter a standard 3-letter currency code (e.g., NGN, USD,
-                          GBP). This changes the currency symbol across the app.
+                          The currency used across the app for prices, sales, and
+                          reports. Defaults to Nigerian Naira.
                         </p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
                 </div>
-                <Input
-                  id="currency"
-                  value={localCurrency}
-                  onChange={(e) => setLocalCurrency(e.target.value.toUpperCase())}
-                  placeholder="e.g. NGN, USD, GHS"
-                />
+                <Select
+                  value={localCurrency || DEFAULT_CURRENCY_CODE}
+                  onValueChange={setLocalCurrency}
+                >
+                  <SelectTrigger id="currency" className="w-full">
+                    <SelectValue placeholder="Select currency" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CURRENCIES.map((c) => (
+                      <SelectItem key={c.code} value={c.code}>
+                        {c.name} ({c.symbol})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="grid gap-2">
                 <div className="flex items-center gap-2">

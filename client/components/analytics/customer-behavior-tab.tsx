@@ -9,6 +9,7 @@ import {
 import { useStore } from "@/lib/context/store-context";
 import { Card } from "@/components/ui/card";
 import { MetricCard } from "@/components/ui/metric-card";
+import { getCurrencyByCode } from "@/lib/constants/currencies";
 
 interface CustomerBehaviorTabProps {
   customerMetrics: {
@@ -31,7 +32,7 @@ export function CustomerBehaviorTab({
 }: CustomerBehaviorTabProps) {
   const { storeProfile } = useStore();
   const currency = storeProfile?.currency || "NGN";
-  const symbol = currency === "NGN" ? "₦" : currency === "USD" ? "$" : currency === "GBP" ? "£" : "₦";
+  const symbol = getCurrencyByCode(currency).symbol;
 
   return (
     <div className="flex flex-col gap-5">

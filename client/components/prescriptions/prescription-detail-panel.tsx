@@ -6,7 +6,7 @@ import {
   User,
   FileText,
   Pill,
-  X,
+  ArrowLeft,
   Edit,
   Pill as PillIcon,
   CheckCircle,
@@ -41,7 +41,7 @@ export function PrescriptionDetailPanel({
 }: PrescriptionDetailPanelProps) {
   if (!prescription) {
     return (
-      <Card className="hidden md:flex flex-col h-full items-center justify-center bg-card rounded-2xl border border-border text-muted-foreground p-6 shadow-sm">
+      <Card className="hidden lg:flex flex-col h-full items-center justify-center bg-card rounded-2xl border border-border text-muted-foreground p-6 shadow-sm">
         <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
           <FileText className="w-8 h-8 text-muted-foreground/60" />
         </div>
@@ -122,9 +122,15 @@ export function PrescriptionDetailPanel({
   const statusMeta = PRESCRIPTION_STATUS_META[prescription.status];
 
   return (
-    <Card className="fixed inset-0 z-50 md:static md:z-auto bg-background md:bg-card md:rounded-xl md:border md:border-border flex flex-col h-full shadow-sm p-0 gap-0">
-      {/* Header */}
-      <div className="flex items-center gap-3 p-4 border-b border-border">
+    <Card className="fixed inset-0 z-50 lg:static lg:z-auto bg-background lg:bg-card lg:rounded-xl lg:border lg:border-border flex flex-col h-full shadow-sm p-0 gap-0">
+      {/* Header — top padding on mobile/tablet clears the status bar / Tauri title bar */}
+      <div className="flex items-center gap-3 px-4 pb-4 pt-[calc(var(--tauri-top,0px)+1rem)] lg:pt-4 border-b border-border">
+        <div
+          className="lg:hidden w-[38px] h-[38px] rounded-[10px] bg-muted flex items-center justify-center cursor-pointer text-muted-foreground shrink-0 hover:bg-muted/80 transition-colors"
+          onClick={onClose}
+        >
+          <ArrowLeft className="w-[17px] h-[17px]" />
+        </div>
         <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[12px] font-bold shrink-0">
           {getInitials(prescription.patientName)}
         </div>
@@ -142,28 +148,20 @@ export function PrescriptionDetailPanel({
         >
           {statusMeta.label}
         </span>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="md:hidden shrink-0"
-          onClick={onClose}
-        >
-          <X className="w-5 h-5" />
-        </Button>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-6">
-        {/* Actions Row */}
-        {renderActions() && (
-          <div className="flex flex-wrap gap-2 items-center justify-end p-3 bg-accent/20 rounded-lg border border-accent">
-            {renderActions()}
-          </div>
-        )}
+      {/* Actions Row — fixed, doesn't scroll away with the content below */}
+      {renderActions() && (
+        <div className="shrink-0 flex flex-wrap gap-2 items-center justify-end p-4 lg:p-3 bg-accent/20 border-b border-accent">
+          {renderActions()}
+        </div>
+      )}
 
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto px-4 pt-4 pb-[calc(var(--tauri-bottom,env(safe-area-inset-bottom,0px))+1rem)] lg:pb-4 space-y-6">
         <div className="grid grid-cols-1 gap-6">
           {/* Patient Information */}
-          <Card className="shadow-none border-border">
+          <Card className="shadow-none border-border py-0 gap-0">
             <CardHeader className="p-4 pb-2">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
                 <User className="h-4 w-4" />
@@ -203,7 +201,7 @@ export function PrescriptionDetailPanel({
           </Card>
 
           {/* Doctor Information */}
-          <Card className="shadow-none border-border">
+          <Card className="shadow-none border-border py-0 gap-0">
             <CardHeader className="p-4 pb-2">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
                 <FileText className="h-4 w-4" />
@@ -242,7 +240,7 @@ export function PrescriptionDetailPanel({
         </div>
 
         {/* Medications */}
-        <Card className="shadow-none border-border">
+        <Card className="shadow-none border-border py-0 gap-0">
           <CardHeader className="p-4 pb-2">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <Pill className="h-4 w-4" />
@@ -315,7 +313,7 @@ export function PrescriptionDetailPanel({
 
         {/* Notes */}
         {prescription.notes && (
-          <Card className="shadow-none border-border">
+          <Card className="shadow-none border-border py-0">
             <CardHeader className="p-4 pb-2">
               <CardTitle className="text-sm font-semibold">
                 Clinical Notes

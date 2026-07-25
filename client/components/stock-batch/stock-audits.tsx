@@ -90,9 +90,12 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-background w-full h-full">
-      {/* Header */}
-      <div className="flex items-center gap-3 px-4 md:px-6 py-4 md:py-5 border-b border-border bg-card">
-        <div 
+      {/* Header — top padding clears the status bar / Tauri title bar */}
+      <div
+        className="flex items-center gap-3 px-4 md:px-6 pb-4 md:pb-5 border-b border-border bg-card"
+        style={{ paddingTop: "calc(var(--tauri-top, 0px) + 1rem)" }}
+      >
+        <div
           className="w-8 h-8 md:w-[38px] md:h-[38px] rounded-[10px] bg-muted/30 flex items-center justify-center cursor-pointer text-muted-foreground shrink-0 hover:bg-accent transition-colors"
           onClick={() => {
             if (step === "count") setStep("list");
@@ -119,7 +122,10 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 md:p-8 flex justify-center">
+      <div
+        className="flex-1 overflow-y-auto p-4 md:p-8 flex justify-center"
+        style={{ paddingBottom: "calc(var(--tauri-bottom, env(safe-area-inset-bottom, 0px)) + 1rem)" }}
+      >
         <div className="w-full max-w-[560px]">
 
           {/* SETUP */}

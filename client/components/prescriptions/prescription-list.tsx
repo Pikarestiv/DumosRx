@@ -1,9 +1,11 @@
 "use client";
 
 import { Prescription } from "@/lib/hooks/use-prescription-queue";
-import { Search, AlertTriangle } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { PRESCRIPTION_STATUS_META, getInitials } from "./prescription-status-meta";
+import { PrescriptionSearchBar } from "./prescription-search-bar";
+import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 
 interface PrescriptionListProps {
   prescriptions: Prescription[];
@@ -25,19 +27,10 @@ export function PrescriptionList({
   isFuzzyFallback,
 }: PrescriptionListProps) {
   return (
-    <Card className="bg-card border border-border rounded-2xl flex flex-col min-h-0 h-[calc(100vh-320px)] p-0 gap-0">
-      {/* Search */}
-      <div className="p-4 pb-3 border-b border-border">
-        <div className="flex items-center gap-2 bg-muted border border-border rounded-[10px] px-3.5 py-2.5">
-          <Search className="w-4 h-4 text-muted-foreground shrink-0" />
-          <input
-            type="text"
-            placeholder="Search by patient or medication"
-            className="border-0 outline-none text-[13px] w-full bg-transparent text-foreground placeholder:text-muted-foreground"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
+    <Card className="bg-card border border-border rounded-2xl flex flex-col min-h-0 lg:h-full p-0 gap-0">
+      {/* Search — renders standalone above on mobile (see PrescriptionManagement) */}
+      <div className="hidden lg:block p-4 pb-3 border-b border-border">
+        <PrescriptionSearchBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
       </div>
 
       {isFuzzyFallback && prescriptions.length > 0 && (
@@ -86,7 +79,7 @@ export function PrescriptionList({
                     {firstMed
                       ? `${firstMed.productName}${firstMed.strength ? ` ${firstMed.strength}` : ""} · `
                       : ""}
-                    {new Date(rx.dateIssued).toLocaleDateString()}
+                    {formatDateToDDMMYYYY(rx.dateIssued)}
                   </div>
                 </div>
                 <span

@@ -26,6 +26,7 @@ import { formatCurrency } from "@/lib/utils";
 import { ReceivePOModal, type ReceivedItemPayload } from "./receive-po-modal";
 import { PurchaseOrderDetails } from "./purchase-order-details";
 import { getPurchaseOrderById } from "@/lib/db/procurement";
+import { useMediaQuery } from "@/hooks/use-media-query";
 
 interface PurchaseOrderTableProps {
   orders: any[];
@@ -56,8 +57,13 @@ export function PurchaseOrderTable({
   const [isReceiveModalOpen, setIsReceiveModalOpen] = useState(false);
   const [fullSelectedPO, setFullSelectedPO] = useState<any>(null);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
 
   useEffect(() => {
+    // Auto-selecting an order keeps the desktop details panel from sitting
+    // empty, but on mobile a selection now opens a full-screen takeover —
+    // don't force that open on load.
+    if (!isDesktop) return;
     if (!selectedOrderId && orders.length > 0) {
       setSelectedOrderId(orders[0].id);
     } else if (
@@ -70,7 +76,7 @@ export function PurchaseOrderTable({
         setSelectedOrderId(null);
       }
     }
-  }, [orders, selectedOrderId]);
+  }, [orders, selectedOrderId, isDesktop]);
 
   useEffect(() => {
     async function loadDetails() {
@@ -130,13 +136,13 @@ export function PurchaseOrderTable({
   return (
     <div className="flex flex-col lg:flex-row gap-5 flex-1 min-h-0 overflow-hidden">
       {/* Left Column - List */}
-      <Card className="print:hidden flex-[2] flex flex-col gap-0 rounded-[14px] border border-border bg-card shadow-[0_1px_2px_rgba(16,24,40,0.04)] overflow-hidden">
-        <div className="p-4 flex flex-col gap-4 border-b border-border">
+      <Card className="print:hidden flex-[2] flex flex-col gap-0 md:rounded-[14px] border-0 md:border md:border-border bg-transparent md:bg-card shadow-none md:shadow-[0_1px_2px_rgba(16,24,40,0.04)] overflow-hidden">
+        <div className="p-4 flex flex-col gap-4 border-b-0 md:border-b border-border">
           <div className="relative w-full">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 pointer-events-none" />
             <Input
               placeholder="Search vendor or PO#..."
-              className="pl-9 h-10 text-[13px] rounded-[10px] bg-muted border-transparent"
+              className="pl-9 h-10 text-[13px] rounded-[10px] bg-card border-border md:bg-muted md:border-transparent"
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
             />
@@ -148,13 +154,33 @@ export function PurchaseOrderTable({
             variant="chips"
           >
             <TabsList className="w-full md:w-max justify-start overflow-x-auto hide-scrollbar">
-              <TabsTrigger value="all">All Orders</TabsTrigger>
-              <TabsTrigger value="pending">Drafts</TabsTrigger>
-              <TabsTrigger value="sent">Sent</TabsTrigger>
-              <TabsTrigger value="received">Received</TabsTrigger>
+              <TabsTrigger
+                value="all"
+                className="data-[state=inactive]:bg-card data-[state=inactive]:border-border md:data-[state=inactive]:bg-transparent md:data-[state=inactive]:border-transparent"
+              >
+                All Orders
+              </TabsTrigger>
+              <TabsTrigger
+                value="pending"
+                className="data-[state=inactive]:bg-card data-[state=inactive]:border-border md:data-[state=inactive]:bg-transparent md:data-[state=inactive]:border-transparent"
+              >
+                Drafts
+              </TabsTrigger>
+              <TabsTrigger
+                value="sent"
+                className="data-[state=inactive]:bg-card data-[state=inactive]:border-border md:data-[state=inactive]:bg-transparent md:data-[state=inactive]:border-transparent"
+              >
+                Sent
+              </TabsTrigger>
+              <TabsTrigger
+                value="received"
+                className="data-[state=inactive]:bg-card data-[state=inactive]:border-border md:data-[state=inactive]:bg-transparent md:data-[state=inactive]:border-transparent"
+              >
+                Received
+              </TabsTrigger>
               <TabsTrigger
                 value="missing-expiry"
-                className="data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-600"
+                className="data-[state=inactive]:bg-card data-[state=inactive]:border-border md:data-[state=inactive]:bg-transparent md:data-[state=inactive]:border-transparent data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-600"
               >
                 Missing Expiry
               </TabsTrigger>
@@ -295,6 +321,7 @@ export function PurchaseOrderTable({
         onSendPO={onSendPO}
         onDeletePO={onDeletePO}
         setIsReceiveModalOpen={setIsReceiveModalOpen}
+        onClose={() => setSelectedOrderId(null)}
       />
 
       <ReceivePOModal

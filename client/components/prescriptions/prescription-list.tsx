@@ -57,10 +57,10 @@ export function PrescriptionList({
               <div
                 key={rx.id}
                 onClick={() => onSelect(rx)}
-                className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer border mb-1 transition-colors ${
+                className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer border mb-2 lg:mb-1 transition-colors ${
                   isSelected
                     ? "border-primary bg-primary/5"
-                    : "border-transparent hover:bg-muted/50"
+                    : "border-border bg-card lg:border-transparent lg:bg-transparent hover:bg-muted/50"
                 }`}
               >
                 <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[12px] font-bold shrink-0">

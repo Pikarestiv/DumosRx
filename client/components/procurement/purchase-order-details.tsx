@@ -1,6 +1,6 @@
 import React from "react";
 import { useRouter } from "next/navigation";
-import { Clock, CheckCircle2, Edit2 } from "lucide-react";
+import { ArrowLeft, Clock, CheckCircle2, Edit2 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { Card } from "@/components/ui/card";
@@ -24,6 +24,7 @@ interface PurchaseOrderDetailsProps {
   onSendPO: (id: string) => void;
   onDeletePO?: (id: string) => void;
   setIsReceiveModalOpen: (isOpen: boolean) => void;
+  onClose: () => void;
 }
 
 export function PurchaseOrderDetails({
@@ -33,24 +34,42 @@ export function PurchaseOrderDetails({
   onSendPO,
   onDeletePO,
   setIsReceiveModalOpen,
+  onClose,
 }: PurchaseOrderDetailsProps) {
   const router = useRouter();
 
+  if (!selectedPO) {
+    return (
+      <Card className="hidden lg:flex flex-[1] flex-col items-center justify-center rounded-[14px] border border-border bg-card shadow-[0_1px_2px_rgba(16,24,40,0.04)] overflow-hidden text-muted-foreground text-[13.5px] font-medium">
+        Select an order to view details
+      </Card>
+    );
+  }
+
   return (
-    <Card className="flex-[1] flex flex-col rounded-[14px] border border-border bg-card shadow-[0_1px_2px_rgba(16,24,40,0.04)] overflow-hidden">
-      {selectedPO ? (
-        <div className="flex flex-col h-full overflow-hidden">
-          <div className="p-5 border-b border-border">
-            <div className="flex items-center justify-between mb-1">
-              <h3 className="text-[17px] font-bold text-foreground">
-                PO-{selectedPO.id.split("-")[0].toUpperCase()}
-              </h3>
-              {getStatusBadge(selectedPO.status)}
+    // Full-screen takeover on mobile (matches the prescription detail panel
+    // pattern), a normal panel alongside the list on desktop.
+    <Card className="fixed inset-0 z-50 lg:static lg:z-auto lg:flex-[1] flex flex-col h-full bg-background lg:bg-card lg:rounded-[14px] lg:border lg:border-border shadow-none lg:shadow-[0_1px_2px_rgba(16,24,40,0.04)] overflow-hidden p-0 gap-0">
+      <div className="flex flex-col h-full overflow-hidden">
+          <div className="flex items-center gap-3 p-5 pt-[calc(var(--tauri-top,0px)+1.25rem)] lg:pt-5 border-b border-border">
+            <div
+              className="lg:hidden w-[38px] h-[38px] rounded-[10px] bg-muted flex items-center justify-center cursor-pointer text-muted-foreground shrink-0 hover:bg-muted/80 transition-colors"
+              onClick={onClose}
+            >
+              <ArrowLeft className="w-[17px] h-[17px]" />
             </div>
-            <p className="text-[13px] text-muted-foreground font-medium">
-              {selectedPO.vendor_name} ·{" "}
-              {formatDateToDDMMYYYY(selectedPO.created_at)}
-            </p>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center justify-between mb-1 gap-2">
+                <h3 className="text-[17px] font-bold text-foreground truncate">
+                  PO-{selectedPO.id.split("-")[0].toUpperCase()}
+                </h3>
+                {getStatusBadge(selectedPO.status)}
+              </div>
+              <p className="text-[13px] text-muted-foreground font-medium truncate">
+                {selectedPO.vendor_name} ·{" "}
+                {formatDateToDDMMYYYY(selectedPO.created_at)}
+              </p>
+            </div>
           </div>
 
           <div className="flex-1 overflow-auto">
@@ -155,7 +174,7 @@ export function PurchaseOrderDetails({
             </div>
           </div>
 
-          <div className="print:hidden p-5 border-t border-border bg-card mt-auto flex flex-col gap-3">
+          <div className="print:hidden p-5 pb-[calc(var(--tauri-bottom,env(safe-area-inset-bottom,0px))+1.25rem)] lg:pb-5 border-t border-border bg-card mt-auto flex flex-col gap-3">
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
@@ -239,12 +258,7 @@ export function PurchaseOrderDetails({
               )}
             </div>
           </div>
-        </div>
-      ) : (
-        <div className="flex items-center justify-center flex-1 text-muted-foreground text-[13.5px] font-medium bg-muted/20">
-          Select an order to view details
-        </div>
-      )}
+      </div>
     </Card>
   );
 }

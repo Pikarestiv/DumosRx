@@ -46,8 +46,13 @@ function runInherit(cmd: string, args_: string[], cwd: string = REPO_ROOT) {
 
 async function confirm(question: string): Promise<boolean> {
   if (skipConfirm) return true;
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-  const answer: string = await new Promise((resolve) => rl.question(`${question} (y/N) `, resolve));
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+  const answer: string = await new Promise((resolve) =>
+    rl.question(`${question} (y/N) `, resolve),
+  );
   rl.close();
   return answer.trim().toLowerCase() === "y";
 }
@@ -57,12 +62,16 @@ async function confirm(question: string): Promise<boolean> {
 // ---------------------------------------------------------------------------
 
 if (!versionArg) {
-  fail("Usage: npx tsx scripts/release.ts <version> [--dry-run] [--yes]\nExample: npx tsx scripts/release.ts 0.0.28");
+  fail(
+    "Usage: npx tsx scripts/release.ts <version> [--dry-run] [--yes]\nExample: npx tsx scripts/release.ts 0.0.28",
+  );
 }
 
 const VERSION_RE = /^\d+\.\d+\.\d+$/;
 if (!VERSION_RE.test(versionArg)) {
-  fail(`"${versionArg}" doesn't look like a version (expected e.g. 0.0.28, no leading "v").`);
+  fail(
+    `"${versionArg}" doesn't look like a version (expected e.g. 0.0.28, no leading "v").`,
+  );
 }
 const newVersion = versionArg;
 const tagName = `v${newVersion}`;
@@ -71,7 +80,9 @@ const tagName = `v${newVersion}`;
 // 2. Pre-flight checks
 // ---------------------------------------------------------------------------
 
-console.log(`\nPreparing release ${tagName}${dryRun ? " (dry run — no writes, no git actions)" : ""}\n`);
+console.log(
+  `\nPreparing release ${tagName}${dryRun ? " (dry run — no writes, no git actions)" : ""}\n`,
+);
 
 const currentBranch = run("git branch --show-current");
 if (!currentBranch) {
@@ -89,7 +100,9 @@ if (gitStatus) {
 
 const existingTags = run("git tag --list").split("\n");
 if (existingTags.includes(tagName)) {
-  fail(`Tag ${tagName} already exists locally. Pick a different version, or delete it first if this was a mistake.`);
+  fail(
+    `Tag ${tagName} already exists locally. Pick a different version, or delete it first if this was a mistake.`,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -115,15 +128,24 @@ interface Edit {
   apply: (content: string) => string;
 }
 
-function replaceOrThrow(content: string, search: string | RegExp, replacement: string, fileLabel: string): string {
+function replaceOrThrow(
+  content: string,
+  search: string | RegExp,
+  replacement: string,
+  fileLabel: string,
+): string {
   if (typeof search === "string") {
     if (!content.includes(search)) {
-      fail(`Couldn't find expected text in ${fileLabel}:\n  ${search}\n(File may have changed shape — update release.ts.)`);
+      fail(
+        `Couldn't find expected text in ${fileLabel}:\n  ${search}\n(File may have changed shape — update release.ts.)`,
+      );
     }
     return content.split(search).join(replacement);
   }
   if (!search.test(content)) {
-    fail(`Couldn't find expected pattern in ${fileLabel}: ${search}\n(File may have changed shape — update release.ts.)`);
+    fail(
+      `Couldn't find expected pattern in ${fileLabel}: ${search}\n(File may have changed shape — update release.ts.)`,
+    );
   }
   return content.replace(search, replacement);
 }
@@ -131,15 +153,33 @@ function replaceOrThrow(content: string, search: string | RegExp, replacement: s
 const edits: Edit[] = [
   {
     file: path.join(CLIENT_DIR, "package.json"),
-    apply: (c) => replaceOrThrow(c, `"version": "${oldVersion}"`, `"version": "${newVersion}"`, "client/package.json"),
+    apply: (c) =>
+      replaceOrThrow(
+        c,
+        `"version": "${oldVersion}"`,
+        `"version": "${newVersion}"`,
+        "client/package.json",
+      ),
   },
   {
     file: path.join(SRC_TAURI_DIR, "tauri.conf.json"),
-    apply: (c) => replaceOrThrow(c, `"version": "${oldVersion}"`, `"version": "${newVersion}"`, "tauri.conf.json"),
+    apply: (c) =>
+      replaceOrThrow(
+        c,
+        `"version": "${oldVersion}"`,
+        `"version": "${newVersion}"`,
+        "tauri.conf.json",
+      ),
   },
   {
     file: path.join(SRC_TAURI_DIR, "Cargo.toml"),
-    apply: (c) => replaceOrThrow(c, `version = "${oldVersion}"`, `version = "${newVersion}"`, "Cargo.toml"),
+    apply: (c) =>
+      replaceOrThrow(
+        c,
+        `version = "${oldVersion}"`,
+        `version = "${newVersion}"`,
+        "Cargo.toml",
+      ),
   },
   {
     file: path.join(SRC_TAURI_DIR, "Cargo.lock"),
@@ -191,10 +231,17 @@ for (const edit of edits) {
 // has no dependency-resolution implications since it's the root package).
 if (!dryRun) {
   try {
-    run("cargo metadata --no-deps --format-version 1 >/dev/null 2>&1", SRC_TAURI_DIR);
-    console.log("  verified via `cargo metadata` that Cargo.lock matches Cargo.toml");
+    run(
+      "cargo metadata --no-deps --format-version 1 >/dev/null 2>&1",
+      SRC_TAURI_DIR,
+    );
+    console.log(
+      "  verified via `cargo metadata` that Cargo.lock matches Cargo.toml",
+    );
   } catch {
-    console.log("  (cargo not available or check failed — left the direct Cargo.lock edit as-is)");
+    console.log(
+      "  (cargo not available or check failed — left the direct Cargo.lock edit as-is)",
+    );
   }
 }
 
@@ -219,12 +266,16 @@ if (!dryRun) {
 // ---------------------------------------------------------------------------
 
 if (!dryRun) {
-  console.log("\nRunning `tsc --noEmit` to sanity-check the client before committing...");
+  console.log(
+    "\nRunning `tsc --noEmit` to sanity-check the client before committing...",
+  );
   try {
     run("npx tsc --noEmit -p tsconfig.json", CLIENT_DIR);
     console.log("  typecheck passed");
   } catch (e: any) {
-    fail(`Typecheck failed — fix errors before releasing:\n\n${e.stdout || e.message}`);
+    fail(
+      `Typecheck failed — fix errors before releasing:\n\n${e.stdout || e.message}`,
+    );
   }
 }
 
@@ -233,7 +284,9 @@ if (!dryRun) {
 // ---------------------------------------------------------------------------
 
 if (dryRun) {
-  console.log(`\nDry run complete. Would commit, push "${currentBranch}", then create and push tag ${tagName}.`);
+  console.log(
+    `\nDry run complete. Would commit, push "${currentBranch}", then create and push tag ${tagName}.`,
+  );
   process.exit(0);
 }
 
@@ -241,7 +294,9 @@ console.log(`\nAbout to on branch "${currentBranch}":`);
 console.log(`  1. git add + commit "chore: bump version to ${newVersion}"`);
 console.log(`  2. git push origin ${currentBranch}`);
 console.log(`  3. git tag ${tagName} && git push origin ${tagName}`);
-console.log(`\nPushing the tag triggers the real release pipeline: builds macOS/Windows/Linux/Android and deploys to downloads.dumosrx.com.\n`);
+console.log(
+  `\nPushing the tag triggers the real release pipeline: builds macOS/Windows/Linux/Android and deploys to downloads.dumosrx.com.\n`,
+);
 
 (async () => {
   const proceed = await confirm("Proceed?");

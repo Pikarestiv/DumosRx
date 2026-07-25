@@ -42,12 +42,12 @@ The tag name must match `v*` and should match the version you just bumped to (th
 
 ## Updater safeguards
 
-Two checks now guard against silently shipping a broken update feed (this happened in the v0.0.26 release — see below):
+Two checks guard against silently shipping a broken update feed:
 
-- **`release` job** fails immediately, before building, if `TAURI_SIGNING_PRIVATE_KEY` or `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` is unset — building without them produces unsigned bundles (no `.sig` files) with no visible error at build time.
+- **`release` job** fails immediately, before building, if `TAURI_SIGNING_PRIVATE_KEY` or `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` is unset.
 - **`deploy-ftp` job** refuses to publish `updater.json` if it would end up with an empty `platforms` object, and warns (without failing) if any of the three expected platforms (`darwin-aarch64`, `windows-x86_64`, `linux-x86_64`) is missing.
 
-**Post-mortem, v0.0.26:** the live `updater.json` at `downloads.dumosrx.com/updater.json` shipped with `"platforms": {}`, silently breaking the in-app updater for everyone — `deploy-ftp` found zero `.sig` files among the downloaded release assets and published the empty result anyway. Root cause presumed to be missing/invalid `TAURI_SIGNING_PRIVATE_KEY`(`_PASSWORD`) secrets at build time; the two checks above turn this into a hard CI failure on the next occurrence instead of a silent production regression. If a release fails on the new "Verify updater signing secrets are set" step, regenerate/re-set those two secrets (Settings → Secrets and variables → Actions) — the private key must correspond to the `pubkey` already in `client/src-tauri/tauri.conf.json`.
+**Post-mortem, v0.0.26 / v0.0.27:** both releases shipped with no `.sig` files at all, so `updater.json` ended up with `"platforms": {}` (v0.0.26 published it silently; the v0.0.27 attempt was correctly caught and failed by the safeguard above). The secrets were present and valid the whole time — the actual root cause was `client/src-tauri/tauri.conf.json` missing `bundle.createUpdaterArtifacts: true`. In Tauri v2 this flag is required for `tauri build` to produce signed updater archives (`.app.tar.gz`, `.msi.zip`, `.AppImage.tar.gz`) at all; without it, `tauri-action`'s JS wrapper falls back to manually tarring the raw bundle (you can see this in the build log as an explicit `tar czf ...` step) purely so *something* gets uploaded, but that fallback has no access to the signer, hence "Signature not found for the updater JSON. Skipping upload...". Fixed by adding `"createUpdaterArtifacts": true` under `"bundle"` in `tauri.conf.json`. If a future release ever again produces zero `.sig` files despite this flag being set, suspect the signing secrets themselves (see the "Verify updater signing secrets are set" step) rather than this flag.
 
 ## Known gaps (not yet addressed)
 

@@ -71,7 +71,9 @@ export function DashboardOverview() {
     let amount = "";
 
     if (activity.activity_type === "sale") {
-      message = `${t("product")} sale: ${activity.transaction_number || activity.id.slice(0, 8)}`;
+      message = activity.prescription_id
+        ? `Rx sale: ${activity.transaction_number || activity.id.slice(0, 8)}`
+        : `${t("product")} sale: ${activity.transaction_number || activity.id.slice(0, 8)}`;
       const val = Number(
         activity.total_amount !== undefined
           ? activity.total_amount
@@ -102,6 +104,13 @@ export function DashboardOverview() {
     return {
       id: activity.id,
       type: activity.activity_type,
+      // Distinguishes a prescription-dispensed sale from a walk-in sale for
+      // icon/color purposes only — `type` stays "sale" so the transaction
+      // details dialog click-handler (keyed on type === "sale") still works.
+      displayType:
+        activity.activity_type === "sale" && activity.prescription_id
+          ? "prescription_sale"
+          : activity.activity_type,
       message,
       timestamp:
         activity.created_at || activity.date || activity.transaction_date,
@@ -115,6 +124,8 @@ export function DashboardOverview() {
     switch (type) {
       case "sale":
         return "bg-green-500/10 text-green-600";
+      case "prescription_sale":
+        return "bg-violet-500/10 text-violet-600";
       case "stock_movement":
         return "bg-blue-500/10 text-blue-600";
       case "prescription":

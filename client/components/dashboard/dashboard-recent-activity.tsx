@@ -9,11 +9,13 @@ import {
   FileText,
   Banknote,
   Truck,
+  Pill,
 } from "lucide-react";
 
 interface ActivityItem {
   id: string;
   type: string;
+  displayType?: string;
   message: string;
   timestamp: string;
   amount?: string;
@@ -36,6 +38,8 @@ export function DashboardRecentActivity({
     switch (type) {
       case "sale":
         return ShoppingCart;
+      case "prescription_sale":
+        return Pill;
       case "stock_movement":
         return PackagePlus;
       case "prescription":
@@ -102,7 +106,8 @@ function ActivityList({
   return (
     <div className="flex flex-col">
       {activities.map((activity) => {
-        const Icon = getActivityIcon(activity.type);
+        const displayType = activity.displayType || activity.type;
+        const Icon = getActivityIcon(displayType);
         return (
           <div
             key={activity.id}
@@ -115,7 +120,7 @@ function ActivityList({
           >
             <div className="flex items-center gap-3 overflow-hidden">
               <div
-                className={`shrink-0 flex items-center justify-center w-10 h-10 rounded-xl ${getActivityColor(activity.type)}`}
+                className={`shrink-0 flex items-center justify-center w-10 h-10 rounded-xl ${getActivityColor(displayType)}`}
               >
                 <Icon className="h-5 w-5" />
               </div>

@@ -22,11 +22,18 @@ jobs:
         uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8 # v4.0.2
         with:
           node-version: 22
+          cache: npm
+          cache-dependency-path: client/package-lock.json
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
         with:
           toolchain: stable
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: client/src-tauri
 
       - name: Install dependencies (macOS only)
         if: matrix.platform == 'macos-latest'
@@ -55,6 +62,14 @@ jobs:
         run: |
           cd client
           npm install --force @tailwindcss/oxide-linux-x64-gnu lightningcss-linux-x64-gnu
+
+      - name: Verify updater signing secrets are set
+        shell: bash
+        run: |
+          if [ -z "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}" ] || [ -z "${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}" ]; then
+            echo "::error::TAURI_SIGNING_PRIVATE_KEY and/or TAURI_SIGNING_PRIVATE_KEY_PASSWORD repo secrets are missing or empty. Tauri will build unsigned bundles (no .sig files), which makes deploy-ftp publish an updater.json with an empty 'platforms' object and silently breaks the in-app updater for every platform. Set both secrets (Settings > Secrets and variables > Actions) before releasing — the private key must match the pubkey in client/src-tauri/tauri.conf.json."
+            exit 1
+          fi
 
       - name: Build and Release
         uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0.6.2
@@ -86,6 +101,8 @@ jobs:
         uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8 # v4.0.2
         with:
           node-version: 22
+          cache: npm
+          cache-dependency-path: client/package-lock.json
 
       - name: Install Java 17
         uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
@@ -106,6 +123,12 @@ jobs:
         with:
           toolchain: stable
           targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: client/src-tauri
+          key: android
 
       - name: Install app dependencies
         run: |
@@ -216,12 +239,29 @@ jobs:
               pub_date: new Date().toISOString(),
               platforms
             };
-            
+
+            // Never publish a feed with no platforms — that silently breaks the
+            // in-app updater for every user instead of failing the release.
+            // This means the release job produced no .sig files (missing/invalid
+            // TAURI_SIGNING_PRIVATE_KEY secrets), or gh release download found
+            // no matching assets.
+            if (Object.keys(platforms).length === 0) {
+              console.error('No .sig files found among downloaded release assets — refusing to publish an empty updater.json.');
+              console.error('Files present:', files.join(', ') || '(none)');
+              process.exit(1);
+            }
+
+            const expected = ['darwin-aarch64', 'windows-x86_64', 'linux-x86_64'];
+            const missing = expected.filter(p => !platforms[p]);
+            if (missing.length > 0) {
+              console.warn('Warning: updater.json is missing expected platform(s): ' + missing.join(', '));
+            }
+
             fs.writeFileSync('updater.json', JSON.stringify(updater, null, 2));
             console.log('Generated updater.json:');
             console.log(JSON.stringify(updater, null, 2));
           "
-          
+
       - name: Separate root files from binaries
         run: |
           mkdir -p root-assets

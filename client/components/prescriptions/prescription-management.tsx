@@ -1,21 +1,36 @@
-"use client"
-import { usePrescriptionQueue, Prescription } from "@/lib/hooks/use-prescription-queue";
+"use client";
+import { useState } from "react";
+import {
+  usePrescriptionQueue,
+  Prescription,
+} from "@/lib/hooks/use-prescription-queue";
+import { getSaleForPrescription } from "@/lib/db/queries/sales";
 import { PrescriptionStats } from "./prescription-stats";
 import { PrescriptionList } from "./prescription-list";
+import { PrescriptionSearchBar } from "./prescription-search-bar";
 import { PrescriptionDetailPanel } from "./prescription-detail-panel";
 import { NewPrescription } from "./new-prescription";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { X } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { useSearchParams } from "next/navigation";
 
+const STATUS_FILTERS = [
+  { value: "all", label: "All" },
+  { value: "pending", label: "Needs verification" },
+  { value: "refill_due", label: "Refills due" },
+  { value: "ready", label: "Ready for pickup" },
+  { value: "completed", label: "History" },
+];
+
 export function PrescriptionManagement() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const showNewPrescription = searchParams.get("action") === "add" || !!searchParams.get("edit_rx");
+  const showNewPrescription =
+    searchParams.get("action") === "add" || !!searchParams.get("edit_rx");
 
   const closeNewPrescription = () => {
     router.push("/prescriptions");
@@ -46,7 +61,9 @@ export function PrescriptionManagement() {
       urgent: "Urgent",
       stat: "STAT",
     };
-    return <span className={`text-xs ${colors[priority]}`}>{labels[priority]}</span>;
+    return (
+      <span className={`text-xs ${colors[priority]}`}>{labels[priority]}</span>
+    );
   };
 
   const formatDateTime = (dateString: string) => {
@@ -65,29 +82,92 @@ export function PrescriptionManagement() {
   };
 
   const handleDispense = (prescription: Prescription) => {
-    updatePrescriptionStatus(prescription.id, "dispensed");
+    // Hand off to POS to actually deduct stock and record the sale — POS
+    // marks the prescription "completed" itself once payment succeeds
+    // (see usePOSPrescription / use-pos-payment.ts).
+    router.push(`/pos?dispense_rx=${prescription.id}`);
+  };
+
+  const handleDispenseRefill = (prescription: Prescription) => {
+    // Same POS flow, but flagged as a refill so payment completion bumps
+    // refills_used/next_refill_date instead of re-marking the rx "completed".
+    router.push(`/pos?dispense_rx=${prescription.id}&refill=1`);
+  };
+
+  const [processingReturnRxId, setProcessingReturnRxId] = useState<
+    string | null
+  >(null);
+
+  const handleProcessReturn = async (prescription: Prescription) => {
+    // A prescription-linked sale is the actual source of truth for stock/
+    // payment — "cancelling" a prescription used to just relabel its status
+    // without touching either. Route to the real Return flow instead, which
+    // reverses stock/payment and (on a full return) reverts the rx to
+    // "ready" itself (see return-dialog.tsx).
+    setProcessingReturnRxId(prescription.id);
+    try {
+      const sale = await getSaleForPrescription(prescription.id);
+      if (!sale) {
+        toast.error(
+          "No linked sale found for this prescription — nothing to return.",
+        );
+        return;
+      }
+      router.push(`/pos?tab=history&return_sale=${sale.id}`);
+    } finally {
+      setProcessingReturnRxId(null);
+    }
   };
 
   return (
-    <div className="space-y-6">
-
+    <div className="space-y-4 lg:space-y-6">
       <PrescriptionStats stats={stats} />
 
-      {/* FILTER CHIPS (using global Tabs) */}
-      <div className="mb-4">
-        <Tabs value={statusFilter} onValueChange={setStatusFilter}>
-          <TabsList className="w-full md:w-max justify-start overflow-x-auto overflow-y-hidden hide-scrollbar">
-            <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="pending">Needs verification</TabsTrigger>
-            <TabsTrigger value="refill_due">Refills due</TabsTrigger>
-            <TabsTrigger value="ready">Ready for pickup</TabsTrigger>
-            <TabsTrigger value="completed">History</TabsTrigger>
-          </TabsList>
-        </Tabs>
+      {/* Mobile: search bar stands alone above the filter chips, own bg-card to contrast with the page */}
+      <div className="lg:hidden">
+        <PrescriptionSearchBar
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          className="bg-card border-border"
+        />
       </div>
 
-      {/* Grid Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6 items-start">
+      {/* FILTER CHIPS — mobile: chips variant with bg-card/border-border inactive state; desktop: unchanged default Tabs */}
+      <div>
+        <div className="lg:hidden">
+          <Tabs
+            value={statusFilter}
+            onValueChange={setStatusFilter}
+            variant="chips"
+          >
+            <TabsList className="w-full justify-start overflow-x-auto overflow-y-hidden hide-scrollbar">
+              {STATUS_FILTERS.map((f) => (
+                <TabsTrigger
+                  key={f.value}
+                  value={f.value}
+                  className="data-[state=inactive]:bg-card data-[state=inactive]:border-border"
+                >
+                  {f.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+        </div>
+        <div className="hidden lg:block">
+          <Tabs value={statusFilter} onValueChange={setStatusFilter}>
+            <TabsList className="w-max justify-start overflow-x-auto overflow-y-hidden hide-scrollbar">
+              {STATUS_FILTERS.map((f) => (
+                <TabsTrigger key={f.value} value={f.value}>
+                  {f.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+        </div>
+      </div>
+
+      {/* Grid Layout — both panes stretch to match the taller one on desktop */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] lg:grid-rows-1 gap-6 lg:h-[calc(100vh-320px)] lg:min-h-[500px]">
         {/* Left List */}
         <PrescriptionList
           prescriptions={filteredPrescriptions}
@@ -99,47 +179,81 @@ export function PrescriptionManagement() {
         />
 
         {/* Right Detail Panel */}
-        <div className={`
-          ${selectedPrescription ? "block" : "hidden"} 
-          lg:block lg:sticky lg:top-4
-        `}>
-          {!!(selectedPrescription) && (
-                              <PrescriptionDetailPanel
-                                prescription={selectedPrescription}
-                                getPriorityBadge={getPriorityBadge}
-                                formatDateTime={formatDateTime}
-                                onClose={() => setSelectedPrescription(null)}
-                                onEdit={handleEdit}
-                                onDispense={handleDispense}
-                                updateStatus={updatePrescriptionStatus}
-                              />
-                            )}
-                  {!(selectedPrescription) && (
-                              <Card className="h-[calc(100vh-140px)] min-h-[600px] border border-border bg-card rounded-xl flex items-center justify-center flex-col text-center p-6 text-muted-foreground shadow-[0_1px_2px_rgba(28,25,23,0.04)]">
-                                <svg className="w-16 h-16 text-muted-foreground/30 mb-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
-                                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                                  <polyline points="14 2 14 8 20 8" />
-                                  <line x1="16" y1="13" x2="8" y2="13" />
-                                  <line x1="16" y1="17" x2="8" y2="17" />
-                                  <polyline points="10 9 9 9 8 9" />
-                                </svg>
-                                <h3 className="text-lg font-medium text-foreground mb-1">No Prescription Selected</h3>
-                                <p className="text-sm max-w-[250px]">Select a prescription from the queue to view its details, medications, and verify instructions.</p>
-                              </Card>
-                            )}
+        <div
+          className={`
+          ${selectedPrescription ? "block" : "hidden"}
+          lg:block lg:h-full
+        `}
+        >
+          {!!selectedPrescription && (
+            <PrescriptionDetailPanel
+              prescription={selectedPrescription}
+              getPriorityBadge={getPriorityBadge}
+              formatDateTime={formatDateTime}
+              onClose={() => setSelectedPrescription(null)}
+              onEdit={handleEdit}
+              onDispense={handleDispense}
+              onDispenseRefill={handleDispenseRefill}
+              onProcessReturn={handleProcessReturn}
+              isProcessingReturn={
+                processingReturnRxId === selectedPrescription?.id
+              }
+              updateStatus={updatePrescriptionStatus}
+            />
+          )}
+          {!selectedPrescription && (
+            <Card className="lg:h-full min-h-[400px] border border-border bg-card rounded-xl flex items-center justify-center flex-col text-center p-6 text-muted-foreground shadow-[0_1px_2px_rgba(28,25,23,0.04)]">
+              <svg
+                className="w-16 h-16 text-muted-foreground/30 mb-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+                <polyline points="10 9 9 9 8 9" />
+              </svg>
+              <h3 className="text-lg font-medium text-foreground mb-1">
+                No Prescription Selected
+              </h3>
+              <p className="text-sm max-w-[250px]">
+                Select a prescription from the queue to view its details,
+                medications, and verify instructions.
+              </p>
+            </Card>
+          )}
         </div>
       </div>
 
-      {/* Full Screen Overlay for New Prescription */}
+      {/* Full Screen Overlay for New Prescription — top/bottom padding clears the status bar / Tauri title bar and home indicator */}
       {showNewPrescription && (
         <div className="fixed inset-0 z-50 bg-background flex flex-col">
-          <div className="flex items-center justify-between p-4 border-b border-border bg-card">
-            <h2 className="text-xl font-semibold font-serif">New Prescription</h2>
-            <Button variant="ghost" size="icon" onClick={closeNewPrescription}>
-              <X className="w-5 h-5" />
-            </Button>
+          <div
+            className="flex items-center gap-3 px-4 pb-4 border-b border-border bg-card shrink-0"
+            style={{ paddingTop: "calc(var(--tauri-top, 0px) + 1rem)" }}
+          >
+            <div
+              className="w-[38px] h-[38px] rounded-[10px] bg-muted flex items-center justify-center cursor-pointer text-muted-foreground shrink-0 hover:bg-muted/80 transition-colors"
+              onClick={closeNewPrescription}
+            >
+              <ArrowLeft className="w-[17px] h-[17px]" />
+            </div>
+            <h2 className="text-[17px] font-serif font-bold">
+              New Prescription
+            </h2>
           </div>
-          <div className="flex-1 overflow-y-auto p-4">
+          <div
+            className="flex-1 overflow-y-auto p-4"
+            style={{
+              paddingBottom:
+                "calc(var(--tauri-bottom, env(safe-area-inset-bottom, 0px)) + 1rem)",
+            }}
+          >
             <div className="max-w-4xl mx-auto">
               <NewPrescription />
             </div>

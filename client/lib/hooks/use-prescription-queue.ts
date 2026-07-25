@@ -14,6 +14,10 @@ export interface PrescriptionMedication {
   instructions: string;
   available: boolean;
   cost: number;
+  refillsAuthorized: number;
+  refillsUsed: number;
+  refillIntervalDays: number;
+  nextRefillDate?: string;
 }
 
 export interface Prescription {
@@ -32,6 +36,7 @@ export interface Prescription {
   insurance?: string;
   totalCost: number;
   notes?: string;
+  hasRefillDue: boolean;
 }
 
 async function fetchPrescriptions(): Promise<Prescription[]> {
@@ -54,34 +59,52 @@ async function fetchPrescriptions(): Promise<Prescription[]> {
       instructions: item.instructions,
       available: true,
       cost: item.cost,
+      refillsAuthorized: item.refills_authorized || 0,
+      refillsUsed: item.refills_used || 0,
+      refillIntervalDays: item.refill_interval_days || 30,
+      nextRefillDate: item.next_refill_date || undefined,
     });
   });
 
+  const nowIso = new Date().toISOString();
+
   // 3. Map to Prescription objects
-  return pData.map((p: any) => ({
-    id: p.id,
-    prescriptionNumber: p.prescription_number,
-    patientName: p.patient_name,
-    patientPhone: p.patient_phone,
-    patientAge: p.patient_age,
-    doctorName: p.doctor_name,
-    doctorLicense: p.doctor_license,
-    dateIssued: p.issued_at,
-    dateDispensed: p.dispensed_at || undefined,
-    status: p.status,
-    priority: p.priority,
-    medications: itemsMap.get(p.id) || [],
-    insurance: p.insurance,
-    totalCost: p.total_cost,
-    notes: p.notes,
-  }));
+  return pData.map((p: any) => {
+    const medications = itemsMap.get(p.id) || [];
+    const isDispensable = p.status === "dispensed" || p.status === "completed";
+    const hasRefillDue = isDispensable && medications.some(
+      (m) =>
+        m.refillsUsed < m.refillsAuthorized &&
+        !!m.nextRefillDate &&
+        m.nextRefillDate <= nowIso
+    );
+
+    return {
+      id: p.id,
+      prescriptionNumber: p.prescription_number,
+      patientName: p.patient_name,
+      patientPhone: p.patient_phone,
+      patientAge: p.patient_age,
+      doctorName: p.doctor_name,
+      doctorLicense: p.doctor_license,
+      dateIssued: p.issued_at,
+      dateDispensed: p.dispensed_at || undefined,
+      status: p.status,
+      priority: p.priority,
+      medications,
+      insurance: p.insurance,
+      totalCost: p.total_cost,
+      notes: p.notes,
+      hasRefillDue,
+    };
+  });
 }
 
 export function usePrescriptionQueue() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
-  const [selectedPrescription, setSelectedPrescription] = useState<Prescription | null>(null);
+  const [selectedPrescriptionId, setSelectedPrescriptionId] = useState<string | null>(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
 
   // Keyed to match the "prescriptions" table name so it auto-refetches whenever
@@ -93,13 +116,30 @@ export function usePrescriptionQueue() {
   });
   const prescriptions = data || [];
 
+  // Derived (not a separate snapshot) so an edit/refetch that changes the
+  // selected prescription's medications, status, etc. is reflected immediately
+  // instead of the detail panel showing whatever was selected at click-time.
+  const selectedPrescription = useMemo(
+    () => prescriptions.find((p) => p.id === selectedPrescriptionId) || null,
+    [prescriptions, selectedPrescriptionId]
+  );
+  const setSelectedPrescription = (prescription: Prescription | null) => {
+    setSelectedPrescriptionId(prescription?.id ?? null);
+  };
+
   const preFilteredPrescriptions = useMemo(() => {
     return prescriptions.filter((prescription) => {
       // Handle the "filled" filter to show dispensed/completed
       if (statusFilter === "filled") {
         return prescription.status === "dispensed" || prescription.status === "completed";
       }
-      
+
+      // "refill_due" isn't a prescription status — it's derived from whether
+      // any medication has refills remaining and its next_refill_date has passed.
+      if (statusFilter === "refill_due") {
+        return prescription.hasRefillDue;
+      }
+
       const matchesStatus = statusFilter === "all" || prescription.status === statusFilter;
       const matchesPriority = priorityFilter === "all" || prescription.priority === priorityFilter;
 
@@ -118,11 +158,10 @@ export function usePrescriptionQueue() {
 
   const updatePrescriptionStatus = async (id: string, newStatus: Prescription["status"]) => {
     try {
-      // update() already invalidates queryKey: ["prescriptions"], triggering a refetch.
+      // update() already invalidates queryKey: ["prescriptions"], triggering a
+      // refetch — selectedPrescription is derived from that data, so it picks
+      // up the new status automatically once the refetch lands.
       await updateDbPrescriptionStatus(id, newStatus);
-      if (selectedPrescription?.id === id) {
-        setSelectedPrescription((prev) => prev ? { ...prev, status: newStatus } : null);
-      }
     } catch (err) {
       console.error("Failed to update status", err);
     }

@@ -1037,6 +1037,7 @@ export const FORM_SUGGESTIONS = {
       "Card",
       "Carton",
       "Crate",
+      "Cup",
       "Dozen",
       "Drum",
       "Jar",

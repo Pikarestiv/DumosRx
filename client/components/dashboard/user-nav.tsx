@@ -1,8 +1,8 @@
 "use client";
 
+import { Fragment, useState, useEffect } from "react";
 import { useAuth } from "@/lib/context/auth-context";
 import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getSyncQueueCount } from "@/lib/db/queries/setup";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -23,12 +23,27 @@ import {
 } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { LogOut, Repeat, Settings2, MessageSquare } from "lucide-react";
+import {
+  LogOut,
+  Repeat,
+  Settings2,
+  Settings,
+  MessageSquare,
+  type LucideIcon,
+} from "lucide-react";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { ThemeCustomizer } from "@/components/ui/theme-customizer";
 import { getUserInitials } from "@/lib/utils";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
+
+interface NavAction {
+  key: string;
+  label: string;
+  icon: LucideIcon;
+  onClick: () => void;
+  destructive?: boolean;
+}
 
 const NavTrigger = ({
   initials,
@@ -72,9 +87,9 @@ const NavTrigger = ({
 );
 
 const MobileAppearanceSettings = () => (
-  <div className="flex items-center justify-between p-4 bg-muted/30 rounded-xl mb-4 border border-border/40">
+  <div className="flex items-center justify-between px-3.5 py-2 bg-muted/30 border-b border-border">
     <div className="flex items-center gap-3">
-      <Settings2 className="h-5 w-5 text-muted-foreground" />
+      <Settings2 className="h-[18px] w-[18px] text-muted-foreground" />
       <span className="font-medium text-sm">Appearance</span>
     </div>
     <div className="flex items-center gap-2">
@@ -82,6 +97,24 @@ const MobileAppearanceSettings = () => (
       <ThemeCustomizer />
     </div>
   </div>
+);
+
+/** Direct link to /settings, shown at the far right of the avatar/name/role row. */
+const SettingsIconButton = ({
+  onClick,
+  size = "icon",
+}: {
+  onClick: () => void;
+  size?: "default" | "sm" | "lg" | "icon" | null | undefined;
+}) => (
+  <Button
+    variant="ghost"
+    size={size}
+    className="shrink-0 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50"
+    onClick={onClick}
+  >
+    <Settings className="h-4 w-4" />
+  </Button>
 );
 
 interface UserNavProps {
@@ -146,77 +179,113 @@ export function UserNav({
     handleLogoutAttempt("full");
   };
 
+  const goToSettings = () => {
+    setOpen(false);
+    router.push("/settings");
+  };
+
+  // Shared between the desktop dropdown and the mobile drawer so the two
+  // don't drift out of sync — only the surrounding markup differs per surface.
+  const navActions: NavAction[] = [
+    ...(onOpenFeedback
+      ? [
+          {
+            key: "feedback",
+            label: "Help & Feedback",
+            icon: MessageSquare,
+            onClick: () => {
+              setOpen(false);
+              onOpenFeedback();
+            },
+          },
+        ]
+      : []),
+    {
+      key: "switch",
+      label: "Switch Account",
+      icon: Repeat,
+      onClick: handleSwitchAccount,
+    },
+    {
+      key: "logout",
+      label: "Log out completely",
+      icon: LogOut,
+      onClick: handleFullLogout,
+      destructive: true,
+    },
+  ];
+
   const renderDesktopMenu = () => (
-    <DropdownMenu open={open} onOpenChange={setOpen}>
-      <DropdownMenuTrigger asChild>
-        <div className={cn(showDetails ? "w-full" : "")}>
-          <NavTrigger
-            initials={initials}
-            user={user}
-            showDetails={showDetails}
-          />
-        </div>
-      </DropdownMenuTrigger>
-
-      <DropdownMenuContent
-        className="w-56"
-        align={showDetails ? "end" : "end"}
-        side={showDetails ? "right" : "bottom"}
-        forceMount
-      >
-        <DropdownMenuLabel className="font-normal">
-          <div className="flex flex-col space-y-1 overflow-hidden">
-            <p className="text-sm font-medium leading-none truncate">
-              {user.first_name} {user.last_name}
-            </p>
-            <p className="text-xs leading-none text-muted-foreground capitalize truncate">
-              {user.role.replace(/_/g, " ")}
-            </p>
+    <div className={cn("flex items-center gap-1", showDetails ? "w-full" : "")}>
+      <DropdownMenu open={open} onOpenChange={setOpen}>
+        <DropdownMenuTrigger asChild>
+          <div className={cn(showDetails ? "flex-1 min-w-0" : "")}>
+            <NavTrigger
+              initials={initials}
+              user={user}
+              showDetails={showDetails}
+            />
           </div>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
+        </DropdownMenuTrigger>
 
-        <div className="px-2 py-1.5 flex items-center justify-between">
-          <span className="text-sm text-muted-foreground">Appearance</span>
-          <div className="flex items-center gap-1">
-            <ThemeToggle />
-            <ThemeCustomizer />
+        <DropdownMenuContent
+          className="w-56"
+          align="end"
+          side={showDetails ? "right" : "bottom"}
+          forceMount
+        >
+          <DropdownMenuLabel className="font-normal">
+            <div className="flex flex-col space-y-1 overflow-hidden">
+              <p className="text-sm font-medium leading-none truncate">
+                {user.first_name} {user.last_name}
+              </p>
+              <p className="text-xs leading-none text-muted-foreground capitalize truncate">
+                {user.role.replace(/_/g, " ")}
+              </p>
+            </div>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+
+          <div className="px-2 py-1.5 flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Appearance</span>
+            <div className="flex items-center gap-1">
+              <ThemeToggle />
+              <ThemeCustomizer />
+            </div>
           </div>
-        </div>
+          <DropdownMenuSeparator />
 
-        <DropdownMenuSeparator />
-        {onOpenFeedback && (
-          <>
-            <DropdownMenuItem
-              onClick={() => {
-                setOpen(false);
-                onOpenFeedback();
-              }}
-              className="cursor-pointer group"
-            >
-              <MessageSquare className="mr-2 h-4 w-4 group-hover:text-white group-focus:text-white transition-colors" />
-              <span>Help & Feedback</span>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-          </>
-        )}
-        <DropdownMenuItem
-          onClick={handleSwitchAccount}
-          className="cursor-pointer group"
-        >
-          <Repeat className="mr-2 h-4 w-4 group-hover:text-white group-focus:text-white transition-colors" />
-          <span>Switch Account</span>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          onClick={handleFullLogout}
-          className="cursor-pointer text-destructive focus:text-destructive"
-        >
-          <LogOut className="mr-2 h-4 w-4 text-destructive" />
-          <span>Log out completely</span>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          {navActions.map((action, idx) => (
+            <Fragment key={action.key}>
+              <DropdownMenuItem
+                onClick={action.onClick}
+                className={cn(
+                  "cursor-pointer",
+                  action.destructive
+                    ? "text-destructive focus:text-destructive"
+                    : "group",
+                )}
+              >
+                <action.icon
+                  className={cn(
+                    "mr-2 h-4 w-4",
+                    action.destructive
+                      ? "text-destructive"
+                      : "group-hover:text-white group-focus:text-white transition-colors",
+                  )}
+                />
+                <span>{action.label}</span>
+              </DropdownMenuItem>
+              {idx < navActions.length - 1 && <DropdownMenuSeparator />}
+            </Fragment>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      {/* Direct settings shortcut disabled on desktop for now — re-enable by
+          uncommenting once we're happy with where it lands next to the trigger.
+      {!!showDetails && <SettingsIconButton onClick={() => router.push("/settings")} />}
+      */}
+    </div>
   );
 
   const renderMobileDrawer = () => (
@@ -228,49 +297,57 @@ export function UserNav({
       </DrawerTrigger>
 
       <DrawerContent
-        className="p-0 pb-6 rounded-t-xl"
+        className="p-0 pb-5 rounded-t-xl"
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
-        <DrawerHeader className="px-6 pt-6 pb-2 text-left border-b border-border/40">
-          <DrawerTitle className="font-serif font-black text-2xl truncate">
-            {user.first_name} {user.last_name}
-          </DrawerTitle>
-          <p className="text-sm text-muted-foreground capitalize">
-            {user.role.replace(/_/g, " ")}
-          </p>
+        <DrawerHeader className="flex flex-row items-center gap-3 mx-5 pt-0 text-left border-b border-border space-y-0">
+          <Avatar className="h-10 w-10 border border-border shrink-0">
+            <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
+              {initials}
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0 flex-1">
+            <DrawerTitle className="text-[15px] font-semibold truncate">
+              {user.first_name} {user.last_name}
+            </DrawerTitle>
+            <p className="text-xs text-muted-foreground capitalize truncate">
+              {user.role.replace(/_/g, " ")}
+            </p>
+          </div>
+          <SettingsIconButton size="lg" onClick={goToSettings} />
         </DrawerHeader>
 
-        <div className="px-4 py-4 space-y-2">
+        {/* Bottom padding clears the fixed mobile bottom navbar (h-16) plus
+            the safe-area/Tauri inset it already pads itself with, so the
+            last action isn't sitting behind/under it. */}
+        <div
+          className="px-4 space-y-0.5"
+          style={{
+            paddingBottom:
+              "calc(4rem + var(--tauri-bottom, env(safe-area-inset-bottom, 0px)))",
+          }}
+        >
           <MobileAppearanceSettings />
 
-          {onOpenFeedback && (
-            <button
-              onClick={() => {
-                setOpen(false);
-                onOpenFeedback();
-              }}
-              className="w-full flex items-center gap-4 p-4 rounded-xl font-medium text-foreground hover:bg-muted transition-colors border border-transparent"
-            >
-              <MessageSquare className="h-5 w-5 opacity-90" />
-              <span>Help & Feedback</span>
-            </button>
-          )}
+          {navActions.map((action, idx) => (
+            <>
+              <button
+                key={action.key}
+                onClick={action.onClick}
+                className={cn(
+                  "w-full flex items-center gap-3 p-3 text-sm font-medium transition-colors",
+                  action.destructive
+                    ? "text-destructive hover:bg-destructive/10"
+                    : "text-foreground hover:bg-muted",
+                )}
+              >
+                <action.icon className="h-[18px] w-[18px] opacity-90" />
+                <span>{action.label}</span>
+              </button>
 
-          <button
-            onClick={handleSwitchAccount}
-            className="w-full flex items-center gap-4 p-4 rounded-xl font-medium text-foreground hover:bg-muted transition-colors border border-transparent"
-          >
-            <Repeat className="h-5 w-5 opacity-90" />
-            <span>Switch Account</span>
-          </button>
-
-          <button
-            onClick={handleFullLogout}
-            className="w-full flex items-center gap-4 p-4 rounded-xl font-medium text-destructive hover:bg-destructive/10 transition-colors border border-transparent"
-          >
-            <LogOut className="h-5 w-5 opacity-90" />
-            <span>Log out completely</span>
-          </button>
+              {idx < navActions.length - 1 && <DropdownMenuSeparator />}
+            </>
+          ))}
         </div>
       </DrawerContent>
     </Drawer>

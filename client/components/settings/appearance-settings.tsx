@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Sun, Moon, Globe, Save, Lock, Info, Pencil, X } from "lucide-react";
+import { Sun, Moon, Globe, Save, Lock, Info, Pencil, X, Banknote, Percent } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,6 +22,14 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { CURRENCIES, getCurrencyByCode, DEFAULT_CURRENCY_CODE } from "@/lib/constants/currencies";
 
 interface AppearanceSettingsProps {
   theme: string | undefined;
@@ -218,73 +226,93 @@ export function AppearanceSettings({
                                         )}
             </Button>
           </CardHeader>
-          <CardContent className="grid gap-6">
-            <div className="grid gap-2">
-              <div className="flex items-center gap-2">
-                <Label htmlFor="currency">Currency Code (ISO)</Label>
-                <TooltipProvider delayDuration={0}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>
-                        Enter a standard 3-letter currency code (e.g., NGN, USD,
-                        GBP). This changes the currency symbol across the app.
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+          {!isEditingRegional && (
+            <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="flex items-center gap-3 rounded-lg border p-4 bg-muted/20">
+                <div className="p-2 rounded-full bg-primary/10 shrink-0">
+                  <Banknote className="h-4 w-4 text-primary" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Currency</p>
+                  <p className="text-sm font-semibold">
+                    {getCurrencyByCode(localCurrency).name} ({getCurrencyByCode(localCurrency).symbol})
+                  </p>
+                </div>
               </div>
-              {!!(isEditingRegional) && (
-                                          <Input
-                                            id="currency"
-                                            value={localCurrency}
-                                            onChange={(e) => setLocalCurrency(e.target.value.toUpperCase())}
-                                            placeholder="e.g. NGN, USD, GHS"
-                                          />
-                                        )}
-                          {!(isEditingRegional) && (
-                                          <p className="text-sm font-medium py-2">
-                                            {localCurrency || "Not set"}
-                                          </p>
-                                        )}
-            </div>
-            <div className="grid gap-2">
-              <div className="flex items-center gap-2">
-                <Label htmlFor="vat">VAT Percentage (%)</Label>
-                <TooltipProvider delayDuration={0}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>
-                        The default Value Added Tax applied to transactions.
-                        Leave as 0 if your prices are already tax-inclusive.
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+              <div className="flex items-center gap-3 rounded-lg border p-4 bg-muted/20">
+                <div className="p-2 rounded-full bg-primary/10 shrink-0">
+                  <Percent className="h-4 w-4 text-primary" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">VAT Percentage</p>
+                  <p className="text-sm font-semibold">{localVat ? `${localVat}%` : "0%"}</p>
+                </div>
               </div>
-              {!!(isEditingRegional) && (
-                                          <Input
-                                            id="vat"
-                                            type="number"
-                                            step="0.1"
-                                            value={localVat}
-                                            onChange={(e) => setLocalVat(e.target.value)}
-                                            placeholder="e.g. 7.5"
-                                          />
-                                        )}
-                          {!(isEditingRegional) && (
-                                          <p className="text-sm font-medium py-2">
-                                            {!!(localVat) && `${localVat}%`}
-                                  {!(localVat) && "0%"}
-                                          </p>
-                                        )}
-            </div>
-          </CardContent>
+            </CardContent>
+          )}
+          {isEditingRegional && (
+            <CardContent className="grid gap-6">
+              <div className="grid gap-2">
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="currency">Currency</Label>
+                  <TooltipProvider delayDuration={0}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>
+                          The currency used across the app for prices, sales, and
+                          reports. Defaults to Nigerian Naira.
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                <Select
+                  value={localCurrency || DEFAULT_CURRENCY_CODE}
+                  onValueChange={setLocalCurrency}
+                >
+                  <SelectTrigger id="currency" className="w-full">
+                    <SelectValue placeholder="Select currency" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CURRENCIES.map((c) => (
+                      <SelectItem key={c.code} value={c.code}>
+                        {c.name} ({c.symbol})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="vat">VAT Percentage (%)</Label>
+                  <TooltipProvider delayDuration={0}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>
+                          The default Value Added Tax applied to transactions.
+                          Leave as 0 if your prices are already tax-inclusive.
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                <Input
+                  id="vat"
+                  type="number"
+                  step="0.1"
+                  value={localVat}
+                  onChange={(e) => setLocalVat(e.target.value)}
+                  placeholder="e.g. 7.5"
+                />
+              </div>
+            </CardContent>
+          )}
           {isEditingRegional && (
             <CardFooter className="border-t px-6 py-4">
               <Button onClick={() => {

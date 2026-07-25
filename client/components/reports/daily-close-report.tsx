@@ -35,7 +35,7 @@ export function DailyCloseReport({ reportDate }: DailyCloseReportProps) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <DailyCloseHeader reportDate={reportDate} />
 
       <DailyCloseMetrics

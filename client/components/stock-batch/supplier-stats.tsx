@@ -24,7 +24,7 @@ export function SupplierStats({
       <div className="flex overflow-x-auto sm:grid sm:grid-cols-3 gap-[10px] sm:gap-4 pb-4 sm:pb-0 hide-scrollbar snap-x snap-mandatory">
         
         <MetricCard
-          className="min-w-[140px] sm:min-w-0 snap-center shrink-0 border-b-0 border-l-0 border-r-0 sm:border"
+          className="min-w-[180px] sm:min-w-0 snap-center shrink-0 border-b-0 border-l-0 border-r-0 sm:border"
           title="Total suppliers"
           value={
             <div className="flex items-baseline gap-2">
@@ -35,14 +35,14 @@ export function SupplierStats({
         />
 
         <MetricCard
-          className="min-w-[140px] sm:min-w-0 snap-center shrink-0 border-b-0 border-l-0 border-r-0 sm:border"
+          className="min-w-[180px] sm:min-w-0 snap-center shrink-0 border-b-0 border-l-0 border-r-0 sm:border"
           title="Total purchase value"
           value={formatCurrency(totalValue)}
           valueClassName="font-serif"
         />
 
         <MetricCard
-          className="min-w-[140px] sm:min-w-0 snap-center shrink-0 border-b-0 border-l-0 border-r-0 sm:border"
+          className="min-w-[180px] sm:min-w-0 snap-center shrink-0 border-b-0 border-l-0 border-r-0 sm:border"
           title="Average rating"
           value={
             <div className="flex items-center gap-2">

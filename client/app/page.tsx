@@ -149,7 +149,7 @@ export default function HomePage() {
             transition={{ delay: 1 }}
             className="mt-8 text-center text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-medium"
           >
-            © 2019 - 2026 • Powered by Dumos Technologies
+            © 2019 - {new Date().getFullYear()} • Powered by Dumos Technologies
           </motion.p>
         </motion.div>
       </main>

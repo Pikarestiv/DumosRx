@@ -21,10 +21,12 @@ export function usePOSPrescription({
   pathname,
 }: UsePOSPrescriptionProps) {
   const [dispensedRxId, setDispensedRxId] = useState<string | null>(null);
+  const [isRefillDispense, setIsRefillDispense] = useState(false);
 
   useEffect(() => {
     const rxId = searchParams.get("dispense_rx");
     if (rxId && products.length > 0 && cartLength === 0) {
+      const isRefill = searchParams.get("refill") === "1";
       const loadPrescription = async () => {
         try {
           // fetch prescription items
@@ -51,10 +53,12 @@ export function usePOSPrescription({
 
           if (restoredItems.length > 0) {
             restoreCart(restoredItems);
-            toast.success("Prescription loaded into POS");
+            toast.success(isRefill ? "Refill loaded into POS" : "Prescription loaded into POS");
             setDispensedRxId(rxId);
+            setIsRefillDispense(isRefill);
             const newParams = new URLSearchParams(searchParams.toString());
             newParams.delete("dispense_rx");
+            newParams.delete("refill");
             router.replace(`${pathname}?${newParams.toString()}`);
           } else {
             toast.error("Could not match prescription items to stock batch.");
@@ -68,5 +72,5 @@ export function usePOSPrescription({
     }
   }, [searchParams, products, cartLength, restoreCart, router, pathname]);
 
-  return { dispensedRxId, setDispensedRxId };
+  return { dispensedRxId, setDispensedRxId, isRefillDispense };
 }

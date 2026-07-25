@@ -188,15 +188,19 @@ export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
         <div className="flex items-center gap-3">
           {/* Desktop only features */}
           <div className="hidden sm:flex items-center gap-3">
-            <Button
-              onClick={() =>
-                router.push(pageInfo?.action ? pageInfo.action.path : "/pos")
-              }
-            >
-              <Plus className="h-4 w-4" />
-              {!!pageInfo?.action && pageInfo.action.label}
-              {!pageInfo?.action && "New Sale"}
-            </Button>
+            {pathname?.startsWith("/settings") ? (
+              <UserProfileBadge />
+            ) : (
+              <Button
+                onClick={() =>
+                  router.push(pageInfo?.action ? pageInfo.action.path : "/pos")
+                }
+              >
+                <Plus className="h-4 w-4" />
+                {!!pageInfo?.action && pageInfo.action.label}
+                {!pageInfo?.action && "New Sale"}
+              </Button>
+            )}
           </div>
 
           {/* Notification Bell */}

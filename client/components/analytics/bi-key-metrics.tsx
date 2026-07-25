@@ -22,7 +22,7 @@ export function BIKeyMetrics({
       <div className="-mx-4 sm:mx-0 px-4 sm:px-0">
         <div className="flex overflow-x-auto sm:grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4 pb-4 sm:pb-0 hide-scrollbar snap-x snap-mandatory">
           <MetricCard
-            className="min-w-[160px] sm:min-w-0 snap-center shrink-0 border-primary/20 hover:border-primary/40"
+            className="min-w-[180px] sm:min-w-0 snap-center shrink-0 border-primary/20 hover:border-primary/40"
             title="Total Revenue"
             value={formatCurrency(totalRevenue)}
             icon={<DollarSign className="h-4 w-4" />}
@@ -31,7 +31,7 @@ export function BIKeyMetrics({
             description="Gross billings"
           />
           <MetricCard
-            className="min-w-[160px] sm:min-w-0 snap-center shrink-0 border-emerald-200/50 hover:border-emerald-500/50"
+            className="min-w-[180px] sm:min-w-0 snap-center shrink-0 border-emerald-200/50 hover:border-emerald-500/50"
             title="Net Profit"
             value={formatCurrency(netProfit)}
             icon={<TrendingUp className="h-4 w-4" />}
@@ -40,7 +40,7 @@ export function BIKeyMetrics({
             description="After COGS & expenses"
           />
           <MetricCard
-            className="min-w-[160px] sm:min-w-0 snap-center shrink-0 border-border"
+            className="min-w-[180px] sm:min-w-0 snap-center shrink-0 border-border"
             title="Transactions"
             value={totalTransactions.toLocaleString()}
             icon={<Receipt className="h-4 w-4" />}
@@ -49,7 +49,7 @@ export function BIKeyMetrics({
             description="Volume"
           />
           <MetricCard
-            className="min-w-[160px] sm:min-w-0 snap-center shrink-0 border-border"
+            className="min-w-[180px] sm:min-w-0 snap-center shrink-0 border-border"
             title="Stock Batch Value"
             value={formatCurrency(stock_batchValue)}
             icon={<Package className="h-4 w-4" />}
@@ -58,7 +58,7 @@ export function BIKeyMetrics({
             description="Asset value (cost)"
           />
           <MetricCard
-            className="min-w-[160px] sm:min-w-0 snap-center shrink-0 border-border"
+            className="min-w-[180px] sm:min-w-0 snap-center shrink-0 border-border"
             title="Customers"
             value={activeCustomers.toLocaleString()}
             icon={<Users className="h-4 w-4" />}

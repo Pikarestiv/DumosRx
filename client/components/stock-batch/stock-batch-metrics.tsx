@@ -38,7 +38,7 @@ export function StockBatchMetrics({
         
         {/* Total Stock Value */}
         <MetricCard
-          className="min-w-[140px] sm:min-w-0 snap-center shrink-0 border-border"
+          className="min-w-[180px] sm:min-w-0 snap-center shrink-0 border-border"
           title="Total stock value"
           value={formatCurrency(stock_batchValue)}
           icon={<DollarSign className="h-4 w-4" />}
@@ -56,7 +56,7 @@ export function StockBatchMetrics({
 
         {/* Total Products */}
         <MetricCard
-          className="min-w-[140px] sm:min-w-0 snap-center shrink-0 border-border"
+          className="min-w-[180px] sm:min-w-0 snap-center shrink-0 border-border"
           title="Total products"
           value={totalProducts}
           icon={<Package className="h-4 w-4 hover-rotate-icon" />}
@@ -66,7 +66,7 @@ export function StockBatchMetrics({
 
         {/* Low Stock Items */}
         <MetricCard
-          className="min-w-[140px] sm:min-w-0 snap-center shrink-0 border-amber-200/50 hover:border-amber-500/50"
+          className="min-w-[180px] sm:min-w-0 snap-center shrink-0 border-amber-200/50 hover:border-amber-500/50"
           title="Low stock"
           value={lowStockCount}
           valueClassName="text-amber-700"
@@ -78,7 +78,7 @@ export function StockBatchMetrics({
 
         {/* Expiring Soon */}
         <MetricCard
-          className="min-w-[140px] sm:min-w-0 snap-center shrink-0 border-red-200/50 hover:border-red-500/50"
+          className="min-w-[180px] sm:min-w-0 snap-center shrink-0 border-red-200/50 hover:border-red-500/50"
           title="Expiring soon"
           value={expiringCount}
           valueClassName="text-red-700"

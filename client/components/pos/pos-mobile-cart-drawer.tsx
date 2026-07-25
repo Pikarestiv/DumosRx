@@ -29,6 +29,8 @@ export function POSMobileCartDrawer({
   onHoldSale,
   heldSalesCount,
   onOpenHeldSales,
+  isPrescriptionLocked,
+  onEditPrescription,
 }: any) {
   const [open, setOpen] = useState(false);
 
@@ -95,6 +97,8 @@ export function POSMobileCartDrawer({
                 setOpen(false);
                 onOpenHeldSales?.();
               }}
+              isPrescriptionLocked={isPrescriptionLocked}
+              onEditPrescription={onEditPrescription}
             />
           </div>
         </div>

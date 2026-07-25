@@ -1,12 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import {
-  Search,
-  CheckCircle2,
-  Clock,
-  ArrowRight,
-} from "lucide-react";
+import { Search, CheckCircle2, Clock, ArrowRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -19,13 +14,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrency } from "@/lib/utils";
 import { ReceivePOModal, type ReceivedItemPayload } from "./receive-po-modal";
 import { PurchaseOrderDetails } from "./purchase-order-details";
 import { getPurchaseOrderById } from "@/lib/db/procurement";
+import { useMediaQuery } from "@/hooks/use-media-query";
 
 interface PurchaseOrderTableProps {
   orders: any[];
@@ -56,8 +51,13 @@ export function PurchaseOrderTable({
   const [isReceiveModalOpen, setIsReceiveModalOpen] = useState(false);
   const [fullSelectedPO, setFullSelectedPO] = useState<any>(null);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
 
   useEffect(() => {
+    // Auto-selecting an order keeps the desktop details panel from sitting
+    // empty, but on mobile a selection now opens a full-screen takeover —
+    // don't force that open on load.
+    if (!isDesktop) return;
     if (!selectedOrderId && orders.length > 0) {
       setSelectedOrderId(orders[0].id);
     } else if (
@@ -70,7 +70,7 @@ export function PurchaseOrderTable({
         setSelectedOrderId(null);
       }
     }
-  }, [orders, selectedOrderId]);
+  }, [orders, selectedOrderId, isDesktop]);
 
   useEffect(() => {
     async function loadDetails() {
@@ -94,9 +94,10 @@ export function PurchaseOrderTable({
 
   // Merge full details with the latest row data from the list (so status updates reflect immediately)
   const listOrder = orders.find((o) => o.id === selectedOrderId);
-  const selectedPO = fullSelectedPO && listOrder
-    ? { ...fullSelectedPO, ...listOrder } 
-    : fullSelectedPO || listOrder || null;
+  const selectedPO =
+    fullSelectedPO && listOrder
+      ? { ...fullSelectedPO, ...listOrder }
+      : fullSelectedPO || listOrder || null;
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -130,13 +131,13 @@ export function PurchaseOrderTable({
   return (
     <div className="flex flex-col lg:flex-row gap-5 flex-1 min-h-0 overflow-hidden">
       {/* Left Column - List */}
-      <Card className="print:hidden flex-[2] flex flex-col gap-0 rounded-[14px] border border-border bg-card shadow-[0_1px_2px_rgba(16,24,40,0.04)] overflow-hidden">
-        <div className="p-4 flex flex-col gap-4 border-b border-border">
+      <Card className="print:hidden py-0 flex-[2] flex flex-col gap-0 md:rounded-[14px] border-0 md:border md:border-border bg-transparent md:bg-card shadow-none md:shadow-[0_1px_2px_rgba(16,24,40,0.04)] overflow-hidden">
+        <div className="p-0 md:p-4 flex flex-col gap-4 border-b-0 md:border-b border-border">
           <div className="relative w-full">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 pointer-events-none" />
             <Input
               placeholder="Search vendor or PO#..."
-              className="pl-9 h-10 text-[13px] rounded-[10px] bg-muted border-transparent"
+              className="pl-9 h-10 text-[13px] rounded-[10px] bg-card border-border md:bg-muted md:border-transparent"
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
             />
@@ -148,13 +149,33 @@ export function PurchaseOrderTable({
             variant="chips"
           >
             <TabsList className="w-full md:w-max justify-start overflow-x-auto hide-scrollbar">
-              <TabsTrigger value="all">All Orders</TabsTrigger>
-              <TabsTrigger value="pending">Drafts</TabsTrigger>
-              <TabsTrigger value="sent">Sent</TabsTrigger>
-              <TabsTrigger value="received">Received</TabsTrigger>
+              <TabsTrigger
+                value="all"
+                className="data-[state=inactive]:bg-card data-[state=inactive]:border-border md:data-[state=inactive]:bg-transparent md:data-[state=inactive]:border-transparent"
+              >
+                All Orders
+              </TabsTrigger>
+              <TabsTrigger
+                value="pending"
+                className="data-[state=inactive]:bg-card data-[state=inactive]:border-border md:data-[state=inactive]:bg-transparent md:data-[state=inactive]:border-transparent"
+              >
+                Drafts
+              </TabsTrigger>
+              <TabsTrigger
+                value="sent"
+                className="data-[state=inactive]:bg-card data-[state=inactive]:border-border md:data-[state=inactive]:bg-transparent md:data-[state=inactive]:border-transparent"
+              >
+                Sent
+              </TabsTrigger>
+              <TabsTrigger
+                value="received"
+                className="data-[state=inactive]:bg-card data-[state=inactive]:border-border md:data-[state=inactive]:bg-transparent md:data-[state=inactive]:border-transparent"
+              >
+                Received
+              </TabsTrigger>
               <TabsTrigger
                 value="missing-expiry"
-                className="data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-600"
+                className="data-[state=inactive]:bg-card data-[state=inactive]:border-border md:data-[state=inactive]:bg-transparent md:data-[state=inactive]:border-transparent data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-600"
               >
                 Missing Expiry
               </TabsTrigger>
@@ -170,7 +191,51 @@ export function PurchaseOrderTable({
               </div>
             </div>
           )}
-          <Table>
+          {/* Mobile: card list */}
+          <div className="md:hidden flex flex-col gap-2 px-0 py-3 md:px-3 md:p-3">
+            {loading && (
+              <div className="h-32 flex flex-col items-center justify-center text-muted-foreground">
+                <Clock className="w-6 h-6 animate-spin mb-2 opacity-50" />
+                Loading orders...
+              </div>
+            )}
+            {!loading && orders.length === 0 && (
+              <div className="h-32 flex items-center justify-center text-muted-foreground text-[13px]">
+                No purchase orders found
+              </div>
+            )}
+            {!loading &&
+              orders.length > 0 &&
+              orders.map((po) => (
+                <div
+                  key={po.id}
+                  onClick={() => setSelectedOrderId(po.id)}
+                  className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${selectedOrderId === po.id ? "bg-primary/10 border-primary/30" : "bg-card hover:bg-primary/5"}`}
+                >
+                  <div className="w-10 h-10 shrink-0 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-[11px]">
+                    PO
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[13.5px] font-semibold truncate">
+                      {po.vendor_name || "Unknown Vendor"}
+                    </div>
+                    <div className="text-[11.5px] text-muted-foreground truncate">
+                      PO-{po.id.split("-")[0].toUpperCase()} &middot;{" "}
+                      {formatDateToDDMMYYYY(po.created_at)}
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-1 shrink-0">
+                    <span className="text-[13.5px] font-bold text-foreground whitespace-nowrap">
+                      {formatCurrency(po.total_amount)}
+                    </span>
+                    {getStatusBadge(po.status)}
+                  </div>
+                </div>
+              ))}
+          </div>
+
+          {/* Desktop: table */}
+          <Table className="hidden md:table">
             <TableHeader>
               <TableRow className="hover:bg-transparent border-b border-border">
                 <TableHead className="w-[110px] pl-4 text-[11px] font-bold text-muted-foreground uppercase tracking-wide h-11 align-middle">
@@ -252,6 +317,7 @@ export function PurchaseOrderTable({
         onSendPO={onSendPO}
         onDeletePO={onDeletePO}
         setIsReceiveModalOpen={setIsReceiveModalOpen}
+        onClose={() => setSelectedOrderId(null)}
       />
 
       <ReceivePOModal

@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import { Package, ShoppingCart, TrendingUp, Receipt } from "lucide-react";
+import { Package, ShoppingCart, TrendingUp, TrendingDown, Receipt } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { getDashboardOverviewData } from "@/lib/db/queries/reports";
 import { useStockBatchStats } from "@/lib/hooks/use-stock-batch-stats";
@@ -13,7 +13,7 @@ import { DashboardStats } from "./dashboard-stats";
 import { DashboardRecentActivity } from "./dashboard-recent-activity";
 import { DashboardQuickActions } from "./dashboard-quick-actions";
 import { DashboardActionCenter } from "./dashboard-action-center";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { TransactionDetailsDialog } from "@/components/pos/transaction-details-dialog";
 import { ExpenseDetailsDialog } from "./modals/expense-details-dialog";
 import { ProcurementDetailsDialog } from "./modals/procurement-details-dialog";
@@ -49,13 +49,28 @@ export function DashboardOverview() {
   const todayRevenue =
     (salesToday[0]?.total || 0) - (refundsToday[0]?.total || 0);
 
-  let salesComparison = "No sales yesterday";
+  let salesComparison: ReactNode = (
+    <span className="text-muted-foreground font-medium">No sales yesterday</span>
+  );
   if (salesYesterday > 0) {
     const diff = todayRevenue - salesYesterday;
     const perc = (Math.abs(diff) / salesYesterday) * 100;
-    salesComparison = `${diff >= 0 ? "▲" : "▼"} ${perc.toFixed(1)}% vs yesterday`;
+    const isUp = diff >= 0;
+    salesComparison = (
+      <div className={`flex items-center gap-1 flex-wrap ${isUp ? "text-emerald-600" : "text-red-600"}`}>
+        {isUp ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
+        <span>{perc.toFixed(1)}%</span>
+        <span className="text-muted-foreground font-medium">vs yesterday</span>
+      </div>
+    );
   } else if (todayRevenue > 0) {
-    salesComparison = "▲ 100% vs yesterday";
+    salesComparison = (
+      <div className="flex items-center gap-1 flex-wrap text-emerald-600">
+        <TrendingUp className="w-3.5 h-3.5" />
+        <span>100%</span>
+        <span className="text-muted-foreground font-medium">vs yesterday</span>
+      </div>
+    );
   }
 
   const stats = {
@@ -71,7 +86,9 @@ export function DashboardOverview() {
     let amount = "";
 
     if (activity.activity_type === "sale") {
-      message = `${t("product")} sale: ${activity.transaction_number || activity.id.slice(0, 8)}`;
+      message = activity.prescription_id
+        ? `Rx sale: ${activity.transaction_number || activity.id.slice(0, 8)}`
+        : `${t("product")} sale: ${activity.transaction_number || activity.id.slice(0, 8)}`;
       const val = Number(
         activity.total_amount !== undefined
           ? activity.total_amount
@@ -102,6 +119,13 @@ export function DashboardOverview() {
     return {
       id: activity.id,
       type: activity.activity_type,
+      // Distinguishes a prescription-dispensed sale from a walk-in sale for
+      // icon/color purposes only — `type` stays "sale" so the transaction
+      // details dialog click-handler (keyed on type === "sale") still works.
+      displayType:
+        activity.activity_type === "sale" && activity.prescription_id
+          ? "prescription_sale"
+          : activity.activity_type,
       message,
       timestamp:
         activity.created_at || activity.date || activity.transaction_date,
@@ -115,6 +139,8 @@ export function DashboardOverview() {
     switch (type) {
       case "sale":
         return "bg-green-500/10 text-green-600";
+      case "prescription_sale":
+        return "bg-violet-500/10 text-violet-600";
       case "stock_movement":
         return "bg-blue-500/10 text-blue-600";
       case "prescription":

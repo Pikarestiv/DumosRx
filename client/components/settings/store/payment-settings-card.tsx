@@ -51,7 +51,19 @@ export function PaymentSettingsCard({
     <Card>
       <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-4">
         <div className="space-y-1.5">
-          <CardTitle>Payment Configuration</CardTitle>
+          <div className="flex items-center gap-2">
+            <CardTitle>Payment Configuration</CardTitle>
+            <TooltipProvider delayDuration={0}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Controls which payment methods and account rules apply across the POS checkout screen.</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
           <CardDescription>
             Configure accepted payment methods and account rules.
           </CardDescription>

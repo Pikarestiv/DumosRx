@@ -18,6 +18,7 @@ export function formatCurrency(amount: number, currencyCode: string = "NGN") {
   }).format(amount);
 }
 
+
 export function formatDateTime(dateStr: string | Date | undefined | null): string {
   if (!dateStr) return "N/A";
   try {

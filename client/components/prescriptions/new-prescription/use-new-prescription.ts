@@ -3,6 +3,7 @@ import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/context/auth-context";
+import { queryClient } from "@/lib/query-client";
 import { getAvailableStockBatches } from "@/lib/db/queries/inventory";
 import { createPrescription, generateId } from "@/lib/db/local-database";
 import { getPrescriptionById, getPrescriptionItems, updatePrescriptionRecord, deletePrescriptionItems, insertPrescriptionItem } from "@/lib/db/queries/prescriptions";
@@ -208,9 +209,22 @@ export function useNewPrescription() {
 
   const cancelEdit = () => {
     const params = new URLSearchParams(searchParams.toString());
+    // Both must go — showNewPrescription in PrescriptionManagement is
+    // action==="add" OR edit_rx present, and handleEdit sets both.
     params.delete("edit_rx");
+    params.delete("action");
     params.set("tab", "queue");
     router.replace(`${pathname}?${params.toString()}`);
+  };
+
+  // Closes the "New Prescription" full-screen overlay (PrescriptionManagement
+  // shows it based on the "action"/"edit_rx" params) after a successful create.
+  const closeNewPrescriptionForm = () => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("action");
+    params.delete("edit_rx");
+    const query = params.toString();
+    router.push(`${pathname}${query ? `?${query}` : ""}`);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -270,6 +284,12 @@ export function useNewPrescription() {
           });
         }
 
+        // updatePrescriptionRecord/deletePrescriptionItems/insertPrescriptionItem
+        // all write via raw query() and don't go through the insert/update
+        // helpers that auto-invalidate queryKey: ["prescriptions"] — do it
+        // explicitly so the detail panel reflects the edited medications.
+        queryClient.invalidateQueries({ queryKey: ["prescriptions"] });
+
         toast.success("Prescription updated successfully!");
         cancelEdit();
       } else {
@@ -317,6 +337,7 @@ export function useNewPrescription() {
         await createPrescription(prescriptionData, prescriptionItems);
         toast.success("Prescription created successfully!");
         resetForm();
+        closeNewPrescriptionForm();
       }
     } catch (err) {
       console.error("Failed to create prescription", err);

@@ -17,6 +17,7 @@ import { LoyaltyTab } from "./loyalty-tab";
 import { AddCustomerModal } from "./add-customer-modal";
 import { EditCustomerModal } from "./edit-customer-modal";
 import { RecordPaymentModal } from "./record-payment-modal";
+import { ResponsiveTabLabel } from "@/components/ui/responsive-tab-label";
 
 export function CustomerManagement() {
   const { storeType, storeProfile } = useStore();
@@ -169,13 +170,13 @@ export function CustomerManagement() {
   };
 
   return (
-    <div className="flex flex-col h-full min-h-0 space-y-6">
+    <div className="flex flex-col h-full min-h-0 space-y-4 md:space-y-6">
       <InsightsStrip metrics={metrics} />
 
       <Tabs
         value={activeTab}
         onValueChange={handleTabChange}
-        className="flex-1 flex flex-col min-h-0 space-y-4"
+        className="flex-1 flex flex-col min-h-0 gap-4"
       >
         <TabsList className="w-full md:w-max bg-background border rounded-[11px] p-1 h-auto overflow-x-auto justify-start">
           <TabsTrigger
@@ -200,8 +201,7 @@ export function CustomerManagement() {
             value="loyalty"
             className="rounded-lg text-[13px] font-semibold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-5 py-2"
           >
-            <span className="md:hidden">Loyalty</span>
-            <span className="hidden md:inline">Loyalty Program</span>
+            <ResponsiveTabLabel short="Loyalty" long="Loyalty Program" />
           </TabsTrigger>
         </TabsList>
 

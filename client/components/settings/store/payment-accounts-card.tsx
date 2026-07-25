@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Trash2, Edit2, Loader2, CreditCard, Smartphone, Banknote } from "lucide-react";
+import { Plus, Trash2, Edit2, Loader2, CreditCard, Smartphone, Banknote, Info } from "lucide-react";
 import { useStore } from "@/lib/context/store-context";
 import { useAuth } from "@/lib/context/auth-context";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { getPaymentAccounts } from "@/lib/db/queries/setup";
@@ -169,8 +170,20 @@ export function PaymentAccountsCard() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-xl flex justify-between items-center">
-          <span>Payment Accounts</span>
+        <CardTitle className="flex justify-between items-center">
+          <span className="flex items-center gap-2">
+            Payment Accounts
+            <TooltipProvider delayDuration={0}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>The bank accounts, POS terminals, and mobile money wallets cashiers can pick as the destination for Transfer and Card payments.</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </span>
           {isAdmin && (
             <Button onClick={() => handleOpenDialog()} size="sm">
               <Plus className="h-4 w-4 mr-2" />

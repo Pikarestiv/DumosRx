@@ -21,6 +21,7 @@ import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { getSaleItems } from "@/lib/db/queries/sales";
 import { restoreReturnedStock } from "@/lib/db/queries/returns";
+import { updatePrescriptionStatus } from "@/lib/db/queries/prescriptions";
 import { Loader2, RotateCcw } from "lucide-react";
 import { useAuth } from "@/lib/context/auth-context";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -144,6 +145,14 @@ export function ReturnDialog({
       await update("sales", sale.id, {
         payment_status: allItemsReturned ? "refunded" : "partially_refunded",
       });
+
+      // A full return of a prescription-linked sale undoes the dispense —
+      // send it back to "ready" so it re-enters the dispense queue instead
+      // of staying "completed" with no sale to show for it. Partial returns
+      // (e.g. one med out of several) leave the prescription's status alone.
+      if (sale.prescription_id && allItemsReturned) {
+        await updatePrescriptionStatus(sale.prescription_id, "ready");
+      }
 
       toast.success(
         `Return processed. Refund amount: ${formatCurrency(totalRefund, currencyCode)}`,

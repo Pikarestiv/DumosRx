@@ -131,6 +131,7 @@ export async function initDatabase(): Promise<any> {
         "points_redeemed REAL DEFAULT 0",
         "cashier_id TEXT",
         "payment_details TEXT",
+        "prescription_id TEXT",
       ],
     },
     {

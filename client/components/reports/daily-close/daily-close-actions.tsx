@@ -13,8 +13,12 @@ interface DailyCloseActionsProps {
 
 export function DailyCloseActions({ exportToCSV }: DailyCloseActionsProps) {
   return (
-    <div className="flex justify-end gap-3 pt-4">
-      <Button variant="outline" onClick={() => window.print()} className="gap-2">
+    <div className="flex justify-end gap-3">
+      <Button
+        variant="outline"
+        onClick={() => window.print()}
+        className="gap-2"
+      >
         <Printer className="h-4 w-4" />
         Print
       </Button>

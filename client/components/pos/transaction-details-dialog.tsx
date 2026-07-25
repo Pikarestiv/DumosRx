@@ -33,9 +33,10 @@ export function TransactionDetailsDialog({
 }: TransactionDetailsDialogProps) {
   const { isAdmin } = useAuth();
   const { data: detailsData } = useQuery({
-    queryKey: ['transactionDetails', sale?.id],
-    queryFn: () => (open && sale?.id) ? getTransactionDetails(sale.id) : Promise.resolve(null),
-    enabled: !!(open && sale?.id)
+    queryKey: ["transactionDetails", sale?.id],
+    queryFn: () =>
+      open && sale?.id ? getTransactionDetails(sale.id) : Promise.resolve(null),
+    enabled: !!(open && sale?.id),
   });
 
   const items = detailsData?.items || [];
@@ -47,21 +48,26 @@ export function TransactionDetailsDialog({
 
   const totalCostPrice =
     items?.reduce((acc: number, item: any) => {
-      const cost = (item.cost_price !== null && item.cost_price !== undefined)
-        ? item.cost_price
-        : (item.med_cost_price || 0);
+      const cost =
+        item.cost_price !== null && item.cost_price !== undefined
+          ? item.cost_price
+          : item.med_cost_price || 0;
       return acc + cost * item.quantity;
     }, 0) || 0;
 
   const returnedCostPrice =
     items?.reduce((acc: number, item: any) => {
-      const cost = (item.cost_price !== null && item.cost_price !== undefined)
-        ? item.cost_price
-        : (item.med_cost_price || 0);
+      const cost =
+        item.cost_price !== null && item.cost_price !== undefined
+          ? item.cost_price
+          : item.med_cost_price || 0;
       return acc + cost * (item.returned_quantity || 0);
     }, 0) || 0;
 
-  const profit = ((sale.total_amount !== undefined ? sale.total_amount : sale.total) - totalRefunded) - (totalCostPrice - returnedCostPrice);
+  const profit =
+    (sale.total_amount !== undefined ? sale.total_amount : sale.total) -
+    totalRefunded -
+    (totalCostPrice - returnedCostPrice);
 
   const title = "Transaction Details";
   const description = (
@@ -80,16 +86,29 @@ export function TransactionDetailsDialog({
         <div className="grid grid-cols-2 gap-3 sm:gap-4 mt-2 p-3 sm:p-4 bg-muted/30 rounded-lg">
           <div>
             <p className="text-xs sm:text-sm text-muted-foreground">Customer</p>
-            <p className="font-medium text-sm sm:text-base">{sale.customer_name || "Walk-in"}</p>
+            <p className="font-medium text-sm sm:text-base">
+              {sale.customer_name || "Walk-in"}
+            </p>
           </div>
           <div>
-            <p className="text-xs sm:text-sm text-muted-foreground">Payment Method</p>
-            <p className="font-medium capitalize text-sm sm:text-base">{sale.payment_method}</p>
+            <p className="text-xs sm:text-sm text-muted-foreground">
+              Payment Method
+            </p>
+            <p className="font-medium capitalize text-sm sm:text-base">
+              {sale.payment_method}
+            </p>
           </div>
           <div>
-            <p className="text-xs sm:text-sm text-muted-foreground">Total Sale</p>
+            <p className="text-xs sm:text-sm text-muted-foreground">
+              Total Sale
+            </p>
             <p className="font-medium text-base sm:text-lg text-primary">
-              {formatCurrency(sale.total_amount !== undefined ? sale.total_amount : sale.total, currencyCode)}
+              {formatCurrency(
+                sale.total_amount !== undefined
+                  ? sale.total_amount
+                  : sale.total,
+                currencyCode,
+              )}
             </p>
             {totalRefunded > 0 && (
               <p className="text-xs font-medium text-destructive mt-0.5">
@@ -98,7 +117,9 @@ export function TransactionDetailsDialog({
             )}
           </div>
           <div>
-            <p className="text-xs sm:text-sm text-muted-foreground">Total Profit</p>
+            <p className="text-xs sm:text-sm text-muted-foreground">
+              Total Profit
+            </p>
             <p
               className={`font-medium text-base sm:text-lg ${profit >= 0 ? "text-emerald-600" : "text-destructive"}`}
             >
@@ -121,7 +142,9 @@ export function TransactionDetailsDialog({
             <TableBody>
               {items?.map((item: any) => (
                 <TableRow key={item.id}>
-                  <TableCell className="font-medium">{item.product_name || "Unknown Item"}</TableCell>
+                  <TableCell className="font-medium">
+                    {item.product_name || "Unknown Item"}
+                  </TableCell>
                   <TableCell className="text-right">
                     <span>{item.quantity}</span>
                     {item.returned_quantity > 0 && (
@@ -144,22 +167,35 @@ export function TransactionDetailsDialog({
 
         {/* Mobile Cards View */}
         <div className="sm:hidden mt-5 space-y-3">
-          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Items</h4>
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+            Items
+          </h4>
           {items?.map((item: any) => (
-            <div key={item.id} className="bg-card border border-border rounded-[14px] p-3.5 shadow-sm">
+            <div
+              key={item.id}
+              className="bg-card border border-border rounded-[14px] p-3.5 shadow-sm"
+            >
               <div className="font-semibold text-[14px] text-foreground mb-2 leading-tight">
                 {item.product_name || "Unknown Item"}
               </div>
               <div className="flex justify-between items-center text-[13px] mb-2.5">
                 <span className="text-muted-foreground">
-                  Qty: <span className="font-semibold text-foreground ml-1">{item.quantity}</span>
+                  Qty:{" "}
+                  <span className="font-semibold text-foreground ml-1">
+                    {item.quantity}
+                  </span>
                 </span>
                 <span className="text-muted-foreground">
-                  Price: <span className="font-medium text-foreground ml-1">{formatCurrency(item.unit_price, currencyCode)}</span>
+                  Price:{" "}
+                  <span className="font-medium text-foreground ml-1">
+                    {formatCurrency(item.unit_price, currencyCode)}
+                  </span>
                 </span>
               </div>
               <div className="flex justify-between items-center pt-2.5 border-t border-border/60">
-                <span className="text-[12px] font-semibold text-muted-foreground uppercase tracking-wide">Total</span>
+                <span className="text-[12px] font-semibold text-muted-foreground uppercase tracking-wide">
+                  Total
+                </span>
                 <span className="font-bold text-[15px] text-primary">
                   {formatCurrency(item.total_price, currencyCode)}
                 </span>
@@ -205,7 +241,7 @@ export function TransactionDetailsDialog({
       title={title}
       description={description}
       className="sm:max-w-2xl w-[95vw] sm:w-full p-0 gap-0 overflow-hidden"
-      headerClassName="px-4 pt-4 pb-2 sm:px-6 sm:pt-6 sm:pb-3 border-b sm:border-b-0 border-border"
+      headerClassName="px-4 pt-0 pb-2 sm:px-6 sm:pt-6 sm:pb-3 border-b sm:border-b-0 border-border"
     >
       {content}
     </ResponsiveModal>

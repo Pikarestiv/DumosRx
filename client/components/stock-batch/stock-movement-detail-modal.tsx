@@ -1,5 +1,10 @@
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
-import { StockMovement, getTypeColor, formatMovementDate, formatMovementTime } from "./stock-movement-utils";
+import {
+  StockMovement,
+  getTypeColor,
+  formatMovementDate,
+  formatMovementTime,
+} from "./stock-movement-utils";
 
 interface Props {
   movement: StockMovement | null;
@@ -7,7 +12,11 @@ interface Props {
   onViewInCatalog: () => void;
 }
 
-export function StockMovementDetailModal({ movement, onClose, onViewInCatalog }: Props) {
+export function StockMovementDetailModal({
+  movement,
+  onClose,
+  onViewInCatalog,
+}: Props) {
   return (
     <ResponsiveModal
       open={!!movement}
@@ -16,15 +25,18 @@ export function StockMovementDetailModal({ movement, onClose, onViewInCatalog }:
       }}
       title="Movement detail"
       className="sm:max-w-[440px] p-0 gap-0 overflow-hidden"
-      headerClassName="px-5 py-4 border-b border-border m-0"
+      headerClassName="px-5 py-4 pt-0 border-b border-border m-0"
     >
       {movement && (
         <div className="px-5 py-[18px]">
           <div className="flex items-start justify-between mb-4">
             <div>
-              <div className="text-[15px] font-semibold">{movement.product}</div>
+              <div className="text-[15px] font-semibold">
+                {movement.product}
+              </div>
               <div className="text-[12px] text-muted-foreground/70">
-                {formatMovementDate(movement.date)}, {formatMovementTime(movement.date)}
+                {formatMovementDate(movement.date)},{" "}
+                {formatMovementTime(movement.date)}
               </div>
             </div>
             <div className="text-right">

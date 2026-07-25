@@ -169,7 +169,7 @@ export function CustomerManagement() {
   };
 
   return (
-    <div className="flex flex-col h-full min-h-0 space-y-6">
+    <div className="flex flex-col h-full min-h-0 space-y-4 md:space-y-6">
       <InsightsStrip metrics={metrics} />
 
       <Tabs

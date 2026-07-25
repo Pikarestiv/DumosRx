@@ -18,10 +18,10 @@ export function PrescriptionStats({ stats }: PrescriptionStatsProps) {
   const { setStatusFilter } = usePrescriptionQueue();
 
   return (
-    <div className="-mx-4 sm:mx-0 px-4 sm:px-0 mb-5">
+    <div className="-mx-4 sm:mx-0 px-4 sm:px-0">
       <div className="flex overflow-x-auto sm:grid sm:grid-cols-4 gap-[10px] sm:gap-4 pb-4 sm:pb-0 hide-scrollbar snap-x snap-mandatory">
       <MetricCard
-        className="min-w-[140px] sm:min-w-0 snap-center shrink-0 border-amber-200 hover:border-amber-500"
+        className="min-w-[180px] sm:min-w-0 snap-center shrink-0 border-amber-200 hover:border-amber-500"
         onClick={() => setStatusFilter("pending")}
         title="Needs verification"
         value={stats.pending}
@@ -32,7 +32,7 @@ export function PrescriptionStats({ stats }: PrescriptionStatsProps) {
       />
 
       <MetricCard
-        className="min-w-[140px] sm:min-w-0 snap-center shrink-0 border-border hover:border-primary"
+        className="min-w-[180px] sm:min-w-0 snap-center shrink-0 border-border hover:border-primary"
         onClick={() => setStatusFilter("in_progress")}
         title="In Progress"
         value={stats.inProgress}
@@ -43,7 +43,7 @@ export function PrescriptionStats({ stats }: PrescriptionStatsProps) {
       />
 
       <MetricCard
-        className="min-w-[140px] sm:min-w-0 snap-center shrink-0 border-emerald-200 hover:border-emerald-500"
+        className="min-w-[180px] sm:min-w-0 snap-center shrink-0 border-emerald-200 hover:border-emerald-500"
         onClick={() => setStatusFilter("ready")}
         title="Ready for pickup"
         value={stats.ready}
@@ -54,7 +54,7 @@ export function PrescriptionStats({ stats }: PrescriptionStatsProps) {
       />
 
       <MetricCard
-        className="min-w-[140px] sm:min-w-0 snap-center shrink-0 border-border hover:border-primary"
+        className="min-w-[180px] sm:min-w-0 snap-center shrink-0 border-border hover:border-primary"
         onClick={() => setStatusFilter("completed")}
         title="Filled today"
         value={stats.filledToday || 0}

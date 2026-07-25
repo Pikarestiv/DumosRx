@@ -68,7 +68,7 @@ export function DashboardStats({ statsCards }: DashboardStatsProps) {
           return (
             <MetricCard
               key={stat.title}
-              className={`min-w-[140px] sm:min-w-0 snap-center shrink-0 ${colors.border}`}
+              className={`min-w-[180px] sm:min-w-0 snap-center shrink-0 ${colors.border}`}
               title={stat.title}
               value={stat.value}
               valueClassName={colors.valueClassName}

@@ -120,7 +120,7 @@ export function PrescriptionManagement() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 lg:space-y-6">
       <PrescriptionStats stats={stats} />
 
       {/* Mobile: search bar stands alone above the filter chips, own bg-card to contrast with the page */}
@@ -133,7 +133,7 @@ export function PrescriptionManagement() {
       </div>
 
       {/* FILTER CHIPS — mobile: chips variant with bg-card/border-border inactive state; desktop: unchanged default Tabs */}
-      <div className="mb-4">
+      <div>
         <div className="lg:hidden">
           <Tabs
             value={statusFilter}

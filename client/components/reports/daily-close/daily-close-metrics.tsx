@@ -25,7 +25,7 @@ export function DailyCloseMetrics({
       <div className="-mx-4 sm:mx-0 px-4 sm:px-0">
         <div className="flex overflow-x-auto sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 pb-4 sm:pb-0 hide-scrollbar snap-x snap-mandatory">
           <MetricCard
-            className="min-w-[160px] sm:min-w-0 snap-center shrink-0 border-border"
+            className="min-w-[180px] sm:min-w-0 snap-center shrink-0 border-border"
             title="Total Sales"
             value={formatCurrency(aggregatedTotals.total, currencyCode)}
             icon={<DollarSign className="h-4 w-4" />}
@@ -34,7 +34,7 @@ export function DailyCloseMetrics({
             onClick={() => openSalesModal("all")}
           />
           <MetricCard
-            className="min-w-[160px] sm:min-w-0 snap-center shrink-0 border-border"
+            className="min-w-[180px] sm:min-w-0 snap-center shrink-0 border-border"
             title="Cash Expected"
             value={formatCurrency(aggregatedTotals.cash, currencyCode)}
             icon={<Banknote className="h-4 w-4" />}
@@ -43,7 +43,7 @@ export function DailyCloseMetrics({
             onClick={() => openSalesModal("cash")}
           />
           <MetricCard
-            className="min-w-[160px] sm:min-w-0 snap-center shrink-0 border-border"
+            className="min-w-[180px] sm:min-w-0 snap-center shrink-0 border-border"
             title="Transfer / Mobile"
             value={formatCurrency(aggregatedTotals.transfer, currencyCode)}
             icon={<ArrowLeftRight className="h-4 w-4" />}
@@ -52,7 +52,7 @@ export function DailyCloseMetrics({
             onClick={() => openSalesModal("transfer")}
           />
           <MetricCard
-            className="min-w-[160px] sm:min-w-0 snap-center shrink-0 border-red-200/50 hover:border-red-500/50"
+            className="min-w-[180px] sm:min-w-0 snap-center shrink-0 border-red-200/50 hover:border-red-500/50"
             title="Total Refunds"
             value={formatCurrency(aggregatedTotals.refunds, currencyCode)}
             icon={<RotateCcw className="h-4 w-4" />}

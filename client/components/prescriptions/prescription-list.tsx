@@ -27,7 +27,7 @@ export function PrescriptionList({
   isFuzzyFallback,
 }: PrescriptionListProps) {
   return (
-    <Card className="bg-card border border-border rounded-2xl flex flex-col min-h-0 lg:h-full p-0 gap-0">
+    <Card className="bg-transparent border-0 shadow-none rounded-none lg:bg-card lg:border lg:border-border lg:rounded-2xl lg:shadow-sm flex flex-col min-h-0 lg:h-full p-0 gap-0">
       {/* Search — renders standalone above on mobile (see PrescriptionManagement) */}
       <div className="hidden lg:block p-4 pb-3 border-b border-border">
         <PrescriptionSearchBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} />

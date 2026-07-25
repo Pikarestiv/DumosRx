@@ -20,9 +20,9 @@ export function ExpenseInsightsStrip({
   currencyCode,
 }: ExpenseInsightsStripProps) {
   return (
-    <div className="flex overflow-x-auto sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-[10px] sm:gap-4 pb-4 sm:pb-0 hide-scrollbar snap-x snap-mandatory mb-5">
+    <div className="flex overflow-x-auto sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-[10px] sm:gap-4 pb-4 sm:pb-0 hide-scrollbar snap-x snap-mandatory mb-4">
       <MetricCard
-        className="shrink-0 w-[180px] sm:w-auto snap-start border-border"
+        className="min-w-[180px] sm:min-w-0 shrink-0 snap-start border-border"
         title="Total expenses"
         value={formatCurrency(totalExpenses, currencyCode || "NGN")}
         valueClassName="font-serif"
@@ -43,7 +43,7 @@ export function ExpenseInsightsStrip({
       />
 
       <MetricCard
-        className="shrink-0 w-[180px] sm:w-auto snap-start border-border"
+        className="min-w-[180px] sm:min-w-0 shrink-0 snap-start border-border"
         title="This month"
         value={formatCurrency(thisMonthExpenses, currencyCode || "NGN")}
         valueClassName="font-serif"
@@ -68,7 +68,7 @@ export function ExpenseInsightsStrip({
       />
 
       <MetricCard
-        className="shrink-0 w-[180px] sm:w-auto snap-start border-border"
+        className="min-w-[180px] sm:min-w-0 shrink-0 snap-start border-border"
         title="Top category"
         value={topCategoryStr}
         valueClassName="font-serif truncate"
@@ -91,7 +91,7 @@ export function ExpenseInsightsStrip({
       />
 
       <MetricCard
-        className="shrink-0 w-[180px] sm:w-auto snap-start border-border"
+        className="min-w-[180px] sm:min-w-0 shrink-0 snap-start border-border"
         title="Transactions"
         value={transactionCount}
         valueClassName="font-serif"

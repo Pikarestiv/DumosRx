@@ -19,9 +19,9 @@ interface POAddItemFormProps {
   onNewlyCreatedProductConsumed?: () => void;
 }
 
-export function POAddItemForm({ 
-  products, 
-  onAddItem, 
+export function POAddItemForm({
+  products,
+  onAddItem,
   onOpenAddProduct,
   newlyCreatedProductId,
   onNewlyCreatedProductConsumed,
@@ -32,8 +32,12 @@ export function POAddItemForm({
   const [currentProductName, setCurrentProductName] = useState("");
   const [currentSelectedProduct, setCurrentSelectedProduct] = useState<SelectedProduct | null>(null);
   const [currentBulkQty, setCurrentBulkQty] = useState<number | "">("");
-  const [currentUoM, setCurrentUoM] = useState<number | "">("");
   const [currentCost, setCurrentCost] = useState<number | "">("");
+
+  const selectedProduct = products.find((m) => m.id === currentProductId);
+  // Always sourced live from the product's own Packaging & Units setting — never a
+  // per-order snapshot — so it can't go stale if the product is edited later.
+  const unitsPerBulk = selectedProduct?.units_per_bulk || 1;
 
   // Automatically select the product if it's created externally and its ID is passed down
   useEffect(() => {
@@ -44,7 +48,6 @@ export function POAddItemForm({
       if (newlyAddedProduct) {
         setCurrentProductId(newlyAddedProduct.id);
         setCurrentProductName(newlyAddedProduct.name);
-        setCurrentUoM(newlyAddedProduct.units_per_bulk || 1);
         setCurrentCost(
           (newlyAddedProduct.cost_price || 0) * (newlyAddedProduct.units_per_bulk || 1)
         );
@@ -60,12 +63,10 @@ export function POAddItemForm({
       setCurrentProductId(option.localId);
       const product = products.find((m) => m.id === option.localId);
       if (product) {
-        setCurrentUoM(product.units_per_bulk || 1);
         setCurrentCost((product.cost_price || 0) * (product.units_per_bulk || 1));
       }
     } else {
       setCurrentProductId("");
-      setCurrentUoM("");
       setCurrentCost("");
     }
   };
@@ -94,7 +95,7 @@ export function POAddItemForm({
     if (!product) return;
 
     const qty = Number(currentBulkQty) || 1;
-    const uom = Number(currentUoM) || 1;
+    const uom = product.units_per_bulk || 1;
     const cost = Number(currentCost) || 0;
 
     const newItem = {
@@ -114,7 +115,6 @@ export function POAddItemForm({
     setCurrentProductName("");
     setCurrentSelectedProduct(null);
     setCurrentBulkQty("");
-    setCurrentUoM("");
     setCurrentCost("");
   };
 
@@ -131,10 +131,23 @@ export function POAddItemForm({
           className="bg-muted border-border h-10 px-3 text-[13px] rounded-[10px]"
         />
       </div>
-      <div className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 items-end">
+      <div className="grid grid-cols-[1fr_1fr_auto] gap-2 items-end">
         <div className="space-y-1">
-          <Label className="text-[10.5px] font-semibold text-muted-foreground uppercase tracking-wide">
-            Qty (Bulk)
+          <Label className="text-[10.5px] font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+            Qty ({selectedProduct?.bulk_unit || "Bulk"})
+            <TooltipProvider delayDuration={0}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="w-3 h-3 opacity-50 cursor-pointer" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>
+                    How many bulk units (e.g. Cartons) you&apos;re ordering — not
+                    individual base units.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </Label>
           <Input
             type="number"
@@ -146,31 +159,8 @@ export function POAddItemForm({
           />
         </div>
         <div className="space-y-1">
-          <Label className="text-[10.5px] font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1">
-            Conversion
-            <TooltipProvider delayDuration={0}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Info className="w-3 h-3 opacity-50 cursor-pointer" />
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Number of base units inside one bulk unit</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </Label>
-          <Input
-            type="number"
-            className="bg-card border-border h-10 px-3 text-[13px] rounded-[10px]"
-            value={currentUoM}
-            min={1}
-            onChange={(e) => setCurrentUoM(e.target.value === "" ? "" : Number(e.target.value))}
-            placeholder="E.g. 20"
-          />
-        </div>
-        <div className="space-y-1">
           <Label className="text-[10.5px] font-semibold text-primary uppercase tracking-wide">
-            Bulk Cost ({products.find((m) => m.id === currentProductId)?.bulk_unit || "Unit"})
+            Bulk Cost ({selectedProduct?.bulk_unit || "Unit"})
           </Label>
           <Input
             type="number"
@@ -191,6 +181,25 @@ export function POAddItemForm({
           </Button>
         </div>
       </div>
+      {selectedProduct && (
+        <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+          Conversion: 1 {selectedProduct.bulk_unit || "Bulk"} = {unitsPerBulk}{" "}
+          {selectedProduct.base_unit || "unit"}(s)
+          <TooltipProvider delayDuration={0}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="w-3 h-3 opacity-50 cursor-pointer" />
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>
+                  Pulled from the product&apos;s Packaging &amp; Units setting — to
+                  change it, edit the product, not this order.
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </p>
+      )}
     </div>
   );
 }

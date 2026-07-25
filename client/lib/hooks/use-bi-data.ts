@@ -55,7 +55,7 @@ export function useBIData(externalTimeRange?: string) {
   const retentionRate = useMemo(() => {
     const r = metrics?.retentionData[0];
     if (!r || r.total === 0) return 0;
-    return Math.round((r.returning / r.total) * 100);
+    return Math.round((r.returning_count / r.total) * 100);
   }, [metrics?.retentionData]);
 
   const prevRevenue = metrics?.prevRevenueData[0]?.total || 0;

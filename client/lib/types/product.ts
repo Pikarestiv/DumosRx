@@ -30,6 +30,7 @@ export interface POSProduct {
   barcode?: string;
   batch_number?: string;
   category_id?: string;
+  category_name?: string;
 }
 
 export interface ProductViewModel {

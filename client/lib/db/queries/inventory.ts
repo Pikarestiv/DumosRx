@@ -105,11 +105,13 @@ export async function getLowStockAlerts() {
     product: string;
     quantity: number;
     threshold: number;
+    baseUnit: string;
   }>(
     `SELECT
       m.name as product,
       SUM(inv.quantity) as quantity,
-      m.reorder_level as threshold
+      m.reorder_level as threshold,
+      m.base_unit as baseUnit
      FROM stock_batches inv
      JOIN products m ON inv.product_id = m.id
      WHERE (inv._deleted = 0 OR inv._deleted IS NULL) AND (m._deleted = 0 OR m._deleted IS NULL)

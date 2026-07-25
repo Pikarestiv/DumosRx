@@ -132,11 +132,62 @@ async function addToSyncQueue(
 }
 
 export async function getPendingSyncItems() {
-  return await query<any>("SELECT * FROM _sync_queue ORDER BY created_at ASC");
+  const now = new Date().toISOString();
+  return await query<any>(
+    "SELECT * FROM _sync_queue WHERE next_retry_at IS NULL OR next_retry_at <= ? ORDER BY created_at ASC",
+    [now],
+  );
 }
 
 export async function markSynced(queueIds: number[]): Promise<void> {
   if (queueIds.length === 0) return;
   const placeholders = queueIds.map(() => "?").join(", ");
   await execute(`DELETE FROM _sync_queue WHERE id IN (${placeholders})`, queueIds);
+}
+
+const SYNC_FAILURE_REPORT_THRESHOLD = 5;
+const SYNC_FAILURE_BASE_DELAY_MS = 30_000;
+const SYNC_FAILURE_MAX_DELAY_MS = 60 * 60_000;
+
+/**
+ * Records a sync failure with exponential backoff so a permanently-bad item
+ * stops being retried every cycle and blocking the rest of the queue. Once
+ * retry_count crosses the report threshold, logs to superadmins exactly once
+ * (via the feedback table) instead of on every subsequent retry.
+ */
+export async function recordSyncFailure(queueId: number, errorMessage: string): Promise<void> {
+  const rows = await query<{ retry_count: number; last_error: string | null; table_name: string; record_id: string }>(
+    "SELECT retry_count, last_error, table_name, record_id FROM _sync_queue WHERE id = ?",
+    [queueId],
+  );
+  const item = rows[0];
+  if (!item) return;
+
+  const nextRetryCount = (item.retry_count || 0) + 1;
+  const delay = Math.min(SYNC_FAILURE_BASE_DELAY_MS * 2 ** (nextRetryCount - 1), SYNC_FAILURE_MAX_DELAY_MS);
+  const nextRetryAt = new Date(Date.now() + delay).toISOString();
+  const alreadyReported = item.last_error?.startsWith("[REPORTED]");
+
+  await execute(
+    "UPDATE _sync_queue SET retry_count = ?, last_error = ?, next_retry_at = ? WHERE id = ?",
+    [nextRetryCount, errorMessage, nextRetryAt, queueId],
+  );
+
+  if (nextRetryCount >= SYNC_FAILURE_REPORT_THRESHOLD && !alreadyReported) {
+    try {
+      const { logCrash } = await import("../utils/error-logger");
+      await logCrash(
+        new Error(
+          `Sync item stuck after ${nextRetryCount} attempts on ${item.table_name}/${item.record_id}: ${errorMessage}`,
+        ),
+        false,
+      );
+      await execute("UPDATE _sync_queue SET last_error = ? WHERE id = ?", [
+        `[REPORTED] ${errorMessage}`,
+        queueId,
+      ]);
+    } catch (e) {
+      console.error("Failed to report stuck sync item", e);
+    }
+  }
 }

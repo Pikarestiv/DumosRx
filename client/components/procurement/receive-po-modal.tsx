@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
+import { Info } from "lucide-react";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
 import type { PurchaseOrder, PurchaseOrderItem } from "@/lib/db/local-database";
 import {
@@ -52,15 +54,34 @@ const ReceiveItemCard = React.memo(
           <div>
             <h4 className="font-semibold text-[15px]">{item.product_name}</h4>
             <p className="text-sm text-muted-foreground">
-              Ordered: {item.bulk_quantity} units @{" "}
-              {formatCurrency(item.unit_cost)}
+              Ordered: {item.bulk_quantity} {item.bulk_unit}(s) @{" "}
+              {formatCurrency(item.unit_cost)}/{item.bulk_unit}
             </p>
           </div>
         </div>
 
         <div className="flex flex-col gap-4 bg-muted/20 p-4 rounded-lg">
           <div className="space-y-2">
-            <Label className="text-xs">Qty Received</Label>
+            <Label className="text-xs flex items-center gap-1">
+              Qty Received (in {item.bulk_unit}s)
+              <TooltipProvider delayDuration={0}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="w-3 h-3 opacity-50 cursor-pointer" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>
+                      Enter the number of {item.bulk_unit}s received, not base
+                      units. This is automatically converted to{" "}
+                      {(item.product_units_per_bulk || item.units_per_bulk) *
+                        (Number(state.quantity ?? item.bulk_quantity) || 0)}{" "}
+                      base units in stock, using the product&apos;s current
+                      packaging setting.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </Label>
             <Input
               type="number"
               min="0"

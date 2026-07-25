@@ -7,11 +7,13 @@ import { useStore } from "@/lib/context/store-context";
 import { usePOSCart } from "@/lib/hooks/use-pos-cart";
 import { usePOSPayment } from "@/lib/hooks/use-pos-payment";
 import { useSmartSuggestions } from "@/hooks/use-smart-suggestions";
-import { searchProducts } from "@/lib/utils/search";
+import { usePOSProductFilter } from "@/lib/hooks/use-pos-product-filter";
+import { usePOSScan } from "@/lib/hooks/use-pos-scan";
 import { POSLayoutHeader } from "./pos-layout-header";
 import { useQuery } from "@tanstack/react-query";
 import { getHeldTransactionCount } from "@/lib/db/queries/sales";
 import { POSProductList } from "./pos-product-list";
+import { POSCategoryFilter } from "./pos-category-filter";
 import { POSTransactionHistory } from "./pos-transaction-history";
 import { POSCustomerSelector } from "./pos-customer-selector";
 import { POSMobileSearch } from "./pos-mobile-search";
@@ -36,6 +38,7 @@ export function POSSystem() {
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   };
   const [searchTerm, setSearchTerm] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
   const [isMobileScannerOpen, setIsMobileScannerOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
     null,
@@ -140,30 +143,18 @@ export function POSSystem() {
       customers,
       setShowHeldDialog,
     });
-  const { results: filteredProducts, isFuzzyFallback } = React.useMemo(() => {
-    return searchProducts(searchTerm, products);
-  }, [searchTerm, products]);
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && searchTerm.trim()) {
-      handleScanSuccess(searchTerm.trim());
-    }
-  };
-  const handleScanSuccess = (scannedBarcode: string) => {
-    const query = scannedBarcode.toLowerCase().trim();
-    const barcodeMatch = products.find(
-      (m) =>
-        m.barcode?.toLowerCase() === query ||
-        m.batch_number?.toLowerCase() === query,
-    );
-    if (barcodeMatch) {
-      addToCart(barcodeMatch);
-      setSearchTerm("");
-      toast.success(`Scanned: ${barcodeMatch.name}`);
-    } else {
-      toast.error(`No product found for barcode: ${scannedBarcode}`);
-    }
-  };
-  
+  const { categories, filteredProducts, isFuzzyFallback } = usePOSProductFilter(
+    products,
+    searchTerm,
+    categoryFilter,
+  );
+  const { handleKeyPress, handleScanSuccess } = usePOSScan({
+    products,
+    searchTerm,
+    setSearchTerm,
+    addToCart,
+  });
+
   const posDialogProps = {
     isMobileScannerOpen,
     setIsMobileScannerOpen,
@@ -204,26 +195,28 @@ export function POSSystem() {
   };
 
   return (
-    <div className="flex flex-col w-full h-screen overflow-hidden bg-background">
-      <POSLayoutHeader
-        searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
-        onKeyDown={handleKeyPress}
-        searchInputRef={searchInputRef}
-        heldSalesCount={heldSalesCount}
-        onOpenHeldSales={() => setShowHeldDialog(true)}
-        onScanSuccess={handleScanSuccess}
-      />
-      
+    <div
+      className="flex flex-col lg:flex-row w-full overflow-hidden bg-background"
+      style={{ height: "calc(100dvh - var(--tauri-top, 0px))" }}
+    >
+      {/* Left: header + tabs/products (full width on mobile, shrinks to make room for the cart on desktop) */}
+      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+        <POSLayoutHeader
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+          onKeyDown={handleKeyPress}
+          searchInputRef={searchInputRef}
+          heldSalesCount={heldSalesCount}
+          onOpenHeldSales={() => setShowHeldDialog(true)}
+          onScanSuccess={handleScanSuccess}
+        />
 
-      <div className="p-4 sm:p-6 sm:pt-3 sm:py-4 flex-1 overflow-hidden flex flex-col">
-        <Tabs
-          value={activeTab}
-          onValueChange={handleTabChange}
-          className="w-full flex-1 flex flex-col lg:grid lg:grid-cols-3 gap-4 lg:gap-6 overflow-hidden"
-        >
-          {/* Left: TabsList + product search + list */}
-          <div className="lg:col-span-2 flex flex-col overflow-hidden h-full">
+        <div className="p-4 sm:p-6 sm:pt-3 sm:py-4 flex-1 overflow-hidden flex flex-col">
+          <Tabs
+            value={activeTab}
+            onValueChange={handleTabChange}
+            className="w-full flex-1 flex flex-col overflow-hidden"
+          >
             <div className="flex-none flex mb-2 sm:mb-4">
               <TabsList className="w-full md:w-auto">
                 <TabsTrigger value="products">Products</TabsTrigger>
@@ -235,6 +228,12 @@ export function POSSystem() {
                 value="products"
                 className="absolute inset-0 overflow-y-auto mt-0 pr-1 flex flex-col gap-4"
               >
+                <POSCategoryFilter
+                  categories={categories}
+                  value={categoryFilter}
+                  onChange={setCategoryFilter}
+                />
+
                 {/* Mobile specific Customer Selector & Search */}
                 <POSMobileSearch
                   selectedCustomer={selectedCustomer}
@@ -254,6 +253,7 @@ export function POSSystem() {
                   isFuzzyFallback={isFuzzyFallback}
                   addToCart={addToCart}
                   productTerm={t("product")}
+                  searchTerm={searchTerm}
                   currencyCode={storeProfile?.currency}
                   suggestions={suggestions}
                   recentlySoldIds={recentlySoldIds}
@@ -280,62 +280,68 @@ export function POSSystem() {
                 />
               </TabsContent>
             </div>
-          </div>
-          {/* Right: customer + cart (Hidden on Mobile) */}
-          <div className="hidden lg:flex flex-col bg-background border border-border lg:rounded-2xl shadow-sm overflow-hidden h-full">
-            <POSCustomerSelector
-              selectedCustomer={selectedCustomer}
-              customers={customers}
-              loadingCustomers={loadingCustomers}
-              onSelectCustomer={setSelectedCustomer as any}
-              cartLength={cart.length}
-            />
-            <div className="flex-1 flex flex-col overflow-hidden">
-              <POSCart
-                cart={cart}
-                subtotal={subtotal}
-                tax={tax}
-                total={total}
-                discount={discount}
-                calculatedDiscount={calculatedDiscount}
-                discountType={discountType}
-                setDiscount={setDiscount}
-                setDiscountType={setDiscountType}
-                vatPercentage={vatPercentage}
-                currencyCode={storeProfile?.currency}
-                updateQuantity={updateQuantity}
-                removeFromCart={removeFromCart}
-                clearCart={clearCart}
-                onCheckout={withRestriction(() => setShowPaymentDialog(true))}
-                onHoldSale={handleHoldTransaction}
-              />
-            </div>
-          </div>
-        </Tabs>
-        <POSMobileCartWrapper
-          cart={cart}
-          subtotal={subtotal}
-          tax={tax}
-          total={total}
-          discount={discount}
-          calculatedDiscount={calculatedDiscount}
-          discountType={discountType}
-          setDiscount={setDiscount}
-          setDiscountType={setDiscountType}
-          vatPercentage={vatPercentage}
-          currencyCode={storeProfile?.currency}
-          updateQuantity={updateQuantity}
-          removeFromCart={removeFromCart}
-          clearCart={clearCart}
-          onCheckout={withRestriction(() => setShowPaymentDialog(true))}
-          onHoldSale={handleHoldTransaction}
+          </Tabs>
+        </div>
+      </div>
+
+      {/* Right: customer + cart, full page height (Desktop only) */}
+      <div className="hidden lg:flex lg:w-[380px] xl:w-[420px] shrink-0 flex-col bg-background border-l border-border overflow-hidden h-full">
+        <POSCustomerSelector
           selectedCustomer={selectedCustomer}
           customers={customers}
           loadingCustomers={loadingCustomers}
           onSelectCustomer={setSelectedCustomer as any}
+          cartLength={cart.length}
         />
-        <POSDialogs {...posDialogProps} />
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <POSCart
+            cart={cart}
+            subtotal={subtotal}
+            tax={tax}
+            total={total}
+            discount={discount}
+            calculatedDiscount={calculatedDiscount}
+            discountType={discountType}
+            setDiscount={setDiscount}
+            setDiscountType={setDiscountType}
+            vatPercentage={vatPercentage}
+            currencyCode={storeProfile?.currency}
+            updateQuantity={updateQuantity}
+            removeFromCart={removeFromCart}
+            clearCart={clearCart}
+            onCheckout={withRestriction(() => setShowPaymentDialog(true))}
+            onHoldSale={handleHoldTransaction}
+            heldSalesCount={heldSalesCount}
+            onOpenHeldSales={() => setShowHeldDialog(true)}
+          />
+        </div>
       </div>
+
+      <POSMobileCartWrapper
+        cart={cart}
+        subtotal={subtotal}
+        tax={tax}
+        total={total}
+        discount={discount}
+        calculatedDiscount={calculatedDiscount}
+        discountType={discountType}
+        setDiscount={setDiscount}
+        setDiscountType={setDiscountType}
+        vatPercentage={vatPercentage}
+        currencyCode={storeProfile?.currency}
+        updateQuantity={updateQuantity}
+        removeFromCart={removeFromCart}
+        clearCart={clearCart}
+        onCheckout={withRestriction(() => setShowPaymentDialog(true))}
+        onHoldSale={handleHoldTransaction}
+        heldSalesCount={heldSalesCount}
+        onOpenHeldSales={() => setShowHeldDialog(true)}
+        selectedCustomer={selectedCustomer}
+        customers={customers}
+        loadingCustomers={loadingCustomers}
+        onSelectCustomer={setSelectedCustomer as any}
+      />
+      <POSDialogs {...posDialogProps} />
     </div>
   );
 }

@@ -32,6 +32,8 @@ export interface PurchaseOrderItem {
   product_name: string;
   base_unit: string;
   bulk_unit: string;
+  /** Live conversion factor from the product record — always used for receiving math, since units_per_bulk above is a point-in-time snapshot that can go stale if the product's packaging is edited later. */
+  product_units_per_bulk: number;
 }
 
 export async function getPurchaseOrders(page = 1, limit = 50) {
@@ -72,9 +74,9 @@ export async function getPurchaseOrderById(id: string) {
   if (!po[0]) return null;
 
   const items = await query<PurchaseOrderItem>(
-    `SELECT poi.*, m.name as product_name, m.base_unit, m.bulk_unit 
-     FROM purchase_order_items poi 
-     JOIN products m ON poi.product_id = m.id 
+    `SELECT poi.*, m.name as product_name, m.base_unit, m.bulk_unit, m.units_per_bulk as product_units_per_bulk
+     FROM purchase_order_items poi
+     JOIN products m ON poi.product_id = m.id
      WHERE poi.po_id = ? AND poi._deleted = 0`,
     [id]
   );
@@ -199,7 +201,9 @@ export async function receivePurchaseOrder(id: string, receivedItems?: any[]) {
     
     // Default to the original ordered bulk quantity if not provided in payload
     const bulkQty = receivedItem?.quantity !== undefined ? Number(receivedItem.quantity) : Number(item.bulk_quantity);
-    const unitsPerBulk = Number(item.units_per_bulk);
+    // Always use the product's current conversion factor, not the snapshot stored on the
+    // PO line item — the product's packaging may have been corrected since the order was placed.
+    const unitsPerBulk = Number(item.product_units_per_bulk) || Number(item.units_per_bulk) || 1;
     const totalBaseUnits = bulkQty * unitsPerBulk;
     
     const batchNumber = receivedItem?.lot_number?.trim() || poData.id.split('-')[0].toUpperCase();
@@ -230,7 +234,9 @@ export async function receivePurchaseOrder(id: string, receivedItems?: any[]) {
       movement_type: "purchase",
       quantity: totalBaseUnits,
       unit_cost: baseUnitCost,
-      total_cost: Number(item.subtotal),
+      // Recalculated from what was actually received, not item.subtotal (the full
+      // ordered-line total) — those diverge whenever this is a partial receipt.
+      total_cost: baseUnitCost * totalBaseUnits,
       reference_id: poData.id,
       reference_type: "purchase_order",
       reason: "Purchase order received",

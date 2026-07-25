@@ -1,4 +1,6 @@
+import { DollarSign, TrendingUp, Receipt, Package, Users } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import { MetricCard } from "@/components/ui/metric-card";
 
 interface BIKeyMetricsProps {
   totalRevenue: number;
@@ -17,31 +19,53 @@ export function BIKeyMetrics({
 }: BIKeyMetricsProps) {
   return (
     <div className="flex flex-col gap-5">
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-5">
-        <div className="bg-primary/10 border border-primary/20 rounded-[14px] p-[18px] px-5">
-          <div className="text-[12px] text-primary font-medium mb-3">Total Revenue</div>
-          <div className="text-[19px] font-semibold font-['Playfair_Display']">{formatCurrency(totalRevenue)}</div>
-          <div className="text-[11px] text-muted-foreground mt-1">Gross billings</div>
-        </div>
-        <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-[14px] p-[18px] px-5">
-          <div className="text-[12px] text-emerald-600 font-medium mb-3">Net Profit</div>
-          <div className="text-[19px] font-semibold font-['Playfair_Display'] text-emerald-600">{formatCurrency(netProfit)}</div>
-          <div className="text-[11px] text-muted-foreground mt-1">After COGS & expenses</div>
-        </div>
-        <div className="bg-background border rounded-[14px] p-[18px] px-5">
-          <div className="text-[12px] text-muted-foreground font-medium mb-3">Transactions</div>
-          <div className="text-[19px] font-semibold font-['Playfair_Display']">{totalTransactions.toLocaleString()}</div>
-          <div className="text-[11px] text-muted-foreground mt-1">Volume</div>
-        </div>
-        <div className="bg-background border rounded-[14px] p-[18px] px-5">
-          <div className="text-[12px] text-muted-foreground font-medium mb-3">Stock Batch Value</div>
-          <div className="text-[19px] font-semibold font-['Playfair_Display']">{formatCurrency(stock_batchValue)}</div>
-          <div className="text-[11px] text-muted-foreground mt-1">Asset value (cost)</div>
-        </div>
-        <div className="bg-background border rounded-[14px] p-[18px] px-5">
-          <div className="text-[12px] text-muted-foreground font-medium mb-3">Customers</div>
-          <div className="text-[19px] font-semibold font-['Playfair_Display']">{activeCustomers.toLocaleString()}</div>
-          <div className="text-[11px] text-muted-foreground mt-1">Active base</div>
+      <div className="-mx-4 sm:mx-0 px-4 sm:px-0">
+        <div className="flex overflow-x-auto sm:grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4 pb-4 sm:pb-0 hide-scrollbar snap-x snap-mandatory">
+          <MetricCard
+            className="min-w-[160px] sm:min-w-0 snap-center shrink-0 border-primary/20 hover:border-primary/40"
+            title="Total Revenue"
+            value={formatCurrency(totalRevenue)}
+            icon={<DollarSign className="h-4 w-4" />}
+            iconBgClass="bg-primary/10 text-primary"
+            valueClassName="font-serif"
+            description="Gross billings"
+          />
+          <MetricCard
+            className="min-w-[160px] sm:min-w-0 snap-center shrink-0 border-emerald-200/50 hover:border-emerald-500/50"
+            title="Net Profit"
+            value={formatCurrency(netProfit)}
+            icon={<TrendingUp className="h-4 w-4" />}
+            iconBgClass="bg-emerald-50 text-emerald-700"
+            valueClassName="font-serif text-emerald-600"
+            description="After COGS & expenses"
+          />
+          <MetricCard
+            className="min-w-[160px] sm:min-w-0 snap-center shrink-0 border-border"
+            title="Transactions"
+            value={totalTransactions.toLocaleString()}
+            icon={<Receipt className="h-4 w-4" />}
+            iconBgClass="bg-sky-50 text-sky-700"
+            valueClassName="font-serif"
+            description="Volume"
+          />
+          <MetricCard
+            className="min-w-[160px] sm:min-w-0 snap-center shrink-0 border-border"
+            title="Stock Batch Value"
+            value={formatCurrency(stock_batchValue)}
+            icon={<Package className="h-4 w-4" />}
+            iconBgClass="bg-blue-50 text-blue-700"
+            valueClassName="font-serif"
+            description="Asset value (cost)"
+          />
+          <MetricCard
+            className="min-w-[160px] sm:min-w-0 snap-center shrink-0 border-border"
+            title="Customers"
+            value={activeCustomers.toLocaleString()}
+            icon={<Users className="h-4 w-4" />}
+            iconBgClass="bg-violet-50 text-violet-700"
+            valueClassName="font-serif"
+            description="Active base"
+          />
         </div>
       </div>
     </div>

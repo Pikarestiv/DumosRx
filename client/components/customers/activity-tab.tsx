@@ -1,69 +1,214 @@
 "use client";
 
-import { Customer } from "@/lib/hooks/use-customer-data";
+import { useMemo, useState } from "react";
+import { Search, Star, X } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { formatCurrency, formatDateTime } from "@/lib/utils";
+import { genericFuzzySearch } from "@/lib/utils/search";
+import {
+  CustomerTransaction,
+  useCustomerTransactions,
+} from "@/lib/hooks/use-customer-data";
+
+const MAX_ITEMS_SHOWN = 2;
+
+function ItemsCell({ txn }: { txn: CustomerTransaction }) {
+  if (txn.itemNames.length === 0) {
+    return (
+      <span className="text-muted-foreground">
+        {txn.itemCount} item{txn.itemCount === 1 ? "" : "s"}
+      </span>
+    );
+  }
+  const shown = txn.itemNames.slice(0, MAX_ITEMS_SHOWN);
+  const extra = txn.itemCount - shown.length;
+  return (
+    <span
+      className="truncate block max-w-[280px]"
+      title={txn.itemNames.join(", ")}
+    >
+      {shown.join(", ")}
+      {extra > 0 && (
+        <span className="text-muted-foreground"> +{extra} more</span>
+      )}
+    </span>
+  );
+}
+
+interface ActivityTabProps {
+  currencyCode?: string;
+  filterCustomerId?: string;
+  filterCustomerName?: string;
+  onClearFilter?: () => void;
+}
 
 export function ActivityTab({
-  customers,
-  currencyCode = "₦",
-}: {
-  customers: Customer[];
-  currencyCode?: string;
-}) {
-  // Mock activity from customer list join dates as a fallback for the UI
-  const activities = customers.slice(0, 10).map((c) => ({
-    id: c.id,
-    customerName: c.name,
-    action: "Joined the loyalty program",
-    date: c.joinDate,
-    amount: null,
-  }));
+  currencyCode = "NGN",
+  filterCustomerId,
+  filterCustomerName,
+  onClearFilter,
+}: ActivityTabProps) {
+  const { transactions, loading } = useCustomerTransactions();
+  const [searchTerm, setSearchTerm] = useState("");
 
-  return (
-    <Card className="border rounded-[14px] p-5 shadow-sm">
-      <div className="flex justify-between items-center mb-6">
-        <h3 className="text-[14px] font-semibold">Recent Activity</h3>
-        <button className="text-[12px] font-medium text-primary hover:underline">
-          View All
+  const scopedTransactions = useMemo(() => {
+    if (!filterCustomerId) return transactions;
+    return transactions.filter((t) => t.customerId === filterCustomerId);
+  }, [transactions, filterCustomerId]);
+
+  const { results: filtered } = genericFuzzySearch(
+    searchTerm,
+    scopedTransactions,
+    ["customerName", "transactionNumber"],
+  );
+
+  const SearchInput = (
+    <div className="relative">
+      <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+      <input
+        type="text"
+        placeholder="Search by customer or transaction ID"
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        className="w-full bg-card border border-border md:bg-muted md:border-none rounded-[10px] pl-9 pr-4 py-2 text-[13px] focus:ring-1 focus:ring-primary outline-none"
+      />
+    </div>
+  );
+
+  const FilterChip = filterCustomerId && (
+    <div className="flex items-center gap-2">
+      <div className="inline-flex items-center gap-1.5 bg-primary/10 text-primary px-3 py-1 rounded-full text-[12px] font-medium">
+        Showing history for {filterCustomerName || "customer"}
+        <button
+          onClick={onClearFilter}
+          className="hover:bg-primary/20 rounded-full p-0.5 transition-colors"
+        >
+          <X className="w-3 h-3" />
         </button>
       </div>
+    </div>
+  );
 
-      {activities.length === 0 ? (
-        <div className="text-center text-muted-foreground py-8 text-[13px]">
-          No recent activity to show.
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {activities.map((activity, index) => (
-            <div
-              key={activity.id + index}
-              className="flex items-center gap-4 p-3 rounded-[10px] hover:bg-secondary/50 transition-colors"
-            >
-              <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-[14px]">
-                {activity.customerName.substring(0, 2).toUpperCase()}
-              </div>
-              <div className="flex-1">
-                <div className="text-[14px] font-semibold">
-                  {activity.customerName}
-                </div>
-                <div className="text-[12px] text-muted-foreground">
-                  {activity.action}
-                </div>
-              </div>
-              <div className="text-right">
-                {activity.amount && (
-                  <div className="text-[14px] font-semibold">
-                    {currencyCode} {activity.amount}
+  const EmptyState = (
+    <div className="flex items-center justify-center text-muted-foreground text-[13px] py-12">
+      {loading ? "Loading activity..." : "No transactions found."}
+    </div>
+  );
+
+  return (
+    <div className="flex flex-col md:h-[600px] md:overflow-hidden gap-4">
+      {/* Mobile — flat, no wrapping card */}
+      <div className="flex md:hidden flex-col gap-3">
+        {SearchInput}
+        {FilterChip}
+
+        {loading || filtered.length === 0 ? (
+          EmptyState
+        ) : (
+          <div className="flex flex-col gap-2">
+            {filtered.map((txn) => (
+              <div
+                key={txn.id}
+                className="p-3 rounded-xl border bg-card space-y-2"
+              >
+                <div className="flex justify-between items-start">
+                  <div>
+                    <div className="text-[13px] font-semibold">
+                      {txn.customerName}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground">
+                      {txn.transactionNumber}
+                    </div>
                   </div>
-                )}
+                  <div className="text-right">
+                    <div className="text-[13px] font-semibold">
+                      {formatCurrency(txn.amount, currencyCode)}
+                    </div>
+                    {txn.pointsEarned > 0 && (
+                      <div className="inline-flex items-center gap-1 text-[11px] text-amber-600">
+                        <Star className="w-3 h-3 fill-amber-600" />
+                        {txn.pointsEarned} pts
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="text-[11.5px] text-muted-foreground truncate">
+                  <ItemsCell txn={txn} />
+                </div>
                 <div className="text-[11px] text-muted-foreground">
-                  {activity.date}
+                  {formatDateTime(txn.date)}
                 </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Desktop — Card-wrapped table */}
+      <Card className="hidden md:flex flex-col gap-0 py-0 border rounded-[14px] shadow-sm flex-1 overflow-hidden">
+        <div className="p-4 border-b space-y-3">
+          {SearchInput}
+          {FilterChip}
         </div>
-      )}
-    </Card>
+
+        {loading || filtered.length === 0 ? (
+          EmptyState
+        ) : (
+          <div className="flex-1 overflow-y-auto">
+            <Table>
+              <TableHeader className="sticky top-0 bg-background z-10">
+                <TableRow>
+                  <TableHead className="pl-4">Txn ID</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Points</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Items</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filtered.map((txn) => (
+                  <TableRow key={txn.id}>
+                    <TableCell className="pl-4 font-medium text-[12px]">
+                      {txn.transactionNumber}
+                    </TableCell>
+                    <TableCell className="text-[13px]">
+                      {txn.customerName}
+                    </TableCell>
+                    <TableCell className="text-[13px] font-medium">
+                      {formatCurrency(txn.amount, currencyCode)}
+                    </TableCell>
+                    <TableCell className="text-[13px] text-amber-600">
+                      {txn.pointsEarned > 0 ? (
+                        <span className="inline-flex items-center gap-1">
+                          <Star className="w-3.5 h-3.5 fill-amber-600" />
+                          {txn.pointsEarned}
+                        </span>
+                      ) : (
+                        "-"
+                      )}
+                    </TableCell>
+                    <TableCell className="text-[12px] text-muted-foreground">
+                      {formatDateTime(txn.date)}
+                    </TableCell>
+                    <TableCell className="text-[12.5px]">
+                      <ItemsCell txn={txn} />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </Card>
+    </div>
   );
 }

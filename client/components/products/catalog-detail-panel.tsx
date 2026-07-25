@@ -109,13 +109,20 @@ export function CatalogDetailPanel({
                 <path d="m15 18-6-6 6-6" />
               </svg>
             </button>
-            <div className="flex flex-col">
-              <h2 className="text-[17px] font-bold text-foreground leading-tight">
-                {product.name}
-              </h2>
-              <p className="text-[12px] text-muted-foreground mt-0.5 uppercase tracking-wide">
-                SKU: {product.barcode || product.id.slice(0, 8)}
-              </p>
+            <div className="flex flex-col items-start justify-start">
+              <div className="flex flex-col">
+                <h2 className="text-[17px] font-bold text-foreground leading-tight">
+                  {product.name}
+                </h2>
+                <p className="text-[12px] text-muted-foreground mt-0.5 uppercase tracking-wide">
+                  SKU: {product.barcode || product.id.slice(0, 8)}
+                </p>
+              </div>
+
+              {/* Category below border */}
+              <span className="text-[11px] font-semibold text-primary px-2 py-0.5 shrink-0 bg-primary/5 rounded-md mt-2">
+                {product.category || "Pharmacy"}
+              </span>
             </div>
           </div>
 
@@ -152,16 +159,10 @@ export function CatalogDetailPanel({
         </div>
       </div>
 
-      {/* Category below border */}
-      <div className="px-4 pt-4 pb-2 shrink-0">
-        <span className="text-[13px] font-semibold text-primary">
-          {product.category || "Pharmacy"}
-        </span>
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-4 hide-scrollbar">
-        <Tabs defaultValue="details" className="w-full">
-          <TabsList className="w-full mb-6 flex justify-between bg-transparent border-none !shadow-none p-0 h-auto space-x-2">
+      <Tabs defaultValue="details" className="flex flex-col flex-1 min-h-0">
+        {/* Fixed tab header — stays in place while tab content scrolls */}
+        <div className="shrink-0 bg-primary/5 border-b border-border px-4 py-3">
+          <TabsList className="w-full flex justify-between bg-transparent border-none !shadow-none p-0 h-auto space-x-2">
             <TabsTrigger
               value="details"
               className="flex-1 py-2 rounded-xl data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground shadow-none"
@@ -181,7 +182,9 @@ export function CatalogDetailPanel({
               History
             </TabsTrigger>
           </TabsList>
+        </div>
 
+        <div className="flex-1 overflow-y-auto p-4 hide-scrollbar">
           <TabsContent value="details" className="mt-0">
             <div className="flex flex-col gap-4 pb-4">
               <ProductBasicInfo product={product} />
@@ -211,8 +214,8 @@ export function CatalogDetailPanel({
           <TabsContent value="history" className="mt-4 pt-2">
             <ProductHistory productId={product.id} />
           </TabsContent>
-        </Tabs>
-      </div>
+        </div>
+      </Tabs>
     </div>
   );
 }

@@ -72,6 +72,8 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
     setShowLogo,
     showContact,
     setShowContact,
+    hidePoweredBy,
+    setHidePoweredBy,
     lowStockAlert,
     setLowStockAlert,
     expiryAlert,
@@ -255,6 +257,8 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
                   setShowLogo={setShowLogo}
                   showContact={showContact}
                   setShowContact={setShowContact}
+                  hidePoweredBy={hidePoweredBy}
+                  setHidePoweredBy={setHidePoweredBy}
                   handleSaveReceiptSettings={handleSaveReceiptSettings}
                   showRetailSuggestions={showRetailSuggestions}
                   setShowRetailSuggestions={setShowRetailSuggestions}

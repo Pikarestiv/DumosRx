@@ -19,6 +19,7 @@ export function useStockBatchAlerts() {
       issue: "Low Stock",
       quantity: a.quantity,
       threshold: a.threshold,
+      unit: a.baseUnit || "unit",
       severity: a.quantity === 0 ? "critical" : a.quantity <= a.threshold / 2 ? "high" : "medium",
     }));
     const expiring = (expiryAlerts || []).map((a) => ({

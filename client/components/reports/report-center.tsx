@@ -196,15 +196,17 @@ export function ReportCenter() {
       <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-5">
         {/* Report Center */}
         <Card className="border rounded-2xl p-5 shadow-sm">
-          <div className="text-[14.5px] font-semibold mb-0.5">Report Center</div>
-          <div className="text-[12px] text-muted-foreground mb-5">Generate and download structured data exports</div>
+          <div>
+            <div className="text-[14.5px] font-semibold mb-0.5">Report Center</div>
+            <div className="text-[12px] text-muted-foreground">Generate and download structured data exports</div>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {reports.map((report) => {
               const isLoading = loadingReport === report.id;
               return (
                 <div
                   key={report.id}
-                  className="flex items-start gap-3 p-4 rounded-[14px] border hover:bg-secondary/50 transition-all group"
+                  className="flex items-start gap-3 p-4 rounded-[14px] border hover:bg-primary/5 transition-all group"
                 >
                   <div className="h-10 w-10 rounded-[10px] bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform shrink-0">
                     <report.icon className="h-5 w-5" />
@@ -212,7 +214,7 @@ export function ReportCenter() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2 mb-1">
                       <h3 className="font-bold text-[13px]">{report.title}</h3>
-                      <Badge variant="secondary" className="text-[9px] shrink-0 font-bold bg-secondary text-muted-foreground border-none">
+                      <Badge variant="secondary" className="text-[9px] shrink-0 font-bold bg-primary/10 text-primary border-none">
                         {report.category}
                       </Badge>
                     </div>
@@ -265,11 +267,16 @@ export function ReportCenter() {
 
         {/* Recent Downloads */}
         <Card className="border rounded-2xl p-5 shadow-sm">
-          <div className="text-[14.5px] font-semibold mb-0.5">Recent Downloads</div>
-          <div className="text-[12px] text-muted-foreground mb-5">Reports generated in this browser session</div>
           <div>
-            {recentDownloads.length === 0 && <RecentDownloadsEmptyState />}
-            {recentDownloads.length > 0 && <RecentDownloadsList downloads={recentDownloads} />}
+            <div className="text-[14.5px] font-semibold mb-0.5">Recent Downloads</div>
+            <div className="text-[12px] text-muted-foreground">Reports generated in this browser session</div>
+          </div>
+          <div>
+            {recentDownloads.length === 0 ? (
+              <RecentDownloadsEmptyState />
+            ) : (
+              <RecentDownloadsList downloads={recentDownloads} />
+            )}
           </div>
         </Card>
       </div>
@@ -293,9 +300,9 @@ function RecentDownloadsList({ downloads }: { downloads: RecentDownload[] }) {
       {downloads.map((dl) => (
         <div
           key={dl.id}
-          className="flex items-start gap-3 p-3 rounded-xl border bg-secondary/20"
+          className="flex items-start gap-3 p-3 rounded-xl border bg-primary/5"
         >
-          <FileText className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+          <FileText className="h-5 w-5 text-primary shrink-0 mt-0.5" />
           <div className="min-w-0 space-y-1 w-full">
             <div className="flex items-center gap-2">
               <p className="text-[13px] font-semibold truncate">{dl.name}</p>

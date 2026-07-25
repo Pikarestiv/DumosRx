@@ -27,6 +27,8 @@ export function POSMobileCartDrawer({
   clearCart,
   onCheckout,
   onHoldSale,
+  heldSalesCount,
+  onOpenHeldSales,
 }: any) {
   const [open, setOpen] = useState(false);
 
@@ -53,12 +55,12 @@ export function POSMobileCartDrawer({
           <ChevronUp className="w-6 h-6 mr-1 opacity-90" />
         </div>
       </DrawerTrigger>
-      <DrawerContent className="max-h-[85vh] flex flex-col bg-background">
+      <DrawerContent className="h-[94vh] max-h-[94vh] mt-0 flex flex-col bg-background">
         <DrawerHeader className="sr-only">
           <DrawerTitle>Cart</DrawerTitle>
         </DrawerHeader>
         <div className="flex flex-col flex-1 overflow-hidden">
-          <div className="flex items-center justify-between px-5 pt-[18px] pb-3.5 border-b border-border">
+          <div className="flex items-center justify-between px-5 pb-3.5 border-b border-border">
             <div className="text-[15px] font-semibold">Current sale</div>
             <div className="text-xs text-muted-foreground">
               {cart.length} items
@@ -87,6 +89,11 @@ export function POSMobileCartDrawer({
               onHoldSale={() => {
                 setOpen(false);
                 onHoldSale?.();
+              }}
+              heldSalesCount={heldSalesCount}
+              onOpenHeldSales={() => {
+                setOpen(false);
+                onOpenHeldSales?.();
               }}
             />
           </div>

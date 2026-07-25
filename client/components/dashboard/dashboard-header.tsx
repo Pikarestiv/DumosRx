@@ -31,7 +31,7 @@ const PAGE_ROUTES = [
   },
   {
     path: "/inventory/batches",
-    title: "Stock Batches",
+    title: "Stock Inventory",
     desc: "Manage inventory intake, expiration dates, and physical stock.",
     action: { label: "Add Batch", path: "/inventory/batches?action=add" },
   },
@@ -112,17 +112,14 @@ export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
   const pageInfo = getPageInfo(pathname || "/");
 
   return (
-    <header
-      className="h-auto min-h-16 py-4 bg-card sm:bg-background border-b border-border sm:border-transparent flex flex-col justify-center px-4 sm:px-6 sticky z-40 before:absolute before:inset-x-0 before:bottom-full before:h-[100vh] before:bg-card sm:before:bg-background before:-z-10"
-      style={{ top: "var(--tauri-top, 0px)" }}
-    >
+    <header className="h-auto min-h-16 py-4 bg-card sm:bg-background border-b border-border sm:border-b-0 flex flex-col justify-center px-4 sm:px-6 shrink-0">
       <div className="flex items-center justify-between w-full">
         {/* Left side (Desktop & Mobile) */}
         <div className="flex flex-col gap-0.5">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <div className="flex items-center gap-1 font-medium text-foreground">
               <StoreIcon className="h-3 w-3" />
-              <span className="truncate max-w-[120px] sm:max-w-[200px]">
+              <span className="truncate max-w-[40vw] sm:max-w-[200px]">
                 {storeProfile?.name || APP_NAME}
               </span>
             </div>

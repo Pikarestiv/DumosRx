@@ -3,14 +3,13 @@
 import { useState } from "react";
 import {
   ShoppingCart,
-  Minus,
-  Plus,
   Trash2,
-  Package,
   PauseCircle,
+  ClipboardList,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { RequestItemDialog } from "./request-item-dialog";
+import { POSCartItem } from "./pos-cart-item";
 
 interface POSCartProps {
   cart: any[];
@@ -29,6 +28,8 @@ interface POSCartProps {
   clearCart: () => void;
   onCheckout: () => void;
   onHoldSale?: () => void;
+  heldSalesCount?: number;
+  onOpenHeldSales?: () => void;
 }
 
 export function POSCart({
@@ -48,8 +49,11 @@ export function POSCart({
   clearCart,
   onCheckout,
   onHoldSale,
+  heldSalesCount = 0,
+  onOpenHeldSales,
 }: POSCartProps) {
   const [showDiscount, setShowDiscount] = useState(false);
+  const [showRequestDialog, setShowRequestDialog] = useState(false);
 
   return (
     <div className="flex flex-col h-full">
@@ -57,54 +61,33 @@ export function POSCart({
         {cart.length === 0 && <EmptyCart />}
         {cart.length > 0 &&
           cart.map((item, idx) => (
-            <div
+            <POSCartItem
               key={item.id}
-              className={`flex items-center gap-3 py-3 ${
-                idx !== cart.length - 1 ? "border-b border-border" : ""
-              }`}
-            >
-              <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                <Package className="w-5 h-5" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-[12.5px] font-semibold mb-0.5 truncate leading-tight">
-                  {item.name}
-                </div>
-                <div className="text-[11.5px] text-muted-foreground leading-tight">
-                  {formatCurrency(item.unit_price, currencyCode)} each
-                </div>
-              </div>
-              <div className="flex items-center border border-border rounded-lg overflow-hidden shrink-0 bg-muted/30">
-                <button
-                  className="w-6 h-6 flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors cursor-pointer"
-                  onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                >
-                  <Minus className="w-3 h-3" strokeWidth={2.5} />
-                </button>
-                <span className="w-6 text-center text-xs font-semibold">
-                  {item.quantity}
-                </span>
-                <button
-                  className="w-6 h-6 flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors cursor-pointer"
-                  onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                >
-                  <Plus className="w-3 h-3" strokeWidth={2.5} />
-                </button>
-              </div>
-              <div className="text-[13px] font-bold min-w-[56px] text-right">
-                {formatCurrency(item.subtotal, currencyCode)}
-              </div>
-              <div
-                className="text-muted-foreground hover:text-destructive cursor-pointer shrink-0 ml-1"
-                onClick={() => removeFromCart(item.id)}
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </div>
-            </div>
+              item={item}
+              currencyCode={currencyCode}
+              isLast={idx === cart.length - 1}
+              updateQuantity={updateQuantity}
+              removeFromCart={removeFromCart}
+            />
           ))}
       </div>
 
       <div className="border-t border-border px-5 pt-4 pb-5 bg-muted/10">
+        {heldSalesCount > 0 && (
+          <button
+            onClick={onOpenHeldSales}
+            className="w-1/2 flex items-center justify-between gap-1.5 px-2 py-1 mb-2.5 rounded-md border border-amber-500/20 bg-amber-500/10 text-amber-700 hover:bg-amber-500/15 transition-colors cursor-pointer"
+          >
+            <span className="flex items-center gap-1 text-[11px] font-semibold">
+              <PauseCircle className="w-3 h-3" />
+              {heldSalesCount} on hold
+            </span>
+            <span className="text-[10.5px] font-bold underline underline-offset-2">
+              View
+            </span>
+          </button>
+        )}
+
         <div className="space-y-2 mb-4">
           <div className="flex justify-between text-[12.5px] text-muted-foreground">
             <span>Subtotal</span>
@@ -176,29 +159,38 @@ export function POSCart({
         </div>
 
         <div
-          className={`grid gap-2.5 mb-3.5 ${cart.length > 0 ? "grid-cols-3" : "grid-cols-2"}`}
+          className={`grid gap-2 mb-3 ${cart.length > 0 ? "grid-cols-3" : "grid-cols-1"}`}
         >
-          <RequestItemDialog />
+          <button
+            onClick={() => setShowRequestDialog(true)}
+            className="w-full flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg border border-border bg-card text-[11.5px] font-semibold text-foreground cursor-pointer hover:bg-muted/50 transition-colors"
+          >
+            <ClipboardList className="w-3.5 h-3.5" />
+            Request Item
+          </button>
 
           {cart.length > 0 && (
             <button
               onClick={onHoldSale}
-              className="w-full flex items-center justify-center gap-1.5 p-2.5 rounded-[10px] border border-amber-500/20 bg-amber-500/5 text-[12.5px] font-semibold text-amber-600 cursor-pointer hover:bg-amber-500/10 transition-colors"
+              className="w-full flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg border border-amber-500/20 bg-amber-500/5 text-[11.5px] font-semibold text-amber-600 cursor-pointer hover:bg-amber-500/10 transition-colors"
             >
-              <PauseCircle className="w-[15px] h-[15px]" />
+              <PauseCircle className="w-3.5 h-3.5" />
               Hold Sale
             </button>
           )}
 
-          <button
-            onClick={clearCart}
-            disabled={cart.length === 0}
-            className="w-full flex items-center justify-center gap-1.5 p-2.5 rounded-[10px] border border-destructive/20 bg-destructive/5 text-[12.5px] font-semibold text-destructive cursor-pointer hover:bg-destructive/10 transition-colors disabled:opacity-50 disabled:grayscale"
-          >
-            <Trash2 className="w-[15px] h-[15px]" />
-            Clear cart
-          </button>
+          {cart.length > 0 && (
+            <button
+              onClick={clearCart}
+              className="w-full flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg border border-destructive/20 bg-destructive/5 text-[11.5px] font-semibold text-destructive cursor-pointer hover:bg-destructive/10 transition-colors"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Clear cart
+            </button>
+          )}
         </div>
+
+        <RequestItemDialog open={showRequestDialog} onOpenChange={setShowRequestDialog} />
 
         <button
           onClick={onCheckout}

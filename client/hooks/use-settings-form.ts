@@ -14,6 +14,7 @@ export function useSettingsForm(storeProfile: any, minimumSyncIntervalMinutes: n
   const [localReceiptFooter, setLocalReceiptFooter] = useState(storeProfile?.receipt_footer || "");
   const [showLogo, setShowLogo] = useState(storeProfile?.show_logo_on_receipt === 1);
   const [showContact, setShowContact] = useState(storeProfile?.show_contact_on_receipt === 1);
+  const [hidePoweredBy, setHidePoweredBy] = useState(storeProfile?.hide_powered_by === 1);
   const [lowStockAlert, setLowStockAlert] = useState(storeProfile?.low_stock_warning === 1);
   const [expiryAlert, setExpiryAlert] = useState(storeProfile?.expiry_warning === 1);
   const [expiryDays, setExpiryDays] = useState(storeProfile?.expiry_warning_days?.toString() || "90");
@@ -41,6 +42,7 @@ export function useSettingsForm(storeProfile: any, minimumSyncIntervalMinutes: n
       setLocalReceiptFooter(storeProfile.receipt_footer || "");
       setShowLogo(storeProfile.show_logo_on_receipt === 1);
       setShowContact(storeProfile.show_contact_on_receipt === 1);
+      setHidePoweredBy(storeProfile.hide_powered_by === 1);
       setLowStockAlert(storeProfile.low_stock_warning === 1);
       setExpiryAlert(storeProfile.expiry_warning === 1);
       setExpiryDays(storeProfile.expiry_warning_days?.toString() || "90");
@@ -75,6 +77,7 @@ export function useSettingsForm(storeProfile: any, minimumSyncIntervalMinutes: n
     localReceiptFooter, setLocalReceiptFooter,
     showLogo, setShowLogo,
     showContact, setShowContact,
+    hidePoweredBy, setHidePoweredBy,
     lowStockAlert, setLowStockAlert,
     expiryAlert, setExpiryAlert,
     expiryDays, setExpiryDays,

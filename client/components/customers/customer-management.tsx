@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useStore } from "@/lib/context/store-context";
 import { useCustomerData, Customer } from "@/lib/hooks/use-customer-data";
 import { genericFuzzySearch } from "@/lib/utils/search";
+import { getLoyaltyTiers } from "@/lib/db/queries/loyalty";
 
 import { InsightsStrip } from "./insights-strip";
 import { OverviewTab } from "./overview-tab";
@@ -13,14 +15,17 @@ import { DirectoryTab } from "./directory-tab";
 import { ActivityTab } from "./activity-tab";
 import { LoyaltyTab } from "./loyalty-tab";
 import { AddCustomerModal } from "./add-customer-modal";
+import { EditCustomerModal } from "./edit-customer-modal";
+import { RecordPaymentModal } from "./record-payment-modal";
 
 export function CustomerManagement() {
   const { storeType, storeProfile } = useStore();
   const isStore = storeType === "pharmacy";
 
-  const { customers, metrics, addCustomer } = useCustomerData();
+  const { customers, metrics, addCustomer, updateCustomer, recordPayment } =
+    useCustomerData();
 
-  const loyaltyTiers = [
+  const FALLBACK_TIERS = [
     {
       name: "Bronze",
       minSpent: 0,
@@ -46,7 +51,6 @@ export function CustomerManagement() {
       benefits: [
         "Premium rewards",
         "Birthday discount 15%",
-        // "Free delivery",
         "Exclusive offers",
       ],
       color: "bg-yellow-500",
@@ -58,7 +62,6 @@ export function CustomerManagement() {
       benefits: [
         "VIP rewards",
         "Birthday discount 20%",
-        // "Free delivery",
         isStore ? "Personal specialist" : "Shopping assistant",
         "Early access",
       ],
@@ -66,11 +69,32 @@ export function CustomerManagement() {
     },
   ];
 
+  const { data: dbTiers } = useQuery({
+    queryKey: ["loyalty_tiers"],
+    queryFn: getLoyaltyTiers,
+  });
+
+  const loyaltyTiers = dbTiers && dbTiers.length > 0
+    ? dbTiers
+        .map((t) => ({
+          name: t.name,
+          minSpent: t.min_spend,
+          pointsMultiplier: t.points_multiplier,
+          benefits: JSON.parse(t.benefits || "[]") as string[],
+          color: t.color,
+        }))
+        .sort((a, b) => a.minSpent - b.minSpent)
+    : FALLBACK_TIERS;
+
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
     null,
   );
   const [isAddCustomerOpen, setIsAddCustomerOpen] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [payingCustomer, setPayingCustomer] = useState<Customer | null>(null);
+  const [activityFilterCustomer, setActivityFilterCustomer] =
+    useState<Customer | null>(null);
 
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -94,6 +118,36 @@ export function CustomerManagement() {
   const handleAddCustomer = async (payload: any) => {
     await addCustomer(payload);
     setIsAddCustomerOpen(false);
+  };
+
+  const handleUpdateCustomer = async (payload: any) => {
+    if (!editingCustomer) return;
+    const updated = await updateCustomer(editingCustomer.id, payload);
+    if (updated) {
+      setSelectedCustomer(updated);
+      if (activityFilterCustomer?.id === updated.id) {
+        setActivityFilterCustomer(updated);
+      }
+    }
+    setEditingCustomer(null);
+  };
+
+  const handleViewHistory = (customer: Customer) => {
+    setActivityFilterCustomer(customer);
+    handleTabChange("activity");
+  };
+
+  const handleRecordPayment = async (
+    amount: number,
+    paymentMethod: string,
+    notes: string,
+  ) => {
+    if (!payingCustomer) return;
+    const updated = await recordPayment(payingCustomer.id, amount, paymentMethod, notes);
+    if (updated) {
+      setSelectedCustomer(updated);
+    }
+    setPayingCustomer(null);
   };
 
   const { results: filteredCustomers } = genericFuzzySearch(
@@ -146,7 +200,8 @@ export function CustomerManagement() {
             value="loyalty"
             className="rounded-lg text-[13px] font-semibold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-5 py-2"
           >
-            Loyalty Program
+            <span className="md:hidden">Loyalty</span>
+            <span className="hidden md:inline">Loyalty Program</span>
           </TabsTrigger>
         </TabsList>
 
@@ -169,6 +224,9 @@ export function CustomerManagement() {
             setSelectedCustomer={setSelectedCustomer}
             getTierColor={getTierColor}
             currencyCode={storeProfile?.currency}
+            onViewHistory={handleViewHistory}
+            onEditProfile={setEditingCustomer}
+            onRecordPayment={setPayingCustomer}
           />
         </TabsContent>
 
@@ -177,8 +235,10 @@ export function CustomerManagement() {
           className="flex-1 min-h-0 mt-0 border-none p-0"
         >
           <ActivityTab
-            customers={customers}
             currencyCode={storeProfile?.currency}
+            filterCustomerId={activityFilterCustomer?.id}
+            filterCustomerName={activityFilterCustomer?.name}
+            onClearFilter={() => setActivityFilterCustomer(null)}
           />
         </TabsContent>
 
@@ -186,7 +246,7 @@ export function CustomerManagement() {
           value="loyalty"
           className="flex-1 min-h-0 mt-0 border-none p-0"
         >
-          <LoyaltyTab tiers={loyaltyTiers} />
+          <LoyaltyTab tiers={loyaltyTiers} currencyCode={storeProfile?.currency} />
         </TabsContent>
       </Tabs>
 
@@ -194,6 +254,19 @@ export function CustomerManagement() {
         isOpen={isAddCustomerOpen}
         onClose={() => setIsAddCustomerOpen(false)}
         onSubmit={handleAddCustomer}
+      />
+
+      <EditCustomerModal
+        customer={editingCustomer}
+        onClose={() => setEditingCustomer(null)}
+        onSubmit={handleUpdateCustomer}
+      />
+
+      <RecordPaymentModal
+        customer={payingCustomer}
+        currencyCode={storeProfile?.currency}
+        onClose={() => setPayingCustomer(null)}
+        onSubmit={handleRecordPayment}
       />
     </div>
   );

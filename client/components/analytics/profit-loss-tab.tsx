@@ -59,30 +59,34 @@ export function ProfitLossTab({
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-5">
       <Card className="p-5 border shadow-sm rounded-2xl">
-        <div className="flex items-center gap-2 mb-0.5">
-          <Calculator className="w-4 h-4 text-primary" />
-          <div className="text-[14.5px] font-semibold">Financial Performance Statement</div>
+        <div>
+          <div className="flex items-center gap-2 mb-0.5">
+            <Calculator className="w-4 h-4 text-primary" />
+            <div className="text-[14.5px] font-semibold">Financial Performance Statement</div>
+          </div>
+          <div className="text-[12px] text-muted-foreground">Detailed breakdown of income and operational costs</div>
         </div>
-        <div className="text-[12px] text-muted-foreground mb-5">Detailed breakdown of income and operational costs</div>
-        
-        <div className="flex items-center justify-between py-3 border-b text-[13.5px]">
-          <div>Total Gross Revenue</div>
-          <div className="font-semibold">{formatCurrency(totalRevenue)}</div>
+
+        <div>
+          <div className="flex items-center justify-between py-3 border-b text-[13.5px]">
+            <div>Total Gross Revenue</div>
+            <div className="font-semibold">{formatCurrency(totalRevenue)}</div>
+          </div>
+          <div className="flex items-center justify-between py-3 border-b text-[13.5px] text-destructive italic">
+            <div className="flex items-center gap-1"><ArrowDownRight className="w-3.5 h-3.5" /> Cost of Goods Sold (COGS)</div>
+            <div className="font-semibold">− {formatCurrency(totalCogs)}</div>
+          </div>
+          <div className="flex items-center justify-between py-3 bg-primary/5 px-3 rounded-lg my-2 text-[13.5px] font-bold text-primary">
+            <div>GROSS PROFIT</div>
+            <div>{formatCurrency(grossProfit)}</div>
+          </div>
+          <div className="flex items-center justify-between py-3 border-b text-[13.5px] text-destructive italic">
+            <div className="flex items-center gap-1"><ArrowDownRight className="w-3.5 h-3.5" /> Total Operational Expenses</div>
+            <div className="font-semibold">− {formatCurrency(totalExpenses)}</div>
+          </div>
         </div>
-        <div className="flex items-center justify-between py-3 border-b text-[13.5px] text-destructive italic">
-          <div className="flex items-center gap-1"><ArrowDownRight className="w-3.5 h-3.5" /> Cost of Goods Sold (COGS)</div>
-          <div className="font-semibold">− {formatCurrency(totalCogs)}</div>
-        </div>
-        <div className="flex items-center justify-between py-3 bg-primary/5 px-3 rounded-lg my-2 text-[13.5px] font-bold text-primary">
-          <div>GROSS PROFIT</div>
-          <div>{formatCurrency(grossProfit)}</div>
-        </div>
-        <div className="flex items-center justify-between py-3 border-b text-[13.5px] text-destructive italic">
-          <div className="flex items-center gap-1"><ArrowDownRight className="w-3.5 h-3.5" /> Total Operational Expenses</div>
-          <div className="font-semibold">− {formatCurrency(totalExpenses)}</div>
-        </div>
-        
-        <div className="bg-emerald-500/10 rounded-xl p-4 mt-3 flex flex-col md:flex-row items-center justify-between gap-4">
+
+        <div className="bg-emerald-500/10 rounded-xl p-4 flex flex-col md:flex-row items-center justify-between gap-4">
           <div>
             <div className="text-[11px] font-bold text-emerald-600 uppercase tracking-wide">Final Net Income (Take Home)</div>
             <div className="text-[24px] font-bold font-['Playfair_Display'] text-emerald-600">{formatCurrency(netProfit)}</div>

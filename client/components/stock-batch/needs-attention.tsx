@@ -91,19 +91,28 @@ export function NeedsAttention({ stockData }: { stockData: StockItem[] }) {
     }
   });
 
-  return (
-    <div className="bg-card border border-border rounded-2xl p-5 flex flex-col">
-      <div className="flex items-center justify-between mb-4">
-        <div className="text-[15px] font-semibold">Needs attention</div>
-        <div
-          className="text-[12.5px] text-primary font-semibold cursor-pointer hover:underline"
-          onClick={() => router.push("/inventory/products")}
-        >
-          View all
-        </div>
+  const header = (
+    <div className="flex items-center justify-between">
+      <div className="text-[15px] font-semibold">Needs attention</div>
+      <div
+        className="text-[12.5px] text-primary font-semibold cursor-pointer hover:underline"
+        onClick={() => router.push("/inventory/products")}
+      >
+        View all
       </div>
+    </div>
+  );
 
-      <div className="flex flex-col">
+  return (
+    <div className="flex flex-col lg:h-full">
+      {/* Mobile: header sits above the card */}
+      <div className="lg:hidden mb-3">{header}</div>
+
+      <div className="bg-card border border-border rounded-2xl p-5 flex flex-col lg:flex-1">
+        {/* Desktop: header stays inside the card */}
+        <div className="hidden lg:block mb-4">{header}</div>
+
+        <div className="flex flex-col">
         {items.length === 0 && (
                         <div className="text-sm text-muted-foreground py-4 text-center">
                           No items need immediate attention.
@@ -137,6 +146,7 @@ export function NeedsAttention({ stockData }: { stockData: StockItem[] }) {
                           </div>
                         ))
                       )}
+        </div>
       </div>
     </div>
   );

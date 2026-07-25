@@ -13,13 +13,23 @@ export function FastMovers() {
 
   const fastMovers = fastMoversData?.items || [];
 
+  const header = (
+    <div className="flex items-center justify-between">
+      <div className="text-[15px] font-semibold">Fast movers</div>
+      <div className="text-[12.5px] text-muted-foreground">Last 7 days</div>
+    </div>
+  );
+
   return (
-    <div className="bg-card border border-border rounded-2xl p-5 flex flex-col">
-      <div className="flex items-center justify-between mb-4">
-        <div className="text-[15px] font-semibold">Fast movers</div>
-        <div className="text-[12.5px] text-muted-foreground">Last 7 days</div>
-      </div>
-      <div className="flex flex-col">
+    <div className="flex flex-col lg:h-full">
+      {/* Mobile: header sits above the card */}
+      <div className="lg:hidden mb-3">{header}</div>
+
+      <div className="bg-card border border-border rounded-2xl p-5 flex flex-col lg:flex-1">
+        {/* Desktop: header stays inside the card */}
+        <div className="hidden lg:block mb-4">{header}</div>
+
+        <div className="flex flex-col">
         {!!(isLoading) && (
                         <div className="text-sm text-muted-foreground py-4 text-center">Loading...</div>
                       )}
@@ -47,6 +57,7 @@ export function FastMovers() {
                                         );
                                       })
                                     )}
+        </div>
       </div>
     </div>
   );

@@ -26,7 +26,8 @@ interface ReceiptProps {
 
 export function ReceiptView({ transaction }: ReceiptProps) {
   const { storeProfile, vatPercentage } = useStore();
-  const { canCustomizeTheme } = useFeatureGate();
+  const { canCustomizeTheme, canRemoveBranding } = useFeatureGate();
+  const hidePoweredBy = canRemoveBranding && storeProfile?.hide_powered_by === 1;
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-NG", {
@@ -197,6 +198,12 @@ export function ReceiptView({ transaction }: ReceiptProps) {
           {storeProfile?.store_type === "pharmacy" ? "Pharmacy" : "Retail"} POS
         </p>
       </div>
+
+      {!hidePoweredBy && (
+        <div className="text-center text-[10px] opacity-50 mt-2 not-italic">
+          Powered by dumosrx.com
+        </div>
+      )}
 
       <style jsx global>{`
         @media print {

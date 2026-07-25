@@ -28,6 +28,7 @@ class Store extends Model
         'receipt_footer',
         'show_logo_on_receipt',
         'show_contact_on_receipt',
+        'hide_powered_by',
         'low_stock_warning',
         'expiry_warning',
         'expiry_warning_days',

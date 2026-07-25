@@ -6,6 +6,7 @@ import { User, FileText, Pill, X, Edit, Pill as PillIcon, CheckCircle, RotateCcw
 import { Prescription } from "@/lib/hooks/use-prescription-queue";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { PRESCRIPTION_STATUS_META, getInitials } from "./prescription-status-meta";
 
 interface PrescriptionDetailPanelProps {
   prescription: Prescription | null;
@@ -87,15 +88,25 @@ export function PrescriptionDetailPanel({
     }
   };
 
+  const statusMeta = PRESCRIPTION_STATUS_META[prescription.status];
+
   return (
-    <Card className="fixed inset-0 z-50 md:static md:z-auto bg-background md:bg-card md:rounded-xl md:border md:border-border flex flex-col h-full shadow-sm">
+    <Card className="fixed inset-0 z-50 md:static md:z-auto bg-background md:bg-card md:rounded-xl md:border md:border-border flex flex-col h-full shadow-sm p-0 gap-0">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-border">
-        <div>
-          <h2 className="text-lg font-semibold font-serif">Rx Details</h2>
-          <p className="text-sm text-muted-foreground">{prescription.prescriptionNumber}</p>
+      <div className="flex items-start gap-3 p-4 border-b border-border">
+        <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[12px] font-bold shrink-0">
+          {getInitials(prescription.patientName)}
         </div>
-        <Button variant="ghost" size="icon" className="md:hidden" onClick={onClose}>
+        <div className="flex-1 min-w-0">
+          <h2 className="text-[15px] font-semibold truncate">{prescription.patientName}</h2>
+          <p className="text-[12px] text-muted-foreground">{prescription.prescriptionNumber}</p>
+        </div>
+        <span
+          className={`text-[10.5px] font-semibold px-2.5 py-1 rounded-md shrink-0 whitespace-nowrap ${statusMeta.badgeClass}`}
+        >
+          {statusMeta.label}
+        </span>
+        <Button variant="ghost" size="icon" className="md:hidden shrink-0" onClick={onClose}>
           <X className="w-5 h-5" />
         </Button>
       </div>
@@ -103,13 +114,11 @@ export function PrescriptionDetailPanel({
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
         {/* Actions Row */}
-        <div className="flex flex-wrap gap-2 items-center justify-between p-3 bg-accent/20 rounded-lg border border-accent">
-           <div>
-             <div className="text-xs text-muted-foreground mb-1">Current Status</div>
-             <div className="font-medium capitalize">{prescription.status.replace("_", " ")}</div>
-           </div>
-           {renderActions()}
-        </div>
+        {renderActions() && (
+          <div className="flex flex-wrap gap-2 items-center justify-end p-3 bg-accent/20 rounded-lg border border-accent">
+            {renderActions()}
+          </div>
+        )}
 
         <div className="grid grid-cols-1 gap-6">
           {/* Patient Information */}

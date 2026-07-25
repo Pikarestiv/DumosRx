@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { getActivePrescriptions, getAllPrescriptionItems, updatePrescriptionStatus as updateDbPrescriptionStatus } from "@/lib/db/queries/prescriptions";
 import { genericFuzzySearch } from "@/lib/utils/search";
 
@@ -33,70 +34,64 @@ export interface Prescription {
   notes?: string;
 }
 
+async function fetchPrescriptions(): Promise<Prescription[]> {
+  // 1. Fetch prescriptions
+  const pData = await getActivePrescriptions();
+  const itemsData = await getAllPrescriptionItems();
+
+  // 2. Group items by prescription_id
+  const itemsMap = new Map<string, any[]>();
+  itemsData.forEach((item) => {
+    if (!itemsMap.has(item.prescription_id)) {
+      itemsMap.set(item.prescription_id, []);
+    }
+    itemsMap.get(item.prescription_id)!.push({
+      id: item.id,
+      productName: item.product_name,
+      strength: item.strength,
+      dosage: item.dosage,
+      quantity: item.quantity,
+      instructions: item.instructions,
+      available: true,
+      cost: item.cost,
+    });
+  });
+
+  // 3. Map to Prescription objects
+  return pData.map((p: any) => ({
+    id: p.id,
+    prescriptionNumber: p.prescription_number,
+    patientName: p.patient_name,
+    patientPhone: p.patient_phone,
+    patientAge: p.patient_age,
+    doctorName: p.doctor_name,
+    doctorLicense: p.doctor_license,
+    dateIssued: p.issued_at,
+    dateDispensed: p.dispensed_at || undefined,
+    status: p.status,
+    priority: p.priority,
+    medications: itemsMap.get(p.id) || [],
+    insurance: p.insurance,
+    totalCost: p.total_cost,
+    notes: p.notes,
+  }));
+}
+
 export function usePrescriptionQueue() {
-  const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
   const [selectedPrescription, setSelectedPrescription] = useState<Prescription | null>(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
 
-  const fetchPrescriptions = async () => {
-    setLoading(true);
-    try {
-      // 1. Fetch prescriptions
-      const pData = await getActivePrescriptions();
-      const itemsData = await getAllPrescriptionItems();
-
-      // 3. Group items by prescription_id
-      const itemsMap = new Map<string, any[]>();
-      itemsData.forEach((item) => {
-        if (!itemsMap.has(item.prescription_id)) {
-          itemsMap.set(item.prescription_id, []);
-        }
-        itemsMap.get(item.prescription_id)!.push({
-          id: item.id,
-          productName: item.product_name,
-          strength: item.strength,
-          dosage: item.dosage,
-          quantity: item.quantity,
-          instructions: item.instructions,
-          available: true,
-          cost: item.cost,
-        });
-      });
-
-      // 4. Map to Prescription objects
-      const items = pData.map((p: any) => ({
-        id: p.id,
-        prescriptionNumber: p.prescription_number,
-        patientName: p.patient_name,
-        patientPhone: p.patient_phone,
-        patientAge: p.patient_age,
-        doctorName: p.doctor_name,
-        doctorLicense: p.doctor_license,
-        dateIssued: p.issued_at,
-        dateDispensed: p.dispensed_at,
-        status: p.status,
-        priority: p.priority,
-        medications: itemsMap.get(p.id) || [],
-        insurance: p.insurance,
-        totalCost: p.total_cost,
-        notes: p.notes,
-      }));
-
-      setPrescriptions(items);
-    } catch (error) {
-      console.error("Failed to fetch prescriptions:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchPrescriptions();
-  }, []);
+  // Keyed to match the "prescriptions" table name so it auto-refetches whenever
+  // insert/update/softDelete touches that table anywhere in the app (base-helpers
+  // invalidates queryKey: [table] on every write) — no manual refetch wiring needed.
+  const { data, isLoading: loading, refetch } = useQuery({
+    queryKey: ["prescriptions"],
+    queryFn: fetchPrescriptions,
+  });
+  const prescriptions = data || [];
 
   const preFilteredPrescriptions = useMemo(() => {
     return prescriptions.filter((prescription) => {
@@ -123,10 +118,8 @@ export function usePrescriptionQueue() {
 
   const updatePrescriptionStatus = async (id: string, newStatus: Prescription["status"]) => {
     try {
+      // update() already invalidates queryKey: ["prescriptions"], triggering a refetch.
       await updateDbPrescriptionStatus(id, newStatus);
-      setPrescriptions((prev) =>
-        prev.map((p) => (p.id === id ? { ...p, status: newStatus } : p))
-      );
       if (selectedPrescription?.id === id) {
         setSelectedPrescription((prev) => prev ? { ...prev, status: newStatus } : null);
       }
@@ -193,6 +186,6 @@ export function usePrescriptionQueue() {
     updatePrescriptionStatus,
     viewPrescriptionDetails,
     stats,
-    refetch: fetchPrescriptions,
+    refetch,
   };
 }

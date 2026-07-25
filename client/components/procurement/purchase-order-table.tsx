@@ -170,7 +170,50 @@ export function PurchaseOrderTable({
               </div>
             </div>
           )}
-          <Table>
+          {/* Mobile: card list */}
+          <div className="md:hidden flex flex-col gap-2 p-3">
+            {loading && (
+              <div className="h-32 flex flex-col items-center justify-center text-muted-foreground">
+                <Clock className="w-6 h-6 animate-spin mb-2 opacity-50" />
+                Loading orders...
+              </div>
+            )}
+            {!loading && orders.length === 0 && (
+              <div className="h-32 flex items-center justify-center text-muted-foreground text-[13px]">
+                No purchase orders found
+              </div>
+            )}
+            {!loading &&
+              orders.length > 0 &&
+              orders.map((po) => (
+                <div
+                  key={po.id}
+                  onClick={() => setSelectedOrderId(po.id)}
+                  className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${selectedOrderId === po.id ? "bg-primary/10 border-primary/30" : "bg-card hover:bg-primary/5"}`}
+                >
+                  <div className="w-10 h-10 shrink-0 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-[11px]">
+                    PO
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[13.5px] font-semibold truncate">
+                      {po.vendor_name || "Unknown Vendor"}
+                    </div>
+                    <div className="text-[11.5px] text-muted-foreground truncate">
+                      PO-{po.id.split("-")[0].toUpperCase()} &middot; {formatDateToDDMMYYYY(po.created_at)}
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-1 shrink-0">
+                    <span className="text-[13.5px] font-bold text-foreground whitespace-nowrap">
+                      {formatCurrency(po.total_amount)}
+                    </span>
+                    {getStatusBadge(po.status)}
+                  </div>
+                </div>
+              ))}
+          </div>
+
+          {/* Desktop: table */}
+          <Table className="hidden md:table">
             <TableHeader>
               <TableRow className="hover:bg-transparent border-b border-border">
                 <TableHead className="w-[110px] pl-4 text-[11px] font-bold text-muted-foreground uppercase tracking-wide h-11 align-middle">

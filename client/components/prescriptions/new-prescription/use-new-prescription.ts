@@ -208,7 +208,10 @@ export function useNewPrescription() {
 
   const cancelEdit = () => {
     const params = new URLSearchParams(searchParams.toString());
+    // Both must go — showNewPrescription in PrescriptionManagement is
+    // action==="add" OR edit_rx present, and handleEdit sets both.
     params.delete("edit_rx");
+    params.delete("action");
     params.set("tab", "queue");
     router.replace(`${pathname}?${params.toString()}`);
   };

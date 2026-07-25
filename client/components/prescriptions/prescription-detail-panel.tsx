@@ -130,7 +130,7 @@ export function PrescriptionDetailPanel({
   const statusMeta = PRESCRIPTION_STATUS_META[prescription.status];
 
   return (
-    <Card className="fixed inset-0 z-50 lg:static lg:z-auto bg-background lg:bg-card lg:rounded-xl lg:border lg:border-border flex flex-col h-full shadow-sm p-0 gap-0 overflow-hidden">
+    <Card className="fixed inset-0 z-50 lg:static lg:z-auto bg-background lg:bg-card lg:rounded-xl lg:border lg:border-border flex flex-col h-full shadow-sm p-0 pb-4 gap-0 overflow-hidden">
       {/* Header — top padding on mobile/tablet clears the status bar / Tauri title bar */}
       <div className="flex items-center gap-3 px-4 pb-4 pt-[calc(var(--tauri-top,0px)+1rem)] lg:pt-4 border-b border-border">
         <div

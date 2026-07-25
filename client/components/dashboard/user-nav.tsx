@@ -23,7 +23,13 @@ import {
 } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { LogOut, Repeat, Settings2, Settings, MessageSquare } from "lucide-react";
+import {
+  LogOut,
+  Repeat,
+  Settings2,
+  Settings,
+  MessageSquare,
+} from "lucide-react";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { ThemeCustomizer } from "@/components/ui/theme-customizer";
 import { getUserInitials } from "@/lib/utils";
@@ -218,7 +224,7 @@ export function UserNav({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      {!!showDetails && (
+      {/* {!!showDetails && (
         <Button
           variant="ghost"
           size="icon"
@@ -227,7 +233,7 @@ export function UserNav({
         >
           <Settings className="h-4 w-4" />
         </Button>
-      )}
+      )} */}
     </div>
   );
 

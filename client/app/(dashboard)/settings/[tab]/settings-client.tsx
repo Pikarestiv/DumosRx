@@ -134,10 +134,6 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
           </div>
         )}
 
-        <div className="mb-6 hidden md:flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-          <UserProfileBadge />
-        </div>
-
         <Tabs
           value={activeTab}
           onValueChange={handleTabChange}
@@ -148,6 +144,9 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
             className="w-full md:w-48 flex-shrink-0 md:sticky z-30"
             style={{ top: isDesktop ? `${stickyTop + 16}px` : undefined }}
           >
+            <div className="hidden md:block mb-4 max-w-full overflow-x-auto scrollbar-none">
+              <UserProfileBadge />
+            </div>
             <TabsList
               className="hidden md:flex flex-col h-auto overflow-x-auto scrollbar-none md:overflow-visible bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b md:border-none p-2 md:p-0 gap-1 justify-start md:w-full sticky md:relative z-30"
               style={{ top: !isDesktop ? `${stickyTop}px` : undefined }}

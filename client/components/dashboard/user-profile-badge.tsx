@@ -21,13 +21,11 @@ export function UserProfileBadge() {
         {user.first_name || user.username}
       </span>
       <span className="text-muted-foreground bg-background/50 px-2 py-0.5 rounded-md text-[10px] border">
-        {user.role
-          .replace(/_/g, " ")
-          .replace(/\b\w/g, (l) => l.toUpperCase())}
+        {user.role.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
       </span>
       {storeProfile?.subscription_tier && (
         <span className="text-muted-foreground bg-primary/10 px-2 py-0.5 rounded-md text-[10px] border border-primary/20 capitalize font-medium">
-          {storeProfile.subscription_tier} Plan
+          {storeProfile.subscription_tier}
         </span>
       )}
     </div>

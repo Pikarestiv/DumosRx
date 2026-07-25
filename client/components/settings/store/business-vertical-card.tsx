@@ -42,12 +42,24 @@ export function BusinessVerticalCard({
               onClick={() => handleSwitchVertical(vertical.id as StoreType)}
               className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all cursor-pointer ${
                 storeType === vertical.id
-                  ? "border-primary bg-primary/5"
-                  : "border-muted-foreground/10 hover:border-primary/50"
+                  ? "border-primary bg-primary"
+                  : "border-muted-foreground/10 hover:border-primary/30 hover:bg-primary/5"
               }`}
             >
-              <vertical.icon className="h-6 w-6 mb-2 text-primary" />
-              <span className="text-sm font-medium">{vertical.label}</span>
+              <vertical.icon
+                className={`h-6 w-6 mb-2 ${
+                  storeType === vertical.id
+                    ? "text-primary-foreground"
+                    : "text-primary"
+                }`}
+              />
+              <span
+                className={`text-sm font-medium ${
+                  storeType === vertical.id ? "text-primary-foreground" : ""
+                }`}
+              >
+                {vertical.label}
+              </span>
             </button>
           ))}
         </div>

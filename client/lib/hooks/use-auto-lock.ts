@@ -15,7 +15,7 @@ interface AutoLockState {
 export const useAutoLockStore = create<AutoLockState>()(
   persist(
     (set) => ({
-      duration: 0,
+      duration: 5,
       isLocked: false,
       lastActivity: Date.now(),
       setDuration: (duration: number) => set({ duration }),

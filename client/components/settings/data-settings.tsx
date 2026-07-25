@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { QuickBooksImportDialog } from "./quickbooks-import-dialog";
+// import { QuickBooksImportDialog } from "./quickbooks-import-dialog"; // commented out for now
 import { DataSettingsAutoSync } from "./data-settings-auto-sync";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { useAuth } from "@/lib/context/auth-context";
@@ -55,21 +55,22 @@ export function DataSettings({
   } = useFeatureGate();
   const { verifyPin } = useAuth();
   const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [showQBImport, setShowQBImport] = useState(false);
-  const [iifContent, setIifContent] = useState<string | null>(null);
-
-  const handleIIFUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setIifContent(event.target?.result as string);
-        setShowQBImport(true);
-      };
-      reader.readAsText(file);
-    }
-    e.target.value = "";
-  };
+  // QuickBooks import commented out for now
+  // const [showQBImport, setShowQBImport] = useState(false);
+  // const [iifContent, setIifContent] = useState<string | null>(null);
+  //
+  // const handleIIFUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  //   const file = e.target.files?.[0];
+  //   if (file) {
+  //     const reader = new FileReader();
+  //     reader.onload = (event) => {
+  //       setIifContent(event.target?.result as string);
+  //       setShowQBImport(true);
+  //     };
+  //     reader.readAsText(file);
+  //   }
+  //   e.target.value = "";
+  // };
 
   return (
     <>
@@ -192,6 +193,7 @@ export function DataSettings({
             </div>
           </div>
 
+          {/* QuickBooks import commented out for now
           <Separator />
 
           <div className="space-y-4">
@@ -231,6 +233,7 @@ export function DataSettings({
               </div>
             </div>
           </div>
+          */}
 
           <Separator />
 
@@ -277,12 +280,14 @@ export function DataSettings({
         }}
       />
 
+      {/* QuickBooks import commented out for now
       <QuickBooksImportDialog
         open={showQBImport}
         onOpenChange={setShowQBImport}
         fileContent={iifContent}
         onSuccess={() => setShowQBImport(false)}
       />
+      */}
     </>
   );
 }

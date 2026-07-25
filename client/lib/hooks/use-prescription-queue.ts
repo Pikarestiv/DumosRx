@@ -104,7 +104,7 @@ export function usePrescriptionQueue() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
-  const [selectedPrescription, setSelectedPrescription] = useState<Prescription | null>(null);
+  const [selectedPrescriptionId, setSelectedPrescriptionId] = useState<string | null>(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
 
   // Keyed to match the "prescriptions" table name so it auto-refetches whenever
@@ -115,6 +115,17 @@ export function usePrescriptionQueue() {
     queryFn: fetchPrescriptions,
   });
   const prescriptions = data || [];
+
+  // Derived (not a separate snapshot) so an edit/refetch that changes the
+  // selected prescription's medications, status, etc. is reflected immediately
+  // instead of the detail panel showing whatever was selected at click-time.
+  const selectedPrescription = useMemo(
+    () => prescriptions.find((p) => p.id === selectedPrescriptionId) || null,
+    [prescriptions, selectedPrescriptionId]
+  );
+  const setSelectedPrescription = (prescription: Prescription | null) => {
+    setSelectedPrescriptionId(prescription?.id ?? null);
+  };
 
   const preFilteredPrescriptions = useMemo(() => {
     return prescriptions.filter((prescription) => {
@@ -147,11 +158,10 @@ export function usePrescriptionQueue() {
 
   const updatePrescriptionStatus = async (id: string, newStatus: Prescription["status"]) => {
     try {
-      // update() already invalidates queryKey: ["prescriptions"], triggering a refetch.
+      // update() already invalidates queryKey: ["prescriptions"], triggering a
+      // refetch — selectedPrescription is derived from that data, so it picks
+      // up the new status automatically once the refetch lands.
       await updateDbPrescriptionStatus(id, newStatus);
-      if (selectedPrescription?.id === id) {
-        setSelectedPrescription((prev) => prev ? { ...prev, status: newStatus } : null);
-      }
     } catch (err) {
       console.error("Failed to update status", err);
     }

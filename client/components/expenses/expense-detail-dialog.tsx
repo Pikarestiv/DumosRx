@@ -1,6 +1,6 @@
 "use client";
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { formatCurrency } from "@/lib/utils";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -39,12 +39,13 @@ export function ExpenseDetailDialog({ expense, open, onOpenChange, onDeleted, on
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-[440px] p-0 overflow-hidden bg-card rounded-2xl gap-0 border-border shadow-lg">
-          <DialogHeader className="px-6 py-5 border-b border-border m-0">
-            <DialogTitle className="text-[15px] font-semibold">Expense detail</DialogTitle>
-          </DialogHeader>
-
+      <ResponsiveModal
+        open={open}
+        onOpenChange={onOpenChange}
+        title="Expense detail"
+        className="sm:max-w-[440px] p-0 overflow-hidden bg-card rounded-2xl gap-0 border-border shadow-lg"
+        headerClassName="px-6 py-5 border-b border-border m-0"
+      >
           <div className="px-6 py-5 flex flex-col gap-5">
             <div className="text-center">
               <div className="text-[28px] font-bold font-serif mb-1">
@@ -114,8 +115,7 @@ export function ExpenseDetailDialog({ expense, open, onOpenChange, onDeleted, on
               <Trash2 className="w-4 h-4 mr-2" /> Delete
             </Button>
           </div>
-        </DialogContent>
-      </Dialog>
+      </ResponsiveModal>
 
       <ConfirmDialog
         open={showConfirmDelete}

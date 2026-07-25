@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { LogOut, Repeat, Settings2, MessageSquare } from "lucide-react";
+import { LogOut, Repeat, Settings2, Settings, MessageSquare } from "lucide-react";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { ThemeCustomizer } from "@/components/ui/theme-customizer";
 import { getUserInitials } from "@/lib/utils";
@@ -72,9 +72,9 @@ const NavTrigger = ({
 );
 
 const MobileAppearanceSettings = () => (
-  <div className="flex items-center justify-between p-4 bg-muted/30 rounded-xl mb-4 border border-border/40">
+  <div className="flex items-center justify-between p-3.5 bg-muted/30 rounded-xl border border-border/40">
     <div className="flex items-center gap-3">
-      <Settings2 className="h-5 w-5 text-muted-foreground" />
+      <Settings2 className="h-[18px] w-[18px] text-muted-foreground" />
       <span className="font-medium text-sm">Appearance</span>
     </div>
     <div className="flex items-center gap-2">
@@ -185,6 +185,17 @@ export function UserNav({
         </div>
 
         <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onClick={() => {
+            setOpen(false);
+            router.push("/settings");
+          }}
+          className="cursor-pointer group"
+        >
+          <Settings className="mr-2 h-4 w-4 group-hover:text-white group-focus:text-white transition-colors" />
+          <span>Settings</span>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
         {onOpenFeedback && (
           <>
             <DropdownMenuItem
@@ -228,20 +239,38 @@ export function UserNav({
       </DrawerTrigger>
 
       <DrawerContent
-        className="p-0 pb-6 rounded-t-xl"
+        className="p-0 pb-5 rounded-t-xl"
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
-        <DrawerHeader className="px-6 pt-6 pb-2 text-left border-b border-border/40">
-          <DrawerTitle className="font-serif font-black text-2xl truncate">
-            {user.first_name} {user.last_name}
-          </DrawerTitle>
-          <p className="text-sm text-muted-foreground capitalize">
-            {user.role.replace(/_/g, " ")}
-          </p>
+        <DrawerHeader className="flex flex-row items-center gap-3 px-5 pt-5 pb-4 text-left border-b border-border/40 space-y-0">
+          <Avatar className="h-10 w-10 border border-border shrink-0">
+            <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
+              {initials}
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0">
+            <DrawerTitle className="text-[15px] font-semibold truncate">
+              {user.first_name} {user.last_name}
+            </DrawerTitle>
+            <p className="text-xs text-muted-foreground capitalize truncate">
+              {user.role.replace(/_/g, " ")}
+            </p>
+          </div>
         </DrawerHeader>
 
-        <div className="px-4 py-4 space-y-2">
+        <div className="px-4 pt-4 space-y-1.5">
           <MobileAppearanceSettings />
+
+          <button
+            onClick={() => {
+              setOpen(false);
+              router.push("/settings");
+            }}
+            className="w-full flex items-center gap-3 p-3.5 rounded-xl text-sm font-medium text-foreground hover:bg-muted transition-colors border border-transparent"
+          >
+            <Settings className="h-[18px] w-[18px] opacity-90" />
+            <span>Settings</span>
+          </button>
 
           {onOpenFeedback && (
             <button
@@ -249,26 +278,26 @@ export function UserNav({
                 setOpen(false);
                 onOpenFeedback();
               }}
-              className="w-full flex items-center gap-4 p-4 rounded-xl font-medium text-foreground hover:bg-muted transition-colors border border-transparent"
+              className="w-full flex items-center gap-3 p-3.5 rounded-xl text-sm font-medium text-foreground hover:bg-muted transition-colors border border-transparent"
             >
-              <MessageSquare className="h-5 w-5 opacity-90" />
+              <MessageSquare className="h-[18px] w-[18px] opacity-90" />
               <span>Help & Feedback</span>
             </button>
           )}
 
           <button
             onClick={handleSwitchAccount}
-            className="w-full flex items-center gap-4 p-4 rounded-xl font-medium text-foreground hover:bg-muted transition-colors border border-transparent"
+            className="w-full flex items-center gap-3 p-3.5 rounded-xl text-sm font-medium text-foreground hover:bg-muted transition-colors border border-transparent"
           >
-            <Repeat className="h-5 w-5 opacity-90" />
+            <Repeat className="h-[18px] w-[18px] opacity-90" />
             <span>Switch Account</span>
           </button>
 
           <button
             onClick={handleFullLogout}
-            className="w-full flex items-center gap-4 p-4 rounded-xl font-medium text-destructive hover:bg-destructive/10 transition-colors border border-transparent"
+            className="w-full flex items-center gap-3 p-3.5 rounded-xl text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors border border-transparent"
           >
-            <LogOut className="h-5 w-5 opacity-90" />
+            <LogOut className="h-[18px] w-[18px] opacity-90" />
             <span>Log out completely</span>
           </button>
         </div>

@@ -20,7 +20,7 @@ export function ExpenseInsightsStrip({
   currencyCode,
 }: ExpenseInsightsStripProps) {
   return (
-    <div className="flex overflow-x-auto sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-[10px] sm:gap-4 pb-4 sm:pb-0 hide-scrollbar snap-x snap-mandatory mb-4">
+    <div className="flex overflow-x-auto sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-[10px] sm:gap-4 hide-scrollbar snap-x snap-mandatory mb-4">
       <MetricCard
         className="min-w-[180px] sm:min-w-0 shrink-0 snap-start border-border"
         title="Total expenses"

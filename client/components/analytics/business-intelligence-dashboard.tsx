@@ -12,6 +12,7 @@ import { SalesAnalyticsTab } from "./sales-analytics-tab";
 import { ProfitLossTab } from "./profit-loss-tab";
 import { StockBatchInsightsTab } from "./stock-batch-insights-tab";
 import { CustomerBehaviorTab } from "./customer-behavior-tab";
+import { ResponsiveTabLabel } from "@/components/ui/responsive-tab-label";
 
 const TIME_RANGE_DAYS: Record<string, number> = {
   "7d": 7,
@@ -105,29 +106,25 @@ export function BusinessIntelligenceDashboard() {
               value="sales"
               className="px-4 py-2 rounded-lg text-[13px] font-semibold whitespace-nowrap shrink-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-primary/10 data-[state=inactive]:hover:text-primary"
             >
-              <span className="md:hidden">Sales</span>
-              <span className="hidden md:inline">Sales Analytics</span>
+              <ResponsiveTabLabel short="Sales" long="Sales Analytics" />
             </TabsTrigger>
             <TabsTrigger
               value="profit-loss"
               className="px-4 py-2 rounded-lg text-[13px] font-semibold whitespace-nowrap shrink-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-primary/10 data-[state=inactive]:hover:text-primary"
             >
-              <span className="md:hidden">P&amp;L</span>
-              <span className="hidden md:inline">Profit & Loss</span>
+              <ResponsiveTabLabel short="P&L" long="Profit & Loss" />
             </TabsTrigger>
             <TabsTrigger
               value="stock_batches"
               className="px-4 py-2 rounded-lg text-[13px] font-semibold whitespace-nowrap shrink-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-primary/10 data-[state=inactive]:hover:text-primary"
             >
-              <span className="md:hidden">Stock</span>
-              <span className="hidden md:inline">Stock Batch Insights</span>
+              <ResponsiveTabLabel short="Stock" long="Stock Batch Insights" />
             </TabsTrigger>
             <TabsTrigger
               value="customers"
               className="px-4 py-2 rounded-lg text-[13px] font-semibold whitespace-nowrap shrink-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-primary/10 data-[state=inactive]:hover:text-primary"
             >
-              <span className="md:hidden">Customers</span>
-              <span className="hidden md:inline">Customer Behavior</span>
+              <ResponsiveTabLabel short="Customers" long="Customer Behavior" />
             </TabsTrigger>
           </TabsList>
         </div>

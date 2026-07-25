@@ -10,7 +10,7 @@ interface ProcurementStatsProps {
 export function ProcurementStats({ purchaseOrders }: ProcurementStatsProps) {
   return (
     <div className="-mx-4 sm:mx-0 px-4 sm:px-0 mb-4">
-      <div className="flex overflow-x-auto sm:grid sm:grid-cols-3 gap-[10px] sm:gap-4 pb-4 sm:pb-0 hide-scrollbar snap-x snap-mandatory">
+      <div className="flex overflow-x-auto sm:grid sm:grid-cols-3 gap-[10px] sm:gap-4 hide-scrollbar snap-x snap-mandatory">
         
         <Card className="min-w-[180px] sm:min-w-0 snap-center shrink-0 bg-card border border-border rounded-[14px] p-4 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)] border-b-0 border-l-0 border-r-0 sm:border">
           <div className="flex items-center justify-between mb-2">

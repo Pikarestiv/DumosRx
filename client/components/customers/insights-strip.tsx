@@ -13,7 +13,7 @@ export function InsightsStrip({
 
   return (
     <div className="-mx-4 sm:mx-0 px-4 sm:px-0">
-      <div className="flex overflow-x-auto sm:grid sm:grid-cols-4 gap-[10px] sm:gap-4 pb-4 sm:pb-0 hide-scrollbar snap-x snap-mandatory">
+      <div className="flex overflow-x-auto sm:grid sm:grid-cols-4 gap-[10px] sm:gap-4 hide-scrollbar snap-x snap-mandatory">
         <MetricCard
           className="min-w-[180px] sm:min-w-0 snap-center shrink-0 border-border"
           title="Total Customers"

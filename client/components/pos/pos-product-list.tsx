@@ -18,6 +18,7 @@ interface POSProductListProps {
   filteredProducts: any[];
   addToCart: (product: any) => void;
   productTerm: string;
+  searchTerm?: string;
   currencyCode?: string;
   isFuzzyFallback?: boolean;
   suggestions?: any[];
@@ -76,35 +77,35 @@ function POSProductCard({
 
   return (
     <div
-      className={`relative p-3 border rounded-2xl cursor-pointer transition-all duration-200 shadow-[0_1px_3px_rgba(0,0,0,0.02)] flex flex-col ${cardStyle} ${isOutOfStock ? "opacity-60 grayscale-[0.5]" : ""}`}
+      className={`relative p-2 sm:p-3 border rounded-xl sm:rounded-2xl cursor-pointer transition-all duration-200 shadow-[0_1px_3px_rgba(0,0,0,0.02)] flex flex-col ${cardStyle} ${isOutOfStock ? "opacity-60 grayscale-[0.5]" : ""}`}
       onClick={() => addToCart(product)}
     >
       {indicator}
 
       {cartQuantity > 0 && (
-        <div className="absolute top-2 right-2 z-10 flex items-center justify-center min-w-[22px] h-[22px] px-1 text-[10px] font-bold text-primary-foreground bg-primary shadow-sm rounded-full">
+        <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 z-10 flex items-center justify-center min-w-[18px] h-[18px] sm:min-w-[22px] sm:h-[22px] px-1 text-[9px] sm:text-[10px] font-bold text-primary-foreground bg-primary shadow-sm rounded-full">
           {cartQuantity}
         </div>
       )}
 
       {/* Icon Area */}
-      <div className="w-full h-14 rounded-xl bg-primary/5 text-primary/70 flex items-center justify-center mb-2.5">
-        <CategoryIcon className="h-5 w-5" />
+      <div className="w-full h-10 sm:h-14 rounded-lg sm:rounded-xl bg-primary/5 text-primary/70 flex items-center justify-center mb-1.5 sm:mb-2.5">
+        <CategoryIcon className="h-4 w-4 sm:h-5 sm:w-5" />
       </div>
 
-      <div className="text-[13px] font-semibold leading-tight mb-1 line-clamp-2">
+      <div className="text-[11.5px] sm:text-[13px] font-semibold leading-tight mb-0.5 sm:mb-1 line-clamp-2">
         {product.name}
       </div>
-      <div className="text-[11px] text-muted-foreground truncate mb-2">
+      <div className="text-[10px] sm:text-[11px] text-muted-foreground truncate mb-1 sm:mb-2">
         {product.brand || "Generic"} • {product.strength || "-"}
       </div>
 
-      <div className="flex items-center justify-between mt-auto pt-1">
-        <div className="text-[13.5px] font-bold text-primary">
+      <div className="flex items-center justify-between mt-auto pt-0.5 sm:pt-1">
+        <div className="text-[12px] sm:text-[13.5px] font-bold text-primary">
           {formatCurrency(product.unit_price, currencyCode)}
         </div>
         <div
-          className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+          className={`text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-md ${
             isOutOfStock
               ? "bg-destructive/10 text-destructive"
               : isLowStock
@@ -124,6 +125,7 @@ export function POSProductList({
   filteredProducts,
   addToCart,
   productTerm,
+  searchTerm = "",
   currencyCode,
   isFuzzyFallback,
   suggestions = [],
@@ -183,9 +185,9 @@ export function POSProductList({
       )}
 
       {loadingProducts && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3">
           {[...Array(8)].map((_, i) => (
-            <div key={i} className="p-3 border rounded-2xl space-y-2 h-[120px]">
+            <div key={i} className="p-2 sm:p-3 border rounded-xl sm:rounded-2xl space-y-1.5 sm:space-y-2 h-[100px] sm:h-[120px]">
               <Skeleton className="h-10 w-full rounded-xl" />
               <Skeleton className="h-3 w-1/2" />
               <Skeleton className="h-4 w-1/3" />
@@ -207,8 +209,8 @@ export function POSProductList({
 
       {!loadingProducts &&
         filteredProducts.length > 0 &&
-        (productTerm || "").trim().length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+        searchTerm.trim().length > 0 && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3">
             {sortedProducts.map((product) => (
               <POSProductCard
                 key={product.id}
@@ -223,7 +225,7 @@ export function POSProductList({
 
       {!loadingProducts &&
         filteredProducts.length > 0 &&
-        !((productTerm || "").trim().length > 0) && (
+        searchTerm.trim().length === 0 && (
           <div className="flex flex-col gap-6">
             {/* Smart Suggestions */}
             <div>
@@ -302,7 +304,7 @@ export function POSProductList({
                 <Package className="h-3.5 w-3.5 text-gray-500" />
                 All products
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3">
                 {[...commonlySoldList, ...remainingList].map((product) => (
                   <POSProductCard
                     key={product.id}

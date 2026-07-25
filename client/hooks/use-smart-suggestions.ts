@@ -13,7 +13,8 @@ export function useSmartSuggestions(cart: CartItem[], products: Product[]) {
     // Process each cart item to find matched rules
     for (const item of cart) {
       const nameLower = item.name.toLowerCase();
-      const categoryLower = item.category_id ? item.category_id.toLowerCase() : "";
+      // Rules are authored against human-readable category names, not category_id (a UUID) — match on category_name.
+      const categoryLower = item.category_name ? item.category_name.toLowerCase() : "";
 
       for (const rule of SMART_SUGGESTIONS_RULES) {
         let isMatched = false;
@@ -52,7 +53,7 @@ export function useSmartSuggestions(cart: CartItem[], products: Product[]) {
       if (product.stock <= 0) return false;
 
       const medNameLower = product.name.toLowerCase();
-      const medCatLower = product.category_id ? product.category_id.toLowerCase() : "";
+      const medCatLower = product.category_name ? product.category_name.toLowerCase() : "";
 
       // Match category
       if (targetCategories.has(medCatLower)) return true;

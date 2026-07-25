@@ -253,6 +253,7 @@ export function POSSystem() {
                   isFuzzyFallback={isFuzzyFallback}
                   addToCart={addToCart}
                   productTerm={t("product")}
+                  searchTerm={searchTerm}
                   currencyCode={storeProfile?.currency}
                   suggestions={suggestions}
                   recentlySoldIds={recentlySoldIds}

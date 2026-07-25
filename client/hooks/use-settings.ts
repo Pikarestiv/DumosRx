@@ -6,7 +6,6 @@ import { useTheme } from "@/components/theme-provider";
 import { useStore, StoreType } from "@/lib/context/store-context";
 import { useAuth } from "@/lib/context/auth-context";
 import { toast } from "sonner";
-import { isTauri } from "@/lib/db/core";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { apiClient } from "@/lib/api/client";
 import { useSettingsForm } from "./use-settings-form";
@@ -227,10 +226,6 @@ export function useSettings() {
     toast.success(`Switched to ${type.charAt(0).toUpperCase() + type.slice(1)} mode`);
   };
 
-  const tauriTop = isTauri() ? 40 : 0;
-  const headerHeight = 64;
-  const stickyTop = tauriTop + headerHeight;
-
   return {
     storeProfile,
     user,
@@ -245,7 +240,6 @@ export function useSettings() {
     setActiveTab,
     handleTabChange,
     isDesktop,
-    stickyTop,
     ...securityState,
     ...syncState,
     ...formState,

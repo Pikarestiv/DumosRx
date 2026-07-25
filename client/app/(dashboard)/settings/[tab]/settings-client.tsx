@@ -103,7 +103,6 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
     handleDownloadBackup,
     handleRestoreBackup,
     handleResetDatabase,
-    stickyTop,
   } = useSettings();
 
   console.log("[DEBUG SETTINGS]", { user, isAdmin });
@@ -139,13 +138,20 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
           orientation="vertical"
           className="flex flex-col md:flex-row gap-6 md:gap-8 md:items-start relative"
         >
+          {/*
+            The aside/TabsList live inside the page's own scrollable
+            container (not behind a fixed header — the dashboard header is a
+            normal sibling above it), so sticking to `top: 0` (plus a small
+            gap on desktop to match the page's own top padding) is enough;
+            no header-height offset needed.
+          */}
           <aside
             className="w-full md:w-48 flex-shrink-0 md:sticky z-30"
-            style={{ top: isDesktop ? `${stickyTop + 16}px` : undefined }}
+            style={{ top: isDesktop ? "16px" : undefined }}
           >
             <TabsList
               className="hidden md:flex flex-col h-auto overflow-x-auto scrollbar-none md:overflow-visible bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b md:border-none p-2 md:p-0 gap-1 justify-start md:w-full sticky md:relative z-30"
-              style={{ top: !isDesktop ? `${stickyTop}px` : undefined }}
+              style={{ top: !isDesktop ? "0px" : undefined }}
             >
               <TabsTrigger
                 value="appearance"

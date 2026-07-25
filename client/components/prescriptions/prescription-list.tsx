@@ -1,9 +1,9 @@
 "use client";
 
 import { Prescription } from "@/lib/hooks/use-prescription-queue";
-import { Search, Stethoscope } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { Search, AlertTriangle } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { PRESCRIPTION_STATUS_META, getInitials } from "./prescription-status-meta";
 
 interface PrescriptionListProps {
   prescriptions: Prescription[];
@@ -24,29 +24,8 @@ export function PrescriptionList({
 
   isFuzzyFallback,
 }: PrescriptionListProps) {
-  
-  const getStatusBadgeColor = (status: string) => {
-    switch (status) {
-      case "pending": return "bg-gray-100 text-gray-700";
-      case "ready": return "bg-green-100 text-green-700";
-      case "dispensed": return "bg-blue-100 text-blue-700";
-      case "completed": return "bg-emerald-100 text-emerald-700";
-      case "on_hold": return "bg-amber-100 text-amber-700";
-      case "cancelled": return "bg-red-100 text-red-700";
-      default: return "bg-gray-100 text-gray-700";
-    }
-  };
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "urgent": return "text-amber-600 bg-amber-50";
-      case "stat": return "text-red-600 bg-red-50";
-      default: return "hidden";
-    }
-  };
-
   return (
-    <Card className="bg-card border border-border rounded-2xl flex flex-col min-h-0 h-[calc(100vh-320px)]">
+    <Card className="bg-card border border-border rounded-2xl flex flex-col min-h-0 h-[calc(100vh-320px)] p-0 gap-0">
       {/* Search */}
       <div className="p-4 pb-3 border-b border-border">
         <div className="flex items-center gap-2 bg-muted border border-border rounded-[10px] px-3.5 py-2.5">
@@ -68,64 +47,56 @@ export function PrescriptionList({
       )}
 
       {/* List */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto p-3">
         {prescriptions.length === 0 && (
-          <div className="p-8 text-center text-muted-foreground text-sm">
-            No prescriptions found matching your criteria.
+          <div className="text-center text-[12.5px] text-muted-foreground py-10">
+            No prescriptions match.
           </div>
         )}
-        {prescriptions.length > 0 && (
-          <div className="divide-y divide-border">
-            {prescriptions.map((rx) => {
-              const isSelected = selectedPrescription?.id === rx.id;
-              
-              return (
-                <div
-                  key={rx.id}
-                  onClick={() => onSelect(rx)}
-                  className={`p-4 cursor-pointer transition-colors ${
-                    isSelected ? "bg-primary/5 border-l-4 border-l-primary" : "hover:bg-accent/50 border-l-4 border-l-transparent"
-                  }`}
-                >
-                  <div className="flex justify-between items-start mb-2">
-                    <div className="font-semibold text-sm text-foreground">
+        {prescriptions.length > 0 &&
+          prescriptions.map((rx) => {
+            const isSelected = selectedPrescription?.id === rx.id;
+            const meta = PRESCRIPTION_STATUS_META[rx.status];
+            const isUrgent = rx.priority === "urgent" || rx.priority === "stat";
+            const firstMed = rx.medications[0];
+
+            return (
+              <div
+                key={rx.id}
+                onClick={() => onSelect(rx)}
+                className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer border mb-1 transition-colors ${
+                  isSelected
+                    ? "border-primary bg-primary/5"
+                    : "border-transparent hover:bg-muted/50"
+                }`}
+              >
+                <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[12px] font-bold shrink-0">
+                  {getInitials(rx.patientName)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <div className="text-[13px] font-semibold truncate">
                       {rx.patientName}
                     </div>
-                    <div className={`px-2 py-0.5 rounded text-[10px] font-medium uppercase tracking-wider ${getStatusBadgeColor(rx.status)}`}>
-                      {rx.status.replace("_", " ")}
-                    </div>
+                    {isUrgent && (
+                      <AlertTriangle className="w-3.5 h-3.5 text-destructive shrink-0" />
+                    )}
                   </div>
-                  
-                  <div className="flex items-center gap-2 mb-2 text-xs text-muted-foreground">
-                    <span className="font-medium text-foreground">{rx.prescriptionNumber}</span>
-                    <span>•</span>
-                    <div className="flex items-center gap-1">
-                      <Stethoscope className="w-3 h-3" />
-                      {rx.doctorName}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <div>
-                      {new Date(rx.dateIssued).toLocaleDateString()}
-                    </div>
-                    
-                    <div className="flex items-center gap-2">
-                      {rx.priority !== "normal" && (
-                        <div className={`px-2 py-0.5 rounded font-medium ${getPriorityColor(rx.priority)}`}>
-                          {rx.priority.toUpperCase()}
-                        </div>
-                      )}
-                      <div className="font-medium text-foreground">
-                        {formatCurrency(rx.totalCost)}
-                      </div>
-                    </div>
+                  <div className="text-[11.5px] text-muted-foreground truncate">
+                    {firstMed
+                      ? `${firstMed.productName}${firstMed.strength ? ` ${firstMed.strength}` : ""} · `
+                      : ""}
+                    {new Date(rx.dateIssued).toLocaleDateString()}
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
+                <span
+                  className={`text-[10.5px] font-semibold px-2.5 py-1 rounded-md shrink-0 whitespace-nowrap ${meta.badgeClass}`}
+                >
+                  {meta.label}
+                </span>
+              </div>
+            );
+          })}
       </div>
     </Card>
   );

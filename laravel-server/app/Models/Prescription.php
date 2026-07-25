@@ -14,6 +14,8 @@ class Prescription extends Model
 
     protected $casts = [
         'prescription_date' => 'date',
+        'issued_at' => 'datetime',
+        'dispensed_at' => 'datetime',
     ];
 
     protected static function boot()

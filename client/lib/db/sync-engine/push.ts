@@ -4,6 +4,21 @@ import { PushResponse } from "./types";
 
 const SYNC_BATCH_SIZE = 50;
 
+// Matches ISO 8601 datetimes as produced by Date#toISOString(), e.g.
+// "2026-07-25T03:35:07.593Z" — MySQL DATETIME columns reject the 'T'/'Z'
+// and fractional seconds, so every such field (not just one hardcoded
+// column name) needs to become "2026-07-25 03:35:07" before it's sent.
+const ISO_DATETIME_REGEX = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z?$/;
+
+function normalizeDatetimeFields(payload: Record<string, unknown>) {
+  for (const key of Object.keys(payload)) {
+    const value = payload[key];
+    if (typeof value === "string" && ISO_DATETIME_REGEX.test(value)) {
+      payload[key] = value.slice(0, 19).replace("T", " ");
+    }
+  }
+}
+
 /**
  * Push local changes to server
  */
@@ -31,9 +46,7 @@ export async function pushChanges(
         delete payload._synced;
         delete payload._synced_at;
 
-        if (payload.received_at && typeof payload.received_at === 'string' && payload.received_at.includes("T")) {
-          payload.received_at = payload.received_at.slice(0, 19).replace('T', ' ');
-        }
+        normalizeDatetimeFields(payload);
 
         return {
           ...item,

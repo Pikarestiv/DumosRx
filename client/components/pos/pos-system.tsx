@@ -333,6 +333,8 @@ export function POSSystem() {
         clearCart={clearCart}
         onCheckout={withRestriction(() => setShowPaymentDialog(true))}
         onHoldSale={handleHoldTransaction}
+        heldSalesCount={heldSalesCount}
+        onOpenHeldSales={() => setShowHeldDialog(true)}
         selectedCustomer={selectedCustomer}
         customers={customers}
         loadingCustomers={loadingCustomers}

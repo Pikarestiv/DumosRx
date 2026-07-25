@@ -185,7 +185,7 @@ export function POSProductList({
       )}
 
       {loadingProducts && (
-        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3">
           {[...Array(8)].map((_, i) => (
             <div key={i} className="p-3 border rounded-2xl space-y-2 h-[120px]">
               <Skeleton className="h-10 w-full rounded-xl" />
@@ -208,7 +208,7 @@ export function POSProductList({
       )}
 
       {!loadingProducts && filteredProducts.length > 0 && (productTerm || "").trim().length > 0 && (
-        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3">
           {sortedProducts.map((product) => (
             <POSProductCard
               key={product.id}
@@ -289,7 +289,7 @@ export function POSProductList({
               <Package className="h-3.5 w-3.5 text-gray-500" />
               All products
             </div>
-            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3">
               {[...commonlySoldList, ...remainingList].map((product) => (
                 <POSProductCard
                   key={product.id}

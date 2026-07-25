@@ -19,6 +19,8 @@ interface POSMobileCartWrapperProps {
   clearCart: () => void;
   onCheckout: () => void;
   onHoldSale: () => void;
+  heldSalesCount?: number;
+  onOpenHeldSales?: () => void;
   selectedCustomer: Customer | null;
   customers: Customer[];
   loadingCustomers: boolean;
@@ -42,6 +44,8 @@ export function POSMobileCartWrapper({
   clearCart,
   onCheckout,
   onHoldSale,
+  heldSalesCount,
+  onOpenHeldSales,
   selectedCustomer,
   customers,
   loadingCustomers,
@@ -69,6 +73,8 @@ export function POSMobileCartWrapper({
           clearCart={clearCart}
           onCheckout={onCheckout}
           onHoldSale={onHoldSale}
+          heldSalesCount={heldSalesCount}
+          onOpenHeldSales={onOpenHeldSales}
           selectedCustomer={selectedCustomer}
           customers={customers}
           loadingCustomers={loadingCustomers}

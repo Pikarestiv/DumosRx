@@ -25,6 +25,8 @@ interface POSMobileCartWrapperProps {
   customers: Customer[];
   loadingCustomers: boolean;
   onSelectCustomer: (customer: Customer | null) => void;
+  isPrescriptionLocked?: boolean;
+  onEditPrescription?: () => void;
 }
 
 export function POSMobileCartWrapper({
@@ -50,6 +52,8 @@ export function POSMobileCartWrapper({
   customers,
   loadingCustomers,
   onSelectCustomer,
+  isPrescriptionLocked,
+  onEditPrescription,
 }: POSMobileCartWrapperProps) {
   if (cart.length === 0) return null;
 
@@ -79,6 +83,8 @@ export function POSMobileCartWrapper({
           customers={customers}
           loadingCustomers={loadingCustomers}
           onSelectCustomer={onSelectCustomer}
+          isPrescriptionLocked={isPrescriptionLocked}
+          onEditPrescription={onEditPrescription}
         />
       </div>
     </div>

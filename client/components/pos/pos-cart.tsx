@@ -6,6 +6,7 @@ import {
   Trash2,
   PauseCircle,
   ClipboardList,
+  Lock,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { RequestItemDialog } from "./request-item-dialog";
@@ -30,6 +31,8 @@ interface POSCartProps {
   onHoldSale?: () => void;
   heldSalesCount?: number;
   onOpenHeldSales?: () => void;
+  isPrescriptionLocked?: boolean;
+  onEditPrescription?: () => void;
 }
 
 export function POSCart({
@@ -51,12 +54,30 @@ export function POSCart({
   onHoldSale,
   heldSalesCount = 0,
   onOpenHeldSales,
+  isPrescriptionLocked = false,
+  onEditPrescription,
 }: POSCartProps) {
   const [showDiscount, setShowDiscount] = useState(false);
   const [showRequestDialog, setShowRequestDialog] = useState(false);
 
   return (
     <div className="flex flex-col h-full">
+      {!!isPrescriptionLocked && (
+        <div className="mx-5 mt-3 flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-primary/20 bg-primary/5 text-primary shrink-0">
+          <span className="flex items-center gap-1.5 text-[11.5px] font-semibold">
+            <Lock className="w-3.5 h-3.5" />
+            Cart locked to this prescription
+          </span>
+          {!!onEditPrescription && (
+            <button
+              onClick={onEditPrescription}
+              className="text-[11.5px] font-bold underline underline-offset-2 shrink-0 cursor-pointer"
+            >
+              Edit prescription
+            </button>
+          )}
+        </div>
+      )}
       <div className="flex-1 overflow-y-auto px-5 py-1.5 min-h-[120px]">
         {cart.length === 0 && <EmptyCart />}
         {cart.length > 0 &&
@@ -68,6 +89,7 @@ export function POSCart({
               isLast={idx === cart.length - 1}
               updateQuantity={updateQuantity}
               removeFromCart={removeFromCart}
+              isLocked={isPrescriptionLocked}
             />
           ))}
       </div>
@@ -159,7 +181,7 @@ export function POSCart({
         </div>
 
         <div
-          className={`grid gap-2 mb-3 ${cart.length > 0 ? "grid-cols-3" : "grid-cols-1"}`}
+          className={`grid gap-2 mb-3 ${cart.length > 0 ? (isPrescriptionLocked ? "grid-cols-2" : "grid-cols-3") : "grid-cols-1"}`}
         >
           <button
             onClick={() => setShowRequestDialog(true)}
@@ -179,7 +201,7 @@ export function POSCart({
             </button>
           )}
 
-          {cart.length > 0 && (
+          {cart.length > 0 && !isPrescriptionLocked && (
             <button
               onClick={clearCart}
               className="w-full flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg border border-destructive/20 bg-destructive/5 text-[11.5px] font-semibold text-destructive cursor-pointer hover:bg-destructive/10 transition-colors"

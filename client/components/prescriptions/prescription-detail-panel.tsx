@@ -11,6 +11,7 @@ import {
   Pill as PillIcon,
   CheckCircle,
   RotateCcw,
+  Loader2,
 } from "lucide-react";
 import { Prescription } from "@/lib/hooks/use-prescription-queue";
 import { formatCurrency } from "@/lib/utils";
@@ -28,6 +29,8 @@ interface PrescriptionDetailPanelProps {
   onEdit: (prescription: Prescription) => void;
   onDispense: (prescription: Prescription) => void;
   onDispenseRefill: (prescription: Prescription) => void;
+  onProcessReturn: (prescription: Prescription) => void;
+  isProcessingReturn?: boolean;
   updateStatus: (id: string, status: Prescription["status"]) => void;
 }
 
@@ -39,6 +42,8 @@ export function PrescriptionDetailPanel({
   onEdit,
   onDispense,
   onDispenseRefill,
+  onProcessReturn,
+  isProcessingReturn = false,
   updateStatus,
 }: PrescriptionDetailPanelProps) {
   if (!prescription) {
@@ -115,10 +120,15 @@ export function PrescriptionDetailPanel({
             <Button
               size="sm"
               variant="outline"
-              onClick={() => updateStatus(prescription.id, "cancelled")}
+              disabled={isProcessingReturn}
+              onClick={() => onProcessReturn(prescription)}
             >
-              <RotateCcw className="w-4 h-4 mr-1" />
-              Cancel
+              {isProcessingReturn ? (
+                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+              ) : (
+                <RotateCcw className="w-4 h-4 mr-1" />
+              )}
+              Process Return
             </Button>
           </div>
         );

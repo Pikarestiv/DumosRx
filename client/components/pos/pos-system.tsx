@@ -15,14 +15,13 @@ import { getHeldTransactionCount } from "@/lib/db/queries/sales";
 import { POSProductList } from "./pos-product-list";
 import { POSCategoryFilter } from "./pos-category-filter";
 import { POSTransactionHistory } from "./pos-transaction-history";
-import { POSCustomerSelector } from "./pos-customer-selector";
 import { POSMobileSearch } from "./pos-mobile-search";
-import { POSCart } from "./pos-cart";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { POSDialogs } from "./pos-dialogs";
-import { POSMobileCartWrapper } from "./pos-mobile-cart-wrapper";
+import { POSCartPanels } from "./pos-cart-panels";
 import { usePOSData, Customer } from "@/lib/hooks/use-pos-data";
 import { usePOSPrescription } from "@/lib/hooks/use-pos-prescription";
+import { usePOSReturnDeepLink } from "@/lib/hooks/use-pos-return-deep-link";
 import { usePOSHeldTransactions } from "@/lib/hooks/use-pos-held-transactions";
 import { usePOSKeyboardShortcuts } from "@/lib/hooks/use-pos-keyboard-shortcuts";
 export function POSSystem() {
@@ -45,6 +44,13 @@ export function POSSystem() {
   );
   const [showReturnDialog, setShowReturnDialog] = useState(false);
   const [saleToReturn, setSaleToReturn] = useState<any>(null);
+  usePOSReturnDeepLink({
+    searchParams,
+    router,
+    pathname,
+    setSaleToReturn,
+    setShowReturnDialog,
+  });
   const [showHeldDialog, setShowHeldDialog] = useState(false);
   const [showClearCartDialog, setShowClearCartDialog] = useState(false);
   const { data: heldSalesCountData } = useQuery({
@@ -156,6 +162,14 @@ export function POSSystem() {
     addToCart,
   });
 
+  const isPrescriptionLocked = !!dispensedRxId;
+  const handleEditPrescription = isPrescriptionLocked
+    ? () => router.push(`/prescriptions?action=add&edit_rx=${dispensedRxId}`)
+    : undefined;
+  const handleAddToCart = isPrescriptionLocked
+    ? () => toast.info("Cart is locked to this prescription. Edit the prescription to change medications.")
+    : addToCart;
+
   const posDialogProps = {
     isMobileScannerOpen,
     setIsMobileScannerOpen,
@@ -252,7 +266,7 @@ export function POSSystem() {
                   loadingProducts={loadingProducts}
                   filteredProducts={filteredProducts}
                   isFuzzyFallback={isFuzzyFallback}
-                  addToCart={addToCart}
+                  addToCart={handleAddToCart}
                   productTerm={t("product")}
                   searchTerm={searchTerm}
                   currencyCode={storeProfile?.currency}
@@ -286,39 +300,7 @@ export function POSSystem() {
       </div>
 
       {/* Right: customer + cart, full page height (Desktop only) */}
-      <div className="hidden lg:flex lg:w-[380px] xl:w-[420px] shrink-0 flex-col bg-background border-l border-border overflow-hidden h-full">
-        <POSCustomerSelector
-          selectedCustomer={selectedCustomer}
-          customers={customers}
-          loadingCustomers={loadingCustomers}
-          onSelectCustomer={setSelectedCustomer as any}
-          cartLength={cart.length}
-        />
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <POSCart
-            cart={cart}
-            subtotal={subtotal}
-            tax={tax}
-            total={total}
-            discount={discount}
-            calculatedDiscount={calculatedDiscount}
-            discountType={discountType}
-            setDiscount={setDiscount}
-            setDiscountType={setDiscountType}
-            vatPercentage={vatPercentage}
-            currencyCode={storeProfile?.currency}
-            updateQuantity={updateQuantity}
-            removeFromCart={removeFromCart}
-            clearCart={clearCart}
-            onCheckout={withRestriction(() => setShowPaymentDialog(true))}
-            onHoldSale={handleHoldTransaction}
-            heldSalesCount={heldSalesCount}
-            onOpenHeldSales={() => setShowHeldDialog(true)}
-          />
-        </div>
-      </div>
-
-      <POSMobileCartWrapper
+      <POSCartPanels
         cart={cart}
         subtotal={subtotal}
         tax={tax}
@@ -337,6 +319,8 @@ export function POSSystem() {
         onHoldSale={handleHoldTransaction}
         heldSalesCount={heldSalesCount}
         onOpenHeldSales={() => setShowHeldDialog(true)}
+        isPrescriptionLocked={isPrescriptionLocked}
+        onEditPrescription={handleEditPrescription}
         selectedCustomer={selectedCustomer}
         customers={customers}
         loadingCustomers={loadingCustomers}

@@ -1,5 +1,7 @@
 "use client"
+import { useState } from "react";
 import { usePrescriptionQueue, Prescription } from "@/lib/hooks/use-prescription-queue";
+import { getSaleForPrescription } from "@/lib/db/queries/sales";
 import { PrescriptionStats } from "./prescription-stats";
 import { PrescriptionList } from "./prescription-list";
 import { PrescriptionSearchBar } from "./prescription-search-bar";
@@ -8,6 +10,7 @@ import { NewPrescription } from "./new-prescription";
 import { Card } from "@/components/ui/card";
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { useSearchParams } from "next/navigation";
@@ -85,6 +88,27 @@ export function PrescriptionManagement() {
     router.push(`/pos?dispense_rx=${prescription.id}&refill=1`);
   };
 
+  const [processingReturnRxId, setProcessingReturnRxId] = useState<string | null>(null);
+
+  const handleProcessReturn = async (prescription: Prescription) => {
+    // A prescription-linked sale is the actual source of truth for stock/
+    // payment — "cancelling" a prescription used to just relabel its status
+    // without touching either. Route to the real Return flow instead, which
+    // reverses stock/payment and (on a full return) reverts the rx to
+    // "ready" itself (see return-dialog.tsx).
+    setProcessingReturnRxId(prescription.id);
+    try {
+      const sale = await getSaleForPrescription(prescription.id);
+      if (!sale) {
+        toast.error("No linked sale found for this prescription — nothing to return.");
+        return;
+      }
+      router.push(`/pos?tab=history&return_sale=${sale.id}`);
+    } finally {
+      setProcessingReturnRxId(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
 
@@ -151,6 +175,8 @@ export function PrescriptionManagement() {
                                 onEdit={handleEdit}
                                 onDispense={handleDispense}
                                 onDispenseRefill={handleDispenseRefill}
+                                onProcessReturn={handleProcessReturn}
+                                isProcessingReturn={processingReturnRxId === selectedPrescription?.id}
                                 updateStatus={updatePrescriptionStatus}
                               />
                             )}

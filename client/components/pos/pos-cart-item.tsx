@@ -14,23 +14,27 @@ interface Props {
   isLast: boolean;
   updateQuantity: (id: string, quantity: number) => void;
   removeFromCart: (id: string) => void;
+  isLocked?: boolean;
 }
 
 /** Swipe-left-to-remove cart row: a red delete backdrop revealed as the row is dragged left. */
-export function POSCartItem({ item, currencyCode, isLast, updateQuantity, removeFromCart }: Props) {
+export function POSCartItem({ item, currencyCode, isLast, updateQuantity, removeFromCart, isLocked = false }: Props) {
   const CategoryIcon = getCategoryIcon(item.category_name);
 
   return (
     <div className="relative overflow-hidden rounded-lg">
-      <div className="absolute inset-0 flex items-center justify-end pr-4 bg-destructive text-destructive-foreground">
-        <Trash2 className="w-4 h-4" />
-      </div>
+      {!isLocked && (
+        <div className="absolute inset-0 flex items-center justify-end pr-4 bg-destructive text-destructive-foreground">
+          <Trash2 className="w-4 h-4" />
+        </div>
+      )}
       <motion.div
-        drag="x"
+        drag={isLocked ? false : "x"}
         dragConstraints={{ left: -100, right: 0 }}
         dragElastic={{ left: 0.5, right: 0 }}
         dragSnapToOrigin
         onDragEnd={(_, info) => {
+          if (isLocked) return;
           if (info.offset.x < SWIPE_DELETE_THRESHOLD || info.velocity.x < SWIPE_DELETE_VELOCITY) {
             removeFromCart(item.id);
           }
@@ -50,32 +54,41 @@ export function POSCartItem({ item, currencyCode, isLast, updateQuantity, remove
             {formatCurrency(item.unit_price, currencyCode)} each
           </div>
         </div>
-        <div className="flex items-center border border-border rounded-lg overflow-hidden shrink-0 bg-muted/30">
-          <button
-            className="w-6 h-6 flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors cursor-pointer"
-            onClick={() => updateQuantity(item.id, item.quantity - 1)}
-          >
-            <Minus className="w-3 h-3" strokeWidth={2.5} />
-          </button>
-          <span className="w-6 text-center text-xs font-semibold">
-            {item.quantity}
+        {isLocked && (
+          <span className="text-xs font-semibold text-muted-foreground px-2">
+            Qty: {item.quantity}
           </span>
-          <button
-            className="w-6 h-6 flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors cursor-pointer"
-            onClick={() => updateQuantity(item.id, item.quantity + 1)}
-          >
-            <Plus className="w-3 h-3" strokeWidth={2.5} />
-          </button>
-        </div>
+        )}
+        {!isLocked && (
+          <div className="flex items-center border border-border rounded-lg overflow-hidden shrink-0 bg-muted/30">
+            <button
+              className="w-6 h-6 flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors cursor-pointer"
+              onClick={() => updateQuantity(item.id, item.quantity - 1)}
+            >
+              <Minus className="w-3 h-3" strokeWidth={2.5} />
+            </button>
+            <span className="w-6 text-center text-xs font-semibold">
+              {item.quantity}
+            </span>
+            <button
+              className="w-6 h-6 flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors cursor-pointer"
+              onClick={() => updateQuantity(item.id, item.quantity + 1)}
+            >
+              <Plus className="w-3 h-3" strokeWidth={2.5} />
+            </button>
+          </div>
+        )}
         <div className="text-[13px] font-bold min-w-[56px] text-right">
           {formatCurrency(item.subtotal, currencyCode)}
         </div>
-        <div
-          className="text-muted-foreground hover:text-destructive cursor-pointer shrink-0 ml-1"
-          onClick={() => removeFromCart(item.id)}
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </div>
+        {!isLocked && (
+          <div
+            className="text-muted-foreground hover:text-destructive cursor-pointer shrink-0 ml-1"
+            onClick={() => removeFromCart(item.id)}
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </div>
+        )}
       </motion.div>
     </div>
   );

@@ -140,6 +140,29 @@ export async function getTopStaffByDate(dateStr: string) {
   );
 }
 
+export async function getSaleById(saleId: string) {
+  const rows = await query<any>(
+    `SELECT
+      s.*,
+      TRIM(c.first_name || ' ' || COALESCE(c.last_name, '')) as customer_name,
+      (SELECT SUM(quantity) FROM sale_items si WHERE si.sale_id = s.id AND (si._deleted = 0 OR si._deleted IS NULL)) as item_count
+     FROM sales s
+     LEFT JOIN customers c ON s.customer_id = c.id
+     WHERE s.id = ? AND s._deleted = 0`,
+    [saleId]
+  );
+  return rows[0] || null;
+}
+
+/** Most recent (non-deleted) sale a prescription was dispensed through, if any. */
+export async function getSaleForPrescription(prescriptionId: string) {
+  const rows = await query<any>(
+    `SELECT * FROM sales WHERE prescription_id = ? AND _deleted = 0 ORDER BY created_at DESC LIMIT 1`,
+    [prescriptionId]
+  );
+  return rows[0] || null;
+}
+
 export async function getRecentSales(userId?: string) {
   const userFilter = userId ? ` AND s.user_id = '${userId}'` : "";
   return query<any>(

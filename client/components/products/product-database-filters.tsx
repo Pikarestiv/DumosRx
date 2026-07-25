@@ -1,13 +1,5 @@
-import { Search, Filter } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { ProductSearchBar } from "./product-search-bar";
+import { ProductCategoryChips } from "./product-category-chips";
 
 interface ProductDatabaseFiltersProps {
   searchTerm: string;
@@ -32,67 +24,23 @@ export function ProductDatabaseFilters({
 }: ProductDatabaseFiltersProps) {
 
 
+  // Search bar + chips render standalone above the card on mobile (see ProductDatabase) —
+  // this whole panel is desktop-only to avoid leaving an empty padded/bordered row on mobile.
   return (
-    <div className="p-4 border-b border-border space-y-4">
-      <div className="flex gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-          <Input
-            placeholder={`Search by name or SKU`}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-9 bg-muted border-transparent focus-visible:ring-1 focus-visible:ring-ring rounded-lg"
-          />
-        </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              size="icon"
-              className="shrink-0 bg-primary/5 border-transparent rounded-lg"
-            >
-              <Filter className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-[200px]">
-            <DropdownMenuRadioGroup
-              value={statusFilter}
-              onValueChange={setStatusFilter}
-            >
-              {statuses.map((s) => (
-                <DropdownMenuRadioItem key={s} value={s}>
-                  {s === "all"
-                    ? "All Status"
-                    : s
-                        .replace("_", " ")
-                        .split(" ")
-                        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-                        .join(" ")}
-                </DropdownMenuRadioItem>
-              ))}
-            </DropdownMenuRadioGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-      <div className="flex overflow-x-auto hide-scrollbar gap-2 pb-1">
-        <button
-          className={`shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${categoryFilter === "all" ? "bg-primary text-primary-foreground" : "bg-transparent border border-border text-foreground hover:bg-muted/50"}`}
-          onClick={() => setCategoryFilter("all")}
-        >
-          All
-        </button>
-        {categories
-          .filter((c) => c !== "all")
-          .map((c) => (
-            <button
-              key={c}
-              className={`shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${categoryFilter === c ? "bg-primary text-primary-foreground" : "bg-transparent border border-border text-foreground hover:bg-muted/50"}`}
-              onClick={() => setCategoryFilter(c)}
-            >
-              {c}
-            </button>
-          ))}
-      </div>
+    <div className="hidden lg:block p-4 border-b border-border space-y-4">
+      <ProductSearchBar
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+        statusFilter={statusFilter}
+        setStatusFilter={setStatusFilter}
+        statuses={statuses}
+      />
+      <ProductCategoryChips
+        categoryFilter={categoryFilter}
+        setCategoryFilter={setCategoryFilter}
+        categories={categories}
+        triggerClassName="data-[state=inactive]:border-border"
+      />
     </div>
   );
 }

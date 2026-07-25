@@ -55,7 +55,7 @@ export function DashboardPrescriptionDetailsDialog({
       onOpenChange={onOpenChange}
       title="Prescription detail"
       className="sm:max-w-[480px] p-0 gap-0 overflow-hidden"
-      headerClassName="px-5 py-4 pt-0 border-b border-border m-0"
+      headerClassName="px-5 py-4 pt-0 sm:pt-4 border-b border-border m-0"
     >
       <div className="px-5 py-[18px]">
         <div className="flex items-start gap-3 mb-4">

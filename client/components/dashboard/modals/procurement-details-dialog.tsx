@@ -62,7 +62,7 @@ export function ProcurementDetailsDialog({
       onOpenChange={onOpenChange}
       title="Purchase order detail"
       className="sm:max-w-lg p-0 gap-0 overflow-hidden"
-      headerClassName="px-5 py-4 pt-0 border-b border-border m-0"
+      headerClassName="px-5 py-4 pt-0 sm:pt-4 border-b border-border m-0"
     >
       <div className="px-5 py-[18px]">
         <div className="flex items-start gap-3 mb-4">

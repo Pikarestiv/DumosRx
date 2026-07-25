@@ -24,8 +24,8 @@ export function StockMovementDetailModal({
         if (!open) onClose();
       }}
       title="Movement detail"
-      className="sm:max-w-[440px] p-0 gap-0 overflow-hidden"
-      headerClassName="px-5 py-4 pt-0 border-b border-border m-0"
+      className="md:max-w-[440px] p-0 gap-0 overflow-hidden"
+      headerClassName="px-5 pt-0 sm:pb-4 sm:pt-4 border-b border-border m-0"
     >
       {movement && (
         <div className="px-5 py-[18px]">

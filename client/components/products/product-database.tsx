@@ -12,6 +12,8 @@ import { genericFuzzySearch } from "@/lib/utils/search";
 import { Product, transformProduct } from "./types";
 import { CatalogList } from "./catalog-list";
 import { CatalogDetailPanel } from "./catalog-detail-panel";
+import { ProductSearchBar } from "./product-search-bar";
+import { ProductCategoryChips } from "./product-category-chips";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 
 export function ProductDatabase() {
@@ -143,30 +145,51 @@ export function ProductDatabase() {
   }, []);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-140px)] min-h-[600px] space-y-4">
+    <div className="flex flex-col lg:h-[calc(100vh-140px)] lg:min-h-[600px] space-y-4">
 
 
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(320px,400px)] xl:grid-cols-[minmax(0,1fr)_minmax(380px,450px)] gap-5 flex-1 min-h-0">
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(320px,400px)] xl:grid-cols-[minmax(0,1fr)_minmax(380px,450px)] lg:grid-rows-1 gap-5 flex-1 min-h-0">
         {/* Left List */}
-        <div className="bg-card border border-border rounded-2xl flex flex-col min-h-0">
-          <ProductDatabaseFilters
-            searchTerm={searchTerm}
-            setSearchTerm={setSearchTerm}
-            categoryFilter={categoryFilter}
-            setCategoryFilter={setCategoryFilter}
-            statusFilter={statusFilter}
-            setStatusFilter={setStatusFilter}
-            categories={categories}
-            statuses={statuses}
-          />
-          <CatalogList
-            filteredProducts={filteredProducts}
-            totalCount={products.length}
-            isFuzzyFallback={isFuzzyFallback}
-            formatCurrency={formatCurrency}
-            onSelectProduct={setSelectedProduct}
-            selectedProductId={selectedProduct?.id}
-          />
+        <div className="flex flex-col min-h-0 gap-3 lg:gap-0 lg:h-full">
+          {/* Mobile: search bar + category chips stand alone above the card, contrasting with the page background */}
+          <div className="lg:hidden space-y-3">
+            <ProductSearchBar
+              searchTerm={searchTerm}
+              setSearchTerm={setSearchTerm}
+              statusFilter={statusFilter}
+              setStatusFilter={setStatusFilter}
+              statuses={statuses}
+              inputClassName="bg-card border-border"
+              buttonClassName="bg-card border-border"
+            />
+            <ProductCategoryChips
+              categoryFilter={categoryFilter}
+              setCategoryFilter={setCategoryFilter}
+              categories={categories}
+              triggerClassName="data-[state=inactive]:bg-card data-[state=inactive]:border-border"
+            />
+          </div>
+
+          <div className="bg-card border border-border rounded-2xl flex flex-col min-h-0 lg:flex-1">
+            <ProductDatabaseFilters
+              searchTerm={searchTerm}
+              setSearchTerm={setSearchTerm}
+              categoryFilter={categoryFilter}
+              setCategoryFilter={setCategoryFilter}
+              statusFilter={statusFilter}
+              setStatusFilter={setStatusFilter}
+              categories={categories}
+              statuses={statuses}
+            />
+            <CatalogList
+              filteredProducts={filteredProducts}
+              totalCount={products.length}
+              isFuzzyFallback={isFuzzyFallback}
+              formatCurrency={formatCurrency}
+              onSelectProduct={setSelectedProduct}
+              selectedProductId={selectedProduct?.id}
+            />
+          </div>
         </div>
         
         {/* Desktop Detail Panel */}

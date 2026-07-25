@@ -83,9 +83,42 @@ export function StockMovements() {
     return <StockMovementsSkeleton />;
   }
 
+  const renderTypeChips = (triggerClass = "") => (
+    <Tabs
+      value={typeFilter}
+      onValueChange={setTypeFilter as any}
+      variant="chips"
+    >
+      <TabsList>
+        {FILTER_TYPES.map((ft) => (
+          <TabsTrigger key={ft.id} value={ft.id} className={triggerClass}>
+            {ft.label}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+    </Tabs>
+  );
+
   return (
     <div className="relative">
-      <div className="bg-card border border-border rounded-2xl flex flex-col flex-1 min-h-[600px]">
+      {/* Mobile: search + chips stand alone above the list; no outer card, immutable-log note hidden */}
+      <div className="md:hidden space-y-3 mb-4">
+        <div className="flex items-center gap-2 bg-card border border-border rounded-[10px] px-3.5 py-2.5">
+          <Search className="w-4 h-4 text-muted-foreground/70 shrink-0" />
+          <input
+            type="text"
+            placeholder="Search by product, reference, or user"
+            className="border-0 outline-none text-[13px] w-full bg-transparent"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        {renderTypeChips(
+          "data-[state=inactive]:bg-card data-[state=inactive]:border-border",
+        )}
+      </div>
+
+      <div className="hidden md:flex bg-card border border-border rounded-2xl flex-col flex-1 min-h-[600px]">
         {/* Header & Filters */}
         <div className="p-4 pb-3 border-b border-border">
           <div className="flex flex-col md:flex-row md:items-center gap-2.5 mb-3">
@@ -104,23 +137,13 @@ export function StockMovements() {
               Immutable log — entries can't be edited
             </div>
           </div>
-          <Tabs
-            value={typeFilter}
-            onValueChange={setTypeFilter as any}
-            variant="chips"
-          >
-            <TabsList>
-              {FILTER_TYPES.map((ft) => (
-                <TabsTrigger key={ft.id} value={ft.id}>
-                  {ft.label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
+          {renderTypeChips(
+            "data-[state=inactive]:bg-card data-[state=inactive]:border-border",
+          )}
         </div>
 
         {/* Desktop Grid Header */}
-        <div className="hidden md:grid grid-cols-[100px_1fr_130px_100px_1fr_120px] gap-2 px-4 py-2.5 text-[11px] font-bold text-muted-foreground/70 uppercase tracking-wide border-b border-border">
+        <div className="grid grid-cols-[100px_1fr_130px_100px_1fr_120px] gap-2 px-4 py-2.5 text-[11px] font-bold text-muted-foreground/70 uppercase tracking-wide border-b border-border">
           <div>Time</div>
           <div>Product</div>
           <div>Type</div>
@@ -136,33 +159,33 @@ export function StockMovements() {
               No movements found.
             </div>
           )}
-          {filteredMovements.length > 0 && (
-            <>
-              {/* Desktop View */}
-              <div className="hidden md:block">
-                {filteredMovements.map((movement) => (
-                  <StockMovementDesktopRow
-                    key={movement.id}
-                    movement={movement}
-                    onSelect={() => setSelectedMovement(movement)}
-                  />
-                ))}
-              </div>
-
-              {/* Mobile View */}
-              <div className="md:hidden mt-4">
-                {Object.entries(groupedMovements).map(([groupLabel, groupItems]) => (
-                  <StockMovementMobileGroup
-                    key={groupLabel}
-                    groupLabel={groupLabel}
-                    movements={groupItems}
-                    onSelect={setSelectedMovement}
-                  />
-                ))}
-              </div>
-            </>
-          )}
+          {filteredMovements.length > 0 &&
+            filteredMovements.map((movement) => (
+              <StockMovementDesktopRow
+                key={movement.id}
+                movement={movement}
+                onSelect={() => setSelectedMovement(movement)}
+              />
+            ))}
         </div>
+      </div>
+
+      {/* Mobile: grouped list, each group already renders its own card */}
+      <div className="md:hidden">
+        {filteredMovements.length === 0 && (
+          <div className="p-8 text-center text-muted-foreground text-[13px]">
+            No movements found.
+          </div>
+        )}
+        {filteredMovements.length > 0 &&
+          Object.entries(groupedMovements).map(([groupLabel, groupItems]) => (
+            <StockMovementMobileGroup
+              key={groupLabel}
+              groupLabel={groupLabel}
+              movements={groupItems}
+              onSelect={setSelectedMovement}
+            />
+          ))}
       </div>
 
       <StockMovementDetailModal

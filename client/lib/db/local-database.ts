@@ -12,6 +12,7 @@ export * from "./schema";
 
 import { query, execute } from "./core";
 import { insert, update, softDelete } from "./base-helpers";
+import { queryClient } from "../query-client";
 
 // --- Specialized Domain Helpers ---
 
@@ -174,6 +175,14 @@ export async function createPrescription(data: any, items: any[]) {
       ...item,
       prescription_id: prescriptionId,
     });
+  }
+
+  // insert("prescriptions", ...) above already invalidated queryKey:
+  // ["prescriptions"] and refetched, but that refetch can race the
+  // prescription_items inserts still running in this loop, caching a
+  // partial medications list. Invalidate again now that all items exist.
+  if (typeof window !== "undefined") {
+    queryClient.invalidateQueries({ queryKey: ["prescriptions"] });
   }
 
   return prescriptionId;

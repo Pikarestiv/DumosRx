@@ -3,6 +3,7 @@ import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/context/auth-context";
+import { queryClient } from "@/lib/query-client";
 import { getAvailableStockBatches } from "@/lib/db/queries/inventory";
 import { createPrescription, generateId } from "@/lib/db/local-database";
 import { getPrescriptionById, getPrescriptionItems, updatePrescriptionRecord, deletePrescriptionItems, insertPrescriptionItem } from "@/lib/db/queries/prescriptions";
@@ -282,6 +283,12 @@ export function useNewPrescription() {
               updated_at: now
           });
         }
+
+        // updatePrescriptionRecord/deletePrescriptionItems/insertPrescriptionItem
+        // all write via raw query() and don't go through the insert/update
+        // helpers that auto-invalidate queryKey: ["prescriptions"] — do it
+        // explicitly so the detail panel reflects the edited medications.
+        queryClient.invalidateQueries({ queryKey: ["prescriptions"] });
 
         toast.success("Prescription updated successfully!");
         cancelEdit();

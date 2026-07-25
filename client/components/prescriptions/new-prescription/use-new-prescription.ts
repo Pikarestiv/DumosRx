@@ -213,6 +213,16 @@ export function useNewPrescription() {
     router.replace(`${pathname}?${params.toString()}`);
   };
 
+  // Closes the "New Prescription" full-screen overlay (PrescriptionManagement
+  // shows it based on the "action"/"edit_rx" params) after a successful create.
+  const closeNewPrescriptionForm = () => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("action");
+    params.delete("edit_rx");
+    const query = params.toString();
+    router.push(`${pathname}${query ? `?${query}` : ""}`);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -317,6 +327,7 @@ export function useNewPrescription() {
         await createPrescription(prescriptionData, prescriptionItems);
         toast.success("Prescription created successfully!");
         resetForm();
+        closeNewPrescriptionForm();
       }
     } catch (err) {
       console.error("Failed to create prescription", err);

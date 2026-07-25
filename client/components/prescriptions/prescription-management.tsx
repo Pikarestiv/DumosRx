@@ -4,9 +4,8 @@ import { PrescriptionStats } from "./prescription-stats";
 import { PrescriptionList } from "./prescription-list";
 import { PrescriptionDetailPanel } from "./prescription-detail-panel";
 import { NewPrescription } from "./new-prescription";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { X } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -65,7 +64,10 @@ export function PrescriptionManagement() {
   };
 
   const handleDispense = (prescription: Prescription) => {
-    updatePrescriptionStatus(prescription.id, "dispensed");
+    // Hand off to POS to actually deduct stock and record the sale — POS
+    // marks the prescription "completed" itself once payment succeeds
+    // (see usePOSPrescription / use-pos-payment.ts).
+    router.push(`/pos?dispense_rx=${prescription.id}`);
   };
 
   return (
@@ -133,11 +135,14 @@ export function PrescriptionManagement() {
       {/* Full Screen Overlay for New Prescription */}
       {showNewPrescription && (
         <div className="fixed inset-0 z-50 bg-background flex flex-col">
-          <div className="flex items-center justify-between p-4 border-b border-border bg-card">
-            <h2 className="text-xl font-semibold font-serif">New Prescription</h2>
-            <Button variant="ghost" size="icon" onClick={closeNewPrescription}>
-              <X className="w-5 h-5" />
-            </Button>
+          <div className="flex items-center gap-3 px-4 py-4 border-b border-border bg-card shrink-0">
+            <div
+              className="w-[38px] h-[38px] rounded-[10px] bg-muted flex items-center justify-center cursor-pointer text-muted-foreground shrink-0 hover:bg-muted/80 transition-colors"
+              onClick={closeNewPrescription}
+            >
+              <ArrowLeft className="w-[17px] h-[17px]" />
+            </div>
+            <h2 className="text-[17px] font-serif font-bold">New Prescription</h2>
           </div>
           <div className="flex-1 overflow-y-auto p-4">
             <div className="max-w-4xl mx-auto">

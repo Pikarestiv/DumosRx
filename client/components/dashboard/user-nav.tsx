@@ -1,8 +1,8 @@
 "use client";
 
+import { Fragment, useState, useEffect } from "react";
 import { useAuth } from "@/lib/context/auth-context";
 import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getSyncQueueCount } from "@/lib/db/queries/setup";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -29,12 +29,21 @@ import {
   Settings2,
   Settings,
   MessageSquare,
+  type LucideIcon,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { ThemeCustomizer } from "@/components/ui/theme-customizer";
 import { getUserInitials } from "@/lib/utils";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
+
+interface NavAction {
+  key: string;
+  label: string;
+  icon: LucideIcon;
+  onClick: () => void;
+  destructive?: boolean;
+}
 
 const NavTrigger = ({
   initials,
@@ -78,7 +87,7 @@ const NavTrigger = ({
 );
 
 const MobileAppearanceSettings = () => (
-  <div className="flex items-center justify-between p-3.5 bg-muted/30 rounded-xl border border-border/40">
+  <div className="flex items-center justify-between px-3.5 py-2 bg-muted/30 border-b border-border">
     <div className="flex items-center gap-3">
       <Settings2 className="h-[18px] w-[18px] text-muted-foreground" />
       <span className="font-medium text-sm">Appearance</span>
@@ -88,6 +97,24 @@ const MobileAppearanceSettings = () => (
       <ThemeCustomizer />
     </div>
   </div>
+);
+
+/** Direct link to /settings, shown at the far right of the avatar/name/role row. */
+const SettingsIconButton = ({
+  onClick,
+  size = "icon",
+}: {
+  onClick: () => void;
+  size?: "default" | "sm" | "lg" | "icon" | null | undefined;
+}) => (
+  <Button
+    variant="ghost"
+    size={size}
+    className="shrink-0 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50"
+    onClick={onClick}
+  >
+    <Settings className="h-4 w-4" />
+  </Button>
 );
 
 interface UserNavProps {
@@ -152,6 +179,42 @@ export function UserNav({
     handleLogoutAttempt("full");
   };
 
+  const goToSettings = () => {
+    setOpen(false);
+    router.push("/settings");
+  };
+
+  // Shared between the desktop dropdown and the mobile drawer so the two
+  // don't drift out of sync — only the surrounding markup differs per surface.
+  const navActions: NavAction[] = [
+    ...(onOpenFeedback
+      ? [
+          {
+            key: "feedback",
+            label: "Help & Feedback",
+            icon: MessageSquare,
+            onClick: () => {
+              setOpen(false);
+              onOpenFeedback();
+            },
+          },
+        ]
+      : []),
+    {
+      key: "switch",
+      label: "Switch Account",
+      icon: Repeat,
+      onClick: handleSwitchAccount,
+    },
+    {
+      key: "logout",
+      label: "Log out completely",
+      icon: LogOut,
+      onClick: handleFullLogout,
+      destructive: true,
+    },
+  ];
+
   const renderDesktopMenu = () => (
     <div className={cn("flex items-center gap-1", showDetails ? "w-full" : "")}>
       <DropdownMenu open={open} onOpenChange={setOpen}>
@@ -167,7 +230,7 @@ export function UserNav({
 
         <DropdownMenuContent
           className="w-56"
-          align={showDetails ? "end" : "end"}
+          align="end"
           side={showDetails ? "right" : "bottom"}
           forceMount
         >
@@ -190,50 +253,38 @@ export function UserNav({
               <ThemeCustomizer />
             </div>
           </div>
+          <DropdownMenuSeparator />
 
-          <DropdownMenuSeparator />
-          {onOpenFeedback && (
-            <>
+          {navActions.map((action, idx) => (
+            <Fragment key={action.key}>
               <DropdownMenuItem
-                onClick={() => {
-                  setOpen(false);
-                  onOpenFeedback();
-                }}
-                className="cursor-pointer group"
+                onClick={action.onClick}
+                className={cn(
+                  "cursor-pointer",
+                  action.destructive
+                    ? "text-destructive focus:text-destructive"
+                    : "group",
+                )}
               >
-                <MessageSquare className="mr-2 h-4 w-4 group-hover:text-white group-focus:text-white transition-colors" />
-                <span>Help & Feedback</span>
+                <action.icon
+                  className={cn(
+                    "mr-2 h-4 w-4",
+                    action.destructive
+                      ? "text-destructive"
+                      : "group-hover:text-white group-focus:text-white transition-colors",
+                  )}
+                />
+                <span>{action.label}</span>
               </DropdownMenuItem>
-              <DropdownMenuSeparator />
-            </>
-          )}
-          <DropdownMenuItem
-            onClick={handleSwitchAccount}
-            className="cursor-pointer group"
-          >
-            <Repeat className="mr-2 h-4 w-4 group-hover:text-white group-focus:text-white transition-colors" />
-            <span>Switch Account</span>
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onClick={handleFullLogout}
-            className="cursor-pointer text-destructive focus:text-destructive"
-          >
-            <LogOut className="mr-2 h-4 w-4 text-destructive" />
-            <span>Log out completely</span>
-          </DropdownMenuItem>
+              {idx < navActions.length - 1 && <DropdownMenuSeparator />}
+            </Fragment>
+          ))}
         </DropdownMenuContent>
       </DropdownMenu>
-      {/* {!!showDetails && (
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 shrink-0 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50"
-          onClick={() => router.push("/settings")}
-        >
-          <Settings className="h-4 w-4" />
-        </Button>
-      )} */}
+      {/* Direct settings shortcut disabled on desktop for now — re-enable by
+          uncommenting once we're happy with where it lands next to the trigger.
+      {!!showDetails && <SettingsIconButton onClick={() => router.push("/settings")} />}
+      */}
     </div>
   );
 
@@ -249,7 +300,7 @@ export function UserNav({
         className="p-0 pb-5 rounded-t-xl"
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
-        <DrawerHeader className="flex flex-row items-center gap-3 px-5 pt-5 pb-4 text-left border-b border-border/40 space-y-0">
+        <DrawerHeader className="flex flex-row items-center gap-3 mx-5 pt-0 text-left border-b border-border space-y-0">
           <Avatar className="h-10 w-10 border border-border shrink-0">
             <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
               {initials}
@@ -263,50 +314,40 @@ export function UserNav({
               {user.role.replace(/_/g, " ")}
             </p>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 shrink-0 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50"
-            onClick={() => {
-              setOpen(false);
-              router.push("/settings");
-            }}
-          >
-            <Settings className="h-4 w-4" />
-          </Button>
+          <SettingsIconButton size="lg" onClick={goToSettings} />
         </DrawerHeader>
 
-        <div className="px-4 pt-3 space-y-0.5">
+        {/* Bottom padding clears the fixed mobile bottom navbar (h-16) plus
+            the safe-area/Tauri inset it already pads itself with, so the
+            last action isn't sitting behind/under it. */}
+        <div
+          className="px-4 space-y-0.5"
+          style={{
+            paddingBottom:
+              "calc(4rem + var(--tauri-bottom, env(safe-area-inset-bottom, 0px)))",
+          }}
+        >
           <MobileAppearanceSettings />
 
-          {onOpenFeedback && (
-            <button
-              onClick={() => {
-                setOpen(false);
-                onOpenFeedback();
-              }}
-              className="w-full flex items-center gap-3 p-3 rounded-xl text-sm font-medium text-foreground hover:bg-muted transition-colors border border-transparent"
-            >
-              <MessageSquare className="h-[18px] w-[18px] opacity-90" />
-              <span>Help & Feedback</span>
-            </button>
-          )}
+          {navActions.map((action, idx) => (
+            <>
+              <button
+                key={action.key}
+                onClick={action.onClick}
+                className={cn(
+                  "w-full flex items-center gap-3 p-3 text-sm font-medium transition-colors",
+                  action.destructive
+                    ? "text-destructive hover:bg-destructive/10"
+                    : "text-foreground hover:bg-muted",
+                )}
+              >
+                <action.icon className="h-[18px] w-[18px] opacity-90" />
+                <span>{action.label}</span>
+              </button>
 
-          <button
-            onClick={handleSwitchAccount}
-            className="w-full flex items-center gap-3 p-3 rounded-xl text-sm font-medium text-foreground hover:bg-muted transition-colors border border-transparent"
-          >
-            <Repeat className="h-[18px] w-[18px] opacity-90" />
-            <span>Switch Account</span>
-          </button>
-
-          <button
-            onClick={handleFullLogout}
-            className="w-full flex items-center gap-3 p-3 rounded-xl text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors border border-transparent"
-          >
-            <LogOut className="h-[18px] w-[18px] opacity-90" />
-            <span>Log out completely</span>
-          </button>
+              {idx < navActions.length - 1 && <DropdownMenuSeparator />}
+            </>
+          ))}
         </div>
       </DrawerContent>
     </Drawer>

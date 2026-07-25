@@ -92,13 +92,6 @@ if (existingTags.includes(tagName)) {
   fail(`Tag ${tagName} already exists locally. Pick a different version, or delete it first if this was a mistake.`);
 }
 
-try {
-  run(`git rev-parse ${tagName}`);
-  fail(`Tag ${tagName} already exists (unexpectedly found via rev-parse).`);
-} catch {
-  // Good — tag doesn't exist yet.
-}
-
 // ---------------------------------------------------------------------------
 // 3. Locate current version (from package.json) and confirm the bump direction
 // ---------------------------------------------------------------------------

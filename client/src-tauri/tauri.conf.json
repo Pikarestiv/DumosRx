@@ -52,10 +52,8 @@
     "process": {},
     "updater": {
       "active": true,
-      "endpoints": [
-        "https://downloads.dumosrx.com/updater.json"
-      ],
-      "pubkey": "RWQ//On7ZRE1h4f52RC+NR6tEGjrAoDw60olPbWzdGgB0ULzoQZdnQUm"
+      "endpoints": ["https://downloads.dumosrx.com/updater.json"],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDg3MzUxMTY1RkJFOUZDM0YKUldRLy9PbjdaUkUxaDRmNTJSQytOUjZ0RUdqckFvRHc2MG9sUGJXemRHZ0IwVUx6b1FaZG5RVW0K"
     }
   }
 }

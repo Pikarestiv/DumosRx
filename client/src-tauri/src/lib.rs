@@ -1,3 +1,28 @@
+#[cfg(target_os = "android")]
+#[tauri::command]
+fn set_nav_bar_light(window: tauri::WebviewWindow, is_light: bool) {
+  use jni::objects::JValue;
+
+  let _ = window.with_webview(move |webview| {
+    webview.jni_handle().exec(move |env, activity, _webview| {
+      if let Err(e) = env.call_method(
+        activity,
+        "setNavigationBarLight",
+        "(Z)V",
+        &[JValue::Bool(is_light as u8)],
+      ) {
+        log::error!("Failed to set navigation bar appearance: {:?}", e);
+      }
+    });
+  });
+}
+
+#[cfg(not(target_os = "android"))]
+#[tauri::command]
+fn set_nav_bar_light(is_light: bool) {
+  let _ = is_light;
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   std::panic::set_hook(Box::new(|info| {
@@ -21,6 +46,7 @@ pub fn run() {
     .plugin(tauri_plugin_updater::Builder::new().build())
     .plugin(tauri_plugin_process::init())
     .plugin(tauri_plugin_os::init())
+    .invoke_handler(tauri::generate_handler![set_nav_bar_light])
     .setup(|app| {
       if cfg!(debug_assertions) {
         app.handle().plugin(

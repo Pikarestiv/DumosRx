@@ -191,20 +191,26 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         )}
         style={{
           height: "100dvh",
-          paddingTop: "var(--tauri-top, 0px)",
+          // On POS routes there's no header to carry the inset — keep it here.
+          // Elsewhere it moves onto the banner/header block below so its own
+          // background (not this wrapper's, which can be a different shade)
+          // paints all the way up under the status bar, avoiding a seam.
+          paddingTop: isPosRoute ? "var(--tauri-top, 0px)" : undefined,
         }}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
-        <div className="print:hidden shrink-0">
+        <div
+          className="print:hidden shrink-0 bg-card sm:bg-background"
+          style={{
+            paddingTop: !isPosRoute ? "var(--tauri-top, 0px)" : undefined,
+          }}
+        >
           <BroadcastBanner />
-        </div>
-
-        {!isPosRoute && (
-          <div className="print:hidden shrink-0">
+          {!isPosRoute && (
             <DashboardHeader onOpenFeedback={() => setFeedbackOpen(true)} />
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Page content — scrolls internally */}
         <div className={cn("flex-1 relative overflow-x-clip", !isPosRoute && "overflow-y-auto")}>

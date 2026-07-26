@@ -205,8 +205,9 @@ jobs:
           cd release-assets
           node -e "
             const fs = require('fs');
-            const version = '${{ github.ref_name }}'.replace(/^v/, '');
-            
+            const tag = '${{ github.ref_name }}';
+            const version = tag.replace(/^v/, '');
+
             const files = fs.readdirSync('.');
             const sigFiles = files.filter(f => f.endsWith('.sig'));
             
@@ -228,7 +229,7 @@ jobs:
               if (platform) {
                 platforms[platform] = {
                   signature: sig,
-                  url: \`https://downloads.dumosrx.com/\${{ github.ref_name }}/\${baseFile}\`
+                  url: \`https://downloads.dumosrx.com/\${tag}/\${baseFile}\`
                 };
               }
             }

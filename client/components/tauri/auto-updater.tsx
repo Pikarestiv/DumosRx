@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { isTauri } from "@/lib/db/core";
 import { DOWNLOAD_URL, UPDATER_JSON_URL } from "@/lib/constants";
+import { logCrash } from "@/lib/utils/error-logger";
 
 type UpdateStatus = "idle" | "checking" | "available" | "downloading" | "downloading-silent" | "ready-to-restart" | "error" | "up-to-date" | "mobile-available";
 
@@ -54,6 +55,7 @@ export function AutoUpdater() {
       }
     } catch (error) {
       console.error("Failed to check mobile updates", error);
+      logCrash(`[Updater] Failed to check mobile updates: ${error}`);
     }
   };
 
@@ -91,6 +93,7 @@ export function AutoUpdater() {
       }
     } catch (error) {
       console.error("Failed to check for updates", error);
+      logCrash(`[Updater] Failed to check for updates: ${error}`);
       if (!silent) {
         setStatus("error");
         setTimeout(() => setStatus("idle"), 5000);
@@ -134,6 +137,9 @@ export function AutoUpdater() {
       }
     } catch (error) {
       console.error("Failed to install update", error);
+      logCrash(
+        `[Updater] Failed to download/install update to v${updateToInstall?.version}: ${error}`,
+      );
       if (!silent) toast.error("Failed to install the update.");
       setStatus("error");
       setTimeout(() => setStatus("idle"), 5000);

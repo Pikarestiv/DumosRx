@@ -45,8 +45,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     } catch {}
   }, []);
 
-  const TABS = ["/dashboard", "/pos", "/inventory", "/customers"];
-  const { handleTouchStart, handleTouchEnd } = useSwipeNavigation(TABS);
+  const [moreDrawerOpen, setMoreDrawerOpen] = useState(false);
+  // Order matches the bottom nav's visual left-to-right layout, so swiping
+  // steps through tabs in the order they're actually shown on screen.
+  const TABS = ["/dashboard", "/inventory", "/pos", "/customers"];
+  const { handleTouchStart, handleTouchEnd, direction } = useSwipeNavigation(
+    TABS,
+    { onSwipePastEnd: () => setMoreDrawerOpen(true) },
+  );
 
   const isPosRoute = pathname.startsWith("/pos");
   const [hoverExpanded, setHoverExpanded] = useState(false);
@@ -176,7 +182,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
       {!isPosRoute && (
         <div className="print:hidden">
-          <MobileBottomNav onOpenFeedback={() => setFeedbackOpen(true)} />
+          <MobileBottomNav
+            onOpenFeedback={() => setFeedbackOpen(true)}
+            moreDrawerOpen={moreDrawerOpen}
+            onMoreDrawerOpenChange={setMoreDrawerOpen}
+          />
         </div>
       )}
 
@@ -220,7 +230,19 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               paddingBottom: "calc(5.5rem + var(--tauri-bottom, env(safe-area-inset-bottom, 0px)))",
             } : undefined}
           >
-            {children}
+            <div
+              key={pathname}
+              className={cn(
+                !isPosRoute &&
+                  direction === "left" &&
+                  "animate-in slide-in-from-right-8 fade-in duration-200",
+                !isPosRoute &&
+                  direction === "right" &&
+                  "animate-in slide-in-from-left-8 fade-in duration-200",
+              )}
+            >
+              {children}
+            </div>
           </main>
         </div>
       </div>

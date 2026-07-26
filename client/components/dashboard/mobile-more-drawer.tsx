@@ -92,7 +92,7 @@ export function MobileMoreDrawer({
             </DrawerTitle>
           </DrawerHeader>
 
-          <div className="px-6 pb-4">
+          {/* <div className="px-6 pb-4">
             <form
               className="relative"
               onSubmit={(e) => {
@@ -114,7 +114,7 @@ export function MobileMoreDrawer({
               />
               <button type="submit" className="hidden" />
             </form>
-          </div>
+          </div> */}
 
           <div className="flex-1 overflow-y-auto px-4">
             <div className="space-y-1">

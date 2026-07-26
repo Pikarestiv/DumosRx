@@ -295,6 +295,37 @@ header .group:hover svg,
   }
 }
 
+/* Soft filled pill inputs inside ResponsiveModal (components/ui/responsive-modal.tsx) */
+.responsive-modal-fields [data-slot="input"],
+.responsive-modal-fields [data-slot="select-trigger"],
+.responsive-modal-fields textarea {
+  border: none;
+  background-color: color-mix(in oklch, var(--muted) 50%, transparent);
+  border-radius: 0.75rem;
+  box-shadow: none;
+}
+.responsive-modal-fields [data-slot="input"]:focus-visible,
+.responsive-modal-fields [data-slot="select-trigger"]:focus-visible,
+.responsive-modal-fields textarea:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 1px var(--primary);
+}
+
+@keyframes scan-line {
+  0% {
+    top: 0;
+  }
+  50% {
+    top: calc(100% - 2px);
+  }
+  100% {
+    top: 0;
+  }
+}
+.animate-scan-line {
+  animation: scan-line 2.2s ease-in-out infinite;
+}
+
 @layer utilities {
   .hide-scrollbar {
     -ms-overflow-style: none;  /* IE and Edge */

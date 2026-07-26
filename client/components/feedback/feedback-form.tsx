@@ -28,7 +28,10 @@ export function FeedbackForm({ open, onOpenChange }: FeedbackFormProps) {
   const { user } = useAuth();
   const [type, setType] = useState("bug");
   const [content, setContent] = useState("");
-  const [email, setEmail] = useState(user?.username || "");
+  const [email, setEmail] = useState(() => {
+    const username = user?.username || "";
+    return username.charAt(0).toUpperCase() + username.slice(1);
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async () => {
@@ -62,8 +65,18 @@ export function FeedbackForm({ open, onOpenChange }: FeedbackFormProps) {
   };
 
   return (
-    <ResponsiveModal open={open} onOpenChange={onOpenChange} title={<><MessageSquare className="h-6 w-6 text-primary" />
-            Send Feedback</>} description={<>Help us improve {process.env.NEXT_PUBLIC_APP_NAME || "DumosRx"}. Tell us about a bug, suggest a feature, or just say hello!</>} className="sm:max-w-[500px]">
+    <ResponsiveModal
+      open={open}
+      onOpenChange={onOpenChange}
+      title={
+        <span className="flex items-center justify-center sm:justify-start gap-2">
+          <MessageSquare className="h-5 w-5 text-primary shrink-0" />
+          Send Feedback
+        </span>
+      }
+      description={<>Help us improve {process.env.NEXT_PUBLIC_APP_NAME || "DumosRx"}. Tell us about a bug, suggest a feature, or just say hello!</>}
+      className="sm:max-w-[500px]"
+    >
 
         <div className="space-y-4 py-4">
           <div className="space-y-2">

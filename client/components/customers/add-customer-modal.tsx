@@ -1,7 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { DialogFooter } from "@/components/ui/dialog";
+import { ResponsiveModal } from "@/components/ui/responsive-modal";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface AddCustomerModalProps {
   isOpen: boolean;
@@ -11,13 +22,15 @@ interface AddCustomerModalProps {
 
 export function AddCustomerModal({ isOpen, onClose, onSubmit }: AddCustomerModalProps) {
   const [loading, setLoading] = useState(false);
+  const [gender, setGender] = useState("");
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     const formData = new FormData(e.currentTarget);
     const payload = Object.fromEntries(formData.entries());
-    
+    payload.gender = gender;
+
     try {
       await onSubmit(payload);
     } finally {
@@ -26,116 +39,80 @@ export function AddCustomerModal({ isOpen, onClose, onSubmit }: AddCustomerModal
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[600px] bg-background">
-        <DialogHeader>
-          <DialogTitle className="text-[18px] font-bold">Add New Customer</DialogTitle>
-        </DialogHeader>
-
+    <ResponsiveModal
+      open={isOpen}
+      onOpenChange={(open) => !open && onClose()}
+      title={<span className="font-serif font-bold">Add New Customer</span>}
+      className="sm:max-w-xl max-h-[90vh] overflow-hidden flex flex-col"
+    >
+      <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-[12px] font-medium text-foreground">First Name *</label>
-              <input 
-                name="first_name" 
-                required
-                placeholder="Jane"
-                className="w-full bg-secondary/50 border-none rounded-[10px] px-3 py-2 text-[13px] focus:ring-1 focus:ring-primary outline-none" 
-              />
+            <div className="space-y-2">
+              <Label htmlFor="first_name">First Name *</Label>
+              <Input id="first_name" name="first_name" required placeholder="Jane" />
             </div>
-            <div className="space-y-1.5">
-              <label className="text-[12px] font-medium text-foreground">Last Name</label>
-              <input 
-                name="last_name" 
-                placeholder="Doe"
-                className="w-full bg-secondary/50 border-none rounded-[10px] px-3 py-2 text-[13px] focus:ring-1 focus:ring-primary outline-none" 
-              />
+            <div className="space-y-2">
+              <Label htmlFor="last_name">Last Name</Label>
+              <Input id="last_name" name="last_name" placeholder="Doe" />
             </div>
-            <div className="space-y-1.5">
-              <label className="text-[12px] font-medium text-foreground">Email</label>
-              <input 
-                name="email" 
-                type="email"
-                placeholder="jane@example.com"
-                className="w-full bg-secondary/50 border-none rounded-[10px] px-3 py-2 text-[13px] focus:ring-1 focus:ring-primary outline-none" 
-              />
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input id="email" name="email" type="email" placeholder="jane@example.com" />
             </div>
-            <div className="space-y-1.5">
-              <label className="text-[12px] font-medium text-foreground">Phone Number</label>
-              <input 
-                name="phone" 
-                placeholder="+234..."
-                className="w-full bg-secondary/50 border-none rounded-[10px] px-3 py-2 text-[13px] focus:ring-1 focus:ring-primary outline-none" 
-              />
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone Number</Label>
+              <Input id="phone" name="phone" type="tel" placeholder="+234..." />
             </div>
-            <div className="space-y-1.5 col-span-2">
-              <label className="text-[12px] font-medium text-foreground">Address</label>
-              <input 
-                name="address" 
-                placeholder="123 Main St..."
-                className="w-full bg-secondary/50 border-none rounded-[10px] px-3 py-2 text-[13px] focus:ring-1 focus:ring-primary outline-none" 
-              />
+            <div className="space-y-2 col-span-2">
+              <Label htmlFor="address">Address</Label>
+              <Input id="address" name="address" placeholder="123 Main St..." />
             </div>
-            <div className="space-y-1.5">
-              <label className="text-[12px] font-medium text-foreground">Date of Birth</label>
-              <input 
-                name="date_of_birth" 
-                type="date"
-                className="w-full bg-secondary/50 border-none rounded-[10px] px-3 py-2 text-[13px] focus:ring-1 focus:ring-primary outline-none" 
-              />
+            <div className="space-y-2">
+              <Label htmlFor="date_of_birth">Date of Birth</Label>
+              <Input id="date_of_birth" name="date_of_birth" type="date" />
             </div>
-            <div className="space-y-1.5">
-              <label className="text-[12px] font-medium text-foreground">Gender</label>
-              <select 
-                name="gender"
-                className="w-full bg-secondary/50 border-none rounded-[10px] px-3 py-2 text-[13px] focus:ring-1 focus:ring-primary outline-none"
-              >
-                <option value="">Select Gender</option>
-                <option value="male">Male</option>
-                <option value="female">Female</option>
-                <option value="other">Other</option>
-              </select>
+            <div className="space-y-2">
+              <Label htmlFor="gender">Gender</Label>
+              <Select value={gender} onValueChange={setGender}>
+                <SelectTrigger id="gender" className="w-full">
+                  <SelectValue placeholder="Select Gender" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="male">Male</SelectItem>
+                  <SelectItem value="female">Female</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
-          
+
           <div className="pt-4 border-t space-y-4">
             <h4 className="text-[14px] font-semibold">Medical Information</h4>
-            <div className="space-y-1.5">
-              <label className="text-[12px] font-medium text-foreground">Allergies (Optional)</label>
-              <input 
-                name="allergies" 
-                placeholder="e.g. Penicillin, Peanuts"
-                className="w-full bg-secondary/50 border-none rounded-[10px] px-3 py-2 text-[13px] focus:ring-1 focus:ring-primary outline-none" 
-              />
+            <div className="space-y-2">
+              <Label htmlFor="allergies">Allergies (Optional)</Label>
+              <Input id="allergies" name="allergies" placeholder="e.g. Penicillin, Peanuts" />
             </div>
-            <div className="space-y-1.5">
-              <label className="text-[12px] font-medium text-foreground">Pre-existing Conditions (Optional)</label>
-              <input 
-                name="medical_conditions" 
+            <div className="space-y-2">
+              <Label htmlFor="medical_conditions">Pre-existing Conditions (Optional)</Label>
+              <Input
+                id="medical_conditions"
+                name="medical_conditions"
                 placeholder="e.g. Asthma, Diabetes"
-                className="w-full bg-secondary/50 border-none rounded-[10px] px-3 py-2 text-[13px] focus:ring-1 focus:ring-primary outline-none" 
               />
             </div>
           </div>
 
-          <DialogFooter className="mt-6">
-            <button 
-              type="button" 
-              onClick={onClose}
-              className="px-4 py-2 border rounded-[10px] text-[13px] font-semibold hover:bg-secondary transition-colors"
-            >
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>
               Cancel
-            </button>
-            <button 
-              type="submit" 
-              disabled={loading}
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-[10px] text-[13px] font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50"
-            >
+            </Button>
+            <Button type="submit" disabled={loading} className="bg-accent hover:bg-accent/90">
               {loading ? "Saving..." : "Save Customer"}
-            </button>
+            </Button>
           </DialogFooter>
         </form>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </ResponsiveModal>
   );
 }

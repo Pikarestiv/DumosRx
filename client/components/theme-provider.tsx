@@ -2,6 +2,7 @@
 
 import type * as React from "react";
 import { createContext, useContext, useEffect, useState } from "react";
+import { isTauri } from "@/lib/db/core";
 
 export type Theme = "dark" | "light" | "system";
 
@@ -41,17 +42,22 @@ export function ThemeProvider({
 
     root.classList.remove("light", "dark");
 
-    if (theme === "system") {
-      const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
-        .matches
-        ? "dark"
-        : "light";
+    const resolvedTheme =
+      theme === "system"
+        ? window.matchMedia("(prefers-color-scheme: dark)").matches
+          ? "dark"
+          : "light"
+        : theme;
 
-      root.classList.add(systemTheme);
-      return;
+    root.classList.add(resolvedTheme);
+
+    if (isTauri()) {
+      import("@tauri-apps/api/core").then(({ invoke }) => {
+        invoke("set_nav_bar_light", { isLight: resolvedTheme === "light" }).catch(
+          () => {},
+        );
+      });
     }
-
-    root.classList.add(theme);
   }, [theme]);
 
   const value = {

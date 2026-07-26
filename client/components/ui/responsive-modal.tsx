@@ -53,7 +53,7 @@ export function ResponsiveModal({
               <DialogDescription>{description}</DialogDescription>
             )}
           </DialogHeader>
-          {children}
+          <div className="responsive-modal-fields">{children}</div>
         </DialogContent>
       </Dialog>
     );
@@ -76,7 +76,7 @@ export function ResponsiveModal({
             <span className="sr-only">Close</span>
           </DrawerClose>
         </DrawerHeader>
-        {children}
+        <div className="responsive-modal-fields">{children}</div>
       </DrawerContent>
     </Drawer>
   );

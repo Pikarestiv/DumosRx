@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useStore } from "@/lib/context/store-context";
@@ -17,12 +16,17 @@ import {
 
 interface MobileBottomNavProps {
   onOpenFeedback: () => void;
+  moreDrawerOpen: boolean;
+  onMoreDrawerOpenChange: (open: boolean) => void;
 }
 
-export function MobileBottomNav({ onOpenFeedback }: MobileBottomNavProps) {
+export function MobileBottomNav({
+  onOpenFeedback,
+  moreDrawerOpen,
+  onMoreDrawerOpenChange,
+}: MobileBottomNavProps) {
   const pathname = usePathname();
   const { storeType } = useStore();
-  const [moreDrawerOpen, setMoreDrawerOpen] = useState(false);
 
   const leftTabs = [
     { name: "Home", href: "/dashboard", icon: Home },
@@ -134,7 +138,7 @@ export function MobileBottomNav({ onOpenFeedback }: MobileBottomNavProps) {
 
             {/* More Button */}
             <button
-              onClick={() => setMoreDrawerOpen(true)}
+              onClick={() => onMoreDrawerOpenChange(true)}
               className={cn(
                 "relative flex flex-col items-center justify-center w-full h-full space-y-1 transition-all outline-none",
                 isMoreActive
@@ -160,7 +164,7 @@ export function MobileBottomNav({ onOpenFeedback }: MobileBottomNavProps) {
 
       <MobileMoreDrawer
         open={moreDrawerOpen}
-        onOpenChange={setMoreDrawerOpen}
+        onOpenChange={onMoreDrawerOpenChange}
         onOpenFeedback={onOpenFeedback}
       />
     </>

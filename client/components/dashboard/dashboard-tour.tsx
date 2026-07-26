@@ -2,14 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { Joyride, STATUS, Step, EventData } from "react-joyride";
+import { shift } from "@floating-ui/react-dom";
 
 export function DashboardTour() {
   const [run, setRun] = useState(false);
 
   useEffect(() => {
     const hasSeenTour = localStorage.getItem("dumos_client_tour_completed");
-    const snoozedUntil = localStorage.getItem("dumos_client_tour_snoozed_until");
-    
+    const snoozedUntil = localStorage.getItem(
+      "dumos_client_tour_snoozed_until",
+    );
+
     const isSnoozed = snoozedUntil && parseInt(snoozedUntil, 10) > Date.now();
 
     if (!hasSeenTour && !isSnoozed) {
@@ -95,7 +98,10 @@ export function DashboardTour() {
       setRun(false);
       // Snooze for 24 hours (24 * 60 * 60 * 1000 ms)
       const snoozeTime = Date.now() + 24 * 60 * 60 * 1000;
-      localStorage.setItem("dumos_client_tour_snoozed_until", snoozeTime.toString());
+      localStorage.setItem(
+        "dumos_client_tour_snoozed_until",
+        snoozeTime.toString(),
+      );
     }
   };
 
@@ -108,6 +114,13 @@ export function DashboardTour() {
       run={run}
       scrollToFirstStep
       steps={steps}
+      floatingOptions={{
+        middleware: [
+          shift({
+            padding: 24, // Assigns 24px of breathing room from screen edges
+          }),
+        ],
+      }}
       locale={{ last: "Finish" }}
       styles={{
         tooltipContainer: {
@@ -115,7 +128,7 @@ export function DashboardTour() {
         },
         buttonPrimary: {
           backgroundColor: "var(--color-primary)",
-          borderRadius: "8px",
+          borderRadius: "16px",
         },
         buttonBack: {
           marginRight: 10,
@@ -129,6 +142,8 @@ export function DashboardTour() {
         zIndex: 1000,
         showProgress: true,
         buttons: ["back", "close", "primary", "skip"],
+        spotlightPadding: 20, // gap between the target and the overlay cutout
+        offset: 10, // distance between the tooltip and the spotlight
       }}
     />
   );

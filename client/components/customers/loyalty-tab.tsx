@@ -7,6 +7,7 @@ import { Tag } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { getLoyaltyRedemptionOptions } from "@/lib/db/queries/loyalty";
 import { LoyaltySettingsDialog } from "./loyalty-settings-dialog";
+import { ResponsiveTabLabel } from "@/components/ui/responsive-tab-label";
 import { REDEMPTION_ICONS, REDEMPTION_ICON_BG } from "./loyalty-icons";
 
 interface Tier {
@@ -48,7 +49,7 @@ export function LoyaltyTab({
             onClick={() => setSettingsOpen(true)}
             className="text-[13px] font-medium border px-3 py-1.5 rounded-[8px] hover:bg-primary/10"
           >
-            Edit Settings
+            <ResponsiveTabLabel short="Edit" long="Edit Settings" />
           </button>
         </div>
 

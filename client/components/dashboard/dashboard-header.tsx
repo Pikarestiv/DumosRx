@@ -240,7 +240,7 @@ export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
                 }
               >
                 <Plus className="h-3.5 w-3.5 mr-1" />
-                New
+                {pageInfo?.action ? pageInfo.action.label : "New Sale"}
               </Button>
             </div>
           </>

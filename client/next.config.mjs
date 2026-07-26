@@ -15,13 +15,19 @@ function getLocalIps() {
 
 const localIps = getLocalIps();
 const devHost = localIps.length > 0 ? localIps[0] : "localhost";
+// Tauri sets this on beforeDevCommand for `tauri android dev` / `tauri ios dev`.
+// Only set assetPrefix in that case — the mobile webview loads pages from the
+// LAN devUrl and needs an absolute prefix to resolve JS chunks/HMR correctly.
+// Setting it unconditionally (including for plain `npm run dev`) broke Fast
+// Refresh and caused a full reload on every navigation instead.
+const isTauriMobileDev = process.env.TAURI_ENV_MOBILE === "true";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: "export",
   // Allow Tauri to load chunks properly if needed
   allowedDevOrigins: ["tauri.localhost", "localhost", "127.0.0.1", "10.0.2.2", ...localIps],
-  // assetPrefix: process.env.NODE_ENV === "development" ? `http://${devHost}:3000` : undefined,
+  assetPrefix: isTauriMobileDev ? `http://${devHost}:3000` : undefined,
   // rewrites() are not supported in static export
   // async rewrites() {
   //   const REMOTE_API_ROOT = "https://api.dumosrx.com";

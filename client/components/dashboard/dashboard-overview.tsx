@@ -235,7 +235,7 @@ export function DashboardOverview() {
         </div>
 
         <div className="order-1 lg:order-2 h-full">
-          <DashboardQuickActions productTerm={t("product")} />
+          <DashboardQuickActions />
         </div>
       </div>
 

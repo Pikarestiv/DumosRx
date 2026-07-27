@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { POAddItemForm } from "@/components/procurement/po-add-item-form";
 import { POLineItemsList } from "@/components/procurement/po-line-items-list";
+import { POMobileSummaryDrawer } from "@/components/procurement/po-mobile-summary-drawer";
 import { AddProductDialog } from "@/components/products/add-product-dialog";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { createProduct, createPurchaseOrder } from "@/lib/db/local-database";
@@ -42,7 +43,9 @@ export default function CreateOrderPage() {
 
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
   const [initialProductData, setInitialProductData] = useState<any>(null);
-  const [newlyCreatedProductId, setNewlyCreatedProductId] = useState<string | null>(null);
+  const [newlyCreatedProductId, setNewlyCreatedProductId] = useState<
+    string | null
+  >(null);
 
   const { suppliers, products, refetch: fetchData } = useProcurementData();
 
@@ -76,7 +79,7 @@ export default function CreateOrderPage() {
 
       // Refresh products list
       await fetchData();
-      await queryClient.invalidateQueries({ queryKey: ['productList'] });
+      await queryClient.invalidateQueries({ queryKey: ["productList"] });
       setNewlyCreatedProductId(newProductId);
 
       if (!keepOpen) {
@@ -133,128 +136,145 @@ export default function CreateOrderPage() {
   }, [suppliers, selectedSupplierId]);
 
   return (
-    <div className="flex flex-col min-h-0 bg-card border border-border rounded-2xl overflow-hidden h-[calc(100vh-120px)] shadow-sm">
-      <div className="flex items-center gap-3 px-6 py-5 border-b border-border bg-card shrink-0">
+    <>
+      {/* Mobile: full-screen takeover, just like POS */}
+      <div
+        className="lg:hidden fixed inset-0 z-40 bg-background flex flex-col"
+        style={{ height: "100dvh" }}
+      >
         <div
-          className="w-[38px] h-[38px] rounded-[10px] bg-muted flex items-center justify-center cursor-pointer text-muted-foreground shrink-0 hover:bg-muted/80 transition-colors"
-          onClick={() => router.push("/procurement")}
+          className="flex items-center gap-3 px-4 border-b border-border bg-card shrink-0"
+          style={{
+            paddingTop:
+              "calc(var(--tauri-top, env(safe-area-inset-top, 0px)) + 1.25rem)",
+            paddingBottom: "0.75rem",
+          }}
         >
-          <ArrowLeft className="w-[17px] h-[17px]" />
-        </div>
-        <div>
-          <div className="text-[17px] font-serif font-bold leading-tight">
-            Create Purchase Order
+          <div
+            className="w-[38px] h-[38px] rounded-[10px] bg-muted flex items-center justify-center cursor-pointer text-muted-foreground shrink-0 hover:bg-muted/80 transition-colors"
+            onClick={() => router.push("/procurement")}
+          >
+            <ArrowLeft className="w-[17px] h-[17px]" />
           </div>
-          <div className="text-[12px] text-muted-foreground mt-0.5">
-            Draft a formal request for stock batch replenishment
+          <div className="min-w-0">
+            <div className="text-[15px] font-serif font-bold leading-tight">
+              Create Purchase Order
+            </div>
+            <div className="text-[11px] text-muted-foreground mt-0.5">
+              Draft · {items.length} {items.length === 1 ? "item" : "items"}
+            </div>
           </div>
+          <Button
+            size="sm"
+            className="ml-auto h-9 px-4 rounded-[10px] text-[12.5px] font-semibold shrink-0"
+            onClick={handleSubmit}
+            disabled={isSubmitting || items.length === 0}
+          >
+            {isSubmitting ? "Saving..." : "Save"}
+          </Button>
         </div>
-        <div className="ml-auto text-[12.5px] text-muted-foreground font-medium">
-          Draft · {items.length} items
-        </div>
-      </div>
 
-      <div className="flex-1 grid grid-cols-1 md:grid-cols-[1fr_380px] min-h-0">
-        {/* Left Pane */}
-        <div className="p-6 overflow-y-auto flex flex-col gap-4 bg-background/50">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label className="text-[12.5px] font-semibold text-foreground">
-                Select Vendor
-              </Label>
-              <Select
-                value={selectedSupplierId}
-                onValueChange={setSelectedSupplierId}
-              >
-                <SelectTrigger className="w-full border border-border rounded-[10px] px-3.5 h-11 text-[13px] bg-card shadow-sm">
-                  <SelectValue placeholder="Choose a supplier..." />
-                </SelectTrigger>
-                <SelectContent className="bg-card border-border">
-                  {suppliers.length === 0 ? (
-                    <div className="py-4 text-center text-[12.5px] text-muted-foreground px-2 flex flex-col items-center justify-center gap-1.5">
-                      <span>No suppliers available</span>
-                      <Button
-                        variant="link"
-                        className="h-auto p-0 text-[11px]"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          router.push("/procurement/vendors?action=add");
-                        }}
-                      >
-                        Add a supplier first
-                      </Button>
-                    </div>
-                  ) : (
-                    suppliers.map((v) => (
-                      <SelectItem key={v.id} value={v.id}>
-                        {v.name}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-[12.5px] font-semibold text-foreground">
-                Internal Notes
-              </Label>
-              <Input
-                placeholder="Ref. # or special instructions"
-                className="w-full border border-border rounded-[10px] px-3.5 h-11 text-[13px] bg-card shadow-sm"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-              />
-            </div>
+        <div
+          className="flex-1 overflow-y-auto px-4 pt-4 flex flex-col gap-3.5"
+          style={{
+            paddingBottom:
+              "calc(7rem + var(--tauri-bottom, env(safe-area-inset-bottom, 0px)))",
+          }}
+        >
+          <div className="space-y-1.5">
+            <Label className="text-[12.5px] font-semibold text-foreground">
+              Select Vendor
+            </Label>
+            <Select
+              value={selectedSupplierId}
+              onValueChange={setSelectedSupplierId}
+            >
+              <SelectTrigger className="w-full border border-border rounded-[10px] px-3.5 h-11 text-[13px] bg-card">
+                <SelectValue placeholder="Choose a supplier..." />
+              </SelectTrigger>
+              <SelectContent className="bg-card border-border">
+                {suppliers.length === 0 ? (
+                  <div className="py-4 text-center text-[12.5px] text-muted-foreground px-2 flex flex-col items-center justify-center gap-1.5">
+                    <span>No suppliers available</span>
+                    <Button
+                      variant="link"
+                      className="h-auto p-0 text-[11px]"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        router.push("/procurement/vendors?action=add");
+                      }}
+                    >
+                      Add a supplier first
+                    </Button>
+                  </div>
+                ) : (
+                  suppliers.map((v) => (
+                    <SelectItem key={v.id} value={v.id}>
+                      {v.name}
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label className="text-[12.5px] font-semibold text-foreground">
-                Payment Status
-              </Label>
-              <Select value={paymentStatus} onValueChange={setPaymentStatus}>
-                <SelectTrigger className="w-full border border-border rounded-[10px] px-3.5 h-11 text-[13px] bg-card shadow-sm">
-                  <SelectValue placeholder="Select status..." />
-                </SelectTrigger>
-                <SelectContent className="bg-card border-border">
-                  <SelectItem value="unpaid">Unpaid (Full Credit)</SelectItem>
-                  <SelectItem value="partial">Partial Payment</SelectItem>
-                  <SelectItem value="paid">Fully Paid</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-[12.5px] font-semibold text-foreground">
-                Due Date (Optional)
-              </Label>
-              <DatePickerInput
-                value={dueDate}
-                onChange={(val) => setDueDate(val)}
-                className="w-full [&_input]:bg-card [&_input]:shadow-sm [&_input]:border [&_input]:border-border [&_input]:rounded-[10px] [&_input]:px-3.5 [&_input]:h-11 [&_input]:text-[13px]"
-              />
-            </div>
+          <div className="space-y-1.5">
+            <Label className="text-[12.5px] font-semibold text-foreground">
+              Internal Notes
+            </Label>
+            <Input
+              placeholder="Ref. # or special instructions"
+              className="w-full border border-border rounded-[10px] px-3.5 h-11 text-[13px] bg-card"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-[12.5px] font-semibold text-foreground">
+              Payment Status
+            </Label>
+            <Select value={paymentStatus} onValueChange={setPaymentStatus}>
+              <SelectTrigger className="w-full border border-border rounded-[10px] px-3.5 h-11 text-[13px] bg-card">
+                <SelectValue placeholder="Select status..." />
+              </SelectTrigger>
+              <SelectContent className="bg-card border-border">
+                <SelectItem value="unpaid">Unpaid (Full Credit)</SelectItem>
+                <SelectItem value="partial">Partial Payment</SelectItem>
+                <SelectItem value="paid">Fully Paid</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-[12.5px] font-semibold text-foreground">
+              Due Date (Optional)
+            </Label>
+            <DatePickerInput
+              value={dueDate}
+              onChange={(val) => setDueDate(val)}
+              className="w-full [&_input]:bg-card [&_input]:border [&_input]:border-border [&_input]:rounded-[10px] [&_input]:px-3.5 [&_input]:h-11 [&_input]:text-[13px]"
+            />
           </div>
 
           {paymentStatus !== "unpaid" && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-[12.5px] font-semibold text-foreground">
-                  Amount Paid (
-                  {paymentStatus === "paid" ? "Total" : "Initial Payment"})
-                </Label>
-                <Input
-                  type="number"
-                  placeholder="0.00"
-                  className="w-full border border-border rounded-[10px] px-3.5 h-11 text-[13px] bg-card shadow-sm"
-                  value={paymentStatus === "paid" ? totalAmount : amountPaid}
-                  onChange={(e) => setAmountPaid(e.target.value)}
-                  disabled={paymentStatus === "paid"}
-                />
-              </div>
+            <div className="space-y-1.5">
+              <Label className="text-[12.5px] font-semibold text-foreground">
+                Amount Paid (
+                {paymentStatus === "paid" ? "Total" : "Initial Payment"})
+              </Label>
+              <Input
+                type="number"
+                placeholder="0.00"
+                className="w-full border border-border rounded-[10px] px-3.5 h-11 text-[13px] bg-card"
+                value={paymentStatus === "paid" ? totalAmount : amountPaid}
+                onChange={(e) => setAmountPaid(e.target.value)}
+                disabled={paymentStatus === "paid"}
+              />
             </div>
           )}
 
-          <div className="border border-border rounded-xl bg-card mt-2 shadow-sm">
+          <div className="border border-border rounded-xl bg-card">
             <div className="bg-primary/5 px-4 py-3 flex items-center gap-2 border-b border-border rounded-t-[11px]">
               <ShoppingCart className="w-4 h-4 text-primary" />
               <div className="text-[13.5px] font-semibold text-foreground">
@@ -267,49 +287,206 @@ export default function CreateOrderPage() {
                 onAddItem={handleAddLineItem}
                 onOpenAddProduct={handleOpenAddProduct}
                 newlyCreatedProductId={newlyCreatedProductId}
-                onNewlyCreatedProductConsumed={() => setNewlyCreatedProductId(null)}
+                onNewlyCreatedProductConsumed={() =>
+                  setNewlyCreatedProductId(null)
+                }
               />
             </div>
           </div>
-          <div className="text-[11.5px] text-muted-foreground px-1">
-            Items appear in the Order Summary panel on the right as you add
-            them.
+        </div>
+
+        <POMobileSummaryDrawer
+          items={items}
+          totalAmount={totalAmount}
+          selectedSupplierName={selectedSupplierName}
+          storeType={storeType}
+          onRemoveItem={removeLineItem}
+          onSave={handleSubmit}
+          isSubmitting={isSubmitting}
+        />
+      </div>
+
+      {/* Desktop: bordered panel within the dashboard shell, sidebar stays visible */}
+      <div className="hidden lg:flex flex-col min-h-0 bg-card border border-border rounded-2xl overflow-hidden h-[calc(100vh-120px)] shadow-sm">
+        <div className="flex items-center gap-3 px-6 py-5 border-b border-border bg-card shrink-0">
+          <div
+            className="w-[38px] h-[38px] rounded-[10px] bg-muted flex items-center justify-center cursor-pointer text-muted-foreground shrink-0 hover:bg-muted/80 transition-colors"
+            onClick={() => router.push("/procurement")}
+          >
+            <ArrowLeft className="w-[17px] h-[17px]" />
+          </div>
+          <div>
+            <div className="text-[17px] font-serif font-bold leading-tight">
+              Create Purchase Order
+            </div>
+            <div className="text-[12px] text-muted-foreground mt-0.5">
+              Draft a formal request for stock batch replenishment
+            </div>
+          </div>
+          <div className="ml-auto text-[12.5px] text-muted-foreground font-medium">
+            Draft · {items.length} items
           </div>
         </div>
 
-        {/* Right Pane (Summary) */}
-        <div className="bg-card border-l border-border flex-col min-h-0 hidden md:flex">
-          <div className="p-5 border-b border-border shrink-0">
-            <div className="text-[14.5px] font-semibold text-foreground">
-              Order Summary
+        <div className="flex-1 grid grid-cols-1 md:grid-cols-[1fr_380px] min-h-0">
+          {/* Left Pane */}
+          <div className="p-6 overflow-y-auto flex flex-col gap-4 bg-background/50">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-[12.5px] font-semibold text-foreground">
+                  Select Vendor
+                </Label>
+                <Select
+                  value={selectedSupplierId}
+                  onValueChange={setSelectedSupplierId}
+                >
+                  <SelectTrigger className="w-full border border-border rounded-[10px] px-3.5 h-11 text-[13px] bg-card shadow-sm">
+                    <SelectValue placeholder="Choose a supplier..." />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-border">
+                    {suppliers.length === 0 ? (
+                      <div className="py-4 text-center text-[12.5px] text-muted-foreground px-2 flex flex-col items-center justify-center gap-1.5">
+                        <span>No suppliers available</span>
+                        <Button
+                          variant="link"
+                          className="h-auto p-0 text-[11px]"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            router.push("/procurement/vendors?action=add");
+                          }}
+                        >
+                          Add a supplier first
+                        </Button>
+                      </div>
+                    ) : (
+                      suppliers.map((v) => (
+                        <SelectItem key={v.id} value={v.id}>
+                          {v.name}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-[12.5px] font-semibold text-foreground">
+                  Internal Notes
+                </Label>
+                <Input
+                  placeholder="Ref. # or special instructions"
+                  className="w-full border border-border rounded-[10px] px-3.5 h-11 text-[13px] bg-card shadow-sm"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                />
+              </div>
             </div>
-            <div className="text-[12px] text-muted-foreground mt-0.5 truncate">
-              {selectedSupplierName}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-[12.5px] font-semibold text-foreground">
+                  Payment Status
+                </Label>
+                <Select value={paymentStatus} onValueChange={setPaymentStatus}>
+                  <SelectTrigger className="w-full border border-border rounded-[10px] px-3.5 h-11 text-[13px] bg-card shadow-sm">
+                    <SelectValue placeholder="Select status..." />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-border">
+                    <SelectItem value="unpaid">Unpaid (Full Credit)</SelectItem>
+                    <SelectItem value="partial">Partial Payment</SelectItem>
+                    <SelectItem value="paid">Fully Paid</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-[12.5px] font-semibold text-foreground">
+                  Due Date (Optional)
+                </Label>
+                <DatePickerInput
+                  value={dueDate}
+                  onChange={(val) => setDueDate(val)}
+                  className="w-full [&_input]:bg-card [&_input]:shadow-sm [&_input]:border [&_input]:border-border [&_input]:rounded-[10px] [&_input]:px-3.5 [&_input]:h-11 [&_input]:text-[13px]"
+                />
+              </div>
+            </div>
+
+            {paymentStatus !== "unpaid" && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-[12.5px] font-semibold text-foreground">
+                    Amount Paid (
+                    {paymentStatus === "paid" ? "Total" : "Initial Payment"})
+                  </Label>
+                  <Input
+                    type="number"
+                    placeholder="0.00"
+                    className="w-full border border-border rounded-[10px] px-3.5 h-11 text-[13px] bg-card shadow-sm"
+                    value={paymentStatus === "paid" ? totalAmount : amountPaid}
+                    onChange={(e) => setAmountPaid(e.target.value)}
+                    disabled={paymentStatus === "paid"}
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="border border-border rounded-xl bg-card mt-2 shadow-sm">
+              <div className="bg-primary/5 px-4 py-3 flex items-center gap-2 border-b border-border rounded-t-[11px]">
+                <ShoppingCart className="w-4 h-4 text-primary" />
+                <div className="text-[13.5px] font-semibold text-foreground">
+                  Add Items to Order
+                </div>
+              </div>
+              <div className="p-4">
+                <POAddItemForm
+                  products={products}
+                  onAddItem={handleAddLineItem}
+                  onOpenAddProduct={handleOpenAddProduct}
+                  newlyCreatedProductId={newlyCreatedProductId}
+                  onNewlyCreatedProductConsumed={() =>
+                    setNewlyCreatedProductId(null)
+                  }
+                />
+              </div>
+            </div>
+            <div className="text-[11.5px] text-muted-foreground px-1">
+              Items appear in the Order Summary panel on the right as you add
+              them.
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto p-4 bg-muted/10">
-            <POLineItemsList
-              items={items}
-              onRemoveItem={removeLineItem}
-              storeType={storeType}
-            />
-          </div>
-          <div className="p-5 border-t border-border shrink-0 bg-card">
-            <div className="flex items-center justify-between mb-4">
-              <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
-                Estimated total
+
+          {/* Right Pane (Summary) */}
+          <div className="bg-card border-l border-border flex-col min-h-0 hidden md:flex">
+            <div className="p-5 border-b border-border shrink-0">
+              <div className="text-[14.5px] font-semibold text-foreground">
+                Order Summary
               </div>
-              <div className="text-[20px] font-bold font-serif text-primary">
-                {formatCurrency(totalAmount)}
+              <div className="text-[12px] text-muted-foreground mt-0.5 truncate">
+                {selectedSupplierName}
               </div>
             </div>
-            <Button
-              className="w-full h-12 rounded-xl text-[14px] font-bold"
-              onClick={handleSubmit}
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? "Creating..." : "Save Purchase Order"}
-            </Button>
+            <div className="flex-1 overflow-y-auto p-4 bg-muted/10">
+              <POLineItemsList
+                items={items}
+                onRemoveItem={removeLineItem}
+                storeType={storeType}
+              />
+            </div>
+            <div className="p-5 border-t border-border shrink-0 bg-card">
+              <div className="flex items-center justify-between mb-4">
+                <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+                  Estimated total
+                </div>
+                <div className="text-[20px] font-bold font-serif text-primary">
+                  {formatCurrency(totalAmount)}
+                </div>
+              </div>
+              <Button
+                className="w-full h-12 rounded-xl text-[14px] font-bold"
+                onClick={handleSubmit}
+                disabled={isSubmitting || items.length === 0}
+              >
+                {isSubmitting ? "Creating..." : "Save Purchase Order"}
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -320,6 +497,6 @@ export default function CreateOrderPage() {
         onAddProduct={handleCreateProduct}
         initialData={initialProductData}
       />
-    </div>
+    </>
   );
 }

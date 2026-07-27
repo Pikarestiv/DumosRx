@@ -55,6 +55,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   );
 
   const isPosRoute = pathname.startsWith("/pos");
+  // Create Purchase Order gets a POS-style full-screen takeover, but only on
+  // mobile (<lg) — desktop keeps the normal dashboard chrome since the page
+  // already renders as a self-contained bordered panel there.
+  const isCreatePORoute = pathname.startsWith("/procurement/new");
   const [hoverExpanded, setHoverExpanded] = useState(false);
   const [userNavOpen, setUserNavOpen] = useState(false);
   const isLogicallyCollapsed = isPosRoute ? true : sidebarCollapsed;
@@ -180,7 +184,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         />
       </div>
 
-      {!isPosRoute && (
+      {!isPosRoute && !isCreatePORoute && (
         <div className="print:hidden">
           <MobileBottomNav
             onOpenFeedback={() => setFeedbackOpen(true)}
@@ -211,7 +215,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         onTouchEnd={handleTouchEnd}
       >
         <div
-          className="print:hidden shrink-0 bg-card sm:bg-background"
+          className={cn(
+            "print:hidden shrink-0 bg-card sm:bg-background",
+            isCreatePORoute && "hidden lg:block",
+          )}
           style={{
             paddingTop: !isPosRoute ? "var(--tauri-top, 0px)" : undefined,
           }}
@@ -223,20 +230,38 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         </div>
 
         {/* Page content — scrolls internally */}
-        <div className={cn("flex-1 relative overflow-x-clip", !isPosRoute && "overflow-y-auto")}>
+        <div
+          className={cn(
+            "flex-1 relative overflow-x-clip",
+            !isPosRoute && !isCreatePORoute && "overflow-y-auto",
+          )}
+        >
           <main
-            className={isPosRoute ? "" : "p-4 sm:p-6 sm:pt-3"}
-            style={!isPosRoute ? {
-              paddingBottom: "calc(5.5rem + var(--tauri-bottom, env(safe-area-inset-bottom, 0px)))",
-            } : undefined}
+            className={
+              isPosRoute
+                ? ""
+                : isCreatePORoute
+                  ? "p-0 lg:p-6 lg:pt-3"
+                  : "p-4 sm:p-6 sm:pt-3"
+            }
+            style={
+              !isPosRoute && !isCreatePORoute
+                ? {
+                    paddingBottom:
+                      "calc(5.5rem + var(--tauri-bottom, env(safe-area-inset-bottom, 0px)))",
+                  }
+                : undefined
+            }
           >
             <div
               key={pathname}
               className={cn(
                 !isPosRoute &&
+                  !isCreatePORoute &&
                   direction === "left" &&
                   "animate-in slide-in-from-right-8 fade-in duration-200",
                 !isPosRoute &&
+                  !isCreatePORoute &&
                   direction === "right" &&
                   "animate-in slide-in-from-left-8 fade-in duration-200",
               )}

@@ -131,7 +131,7 @@ export function POAddItemForm({
           className="bg-muted border-border h-10 px-3 text-[13px] rounded-[10px]"
         />
       </div>
-      <div className="grid grid-cols-[1fr_1fr_auto] gap-2 items-end">
+      <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2 sm:items-end">
         <div className="space-y-1">
           <Label className="text-[10.5px] font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1">
             Qty ({selectedProduct?.bulk_unit || "Bulk"})
@@ -175,7 +175,7 @@ export function POAddItemForm({
           <Button
             type="button"
             onClick={handleAddLineItem}
-            className="h-10 px-4 text-[13px] font-semibold rounded-[10px] shrink-0"
+            className="w-full sm:w-auto h-10 px-4 text-[13px] font-semibold rounded-[10px] shrink-0"
           >
             <Plus className="w-3.5 h-3.5 mr-1.5" /> Add
           </Button>

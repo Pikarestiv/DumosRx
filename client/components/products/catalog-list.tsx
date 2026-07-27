@@ -41,7 +41,7 @@ export function CatalogList({
       </div>
 
       {/* Rows */}
-      <div className="flex-1 overflow-y-auto hide-scrollbar">
+      <div className="flex-1 overflow-y-auto hide-scrollbar flex flex-col gap-2 sm:gap-0 py-3 sm:py-0">
         {filteredProducts.length === 0 && (
           <EmptyCatalogList totalCount={totalCount} />
         )}
@@ -52,10 +52,10 @@ export function CatalogList({
               <div
                 key={product.id}
                 onClick={() => onSelectProduct(product)}
-                className={`px-4 py-3 border-b border-border cursor-pointer transition-colors ${
+                className={`px-4 py-3 rounded-xl sm:rounded-none border sm:border-t-0 sm:border-r-0 sm:border-b border-border cursor-pointer transition-colors ${
                   isSelected
                     ? "bg-primary/5 border-l-2 border-l-primary"
-                    : "hover:bg-muted/50 border-l-2 border-l-transparent"
+                    : "bg-card sm:bg-transparent hover:bg-muted/50 border-l-2 border-l-transparent"
                 }`}
               >
                 {/* Mobile View */}

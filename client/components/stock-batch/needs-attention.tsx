@@ -108,11 +108,11 @@ export function NeedsAttention({ stockData }: { stockData: StockItem[] }) {
       {/* Mobile: header sits above the card */}
       <div className="lg:hidden mb-3">{header}</div>
 
-      <div className="bg-card border border-border rounded-2xl p-5 flex flex-col lg:flex-1">
+      <div className="border-0 md:border md:border-border bg-transparent md:bg-card rounded-none md:rounded-2xl p-0 md:p-5 flex flex-col lg:flex-1">
         {/* Desktop: header stays inside the card */}
         <div className="hidden lg:block mb-4">{header}</div>
 
-        <div className="flex flex-col">
+        <div className="flex flex-col gap-2 md:gap-0 py-3 md:py-0">
         {items.length === 0 && (
                         <div className="text-sm text-muted-foreground py-4 text-center">
                           No items need immediate attention.
@@ -122,7 +122,7 @@ export function NeedsAttention({ stockData }: { stockData: StockItem[] }) {
                         items.slice(0, 10).map((item, idx) => (
                           <div
                             key={item.id + idx}
-                            className={`flex items-center gap-3 py-3 ${idx !== items.length - 1 && idx !== 9 ? "border-b border-border" : ""}`}
+                            className={`flex items-center gap-3 p-3 md:py-3 md:px-0 rounded-xl md:rounded-none border md:border-0 border-border bg-card md:bg-transparent ${idx !== items.length - 1 && idx !== 9 ? "md:border-b md:border-border" : ""}`}
                           >
                             <div
                               className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${item.iconClass}`}

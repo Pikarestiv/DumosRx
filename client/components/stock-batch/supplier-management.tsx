@@ -4,11 +4,13 @@ import { useState, useEffect } from "react";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { getSuppliers, createSupplier } from "@/lib/db/local-database";
 import { AddSupplierDialog } from "@/components/suppliers/add-supplier-dialog";
 import { useStore } from "@/lib/context/store-context";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { SupplierStats } from "./supplier-stats";
 import { SupplierDetailPane } from "./supplier-detail-pane";
 import { SupplierTable } from "./supplier-table";
@@ -52,6 +54,7 @@ const transformSupplier = (apiData: any): Supplier => ({
 
 export function SupplierManagement() {
   const { t: _t } = useStore();
+  const isDesktop = useMediaQuery("(min-width: 768px)");
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filter, setFilter] = useState("all");
@@ -84,11 +87,14 @@ export function SupplierManagement() {
   }, []);
 
   // Ensure selectedSupplier defaults to the first supplier when data loads
+  // (desktop only — on mobile a selection opens a full-screen takeover, so
+  // it shouldn't be forced open on load).
   useEffect(() => {
+    if (!isDesktop) return;
     if (suppliers.length > 0 && !selectedSupplierId) {
       setSelectedSupplierId(suppliers[0].id);
     }
-  }, [suppliers, selectedSupplierId]);
+  }, [suppliers, selectedSupplierId, isDesktop]);
 
   const fetchSuppliers = async () => {
     setLoading(true);
@@ -182,8 +188,8 @@ export function SupplierManagement() {
 
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-5 flex-1 min-h-0">
         {/* Left Pane: Supplier Directory */}
-        <div className="bg-card border border-border rounded-2xl shadow-sm flex flex-col min-h-0">
-          <div className="p-4 pb-3 border-b border-border">
+        <div className="border-0 md:border md:border-border bg-transparent md:bg-card rounded-none md:rounded-2xl shadow-none md:shadow-sm flex flex-col min-h-0">
+          <div className="p-0 md:p-4 md:pb-3 border-b-0 md:border-b border-border">
             <div className="flex items-center justify-between mb-3">
               <div className="text-[14.5px] font-semibold text-foreground">
                 Supplier Directory
@@ -197,23 +203,31 @@ export function SupplierManagement() {
               </Button> */}
             </div>
             <div className="flex items-center mb-3">
-              <div className="flex-1 flex items-center gap-2 bg-muted border border-border rounded-[10px] px-3.5 py-2.5">
+              <div className="flex-1 flex items-center gap-2 bg-card md:bg-muted border border-border rounded-[10px] px-3.5 py-2.5">
                 <Search className="w-4 h-4 text-muted-foreground shrink-0" />
                 <Input
                   placeholder="Search suppliers, contacts, locations"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="border-0 outline-none text-[13px] w-full bg-transparent h-auto p-0 focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none"
+                  className="border-0 outline-none text-[13px] w-full bg-card md:bg-muted h-auto p-0 focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none"
                 />
               </div>
             </div>
             <div className="flex items-center justify-between">
               <Tabs variant="chips" value={filter} onValueChange={setFilter}>
                 <TabsList className="w-full md:w-max justify-start overflow-x-auto hide-scrollbar">
-                  <TabsTrigger value="all" className="border border-border/50">
+                  <TabsTrigger
+                    value="all"
+                    className="data-[state=inactive]:bg-card data-[state=inactive]:border-border md:data-[state=inactive]:bg-transparent md:data-[state=inactive]:border-transparent"
+                    // className="border border-border/50"
+                  >
                     All
                   </TabsTrigger>
-                  <TabsTrigger value="debt" className="border border-border/50">
+                  <TabsTrigger
+                    value="debt"
+                    className="data-[state=inactive]:bg-card data-[state=inactive]:border-border md:data-[state=inactive]:bg-transparent md:data-[state=inactive]:border-transparent"
+                    // className="border border-border/50"
+                  >
                     Has debt
                   </TabsTrigger>
                 </TabsList>
@@ -248,6 +262,31 @@ export function SupplierManagement() {
           />
         </div>
       </div>
+
+      {/* Mobile Detail Panel (Sheet, full-screen push) */}
+      <Sheet
+        open={!!selectedSupplier && !isDesktop}
+        onOpenChange={(open) => {
+          if (!open) setSelectedSupplierId(null);
+        }}
+      >
+        <SheetContent
+          side="right"
+          hideClose
+          className="w-full sm:w-[400px] p-0 flex flex-col bg-card"
+        >
+          {selectedSupplier && (
+            <SupplierDetailPane
+              selectedSupplier={selectedSupplier}
+              formatCurrency={formatCurrency}
+              formatDate={formatDate}
+              getRatingStars={getRatingStars}
+              setIsEditDialogOpen={setIsEditDialogOpen}
+              onBack={() => setSelectedSupplierId(null)}
+            />
+          )}
+        </SheetContent>
+      </Sheet>
 
       <AddSupplierDialog
         open={showAddDialog}

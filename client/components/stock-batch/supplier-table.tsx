@@ -47,11 +47,63 @@ export function SupplierTable({
   return (
     <div className="w-full">
       {isFuzzyFallback && suppliers.length > 0 && (
-        <div className="bg-amber-500/10 text-amber-600 px-4 py-2 text-sm border border-amber-500/20 text-center font-medium rounded-md mb-4 mx-4 mt-4">
+        <div className="bg-amber-500/10 text-amber-600 px-4 py-2 text-sm border border-amber-500/20 text-center font-medium rounded-md mb-4 mx-0 md:mx-4 mt-4">
           Did you mean? (No exact matches found. Showing closest names.)
         </div>
       )}
-      <div className="overflow-x-auto">
+
+      {/* Mobile: card list */}
+      <div className="md:hidden flex flex-col gap-2 px-0 py-3">
+        {suppliers.length === 0 && (
+          <div className="flex flex-col items-center justify-center text-muted-foreground h-32">
+            <Users className="h-8 w-8 mb-2 opacity-50" />
+            <p className="font-medium">No suppliers found</p>
+            <p className="text-sm">Try adjusting your search or add a new supplier</p>
+          </div>
+        )}
+        {suppliers.map((supplier) => {
+          const isSelected = selectedSupplierId === supplier.id;
+          return (
+            <div
+              key={supplier.id}
+              onClick={() => onRowClick?.(supplier)}
+              className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
+                isSelected
+                  ? "bg-primary/10 border-primary/30"
+                  : "bg-card border-border hover:bg-primary/5"
+              }`}
+            >
+              <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[11px] font-bold shrink-0">
+                {supplier.name[0]}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-[13.5px] font-semibold text-foreground truncate">
+                  {supplier.name}
+                </div>
+                <div className="text-[11.5px] text-muted-foreground truncate">
+                  {supplier.contactPerson || supplier.email || supplier.phone || "No contact info"}
+                </div>
+                {supplier.hasDebt && (
+                  <div className="text-[11px] text-destructive font-medium mt-0.5">
+                    Owed {formatCurrency(supplier.debtAmount)}
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-col items-end gap-1 shrink-0">
+                <span className="text-[13px] font-semibold text-foreground whitespace-nowrap">
+                  {formatCurrency(supplier.totalValue)}
+                </span>
+                <span className="text-amber-500 text-[12px] tracking-widest">
+                  {getRatingStars(supplier.rating)}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Desktop: table */}
+      <div className="hidden md:block overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent border-b border-border">

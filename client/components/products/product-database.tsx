@@ -170,7 +170,7 @@ export function ProductDatabase() {
             />
           </div>
 
-          <div className="bg-card border border-border rounded-2xl flex flex-col min-h-0 lg:flex-1">
+          <div className="border-0 sm:border sm:border-border bg-transparent sm:bg-card rounded-none sm:rounded-2xl flex flex-col min-h-0 lg:flex-1">
             <ProductDatabaseFilters
               searchTerm={searchTerm}
               setSearchTerm={setSearchTerm}

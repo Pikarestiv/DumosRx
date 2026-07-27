@@ -496,6 +496,7 @@ export default function CreateOrderPage() {
         onOpenChange={setIsAddProductOpen}
         onAddProduct={handleCreateProduct}
         initialData={initialProductData}
+        hideAddAnother
       />
     </>
   );

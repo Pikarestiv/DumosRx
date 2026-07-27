@@ -21,7 +21,11 @@ interface RecordPaymentModalProps {
   customer: Customer | null;
   currencyCode?: string;
   onClose: () => void;
-  onSubmit: (amount: number, paymentMethod: string, notes: string) => Promise<void>;
+  onSubmit: (
+    amount: number,
+    paymentMethod: string,
+    notes: string,
+  ) => Promise<void>;
 }
 
 export function RecordPaymentModal({
@@ -68,9 +72,30 @@ export function RecordPaymentModal({
           : undefined
       }
       className="sm:max-w-md"
+      footer={
+        customer && (
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="record-payment-form"
+              disabled={loading}
+              className="bg-accent hover:bg-accent/90"
+            >
+              {loading ? "Recording..." : "Record Payment"}
+            </Button>
+          </DialogFooter>
+        )
+      }
     >
       {customer && (
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form
+          id="record-payment-form"
+          onSubmit={handleSubmit}
+          className="space-y-4"
+        >
           <div className="space-y-2">
             <Label htmlFor="amount">Amount *</Label>
             <Input
@@ -109,15 +134,6 @@ export function RecordPaymentModal({
               placeholder="Add any notes about this payment..."
             />
           </div>
-
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={loading} className="bg-accent hover:bg-accent/90">
-              {loading ? "Recording..." : "Record Payment"}
-            </Button>
-          </DialogFooter>
         </form>
       )}
     </ResponsiveModal>

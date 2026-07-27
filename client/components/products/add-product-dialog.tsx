@@ -4,9 +4,7 @@ import type React from "react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
-import {
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { DialogFooter } from "@/components/ui/dialog";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
 
 import { useStore } from "@/lib/context/store-context";
@@ -22,6 +20,10 @@ interface AddProductDialogProps {
   onAddProduct: (product: any, keepOpen?: boolean) => void;
   editingProduct?: Product | null;
   initialData?: Partial<Product>;
+  /** Hide "Save & Add Another" — for flows (e.g. quick-adding a product from
+   * a purchase order) where the user just wants to create one product and
+   * get back to what they were doing. */
+  hideAddAnother?: boolean;
 }
 
 export function AddProductDialog({
@@ -30,6 +32,7 @@ export function AddProductDialog({
   onAddProduct,
   editingProduct,
   initialData,
+  hideAddAnother,
 }: AddProductDialogProps) {
   const { withRestriction } = useFeatureGate();
   const { t, storeType, storeProfile } = useStore();
@@ -155,26 +158,27 @@ export function AddProductDialog({
           ),
           strengths: pharmList.strengths || [],
           dosageForms: pharmList.dosageForms || [],
-          suppliers: []
+          suppliers: [],
         });
       } else {
         const pharmNames = pharmList.products?.map((p: any) => p.name) || [];
-        setSuggestions({...pharmList, names: pharmNames, suppliers: []});
+        setSuggestions({ ...pharmList, names: pharmNames, suppliers: [] });
       }
     } else {
       const retailNames = retailList.products?.map((p: any) => p.name) || [];
-      setSuggestions({...retailList, names: retailNames, suppliers: []});
+      setSuggestions({ ...retailList, names: retailNames, suppliers: [] });
     }
 
-    query("SELECT name FROM suppliers WHERE _deleted = 0").then((res: any[]) => {
-      if (res && Array.isArray(res)) {
-        setSuggestions((prev: any) => ({
-          ...prev,
-          suppliers: res.map((s) => s.name),
-        }));
-      }
-    }).catch(console.error);
-
+    query("SELECT name FROM suppliers WHERE _deleted = 0")
+      .then((res: any[]) => {
+        if (res && Array.isArray(res)) {
+          setSuggestions((prev: any) => ({
+            ...prev,
+            suppliers: res.map((s) => s.name),
+          }));
+        }
+      })
+      .catch(console.error);
   }, [isPharmacy, storeProfile?.show_retail_suggestions]);
 
   const commonSuggestions = FORM_SUGGESTIONS.common;
@@ -187,7 +191,6 @@ export function AddProductDialog({
       setAlertMessage("Please enter a name");
       return;
     }
-
 
     // Determine status
     const status: Product["status"] = formData.status || "active";
@@ -249,26 +252,64 @@ export function AddProductDialog({
 
   return (
     <>
-    <ResponsiveModal 
-      open={open} 
-      onOpenChange={onOpenChange}
-      title={
-        <span className="font-serif font-bold text-2xl">
-          {editingProduct
-            ? `Edit ${t("product")}`
-            : `Add New ${t("product")}`}
-        </span>
-      }
-      description={
-        editingProduct
-          ? `Update the details for ${editingProduct.name}. All fields marked with * are required.`
-          : `Enter the details for the new ${t("product").toLowerCase()}. All fields marked with * are required.`
-      }
-      className="sm:max-w-3xl h-[95vh] sm:h-auto sm:max-h-[90vh] flex flex-col overflow-hidden px-0 sm:px-6 pb-0 sm:pb-6"
-      headerClassName="px-4 pt-4 sm:p-0"
-    >
-
-        <form onSubmit={withRestriction(handleSubmit)} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+      <ResponsiveModal
+        open={open}
+        onOpenChange={onOpenChange}
+        title={
+          <span className="font-serif font-bold text-2xl">
+            {editingProduct
+              ? `Edit ${t("product")}`
+              : `Add New ${t("product")}`}
+          </span>
+        }
+        description={
+          editingProduct
+            ? `Update the details for ${editingProduct.name}. All fields marked with * are required.`
+            : `Enter the details for the new ${t("product").toLowerCase()}. All fields marked with * are required.`
+        }
+        className="sm:max-w-3xl h-[95vh] sm:h-auto sm:max-h-[90vh] flex flex-col overflow-hidden px-0 sm:px-6 pb-0 sm:pb-6"
+        headerClassName="px-4 pt-4 sm:p-0"
+        footer={
+          <DialogFooter className="bg-background border-t gap-2 p-4 sm:p-0 sm:pt-4 flex-shrink-0">
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full sm:w-auto"
+              onClick={() => onOpenChange(false)}
+            >
+              Cancel
+            </Button>
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+              {!hideAddAnother && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="border-accent text-accent hover:bg-accent/10 hover:text-primary w-full sm:w-auto"
+                  onClick={withRestriction((e: any) => handleSubmit(e, true))}
+                >
+                  {editingProduct
+                    ? `Update & Add Another`
+                    : `Save & Add Another`}
+                </Button>
+              )}
+              <Button
+                type="submit"
+                form="add-product-form"
+                className="bg-accent hover:bg-accent/90 w-full sm:w-auto"
+              >
+                {editingProduct
+                  ? `Update ${t("product")}`
+                  : `Add ${t("product")}`}
+              </Button>
+            </div>
+          </DialogFooter>
+        }
+      >
+        <form
+          id="add-product-form"
+          onSubmit={withRestriction(handleSubmit)}
+          className="flex flex-col flex-1 min-h-0 overflow-hidden"
+        >
           <div className="flex-1 overflow-y-auto px-4 sm:px-0 py-2">
             <ProductFormFields
               formData={formData}
@@ -280,34 +321,8 @@ export function AddProductDialog({
               t={t}
             />
           </div>
-
-          <DialogFooter className="bg-background border-t gap-2 p-4 sm:p-0 sm:pt-4 flex-shrink-0">
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full sm:w-auto"
-              onClick={() => onOpenChange(false)}
-            >
-              Cancel
-            </Button>
-            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-              <Button
-                type="button"
-                variant="outline"
-                className="border-accent text-accent hover:bg-accent/10 hover:text-primary w-full sm:w-auto"
-                onClick={withRestriction((e: any) => handleSubmit(e, true))}
-              >
-                {editingProduct ? `Update & Add Another` : `Save & Add Another`}
-              </Button>
-              <Button type="submit" className="bg-accent hover:bg-accent/90 w-full sm:w-auto">
-                {editingProduct
-                  ? `Update ${t("product")}`
-                  : `Add ${t("product")}`}
-              </Button>
-            </div>
-          </DialogFooter>
         </form>
-    </ResponsiveModal>
+      </ResponsiveModal>
       <ConfirmDialog
         open={!!alertMessage}
         onOpenChange={(open) => {

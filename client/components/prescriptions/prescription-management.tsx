@@ -15,15 +15,16 @@ import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ResponsiveTabLabel } from "@/components/ui/responsive-tab-label";
 
 import { useSearchParams } from "next/navigation";
 
 const STATUS_FILTERS = [
-  { value: "all", label: "All" },
-  { value: "pending", label: "Needs verification" },
-  { value: "refill_due", label: "Refills due" },
-  { value: "ready", label: "Ready for pickup" },
-  { value: "completed", label: "History" },
+  { value: "all", label: "All", short: "All" },
+  { value: "pending", label: "Needs verification", short: "Needs Rx" },
+  { value: "refill_due", label: "Refills due", short: "Refills" },
+  { value: "ready", label: "Ready for pickup", short: "Ready" },
+  { value: "completed", label: "History", short: "History" },
 ];
 
 export function PrescriptionManagement() {
@@ -147,7 +148,7 @@ export function PrescriptionManagement() {
                   value={f.value}
                   className="data-[state=inactive]:bg-card data-[state=inactive]:border-border"
                 >
-                  {f.label}
+                  <ResponsiveTabLabel short={f.short} long={f.label} />
                 </TabsTrigger>
               ))}
             </TabsList>

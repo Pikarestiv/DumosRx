@@ -18,7 +18,11 @@ import { POAddItemForm } from "@/components/procurement/po-add-item-form";
 import { POLineItemsList } from "@/components/procurement/po-line-items-list";
 import { AddProductDialog } from "@/components/products/add-product-dialog";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
-import { createProduct, getPurchaseOrderById, updatePurchaseOrder } from "@/lib/db/local-database";
+import {
+  createProduct,
+  getPurchaseOrderById,
+  updatePurchaseOrder,
+} from "@/lib/db/local-database";
 import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -44,7 +48,9 @@ function EditOrderContent() {
 
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
   const [initialProductData, setInitialProductData] = useState<any>(null);
-  const [newlyCreatedProductId, setNewlyCreatedProductId] = useState<string | null>(null);
+  const [newlyCreatedProductId, setNewlyCreatedProductId] = useState<
+    string | null
+  >(null);
 
   const { suppliers, products, refetch: fetchData } = useProcurementData();
 
@@ -95,7 +101,7 @@ function EditOrderContent() {
 
       // Refresh products list
       await fetchData();
-      await queryClient.invalidateQueries({ queryKey: ['productList'] });
+      await queryClient.invalidateQueries({ queryKey: ["productList"] });
       setNewlyCreatedProductId(newProductId);
 
       if (!keepOpen) {
@@ -118,7 +124,7 @@ function EditOrderContent() {
       toast.error("Purchase order ID is missing");
       return;
     }
-    
+
     if (!selectedSupplierId) {
       toast.error("Please select a vendor");
       return;
@@ -161,7 +167,9 @@ function EditOrderContent() {
     return (
       <div className="flex flex-col items-center justify-center h-[calc(100vh-120px)] bg-card border border-border rounded-2xl">
         <Clock className="w-8 h-8 animate-spin text-muted-foreground mb-4" />
-        <p className="text-muted-foreground font-medium text-sm">Loading order...</p>
+        <p className="text-muted-foreground font-medium text-sm">
+          Loading order...
+        </p>
       </div>
     );
   }
@@ -301,7 +309,9 @@ function EditOrderContent() {
                 onAddItem={handleAddLineItem}
                 onOpenAddProduct={handleOpenAddProduct}
                 newlyCreatedProductId={newlyCreatedProductId}
-                onNewlyCreatedProductConsumed={() => setNewlyCreatedProductId(null)}
+                onNewlyCreatedProductConsumed={() =>
+                  setNewlyCreatedProductId(null)
+                }
               />
             </div>
           </div>
@@ -353,6 +363,7 @@ function EditOrderContent() {
         onOpenChange={setIsAddProductOpen}
         onAddProduct={handleCreateProduct}
         initialData={initialProductData}
+        hideAddAnother
       />
     </div>
   );
@@ -360,7 +371,13 @@ function EditOrderContent() {
 
 export default function EditOrderPage() {
   return (
-    <Suspense fallback={<div className="p-10 flex items-center justify-center"><Clock className="animate-spin text-muted-foreground w-6 h-6" /></div>}>
+    <Suspense
+      fallback={
+        <div className="p-10 flex items-center justify-center">
+          <Clock className="animate-spin text-muted-foreground w-6 h-6" />
+        </div>
+      }
+    >
       <EditOrderContent />
     </Suspense>
   );

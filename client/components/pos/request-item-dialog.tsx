@@ -1,17 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Info } from "lucide-react";
+import { Info, PackageSearch } from "lucide-react";
 import { logRequestedProduct } from "@/lib/db/requested-products-queries";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { getAllCustomers } from "@/lib/db/queries/customers";
+import { getProductList } from "@/lib/db/queries/products";
 import { SearchableInput } from "@/components/ui/searchable-input";
+import { genericFuzzySearch } from "@/lib/utils/search";
 
 export function RequestItemDialog({
   open: controlledOpen,
@@ -40,6 +42,22 @@ export function RequestItemDialog({
     queryFn: getAllCustomers,
     staleTime: 1000 * 60 * 5, // 5 mins
   });
+
+  const { data: products = [] } = useQuery({
+    queryKey: ["productList"],
+    queryFn: getProductList,
+    staleTime: 1000 * 60 * 5, // 5 mins
+  });
+
+  // Warn (non-blocking) when the typed name looks like something already in
+  // the catalog — staff should double check before logging a duplicate
+  // "missing product" request for stock that's already on hand.
+  const possibleExistingMatch = useMemo(() => {
+    const term = productName.trim();
+    if (term.length < 3) return null;
+    const { results } = genericFuzzySearch(term, products, ["name"]);
+    return results[0] || null;
+  }, [productName, products]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,21 +95,52 @@ export function RequestItemDialog({
         onOpenChange={setOpen}
         title="Log Missing Product"
         className="sm:max-w-[425px]"
+        footer={
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpen(false)}
+              disabled={loading}
+              className="mt-2 sm:mt-0"
+            >
+              Cancel
+            </Button>
+            <Button type="submit" form="request-item-form" disabled={loading}>
+              {loading ? "Saving..." : "Save Request"}
+            </Button>
+          </div>
+        }
       >
-        <form onSubmit={handleSubmit}>
+        <form id="request-item-form" onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="name">
                 Product Name <span className="text-destructive">*</span>
               </Label>
-              <Input
+              <SearchableInput
                 id="name"
                 placeholder="e.g., Panadol Extra"
                 value={productName}
-                onChange={(e) => setProductName(e.target.value)}
+                onValueChange={setProductName}
+                options={products.map((p: any) => p.name)}
                 autoFocus
                 required
               />
+              {possibleExistingMatch && (
+                <div className="text-[11.5px] text-amber-700 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-[10px] px-3 py-2.5 flex gap-2 items-start">
+                  <PackageSearch className="w-[15px] h-[15px] shrink-0 mt-0.5" />
+                  <span>
+                    We may already carry{" "}
+                    <span className="font-semibold">
+                      {possibleExistingMatch.name}
+                    </span>
+                    . Check the catalog before logging a new request — continue
+                    anyway if this is genuinely a different or out-of-stock
+                    item.
+                  </span>
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -138,20 +187,6 @@ export function RequestItemDialog({
               This gets logged for restocking and sent to your manager right
               away.
             </div>
-          </div>
-          <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 pt-4 border-t">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setOpen(false)}
-              disabled={loading}
-              className="mt-2 sm:mt-0"
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? "Saving..." : "Save Request"}
-            </Button>
           </div>
         </form>
       </ResponsiveModal>

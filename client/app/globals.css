@@ -299,7 +299,10 @@ header .group:hover svg,
 .responsive-modal-fields [data-slot="input"],
 .responsive-modal-fields [data-slot="select-trigger"],
 .responsive-modal-fields textarea {
-  border: none;
+  /* A visible edge, not just the muted fill — the fill alone can wash out
+     against the modal background (especially in dark mode), leaving fields
+     with no perceptible outline. */
+  border: 1px solid var(--border);
   background-color: color-mix(in oklch, var(--muted) 50%, transparent);
   border-radius: 0.75rem;
   box-shadow: none;

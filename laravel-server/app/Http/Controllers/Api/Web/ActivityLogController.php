@@ -44,27 +44,33 @@ class ActivityLogController extends Controller
             'details' => 'nullable|array'
         ]);
 
-        $user = $request->user();
+        // No auth middleware guards this route (it needs to capture failures
+        // that happen before login, e.g. the system-config fetch on app boot),
+        // so the caller may or may not be authenticated.
+        $user = $request->user('sanctum');
+        $userLabel = $user ? "{$user->id} ({$user->email})" : 'guest';
 
         // Log to laravel.log
-        Log::error("Client API Error [User: {$user->id} ({$user->email})]: {$request->input('method')} {$request->input('url')} - Status: {$request->input('status')} - Message: {$request->input('message')}", [
+        Log::error("Client API Error [User: {$userLabel}]: {$request->input('method')} {$request->input('url')} - Status: {$request->input('status')} - Message: {$request->input('message')}", [
             'details' => $request->input('details'),
             'ip' => $request->ip(),
             'user_agent' => $request->userAgent()
         ]);
 
-        // Log to ActivityLog table
-        ActivityLog::create([
-            'user_id' => $user->id,
-            'action' => 'CLIENT_API_ERROR',
-            'description' => "Failed: {$request->input('method')} {$request->input('url')} ({$request->input('status')})",
-            'ip_address' => $request->ip(),
-            'user_agent' => $request->userAgent(),
-            'properties' => [
-                'error_message' => $request->input('message'),
-                'details' => $request->input('details')
-            ]
-        ]);
+        // Log to ActivityLog table (requires a user; guest errors only go to laravel.log)
+        if ($user) {
+            ActivityLog::create([
+                'user_id' => $user->id,
+                'action' => 'CLIENT_API_ERROR',
+                'description' => "Failed: {$request->input('method')} {$request->input('url')} ({$request->input('status')})",
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'properties' => [
+                    'error_message' => $request->input('message'),
+                    'details' => $request->input('details')
+                ]
+            ]);
+        }
 
         return response()->json(['status' => 'logged']);
     }

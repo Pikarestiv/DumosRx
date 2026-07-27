@@ -14,7 +14,6 @@ import {
 import { CloudLinkDialog } from "@/components/settings/cloud-link-dialog";
 import { StaffManagement } from "@/components/settings/staff-management";
 import { SettingsMobileMenu } from "@/components/settings/settings-mobile-menu";
-import Link from "next/link";
 
 import { AppearanceSettings } from "@/components/settings/appearance-settings";
 import { StoreSettings } from "@/components/settings/store-settings";
@@ -23,6 +22,8 @@ import { DataSettings } from "@/components/settings/data-settings";
 import { SecuritySettings } from "@/components/settings/security-settings";
 import { SystemSettings } from "@/components/settings/system-settings";
 import { useSettings } from "@/hooks/use-settings";
+import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
 
 export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
   const {
@@ -104,6 +105,7 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
     handleRestoreBackup,
     handleResetDatabase,
   } = useSettings();
+  const router = useRouter();
 
   console.log("[DEBUG SETTINGS]", { user, isAdmin });
 
@@ -111,23 +113,27 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
     return <SettingsMobileMenu isAdmin={isAdmin} />;
   }
 
+  const TAB_LABELS: Record<string, string> = {
+    appearance: "General",
+    notifications: "Alerts",
+  };
+
   return (
     <>
       <div className="max-w-5xl">
         {!isDesktop && !isIndex && (
-          <div className="flex items-center gap-3 mb-6 pb-4 border-b border-border/50">
-            <Link
-              href="/settings"
-              className="w-10 h-10 rounded-xl bg-accent/50 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors shrink-0"
+          <div className="sticky top-0 z-20 bg-background flex items-center gap-3 px-4 py-4 border-border/50">
+            <Button
+              variant="outline"
+              size="icon"
+              className="md:hidden h-9 w-9 rounded-xl bg-muted/50 border-border/50 text-muted-foreground hover:text-foreground shrink-0"
+              onClick={() => router.push("/settings")}
             >
-              <ChevronLeft className="w-5 h-5" />
-            </Link>
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+
             <div className="text-lg font-semibold capitalize">
-              {activeTab === "appearance"
-                ? "General"
-                : activeTab === "notifications"
-                  ? "Alerts"
-                  : activeTab}
+              {TAB_LABELS[activeTab] ?? activeTab}
             </div>
           </div>
         )}
@@ -146,7 +152,7 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
             no header-height offset needed.
           */}
           <aside
-            className="w-full md:w-48 flex-shrink-0 md:sticky z-30"
+            className="hidden md:block w-full md:w-48 flex-shrink-0 md:sticky z-30"
             style={{ top: isDesktop ? "16px" : undefined }}
           >
             <TabsList
@@ -213,7 +219,7 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
             </TabsList>
           </aside>
 
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 px-4 md:px-0 min-w-0">
             <TabsContent value="appearance">
               <AppearanceSettings
                 theme={theme}

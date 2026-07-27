@@ -1,7 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { Sun, Moon, Globe, Save, Lock, Info, Pencil, X, Banknote, Percent } from "lucide-react";
+import {
+  Sun,
+  Moon,
+  Globe,
+  Save,
+  Lock,
+  Info,
+  Pencil,
+  X,
+  Banknote,
+  Percent,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,7 +40,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CURRENCIES, getCurrencyByCode, DEFAULT_CURRENCY_CODE } from "@/lib/constants/currencies";
+import {
+  CURRENCIES,
+  getCurrencyByCode,
+  DEFAULT_CURRENCY_CODE,
+} from "@/lib/constants/currencies";
 
 interface AppearanceSettingsProps {
   theme: string | undefined;
@@ -186,12 +201,16 @@ export function AppearanceSettings({
                     <div className="flex items-center gap-3">
                       <div
                         className={`w-6 h-6 rounded-full border shadow-sm ${
-                          activeTheme === t.id ? "ring-2 ring-primary ring-offset-1" : ""
+                          activeTheme === t.id
+                            ? "ring-2 ring-primary ring-offset-1"
+                            : ""
                         }`}
                         // style={activeTheme === t.id ? undefined : t.style}
                         style={t.style}
                       />
-                      <span className="text-sm font-medium">{t.name}</span>
+                      <span className="text-sm font-medium text-left">
+                        {t.name}
+                      </span>
                     </div>
                     {isLocked && (
                       <Lock className="h-4 w-4 text-muted-foreground" />
@@ -218,12 +237,8 @@ export function AppearanceSettings({
               size="icon"
               onClick={() => setIsEditingRegional(!isEditingRegional)}
             >
-              {!!(isEditingRegional) && (
-                                          <X className="h-4 w-4" />
-                                        )}
-                          {!(isEditingRegional) && (
-                                          <Pencil className="h-4 w-4" />
-                                        )}
+              {!!isEditingRegional && <X className="h-4 w-4" />}
+              {!isEditingRegional && <Pencil className="h-4 w-4" />}
             </Button>
           </CardHeader>
           {!isEditingRegional && (
@@ -235,7 +250,8 @@ export function AppearanceSettings({
                 <div>
                   <p className="text-xs text-muted-foreground">Currency</p>
                   <p className="text-sm font-semibold">
-                    {getCurrencyByCode(localCurrency).name} ({getCurrencyByCode(localCurrency).symbol})
+                    {getCurrencyByCode(localCurrency).name} (
+                    {getCurrencyByCode(localCurrency).symbol})
                   </p>
                 </div>
               </div>
@@ -244,8 +260,12 @@ export function AppearanceSettings({
                   <Percent className="h-4 w-4 text-primary" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">VAT Percentage</p>
-                  <p className="text-sm font-semibold">{localVat ? `${localVat}%` : "0%"}</p>
+                  <p className="text-xs text-muted-foreground">
+                    VAT Percentage
+                  </p>
+                  <p className="text-sm font-semibold">
+                    {localVat ? `${localVat}%` : "0%"}
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -262,8 +282,8 @@ export function AppearanceSettings({
                       </TooltipTrigger>
                       <TooltipContent>
                         <p>
-                          The currency used across the app for prices, sales, and
-                          reports. Defaults to Nigerian Naira.
+                          The currency used across the app for prices, sales,
+                          and reports. Defaults to Nigerian Naira.
                         </p>
                       </TooltipContent>
                     </Tooltip>
@@ -315,10 +335,12 @@ export function AppearanceSettings({
           )}
           {isEditingRegional && (
             <CardFooter className="border-t px-6 py-4">
-              <Button onClick={() => {
-                handleSaveRegional();
-                setIsEditingRegional(false);
-              }}>
+              <Button
+                onClick={() => {
+                  handleSaveRegional();
+                  setIsEditingRegional(false);
+                }}
+              >
                 <Save className="w-4 h-4 mr-2" />
                 Save Regional Settings
               </Button>

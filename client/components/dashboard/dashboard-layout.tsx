@@ -27,6 +27,11 @@ interface DashboardLayoutProps {
 
 const COLLAPSED_KEY = "sidebar_collapsed";
 
+const DIRECTION_ANIMATION: Record<string, string> = {
+  left: "slide-in-from-right-8",
+  right: "slide-in-from-left-8",
+};
+
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const router = useRouter();
@@ -59,6 +64,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   // mobile (<lg) — desktop keeps the normal dashboard chrome since the page
   // already renders as a self-contained bordered panel there.
   const isCreatePORoute = pathname.startsWith("/procurement/new");
+  // Excludes the bare "/settings" index (mobile menu list) — only the inner
+  // tab detail routes ("/settings/appearance", etc.) get this treatment,
+  // since those are the ones with their own sticky mobile back-button header.
+  const isSettingsInnerRoute = pathname.startsWith("/settings/");
   const [hoverExpanded, setHoverExpanded] = useState(false);
   const [userNavOpen, setUserNavOpen] = useState(false);
   const isLogicallyCollapsed = isPosRoute ? true : sidebarCollapsed;
@@ -100,6 +109,40 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       router.push("/login");
     }
   }, [user, router]);
+
+  // POS and the mobile full-screen takeovers (create PO, settings inner
+  // tabs) manage their own padding/back-header, so <main> stays unpadded for
+  // them below their own "desktop" breakpoint; everywhere else gets the
+  // standard page gutter. Each takeover's restore breakpoint must match the
+  // breakpoint that page itself uses to switch to its desktop layout:
+  // create-PO uses lg: (see procurement/new/page.tsx), settings inner tabs
+  // use md: (see hooks/use-settings.ts's isDesktop, which flips at 768px) —
+  // using the wrong one here left settings content unpadded between 768–1023px.
+  const mainClassName = isPosRoute
+    ? ""
+    : isCreatePORoute
+      ? "p-0 lg:p-6 lg:pt-3"
+      : isSettingsInnerRoute
+        ? "p-0 md:p-6 md:pt-3"
+        : "p-4 sm:p-6 sm:pt-3";
+  // Bottom-nav clearance isn't needed for POS (no bottom nav there) or the
+  // create-PO takeover (it has its own fixed footer/drawer instead).
+  const mainStyle =
+    !isPosRoute && !isCreatePORoute
+      ? {
+          paddingBottom:
+            "calc(5.5rem + var(--tauri-bottom, env(safe-area-inset-bottom, 0px)))",
+        }
+      : undefined;
+
+  const shouldAnimate = !isPosRoute && !isCreatePORoute;
+
+  // Single lookup — avoids indexing DIRECTION_ANIMATION twice (once to check,
+  // once to interpolate) and keeps the `direction === null` case contained
+  // to this one spot instead of repeating `?? ""` at each usage site.
+  const animationClass = shouldAnimate
+    ? DIRECTION_ANIMATION[direction ?? ""]
+    : undefined;
 
   return (
     <div className="min-h-screen bg-background relative">
@@ -233,37 +276,15 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         <div
           className={cn(
             "flex-1 relative overflow-x-clip",
-            !isPosRoute && !isCreatePORoute && "overflow-y-auto",
+            shouldAnimate && "overflow-y-auto",
           )}
         >
-          <main
-            className={
-              isPosRoute
-                ? ""
-                : isCreatePORoute
-                  ? "p-0 lg:p-6 lg:pt-3"
-                  : "p-4 sm:p-6 sm:pt-3"
-            }
-            style={
-              !isPosRoute && !isCreatePORoute
-                ? {
-                    paddingBottom:
-                      "calc(5.5rem + var(--tauri-bottom, env(safe-area-inset-bottom, 0px)))",
-                  }
-                : undefined
-            }
-          >
+          <main className={mainClassName} style={mainStyle}>
             <div
               key={pathname}
               className={cn(
-                !isPosRoute &&
-                  !isCreatePORoute &&
-                  direction === "left" &&
-                  "animate-in slide-in-from-right-8 fade-in duration-200",
-                !isPosRoute &&
-                  !isCreatePORoute &&
-                  direction === "right" &&
-                  "animate-in slide-in-from-left-8 fade-in duration-200",
+                animationClass &&
+                  `animate-in ${animationClass} fade-in duration-200`,
               )}
             >
               {children}

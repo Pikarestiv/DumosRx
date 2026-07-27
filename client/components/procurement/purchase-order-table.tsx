@@ -151,31 +151,31 @@ export function PurchaseOrderTable({
             <TabsList className="w-full md:w-max justify-start overflow-x-auto hide-scrollbar">
               <TabsTrigger
                 value="all"
-                className="data-[state=inactive]:bg-card data-[state=inactive]:border-border md:data-[state=inactive]:bg-transparent md:data-[state=inactive]:border-transparent"
+                className="border border-border/50 data-[state=inactive]:bg-card data-[state=inactive]:border-border data-[state=inactive]:hover:text-primary data-[state=inactive]:hover:border-primary/50 data-[state=inactive]:hover:bg-primary/5"
               >
                 All Orders
               </TabsTrigger>
               <TabsTrigger
                 value="pending"
-                className="data-[state=inactive]:bg-card data-[state=inactive]:border-border md:data-[state=inactive]:bg-transparent md:data-[state=inactive]:border-transparent"
+                className="border border-border/50 data-[state=inactive]:bg-card data-[state=inactive]:border-border data-[state=inactive]:hover:text-primary data-[state=inactive]:hover:border-primary/50 data-[state=inactive]:hover:bg-primary/5"
               >
                 Drafts
               </TabsTrigger>
               <TabsTrigger
                 value="sent"
-                className="data-[state=inactive]:bg-card data-[state=inactive]:border-border md:data-[state=inactive]:bg-transparent md:data-[state=inactive]:border-transparent"
+                className="border border-border/50 data-[state=inactive]:bg-card data-[state=inactive]:border-border data-[state=inactive]:hover:text-primary data-[state=inactive]:hover:border-primary/50 data-[state=inactive]:hover:bg-primary/5"
               >
                 Sent
               </TabsTrigger>
               <TabsTrigger
                 value="received"
-                className="data-[state=inactive]:bg-card data-[state=inactive]:border-border md:data-[state=inactive]:bg-transparent md:data-[state=inactive]:border-transparent"
+                className="border border-border/50 data-[state=inactive]:bg-card data-[state=inactive]:border-border data-[state=inactive]:hover:text-primary data-[state=inactive]:hover:border-primary/50 data-[state=inactive]:hover:bg-primary/5"
               >
                 Received
               </TabsTrigger>
               <TabsTrigger
                 value="missing-expiry"
-                className="data-[state=inactive]:bg-card data-[state=inactive]:border-border md:data-[state=inactive]:bg-transparent md:data-[state=inactive]:border-transparent data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-600"
+                className="data-[state=inactive]:bg-card data-[state=inactive]:border-border data-[state=inactive]:hover:bg-primary/5 data-[state=inactive]:hover:border-primary/50 data-[state=inactive]:hover:text-primary data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-600 data-[state=active]:hover:text-orange-600 data-[state=active]:border-orange-600"
               >
                 Missing Expiry
               </TabsTrigger>

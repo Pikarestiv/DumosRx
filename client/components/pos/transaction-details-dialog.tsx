@@ -9,6 +9,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/utils";
+import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { Button } from "@/components/ui/button";
 import { Printer, RotateCcw } from "lucide-react";
 import { useAuth } from "@/lib/context/auth-context";
@@ -75,7 +76,8 @@ export function TransactionDetailsDialog({
       <span>Reference: {sale.transaction_number}</span>
       <span className="hidden sm:inline"> • </span>
       <span className="block sm:inline mt-1 sm:mt-0 text-muted-foreground/80 sm:text-muted-foreground">
-        {new Date(sale.created_at).toLocaleString()}
+        {formatDateToDDMMYYYY(sale.created_at)}{" "}
+        {new Date(sale.created_at).toLocaleTimeString()}
       </span>
     </>
   );
@@ -241,7 +243,7 @@ export function TransactionDetailsDialog({
       onOpenChange={onOpenChange}
       title={title}
       description={description}
-      className="sm:max-w-2xl w-[95vw] sm:w-full p-0 gap-0 overflow-hidden"
+      className="sm:max-w-2xl w-full p-0 gap-0 overflow-hidden"
       headerClassName="px-4 pt-0 pb-2 sm:px-6 sm:pt-6 sm:pb-3 border-b sm:border-b-0 border-border"
       footer={
         <div className="p-4 sm:px-6 sm:py-4 border-t border-border bg-background pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">

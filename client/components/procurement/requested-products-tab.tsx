@@ -140,19 +140,19 @@ export function RequestedProductsTab() {
             <TabsList className="w-full md:w-max justify-start overflow-x-auto hide-scrollbar">
               <TabsTrigger
                 value="all"
-                className="border border-border/50 data-[state=inactive]:bg-card data-[state=inactive]:border-border data-[state=inactive]:hover:text-primary data-[state=inactive]:hover:border-primary/50 data-[state=inactive]:hover:bg-primary/5"
+                className="border border-border/50 data-[state=inactive]:bg-card data-[state=inactive]:border-border data-[state=inactive]:hover:text-primary data-[state=inactive]:hover:border-primary/50 data-[state=inactive]:hover:bg-primary/10"
               >
                 All
               </TabsTrigger>
               <TabsTrigger
                 value="pending"
-                className="border border-border/50 data-[state=inactive]:bg-card data-[state=inactive]:border-border data-[state=inactive]:hover:text-primary data-[state=inactive]:hover:border-primary/50 data-[state=inactive]:hover:bg-primary/5"
+                className="border border-border/50 data-[state=inactive]:bg-card data-[state=inactive]:border-border data-[state=inactive]:hover:text-primary data-[state=inactive]:hover:border-primary/50 data-[state=inactive]:hover:bg-primary/10"
               >
                 Pending
               </TabsTrigger>
               <TabsTrigger
                 value="ordered"
-                className="border border-border/50 data-[state=inactive]:bg-card data-[state=inactive]:border-border data-[state=inactive]:hover:text-primary data-[state=inactive]:hover:border-primary/50 data-[state=inactive]:hover:bg-primary/5"
+                className="border border-border/50 data-[state=inactive]:bg-card data-[state=inactive]:border-border data-[state=inactive]:hover:text-primary data-[state=inactive]:hover:border-primary/50 data-[state=inactive]:hover:bg-primary/10"
               >
                 Ordered
               </TabsTrigger>

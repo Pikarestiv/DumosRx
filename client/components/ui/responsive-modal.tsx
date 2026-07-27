@@ -30,6 +30,11 @@ interface ResponsiveModalProps {
   className?: string;
   /** Custom class for the header container */
   headerClassName?: string;
+  /**
+   * Action buttons rendered outside the scrollable area, pinned below the
+   * content on mobile so they can't be scrolled out of view.
+   */
+  footer?: React.ReactNode;
 }
 
 export function ResponsiveModal({
@@ -40,6 +45,7 @@ export function ResponsiveModal({
   children,
   className,
   headerClassName,
+  footer,
 }: ResponsiveModalProps) {
   const isDesktop = useMediaQuery("(min-width: 768px)");
 
@@ -54,6 +60,7 @@ export function ResponsiveModal({
             )}
           </DialogHeader>
           <div className="responsive-modal-fields">{children}</div>
+          {footer}
         </DialogContent>
       </Dialog>
     );
@@ -62,10 +69,15 @@ export function ResponsiveModal({
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent
-        className={cn("max-h-[90vh] overflow-y-auto px-4", className)}
+        className={cn("max-h-[90vh] flex flex-col px-4", className)}
       >
-        <DrawerHeader className={cn("text-left mb-4 px-0 flex flex-row items-start justify-between", headerClassName)}>
-          <div>
+        <DrawerHeader
+          className={cn(
+            "text-left mb-4 px-0 flex flex-row items-start justify-between",
+            headerClassName,
+          )}
+        >
+          <div className="flex flex-col gap-2 sm:gap-0">
             <DrawerTitle>{title}</DrawerTitle>
             {description && (
               <DrawerDescription>{description}</DrawerDescription>
@@ -76,7 +88,10 @@ export function ResponsiveModal({
             <span className="sr-only">Close</span>
           </DrawerClose>
         </DrawerHeader>
-        <div className="responsive-modal-fields">{children}</div>
+        <div className="responsive-modal-fields overflow-y-auto">
+          {children}
+        </div>
+        {footer && <div className="pt-4 pb-2 shrink-0">{footer}</div>}
       </DrawerContent>
     </Drawer>
   );

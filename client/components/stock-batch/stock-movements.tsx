@@ -138,7 +138,7 @@ export function StockMovements() {
             </div>
           </div>
           {renderTypeChips(
-            "data-[state=inactive]:bg-card data-[state=inactive]:border-border",
+            "data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none data-[state=inactive]:border-border data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-primary/10 data-[state=inactive]:hover:border-primary/50 data-[state=inactive]:hover:text-primary",
           )}
         </div>
 

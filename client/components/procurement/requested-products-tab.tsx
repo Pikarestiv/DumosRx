@@ -8,7 +8,6 @@ import {
   RequestedProduct,
 } from "@/lib/db/requested-products-queries";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -19,13 +18,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Check, Copy, Search, Trash2 } from "lucide-react";
+import { Search } from "lucide-react";
 import { genericFuzzySearch } from "@/lib/utils/search";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { RequestItemDialog } from "@/components/pos/request-item-dialog";
 import { RequestedProductsStats } from "./requested-products-stats";
+import { RequestedProductMobileCard } from "./requested-product-mobile-card";
+import { RequestedProductRow } from "./requested-product-row";
 
 type RequestStatusFilter = "all" | "pending" | "ordered";
 
@@ -176,66 +176,12 @@ export function RequestedProductsTab() {
             {!loading &&
               filteredRequests.length > 0 &&
               filteredRequests.map((req) => (
-                <div
+                <RequestedProductMobileCard
                   key={req.id}
-                  className="flex items-start gap-3 p-3 rounded-xl border border-border bg-card"
-                >
-                  <div className="min-w-0 flex-1">
-                    <span className="text-[13.5px] font-semibold text-primary truncate block">
-                      {req.product_name}
-                    </span>
-                    {req.notes && (
-                      <div
-                        className="text-[11px] text-muted-foreground mt-0.5 truncate"
-                        title={req.notes}
-                      >
-                        Note: {req.notes}
-                      </div>
-                    )}
-                    <div className="text-[11.5px] text-muted-foreground mt-1">
-                      {req.requested_by_customer || "Anonymous"} &middot; Qty{" "}
-                      {req.quantity || 1} &middot; {req.request_count}{" "}
-                      {req.request_count === 1 ? "request" : "requests"}
-                    </div>
-                    <div className="text-[11px] text-muted-foreground mt-0.5">
-                      {new Date(req.created_at).toLocaleDateString()}
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-end gap-2 shrink-0">
-                    <Badge
-                      variant={req.status === "pending" ? "outline" : "default"}
-                      className={
-                        req.status === "ordered"
-                          ? "bg-emerald-500/10 text-emerald-600 border-emerald-200 shadow-none"
-                          : "bg-amber-500/10 text-amber-600 border-amber-200 shadow-none"
-                      }
-                    >
-                      {req.status === "pending" ? "Pending" : "Ordered"}
-                    </Badge>
-                    <div className="flex items-center gap-1">
-                      {req.status === "pending" && (
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => handleMarkAsOrdered(req.id)}
-                          title="Mark as ordered"
-                        >
-                          <Check className="h-3.5 w-3.5 text-emerald-500" />
-                        </Button>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive/70 hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => handleDelete(req.id)}
-                        title="Delete request"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
+                  req={req}
+                  onMarkAsOrdered={handleMarkAsOrdered}
+                  onDelete={handleDelete}
+                />
               ))}
           </div>
 
@@ -284,96 +230,13 @@ export function RequestedProductsTab() {
               {!loading &&
                 filteredRequests.length > 0 &&
                 filteredRequests.map((req) => (
-                  <TableRow
+                  <RequestedProductRow
                     key={req.id}
-                    className="border-b border-border/50 hover:bg-accent/20 transition-colors group"
-                  >
-                    <TableCell className="font-medium py-[14px] pl-4">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[13.5px] font-semibold text-primary">
-                          {req.product_name}
-                        </span>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6 opacity-0 group-hover:opacity-100 text-muted-foreground hover:bg-primary hover:text-primary-foreground transition-all"
-                          onClick={() => copyToClipboard(req.product_name)}
-                          title="Copy to clipboard"
-                        >
-                          <Copy className="h-2 w-2" />
-                        </Button>
-                      </div>
-                      {req.notes && (
-                        <div
-                          className="text-[11px] text-muted-foreground mt-1 truncate max-w-[200px]"
-                          title={req.notes}
-                        >
-                          Note: {req.notes}
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-[13.5px] py-[14px]">
-                      {req.requested_by_customer || "Anonymous"}
-                    </TableCell>
-                    <TableCell className="py-[14px]">
-                      <div className="flex flex-col gap-1 items-start">
-                        <Badge
-                          variant={
-                            req.quantity > 5 ? "destructive" : "secondary"
-                          }
-                          className="text-xs"
-                        >
-                          Qty: {req.quantity || 1}
-                        </Badge>
-                        <span className="text-[11px] text-muted-foreground">
-                          {req.request_count}{" "}
-                          {req.request_count === 1 ? "request" : "requests"}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="py-[14px]">
-                      <Badge
-                        variant={
-                          req.status === "pending" ? "outline" : "default"
-                        }
-                        className={
-                          req.status === "ordered"
-                            ? "bg-emerald-500/10 text-emerald-600 border-emerald-200 shadow-none"
-                            : "bg-amber-500/10 text-amber-600 border-amber-200 shadow-none"
-                        }
-                      >
-                        {req.status === "pending" ? "Pending" : "Ordered"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground py-[14px]">
-                      {new Date(req.created_at).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell className="text-right py-[14px]">
-                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        {req.status === "pending" && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleMarkAsOrdered(req.id)}
-                            title="Mark as ordered"
-                            className="h-8 text-xs"
-                          >
-                            <Check className="h-3.5 w-3.5 mr-1.5 text-emerald-500" />
-                            Mark Ordered
-                          </Button>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive/70 hover:text-destructive hover:bg-destructive/10"
-                          onClick={() => handleDelete(req.id)}
-                          title="Delete request"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                    req={req}
+                    onMarkAsOrdered={handleMarkAsOrdered}
+                    onDelete={handleDelete}
+                    onCopy={copyToClipboard}
+                  />
                 ))}
             </TableBody>
           </Table>

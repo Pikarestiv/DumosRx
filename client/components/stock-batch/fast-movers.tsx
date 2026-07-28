@@ -25,11 +25,11 @@ export function FastMovers() {
       {/* Mobile: header sits above the card */}
       <div className="lg:hidden mb-3">{header}</div>
 
-      <div className="border-0 md:border md:border-border bg-transparent md:bg-card rounded-none md:rounded-2xl p-0 md:p-5 flex flex-col lg:flex-1">
+      <div className="border-0 md:border md:border-border bg-transparent md:bg-card rounded-none md:rounded-2xl p-0 md:p-5 flex flex-col lg:flex-1 lg:min-h-0">
         {/* Desktop: header stays inside the card */}
-        <div className="hidden lg:block mb-4">{header}</div>
+        <div className="hidden lg:block mb-4 shrink-0">{header}</div>
 
-        <div className="flex flex-col gap-2 md:gap-0 py-3 md:py-0">
+        <div className="flex flex-col gap-2 md:gap-0 py-3 md:py-0 lg:flex-1 lg:min-h-0 lg:overflow-y-auto">
         {!!(isLoading) && (
                         <div className="text-sm text-muted-foreground py-4 text-center">Loading...</div>
                       )}

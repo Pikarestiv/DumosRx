@@ -1,7 +1,9 @@
 "use client";
 
+import { useRef } from "react";
 import { Prescription } from "@/lib/hooks/use-prescription-queue";
 import { AlertTriangle } from "lucide-react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { Card } from "@/components/ui/card";
 import {
   PRESCRIPTION_STATUS_META,
@@ -29,6 +31,17 @@ export function PrescriptionList({
 
   isFuzzyFallback,
 }: PrescriptionListProps) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const rowVirtualizer = useVirtualizer({
+    count: prescriptions.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => 80,
+    overscan: 8,
+    // Card padding/border differs between mobile and lg:, so measure actual
+    // rendered height per row instead of assuming one fixed size.
+    measureElement: (el) => el.getBoundingClientRect().height,
+  });
+
   return (
     <Card className="bg-transparent border-0 shadow-none rounded-none lg:bg-card lg:border lg:border-border lg:rounded-2xl lg:shadow-sm flex flex-col min-h-0 lg:h-full p-0 gap-0">
       {/* Search — renders standalone above on mobile (see PrescriptionManagement) */}
@@ -46,14 +59,19 @@ export function PrescriptionList({
       )}
 
       {/* List */}
-      <div className="flex-1 overflow-y-auto p-0 lg:p-3">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-0 lg:p-3">
         {prescriptions.length === 0 && (
           <div className="text-center text-[12.5px] text-muted-foreground py-10">
             No prescriptions match.
           </div>
         )}
-        {prescriptions.length > 0 &&
-          prescriptions.map((rx) => {
+        {prescriptions.length > 0 && (
+          <div
+            className="relative w-full"
+            style={{ height: rowVirtualizer.getTotalSize() }}
+          >
+            {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+            const rx = prescriptions[virtualRow.index];
             const isSelected = selectedPrescription?.id === rx.id;
             const meta = PRESCRIPTION_STATUS_META[rx.status];
             const isUrgent = rx.priority === "urgent" || rx.priority === "stat";
@@ -62,8 +80,14 @@ export function PrescriptionList({
             return (
               <div
                 key={rx.id}
+                data-index={virtualRow.index}
+                ref={rowVirtualizer.measureElement}
+                className="absolute top-0 left-0 w-full pb-2 lg:pb-1"
+                style={{ transform: `translateY(${virtualRow.start}px)` }}
+              >
+              <div
                 onClick={() => onSelect(rx)}
-                className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer border mb-2 lg:mb-1 transition-colors ${
+                className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer border transition-colors ${
                   isSelected
                     ? "border-primary bg-primary/5"
                     : "border-border bg-card lg:border-transparent lg:bg-transparent hover:bg-muted/50"
@@ -101,8 +125,11 @@ export function PrescriptionList({
                   )}
                 </div>
               </div>
+              </div>
             );
-          })}
+            })}
+          </div>
+        )}
       </div>
     </Card>
   );

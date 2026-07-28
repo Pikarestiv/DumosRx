@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useRef } from "react";
 import { Package, ChevronRight } from "lucide-react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { Product } from "./types";
 import { useStore } from "@/lib/context/store-context";
 
@@ -23,6 +24,17 @@ export function CatalogList({
   const { storeType } = useStore();
   const isPharmacy = storeType === "pharmacy";
 
+  const scrollRef = useRef<HTMLDivElement>(null);
+  // Row height differs between the stacked mobile layout and the desktop grid
+  // row, so this measures actual rendered height per row instead of assuming
+  // one fixed size.
+  const rowVirtualizer = useVirtualizer({
+    count: filteredProducts.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => 72,
+    overscan: 8,
+  });
+
   return (
     <div className="flex flex-col h-full min-h-0">
       {isFuzzyFallback && filteredProducts.length > 0 && (
@@ -41,18 +53,32 @@ export function CatalogList({
       </div>
 
       {/* Rows */}
-      <div className="flex-1 overflow-y-auto hide-scrollbar flex flex-col gap-2 sm:gap-0 py-3 sm:py-0">
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto hide-scrollbar py-3 sm:py-0"
+      >
         {filteredProducts.length === 0 && (
           <EmptyCatalogList totalCount={totalCount} />
         )}
-        {filteredProducts.length > 0 &&
-          filteredProducts.map((product) => {
+        {filteredProducts.length > 0 && (
+          <div
+            className="relative w-full"
+            style={{ height: rowVirtualizer.getTotalSize() }}
+          >
+            {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+            const product = filteredProducts[virtualRow.index];
             const isSelected = selectedProductId === product.id;
             return (
               <div
                 key={product.id}
+                data-index={virtualRow.index}
+                ref={rowVirtualizer.measureElement}
+                className="absolute top-0 left-0 w-full pb-2 sm:pb-0"
+                style={{ transform: `translateY(${virtualRow.start}px)` }}
+              >
+              <div
                 onClick={() => onSelectProduct(product)}
-                className={`px-4 py-3 rounded-xl sm:rounded-none border sm:border-t-0 sm:border-r-0 sm:border-b border-border cursor-pointer transition-colors ${
+                className={`px-4 py-3 sm:py-2 rounded-xl sm:rounded-none border sm:border-t-0 sm:border-r-0 sm:border-b border-border cursor-pointer transition-colors ${
                   isSelected
                     ? "bg-primary/5 border-l-2 border-l-primary"
                     : "bg-card sm:bg-transparent hover:bg-muted/50 border-l-2 border-l-transparent"
@@ -124,8 +150,11 @@ export function CatalogList({
                   </div>
                 </div>
               </div>
+              </div>
             );
-          })}
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,11 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Search, ChevronLeft, ChevronRight, AlertCircle } from "lucide-react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { Customer } from "@/lib/hooks/use-customer-data";
 import { Card } from "@/components/ui/card";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { formatCurrency } from "@/lib/utils";
+
+// Matches the row's px-4 py-2.5 padding + single line of 13.5px/12px text.
+const DESKTOP_ROW_HEIGHT = 56;
 
 interface DirectoryTabProps {
   customers: Customer[];
@@ -36,6 +40,8 @@ export function DirectoryTab({
 }: DirectoryTabProps) {
   const [filter, setFilter] = useState<CustFilter>("all");
 
+  const desktopScrollRef = useRef<HTMLDivElement>(null);
+
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -49,6 +55,13 @@ export function DirectoryTab({
     if (filter === "loyalty") return customers.filter((c) => c.points > 0);
     return customers;
   }, [customers, filter]);
+
+  const rowVirtualizer = useVirtualizer({
+    count: filteredCustomers.length,
+    getScrollElement: () => desktopScrollRef.current,
+    estimateSize: () => DESKTOP_ROW_HEIGHT,
+    overscan: 8,
+  });
 
   const debtSummary = useMemo(() => {
     const debtors = customers.filter((c) => c.outstanding_balance > 0);
@@ -251,7 +264,7 @@ export function DirectoryTab({
       </div>
 
       {/* Desktop List Panel */}
-      <Card className="hidden md:flex flex-col gap-0 py-0 border rounded-[14px] shadow-sm w-full flex-1 h-[600px] overflow-hidden">
+      <Card className="hidden md:flex flex-col gap-0 py-0 border rounded-[14px] shadow-sm w-full flex-1 min-h-0 h-full overflow-hidden">
         <div className="p-4 border-b space-y-3">
           {SearchInput}
           <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -270,51 +283,63 @@ export function DirectoryTab({
           <div className="text-right">Last Visit</div>
         </div>
 
-        <div className="overflow-y-auto flex-1">
-          {filteredCustomers.map((customer) => {
-            const isSelected = selectedCustomer?.id === customer.id;
-            return (
-              <div
-                key={customer.id}
-                onClick={() => setSelectedCustomer(customer)}
-                className={`grid grid-cols-[1.6fr_1.1fr_80px_70px_100px_110px] items-center gap-2 px-4 py-2.5 cursor-pointer border-b last:border-0 transition-colors ${isSelected ? "bg-primary/10" : "hover:bg-primary/5"}`}
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-9 h-9 shrink-0 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-[13px]">
-                    {customer.name.substring(0, 2).toUpperCase()}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-[13.5px] font-semibold truncate">
-                      {customer.name}
+        <div ref={desktopScrollRef} className="overflow-y-auto flex-1">
+          {filteredCustomers.length > 0 && (
+            <div
+              className="relative w-full"
+              style={{ height: rowVirtualizer.getTotalSize() }}
+            >
+              {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                const customer = filteredCustomers[virtualRow.index];
+                const isSelected = selectedCustomer?.id === customer.id;
+                return (
+                  <div
+                    key={customer.id}
+                    onClick={() => setSelectedCustomer(customer)}
+                    className={`absolute top-0 left-0 w-full grid grid-cols-[1.6fr_1.1fr_80px_70px_100px_110px] items-center gap-2 px-4 py-2.5 cursor-pointer border-b transition-colors ${isSelected ? "bg-primary/10" : "hover:bg-primary/5"}`}
+                    style={{
+                      height: virtualRow.size,
+                      transform: `translateY(${virtualRow.start}px)`,
+                    }}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-9 shrink-0 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-[13px]">
+                        {customer.name.substring(0, 2).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-[13.5px] font-semibold truncate">
+                          {customer.name}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-[12px] text-muted-foreground truncate">
+                      {customer.phone || customer.email || "No contact info"}
+                    </div>
+                    <div>
+                      <span
+                        className={`text-[10px] font-medium px-2 py-0.5 rounded-full text-white ${getTierColor(customer.tier)}`}
+                      >
+                        {customer.tier}
+                      </span>
+                    </div>
+                    <div className="text-[12.5px] text-right text-emerald-600 font-medium">
+                      {customer.points.toLocaleString()}
+                    </div>
+                    <div
+                      className={`text-[12.5px] text-right font-medium ${customer.outstanding_balance > 0 ? "text-destructive" : "text-muted-foreground"}`}
+                    >
+                      {customer.outstanding_balance > 0
+                        ? formatCurrency(customer.outstanding_balance, currencyCode)
+                        : "-"}
+                    </div>
+                    <div className="text-[12px] text-right text-muted-foreground">
+                      {customer.lastVisit}
                     </div>
                   </div>
-                </div>
-                <div className="text-[12px] text-muted-foreground truncate">
-                  {customer.phone || customer.email || "No contact info"}
-                </div>
-                <div>
-                  <span
-                    className={`text-[10px] font-medium px-2 py-0.5 rounded-full text-white ${getTierColor(customer.tier)}`}
-                  >
-                    {customer.tier}
-                  </span>
-                </div>
-                <div className="text-[12.5px] text-right text-emerald-600 font-medium">
-                  {customer.points.toLocaleString()}
-                </div>
-                <div
-                  className={`text-[12.5px] text-right font-medium ${customer.outstanding_balance > 0 ? "text-destructive" : "text-muted-foreground"}`}
-                >
-                  {customer.outstanding_balance > 0
-                    ? formatCurrency(customer.outstanding_balance, currencyCode)
-                    : "-"}
-                </div>
-                <div className="text-[12px] text-right text-muted-foreground">
-                  {customer.lastVisit}
-                </div>
-              </div>
-            );
-          })}
+                );
+              })}
+            </div>
+          )}
           {filteredCustomers.length === 0 && (
             <div className="p-8 text-center text-muted-foreground text-[13px]">
               No customers found.

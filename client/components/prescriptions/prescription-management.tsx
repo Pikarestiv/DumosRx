@@ -120,7 +120,7 @@ export function PrescriptionManagement() {
   };
 
   return (
-    <div className="space-y-4 lg:space-y-6">
+    <div className="flex flex-col lg:flex-1 lg:min-h-0 gap-4 lg:gap-6">
       <PrescriptionStats stats={stats} />
 
       {/* Mobile: search bar stands alone above the filter chips, own bg-card to contrast with the page */}
@@ -139,7 +139,7 @@ export function PrescriptionManagement() {
       />
 
       {/* Grid Layout — both panes stretch to match the taller one on desktop */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] lg:grid-rows-1 gap-6 lg:h-[calc(100vh-320px)] lg:min-h-[500px]">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] lg:grid-rows-1 gap-6 lg:flex-1 lg:min-h-0">
         {/* Left List */}
         <PrescriptionList
           prescriptions={filteredPrescriptions}

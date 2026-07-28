@@ -1,9 +1,12 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useMemo, useRef, useState } from "react";
 import { formatCurrency } from "@/lib/utils";
 import { format } from "date-fns";
 import { Search, ReceiptText, ChevronRight } from "lucide-react";
+import { useVirtualizer } from "@tanstack/react-virtual";
+
+const DESKTOP_ROW_HEIGHT = 56;
 import { useStore } from "@/lib/context/store-context";
 import { useExpenseList } from "@/lib/hooks/use-finance-data";
 import { ExpenseDetailDialog } from "./expense-detail-dialog";
@@ -58,6 +61,14 @@ export function ExpenseList() {
       })
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [expenses, searchTerm, selectedCategory]);
+
+  const desktopScrollRef = useRef<HTMLDivElement>(null);
+  const rowVirtualizer = useVirtualizer({
+    count: filteredExpenses.length,
+    getScrollElement: () => desktopScrollRef.current,
+    estimateSize: () => DESKTOP_ROW_HEIGHT,
+    overscan: 8,
+  });
 
   const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
 
@@ -202,17 +213,25 @@ export function ExpenseList() {
           <div className="text-right">Amount</div>
         </div>
 
-        <div className="flex-1 overflow-y-auto">
+        <div ref={desktopScrollRef} className="flex-1 overflow-y-auto">
           {filteredExpenses.length === 0 && EmptyState}
           {filteredExpenses.length > 0 && (
-            <div className="flex flex-col divide-y divide-border/50">
-              {filteredExpenses.map((expense: Expense) => {
+            <div
+              className="relative w-full"
+              style={{ height: rowVirtualizer.getTotalSize() }}
+            >
+              {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                const expense = filteredExpenses[virtualRow.index];
                 const meta =
                   CATEGORY_META[expense.category] || CATEGORY_META["Unknown"];
                 return (
                   <div
                     key={expense.id}
-                    className="grid grid-cols-[110px_150px_1fr_130px_120px] gap-2 items-center px-5 py-3.5 hover:bg-muted/50 cursor-pointer transition-colors"
+                    className="absolute top-0 left-0 w-full grid grid-cols-[110px_150px_1fr_130px_120px] gap-2 items-center px-5 py-3.5 border-b border-border/50 hover:bg-muted/50 cursor-pointer transition-colors"
+                    style={{
+                      height: virtualRow.size,
+                      transform: `translateY(${virtualRow.start}px)`,
+                    }}
                     onClick={() => setSelectedExpenseId(expense.id)}
                   >
                     <div className="text-[13px] font-medium">

@@ -148,7 +148,7 @@ export function ProductDatabase() {
   }, []);
 
   return (
-    <div className="flex flex-col lg:h-[calc(100vh-140px)] lg:min-h-[600px] space-y-4">
+    <div className="flex flex-col lg:flex-1 lg:min-h-0 lg:h-full gap-4">
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(320px,400px)] xl:grid-cols-[minmax(0,1fr)_minmax(380px,450px)] lg:grid-rows-1 gap-5 flex-1 min-h-0">
         {/* Left List */}
         <div className="flex flex-col min-h-0 gap-3 lg:gap-0 lg:h-full">

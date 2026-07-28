@@ -1,9 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Search, Lock } from "lucide-react";
 import { format, isToday, isYesterday, differenceInDays } from "date-fns";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { genericFuzzySearch } from "@/lib/utils/search";
+
+const DESKTOP_ROW_HEIGHT = 52;
 import { StockMovementsSkeleton } from "./stock-movements-skeleton";
 import { useRouter } from "next/navigation";
 import { StockMovement } from "./stock-movement-utils";
@@ -90,6 +93,14 @@ export function StockMovements() {
     ["product", "reference", "reason", "user"],
   );
 
+  const desktopScrollRef = useRef<HTMLDivElement>(null);
+  const rowVirtualizer = useVirtualizer({
+    count: filteredMovements.length,
+    getScrollElement: () => desktopScrollRef.current,
+    estimateSize: () => DESKTOP_ROW_HEIGHT,
+    overscan: 8,
+  });
+
   const groupedMovements = filteredMovements.reduce(
     (acc, movement) => {
       const date = new Date(movement.date);
@@ -114,7 +125,7 @@ export function StockMovements() {
   }
 
   return (
-    <div className="relative">
+    <div className="relative flex flex-col flex-1 min-h-0">
       {/* Mobile: search + chips stand alone above the list; no outer card, immutable-log note hidden */}
       <div className="md:hidden space-y-3 mb-4">
         <div className="flex items-center gap-2 bg-card border border-border rounded-[10px] px-3.5 py-2.5">
@@ -139,7 +150,7 @@ export function StockMovements() {
         )}
       </div>
 
-      <div className="hidden md:flex bg-card border border-border rounded-2xl flex-col flex-1 min-h-[600px]">
+      <div className="hidden md:flex bg-card border border-border rounded-2xl flex-col flex-1 min-h-0">
         {/* Header & Filters */}
         <div className="p-4 pb-3 border-b border-border">
           <div className="flex flex-col md:flex-row md:items-center gap-2.5 mb-3">
@@ -181,20 +192,37 @@ export function StockMovements() {
         </div>
 
         {/* List */}
-        <div className="flex-1 overflow-y-auto pb-6">
+        <div ref={desktopScrollRef} className="flex-1 overflow-y-auto pb-6">
           {filteredMovements.length === 0 && (
             <div className="p-8 text-center text-muted-foreground text-[13px]">
               No movements found.
             </div>
           )}
-          {filteredMovements.length > 0 &&
-            filteredMovements.map((movement) => (
-              <StockMovementDesktopRow
-                key={movement.id}
-                movement={movement}
-                onSelect={() => setSelectedMovement(movement)}
-              />
-            ))}
+          {filteredMovements.length > 0 && (
+            <div
+              className="relative w-full"
+              style={{ height: rowVirtualizer.getTotalSize() }}
+            >
+              {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                const movement = filteredMovements[virtualRow.index];
+                return (
+                  <div
+                    key={movement.id}
+                    className="absolute top-0 left-0 w-full"
+                    style={{
+                      height: virtualRow.size,
+                      transform: `translateY(${virtualRow.start}px)`,
+                    }}
+                  >
+                    <StockMovementDesktopRow
+                      movement={movement}
+                      onSelect={() => setSelectedMovement(movement)}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 

@@ -1,14 +1,6 @@
 "use client";
 
 import { Users } from "lucide-react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 
 interface Supplier {
   id: string;
@@ -36,6 +28,24 @@ interface SupplierTableProps {
   onRowClick?: (supplier: Supplier) => void;
 }
 
+const COLUMNS = [
+  { label: "Supplier", className: "w-[1.3fr]" },
+  { label: "Contact", className: "w-[1fr]" },
+  { label: "Orders", className: "w-[90px]" },
+  { label: "Rating", className: "w-[90px]" },
+  { label: "Total Value", className: "w-[100px]" },
+];
+
+function EmptyState() {
+  return (
+    <div className="flex flex-col items-center justify-center text-muted-foreground h-32">
+      <Users className="h-8 w-8 mb-2 opacity-50" />
+      <p className="font-medium">No suppliers found</p>
+      <p className="text-sm">Try adjusting your search or add a new supplier</p>
+    </div>
+  );
+}
+
 export function SupplierTable({
   suppliers,
   formatCurrency,
@@ -54,13 +64,7 @@ export function SupplierTable({
 
       {/* Mobile: card list */}
       <div className="md:hidden flex flex-col gap-2 px-0 py-3">
-        {suppliers.length === 0 && (
-          <div className="flex flex-col items-center justify-center text-muted-foreground h-32">
-            <Users className="h-8 w-8 mb-2 opacity-50" />
-            <p className="font-medium">No suppliers found</p>
-            <p className="text-sm">Try adjusting your search or add a new supplier</p>
-          </div>
-        )}
+        {suppliers.length === 0 && <EmptyState />}
         {suppliers.map((supplier) => {
           const isSelected = selectedSupplierId === supplier.id;
           return (
@@ -102,101 +106,97 @@ export function SupplierTable({
         })}
       </div>
 
-      {/* Desktop: table */}
-      <div className="hidden md:block overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow className="hover:bg-transparent border-b border-border">
-              <TableHead className="w-[1.3fr] text-[11px] pl-4 font-bold text-muted-foreground uppercase tracking-wide h-11 align-middle">
-                Supplier
-              </TableHead>
-              <TableHead className="w-[1fr] text-[11px] font-bold text-muted-foreground uppercase tracking-wide h-11 align-middle">
-                Contact
-              </TableHead>
-              <TableHead className="w-[90px] text-[11px] font-bold text-muted-foreground uppercase tracking-wide h-11 align-middle">
-                Orders
-              </TableHead>
-              <TableHead className="w-[90px] text-[11px] font-bold text-muted-foreground uppercase tracking-wide h-11 align-middle">
-                Rating
-              </TableHead>
-              <TableHead className="w-[100px] text-[11px] font-bold text-muted-foreground uppercase tracking-wide h-11 align-middle">
-                Total Value
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {suppliers.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={5} className="h-32 text-center">
-                  <div className="flex flex-col items-center justify-center text-muted-foreground">
-                    <Users className="h-8 w-8 mb-2 opacity-50" />
-                    <p className="font-medium">No suppliers found</p>
-                    <p className="text-sm">
-                      Try adjusting your search or add a new supplier
-                    </p>
-                  </div>
-                </TableCell>
-              </TableRow>
-            )}
-            {!(suppliers.length === 0) &&
-              suppliers.map((supplier) => {
-                const isSelected = selectedSupplierId === supplier.id;
+      {/* Desktop: div-based table, with ARIA table roles standing in for real <table> semantics */}
+      <div
+        role="table"
+        aria-label="Suppliers"
+        className="hidden md:block overflow-x-auto"
+      >
+        <div role="rowgroup">
+          <div
+            role="row"
+            className="grid grid-cols-[1.3fr_1fr_90px_90px_100px] gap-2 px-4 border-b border-border"
+          >
+            {COLUMNS.map((col) => (
+              <div
+                key={col.label}
+                role="columnheader"
+                className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide h-11 flex items-center"
+              >
+                {col.label}
+              </div>
+            ))}
+          </div>
+        </div>
 
-                return (
-                  <TableRow
-                    key={supplier.id}
-                    onClick={() => onRowClick?.(supplier)}
-                    className={`border-b border-border/50 cursor-pointer transition-colors group ${
-                      isSelected ? "bg-primary/10 hover:bg-primary/10" : "hover:bg-primary/5"
-                    }`}
-                  >
-                    <TableCell className="py-[14px]">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[11px] font-bold shrink-0">
-                          {supplier.name[0]}
-                        </div>
-                        <div>
-                          <div className="font-semibold text-foreground text-[13.5px] truncate">
-                            {supplier.name}
-                          </div>
-                          {supplier.hasDebt && (
-                            <div className="text-[11px] text-destructive font-medium mt-0.5">
-                              Owed {formatCurrency(supplier.debtAmount)}
-                            </div>
-                          )}
-                        </div>
+        <div role="rowgroup">
+          {suppliers.length === 0 && (
+            <div role="row">
+              <div role="cell" className="h-32 flex items-center justify-center">
+                <EmptyState />
+              </div>
+            </div>
+          )}
+          {suppliers.map((supplier) => {
+            const isSelected = selectedSupplierId === supplier.id;
+            return (
+              <div
+                key={supplier.id}
+                role="row"
+                tabIndex={0}
+                onClick={() => onRowClick?.(supplier)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onRowClick?.(supplier);
+                  }
+                }}
+                className={`grid grid-cols-[1.3fr_1fr_90px_90px_100px] gap-2 items-center px-4 py-[14px] border-b border-border/50 cursor-pointer transition-colors group ${
+                  isSelected ? "bg-primary/10 hover:bg-primary/10" : "hover:bg-primary/5"
+                }`}
+              >
+                <div role="cell" className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[11px] font-bold shrink-0">
+                    {supplier.name[0]}
+                  </div>
+                  <div>
+                    <div className="font-semibold text-foreground text-[13.5px] truncate">
+                      {supplier.name}
+                    </div>
+                    {supplier.hasDebt && (
+                      <div className="text-[11px] text-destructive font-medium mt-0.5">
+                        Owed {formatCurrency(supplier.debtAmount)}
                       </div>
-                    </TableCell>
-                    <TableCell className="py-[14px]">
-                      <div className="text-muted-foreground truncate text-[12.5px]">
-                        {supplier.contactPerson ||
-                          supplier.email ||
-                          supplier.phone}
-                      </div>
-                      <div className="text-muted-foreground truncate text-[11px] mt-0.5">
-                        {supplier.address}
-                      </div>
-                    </TableCell>
-                    <TableCell className="py-[14px]">
-                      <div className="text-muted-foreground font-medium text-[13px]">
-                        {supplier.totalOrders}
-                      </div>
-                    </TableCell>
-                    <TableCell className="py-[14px]">
-                      <div className="flex text-amber-500 text-[13px] tracking-widest">
-                        {getRatingStars(supplier.rating)}
-                      </div>
-                    </TableCell>
-                    <TableCell className="py-[14px]">
-                      <div className="font-semibold text-foreground text-[13px]">
-                        {formatCurrency(supplier.totalValue)}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-          </TableBody>
-        </Table>
+                    )}
+                  </div>
+                </div>
+                <div role="cell">
+                  <div className="text-muted-foreground truncate text-[12.5px]">
+                    {supplier.contactPerson || supplier.email || supplier.phone}
+                  </div>
+                  <div className="text-muted-foreground truncate text-[11px] mt-0.5">
+                    {supplier.address}
+                  </div>
+                </div>
+                <div role="cell">
+                  <div className="text-muted-foreground font-medium text-[13px]">
+                    {supplier.totalOrders}
+                  </div>
+                </div>
+                <div role="cell">
+                  <div className="flex text-amber-500 text-[13px] tracking-widest">
+                    {getRatingStars(supplier.rating)}
+                  </div>
+                </div>
+                <div role="cell">
+                  <div className="font-semibold text-foreground text-[13px]">
+                    {formatCurrency(supplier.totalValue)}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

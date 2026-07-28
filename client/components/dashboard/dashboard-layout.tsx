@@ -279,10 +279,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             shouldAnimate && "overflow-y-auto",
           )}
         >
-          <main className={mainClassName} style={mainStyle}>
+          <main
+            className={cn("flex-1 min-h-0 flex flex-col", mainClassName)}
+            style={mainStyle}
+          >
             <div
               key={pathname}
               className={cn(
+                "flex-1 min-h-0 flex flex-col",
                 animationClass &&
                   `animate-in ${animationClass} fade-in duration-200`,
               )}

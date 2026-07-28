@@ -21,6 +21,7 @@ interface PinEntryProps {
   isLoading: boolean;
   hasError: boolean;
   handleLogin: (e: React.FormEvent) => void;
+  onAutoSubmit: (pinValue: string) => void;
   onBack: () => void;
 }
 
@@ -31,6 +32,7 @@ export function PinEntry({
   isLoading,
   hasError,
   handleLogin,
+  onAutoSubmit,
   onBack,
 }: PinEntryProps) {
   // Touch capability decides this, not viewport width or user-agent sniffing:
@@ -84,10 +86,7 @@ export function PinEntry({
               onChange={(value) => {
                 setPin(value);
               }}
-              onComplete={() => {
-                // We don't auto-submit here because handleLogin expects an event,
-                // but we can simulate it or just let the button do it.
-              }}
+              onComplete={(value) => onAutoSubmit(value)}
               autoFocus
               inputMode={isTouchDevice ? "none" : "numeric"}
               containerClassName="gap-2"
@@ -107,7 +106,12 @@ export function PinEntry({
 
         {isTouchDevice && (
           <div className="mt-auto mb-3">
-            <PinPad value={pin} onChange={setPin} maxLength={4} />
+            <PinPad
+              value={pin}
+              onChange={setPin}
+              maxLength={4}
+              onSubmit={onAutoSubmit}
+            />
           </div>
         )}
 

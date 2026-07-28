@@ -38,7 +38,17 @@ export const useAutoLockStore = create<AutoLockState>()(
 );
 
 export function useAutoLockTimer() {
-  const { duration, lock, updateActivity } = useAutoLockStore();
+  // Selectors, not a destructured whole-store call — this hook runs inside
+  // DashboardLayout, which wraps the entire app, so subscribing to the whole
+  // store would re-render everything below it on every touchstart/mousemove/
+  // scroll (since those all call updateActivity(), touching lastActivity).
+  // On iPad specifically that re-render can land between a tap's touchstart
+  // and its (delayed) synthetic click, dropping the click and requiring a
+  // second tap to register — this is what was causing the widespread
+  // "buttons need double-tapping" reports.
+  const duration = useAutoLockStore((s) => s.duration);
+  const lock = useAutoLockStore((s) => s.lock);
+  const updateActivity = useAutoLockStore((s) => s.updateActivity);
   const { canAutoLock } = useFeatureGate();
 
   useEffect(() => {
@@ -75,4 +85,33 @@ export function useAutoLockTimer() {
       clearInterval(interval);
     };
   }, [duration, canAutoLock, updateActivity, lock]);
+}
+
+// Module-level, not persisted state — resets to false only on a genuine fresh
+// load (new tab, hard reload, cold app launch), never on client-side route
+// changes within an already-running session, since Next.js doesn't re-run
+// module top-level code for those.
+let hasCheckedFreshLoad = false;
+
+/**
+ * Forces the lock screen whenever the app is freshly landed on with an
+ * existing saved account — otherwise a device that was left unlocked (isLocked
+ * persisted as false) would open straight into the dashboard for anyone who
+ * picks it up, with no PIN check at all. "Login as someone else" on the lock
+ * screen remains the escape hatch if it's not the account they want.
+ */
+export function useLockOnFreshLoad() {
+  const lock = useAutoLockStore((s) => s.lock);
+
+  useEffect(() => {
+    if (hasCheckedFreshLoad) return;
+    hasCheckedFreshLoad = true;
+    try {
+      if (localStorage.getItem("dumos_user")) {
+        lock();
+      }
+    } catch {
+      // localStorage unavailable (e.g. private mode)
+    }
+  }, [lock]);
 }

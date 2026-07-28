@@ -44,7 +44,8 @@ export function SecuritySettings({
   handleUpdateSecurity,
 }: SecuritySettingsProps) {
   const [isEditingPin, setIsEditingPin] = useState(false);
-  const { duration, setDuration } = useAutoLockStore();
+  const duration = useAutoLockStore((s) => s.duration);
+  const setDuration = useAutoLockStore((s) => s.setDuration);
   const { canAutoLock, withRestriction, getUpgradeMessage } = useFeatureGate();
 
   const onSubmit = async () => {

@@ -24,7 +24,7 @@ import { useStore } from "@/lib/context/store-context";
 import { apiClient } from "@/lib/api/client";
 import { useRouter } from "next/navigation";
 import { useOnlineOrdersModal } from "@/lib/store/use-online-orders-modal";
-import { useMediaQuery } from "@/hooks/use-media-query";
+import { useIsTouchDevice } from "@/lib/hooks/use-is-touch-device";
 import { cn } from "@/lib/utils";
 
 interface NotificationItem {
@@ -70,7 +70,13 @@ export function NotificationBell() {
   const router = useRouter();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const { onOpen } = useOnlineOrdersModal();
-  const isDesktop = useMediaQuery("(min-width: 768px)");
+  // Touch capability decides Drawer vs Dropdown, not viewport width — a wide
+  // touch device (like iPad landscape) still needs the Drawer. Radix's
+  // DropdownMenu has a known iOS WebKit bug where the dismissable-layer's
+  // outside-tap-to-close races the trigger's own click-to-toggle on iOS's
+  // delayed synthetic click, so the same tap that should close the menu can
+  // silently reopen it — needing a genuinely separate second tap to close.
+  const isTouchDevice = useIsTouchDevice();
   const [open, setOpen] = useState(false);
 
   const fetchNotifications = async () => {
@@ -143,7 +149,7 @@ export function NotificationBell() {
     </div>
   );
 
-  if (isDesktop) {
+  if (!isTouchDevice) {
     return (
       <DropdownMenu open={open} onOpenChange={setOpen}>
         <DropdownMenuTrigger asChild>

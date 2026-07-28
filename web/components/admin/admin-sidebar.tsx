@@ -14,6 +14,7 @@ import {
   Settings,
   Megaphone,
   Download,
+  ScrollText,
 } from "lucide-react";
 import { useAdminAuthStore } from "@/lib/store/use-admin-auth-store";
 import { useRouter } from "next/navigation";
@@ -46,6 +47,12 @@ export const sidebarItems = [
     name: "Marketing",
     icon: Megaphone,
     href: "/admin/marketing",
+  },
+  {
+    id: "activity",
+    name: "Activity Log",
+    icon: ScrollText,
+    href: "/admin/activity",
   },
   {
     id: "settings",

@@ -5,7 +5,11 @@
 import { execute, query, generateId, logAction } from "./core";
 import { queryClient } from "../query-client";
 
-export async function insert(table: string, data: Record<string, unknown>): Promise<string> {
+export async function insert(
+  table: string,
+  data: Record<string, unknown>,
+  options?: { action?: string },
+): Promise<string> {
   const id = (data.id as string) || generateId();
   const now = new Date().toISOString();
 
@@ -33,7 +37,7 @@ export async function insert(table: string, data: Record<string, unknown>): Prom
   );
 
   await addToSyncQueue(table, id, "INSERT", record);
-  await logAction("INSERT", table, id, record);
+  await logAction(options?.action || "INSERT", table, id, record);
 
   if (typeof window !== "undefined") {
     queryClient.invalidateQueries({ queryKey: ['localData'] });
@@ -47,6 +51,7 @@ export async function update(
   table: string,
   id: string,
   data: Record<string, unknown>,
+  options?: { action?: string },
 ): Promise<void> {
   const now = new Date().toISOString();
 
@@ -76,7 +81,7 @@ export async function update(
   await execute(`UPDATE ${table} SET ${setClause} WHERE id = ?`, values);
 
   await addToSyncQueue(table, id, "UPDATE", record);
-  await logAction("UPDATE", table, id, record);
+  await logAction(options?.action || "UPDATE", table, id, record);
   
   if (typeof window !== "undefined") {
     queryClient.invalidateQueries({ queryKey: ['localData'] });
@@ -105,10 +110,25 @@ export async function softDelete(table: string, id: string): Promise<void> {
   }
 }
 
-export async function remove(table: string, id: string): Promise<void> {
+export async function remove(
+  table: string,
+  id: string,
+  options?: { action?: string },
+): Promise<void> {
+  // Fetched before the delete so the audit trail still has a record of what
+  // was destroyed — this is a hard, unrecoverable delete (unlike softDelete),
+  // so it's the one place where NOT capturing this would leave a real blind
+  // spot in the audit log.
+  const existing = await query<Record<string, unknown>>(
+    `SELECT * FROM ${table} WHERE id = ?`,
+    [id],
+  );
+
   await execute(`DELETE FROM ${table} WHERE id = ?`, [id]);
   // Also remove from sync queue if it was pending
   await execute(`DELETE FROM _sync_queue WHERE table_name = ? AND record_id = ?`, [table, id]);
+
+  await logAction(options?.action || "HARD_DELETE", table, id, existing[0] || { id });
 
   if (typeof window !== "undefined") {
     queryClient.invalidateQueries({ queryKey: ['localData'] });

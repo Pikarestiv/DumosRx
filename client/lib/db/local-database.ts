@@ -13,6 +13,13 @@ export * from "./schema";
 import { query, execute } from "./core";
 import { insert, update, softDelete } from "./base-helpers";
 import { queryClient } from "../query-client";
+import { AUDIT_ACTIONS } from "./audit-actions";
+
+const STOCK_MOVEMENT_AUDIT_ACTIONS: Record<string, string> = {
+  adjustment: AUDIT_ACTIONS.STOCK_ADJUSTMENT,
+  expired: AUDIT_ACTIONS.STOCK_EXPIRED,
+  damaged: AUDIT_ACTIONS.STOCK_DAMAGED,
+};
 
 // --- Specialized Domain Helpers ---
 
@@ -269,13 +276,17 @@ export async function getStockAdjustments(page = 1, limit = 50) {
 }
 
 export async function createStockMovement(data: any) {
-  return await insert("stock_movements", {
-    ...data,
-    id: data.id || crypto.randomUUID(),
-    created_at: new Date().toISOString(),
-    _version: 1,
-    _synced: 0,
-  });
+  return await insert(
+    "stock_movements",
+    {
+      ...data,
+      id: data.id || crypto.randomUUID(),
+      created_at: new Date().toISOString(),
+      _version: 1,
+      _synced: 0,
+    },
+    { action: STOCK_MOVEMENT_AUDIT_ACTIONS[data.movement_type] },
+  );
 }
 
 // Dev utility to force sync all tables

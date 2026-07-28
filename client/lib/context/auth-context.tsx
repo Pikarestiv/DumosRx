@@ -1,10 +1,11 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { setCurrentUser as setDbUser } from "@/lib/db/local-database";
+import { setCurrentUser as setDbUser, logAction } from "@/lib/db/local-database";
 import { apiClient } from "@/lib/api/client";
 import { getUserByUsernameOrEmail, createDefaultAdmin, getUserPin, updateUserPin } from "@/lib/db/queries/auth";
 import { useAutoLockStore } from "@/lib/hooks/use-auto-lock";
+import { AUDIT_ACTIONS } from "@/lib/db/audit-actions";
 
 export interface User {
   id: string;
@@ -95,7 +96,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     if (dbUser) {
       // If PIN is provided, check it
-      if (pin && dbUser.pin !== pin) return false;
+      if (pin && dbUser.pin !== pin) {
+        // The acting user_id on this row will be whoever was previously
+        // logged in on this device (or null), not the failed identifier —
+        // audit_logs attributes actions to the current session, and there
+        // isn't one yet at this point. record_id + details.username still
+        // identify which account the attempt was against.
+        logAction(AUDIT_ACTIONS.LOGIN_FAILED, "users", dbUser.id, {
+          username: cleanIdentifier,
+          reason: "invalid_pin",
+        }).catch(() => {});
+        return false;
+      }
 
       const userProfile: User = {
         id: dbUser.id,
@@ -140,10 +152,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (recentUsers.length > 5) recentUsers = recentUsers.slice(0, 5); // Keep last 5
 
       localStorage.setItem("dumos_recent_users", JSON.stringify(recentUsers));
-      
+
+      logAction(AUDIT_ACTIONS.LOGIN, "users", userProfile.id, {
+        username: userProfile.username,
+      }).catch(() => {});
+
       return true;
     }
-    
+
     // Fallback: If no users exist, create a default admin
     if (cleanIdentifier.toLowerCase() === "admin") {
       const defaultAdmin: User = {
@@ -193,6 +209,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       localStorage.setItem("dumos_recent_users", JSON.stringify(recentUsers));
 
+      logAction(AUDIT_ACTIONS.LOGIN, "users", defaultAdmin.id, {
+        username: defaultAdmin.username,
+      }).catch(() => {});
+
       return true;
     }
 
@@ -200,6 +220,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = () => {
+    // Captured before clearing — logAction attributes to the current
+    // session's user, which is about to be cleared.
+    if (user) {
+      logAction(AUDIT_ACTIONS.LOGOUT, "users", user.id, {
+        username: user.username,
+      }).catch(() => {});
+    }
     setUser(null);
     setDbUser(null);
     localStorage.removeItem("dumos_user");
@@ -218,6 +245,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     try {
       await updateUserPin(user.id, newPin);
+      await logAction(AUDIT_ACTIONS.PIN_CHANGED, "users", user.id, {
+        username: user.username,
+      });
       return { success: true, message: "PIN updated successfully" };
     } catch (e) {
       console.error("Failed to update PIN", e);

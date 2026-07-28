@@ -20,6 +20,16 @@ interface DatePickerInputProps {
   className?: string;
   placeholder?: string;
   disabled?: boolean;
+  // Bounds for the calendar's quick month/year dropdown jump — pick years
+  // that make sense for what's being entered (e.g. a birthdate needs the
+  // past; a batch expiry needs the future). Defaults span 100 years back to
+  // 10 years ahead, wide enough to never block a legitimate date.
+  fromYear?: number;
+  toYear?: number;
+  // Blocks dates before/after today — e.g. an expense date can't be in the
+  // future, a batch expiry can't be in the past.
+  disablePast?: boolean;
+  disableFuture?: boolean;
 }
 
 export function DatePickerInput({
@@ -28,6 +38,10 @@ export function DatePickerInput({
   className,
   placeholder = "DD/MM/YYYY",
   disabled = false,
+  fromYear,
+  toYear,
+  disablePast = false,
+  disableFuture = false,
 }: DatePickerInputProps) {
   const [date, setDate] = useState<Date | undefined>(
     value ? new Date(value) : undefined,
@@ -53,35 +67,31 @@ export function DatePickerInput({
   }, [value]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let val = e.target.value;
+    // Work from digits only — a slash can only ever come from the mask
+    // itself, never from what the user types, so there's no way to end up
+    // with a stray or doubled "/" no matter where they type or paste.
+    const digits = e.target.value.replace(/\D/g, "").slice(0, 8);
 
-    // Auto-insert slashes
-    if (val.length === 2 && inputValue.length === 1 && !val.includes("/")) {
-      val += "/";
-    } else if (
-      val.length === 5 &&
-      inputValue.length === 4 &&
-      (val.match(/\//g) || []).length === 1
-    ) {
-      val += "/";
+    let formatted = digits;
+    if (digits.length > 4) {
+      formatted = `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+    } else if (digits.length > 2) {
+      formatted = `${digits.slice(0, 2)}/${digits.slice(2)}`;
     }
 
-    // Strip non-digits and slashes, limit length to 10
-    val = val.replace(/[^\d/]/g, "").slice(0, 10);
+    setInputValue(formatted);
 
-    setInputValue(val);
-
-    // If it's a complete date string, try to parse it
-    if (val.length === 10) {
-      const parsedDate = parse(val, "dd/MM/yyyy", new Date());
+    if (digits.length === 8) {
+      const parsedDate = parse(formatted, "dd/MM/yyyy", new Date());
       if (isValid(parsedDate)) {
         setDate(parsedDate);
         onChange?.(format(parsedDate, "yyyy-MM-dd"));
+        return;
       }
-    } else {
-      // If they deleted part of it, clear the external value but keep their typing
-      onChange?.("");
     }
+    // Incomplete or invalid so far — clear the external value but keep
+    // their typing on screen.
+    onChange?.("");
   };
 
   const handleSelect = (selectedDate: Date | undefined) => {
@@ -96,11 +106,24 @@ export function DatePickerInput({
     }
   };
 
+  const now = new Date();
+  const startMonth = new Date((fromYear ?? now.getFullYear() - 100), 0, 1);
+  const endMonth = new Date((toYear ?? now.getFullYear() + 10), 11, 31);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const disabledMatcher = disablePast
+    ? { before: today }
+    : disableFuture
+      ? { after: today }
+      : undefined;
+
   return (
     <div className={cn("relative", className)}>
       <div className="flex w-full items-center">
         <Input
           type="text"
+          inputMode="numeric"
           placeholder={placeholder}
           value={inputValue}
           onChange={handleInputChange}
@@ -119,7 +142,16 @@ export function DatePickerInput({
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="end">
-            <Calendar mode="single" selected={date} onSelect={handleSelect} />
+            <Calendar
+              mode="single"
+              selected={date}
+              onSelect={handleSelect}
+              captionLayout="dropdown"
+              startMonth={startMonth}
+              endMonth={endMonth}
+              disabled={disabledMatcher}
+              defaultMonth={date}
+            />
           </PopoverContent>
         </Popover>
       </div>

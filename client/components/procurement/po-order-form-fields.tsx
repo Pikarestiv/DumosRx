@@ -139,6 +139,9 @@ export function POOrderFormFields({
           <DatePickerInput
             value={dueDate}
             onChange={(val) => setDueDate(val)}
+            disablePast
+            fromYear={new Date().getFullYear()}
+            toYear={new Date().getFullYear() + 3}
             className="w-full [&_input]:bg-card [&_input]:shadow-sm [&_input]:border [&_input]:border-border [&_input]:rounded-[10px] [&_input]:px-3.5 [&_input]:h-11 [&_input]:text-[13px]"
           />
         </div>

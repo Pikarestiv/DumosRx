@@ -117,6 +117,9 @@ const ReceiveItemCard = React.memo(
               value={state.expiry_date}
               onChange={(val) => onFieldChange(item.id, "expiry_date", val)}
               placeholder="Select expiry date"
+              disablePast
+              fromYear={new Date().getFullYear()}
+              toYear={new Date().getFullYear() + 15}
             />
           </div>
         </div>

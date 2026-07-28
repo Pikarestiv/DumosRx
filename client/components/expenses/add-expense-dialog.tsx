@@ -148,6 +148,9 @@ export function AddExpenseDialog({
                 onChange={(value: string) =>
                   setFormData((prev) => ({ ...prev, date: value }))
                 }
+                disableFuture
+                fromYear={new Date().getFullYear() - 5}
+                toYear={new Date().getFullYear()}
                 className="w-full bg-background [&_input]:border-border [&_input]:rounded-[10px] [&_input]:px-3.5 [&_input]:py-2.5 [&_input]:text-[13px] [&_input]:h-auto focus-within:border-primary"
               />
             </div>

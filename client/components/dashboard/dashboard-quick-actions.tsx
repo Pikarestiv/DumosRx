@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import {
-  Package,
   ShoppingCart,
   ClipboardCheck,
   FileBarChart,
   BarChart3,
   Barcode,
+  PackagePlus,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useState } from "react";
@@ -21,7 +21,7 @@ const getQuickActionsConfig = (setIsReportOpen: (val: boolean) => void) => [
   },
   {
     label: "Add Stock",
-    icon: Package,
+    icon: PackagePlus,
     href: "/procurement/new",
   },
   {
@@ -88,11 +88,9 @@ export function DashboardQuickActions() {
       </CardHeader>
       <CardContent className="p-0 px-2.5 sm:px-0">
         <div className="flex overflow-x-auto sm:grid sm:grid-cols-2 gap-1 sm:gap-4 pb-0 hide-scrollbar snap-x snap-mandatory -mx-4 sm:mx-0 px-4 sm:px-0">
-          {getQuickActionsConfig(setIsReportOpen).map(
-            (action, i) => (
-              <QuickActionCard key={i} action={action} />
-            ),
-          )}
+          {getQuickActionsConfig(setIsReportOpen).map((action, i) => (
+            <QuickActionCard key={i} action={action} />
+          ))}
         </div>
 
         <PandLReportDialog

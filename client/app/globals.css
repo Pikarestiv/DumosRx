@@ -3,6 +3,11 @@
 
 @custom-variant dark (&:is(.dark *));
 
+@theme {
+  --breakpoint-xxs: 20rem; /* 320px */
+  --breakpoint-xs: 30rem; /* 480px */
+}
+
 :root {
   --background: oklch(0.97 0 0); /* #f1f5f9 - light gray background */
   --foreground: oklch(0.205 0 0); /* #1f2937 - professional dark gray text */
@@ -167,7 +172,7 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
   --logo-filter: var(--logo-filter);
-  
+
   --color-mac-close-btn: #ff5f57;
   --color-mac-close-icon: #4c0002;
   --color-mac-min-btn: #ffbd2e;
@@ -241,25 +246,43 @@ header .group:hover svg,
 
 @media print {
   /* Fix cut off pages and overflow */
-  body, html, main, .overflow-y-auto, .overflow-hidden, .max-h-\[90vh\], .max-h-screen, div {
+  body,
+  html,
+  main,
+  .overflow-y-auto,
+  .overflow-hidden,
+  .max-h-\[90vh\],
+  .max-h-screen,
+  div {
     overflow: visible !important;
     height: auto !important;
     max-height: none !important;
   }
 
   /* Hide bottom nav and other non-print UI */
-  nav, footer, .bottom-nav, [role="navigation"], .sidebar, .hide-on-print {
+  nav,
+  footer,
+  .bottom-nav,
+  [role="navigation"],
+  .sidebar,
+  .hide-on-print {
     display: none !important;
   }
 
   /* Prevent page breaks inside rows and cards */
-  tr, td, th, .card, .break-inside-avoid, img {
+  tr,
+  td,
+  th,
+  .card,
+  .break-inside-avoid,
+  img {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
   }
-  
+
   /* Ensure dialogs or modals take up full page when printing */
-  [role="dialog"], .dialog-content {
+  [role="dialog"],
+  .dialog-content {
     position: absolute !important;
     top: 0 !important;
     left: 0 !important;
@@ -282,15 +305,18 @@ header .group:hover svg,
     padding-left: env(safe-area-inset-left, 0px);
     padding-right: env(safe-area-inset-right, 0px);
   }
-  
+
   /* Disable text selection on interactive elements */
-  button, a, [role="button"] {
+  button,
+  a,
+  [role="button"] {
     user-select: none;
     -webkit-user-select: none;
   }
 
   /* Improve smooth scrolling on iOS */
-  .overflow-y-auto, .overflow-x-auto {
+  .overflow-y-auto,
+  .overflow-x-auto {
     -webkit-overflow-scrolling: touch;
   }
 }
@@ -331,8 +357,8 @@ header .group:hover svg,
 
 @layer utilities {
   .hide-scrollbar {
-    -ms-overflow-style: none;  /* IE and Edge */
-    scrollbar-width: none;  /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
   }
   .hide-scrollbar::-webkit-scrollbar {
     display: none;

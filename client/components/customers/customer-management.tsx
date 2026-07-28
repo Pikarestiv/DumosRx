@@ -75,17 +75,18 @@ export function CustomerManagement() {
     queryFn: getLoyaltyTiers,
   });
 
-  const loyaltyTiers = dbTiers && dbTiers.length > 0
-    ? dbTiers
-        .map((t) => ({
-          name: t.name,
-          minSpent: t.min_spend,
-          pointsMultiplier: t.points_multiplier,
-          benefits: JSON.parse(t.benefits || "[]") as string[],
-          color: t.color,
-        }))
-        .sort((a, b) => a.minSpent - b.minSpent)
-    : FALLBACK_TIERS;
+  const loyaltyTiers =
+    dbTiers && dbTiers.length > 0
+      ? dbTiers
+          .map((t) => ({
+            name: t.name,
+            minSpent: t.min_spend,
+            pointsMultiplier: t.points_multiplier,
+            benefits: JSON.parse(t.benefits || "[]") as string[],
+            color: t.color,
+          }))
+          .sort((a, b) => a.minSpent - b.minSpent)
+      : FALLBACK_TIERS;
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
@@ -144,7 +145,12 @@ export function CustomerManagement() {
     notes: string,
   ) => {
     if (!payingCustomer) return;
-    const updated = await recordPayment(payingCustomer.id, amount, paymentMethod, notes);
+    const updated = await recordPayment(
+      payingCustomer.id,
+      amount,
+      paymentMethod,
+      notes,
+    );
     if (updated) {
       setSelectedCustomer(updated);
     }
@@ -246,7 +252,10 @@ export function CustomerManagement() {
           value="loyalty"
           className="flex-1 min-h-0 mt-0 border-none p-0"
         >
-          <LoyaltyTab tiers={loyaltyTiers} currencyCode={storeProfile?.currency} />
+          <LoyaltyTab
+            tiers={loyaltyTiers}
+            currencyCode={storeProfile?.currency}
+          />
         </TabsContent>
       </Tabs>
 

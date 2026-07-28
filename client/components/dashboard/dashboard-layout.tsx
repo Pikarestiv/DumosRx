@@ -237,6 +237,13 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
 
               <div className="flex-1 flex flex-col pt-1 pb-0 px-4 sm:pb-6 sm:px-6">
                 <LockScreen
+                  // Force a remount when forceAccountSelection flips —
+                  // LockScreen's selectedUser state only reads defaultUser
+                  // on its initial render, so without this key, the fresh-
+                  // load effect (which sets forceAccountSelection true one
+                  // tick after mount, once it knows there are multiple
+                  // recent users) would arrive too late to have any effect.
+                  key={forceAccountSelection ? "select" : "default"}
                   recentUsers={recentUsers}
                   defaultUser={
                     !forceAccountSelection && user

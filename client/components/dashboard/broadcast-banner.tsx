@@ -1,37 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Megaphone, X, AlertTriangle, ShieldAlert, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { apiClient } from "@/lib/api/client";
 import { useStore } from "@/lib/context/store-context";
+import { useBroadcasts } from "@/lib/hooks/use-broadcasts";
 
 export function BroadcastBanner() {
   const { storeProfile } = useStore();
-  const [broadcasts, setBroadcasts] = useState<any[]>([]);
+  const { data: broadcasts } = useBroadcasts(storeProfile?.id);
   const [dismissedIds, setDismissedIds] = useState<string[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-
-  useEffect(() => {
-    const fetchBroadcasts = async () => {
-      try {
-        const response = await apiClient.getBroadcasts(storeProfile?.id);
-        // The API returns { success: true, data: [...] }
-        if (response && response.success && Array.isArray(response.data)) {
-          setBroadcasts(response.data);
-        } else if (Array.isArray(response)) {
-          setBroadcasts(response);
-        }
-      } catch (error) {
-        console.error("Failed to fetch broadcasts:", error);
-      }
-    };
-
-    fetchBroadcasts();
-    // Poll for new broadcasts every 5 minutes
-    const interval = setInterval(fetchBroadcasts, 5 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, []);
 
   const visibleBroadcasts = (Array.isArray(broadcasts) ? broadcasts : [])
     .filter(b => !dismissedIds.includes(b.id))

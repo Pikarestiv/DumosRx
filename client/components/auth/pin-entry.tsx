@@ -102,6 +102,12 @@ export function PinEntry({
               </InputOTPGroup>
             </InputOTP>
           </motion.div>
+          {isLoading && (
+            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Verifying...
+            </div>
+          )}
         </div>
 
         {isTouchDevice && (
@@ -115,27 +121,15 @@ export function PinEntry({
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-3 pt-1 pb-2 sm:pt-4 sm:pb-0">
+        <div className="pt-1 pb-2 sm:pt-4 sm:pb-0">
           <Button
             type="button"
             variant="outline"
-            className="h-11 rounded-lg border-border/60 font-medium hover:bg-muted/50"
+            className="w-full h-11 rounded-lg border-border/60 font-medium hover:bg-muted/50"
             onClick={onBack}
             disabled={isLoading}
           >
             <ArrowLeft className="mr-2 h-4 w-4" /> Back
-          </Button>
-          <Button
-            type="submit"
-            className="h-11 rounded-lg font-medium shadow-sm transition-all hover:shadow-md"
-            disabled={isLoading || pin.length < 4}
-          >
-            {!!(isLoading) && (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                  )}
-                      {!(isLoading) && (
-                                    "Unlock"
-                                  )}
           </Button>
         </div>
       </form>

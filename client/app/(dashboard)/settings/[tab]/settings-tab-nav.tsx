@@ -6,11 +6,7 @@ interface SettingsTabNavProps {
   isDesktop: boolean;
 }
 
-/**
- * Desktop-only vertical sidebar tab nav for the settings page. Must be
- * rendered inside the parent's `<Tabs value=... onValueChange=... orientation="vertical">`
- * so it shares that Tabs root's context with the page's `<TabsContent>` panels.
- */
+/** Tab nav only — pairs with sibling <TabsContent> panels owned by the parent, which switches page content on selection. */
 export function SettingsTabNav({ isAdmin, isDesktop }: SettingsTabNavProps) {
   return (
     <TabsList

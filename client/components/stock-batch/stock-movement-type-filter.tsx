@@ -7,6 +7,7 @@ interface StockMovementTypeFilterProps {
   triggerClassName?: string;
 }
 
+/** Filter chips, not tabs — narrows the list/table above; no content switch of its own. */
 export function StockMovementTypeFilter({
   typeFilter,
   setTypeFilter,

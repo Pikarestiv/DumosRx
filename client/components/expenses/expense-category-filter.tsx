@@ -8,7 +8,7 @@ interface ExpenseCategoryFilterProps {
   onChange: (value: string) => void;
 }
 
-/** CATEGORIES — mobile: chips variant with bg-card/border-border inactive state; desktop: unchanged default Tabs */
+/** Same filter state rendered as chips on mobile and tabs on desktop — no content switch, just narrows the list. */
 export function ExpenseCategoryFilter({
   categories,
   value,

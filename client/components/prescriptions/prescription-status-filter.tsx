@@ -15,7 +15,7 @@ interface PrescriptionStatusFilterProps {
   onChange: (value: string) => void;
 }
 
-/** FILTER CHIPS — mobile: chips variant with bg-card/border-border inactive state; desktop: unchanged default Tabs */
+/** Same filter state rendered as chips on mobile and tabs on desktop — no content switch, just narrows the list. */
 export function PrescriptionStatusFilter({
   filters,
   value,

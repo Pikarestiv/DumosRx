@@ -19,6 +19,14 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useAutoLockStore, useAutoLockTimer } from "@/lib/hooks/use-auto-lock";
 import { useSwipeNavigation } from "@/lib/hooks/use-swipe-navigation";
+import { usePullToRefresh } from "@/lib/hooks/use-pull-to-refresh";
+import {
+  PullToRefreshProvider,
+  usePullToRefreshDispatcher,
+} from "@/lib/context/pull-to-refresh-context";
+import { PullToRefreshIndicator } from "@/components/ui/pull-to-refresh-indicator";
+import { sync } from "@/lib/db/sync-engine";
+import { queryClient } from "@/lib/query-client";
 import { LockScreen } from "@/components/auth/lock-screen";
 
 interface DashboardLayoutProps {
@@ -33,6 +41,14 @@ const DIRECTION_ANIMATION: Record<string, string> = {
 };
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
+  return (
+    <PullToRefreshProvider>
+      <DashboardLayoutInner>{children}</DashboardLayoutInner>
+    </PullToRefreshProvider>
+  );
+}
+
+function DashboardLayoutInner({ children }: DashboardLayoutProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
@@ -136,6 +152,17 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       : undefined;
 
   const shouldAnimate = !isPosRoute && !isCreatePORoute;
+
+  const getRegisteredHandler = usePullToRefreshDispatcher();
+  const { scrollRef, pullDistance, isRefreshing, threshold } =
+    usePullToRefresh<HTMLDivElement>({
+      disabled: !shouldAnimate,
+      onRefresh: async () => {
+        await sync(true);
+        await queryClient.invalidateQueries();
+        await getRegisteredHandler()?.();
+      },
+    });
 
   // Single lookup — avoids indexing DIRECTION_ANIMATION twice (once to check,
   // once to interpolate) and keeps the `direction === null` case contained
@@ -274,11 +301,17 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
         {/* Page content — scrolls internally */}
         <div
+          ref={scrollRef}
           className={cn(
             "flex-1 relative overflow-x-clip",
             shouldAnimate && "overflow-y-auto",
           )}
         >
+          <PullToRefreshIndicator
+            pullDistance={pullDistance}
+            isRefreshing={isRefreshing}
+            threshold={threshold}
+          />
           <main
             className={cn("flex-1 min-h-0 flex flex-col", mainClassName)}
             style={mainStyle}

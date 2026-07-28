@@ -239,7 +239,8 @@ export function AppearanceSettings({
               <Label htmlFor="sidebar-peek">Expand on hover when collapsed</Label>
               <p className="text-sm text-muted-foreground">
                 When off, the collapsed sidebar stays icon-only and won't
-                expand when your cursor passes over it.
+                expand when your cursor passes over it. Only applies with a
+                mouse or trackpad — touch devices never peek on hover.
               </p>
             </div>
             <Switch

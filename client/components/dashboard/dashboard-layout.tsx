@@ -24,6 +24,7 @@ import {
 } from "@/lib/hooks/use-auto-lock";
 import { useSwipeNavigation } from "@/lib/hooks/use-swipe-navigation";
 import { useSidebarPeekPreference } from "@/lib/hooks/use-sidebar-peek-preference";
+import { useIsTouchDevice } from "@/lib/hooks/use-is-touch-device";
 import { usePullToRefresh } from "@/lib/hooks/use-pull-to-refresh";
 import {
   PullToRefreshProvider,
@@ -96,6 +97,12 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
   const [hoverExpanded, setHoverExpanded] = useState(false);
   const [userNavOpen, setUserNavOpen] = useState(false);
   const { peekEnabled } = useSidebarPeekPreference();
+  // Touch devices (tablets/iPads at the lg: breakpoint where the desktop
+  // sidebar shows) don't get real hover intent — a tap can synthesize a
+  // hover-like event, which makes peek stick or flicker. Hard-disabled here
+  // regardless of the peekEnabled preference, since it doesn't make sense on
+  // touch at all: those devices only ever see plain collapsed or expanded.
+  const isTouchDevice = useIsTouchDevice();
   const isLogicallyCollapsed = isPosRoute ? true : sidebarCollapsed;
   const effectiveCollapsed =
     isLogicallyCollapsed && !hoverExpanded && !userNavOpen;
@@ -258,7 +265,12 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
           collapsed={effectiveCollapsed}
           logicalCollapsed={isLogicallyCollapsed}
           onToggleCollapse={handleToggleCollapse}
-          onMouseEnter={() => !isPosRoute && peekEnabled && setHoverExpanded(true)}
+          onMouseEnter={() =>
+            !isPosRoute &&
+            !isTouchDevice &&
+            peekEnabled &&
+            setHoverExpanded(true)
+          }
           onMouseLeave={() => setHoverExpanded(false)}
           onUserNavOpenChange={setUserNavOpen}
         />

@@ -3,6 +3,22 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * Redefines hover: project-wide to only apply on devices that actually have a
+ * mouse/trackpad. Without this, iOS WebKit (including Chrome on iOS, which is
+ * WebKit under the hood) requires a first tap to "enter" :hover and a second
+ * tap to actually fire the click on any element with a hover: style — the
+ * classic touch double-tap bug. Every existing hover: utility across the app
+ * picks this up automatically; no component changes needed.
+ */
+@custom-variant hover {
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      @slot;
+    }
+  }
+}
+
 @theme {
   --breakpoint-xxs: 20rem; /* 320px */
   --breakpoint-xs: 30rem; /* 480px */

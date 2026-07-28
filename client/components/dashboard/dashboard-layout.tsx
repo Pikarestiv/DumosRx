@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useAutoLockStore, useAutoLockTimer } from "@/lib/hooks/use-auto-lock";
 import { useSwipeNavigation } from "@/lib/hooks/use-swipe-navigation";
+import { useSidebarPeekPreference } from "@/lib/hooks/use-sidebar-peek-preference";
 import { usePullToRefresh } from "@/lib/hooks/use-pull-to-refresh";
 import {
   PullToRefreshProvider,
@@ -86,6 +87,7 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
   const isSettingsInnerRoute = pathname.startsWith("/settings/");
   const [hoverExpanded, setHoverExpanded] = useState(false);
   const [userNavOpen, setUserNavOpen] = useState(false);
+  const { peekEnabled } = useSidebarPeekPreference();
   const isLogicallyCollapsed = isPosRoute ? true : sidebarCollapsed;
   const effectiveCollapsed =
     isLogicallyCollapsed && !hoverExpanded && !userNavOpen;
@@ -248,7 +250,7 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
           collapsed={effectiveCollapsed}
           logicalCollapsed={isLogicallyCollapsed}
           onToggleCollapse={handleToggleCollapse}
-          onMouseEnter={() => setHoverExpanded(true)}
+          onMouseEnter={() => !isPosRoute && peekEnabled && setHoverExpanded(true)}
           onMouseLeave={() => setHoverExpanded(false)}
           onUserNavOpenChange={setUserNavOpen}
         />

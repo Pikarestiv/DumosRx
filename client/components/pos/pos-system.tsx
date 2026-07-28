@@ -1,68 +1,42 @@
 "use client";
-import React, { useState } from "react";
-import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { toast } from "sonner";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
-import { useStore } from "@/lib/context/store-context";
-import { usePOSCart } from "@/lib/hooks/use-pos-cart";
-import { usePOSPayment } from "@/lib/hooks/use-pos-payment";
-import { useSmartSuggestions } from "@/hooks/use-smart-suggestions";
-import { usePOSProductFilter } from "@/lib/hooks/use-pos-product-filter";
-import { usePOSScan } from "@/lib/hooks/use-pos-scan";
+import { usePOSSystem } from "@/lib/hooks/use-pos-system";
 import { POSLayoutHeader } from "./pos-layout-header";
-import { useQuery } from "@tanstack/react-query";
-import { getHeldTransactionCount } from "@/lib/db/queries/sales";
 import { POSProductList } from "./pos-product-list";
 import { POSCategoryFilter } from "./pos-category-filter";
 import { POSMainTabNav } from "./pos-main-tab-nav";
 import { POSTransactionHistory } from "./pos-transaction-history";
 import { POSMobileSearch } from "./pos-mobile-search";
-import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { POSDialogs } from "./pos-dialogs";
 import { POSCartPanels } from "./pos-cart-panels";
-import { usePOSData, Customer } from "@/lib/hooks/use-pos-data";
-import { usePOSPrescription } from "@/lib/hooks/use-pos-prescription";
-import { usePOSReturnDeepLink } from "@/lib/hooks/use-pos-return-deep-link";
-import { usePOSHeldTransactions } from "@/lib/hooks/use-pos-held-transactions";
-import { usePOSKeyboardShortcuts } from "@/lib/hooks/use-pos-keyboard-shortcuts";
-import { usePullToRefresh } from "@/lib/hooks/use-pull-to-refresh";
 import { PullToRefreshIndicator } from "@/components/ui/pull-to-refresh-indicator";
+
 export function POSSystem() {
-  const { t, storeProfile, vatPercentage } = useStore();
-  const searchInputRef = React.useRef<HTMLInputElement>(null);
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const pathname = usePathname();
-  const activeTab = searchParams.get("tab") || "products";
-  const handleTabChange = (value: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("tab", value);
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-  };
-  const [searchTerm, setSearchTerm] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("all");
-  const [isMobileScannerOpen, setIsMobileScannerOpen] = useState(false);
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
-    null,
-  );
-  const [showReturnDialog, setShowReturnDialog] = useState(false);
-  const [saleToReturn, setSaleToReturn] = useState<any>(null);
-  usePOSReturnDeepLink({
-    searchParams,
-    router,
-    pathname,
-    setSaleToReturn,
-    setShowReturnDialog,
-  });
-  const [showHeldDialog, setShowHeldDialog] = useState(false);
-  const [showClearCartDialog, setShowClearCartDialog] = useState(false);
-  const { data: heldSalesCountData } = useQuery({
-    queryKey: ["heldTransactionsCount"],
-    queryFn: () => getHeldTransactionCount(),
-  });
-  const heldSalesCount = heldSalesCountData || 0;
   const {
-    products,
+    t,
+    storeProfile,
+    vatPercentage,
+    searchInputRef,
+    activeTab,
+    handleTabChange,
+    searchTerm,
+    setSearchTerm,
+    categoryFilter,
+    setCategoryFilter,
+    isMobileScannerOpen,
+    setIsMobileScannerOpen,
+    selectedCustomer,
+    setSelectedCustomer,
+    showReturnDialog,
+    setShowReturnDialog,
+    saleToReturn,
+    setSaleToReturn,
+    showHeldDialog,
+    setShowHeldDialog,
+    showClearCartDialog,
+    setShowClearCartDialog,
+    heldSalesCount,
     loadingProducts,
     refetchProducts,
     recentSales,
@@ -72,28 +46,12 @@ export function POSSystem() {
     customers,
     loadingCustomers,
     paymentAccounts,
-  } = usePOSData();
-
-  // POS doesn't use the shared DashboardLayout scroll container (its routes opt out
-  // of that entirely), so each tab wires pull-to-refresh directly onto its own
-  // scrollable region instead of registering through the global context.
-  const productsPullToRefresh = usePullToRefresh<HTMLDivElement>({
-    onRefresh: async () => {
-      await refetchProducts();
-    },
-  });
-  const historyPullToRefresh = usePullToRefresh<HTMLDivElement>({
-    onRefresh: async () => {
-      await refetchSales();
-    },
-  });
-  const {
+    productsPullToRefresh,
+    historyPullToRefresh,
     cart,
-    addToCart,
     updateQuantity,
     removeFromCart,
     clearCart,
-    restoreCart,
     subtotal,
     tax,
     total,
@@ -102,90 +60,37 @@ export function POSSystem() {
     calculatedDiscount,
     setDiscount,
     setDiscountType,
-  } = usePOSCart(products);
-  const { canUseSmartSuggestions, withRestriction } = useFeatureGate();
-  const { suggestions } = useSmartSuggestions(cart, products);
-  const requirePaymentAccount = storeProfile?.require_payment_account === 1;
-  let enabledPaymentMethods = ["cash", "card", "transfer", "credit", "mixed"];
-  try {
-    if (storeProfile?.enabled_payment_methods)
-      enabledPaymentMethods = JSON.parse(storeProfile.enabled_payment_methods);
-  } catch (_e) {}
-  const { dispensedRxId, setDispensedRxId, isRefillDispense } = usePOSPrescription({
-    searchParams,
-    products,
-    cartLength: cart.length,
-    restoreCart,
-    router,
-    pathname,
-  });
-  const {
-    paymentMethod, setPaymentMethod, amountPaid, setAmountPaid,
-    selectedAccountId, setSelectedAccountId, paymentSplits, setPaymentSplits,
-    processingPayment, handlePayment, completedTransaction,
-    showPaymentDialog, setShowPaymentDialog, showReceiptDialog, setShowReceiptDialog,
-  } = usePOSPayment({
-    cart,
-    subtotal,
-    tax,
-    total,
-    discount: calculatedDiscount,
-    rawDiscount: discount,
-    discountType,
-    selectedCustomer,
-    setSelectedCustomer,
-    clearCart,
-    refetchProducts,
-    refetchSales,
+    canUseSmartSuggestions,
+    withRestriction,
+    suggestions,
     requirePaymentAccount,
-    dispensedRxId,
-    setDispensedRxId,
-    isRefillDispense,
-  });
-  usePOSKeyboardShortcuts({
-    searchInputRef,
-    cartLength: cart.length,
-    selectedCustomer,
+    enabledPaymentMethods,
+    paymentMethod,
+    setPaymentMethod,
+    amountPaid,
+    setAmountPaid,
+    selectedAccountId,
+    setSelectedAccountId,
+    paymentSplits,
+    setPaymentSplits,
+    processingPayment,
+    handlePayment,
+    completedTransaction,
     showPaymentDialog,
     setShowPaymentDialog,
     showReceiptDialog,
     setShowReceiptDialog,
-    searchTerm,
-    setSearchTerm,
-    setShowClearCartDialog,
-    setPaymentMethod,
-  });
-  const { handleHoldTransaction, handleRecallTransaction } =
-    usePOSHeldTransactions({
-      cart,
-      total,
-      selectedCustomer,
-      clearCart,
-      setSelectedCustomer,
-      products,
-      restoreCart,
-      customers,
-      setShowHeldDialog,
-    });
-  const { categories, filteredProducts, isFuzzyFallback } = usePOSProductFilter(
-    products,
-    searchTerm,
-    categoryFilter,
-  );
-  const { handleKeyPress, handleScanSuccess } = usePOSScan({
-    products,
-    searchTerm,
-    setSearchTerm,
-    addToCart,
-  });
-
-  const isPrescriptionLocked = !!dispensedRxId;
-  const handleEditPrescription = isPrescriptionLocked
-    ? () => router.push(`/prescriptions?action=add&edit_rx=${dispensedRxId}`)
-    : undefined;
-  const handleAddToCart = isPrescriptionLocked
-    ? () => toast.info("Cart is locked to this prescription. Edit the prescription to change medications.")
-    : addToCart;
+    handleHoldTransaction,
+    handleRecallTransaction,
+    categories,
+    filteredProducts,
+    isFuzzyFallback,
+    handleKeyPress,
+    handleScanSuccess,
+    isPrescriptionLocked,
+    handleEditPrescription,
+    handleAddToCart,
+  } = usePOSSystem();
 
   const posDialogProps = {
     isMobileScannerOpen,

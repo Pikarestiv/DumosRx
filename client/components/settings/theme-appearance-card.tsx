@@ -1,0 +1,170 @@
+import { Sun, Moon, Globe, Lock } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { APP_NAME } from "@/lib/constants";
+import { Theme } from "@/components/theme-provider";
+import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
+
+const colorThemes = [
+  {
+    id: "default",
+    name: "Dumos Blue",
+    style: { backgroundColor: "oklch(0.55 0.18 250)" },
+  },
+  {
+    id: "ocean",
+    name: "Ocean Breeze",
+    style: { backgroundColor: "oklch(0.588 0.158 241.966)" },
+  },
+  {
+    id: "emerald",
+    name: "Emerald Health",
+    style: { backgroundColor: "oklch(0.627 0.194 149.214)" },
+  },
+  {
+    id: "ruby",
+    name: "Ruby Retail",
+    style: { backgroundColor: "oklch(0.577 0.245 27.325)" },
+  },
+  {
+    id: "midnight",
+    name: "Midnight Gold",
+    style: { backgroundColor: "oklch(0.696 0.151 77.212)" },
+  },
+  {
+    id: "slate",
+    name: "Professional Slate",
+    style: { backgroundColor: "oklch(0.439 0 0)" },
+  },
+];
+
+interface ThemeAppearanceCardProps {
+  theme: string | undefined;
+  setTheme: (theme: Theme) => void;
+  activeTheme: string;
+  setAppTheme: (theme: string) => void;
+}
+
+export function ThemeAppearanceCard({
+  theme,
+  setTheme,
+  activeTheme,
+  setAppTheme,
+}: ThemeAppearanceCardProps) {
+  const { canCustomizeTheme, canUseDarkMode, withRestriction } =
+    useFeatureGate();
+
+  const handleApplyTheme = (themeId: string) => setAppTheme(themeId);
+  const handleSetTheme = (mode: Theme) => setTheme(mode);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Appearance</CardTitle>
+        <CardDescription>
+          Customize how {APP_NAME} looks on this device.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="space-y-3">
+          <Label>Theme Mode</Label>
+          <div className="grid grid-cols-3 gap-4">
+            <button
+              onClick={withRestriction(() => handleSetTheme("light"))}
+              className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all cursor-pointer ${
+                theme === "light"
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "border-muted hover:border-primary/50"
+              }`}
+            >
+              <Sun className="h-6 w-6 mb-2" />
+              <span className="text-sm font-medium">Light</span>
+            </button>
+
+            <button
+              onClick={withRestriction(() => handleSetTheme("dark"), {
+                featureAllowed: canUseDarkMode,
+                featureKey: "dark_mode",
+              })}
+              className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all cursor-pointer ${
+                theme === "dark"
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "border-border hover:border-primary/50"
+              }`}
+            >
+              <Moon className="h-6 w-6 mb-2" />
+              <span className="text-sm font-medium">Dark</span>
+            </button>
+
+            <button
+              onClick={withRestriction(() => handleSetTheme("system"), {
+                featureAllowed: canUseDarkMode,
+                featureKey: "dark_mode",
+              })}
+              className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all cursor-pointer ${
+                theme === "system"
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "border-border hover:border-primary/50"
+              }`}
+            >
+              <Globe className="h-6 w-6 mb-2" />
+              <span className="text-sm font-medium">System</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <Label>Color Themes</Label>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {colorThemes.map((t) => {
+              const isLocked = t.id !== "default" && !canCustomizeTheme;
+              return (
+                <button
+                  key={t.id}
+                  onClick={
+                    t.id === "default"
+                      ? withRestriction(() => handleApplyTheme(t.id))
+                      : withRestriction(() => handleApplyTheme(t.id), {
+                          featureAllowed: canCustomizeTheme,
+                          featureKey: "theme_customizer",
+                        })
+                  }
+                  className={`flex items-center justify-between p-4 rounded-lg border-2 transition-all cursor-pointer ${
+                    activeTheme === t.id
+                      ? "bg-primary/5 border-primary text-primary shadow-sm"
+                      : isLocked
+                        ? "border-border opacity-60 cursor-not-allowed hover:bg-transparent"
+                        : "border-border hover:bg-muted text-foreground"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`w-6 h-6 rounded-full border shadow-sm ${
+                        activeTheme === t.id
+                          ? "ring-2 ring-primary ring-offset-1"
+                          : ""
+                      }`}
+                      style={t.style}
+                    />
+                    <span className="text-sm font-medium text-left">
+                      {t.name}
+                    </span>
+                  </div>
+                  {isLocked && (
+                    <Lock className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

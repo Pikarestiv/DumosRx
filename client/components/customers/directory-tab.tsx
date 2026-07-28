@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Search, ChevronLeft, ChevronRight, AlertCircle } from "lucide-react";
+import { Search } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Customer } from "@/lib/hooks/use-customer-data";
 import { Card } from "@/components/ui/card";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { formatCurrency } from "@/lib/utils";
+import { CustomerDetailPanel } from "./customer-detail-panel";
+import { CustomerMobileRow, CustomerDesktopRow } from "./customer-list-rows";
 
 // Matches the row's px-4 py-2.5 padding + single line of 13.5px/12px text.
 const DESKTOP_ROW_HEIGHT = 56;
@@ -113,108 +115,17 @@ export function DirectoryTab({
     </div>
   );
 
-  const renderDetailBody = (customer: Customer) => {
-    const detailFields = [
-      { label: "Phone", value: customer.phone || "Not provided" },
-      { label: "Address", value: customer.address || "Not provided" },
-      { label: "Date of Birth", value: customer.birthday || "Not provided" },
-      { label: "Joined", value: customer.joinDate },
-      {
-        label: "Total Spent",
-        value: formatCurrency(customer.totalSpent, currencyCode),
-      },
-      {
-        label: "Loyalty Points",
-        value: `${customer.points.toLocaleString()} pts`,
-        valueClassName: "text-emerald-600",
-      },
-      { label: "Last Visit", value: customer.lastVisit },
-    ];
-
-    return (
-      <div className="flex flex-col h-full overflow-hidden">
-        <div className="p-4 md:p-5 border-b flex items-center gap-3">
-          <button
-            className="md:hidden p-2 -ml-2 text-muted-foreground hover:text-foreground shrink-0"
-            onClick={() => setSelectedCustomer(null)}
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-          <div className="w-12 h-12 shrink-0 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-[18px]">
-            {customer.name.substring(0, 2).toUpperCase()}
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="text-[16px] font-semibold truncate">
-              {customer.name}
-            </div>
-            <div className="text-[12px] text-muted-foreground truncate">
-              {customer.email || "No email provided"}
-            </div>
-          </div>
-          <span
-            className={`text-[10.5px] font-semibold px-2.5 py-1 rounded-md shrink-0 text-white ${getTierColor(customer.tier)}`}
-          >
-            {customer.tier}
-          </span>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-4 md:p-5">
-          {customer.outstanding_balance > 0 && (
-            <div className="border border-destructive/20 bg-destructive/5 rounded-[12px] p-4 mb-5">
-              <div className="flex items-center justify-between mb-1 gap-2">
-                <div className="text-[11px] font-semibold text-destructive uppercase tracking-wide flex items-center gap-1.5">
-                  <AlertCircle className="w-3.5 h-3.5" />
-                  Outstanding balance
-                </div>
-                <div className="text-[13px] font-bold text-destructive whitespace-nowrap">
-                  {formatCurrency(customer.outstanding_balance, currencyCode)}
-                </div>
-              </div>
-              <div className="flex gap-2 mt-3">
-                <button
-                  onClick={() => onRecordPayment?.(customer)}
-                  className="flex-1 bg-destructive text-destructive-foreground py-2 rounded-[8px] text-[12.5px] font-semibold hover:bg-destructive/90 transition-colors"
-                >
-                  Record Payment
-                </button>
-                {/* Send Reminder: disabled until an SMS/email service is wired up */}
-              </div>
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-4">
-            {detailFields.map((field) => (
-              <div key={field.label}>
-                <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">
-                  {field.label}
-                </div>
-                <div
-                  className={`text-[13.5px] font-medium ${field.valueClassName || ""}`}
-                >
-                  {field.value}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="p-4 md:p-5 pt-4 border-t flex gap-2.5">
-          <button
-            onClick={() => onEditProfile?.(customer)}
-            className="flex-1 border bg-background text-foreground py-2.5 rounded-xl text-[13px] font-semibold hover:bg-primary/5 transition-colors"
-          >
-            Edit Profile
-          </button>
-          <button
-            onClick={() => onViewHistory?.(customer)}
-            className="flex-1 bg-primary text-primary-foreground py-2.5 rounded-xl text-[13px] font-semibold hover:bg-primary/90 transition-colors"
-          >
-            View History
-          </button>
-        </div>
-      </div>
-    );
-  };
+  const renderDetailBody = (customer: Customer) => (
+    <CustomerDetailPanel
+      customer={customer}
+      currencyCode={currencyCode}
+      getTierColor={getTierColor}
+      onBack={() => setSelectedCustomer(null)}
+      onViewHistory={onViewHistory}
+      onEditProfile={onEditProfile}
+      onRecordPayment={onRecordPayment}
+    />
+  );
 
   return (
     <div className="flex flex-col md:flex-row h-full gap-4 relative">
@@ -227,34 +138,15 @@ export function DirectoryTab({
         {DebtSummary}
 
         <div className="flex flex-col gap-2">
-          {filteredCustomers.map((customer) => {
-            const isSelected = selectedCustomer?.id === customer.id;
-            return (
-              <div
-                key={customer.id}
-                onClick={() => setSelectedCustomer(customer)}
-                className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${isSelected ? "bg-primary/10 border-primary/30" : "bg-card hover:bg-primary/5"}`}
-              >
-                <div className="w-10 h-10 shrink-0 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-[13px]">
-                  {customer.name.substring(0, 2).toUpperCase()}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-[13.5px] font-semibold truncate">
-                    {customer.name}
-                  </div>
-                  <div className="text-[11.5px] text-muted-foreground truncate">
-                    {customer.phone || customer.email || "No contact info"}
-                  </div>
-                </div>
-                <div
-                  className={`shrink-0 text-[10px] font-medium px-2 py-1 rounded-full text-white ${getTierColor(customer.tier)}`}
-                >
-                  {customer.tier}
-                </div>
-                <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
-              </div>
-            );
-          })}
+          {filteredCustomers.map((customer) => (
+            <CustomerMobileRow
+              key={customer.id}
+              customer={customer}
+              isSelected={selectedCustomer?.id === customer.id}
+              onSelect={setSelectedCustomer}
+              getTierColor={getTierColor}
+            />
+          ))}
           {filteredCustomers.length === 0 && (
             <div className="p-8 text-center text-muted-foreground text-[13px]">
               No customers found.
@@ -291,51 +183,19 @@ export function DirectoryTab({
             >
               {rowVirtualizer.getVirtualItems().map((virtualRow) => {
                 const customer = filteredCustomers[virtualRow.index];
-                const isSelected = selectedCustomer?.id === customer.id;
                 return (
-                  <div
+                  <CustomerDesktopRow
                     key={customer.id}
-                    onClick={() => setSelectedCustomer(customer)}
-                    className={`absolute top-0 left-0 w-full grid grid-cols-[1.6fr_1.1fr_80px_70px_100px_110px] items-center gap-2 px-4 py-2.5 cursor-pointer border-b transition-colors ${isSelected ? "bg-primary/10" : "hover:bg-primary/5"}`}
+                    customer={customer}
+                    isSelected={selectedCustomer?.id === customer.id}
+                    onSelect={setSelectedCustomer}
+                    getTierColor={getTierColor}
+                    currencyCode={currencyCode}
                     style={{
                       height: virtualRow.size,
                       transform: `translateY(${virtualRow.start}px)`,
                     }}
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-9 h-9 shrink-0 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-[13px]">
-                        {customer.name.substring(0, 2).toUpperCase()}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-[13.5px] font-semibold truncate">
-                          {customer.name}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-[12px] text-muted-foreground truncate">
-                      {customer.phone || customer.email || "No contact info"}
-                    </div>
-                    <div>
-                      <span
-                        className={`text-[10px] font-medium px-2 py-0.5 rounded-full text-white ${getTierColor(customer.tier)}`}
-                      >
-                        {customer.tier}
-                      </span>
-                    </div>
-                    <div className="text-[12.5px] text-right text-emerald-600 font-medium">
-                      {customer.points.toLocaleString()}
-                    </div>
-                    <div
-                      className={`text-[12.5px] text-right font-medium ${customer.outstanding_balance > 0 ? "text-destructive" : "text-muted-foreground"}`}
-                    >
-                      {customer.outstanding_balance > 0
-                        ? formatCurrency(customer.outstanding_balance, currencyCode)
-                        : "-"}
-                    </div>
-                    <div className="text-[12px] text-right text-muted-foreground">
-                      {customer.lastVisit}
-                    </div>
-                  </div>
+                  />
                 );
               })}
             </div>

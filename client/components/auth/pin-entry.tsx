@@ -12,6 +12,7 @@ import {
   InputOTPSlot,
 } from "@/components/ui/input-otp";
 import { PinPad } from "@/components/ui/pin-pad";
+import { useIsTouchDevice } from "@/lib/hooks/use-is-touch-device";
 
 interface PinEntryProps {
   selectedUser: RecentUser;
@@ -32,6 +33,13 @@ export function PinEntry({
   handleLogin,
   onBack,
 }: PinEntryProps) {
+  // Touch capability decides this, not viewport width or user-agent sniffing:
+  // iPadOS masks its UA to look like a Mac by default, and a tablet can easily
+  // have a "desktop-width" viewport in landscape. Real touch devices get the
+  // on-screen PinPad (which never depends on the OS actually deciding to show
+  // a keyboard); everything else gets the native keyboard via inputMode.
+  const isTouchDevice = useIsTouchDevice();
+
   return (
     <motion.div
       initial={{ opacity: 0, x: 20 }}
@@ -81,8 +89,7 @@ export function PinEntry({
                 // but we can simulate it or just let the button do it.
               }}
               autoFocus
-              inputMode="none"
-              className="md:input-mode-numeric"
+              inputMode={isTouchDevice ? "none" : "numeric"}
               containerClassName="gap-2"
             >
               <InputOTPGroup className="gap-2 sm:gap-3 w-full max-w-[280px] justify-center mx-auto">
@@ -98,9 +105,11 @@ export function PinEntry({
           </motion.div>
         </div>
 
-        <div className="md:hidden mt-auto mb-3">
-          <PinPad value={pin} onChange={setPin} maxLength={4} />
-        </div>
+        {isTouchDevice && (
+          <div className="mt-auto mb-3">
+            <PinPad value={pin} onChange={setPin} maxLength={4} />
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-3 pt-1 pb-2 sm:pt-4 sm:pb-0">
           <Button

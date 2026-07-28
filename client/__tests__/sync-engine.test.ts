@@ -15,7 +15,9 @@ vi.mock('../lib/db/core', async () => {
 
 import { pushChanges } from '../lib/db/sync-engine/push';
 import { pullChanges } from '../lib/db/sync-engine/pull';
+import { sync } from '../lib/db/sync-engine';
 import { apiClient } from '../lib/api/client';
+import { queryClient } from '../lib/query-client';
 
 // Mock local-database to force isTauri to true so it uses the execute() wrapper
 vi.mock('../lib/db/local-database', async () => {
@@ -139,6 +141,61 @@ describe('Sync Engine & Local Database', () => {
       );
       
       expect(wasUpsertExecuted).toBe(true);
+    });
+  });
+
+  describe('sync() cache invalidation', () => {
+    beforeEach(() => {
+      localStorage.setItem('auth_token', 'test-token');
+      vi.mocked(apiClient.pushChanges).mockResolvedValue({ success: true } as any);
+    });
+
+    it('invalidates via a table-matching predicate when tables changed', async () => {
+      vi.mocked(query).mockImplementation(async (sql: string) => {
+        if (sql.includes('_sync_queue')) return [];
+        if (sql.includes('_sync_state')) return [];
+        if (sql.includes('PRAGMA table_info')) return [{ name: 'id' }, { name: 'name' }, { name: '_version' }];
+        if (sql.includes('SELECT 1 FROM')) return [];
+        return [];
+      });
+      vi.mocked(apiClient.pullChanges).mockResolvedValueOnce({
+        success: true,
+        changes: {
+          products: [{ id: 'rec3', name: 'Ibuprofen', _version: 1, deleted_at: null }],
+        },
+        server_timestamp: '2026-07-28T00:00:00Z',
+      } as any);
+
+      await sync();
+
+      const call = vi.mocked(queryClient.invalidateQueries).mock.calls.find(
+        (c) => (c[0] as any)?.predicate,
+      );
+      expect(call).toBeDefined();
+      const predicate = (call![0] as any).predicate as (q: any) => boolean;
+
+      // A query tagged for the table that changed gets invalidated.
+      expect(predicate({ meta: { tables: ['products'] } })).toBe(true);
+      // A query tagged only for unrelated tables is left alone.
+      expect(predicate({ meta: { tables: ['customers'] } })).toBe(false);
+      // Untagged (not-yet-migrated) queries still fall back to invalidating.
+      expect(predicate({ meta: undefined })).toBe(true);
+    });
+
+    it('does not invalidate anything when no tables changed', async () => {
+      vi.mocked(query).mockResolvedValue([]);
+      vi.mocked(apiClient.pullChanges).mockResolvedValueOnce({
+        success: true,
+        changes: {},
+        server_timestamp: '2026-07-28T00:00:00Z',
+      } as any);
+
+      await sync();
+
+      const predicateCall = vi.mocked(queryClient.invalidateQueries).mock.calls.find(
+        (c) => (c[0] as any)?.predicate,
+      );
+      expect(predicateCall).toBeUndefined();
     });
   });
 });

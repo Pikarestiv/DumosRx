@@ -19,6 +19,7 @@ import { AUDIT_ACTIONS } from "@/lib/db/audit-actions";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { getSaleItems } from "@/lib/db/queries/sales";
+import { queryKeys } from "@/lib/query-keys";
 import { restoreReturnedStock } from "@/lib/db/queries/returns";
 import { updatePrescriptionStatus } from "@/lib/db/queries/prescriptions";
 import { Loader2, RotateCcw } from "lucide-react";
@@ -51,7 +52,7 @@ export function ReturnDialog({
 
   // Fetch items for this sale
   const { data: saleItemsData } = useQuery({
-    queryKey: ["saleItems", sale?.id],
+    ...queryKeys.sales.saleItems(sale?.id),
     queryFn: () => (sale ? getSaleItems(sale.id) : Promise.resolve([])),
     enabled: !!sale,
   });

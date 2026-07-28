@@ -7,6 +7,7 @@ import { ChevronLeft, Search, CheckCircle2, PackageSearch } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { getProductsWithDetails } from "@/lib/db/queries/products";
 import { genericFuzzySearch } from "@/lib/utils/search";
+import { queryKeys } from "@/lib/query-keys";
 
 type AuditStep = "setup" | "list" | "count" | "review" | "done";
 
@@ -35,7 +36,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
   
   // Data fetching
   const { data: rawProducts, isLoading } = useQuery({
-    queryKey: ['productsWithDetails'],
+    ...queryKeys.products.withDetails(),
     queryFn: () => getProductsWithDetails()
   });
 

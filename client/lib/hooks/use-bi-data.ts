@@ -6,6 +6,7 @@ import { useStockBatchAlerts } from "./use-stock-batch-alerts";
 import { usePurchasePatterns } from "./use-purchase-patterns";
 import { useMonthlySalesData } from "./use-monthly-sales-data";
 import { getBIMetrics } from "@/lib/db/queries/reports";
+import { queryKeys } from "@/lib/query-keys";
 
 export function useBIData(externalTimeRange?: string) {
   const [internalTimeRange, setInternalTimeRange] = useState("6months");
@@ -36,7 +37,7 @@ export function useBIData(externalTimeRange?: string) {
   }, [timeRange]);
 
   const { data: metrics } = useQuery({
-    queryKey: ['biMetrics', dateFilter, prevDateFilter],
+    ...queryKeys.bi.metrics(dateFilter, prevDateFilter),
     queryFn: () => getBIMetrics(dateFilter, prevDateFilter)
   });
 

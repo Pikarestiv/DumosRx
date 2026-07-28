@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import { Search, CheckCircle2, Clock, ArrowRight, ClipboardList } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -64,7 +65,7 @@ export function PurchaseOrderTable({
   const isDesktop = useMediaQuery("(min-width: 1024px)");
 
   const { data: fullSelectedPO, isLoading: isLoadingDetails } = useQuery({
-    queryKey: ["purchase_order_details", selectedOrderId],
+    ...queryKeys.purchaseOrders.detail(selectedOrderId),
     queryFn: () => getPurchaseOrderById(selectedOrderId as string),
     enabled: !!selectedOrderId,
   });

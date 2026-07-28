@@ -18,6 +18,7 @@ import { CatalogDetailPanel } from "./catalog-detail-panel";
 import { ProductSearchBar } from "./product-search-bar";
 import { ProductCategoryChips } from "./product-category-chips";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { queryKeys } from "@/lib/query-keys";
 
 export function ProductDatabase() {
   const { storeType } = useStore();
@@ -51,14 +52,14 @@ export function ProductDatabase() {
   const isStore = storeType === "pharmacy";
 
   const { data: rawProducts, refetch } = useQuery({
-    queryKey: ["productsWithDetails"],
+    ...queryKeys.products.withDetails(),
     queryFn: () => getProductsWithDetails(),
   });
 
   const products = rawProducts ? rawProducts.map(transformProduct) : [];
 
   const { data: rawCategories } = useQuery({
-    queryKey: ["categoriesList"],
+    ...queryKeys.categories.all(),
     queryFn: () => getCategoriesList(),
   });
 

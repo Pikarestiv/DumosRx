@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import { useOnlineOrdersModal } from "@/lib/store/use-online-orders-modal";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { useAuth } from "@/lib/context/auth-context";
@@ -34,7 +35,7 @@ export function OnlineOrdersModal() {
     isLoading: loading,
     refetch: fetchOrders,
   } = useQuery({
-    queryKey: ["online_orders"],
+    ...queryKeys.onlineOrders.all(),
     queryFn: async (): Promise<any[]> => {
       const data = await apiClient.getOnlineOrders();
       return data?.orders || [];

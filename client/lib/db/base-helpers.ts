@@ -5,17 +5,23 @@
 import { execute, query, generateId, logAction } from "./core";
 import { queryClient } from "../query-client";
 
-// Every mutation invalidates the ENTIRE query cache, not just queries keyed
-// by the table name. Individual hooks use all sorts of descriptive keys
-// (`dashboardOverviewData`, `biMetrics`, `posProducts`...) that don't start
-// with the table they actually read, so a narrower `invalidateQueries({
-// queryKey: [table] })` silently misses most of them — stale dashboards/
-// reports until the user navigates away and back. Broad invalidation is
-// cheap and safe here specifically because every query re-reads local
-// SQLite, not a network API — there's no request-volume cost to worry about.
-function invalidateAllQueries() {
+// Invalidates exactly the queries that could be affected by a mutation on
+// `table` — matched via each query's `meta.tables` (see lib/query-keys.ts),
+// not queryKey prefix matching, since several queries (dashboard, BI,
+// daily-close) legitimately depend on more than one table and a prefix
+// match can only ever express one. A query with no `meta.tables` hasn't
+// been migrated to the factory yet, so it falls back to always invalidating
+// — that's the same broad behavior this replaced, just scoped down to the
+// queries that haven't opted into precise tagging yet, so adopting the
+// factory anywhere is strictly an improvement, never a regression.
+function invalidateQueriesForTable(table: string) {
   if (typeof window === "undefined") return;
-  queryClient.invalidateQueries();
+  queryClient.invalidateQueries({
+    predicate: (q) => {
+      const tables = q.meta?.tables as string[] | undefined;
+      return !tables || tables.includes(table);
+    },
+  });
 }
 
 export async function insert(
@@ -52,7 +58,7 @@ export async function insert(
   await addToSyncQueue(table, id, "INSERT", record);
   await logAction(options?.action || "INSERT", table, id, record);
 
-  invalidateAllQueries();
+  invalidateQueriesForTable(table);
 
   return id;
 }
@@ -93,7 +99,7 @@ export async function update(
   await addToSyncQueue(table, id, "UPDATE", record);
   await logAction(options?.action || "UPDATE", table, id, record);
   
-  invalidateAllQueries();
+  invalidateQueriesForTable(table);
 }
 
 export async function softDelete(table: string, id: string): Promise<void> {
@@ -111,7 +117,7 @@ export async function softDelete(table: string, id: string): Promise<void> {
   await addToSyncQueue(table, id, "DELETE", { id });
   await logAction("DELETE", table, id, { id });
 
-  invalidateAllQueries();
+  invalidateQueriesForTable(table);
 }
 
 export async function remove(
@@ -134,7 +140,7 @@ export async function remove(
 
   await logAction(options?.action || "HARD_DELETE", table, id, existing[0] || { id });
 
-  invalidateAllQueries();
+  invalidateQueriesForTable(table);
 }
 
 async function addToSyncQueue(

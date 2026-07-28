@@ -14,6 +14,7 @@ import { getAllCustomers } from "@/lib/db/queries/customers";
 import { getProductList } from "@/lib/db/queries/products";
 import { SearchableInput } from "@/components/ui/searchable-input";
 import { genericFuzzySearch } from "@/lib/utils/search";
+import { queryKeys } from "@/lib/query-keys";
 
 export function RequestItemDialog({
   open: controlledOpen,
@@ -38,13 +39,19 @@ export function RequestItemDialog({
   const [loading, setLoading] = useState(false);
 
   const { data: customers = [] } = useQuery({
-    queryKey: ["customers"],
+    // getAllCustomers() (a flat list for POS-style pickers) is a different
+    // shape from getCustomers() (used by useCustomerData, with joined
+    // total_spent/last_visit) — this must NOT share a cache key with that
+    // one, or whichever query runs second overwrites the cache with an
+    // incompatible shape for the other's consumers. Reuses the same key as
+    // use-pos-data.ts's identical getAllCustomers() call for consistency.
+    ...queryKeys.customers.posList(),
     queryFn: getAllCustomers,
     staleTime: 1000 * 60 * 5, // 5 mins
   });
 
   const { data: products = [] } = useQuery({
-    queryKey: ["productList"],
+    ...queryKeys.products.list(),
     queryFn: getProductList,
     staleTime: 1000 * 60 * 5, // 5 mins
   });

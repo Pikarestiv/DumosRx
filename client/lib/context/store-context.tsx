@@ -5,6 +5,7 @@ import { update, insert } from "@/lib/db/local-database";
 import { useQuery } from "@tanstack/react-query";
 import { getStoreById, getFirstStore, getAllStores } from "@/lib/db/queries/setup";
 import { useAuth } from "@/lib/context/auth-context";
+import { queryKeys } from "@/lib/query-keys";
 
 export type StoreType = "pharmacy" | "grocery" | "supermarket" | "retail";
 
@@ -108,7 +109,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const targetId = user?.store_id || activeStoreId;
 
   const { data: storeProfile, isLoading: loading, refetch } = useQuery({
-    queryKey: ['storeProfile', targetId],
+    ...queryKeys.stores.profile(targetId),
     queryFn: async () => {
       if (targetId) {
         return getStoreById(targetId);
@@ -118,7 +119,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   });
 
   const { data: allStores } = useQuery({
-    queryKey: ['allStores', user?.store_id],
+    ...queryKeys.stores.all(user?.store_id),
     queryFn: async () => {
       if (user && !user.store_id) {
         const stores = await getAllStores();

@@ -4,6 +4,7 @@ import { getProductsWithStock } from "@/lib/db/queries/products";
 import { getRecentSales, getRecentlySoldProductIds, getCommonlySoldProductIds } from "@/lib/db/queries/sales";
 import { getAllCustomers } from "@/lib/db/queries/customers";
 import { getPaymentAccounts } from "@/lib/db/queries/setup";
+import { queryKeys } from "@/lib/query-keys";
 export type { POSProduct as Product } from "@/lib/types/product";
 
 export interface Customer {
@@ -24,22 +25,22 @@ export function usePOSData() {
     isLoading: loadingProducts,
     refetch: refetchProducts,
   } = useQuery({
-    queryKey: ['posProducts'],
+    ...queryKeys.pos.products(),
     queryFn: () => getProductsWithStock()
   });
 
   const { data: recentSales, refetch: refetchSales } = useQuery({
-    queryKey: ['recentSales', user?.id],
+    ...queryKeys.sales.recent(user?.id),
     queryFn: () => getRecentSales(isRestrictedRole ? user?.id : undefined)
   });
 
   const { data: recentlySoldIdsData } = useQuery({
-    queryKey: ['recentlySoldIds'],
+    ...queryKeys.sales.recentlySoldIds(),
     queryFn: () => getRecentlySoldProductIds()
   });
 
   const { data: commonlySoldIdsData } = useQuery({
-    queryKey: ['commonlySoldIds'],
+    ...queryKeys.sales.commonlySoldIds(),
     queryFn: () => getCommonlySoldProductIds()
   });
 
@@ -47,12 +48,12 @@ export function usePOSData() {
   const commonlySoldIds = commonlySoldIdsData || [];
 
   const { data: customers, isLoading: loadingCustomers } = useQuery({
-    queryKey: ['posCustomers'],
+    ...queryKeys.customers.posList(),
     queryFn: () => getAllCustomers()
   });
 
   const { data: paymentAccounts } = useQuery({
-    queryKey: ['paymentAccounts'],
+    ...queryKeys.paymentAccounts.all(),
     queryFn: () => getPaymentAccounts()
   });
 

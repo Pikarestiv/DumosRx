@@ -9,6 +9,7 @@ import {
   type PurchaseOrder,
 } from "@/lib/db/local-database";
 import { genericFuzzySearch } from "@/lib/utils/search";
+import { queryKeys } from "@/lib/query-keys";
 
 /** All business logic for the Orders tab of Procurement Management. */
 export function usePurchaseOrders() {
@@ -24,7 +25,7 @@ export function usePurchaseOrders() {
     // everything and filtering happens client-side below — so it doesn't
     // belong in the key (the old effect refetched on every tab switch for
     // no reason, since the underlying data never changed).
-    queryKey: ["purchase_orders"],
+    ...queryKeys.purchaseOrders.all(),
     queryFn: async () => {
       const { data } = await getPurchaseOrders();
       return data as PurchaseOrder[];

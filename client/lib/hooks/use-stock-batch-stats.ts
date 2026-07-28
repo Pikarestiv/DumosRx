@@ -14,6 +14,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useStore } from "@/lib/context/store-context";
 import { getStockBatchStats } from "@/lib/db/queries/inventory";
+import { queryKeys } from "@/lib/query-keys";
 
 export interface StockBatchStats {
   totalProducts: number;
@@ -33,7 +34,7 @@ export function useStockBatchStats(): StockBatchStats {
   const expiryDays = storeProfile?.expiry_warning_days || 30;
 
   const { data: statsData, isLoading: loading } = useQuery({
-    queryKey: ['stockBatchStats', expiryDays],
+    ...queryKeys.stockBatches.stats(expiryDays),
     queryFn: () => getStockBatchStats(expiryDays),
   });
 

@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { pluralize } from "@/lib/utils";
+import { queryKeys } from "@/lib/query-keys";
 
 export interface ActionCenterProps {
   expiringCount: number;
@@ -49,18 +50,18 @@ function useActionCenterAlerts(
   const { storeProfile } = useStore();
 
   const { data: staffCountData } = useQuery({
-    queryKey: ["staffCount"],
+    ...queryKeys.staff.count(),
     queryFn: () => getStaffCount(),
   });
 
   const { data: pendingCountData } = useQuery({
-    queryKey: ["syncQueueCount"],
+    ...queryKeys.sync.queueCount(),
     queryFn: () => getSyncQueueCount(),
     refetchInterval: 5000,
   });
 
   const { data: licenseStatus } = useQuery({
-    queryKey: ["licenseStatus"],
+    ...queryKeys.licensing.status(),
     queryFn: () => checkLicenseStatus(),
     refetchInterval: 5 * 60 * 1000, // 5 mins
   });

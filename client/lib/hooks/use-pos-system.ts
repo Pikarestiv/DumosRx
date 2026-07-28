@@ -16,6 +16,7 @@ import { usePOSReturnDeepLink } from "@/lib/hooks/use-pos-return-deep-link";
 import { usePOSHeldTransactions } from "@/lib/hooks/use-pos-held-transactions";
 import { usePOSKeyboardShortcuts } from "@/lib/hooks/use-pos-keyboard-shortcuts";
 import { usePullToRefresh } from "@/lib/hooks/use-pull-to-refresh";
+import { queryKeys } from "@/lib/query-keys";
 
 /**
  * Orchestrates every POS business-logic hook (cart, payment, prescriptions,
@@ -55,7 +56,7 @@ export function usePOSSystem() {
   const [showHeldDialog, setShowHeldDialog] = useState(false);
   const [showClearCartDialog, setShowClearCartDialog] = useState(false);
   const { data: heldSalesCountData } = useQuery({
-    queryKey: ["heldTransactionsCount"],
+    ...queryKeys.heldTransactions.count(),
     queryFn: () => getHeldTransactionCount(),
   });
   const heldSalesCount = heldSalesCountData || 0;

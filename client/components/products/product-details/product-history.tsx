@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import { format } from "date-fns";
 import {
   Activity,
@@ -60,7 +61,7 @@ async function loadProductHistory(productId: string): Promise<HistoryItem[]> {
 
 export function ProductHistory({ productId }: { productId: string }) {
   const { data: history = [], isLoading: loading } = useQuery({
-    queryKey: ["productHistory", productId],
+    ...queryKeys.products.history(productId),
     queryFn: () => loadProductHistory(productId),
     enabled: !!productId,
   });

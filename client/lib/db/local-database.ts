@@ -14,6 +14,7 @@ import { query, execute } from "./core";
 import { insert, update, softDelete } from "./base-helpers";
 import { queryClient } from "../query-client";
 import { AUDIT_ACTIONS } from "./audit-actions";
+import { queryKeys } from "../query-keys";
 
 const STOCK_MOVEMENT_AUDIT_ACTIONS: Record<string, string> = {
   adjustment: AUDIT_ACTIONS.STOCK_ADJUSTMENT,
@@ -184,12 +185,12 @@ export async function createPrescription(data: any, items: any[]) {
     });
   }
 
-  // insert("prescriptions", ...) above already invalidated queryKey:
-  // ["prescriptions"] and refetched, but that refetch can race the
-  // prescription_items inserts still running in this loop, caching a
-  // partial medications list. Invalidate again now that all items exist.
+  // insert("prescriptions", ...) above already invalidated the prescriptions
+  // query and refetched, but that refetch can race the prescription_items
+  // inserts still running in this loop, caching a partial medications list.
+  // Invalidate again now that all items exist.
   if (typeof window !== "undefined") {
-    queryClient.invalidateQueries({ queryKey: ["prescriptions"] });
+    queryClient.invalidateQueries(queryKeys.prescriptions.all());
   }
 
   return prescriptionId;

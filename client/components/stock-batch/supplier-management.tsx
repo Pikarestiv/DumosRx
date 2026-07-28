@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
@@ -63,7 +64,7 @@ export function SupplierManagement() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   const { data: suppliers = [], refetch: fetchSuppliers } = useQuery({
-    queryKey: ["suppliers"],
+    ...queryKeys.suppliers.all(),
     queryFn: async () => {
       const { data } = await getSuppliers();
       return data.map(transformSupplier);

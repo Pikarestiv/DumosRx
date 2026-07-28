@@ -17,6 +17,7 @@ import { AuthModal } from "./auth-modal";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
+import { queryKeys } from "@/lib/query-keys";
 
 const SolidAlertCircle = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 24 24" fill="currentColor" className={className} xmlns="http://www.w3.org/2000/svg">
@@ -36,7 +37,7 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
   const { storeProfile } = useStore();
 
   const { data: pendingCountData } = useQuery({
-    queryKey: ['syncQueueCount'],
+    ...queryKeys.sync.queueCount(),
     queryFn: () => getSyncQueueCount(),
     refetchInterval: 5000 // Refetch every 5 seconds for indicator
   });

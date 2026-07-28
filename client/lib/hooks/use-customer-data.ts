@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { insert, update, generateId } from "@/lib/db/local-database";
 import { getCustomers, getCustomerRetentionMetrics, getCustomerTransactions } from "@/lib/db/queries/customers";
 import { getLoyaltyTiers, LoyaltyTierRow } from "@/lib/db/queries/loyalty";
+import { queryKeys } from "@/lib/query-keys";
 export interface Customer {
   id: string;
   name: string;
@@ -119,7 +120,7 @@ export function useCustomerData() {
     isLoading: loading,
     refetch,
   } = useQuery({
-    queryKey: ["customers"],
+    ...queryKeys.customers.all(),
     queryFn: fetchCustomerData,
   });
 
@@ -282,7 +283,7 @@ export function useCustomerTransactions() {
     isLoading: loading,
     refetch,
   } = useQuery({
-    queryKey: ["customerTransactions", hasFullHistory],
+    ...queryKeys.customers.transactions(hasFullHistory),
     queryFn: async () => {
       const data = hasFullHistory
         ? await getCustomerTransactions()

@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { getFastMovers } from "@/lib/db/queries/inventory";
+import { queryKeys } from "@/lib/query-keys";
 
 import { TrendingUp, TrendingDown } from "lucide-react";
 
@@ -16,7 +17,7 @@ function NoFastMoversData() {
 
 export function FastMovers() {
   const { data: fastMoversData, isLoading } = useQuery({
-    queryKey: ['fastMovers'],
+    ...queryKeys.sales.fastMovers(),
     queryFn: () => getFastMovers()
   });
 

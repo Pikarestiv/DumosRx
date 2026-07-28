@@ -4,13 +4,14 @@ import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { useStore } from "@/lib/context/store-context";
 import { getDailyCloseData } from "@/lib/db/queries/sales";
 import { getPaymentAccounts } from "@/lib/db/queries/setup";
+import { queryKeys } from "@/lib/query-keys";
 
 export function useDailyCloseData(reportDate: string) {
   const { storeProfile } = useStore();
   const currencyCode = storeProfile?.currency;
 
   const { data: dailyCloseData } = useQuery({
-    queryKey: ['dailyCloseData', reportDate],
+    ...queryKeys.dailyClose.data(reportDate),
     queryFn: () => getDailyCloseData(reportDate)
   });
 
@@ -20,7 +21,7 @@ export function useDailyCloseData(reportDate: string) {
   const returnItemsToday = dailyCloseData?.returnItemsToday || [];
 
   const { data: paymentAccountsData } = useQuery({
-    queryKey: ['paymentAccounts'],
+    ...queryKeys.paymentAccounts.all(),
     queryFn: () => getPaymentAccounts()
   });
 

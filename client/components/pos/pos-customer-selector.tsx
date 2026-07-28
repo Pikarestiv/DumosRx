@@ -8,6 +8,7 @@ import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { insert } from "@/lib/db/local-database";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { queryKeys } from "@/lib/query-keys";
 
 interface Customer {
   id: string;
@@ -58,7 +59,7 @@ export function POSCustomerSelector({
     },
     onSuccess: (data) => {
       toast.success("Customer created successfully");
-      queryClient.invalidateQueries({ queryKey: ["posCustomers"] });
+      queryClient.invalidateQueries(queryKeys.customers.posList());
       onSelectCustomer(data as any);
       setOpen(false);
       setShowAddForm(false);

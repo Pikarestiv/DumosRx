@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import {
   getRequestedProducts,
   markRequestedProductAsOrdered,
@@ -56,7 +57,7 @@ export function RequestedProductsTab() {
     isLoading: loading,
     refetch: fetchRequests,
   } = useQuery({
-    queryKey: ["requested_products"],
+    ...queryKeys.requestedProducts.all(),
     queryFn: () => getRequestedProducts("all"),
   });
   const [searchQuery, setSearchQuery] = useState("");

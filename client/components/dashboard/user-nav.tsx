@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/context/auth-context";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { getSyncQueueCount } from "@/lib/db/queries/setup";
+import { queryKeys } from "@/lib/query-keys";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   DropdownMenu,
@@ -144,7 +145,7 @@ export function UserNav({
   }, [open, onOpenChange]);
 
   const { data: pendingCountData } = useQuery({
-    queryKey: ["syncQueueCount"],
+    ...queryKeys.sync.queueCount(),
     queryFn: () => getSyncQueueCount(),
   });
   const pendingCount = pendingCountData || 0;

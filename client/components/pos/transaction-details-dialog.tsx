@@ -16,6 +16,7 @@ import { useAuth } from "@/lib/context/auth-context";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { useQuery } from "@tanstack/react-query";
 import { getTransactionDetails } from "@/lib/db/queries/sales";
+import { queryKeys } from "@/lib/query-keys";
 import { usePrintReceipt } from "./use-print-receipt";
 import { ReceiptTransaction } from "./receipt-view";
 
@@ -79,7 +80,7 @@ export function TransactionDetailsDialog({
   const { isAdmin } = useAuth();
   const { print, portal } = usePrintReceipt();
   const { data: detailsData } = useQuery({
-    queryKey: ["transactionDetails", sale?.id],
+    ...queryKeys.sales.transactionDetails(sale?.id),
     queryFn: () =>
       open && sale?.id ? getTransactionDetails(sale.id) : Promise.resolve(null),
     enabled: !!(open && sale?.id),

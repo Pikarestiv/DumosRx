@@ -36,7 +36,7 @@ export function ProcurementManagement({ initialTab = "orders" }: ProcurementMana
   const fetchPurchaseOrders = async () => {
     setLoading(true);
     try {
-      const { data } = await getPurchaseOrders(1, 100);
+      const { data } = await getPurchaseOrders();
       setPurchaseOrders(data as PurchaseOrder[]);
     } catch (error) {
       console.error("Failed to fetch POs:", error);

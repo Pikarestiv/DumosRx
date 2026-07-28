@@ -36,24 +36,27 @@ export interface PurchaseOrderItem {
   product_units_per_bulk: number;
 }
 
-export async function getPurchaseOrders(page = 1, limit = 50) {
-  const offset = (page - 1) * limit;
+/**
+ * Loads every purchase order, not a page of them — the caller runs search/filter
+ * over the result, and this data set is small enough (dozens to low hundreds per
+ * store) that in-memory filtering stays correct without needing SQL-level WHERE
+ * clauses, matching the pattern used by getCustomers()/getDebtors() etc.
+ */
+export async function getPurchaseOrders() {
   const results = await query<PurchaseOrder>(
     `SELECT po.*, v.name as vendor_name,
        CASE WHEN EXISTS (
          SELECT 1 FROM stock_movements sm
          JOIN stock_batches sb ON sm.stock_batch_id = sb.id
-         WHERE sm.reference_id = po.id AND sm.reference_type = 'purchase_order' 
+         WHERE sm.reference_id = po.id AND sm.reference_type = 'purchase_order'
          AND (sb.expiry_date IS NULL OR sb.expiry_date = '')
        ) THEN 1 ELSE 0 END as has_missing_expiry
-     FROM purchase_orders po 
-     LEFT JOIN suppliers v ON po.supplier_id = v.id 
-     WHERE po._deleted = 0 
-     ORDER BY po.created_at DESC 
-     LIMIT ? OFFSET ?`,
-    [limit, offset]
+     FROM purchase_orders po
+     LEFT JOIN suppliers v ON po.supplier_id = v.id
+     WHERE po._deleted = 0
+     ORDER BY po.created_at DESC`
   );
-  return { data: results, page, limit };
+  return { data: results };
 }
 
 export async function getPurchaseOrderById(id: string) {

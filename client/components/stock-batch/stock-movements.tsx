@@ -12,35 +12,43 @@ import { StockMovementDesktopRow } from "./stock-movement-desktop-row";
 import { StockMovementMobileGroup } from "./stock-movement-mobile-group";
 import { StockMovementDetailModal } from "./stock-movement-detail-modal";
 
+const RECENT_ACTIVITY_WINDOW_DAYS = 30;
+
+function mapMovement(m: any): StockMovement {
+  return {
+    id: m.id,
+    date: m.created_at || m.date || m.movement_date,
+    product: m.product?.name || m.product_name || "Unknown",
+    type: m.type || m.movement_type || "adjustment",
+    quantity: m.quantity || 0,
+    reason: m.reason || "",
+    reference: m.reference || m.reference_id || "",
+    user: m.user?.name || m.user_name || "System",
+    supplier: m.supplier?.name || m.supplier_name,
+    batchNumber: m.batch_number,
+  };
+}
+
 export function StockMovements() {
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasFullHistory, setHasFullHistory] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [selectedMovement, setSelectedMovement] =
     useState<StockMovement | null>(null);
   const router = useRouter();
 
+  // Default view is bounded to recent activity since this log grows every sale/receive/adjustment.
   useEffect(() => {
     async function fetchMovements() {
       setLoading(true);
       try {
         const { getStockMovements } = await import("@/lib/db/local-database");
-        const res = await getStockMovements(1, 100);
-
-        const items = (res.data || []).map((m: any) => ({
-          id: m.id,
-          date: m.created_at || m.date || m.movement_date,
-          product: m.product?.name || m.product_name || "Unknown",
-          type: m.type || m.movement_type || "adjustment",
-          quantity: m.quantity || 0,
-          reason: m.reason || "",
-          reference: m.reference || m.reference_id || "",
-          user: m.user?.name || m.user_name || "System",
-          supplier: m.supplier?.name || m.supplier_name,
-          batchNumber: m.batch_number,
-        }));
-        setMovements(items);
+        const res = await getStockMovements({
+          sinceDays: RECENT_ACTIVITY_WINDOW_DAYS,
+        });
+        setMovements((res.data || []).map(mapMovement));
       } catch (error) {
         console.error("Failed to fetch stock movements:", error);
       } finally {
@@ -49,6 +57,28 @@ export function StockMovements() {
     }
     fetchMovements();
   }, []);
+
+  // Searching or filtering must match the entire log, not just the recent-activity window
+  // that's loaded by default — so upgrade to full history the first time either is used.
+  useEffect(() => {
+    if (hasFullHistory || (!searchTerm && typeFilter === "all")) return;
+    let cancelled = false;
+    async function fetchFullHistory() {
+      try {
+        const { getStockMovements } = await import("@/lib/db/local-database");
+        const res = await getStockMovements();
+        if (cancelled) return;
+        setMovements((res.data || []).map(mapMovement));
+        setHasFullHistory(true);
+      } catch (error) {
+        console.error("Failed to fetch full stock movement history:", error);
+      }
+    }
+    fetchFullHistory();
+    return () => {
+      cancelled = true;
+    };
+  }, [searchTerm, typeFilter, hasFullHistory]);
 
   const preFilteredMovements = movements.filter((movement) => {
     return typeFilter === "all" || movement.type === typeFilter;
@@ -102,6 +132,11 @@ export function StockMovements() {
           setTypeFilter={setTypeFilter}
           triggerClassName="data-[state=inactive]:bg-card data-[state=inactive]:border-border"
         />
+        {!hasFullHistory && (
+          <p className="text-[11.5px] text-muted-foreground/70 px-0.5">
+            Showing last {RECENT_ACTIVITY_WINDOW_DAYS} days — search to look further back.
+          </p>
+        )}
       </div>
 
       <div className="hidden md:flex bg-card border border-border rounded-2xl flex-col flex-1 min-h-[600px]">
@@ -128,6 +163,11 @@ export function StockMovements() {
             setTypeFilter={setTypeFilter}
             triggerClassName="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none data-[state=inactive]:border-border data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-primary/10 data-[state=inactive]:hover:border-primary/50 data-[state=inactive]:hover:text-primary"
           />
+          {!hasFullHistory && (
+            <p className="text-[11.5px] text-muted-foreground/70 mt-2">
+              Showing last {RECENT_ACTIVITY_WINDOW_DAYS} days — search to look further back.
+            </p>
+          )}
         </div>
 
         {/* Desktop Grid Header */}

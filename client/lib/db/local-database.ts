@@ -225,18 +225,27 @@ export async function deleteUser(id: string) {
 /**
  * Stock Movements & Adjustments
  */
-export async function getStockMovements(page = 1, limit = 50) {
-  const offset = (page - 1) * limit;
+/**
+ * Stock movements log a row per sale/receive/adjustment, so it's the fastest-growing
+ * table in the schema — unlike other lists, we can't just load the full table forever.
+ * Pass `sinceDays` for the default recent-activity view (cheap, bounded); omit it to
+ * load full history, which the caller should only do when the user is actively
+ * searching/filtering, so those still match against every record, not just what's
+ * been loaded for browsing.
+ */
+export async function getStockMovements(options: { sinceDays?: number } = {}) {
+  const { sinceDays } = options;
+  const dateFilter = sinceDays
+    ? `AND sm.created_at >= datetime('now', '-${sinceDays} days')`
+    : "";
   const results = await query<any>(
-    `SELECT sm.*, m.name as product_name 
-     FROM stock_movements sm 
-     LEFT JOIN products m ON sm.product_id = m.id 
-     WHERE sm._deleted = 0 
-     ORDER BY sm.created_at DESC 
-     LIMIT ? OFFSET ?`,
-    [limit, offset],
+    `SELECT sm.*, m.name as product_name
+     FROM stock_movements sm
+     LEFT JOIN products m ON sm.product_id = m.id
+     WHERE sm._deleted = 0 ${dateFilter}
+     ORDER BY sm.created_at DESC`,
   );
-  return { data: results, page, limit };
+  return { data: results };
 }
 
 export async function getStockAdjustments(page = 1, limit = 50) {

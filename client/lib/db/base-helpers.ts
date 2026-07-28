@@ -167,13 +167,21 @@ export async function recordSyncFailure(queueId: number, errorMessage: string): 
   const delay = Math.min(SYNC_FAILURE_BASE_DELAY_MS * 2 ** (nextRetryCount - 1), SYNC_FAILURE_MAX_DELAY_MS);
   const nextRetryAt = new Date(Date.now() + delay).toISOString();
   const alreadyReported = item.last_error?.startsWith("[REPORTED]");
+  const shouldReport = nextRetryCount >= SYNC_FAILURE_REPORT_THRESHOLD && !alreadyReported;
+
+  // Preserve the "[REPORTED]" marker once it's set — writing the bare
+  // errorMessage here unconditionally used to clobber it on every later
+  // call, so `alreadyReported` flipped back to false every other retry and
+  // logCrash() fired again and again instead of exactly once.
+  const nextLastError =
+    alreadyReported || shouldReport ? `[REPORTED] ${errorMessage}` : errorMessage;
 
   await execute(
     "UPDATE _sync_queue SET retry_count = ?, last_error = ?, next_retry_at = ? WHERE id = ?",
-    [nextRetryCount, errorMessage, nextRetryAt, queueId],
+    [nextRetryCount, nextLastError, nextRetryAt, queueId],
   );
 
-  if (nextRetryCount >= SYNC_FAILURE_REPORT_THRESHOLD && !alreadyReported) {
+  if (shouldReport) {
     try {
       const { logCrash } = await import("../utils/error-logger");
       await logCrash(
@@ -182,10 +190,6 @@ export async function recordSyncFailure(queueId: number, errorMessage: string): 
         ),
         false,
       );
-      await execute("UPDATE _sync_queue SET last_error = ? WHERE id = ?", [
-        `[REPORTED] ${errorMessage}`,
-        queueId,
-      ]);
     } catch (e) {
       console.error("Failed to report stuck sync item", e);
     }

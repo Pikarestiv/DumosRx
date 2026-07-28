@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardHeader } from "@/components/ui/card";
 import { Lock, Loader2, ArrowLeft } from "lucide-react";
 import { motion } from "framer-motion";
 import Image from "next/image";
@@ -61,7 +61,8 @@ export default function LoginPage() {
       className="fixed inset-0 flex flex-col sm:items-center sm:justify-center p-0 sm:p-4 overflow-hidden bg-background"
       style={{
         paddingTop: "calc(var(--tauri-top, env(safe-area-inset-top, 0px)))",
-        paddingBottom: "calc(var(--tauri-bottom, env(safe-area-inset-bottom, 0px)))",
+        paddingBottom:
+          "calc(var(--tauri-bottom, env(safe-area-inset-bottom, 0px)))",
       }}
     >
       {/* Mobile Top Background Layer */}
@@ -74,7 +75,9 @@ export default function LoginPage() {
 
       {/* Mobile Top Section (1/4 height) */}
       <div className="sm:hidden relative z-10 flex flex-col items-center justify-center shrink-0 min-h-[25dvh] pt-4 pb-6">
-        {(!recentUsers.length || showTraditionalLogin || isNewCredentialsMode) && (
+        {(!recentUsers.length ||
+          showTraditionalLogin ||
+          isNewCredentialsMode) && (
           <Link
             href="/"
             className="absolute left-6 top-6 inline-flex items-center text-sm font-medium text-primary-foreground/90 hover:text-primary-foreground transition-colors group"
@@ -106,7 +109,9 @@ export default function LoginPage() {
         className="w-full h-full sm:h-auto sm:max-w-md z-10 flex flex-col mx-auto"
       >
         {/* Desktop Back Link */}
-        {(!recentUsers.length || showTraditionalLogin || isNewCredentialsMode) && (
+        {(!recentUsers.length ||
+          showTraditionalLogin ||
+          isNewCredentialsMode) && (
           <div className="hidden sm:block px-4 sm:px-0">
             <Link
               href="/"
@@ -119,7 +124,6 @@ export default function LoginPage() {
         )}
 
         <Card className="flex-1 sm:flex-initial flex flex-col border-none sm:border-solid sm:border-border shadow-[0_-20px_40px_rgba(0,0,0,0.15)] sm:shadow-2xl bg-background sm:bg-card/60 sm:backdrop-blur-2xl rounded-t-[2.5rem] sm:rounded-xl overflow-hidden relative">
-          
           {/* Desktop Logo */}
           <div className="hidden sm:flex flex-col items-center pt-6 pb-2">
             <motion.div
@@ -150,9 +154,7 @@ export default function LoginPage() {
             </CardHeader>
           )}
 
-          {userCount === 0 && (
-            <SetupPromptContent />
-          )}
+          {userCount === 0 && <SetupPromptContent />}
 
           {userCount > 0 &&
             (recentUsers.length === 0 ||

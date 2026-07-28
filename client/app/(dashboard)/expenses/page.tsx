@@ -1,6 +1,6 @@
 "use client";
 
-import { ExpenseList } from "@/components/expenses/expense-list";
+import { ExpenseList } from "@/components/expenses";
 import { AddExpenseDialog } from "@/components/expenses/add-expense-dialog";
 import { useState, useEffect } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";

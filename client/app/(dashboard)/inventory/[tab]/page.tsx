@@ -1,4 +1,4 @@
-import { StockBatchManagement } from "@/components/stock-batch/stock-batch-management"
+import { StockBatchManagement } from "@/components/stock-batch"
 import { redirect } from "next/navigation"
 
 export function generateStaticParams() {

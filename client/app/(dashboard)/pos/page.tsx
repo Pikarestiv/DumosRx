@@ -1,4 +1,4 @@
-import { POSSystem } from "@/components/pos/pos-system"
+import { POSSystem } from "@/components/pos"
 import { POSLoadingSkeleton } from "@/components/pos/pos-loading-skeleton"
 import { Suspense } from "react"
 

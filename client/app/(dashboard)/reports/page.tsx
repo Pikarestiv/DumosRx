@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { CalendarIcon } from "lucide-react";
 import { ReportCenter } from "@/components/reports/report-center";
-import { BusinessIntelligenceDashboard } from "@/components/analytics/business-intelligence-dashboard";
+import { BusinessIntelligenceDashboard } from "@/components/analytics";
 import { useStore } from "@/lib/context/store-context";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { useAuth } from "@/lib/context/auth-context";

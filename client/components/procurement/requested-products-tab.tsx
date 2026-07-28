@@ -26,6 +26,7 @@ import { RequestedProductsStats } from "./requested-products-stats";
 import { RequestedProductMobileCard } from "./requested-product-mobile-card";
 import { RequestedProductRow } from "./requested-product-row";
 import { RequestedProductsStatusFilter } from "./requested-products-status-filter";
+import { usePullToRefreshHandler } from "@/lib/context/pull-to-refresh-context";
 
 type RequestStatusFilter = "all" | "pending" | "ordered";
 
@@ -59,6 +60,10 @@ export function RequestedProductsTab() {
   useEffect(() => {
     fetchRequests();
   }, []);
+
+  usePullToRefreshHandler(async () => {
+    await fetchRequests();
+  });
 
   const fetchRequests = async () => {
     setLoading(true);

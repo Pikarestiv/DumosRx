@@ -256,19 +256,23 @@ export async function receivePurchaseOrder(id: string, receivedItems?: any[]) {
   await logAction("RECEIVE_PO", "purchase_orders", id, { total_items: poData.items.length });
 }
 
-export async function getSuppliers(page = 1, limit = 50) {
-  const offset = (page - 1) * limit;
+/**
+ * Loads every supplier, not a page of them — the caller runs search/filter over
+ * the result, and suppliers stay small by nature (tens, rarely hundreds), so
+ * in-memory filtering stays correct without needing SQL-level WHERE clauses,
+ * matching the pattern used by getCustomers()/getPurchaseOrders() etc.
+ */
+export async function getSuppliers() {
   const results = await query<any>(
-    `SELECT s.*, 
+    `SELECT s.*,
             COALESCE(SUM(po.total_amount - po.amount_paid), 0) as total_debt
      FROM suppliers s
      LEFT JOIN purchase_orders po ON s.id = po.supplier_id AND po._deleted = 0 AND po.payment_status != 'paid'
-     WHERE s._deleted = 0 
+     WHERE s._deleted = 0
      GROUP BY s.id
-     ORDER BY s.created_at DESC LIMIT ? OFFSET ?`,
-    [limit, offset]
+     ORDER BY s.created_at DESC`,
   );
-  return { data: results, page, limit };
+  return { data: results };
 }
 
 export async function createSupplier(data: any) {

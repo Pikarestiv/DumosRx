@@ -8,6 +8,7 @@ import { useStore } from "@/lib/context/store-context";
 import { useCustomerData, Customer } from "@/lib/hooks/use-customer-data";
 import { genericFuzzySearch } from "@/lib/utils/search";
 import { getLoyaltyTiers } from "@/lib/db/queries/loyalty";
+import { usePullToRefreshHandler } from "@/lib/context/pull-to-refresh-context";
 
 import { InsightsStrip } from "./insights-strip";
 import { OverviewTab } from "./overview-tab";
@@ -23,8 +24,10 @@ export function CustomerManagement() {
   const { storeType, storeProfile } = useStore();
   const isStore = storeType === "pharmacy";
 
-  const { customers, metrics, addCustomer, updateCustomer, recordPayment } =
+  const { customers, metrics, fetchCustomers, addCustomer, updateCustomer, recordPayment } =
     useCustomerData();
+
+  usePullToRefreshHandler(fetchCustomers);
 
   const FALLBACK_TIERS = [
     {

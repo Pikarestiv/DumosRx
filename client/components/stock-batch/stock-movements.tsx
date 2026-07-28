@@ -14,6 +14,7 @@ import { StockMovementTypeFilter } from "./stock-movement-type-filter";
 import { StockMovementDesktopRow } from "./stock-movement-desktop-row";
 import { StockMovementMobileGroup } from "./stock-movement-mobile-group";
 import { StockMovementDetailModal } from "./stock-movement-detail-modal";
+import { usePullToRefreshHandler } from "@/lib/context/pull-to-refresh-context";
 
 const RECENT_ACTIVITY_WINDOW_DAYS = 30;
 
@@ -43,23 +44,29 @@ export function StockMovements() {
   const router = useRouter();
 
   // Default view is bounded to recent activity since this log grows every sale/receive/adjustment.
-  useEffect(() => {
-    async function fetchMovements() {
-      setLoading(true);
-      try {
-        const { getStockMovements } = await import("@/lib/db/local-database");
-        const res = await getStockMovements({
-          sinceDays: RECENT_ACTIVITY_WINDOW_DAYS,
-        });
-        setMovements((res.data || []).map(mapMovement));
-      } catch (error) {
-        console.error("Failed to fetch stock movements:", error);
-      } finally {
-        setLoading(false);
-      }
+  // Respects whatever window is currently active (30-day or full history), so a manual/pull
+  // refresh doesn't quietly revert someone back out of full-history mode.
+  const fetchMovements = async () => {
+    setLoading(true);
+    try {
+      const { getStockMovements } = await import("@/lib/db/local-database");
+      const res = hasFullHistory
+        ? await getStockMovements()
+        : await getStockMovements({ sinceDays: RECENT_ACTIVITY_WINDOW_DAYS });
+      setMovements((res.data || []).map(mapMovement));
+    } catch (error) {
+      console.error("Failed to fetch stock movements:", error);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  useEffect(() => {
     fetchMovements();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  usePullToRefreshHandler(fetchMovements);
 
   // Searching or filtering must match the entire log, not just the recent-activity window
   // that's loaded by default — so upgrade to full history the first time either is used.

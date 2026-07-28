@@ -15,6 +15,7 @@ import { ExpenseCategoryFilter } from "./expense-category-filter";
 import { Card } from "@/components/ui/card";
 import { Expense } from "@/lib/db/queries/finance";
 import { ExpenseInsightsStrip } from "./expense-insights-strip";
+import { usePullToRefreshHandler } from "@/lib/context/pull-to-refresh-context";
 
 const CATEGORIES = [
   "All",
@@ -38,6 +39,10 @@ const CATEGORY_META: Record<string, { badgeClass: string }> = {
 
 export function ExpenseList() {
   const { expenses, isLoading, refetch: fetchExpenses } = useExpenseList();
+
+  usePullToRefreshHandler(async () => {
+    await fetchExpenses();
+  });
   const { storeProfile } = useStore();
 
   const [searchTerm, setSearchTerm] = useState("");

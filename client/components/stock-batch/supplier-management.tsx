@@ -17,6 +17,7 @@ import { SupplierStatusFilter } from "./supplier-status-filter";
 import { genericFuzzySearch } from "@/lib/utils/search";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { toast } from "sonner";
+import { usePullToRefreshHandler } from "@/lib/context/pull-to-refresh-context";
 
 interface Supplier {
   id: string;
@@ -96,10 +97,14 @@ export function SupplierManagement() {
     }
   }, [suppliers, selectedSupplierId, isDesktop]);
 
+  usePullToRefreshHandler(async () => {
+    await fetchSuppliers();
+  });
+
   const fetchSuppliers = async () => {
     setLoading(true);
     try {
-      const { data } = await getSuppliers(1, 100);
+      const { data } = await getSuppliers();
       const transformed = data.map(transformSupplier);
       setSuppliers(transformed);
     } catch (error) {

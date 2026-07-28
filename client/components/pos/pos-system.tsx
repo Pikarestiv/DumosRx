@@ -25,6 +25,8 @@ import { usePOSPrescription } from "@/lib/hooks/use-pos-prescription";
 import { usePOSReturnDeepLink } from "@/lib/hooks/use-pos-return-deep-link";
 import { usePOSHeldTransactions } from "@/lib/hooks/use-pos-held-transactions";
 import { usePOSKeyboardShortcuts } from "@/lib/hooks/use-pos-keyboard-shortcuts";
+import { usePullToRefresh } from "@/lib/hooks/use-pull-to-refresh";
+import { PullToRefreshIndicator } from "@/components/ui/pull-to-refresh-indicator";
 export function POSSystem() {
   const { t, storeProfile, vatPercentage } = useStore();
   const searchInputRef = React.useRef<HTMLInputElement>(null);
@@ -71,6 +73,20 @@ export function POSSystem() {
     loadingCustomers,
     paymentAccounts,
   } = usePOSData();
+
+  // POS doesn't use the shared DashboardLayout scroll container (its routes opt out
+  // of that entirely), so each tab wires pull-to-refresh directly onto its own
+  // scrollable region instead of registering through the global context.
+  const productsPullToRefresh = usePullToRefresh<HTMLDivElement>({
+    onRefresh: async () => {
+      await refetchProducts();
+    },
+  });
+  const historyPullToRefresh = usePullToRefresh<HTMLDivElement>({
+    onRefresh: async () => {
+      await refetchSales();
+    },
+  });
   const {
     cart,
     addToCart,
@@ -238,9 +254,15 @@ export function POSSystem() {
             </div>
             <div className="flex-1 overflow-hidden relative">
               <TabsContent
+                ref={productsPullToRefresh.scrollRef}
                 value="products"
                 className="absolute inset-0 overflow-y-auto mt-0 pr-1 flex flex-col gap-4"
               >
+                <PullToRefreshIndicator
+                  pullDistance={productsPullToRefresh.pullDistance}
+                  isRefreshing={productsPullToRefresh.isRefreshing}
+                  threshold={productsPullToRefresh.threshold}
+                />
                 <POSCategoryFilter
                   categories={categories}
                   value={categoryFilter}
@@ -280,9 +302,15 @@ export function POSSystem() {
                 />
               </TabsContent>
               <TabsContent
+                ref={historyPullToRefresh.scrollRef}
                 value="history"
                 className="absolute inset-0 overflow-y-auto mt-0 pr-1"
               >
+                <PullToRefreshIndicator
+                  pullDistance={historyPullToRefresh.pullDistance}
+                  isRefreshing={historyPullToRefresh.isRefreshing}
+                  threshold={historyPullToRefresh.threshold}
+                />
                 <POSTransactionHistory
                   recentSales={recentSales}
                   onReturnClick={(sale) => {

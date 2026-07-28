@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import { setCurrentUser as setDbUser } from "@/lib/db/local-database";
 import { apiClient } from "@/lib/api/client";
 import { getUserByUsernameOrEmail, createDefaultAdmin, getUserPin, updateUserPin } from "@/lib/db/queries/auth";
+import { useAutoLockStore } from "@/lib/hooks/use-auto-lock";
 
 export interface User {
   id: string;
@@ -114,6 +115,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // succeeded. Cleared on logout; sessionStorage itself clears on tab
       // close, so a genuinely new tab/session still locks correctly.
       sessionStorage.setItem("dumos_session_authenticated", "1");
+      // Any successful login means "not locked", full stop — regardless of
+      // which screen triggered it. Without this, a stale isLocked=true left
+      // over from an earlier auto-lock timeout (persisted in localStorage)
+      // would survive a fresh login untouched and immediately re-show the
+      // dashboard's lock overlay right after login just succeeded.
+      useAutoLockStore.getState().unlock();
 
       // Update recent users list
       const recentUsersStr = localStorage.getItem("dumos_recent_users");
@@ -165,6 +172,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setDbUser(defaultAdmin);
       localStorage.setItem("dumos_user", JSON.stringify(defaultAdmin));
       sessionStorage.setItem("dumos_session_authenticated", "1");
+      useAutoLockStore.getState().unlock();
 
       // Update recent users list for default admin
       const recentUsersStr = localStorage.getItem("dumos_recent_users");

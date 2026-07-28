@@ -7,8 +7,15 @@ interface AutoLockState {
   duration: number; // in minutes. 0 = off
   isLocked: boolean;
   lastActivity: number;
+  // True while the lock overlay should show account selection (ignoring the
+  // current user) rather than defaulting straight to that user's PIN entry —
+  // set by "Switch Account" so it can reuse this same overlay instead of a
+  // separate page. Deliberately not persisted (see partialize below); it only
+  // ever needs to survive within the current live session.
+  forceAccountSelection: boolean;
   setDuration: (duration: number) => void;
   lock: () => void;
+  lockForSwitch: () => void;
   unlock: () => void;
   updateActivity: () => void;
 }
@@ -19,9 +26,16 @@ export const useAutoLockStore = create<AutoLockState>()(
       duration: 5,
       isLocked: false,
       lastActivity: Date.now(),
+      forceAccountSelection: false,
       setDuration: (duration: number) => set({ duration }),
       lock: () => set({ isLocked: true }),
-      unlock: () => set({ isLocked: false, lastActivity: Date.now() }),
+      lockForSwitch: () => set({ isLocked: true, forceAccountSelection: true }),
+      unlock: () =>
+        set({
+          isLocked: false,
+          lastActivity: Date.now(),
+          forceAccountSelection: false,
+        }),
       updateActivity: () => set({ lastActivity: Date.now() }),
     }),
     {
@@ -102,9 +116,16 @@ export function useAutoLockTimer() {
  * fresh /login success, forcing an immediate, redundant second PIN entry.
  * sessionStorage persists across reloads within the same tab but clears when
  * the tab actually closes, so a genuinely new tab/session still locks.
+ *
+ * When more than one recent account exists on this device (shared terminal),
+ * a fresh landing shows account SELECTION rather than defaulting straight to
+ * the last-used user's PIN entry — otherwise a different staff member picking
+ * up the device would have no way to reach their own account without first
+ * unlocking as whoever used it last.
  */
 export function useLockOnFreshLoad() {
   const lock = useAutoLockStore((s) => s.lock);
+  const lockForSwitch = useAutoLockStore((s) => s.lockForSwitch);
 
   useEffect(() => {
     try {
@@ -112,7 +133,13 @@ export function useLockOnFreshLoad() {
         localStorage.getItem("dumos_user") &&
         !sessionStorage.getItem("dumos_session_authenticated")
       ) {
-        lock();
+        const recentUsersStr = localStorage.getItem("dumos_recent_users");
+        const recentUsers = recentUsersStr ? JSON.parse(recentUsersStr) : [];
+        if (recentUsers.length > 1) {
+          lockForSwitch();
+        } else {
+          lock();
+        }
       }
     } catch {
       // localStorage/sessionStorage unavailable (e.g. private mode)

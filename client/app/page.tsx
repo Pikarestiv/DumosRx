@@ -19,15 +19,16 @@ import Link from "next/link";
 export default function HomePage() {
   const router = useRouter();
   // If this device has logged in before, skip straight past the marketing
-  // page to /login, which shows the lock screen for the recent account(s)
-  // instead of "Ready to Begin?" every single time.
+  // page to /dashboard, whose own lock overlay is the one canonical place PIN
+  // entry happens — going via /login here would just add an extra redirect
+  // hop, since /login itself now bounces straight to /dashboard too.
   const [checkingAccount, setCheckingAccount] = useState(true);
 
   useEffect(() => {
     try {
       const recentUsers = localStorage.getItem("dumos_recent_users");
       if (recentUsers && JSON.parse(recentUsers).length > 0) {
-        router.replace("/login");
+        router.replace("/dashboard");
         return;
       }
     } catch {

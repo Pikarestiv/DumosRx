@@ -63,6 +63,7 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
   // Selectors, not a destructured whole-store call — see the comment in
   // useAutoLockTimer for why (this component wraps the entire app).
   const isLocked = useAutoLockStore((s) => s.isLocked);
+  const forceAccountSelection = useAutoLockStore((s) => s.forceAccountSelection);
   const unlock = useAutoLockStore((s) => s.unlock);
   const [recentUsers, setRecentUsers] = useState<any[]>([]);
 
@@ -238,13 +239,16 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
                 <LockScreen
                   recentUsers={recentUsers}
                   defaultUser={
-                    user
+                    !forceAccountSelection && user
                       ? { ...user, last_login: new Date().toISOString() }
                       : undefined
                   }
                   onLoginAsOther={() => {
                     unlock();
-                    router.push("/login");
+                    // "New credentials" mode — distinct from a plain /login
+                    // visit, which otherwise redirects straight back here
+                    // when recent accounts already exist (see app/login).
+                    router.push("/login?mode=new");
                   }}
                   onUnlockSuccess={() => unlock()}
                 />

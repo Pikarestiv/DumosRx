@@ -6,13 +6,13 @@ import { CalendarIcon } from "lucide-react";
 import { ReportCenter } from "@/components/reports/report-center";
 import { BusinessIntelligenceDashboard } from "@/components/analytics/business-intelligence-dashboard";
 import { useStore } from "@/lib/context/store-context";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { useAuth } from "@/lib/context/auth-context";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
-import { ResponsiveTabLabel } from "@/components/ui/responsive-tab-label";
 import { getLocalTodayDate } from "@/lib/utils";
 
 import { DailyCloseReport } from "@/components/reports/daily-close-report";
+import { ReportsTabNav } from "./reports-tab-nav";
 
 export default function ReportsPage() {
   const { t: _t, storeType: _storeType } = useStore();
@@ -46,55 +46,10 @@ export default function ReportsPage() {
     router.push(`/reports?tab=${value}`, { scroll: false });
   };
 
-  const tabTriggerClass =
-    "h-10 px-5 rounded-lg text-[13px] font-semibold gap-1.5 whitespace-nowrap shrink-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent shadow-none";
-
   return (
     <Tabs value={activeTab} onValueChange={handleTabChange} className="gap-4">
       <div className="flex flex-col md:flex-row md:items-center gap-2.5">
-        <TabsList className="w-full md:w-max inline-flex gap-1 bg-background border rounded-[11px] p-1 h-auto overflow-x-auto">
-          {isAdmin && (
-            <TabsTrigger value="reports" className={tabTriggerClass}>
-              <svg
-                className="w-3.5 h-3.5"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-                <path d="M14 2v6h6" />
-              </svg>
-              <ResponsiveTabLabel short="Operational" long="Operational Reports" />
-            </TabsTrigger>
-          )}
-          <TabsTrigger value="daily_close" className={tabTriggerClass}>
-            <svg
-              className="w-3.5 h-3.5"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path d="M20 6L9 17l-5-5" />
-            </svg>
-            Daily Close
-          </TabsTrigger>
-          {isAdmin && (
-            <TabsTrigger value="analytics" className={tabTriggerClass}>
-              <svg
-                className="w-3.5 h-3.5"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="M23 6l-9.5 9.5-5-5L1 18" />
-              </svg>
-              <ResponsiveTabLabel short="Analytics" long="Analytics & Insights" />
-            </TabsTrigger>
-          )}
-        </TabsList>
+        <ReportsTabNav isAdmin={isAdmin} />
 
         {activeTab === "daily_close" && (
           <div className="h-10 flex items-center gap-2 shrink-0 bg-background border rounded-md px-3 shadow-sm">

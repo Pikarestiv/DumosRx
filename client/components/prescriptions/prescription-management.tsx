@@ -14,8 +14,7 @@ import { Card } from "@/components/ui/card";
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ResponsiveTabLabel } from "@/components/ui/responsive-tab-label";
+import { PrescriptionStatusFilter } from "./prescription-status-filter";
 
 import { useSearchParams } from "next/navigation";
 
@@ -133,39 +132,11 @@ export function PrescriptionManagement() {
         />
       </div>
 
-      {/* FILTER CHIPS — mobile: chips variant with bg-card/border-border inactive state; desktop: unchanged default Tabs */}
-      <div>
-        <div className="lg:hidden">
-          <Tabs
-            value={statusFilter}
-            onValueChange={setStatusFilter}
-            variant="chips"
-          >
-            <TabsList className="w-full justify-start overflow-x-auto overflow-y-hidden hide-scrollbar">
-              {STATUS_FILTERS.map((f) => (
-                <TabsTrigger
-                  key={f.value}
-                  value={f.value}
-                  className="data-[state=inactive]:bg-card data-[state=inactive]:border-border"
-                >
-                  <ResponsiveTabLabel short={f.short} long={f.label} />
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
-        </div>
-        <div className="hidden lg:block">
-          <Tabs value={statusFilter} onValueChange={setStatusFilter}>
-            <TabsList className="w-max justify-start overflow-x-auto overflow-y-hidden hide-scrollbar">
-              {STATUS_FILTERS.map((f) => (
-                <TabsTrigger key={f.value} value={f.value}>
-                  {f.label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
-        </div>
-      </div>
+      <PrescriptionStatusFilter
+        filters={STATUS_FILTERS}
+        value={statusFilter}
+        onChange={setStatusFilter}
+      />
 
       {/* Grid Layout — both panes stretch to match the taller one on desktop */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] lg:grid-rows-1 gap-6 lg:h-[calc(100vh-320px)] lg:min-h-[500px]">

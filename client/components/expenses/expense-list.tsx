@@ -8,7 +8,7 @@ import { useStore } from "@/lib/context/store-context";
 import { useExpenseList } from "@/lib/hooks/use-finance-data";
 import { ExpenseDetailDialog } from "./expense-detail-dialog";
 import { AddExpenseDialog } from "./add-expense-dialog";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ExpenseCategoryFilter } from "./expense-category-filter";
 import { Card } from "@/components/ui/card";
 import { Expense } from "@/lib/db/queries/finance";
 import { ExpenseInsightsStrip } from "./expense-insights-strip";
@@ -141,39 +141,11 @@ export function ExpenseList() {
       {/* Mobile: search bar stands alone above the category chips */}
       <div className="md:hidden mb-4">{SearchInput}</div>
 
-      {/* CATEGORIES — mobile: chips variant with bg-card/border-border inactive state; desktop: unchanged default Tabs */}
-      <div className="mb-4">
-        <div className="md:hidden">
-          <Tabs
-            value={selectedCategory}
-            onValueChange={setSelectedCategory}
-            variant="chips"
-          >
-            <TabsList className="w-full justify-start overflow-x-auto overflow-y-hidden hide-scrollbar">
-              {CATEGORIES.map((cat) => (
-                <TabsTrigger
-                  key={cat}
-                  value={cat}
-                  className="data-[state=inactive]:bg-card data-[state=inactive]:border-border"
-                >
-                  {cat}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
-        </div>
-        <div className="hidden md:block">
-          <Tabs value={selectedCategory} onValueChange={setSelectedCategory}>
-            <TabsList className="w-max justify-start overflow-x-auto overflow-y-hidden hide-scrollbar">
-              {CATEGORIES.map((cat) => (
-                <TabsTrigger key={cat} value={cat}>
-                  {cat}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
-        </div>
-      </div>
+      <ExpenseCategoryFilter
+        categories={CATEGORIES}
+        value={selectedCategory}
+        onChange={setSelectedCategory}
+      />
 
       {/* Mobile: flat card list, no wrapping table card */}
       <div className="md:hidden flex flex-col gap-2">

@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { toast } from "sonner";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { useStore } from "@/lib/context/store-context";
 import { usePOSCart } from "@/lib/hooks/use-pos-cart";
 import { usePOSPayment } from "@/lib/hooks/use-pos-payment";
@@ -14,6 +14,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getHeldTransactionCount } from "@/lib/db/queries/sales";
 import { POSProductList } from "./pos-product-list";
 import { POSCategoryFilter } from "./pos-category-filter";
+import { POSMainTabNav } from "./pos-main-tab-nav";
 import { POSTransactionHistory } from "./pos-transaction-history";
 import { POSMobileSearch } from "./pos-mobile-search";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
@@ -233,10 +234,7 @@ export function POSSystem() {
             className="w-full flex-1 flex flex-col overflow-hidden"
           >
             <div className="flex-none flex mb-2 sm:mb-4">
-              <TabsList className="w-full md:w-auto">
-                <TabsTrigger value="products">Products</TabsTrigger>
-                <TabsTrigger value="history">Recent Sales</TabsTrigger>
-              </TabsList>
+              <POSMainTabNav />
             </div>
             <div className="flex-1 overflow-hidden relative">
               <TabsContent

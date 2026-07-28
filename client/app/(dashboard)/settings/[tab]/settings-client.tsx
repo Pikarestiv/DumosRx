@@ -1,19 +1,11 @@
 "use client";
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Store,
-  Bell,
-  Shield,
-  Database,
-  Palette,
-  Globe,
-  Users,
-  ChevronLeft,
-} from "lucide-react";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { ChevronLeft } from "lucide-react";
 import { CloudLinkDialog } from "@/components/settings/cloud-link-dialog";
 import { StaffManagement } from "@/components/settings/staff-management";
 import { SettingsMobileMenu } from "@/components/settings/settings-mobile-menu";
+import { SettingsTabNav } from "./settings-tab-nav";
 
 import { AppearanceSettings } from "@/components/settings/appearance-settings";
 import { StoreSettings } from "@/components/settings/store-settings";
@@ -155,68 +147,7 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
             className="hidden md:block w-full md:w-48 flex-shrink-0 md:sticky z-30"
             style={{ top: isDesktop ? "16px" : undefined }}
           >
-            <TabsList
-              className="hidden md:flex flex-col h-auto overflow-x-auto scrollbar-none md:overflow-visible bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b md:border-none p-2 md:p-0 gap-1 justify-start md:w-full sticky md:relative z-30"
-              style={{ top: !isDesktop ? "0px" : undefined }}
-            >
-              <TabsTrigger
-                value="appearance"
-                className="flex-none !justify-start w-full px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm border border-transparent rounded-lg"
-              >
-                <Palette className="w-4 h-4 mr-2 md:mr-3" />
-                <span className="text-sm">General</span>
-              </TabsTrigger>
-              {isAdmin && (
-                <TabsTrigger
-                  value="store"
-                  className="flex-none !justify-start w-full px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm border border-transparent rounded-lg"
-                >
-                  <Store className="w-4 h-4 mr-2 md:mr-3" />
-                  <span className="text-sm">Store Profile</span>
-                </TabsTrigger>
-              )}
-              <TabsTrigger
-                value="notifications"
-                className="flex-none !justify-start w-full px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm border border-transparent rounded-lg"
-              >
-                <Bell className="w-4 h-4 mr-2 md:mr-3" />
-                <span className="text-sm">Alerts</span>
-              </TabsTrigger>
-              {isAdmin && (
-                <TabsTrigger
-                  value="data"
-                  className="flex-none !justify-start w-full px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm border border-transparent rounded-lg"
-                >
-                  <Database className="w-4 h-4 mr-2 md:mr-3" />
-                  <span className="text-sm">Data & Sync</span>
-                </TabsTrigger>
-              )}
-              <TabsTrigger
-                value="security"
-                className="flex-none !justify-start w-full px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm border border-transparent rounded-lg"
-              >
-                <Shield className="w-4 h-4 mr-2 md:mr-3" />
-                <span className="text-sm">Security</span>
-              </TabsTrigger>
-              {isAdmin && (
-                <TabsTrigger
-                  value="staff"
-                  className="flex-none !justify-start w-full px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm border border-transparent rounded-lg"
-                >
-                  <Users className="w-4 h-4 mr-2 md:mr-3" />
-                  <span className="text-sm">Staff</span>
-                </TabsTrigger>
-              )}
-              {isAdmin && (
-                <TabsTrigger
-                  value="system"
-                  className="flex-none !justify-start w-full px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm border border-transparent rounded-lg"
-                >
-                  <Globe className="w-4 h-4 mr-2 md:mr-3" />
-                  <span className="text-sm">System</span>
-                </TabsTrigger>
-              )}
-            </TabsList>
+            <SettingsTabNav isAdmin={isAdmin} isDesktop={isDesktop} />
           </aside>
 
           <div className="flex-1 px-4 md:px-0 min-w-0">

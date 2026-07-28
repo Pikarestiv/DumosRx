@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { useStore } from "@/lib/context/store-context";
 import { useCustomerData, Customer } from "@/lib/hooks/use-customer-data";
 import { genericFuzzySearch } from "@/lib/utils/search";
@@ -17,7 +17,7 @@ import { LoyaltyTab } from "./loyalty-tab";
 import { AddCustomerModal } from "./add-customer-modal";
 import { EditCustomerModal } from "./edit-customer-modal";
 import { RecordPaymentModal } from "./record-payment-modal";
-import { ResponsiveTabLabel } from "@/components/ui/responsive-tab-label";
+import { CustomerTabNav } from "./customer-tab-nav";
 
 export function CustomerManagement() {
   const { storeType, storeProfile } = useStore();
@@ -184,32 +184,7 @@ export function CustomerManagement() {
         onValueChange={handleTabChange}
         className="flex-1 flex flex-col min-h-0 gap-4"
       >
-        <TabsList className="w-full md:w-max bg-background border rounded-[11px] p-1 h-auto overflow-x-auto justify-start">
-          <TabsTrigger
-            value="overview"
-            className="rounded-lg text-[13px] font-semibold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-5 py-2"
-          >
-            Overview
-          </TabsTrigger>
-          <TabsTrigger
-            value="directory"
-            className="rounded-lg text-[13px] font-semibold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-5 py-2"
-          >
-            Directory
-          </TabsTrigger>
-          <TabsTrigger
-            value="activity"
-            className="rounded-lg text-[13px] font-semibold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-5 py-2"
-          >
-            Activity
-          </TabsTrigger>
-          <TabsTrigger
-            value="loyalty"
-            className="rounded-lg text-[13px] font-semibold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-5 py-2"
-          >
-            <ResponsiveTabLabel short="Loyalty" long="Loyalty Program" />
-          </TabsTrigger>
-        </TabsList>
+        <CustomerTabNav />
 
         <TabsContent
           value="overview"

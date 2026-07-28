@@ -1,5 +1,6 @@
 "use client";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { StockBatchTabNav } from "./stock-batch-tab-nav";
 import { StockOverview } from "./stock-overview";
 import { StockMovements } from "./stock-movements";
 import { StockAudits } from "./stock-audits";
@@ -52,11 +53,7 @@ export function StockBatchManagement({
           className="space-y-6 w-full"
         >
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <TabsList className="w-full md:w-max">
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="catalog">Catalog</TabsTrigger>
-              <TabsTrigger value="ledger">Ledger</TabsTrigger>
-            </TabsList>
+            <StockBatchTabNav />
 
             {isAdmin && (
               <Button

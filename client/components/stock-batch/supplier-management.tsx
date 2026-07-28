@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
@@ -14,10 +13,10 @@ import { useMediaQuery } from "@/hooks/use-media-query";
 import { SupplierStats } from "./supplier-stats";
 import { SupplierDetailPane } from "./supplier-detail-pane";
 import { SupplierTable } from "./supplier-table";
+import { SupplierStatusFilter } from "./supplier-status-filter";
 import { genericFuzzySearch } from "@/lib/utils/search";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 
 interface Supplier {
   id: string;
@@ -215,36 +214,7 @@ export function SupplierManagement() {
               </div>
             </div>
             <div className="flex items-center justify-between">
-              <Tabs variant="chips" value={filter} onValueChange={setFilter}>
-                <TabsList className="w-full md:w-max justify-start overflow-x-auto hide-scrollbar">
-                  <TabsTrigger
-                    value="all"
-                    className={cn(
-                      // active
-                      "data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none",
-                      // inactive
-                      "data-[state=inactive]:border-border data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground",
-                      // inactive + hover
-                      "data-[state=inactive]:hover:bg-primary/10 data-[state=inactive]:hover:text-primary data-[state=inactive]:hover:border-primary/50",
-                    )}
-                  >
-                    All
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="debt"
-                    className={cn(
-                      // active
-                      "data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none",
-                      // inactive
-                      "data-[state=inactive]:border-border data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground",
-                      // inactive + hover
-                      "data-[state=inactive]:hover:bg-primary/10 data-[state=inactive]:hover:text-primary data-[state=inactive]:hover:border-primary/50",
-                    )}
-                  >
-                    Has debt
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
+              <SupplierStatusFilter filter={filter} setFilter={setFilter} />
               <div className="text-[11.5px] text-destructive font-medium">
                 {formatCurrency(totalDebtAmount)} owed to {debtSuppliersCount}{" "}
                 {debtSuppliersCount === 1 ? "supplier" : "suppliers"}

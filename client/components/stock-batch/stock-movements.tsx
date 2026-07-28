@@ -6,8 +6,8 @@ import { format, isToday, isYesterday, differenceInDays } from "date-fns";
 import { genericFuzzySearch } from "@/lib/utils/search";
 import { StockMovementsSkeleton } from "./stock-movements-skeleton";
 import { useRouter } from "next/navigation";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { StockMovement, FILTER_TYPES } from "./stock-movement-utils";
+import { StockMovement } from "./stock-movement-utils";
+import { StockMovementTypeFilter } from "./stock-movement-type-filter";
 import { StockMovementDesktopRow } from "./stock-movement-desktop-row";
 import { StockMovementMobileGroup } from "./stock-movement-mobile-group";
 import { StockMovementDetailModal } from "./stock-movement-detail-modal";
@@ -83,22 +83,6 @@ export function StockMovements() {
     return <StockMovementsSkeleton />;
   }
 
-  const renderTypeChips = (triggerClass = "") => (
-    <Tabs
-      value={typeFilter}
-      onValueChange={setTypeFilter as any}
-      variant="chips"
-    >
-      <TabsList>
-        {FILTER_TYPES.map((ft) => (
-          <TabsTrigger key={ft.id} value={ft.id} className={triggerClass}>
-            {ft.label}
-          </TabsTrigger>
-        ))}
-      </TabsList>
-    </Tabs>
-  );
-
   return (
     <div className="relative">
       {/* Mobile: search + chips stand alone above the list; no outer card, immutable-log note hidden */}
@@ -113,9 +97,11 @@ export function StockMovements() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        {renderTypeChips(
-          "data-[state=inactive]:bg-card data-[state=inactive]:border-border",
-        )}
+        <StockMovementTypeFilter
+          typeFilter={typeFilter}
+          setTypeFilter={setTypeFilter}
+          triggerClassName="data-[state=inactive]:bg-card data-[state=inactive]:border-border"
+        />
       </div>
 
       <div className="hidden md:flex bg-card border border-border rounded-2xl flex-col flex-1 min-h-[600px]">
@@ -137,9 +123,11 @@ export function StockMovements() {
               Immutable log — entries can't be edited
             </div>
           </div>
-          {renderTypeChips(
-            "data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none data-[state=inactive]:border-border data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-primary/10 data-[state=inactive]:hover:border-primary/50 data-[state=inactive]:hover:text-primary",
-          )}
+          <StockMovementTypeFilter
+            typeFilter={typeFilter}
+            setTypeFilter={setTypeFilter}
+            triggerClassName="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none data-[state=inactive]:border-border data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-primary/10 data-[state=inactive]:hover:border-primary/50 data-[state=inactive]:hover:text-primary"
+          />
         </div>
 
         {/* Desktop Grid Header */}

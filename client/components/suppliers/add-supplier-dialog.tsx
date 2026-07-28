@@ -3,9 +3,7 @@
 import React from "react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { DialogFooter } from "@/components/ui/dialog";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -80,9 +78,14 @@ export function AddSupplierDialog({
     }
 
     try {
-      const existing = await query<any[]>("SELECT id FROM suppliers WHERE LOWER(name) = LOWER(?) LIMIT 1", [formData.name]);
+      const existing = await query<any[]>(
+        "SELECT id FROM suppliers WHERE LOWER(name) = LOWER(?) LIMIT 1",
+        [formData.name],
+      );
       if (existing && existing.length > 0) {
-        setAlertMessage(`A supplier with the name "${formData.name}" already exists.`);
+        setAlertMessage(
+          `A supplier with the name "${formData.name}" already exists.`,
+        );
         return;
       }
     } catch (error) {
@@ -125,119 +128,21 @@ export function AddSupplierDialog({
 
   return (
     <>
-    <ResponsiveModal 
-      open={open}
-      onOpenChange={onOpenChange}
-      title={<span className="font-serif font-bold">{initialSupplier ? "Edit Supplier" : "Add New Supplier"}</span>}
-      description={
-        initialSupplier
-          ? "Update the supplier's details below."
-          : `Add a new ${isPharmacy ? "supplier or distributor" : "supplier"} to your database.`
-      }
-      className="sm:max-w-xl max-h-[90vh] overflow-hidden flex flex-col"
-    >
-      <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Supplier Name *</Label>
-            <SearchableInput
-              id="name"
-              value={formData.name}
-              onValueChange={(val) => handleInputChange("name", val)}
-              options={
-                isPharmacy
-                  ? FORM_SUGGESTIONS.store.manufacturers
-                  : FORM_SUGGESTIONS.retail.manufacturers
-              }
-              placeholder={
-                isPharmacy
-                  ? "e.g., Emzor Pharmaceuticals"
-                  : "e.g., Global Distributors"
-              }
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="contactPerson">Contact Person</Label>
-            <Input
-              id="contactPerson"
-              value={formData.contactPerson}
-              onChange={(e) =>
-                handleInputChange("contactPerson", e.target.value)
-              }
-              placeholder="Full Name"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => handleInputChange("email", e.target.value)}
-                placeholder="contact@supplier.com"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone</Label>
-              <Input
-                id="phone"
-                type="tel"
-                value={formData.phone}
-                onChange={(e) => handleInputChange("phone", e.target.value)}
-                placeholder="+234..."
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="address">Address</Label>
-            <Textarea
-              id="address"
-              value={formData.address}
-              onChange={(e) => handleInputChange("address", e.target.value)}
-              placeholder="Office Address"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="taxId">Tax ID (TIN)</Label>
-              <Input
-                id="taxId"
-                value={formData.taxId}
-                onChange={(e) => handleInputChange("taxId", e.target.value)}
-                placeholder="Tax Identification Number"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="paymentTerms">Payment Terms</Label>
-              <Input
-                id="paymentTerms"
-                type="number"
-                value={formData.paymentTerms}
-                onChange={(e) =>
-                  handleInputChange("paymentTerms", e.target.value)
-                }
-                placeholder="Days (e.g., 30)"
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <Switch
-              id="isActive"
-              checked={formData.isActive}
-              onCheckedChange={(checked) =>
-                handleInputChange("isActive", checked)
-              }
-            />
-            <Label htmlFor="isActive">Active Supplier</Label>
-          </div>
-
+      <ResponsiveModal
+        open={open}
+        onOpenChange={onOpenChange}
+        title={
+          <span className="font-serif font-bold">
+            {initialSupplier ? "Edit Supplier" : "Add New Supplier"}
+          </span>
+        }
+        description={
+          initialSupplier
+            ? "Update the supplier's details below."
+            : `Add a new ${isPharmacy ? "supplier or distributor" : "supplier"} to your database.`
+        }
+        className="sm:max-w-xl max-h-[90vh] overflow-hidden flex flex-col"
+        footer={
           <DialogFooter>
             <Button
               type="button"
@@ -246,13 +151,124 @@ export function AddSupplierDialog({
             >
               Cancel
             </Button>
-            <Button type="submit" className="bg-accent hover:bg-accent/90">
+            <Button
+              type="submit"
+              form="add-supplier-form"
+              className="bg-accent hover:bg-accent/90"
+            >
               {initialSupplier ? "Save Changes" : "Add Supplier"}
             </Button>
           </DialogFooter>
-        </form>
-      </div>
-    </ResponsiveModal>
+        }
+      >
+        <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
+          <form
+            id="add-supplier-form"
+            onSubmit={handleSubmit}
+            className="space-y-4"
+          >
+            <div className="space-y-2">
+              <Label htmlFor="name">Supplier Name *</Label>
+              <SearchableInput
+                id="name"
+                value={formData.name}
+                onValueChange={(val) => handleInputChange("name", val)}
+                options={
+                  isPharmacy
+                    ? FORM_SUGGESTIONS.store.manufacturers
+                    : FORM_SUGGESTIONS.retail.manufacturers
+                }
+                placeholder={
+                  isPharmacy
+                    ? "e.g., Emzor Pharmaceuticals"
+                    : "e.g., Global Distributors"
+                }
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="contactPerson">Contact Person</Label>
+              <Input
+                id="contactPerson"
+                value={formData.contactPerson}
+                onChange={(e) =>
+                  handleInputChange("contactPerson", e.target.value)
+                }
+                placeholder="Full Name"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => handleInputChange("email", e.target.value)}
+                  placeholder="contact@supplier.com"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone</Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) => handleInputChange("phone", e.target.value)}
+                  placeholder="+234..."
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="address">Address</Label>
+              <Textarea
+                id="address"
+                value={formData.address}
+                onChange={(e) => handleInputChange("address", e.target.value)}
+                placeholder="Office Address"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="taxId">Tax ID (TIN)</Label>
+                <Input
+                  id="taxId"
+                  value={formData.taxId}
+                  onChange={(e) => handleInputChange("taxId", e.target.value)}
+                  placeholder="Tax Identification Number"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="paymentTerms">Payment Terms</Label>
+                <Input
+                  id="paymentTerms"
+                  type="number"
+                  value={formData.paymentTerms}
+                  onChange={(e) =>
+                    handleInputChange("paymentTerms", e.target.value)
+                  }
+                  placeholder="Days (e.g., 30)"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="isActive"
+                checked={formData.isActive}
+                onCheckedChange={(checked) =>
+                  handleInputChange("isActive", checked)
+                }
+              />
+              <Label htmlFor="isActive">Active Supplier</Label>
+            </div>
+          </form>
+        </div>
+      </ResponsiveModal>
       <ConfirmDialog
         open={!!alertMessage}
         onOpenChange={(open) => {

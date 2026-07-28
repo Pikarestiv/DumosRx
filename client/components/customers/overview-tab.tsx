@@ -24,9 +24,7 @@ export function OverviewTab({ metrics }: { metrics: CustomerMetrics | null }) {
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       {/* Customer Segmentation */}
       <Card className="border rounded-[14px] p-5 shadow-sm">
-        <h3 className="text-[14px] font-semibold">
-          Customer Segmentation
-        </h3>
+        <h3 className="text-[14px] font-semibold">Customer Segmentation</h3>
         <div>
           <div className="h-2 w-full bg-secondary rounded-full overflow-hidden flex mb-5">
             {metrics.segmentation.map((seg) => (
@@ -46,7 +44,9 @@ export function OverviewTab({ metrics }: { metrics: CustomerMetrics | null }) {
                 <div className="text-[13px] text-muted-foreground flex-1">
                   {seg.name}
                 </div>
-                <div className="text-[13px] font-semibold">{seg.percentage}%</div>
+                <div className="text-[13px] font-semibold">
+                  {seg.percentage}%
+                </div>
               </div>
             ))}
           </div>
@@ -76,7 +76,7 @@ export function OverviewTab({ metrics }: { metrics: CustomerMetrics | null }) {
             </div>
           </div>
         </div>
-        <div className="w-full border border-border rounded-lg p-4 flex justify-between items-center">
+        <div className="w-full border border-border rounded-lg p-4 flex flex-col xs:flex-row justify-between items-center">
           <div className="text-[12px] text-muted-foreground">
             Average Transaction Value
           </div>

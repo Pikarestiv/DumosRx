@@ -20,7 +20,11 @@ interface AddCustomerModalProps {
   onSubmit: (data: any) => Promise<void>;
 }
 
-export function AddCustomerModal({ isOpen, onClose, onSubmit }: AddCustomerModalProps) {
+export function AddCustomerModal({
+  isOpen,
+  onClose,
+  onSubmit,
+}: AddCustomerModalProps) {
   const [loading, setLoading] = useState(false);
   const [gender, setGender] = useState("");
 
@@ -44,13 +48,37 @@ export function AddCustomerModal({ isOpen, onClose, onSubmit }: AddCustomerModal
       onOpenChange={(open) => !open && onClose()}
       title={<span className="font-serif font-bold">Add New Customer</span>}
       className="sm:max-w-xl max-h-[90vh] overflow-hidden flex flex-col"
+      footer={
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            form="add-customer-form"
+            disabled={loading}
+            className="bg-accent hover:bg-accent/90"
+          >
+            {loading ? "Saving..." : "Save Customer"}
+          </Button>
+        </DialogFooter>
+      }
     >
       <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form
+          id="add-customer-form"
+          onSubmit={handleSubmit}
+          className="space-y-4"
+        >
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="first_name">First Name *</Label>
-              <Input id="first_name" name="first_name" required placeholder="Jane" />
+              <Input
+                id="first_name"
+                name="first_name"
+                required
+                placeholder="Jane"
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="last_name">Last Name</Label>
@@ -58,7 +86,12 @@ export function AddCustomerModal({ isOpen, onClose, onSubmit }: AddCustomerModal
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" name="email" type="email" placeholder="jane@example.com" />
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                placeholder="jane@example.com"
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="phone">Phone Number</Label>
@@ -91,10 +124,16 @@ export function AddCustomerModal({ isOpen, onClose, onSubmit }: AddCustomerModal
             <h4 className="text-[14px] font-semibold">Medical Information</h4>
             <div className="space-y-2">
               <Label htmlFor="allergies">Allergies (Optional)</Label>
-              <Input id="allergies" name="allergies" placeholder="e.g. Penicillin, Peanuts" />
+              <Input
+                id="allergies"
+                name="allergies"
+                placeholder="e.g. Penicillin, Peanuts"
+              />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="medical_conditions">Pre-existing Conditions (Optional)</Label>
+              <Label htmlFor="medical_conditions">
+                Pre-existing Conditions (Optional)
+              </Label>
               <Input
                 id="medical_conditions"
                 name="medical_conditions"
@@ -102,15 +141,6 @@ export function AddCustomerModal({ isOpen, onClose, onSubmit }: AddCustomerModal
               />
             </div>
           </div>
-
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={loading} className="bg-accent hover:bg-accent/90">
-              {loading ? "Saving..." : "Save Customer"}
-            </Button>
-          </DialogFooter>
         </form>
       </div>
     </ResponsiveModal>

@@ -2,24 +2,15 @@
 
 import { useState, useEffect, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ShoppingCart, ArrowLeft, Clock } from "lucide-react";
-import { Button } from "@/components/ui/button";
-
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { POAddItemForm } from "@/components/procurement/po-add-item-form";
-import { POLineItemsList } from "@/components/procurement/po-line-items-list";
+import { ArrowLeft, Clock } from "lucide-react";
 import { AddProductDialog } from "@/components/products/add-product-dialog";
-import { DatePickerInput } from "@/components/ui/date-picker-input";
-import { createProduct, getPurchaseOrderById, updatePurchaseOrder } from "@/lib/db/local-database";
-import { formatCurrency } from "@/lib/utils";
+import { POOrderFormFields } from "@/components/procurement/po-order-form-fields";
+import { POSummaryPane } from "@/components/procurement/po-summary-pane";
+import {
+  createProduct,
+  getPurchaseOrderById,
+  updatePurchaseOrder,
+} from "@/lib/db/local-database";
 import { toast } from "sonner";
 
 import { useStore } from "@/lib/context/store-context";
@@ -44,7 +35,9 @@ function EditOrderContent() {
 
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
   const [initialProductData, setInitialProductData] = useState<any>(null);
-  const [newlyCreatedProductId, setNewlyCreatedProductId] = useState<string | null>(null);
+  const [newlyCreatedProductId, setNewlyCreatedProductId] = useState<
+    string | null
+  >(null);
 
   const { suppliers, products, refetch: fetchData } = useProcurementData();
 
@@ -95,7 +88,7 @@ function EditOrderContent() {
 
       // Refresh products list
       await fetchData();
-      await queryClient.invalidateQueries({ queryKey: ['productList'] });
+      await queryClient.invalidateQueries({ queryKey: ["productList"] });
       setNewlyCreatedProductId(newProductId);
 
       if (!keepOpen) {
@@ -118,7 +111,7 @@ function EditOrderContent() {
       toast.error("Purchase order ID is missing");
       return;
     }
-    
+
     if (!selectedSupplierId) {
       toast.error("Please select a vendor");
       return;
@@ -161,7 +154,9 @@ function EditOrderContent() {
     return (
       <div className="flex flex-col items-center justify-center h-[calc(100vh-120px)] bg-card border border-border rounded-2xl">
         <Clock className="w-8 h-8 animate-spin text-muted-foreground mb-4" />
-        <p className="text-muted-foreground font-medium text-sm">Loading order...</p>
+        <p className="text-muted-foreground font-medium text-sm">
+          Loading order...
+        </p>
       </div>
     );
   }
@@ -191,161 +186,37 @@ function EditOrderContent() {
       <div className="flex-1 grid grid-cols-1 md:grid-cols-[1fr_380px] min-h-0">
         {/* Left Pane */}
         <div className="p-6 overflow-y-auto flex flex-col gap-4 bg-background/50">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label className="text-[12.5px] font-semibold text-foreground">
-                Select Vendor
-              </Label>
-              <Select
-                value={selectedSupplierId}
-                onValueChange={setSelectedSupplierId}
-              >
-                <SelectTrigger className="w-full border border-border rounded-[10px] px-3.5 h-11 text-[13px] bg-card shadow-sm">
-                  <SelectValue placeholder="Choose a supplier..." />
-                </SelectTrigger>
-                <SelectContent className="bg-card border-border">
-                  {suppliers.length === 0 ? (
-                    <div className="py-4 text-center text-[12.5px] text-muted-foreground px-2 flex flex-col items-center justify-center gap-1.5">
-                      <span>No suppliers available</span>
-                      <Button
-                        variant="link"
-                        className="h-auto p-0 text-[11px]"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          router.push("/procurement/vendors?action=add");
-                        }}
-                      >
-                        Add a supplier first
-                      </Button>
-                    </div>
-                  ) : (
-                    suppliers.map((v) => (
-                      <SelectItem key={v.id} value={v.id}>
-                        {v.name}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-[12.5px] font-semibold text-foreground">
-                Internal Notes
-              </Label>
-              <Input
-                placeholder="Ref. # or special instructions"
-                className="w-full border border-border rounded-[10px] px-3.5 h-11 text-[13px] bg-card shadow-sm"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label className="text-[12.5px] font-semibold text-foreground">
-                Payment Status
-              </Label>
-              <Select value={paymentStatus} onValueChange={setPaymentStatus}>
-                <SelectTrigger className="w-full border border-border rounded-[10px] px-3.5 h-11 text-[13px] bg-card shadow-sm">
-                  <SelectValue placeholder="Select status..." />
-                </SelectTrigger>
-                <SelectContent className="bg-card border-border">
-                  <SelectItem value="unpaid">Unpaid (Full Credit)</SelectItem>
-                  <SelectItem value="partial">Partial Payment</SelectItem>
-                  <SelectItem value="paid">Fully Paid</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-[12.5px] font-semibold text-foreground">
-                Due Date (Optional)
-              </Label>
-              <DatePickerInput
-                value={dueDate}
-                onChange={(val) => setDueDate(val)}
-                className="w-full [&_input]:bg-card [&_input]:shadow-sm [&_input]:border [&_input]:border-border [&_input]:rounded-[10px] [&_input]:px-3.5 [&_input]:h-11 [&_input]:text-[13px]"
-              />
-            </div>
-          </div>
-
-          {paymentStatus !== "unpaid" && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-[12.5px] font-semibold text-foreground">
-                  Amount Paid (
-                  {paymentStatus === "paid" ? "Total" : "Initial Payment"})
-                </Label>
-                <Input
-                  type="number"
-                  placeholder="0.00"
-                  className="w-full border border-border rounded-[10px] px-3.5 h-11 text-[13px] bg-card shadow-sm"
-                  value={paymentStatus === "paid" ? totalAmount : amountPaid}
-                  onChange={(e) => setAmountPaid(e.target.value)}
-                  disabled={paymentStatus === "paid"}
-                />
-              </div>
-            </div>
-          )}
-
-          <div className="border border-border rounded-xl bg-card mt-2 shadow-sm">
-            <div className="bg-primary/5 px-4 py-3 flex items-center gap-2 border-b border-border rounded-t-[11px]">
-              <ShoppingCart className="w-4 h-4 text-primary" />
-              <div className="text-[13.5px] font-semibold text-foreground">
-                Add Items to Order
-              </div>
-            </div>
-            <div className="p-4">
-              <POAddItemForm
-                products={products}
-                onAddItem={handleAddLineItem}
-                onOpenAddProduct={handleOpenAddProduct}
-                newlyCreatedProductId={newlyCreatedProductId}
-                onNewlyCreatedProductConsumed={() => setNewlyCreatedProductId(null)}
-              />
-            </div>
-          </div>
-          <div className="text-[11.5px] text-muted-foreground px-1">
-            Items appear in the Order Summary panel on the right as you add
-            them.
-          </div>
+          <POOrderFormFields
+            suppliers={suppliers}
+            selectedSupplierId={selectedSupplierId}
+            setSelectedSupplierId={setSelectedSupplierId}
+            notes={notes}
+            setNotes={setNotes}
+            paymentStatus={paymentStatus}
+            setPaymentStatus={setPaymentStatus}
+            dueDate={dueDate}
+            setDueDate={setDueDate}
+            amountPaid={amountPaid}
+            setAmountPaid={setAmountPaid}
+            totalAmount={totalAmount}
+            products={products}
+            onAddLineItem={handleAddLineItem}
+            onOpenAddProduct={handleOpenAddProduct}
+            newlyCreatedProductId={newlyCreatedProductId}
+            onNewlyCreatedProductConsumed={() => setNewlyCreatedProductId(null)}
+          />
         </div>
 
         {/* Right Pane (Summary) */}
-        <div className="bg-card border-l border-border flex-col min-h-0 hidden md:flex">
-          <div className="p-5 border-b border-border shrink-0">
-            <div className="text-[14.5px] font-semibold text-foreground">
-              Order Summary
-            </div>
-            <div className="text-[12px] text-muted-foreground mt-0.5 truncate">
-              {selectedSupplierName}
-            </div>
-          </div>
-          <div className="flex-1 overflow-y-auto p-4 bg-muted/10">
-            <POLineItemsList
-              items={items}
-              onRemoveItem={removeLineItem}
-              storeType={storeType}
-            />
-          </div>
-          <div className="p-5 border-t border-border shrink-0 bg-card">
-            <div className="flex items-center justify-between mb-4">
-              <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
-                Estimated total
-              </div>
-              <div className="text-[20px] font-bold font-serif text-primary">
-                {formatCurrency(totalAmount)}
-              </div>
-            </div>
-            <Button
-              className="w-full h-12 rounded-xl text-[14px] font-bold"
-              onClick={handleSubmit}
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? "Creating..." : "Save Purchase Order"}
-            </Button>
-          </div>
-        </div>
+        <POSummaryPane
+          selectedSupplierName={selectedSupplierName}
+          items={items}
+          onRemoveItem={removeLineItem}
+          storeType={storeType}
+          totalAmount={totalAmount}
+          onSave={handleSubmit}
+          isSubmitting={isSubmitting}
+        />
       </div>
 
       <AddProductDialog
@@ -353,6 +224,7 @@ function EditOrderContent() {
         onOpenChange={setIsAddProductOpen}
         onAddProduct={handleCreateProduct}
         initialData={initialProductData}
+        hideAddAnother
       />
     </div>
   );
@@ -360,7 +232,13 @@ function EditOrderContent() {
 
 export default function EditOrderPage() {
   return (
-    <Suspense fallback={<div className="p-10 flex items-center justify-center"><Clock className="animate-spin text-muted-foreground w-6 h-6" /></div>}>
+    <Suspense
+      fallback={
+        <div className="p-10 flex items-center justify-center">
+          <Clock className="animate-spin text-muted-foreground w-6 h-6" />
+        </div>
+      }
+    >
       <EditOrderContent />
     </Suspense>
   );

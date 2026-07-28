@@ -20,7 +20,9 @@ const Toaster = ({ ...props }: ToasterProps) => {
       // only — allow left/right too since that's the more familiar mobile
       // dismiss gesture.
       swipeDirections={isDesktop ? undefined : ["left", "right", "top"]}
-      closeButton={true}
+      // On mobile, rely on swipe-to-dismiss only; the close button is
+      // desktop-only since there's no swipe gesture there.
+      closeButton={isDesktop}
       toastOptions={{
         classNames: {
           toast:

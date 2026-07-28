@@ -6,7 +6,10 @@ import { ProductDatabaseFilters } from "./product-database-filters";
 import { AddProductDialog } from "./add-product-dialog";
 import { useAddProduct } from "./use-add-product";
 import { useQuery } from "@tanstack/react-query";
-import { getProductsWithDetails, getCategoriesList } from "@/lib/db/queries/products";
+import {
+  getProductsWithDetails,
+  getCategoriesList,
+} from "@/lib/db/queries/products";
 import { useStore } from "@/lib/context/store-context";
 import { genericFuzzySearch } from "@/lib/utils/search";
 import { Product, transformProduct } from "./types";
@@ -48,15 +51,15 @@ export function ProductDatabase() {
   const isStore = storeType === "pharmacy";
 
   const { data: rawProducts, refetch } = useQuery({
-    queryKey: ['productsWithDetails'],
-    queryFn: () => getProductsWithDetails()
+    queryKey: ["productsWithDetails"],
+    queryFn: () => getProductsWithDetails(),
   });
-  
+
   const products = rawProducts ? rawProducts.map(transformProduct) : [];
 
   const { data: rawCategories } = useQuery({
-    queryKey: ['categoriesList'],
-    queryFn: () => getCategoriesList()
+    queryKey: ["categoriesList"],
+    queryFn: () => getCategoriesList(),
   });
 
   const defaultCategories = isStore
@@ -145,9 +148,7 @@ export function ProductDatabase() {
   }, []);
 
   return (
-    <div className="flex flex-col lg:h-[calc(100vh-140px)] lg:min-h-[600px] space-y-4">
-
-
+    <div className="flex flex-col lg:flex-1 lg:min-h-0 lg:h-full gap-4">
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(320px,400px)] xl:grid-cols-[minmax(0,1fr)_minmax(380px,450px)] lg:grid-rows-1 gap-5 flex-1 min-h-0">
         {/* Left List */}
         <div className="flex flex-col min-h-0 gap-3 lg:gap-0 lg:h-full">
@@ -170,7 +171,7 @@ export function ProductDatabase() {
             />
           </div>
 
-          <div className="bg-card border border-border rounded-2xl flex flex-col min-h-0 lg:flex-1">
+          <div className="border-0 sm:border sm:border-border bg-transparent sm:bg-card rounded-none sm:rounded-2xl flex flex-col min-h-0 lg:flex-1">
             <ProductDatabaseFilters
               searchTerm={searchTerm}
               setSearchTerm={setSearchTerm}
@@ -191,28 +192,35 @@ export function ProductDatabase() {
             />
           </div>
         </div>
-        
+
         {/* Desktop Detail Panel */}
         <div className="hidden lg:flex flex-col min-h-0">
-          <CatalogDetailPanel 
-            product={selectedProduct} 
-            onEditProduct={handleEditProduct} 
+          <CatalogDetailPanel
+            product={selectedProduct}
+            onEditProduct={handleEditProduct}
             onClose={() => setSelectedProduct(null)}
           />
         </div>
       </div>
 
       {/* Mobile Detail Panel (Sheet) */}
-      <Sheet open={!!selectedProduct && isMobile} onOpenChange={(open) => {
-        if (!open) setSelectedProduct(null);
-      }}>
-        <SheetContent side="right" hideClose className="w-full sm:w-[400px] p-0 flex flex-col bg-card">
-          <CatalogDetailPanel 
-            product={selectedProduct} 
+      <Sheet
+        open={!!selectedProduct && isMobile}
+        onOpenChange={(open) => {
+          if (!open) setSelectedProduct(null);
+        }}
+      >
+        <SheetContent
+          side="right"
+          hideClose
+          className="w-full sm:w-[400px] p-0 flex flex-col bg-card"
+        >
+          <CatalogDetailPanel
+            product={selectedProduct}
             className="border-none rounded-none"
             onEditProduct={(p) => {
               handleEditProduct(p);
-            }} 
+            }}
             onClose={() => setSelectedProduct(null)}
           />
         </SheetContent>

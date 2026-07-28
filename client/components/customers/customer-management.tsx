@@ -3,11 +3,12 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { useStore } from "@/lib/context/store-context";
 import { useCustomerData, Customer } from "@/lib/hooks/use-customer-data";
 import { genericFuzzySearch } from "@/lib/utils/search";
 import { getLoyaltyTiers } from "@/lib/db/queries/loyalty";
+import { usePullToRefreshHandler } from "@/lib/context/pull-to-refresh-context";
 
 import { InsightsStrip } from "./insights-strip";
 import { OverviewTab } from "./overview-tab";
@@ -17,14 +18,16 @@ import { LoyaltyTab } from "./loyalty-tab";
 import { AddCustomerModal } from "./add-customer-modal";
 import { EditCustomerModal } from "./edit-customer-modal";
 import { RecordPaymentModal } from "./record-payment-modal";
-import { ResponsiveTabLabel } from "@/components/ui/responsive-tab-label";
+import { CustomerTabNav } from "./customer-tab-nav";
 
 export function CustomerManagement() {
   const { storeType, storeProfile } = useStore();
   const isStore = storeType === "pharmacy";
 
-  const { customers, metrics, addCustomer, updateCustomer, recordPayment } =
+  const { customers, metrics, fetchCustomers, addCustomer, updateCustomer, recordPayment } =
     useCustomerData();
+
+  usePullToRefreshHandler(fetchCustomers);
 
   const FALLBACK_TIERS = [
     {
@@ -75,17 +78,18 @@ export function CustomerManagement() {
     queryFn: getLoyaltyTiers,
   });
 
-  const loyaltyTiers = dbTiers && dbTiers.length > 0
-    ? dbTiers
-        .map((t) => ({
-          name: t.name,
-          minSpent: t.min_spend,
-          pointsMultiplier: t.points_multiplier,
-          benefits: JSON.parse(t.benefits || "[]") as string[],
-          color: t.color,
-        }))
-        .sort((a, b) => a.minSpent - b.minSpent)
-    : FALLBACK_TIERS;
+  const loyaltyTiers =
+    dbTiers && dbTiers.length > 0
+      ? dbTiers
+          .map((t) => ({
+            name: t.name,
+            minSpent: t.min_spend,
+            pointsMultiplier: t.points_multiplier,
+            benefits: JSON.parse(t.benefits || "[]") as string[],
+            color: t.color,
+          }))
+          .sort((a, b) => a.minSpent - b.minSpent)
+      : FALLBACK_TIERS;
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
@@ -144,7 +148,12 @@ export function CustomerManagement() {
     notes: string,
   ) => {
     if (!payingCustomer) return;
-    const updated = await recordPayment(payingCustomer.id, amount, paymentMethod, notes);
+    const updated = await recordPayment(
+      payingCustomer.id,
+      amount,
+      paymentMethod,
+      notes,
+    );
     if (updated) {
       setSelectedCustomer(updated);
     }
@@ -178,32 +187,7 @@ export function CustomerManagement() {
         onValueChange={handleTabChange}
         className="flex-1 flex flex-col min-h-0 gap-4"
       >
-        <TabsList className="w-full md:w-max bg-background border rounded-[11px] p-1 h-auto overflow-x-auto justify-start">
-          <TabsTrigger
-            value="overview"
-            className="rounded-lg text-[13px] font-semibold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-5 py-2"
-          >
-            Overview
-          </TabsTrigger>
-          <TabsTrigger
-            value="directory"
-            className="rounded-lg text-[13px] font-semibold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-5 py-2"
-          >
-            Directory
-          </TabsTrigger>
-          <TabsTrigger
-            value="activity"
-            className="rounded-lg text-[13px] font-semibold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-5 py-2"
-          >
-            Activity
-          </TabsTrigger>
-          <TabsTrigger
-            value="loyalty"
-            className="rounded-lg text-[13px] font-semibold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-5 py-2"
-          >
-            <ResponsiveTabLabel short="Loyalty" long="Loyalty Program" />
-          </TabsTrigger>
-        </TabsList>
+        <CustomerTabNav />
 
         <TabsContent
           value="overview"
@@ -246,7 +230,10 @@ export function CustomerManagement() {
           value="loyalty"
           className="flex-1 min-h-0 mt-0 border-none p-0"
         >
-          <LoyaltyTab tiers={loyaltyTiers} currencyCode={storeProfile?.currency} />
+          <LoyaltyTab
+            tiers={loyaltyTiers}
+            currencyCode={storeProfile?.currency}
+          />
         </TabsContent>
       </Tabs>
 

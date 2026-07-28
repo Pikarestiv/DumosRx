@@ -1,4 +1,4 @@
-import { ProcurementManagement } from "@/components/procurement/procurement-management"
+import { ProcurementManagement } from "@/components/procurement"
 import { LockedModuleOverlay } from "@/components/dashboard/locked-module-overlay"
 
 export default function ProcurementPage() {

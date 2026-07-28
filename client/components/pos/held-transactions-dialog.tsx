@@ -30,7 +30,11 @@ export function HeldTransactionsDialog({
   onClose,
   onRecall,
 }: HeldTransactionsDialogProps) {
-  const { heldItems, loading, refetch: loadHeldTransactions } = useHeldTransactions();
+  const {
+    heldItems,
+    loading,
+    refetch: loadHeldTransactions,
+  } = useHeldTransactions();
 
   useEffect(() => {
     if (isOpen) {
@@ -50,32 +54,40 @@ export function HeldTransactionsDialog({
   };
 
   return (
-    <ResponsiveModal 
-      open={isOpen} 
-      onOpenChange={onClose} 
+    <ResponsiveModal
+      open={isOpen}
+      onOpenChange={onClose}
       title={
         <span className="flex items-center gap-2">
           <PauseCircle className="h-5 w-5 text-amber-500" />
           Held Transactions
         </span>
-      } 
+      }
       description="Recall transactions that were previously paused."
       className="sm:max-w-3xl max-h-[90vh] overflow-hidden flex flex-col"
+      footer={
+        <DialogFooter className="border-t border-accent/10 pt-6">
+          <Button variant="ghost" onClick={onClose} className="cursor-pointer">
+            Close
+          </Button>
+        </DialogFooter>
+      }
     >
-
-        <div className="py-4 min-h-[300px] max-h-[500px] overflow-y-auto space-y-4">
-          {loading && (
-            <div className="py-20 text-center text-muted-foreground animate-pulse">
-              Loading held sales...
-            </div>
-          )}
-          {!loading && heldItems.length === 0 && (
-            <div className="py-20 text-center flex flex-col items-center justify-center space-y-3 opacity-40">
-              <ShoppingBag className="w-12 h-12" />
-              <p className="italic">No held transactions found</p>
-            </div>
-          )}
-          {!loading && heldItems.length > 0 && heldItems.map((item) => (
+      <div className="py-4 min-h-[300px] max-h-[500px] overflow-y-auto space-y-4">
+        {loading && (
+          <div className="py-20 text-center text-muted-foreground animate-pulse">
+            Loading held sales...
+          </div>
+        )}
+        {!loading && heldItems.length === 0 && (
+          <div className="py-20 text-center flex flex-col items-center justify-center space-y-3 opacity-40">
+            <ShoppingBag className="w-12 h-12" />
+            <p className="italic">No held transactions found</p>
+          </div>
+        )}
+        {!loading &&
+          heldItems.length > 0 &&
+          heldItems.map((item) => (
             <div
               key={item.id}
               className="group flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-accent/10 bg-card/50 hover:bg-accent/5 transition-all gap-3 sm:gap-4"
@@ -139,13 +151,7 @@ export function HeldTransactionsDialog({
               </div>
             </div>
           ))}
-        </div>
-
-        <DialogFooter className="border-t border-accent/10 pt-6">
-          <Button variant="ghost" onClick={onClose} className="cursor-pointer">
-            Close
-          </Button>
-        </DialogFooter>
-      </ResponsiveModal>
+      </div>
+    </ResponsiveModal>
   );
 }

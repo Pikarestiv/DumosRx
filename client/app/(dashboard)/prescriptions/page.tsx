@@ -1,4 +1,4 @@
-import { PrescriptionManagement } from "@/components/prescriptions/prescription-management"
+import { PrescriptionManagement } from "@/components/prescriptions"
 import { LockedModuleOverlay } from "@/components/dashboard/locked-module-overlay"
 
 export default function PrescriptionsPage() {

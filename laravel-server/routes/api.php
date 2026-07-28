@@ -44,6 +44,10 @@ Route::prefix('v1')->group(function () {
     
     Route::get('/announcements', [BroadcastController::class, 'index']);
 
+    // Client-side error telemetry - must stay public since it needs to report
+    // failures that happen before login (e.g. the system-config fetch on app boot).
+    Route::post('/logs/client-error', [ActivityLogController::class, 'logClientError']);
+
     // Tracking Routes
     Route::post('/track/download', [\App\Http\Controllers\Api\TrackController::class, 'download']);
 
@@ -118,7 +122,6 @@ Route::prefix('v1')->group(function () {
 
         // Activity Logs
         Route::get('/logs', [ActivityLogController::class, 'index'])->middleware(['permission:view_reports', 'subscription']);
-        Route::post('/logs/client-error', [ActivityLogController::class, 'logClientError']);
 
         // Publicly accessible within authenticated session (for impersonation return)
         Route::post('/admin/restore-session', [AdminController::class, 'restoreSession']);

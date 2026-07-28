@@ -1,7 +1,8 @@
-import React from 'react';
-import { Search, Filter } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import React from "react";
+import { Search, Filter } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 
 export function TransactionFilters({
   searchQuery,
@@ -18,14 +19,14 @@ export function TransactionFilters({
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search receipt or customer"
-            className="pl-9 h-12 rounded-xl bg-background border-border/50"
+            className="pl-9 h-12 rounded-xl bg-card border-border/50"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
         <Button
           variant="outline"
-          className="h-12 w-12 rounded-xl border-border/50 shrink-0"
+          className="h-12 w-12 rounded-xl bg-card border-border/50 shrink-0"
         >
           <Filter className="h-4 w-4 text-muted-foreground" />
         </Button>
@@ -92,7 +93,16 @@ function FilterPill({
     <Button
       variant={isActive ? "default" : "outline"}
       onClick={onClick}
-      className={`rounded-full h-9 px-5 shrink-0 transition-colors ${isActive ? "bg-primary hover:bg-primary/90 text-primary-foreground border-0" : "bg-background border-border/50 text-foreground hover:bg-muted/50 hover:text-foreground"}`}
+      className={cn(
+        "rounded-full h-9 px-5 shrink-0 border transition-colors",
+        // active
+        isActive && "bg-primary text-primary-foreground shadow-none",
+        // inactive
+        !isActive && "border-border bg-card text-muted-foreground",
+        // inactive + hover
+        !isActive &&
+          "hover:bg-primary/10 hover:text-primary hover:border-primary/50",
+      )}
     >
       {label}
     </Button>

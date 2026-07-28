@@ -1,5 +1,6 @@
 "use client";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { StockBatchTabNav } from "./stock-batch-tab-nav";
 import { StockOverview } from "./stock-overview";
 import { StockMovements } from "./stock-movements";
 import { StockAudits } from "./stock-audits";
@@ -34,7 +35,7 @@ export function StockBatchManagement({
   }, [currentTab, router]);
 
   return (
-    <div className="space-y-6 relative">
+    <div className="flex flex-col flex-1 min-h-0 gap-6 relative">
       {isAuditing && <StockAudits onClose={() => setIsAuditing(false)} />}
       <StockBatchMetrics
         stock_batchValue={stats.totalStockBatchValue}
@@ -45,41 +46,35 @@ export function StockBatchManagement({
         formatCurrency={formatCurrency}
       />
 
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <Tabs
-          value={currentTab}
-          onValueChange={(val) => router.push(`/inventory/${val}`)}
-          className="space-y-6 w-full"
-        >
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <TabsList className="w-full md:w-max">
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="catalog">Catalog</TabsTrigger>
-              <TabsTrigger value="ledger">Ledger</TabsTrigger>
-            </TabsList>
+      <Tabs
+        value={currentTab}
+        onValueChange={(val) => router.push(`/inventory/${val}`)}
+        className="flex flex-col flex-1 min-h-0 gap-6"
+      >
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <StockBatchTabNav />
 
-            {isAdmin && (
-              <Button
-                onClick={() => setIsAuditing(true)}
-              >
-                Start Audit
-              </Button>
-            )}
-          </div>
+          {isAdmin && (
+            <Button
+              onClick={() => setIsAuditing(true)}
+            >
+              Start Audit
+            </Button>
+          )}
+        </div>
 
-          <TabsContent value="catalog" className="mt-0 outline-none">
-            <ProductDatabase />
-          </TabsContent>
+        <TabsContent value="catalog" className="flex flex-col flex-1 min-h-0 mt-0">
+          <ProductDatabase />
+        </TabsContent>
 
-          <TabsContent value="overview">
-            <StockOverview />
-          </TabsContent>
+        <TabsContent value="overview" className="flex flex-col flex-1 min-h-0 mt-0">
+          <StockOverview />
+        </TabsContent>
 
-          <TabsContent value="ledger">
-            <StockMovements />
-          </TabsContent>
-        </Tabs>
-      </div>
+        <TabsContent value="ledger" className="flex flex-col flex-1 min-h-0 mt-0">
+          <StockMovements />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

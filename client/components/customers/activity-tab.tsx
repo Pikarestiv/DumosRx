@@ -1,24 +1,29 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Search, Star, X } from "lucide-react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { Card } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 import { genericFuzzySearch } from "@/lib/utils/search";
 import {
   CustomerTransaction,
   useCustomerTransactions,
 } from "@/lib/hooks/use-customer-data";
+import { usePullToRefreshHandler } from "@/lib/context/pull-to-refresh-context";
 
 const MAX_ITEMS_SHOWN = 2;
+const DESKTOP_ROW_HEIGHT = 44;
+const RECENT_ACTIVITY_WINDOW_DAYS = 30;
+
+const COLUMNS = [
+  { label: "Txn ID", className: "w-[130px]" },
+  { label: "Customer", className: "flex-1" },
+  { label: "Amount", className: "w-[110px]" },
+  { label: "Points", className: "w-[90px]" },
+  { label: "Date", className: "w-[150px]" },
+  { label: "Items", className: "w-[220px]" },
+];
 
 function ItemsCell({ txn }: { txn: CustomerTransaction }) {
   if (txn.itemNames.length === 0) {
@@ -56,8 +61,18 @@ export function ActivityTab({
   filterCustomerName,
   onClearFilter,
 }: ActivityTabProps) {
-  const { transactions, loading } = useCustomerTransactions();
+  const { transactions, loading, hasFullHistory, loadFullHistory, refetch } =
+    useCustomerTransactions();
   const [searchTerm, setSearchTerm] = useState("");
+
+  usePullToRefreshHandler(refetch);
+
+  // Filtering to one customer or searching must match their entire history, not
+  // just the recent-activity window loaded by default.
+  useEffect(() => {
+    if (filterCustomerId || searchTerm) loadFullHistory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterCustomerId, searchTerm]);
 
   const scopedTransactions = useMemo(() => {
     if (!filterCustomerId) return transactions;
@@ -69,6 +84,14 @@ export function ActivityTab({
     scopedTransactions,
     ["customerName", "transactionNumber"],
   );
+
+  const desktopScrollRef = useRef<HTMLDivElement>(null);
+  const rowVirtualizer = useVirtualizer({
+    count: filtered.length,
+    getScrollElement: () => desktopScrollRef.current,
+    estimateSize: () => DESKTOP_ROW_HEIGHT,
+    overscan: 8,
+  });
 
   const SearchInput = (
     <div className="relative">
@@ -97,6 +120,13 @@ export function ActivityTab({
     </div>
   );
 
+  const RecentWindowNote = !hasFullHistory && (
+    <p className="text-[11.5px] text-muted-foreground/70">
+      Showing last {RECENT_ACTIVITY_WINDOW_DAYS} days — search or select a
+      customer to look further back.
+    </p>
+  );
+
   const EmptyState = (
     <div className="flex items-center justify-center text-muted-foreground text-[13px] py-12">
       {loading ? "Loading activity..." : "No transactions found."}
@@ -104,11 +134,12 @@ export function ActivityTab({
   );
 
   return (
-    <div className="flex flex-col md:h-[600px] md:overflow-hidden gap-4">
+    <div className="flex flex-col md:flex-1 md:min-h-0 gap-4">
       {/* Mobile — flat, no wrapping card */}
       <div className="flex md:hidden flex-col gap-3">
         {SearchInput}
         {FilterChip}
+        {RecentWindowNote}
 
         {loading || filtered.length === 0 ? (
           EmptyState
@@ -152,41 +183,65 @@ export function ActivityTab({
         )}
       </div>
 
-      {/* Desktop — Card-wrapped table */}
-      <Card className="hidden md:flex flex-col gap-0 py-0 border rounded-[14px] shadow-sm flex-1 overflow-hidden">
+      {/* Desktop — div-based table (ARIA roles stand in for real <table> semantics, div-based so it can be virtualized) */}
+      <Card className="hidden md:flex flex-col gap-0 py-0 border rounded-[14px] shadow-sm flex-1 min-h-0 overflow-hidden">
         <div className="p-4 border-b space-y-3">
           {SearchInput}
           {FilterChip}
+          {RecentWindowNote}
         </div>
 
         {loading || filtered.length === 0 ? (
           EmptyState
         ) : (
-          <div className="flex-1 overflow-y-auto">
-            <Table>
-              <TableHeader className="sticky top-0 bg-background z-10">
-                <TableRow>
-                  <TableHead className="pl-4">Txn ID</TableHead>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Points</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Items</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.map((txn) => (
-                  <TableRow key={txn.id}>
-                    <TableCell className="pl-4 font-medium text-[12px]">
+          <div
+            ref={desktopScrollRef}
+            role="table"
+            aria-label="Customer transaction activity"
+            className="flex-1 overflow-y-auto"
+          >
+            <div role="rowgroup" className="sticky top-0 bg-background z-10">
+              <div role="row" className="flex gap-2 px-4 border-b">
+                {COLUMNS.map((col) => (
+                  <div
+                    key={col.label}
+                    role="columnheader"
+                    className={`h-10 flex items-center text-[11px] font-bold text-muted-foreground uppercase tracking-wide ${col.className}`}
+                  >
+                    {col.label}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div
+              role="rowgroup"
+              className="relative w-full"
+              style={{ height: rowVirtualizer.getTotalSize() }}
+            >
+              {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                const txn = filtered[virtualRow.index];
+                return (
+                  <div
+                    key={txn.id}
+                    role="row"
+                    tabIndex={0}
+                    className="absolute top-0 left-0 w-full flex items-center gap-2 px-4 border-b border-border/50"
+                    style={{
+                      height: virtualRow.size,
+                      transform: `translateY(${virtualRow.start}px)`,
+                    }}
+                  >
+                    <div role="cell" className="w-[130px] font-medium text-[12px] truncate">
                       {txn.transactionNumber}
-                    </TableCell>
-                    <TableCell className="text-[13px]">
+                    </div>
+                    <div role="cell" className="flex-1 text-[13px] truncate">
                       {txn.customerName}
-                    </TableCell>
-                    <TableCell className="text-[13px] font-medium">
+                    </div>
+                    <div role="cell" className="w-[110px] text-[13px] font-medium">
                       {formatCurrency(txn.amount, currencyCode)}
-                    </TableCell>
-                    <TableCell className="text-[13px] text-amber-600">
+                    </div>
+                    <div role="cell" className="w-[90px] text-[13px] text-amber-600">
                       {txn.pointsEarned > 0 ? (
                         <span className="inline-flex items-center gap-1">
                           <Star className="w-3.5 h-3.5 fill-amber-600" />
@@ -195,17 +250,17 @@ export function ActivityTab({
                       ) : (
                         "-"
                       )}
-                    </TableCell>
-                    <TableCell className="text-[12px] text-muted-foreground">
+                    </div>
+                    <div role="cell" className="w-[150px] text-[12px] text-muted-foreground">
                       {formatDateTime(txn.date)}
-                    </TableCell>
-                    <TableCell className="text-[12.5px]">
+                    </div>
+                    <div role="cell" className="w-[220px] text-[12.5px] truncate">
                       <ItemsCell txn={txn} />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
       </Card>

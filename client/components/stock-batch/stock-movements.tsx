@@ -1,54 +1,94 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Search, Lock } from "lucide-react";
 import { format, isToday, isYesterday, differenceInDays } from "date-fns";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { genericFuzzySearch } from "@/lib/utils/search";
+
+const DESKTOP_ROW_HEIGHT = 52;
 import { StockMovementsSkeleton } from "./stock-movements-skeleton";
 import { useRouter } from "next/navigation";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { StockMovement, FILTER_TYPES } from "./stock-movement-utils";
+import { StockMovement } from "./stock-movement-utils";
+import { StockMovementTypeFilter } from "./stock-movement-type-filter";
 import { StockMovementDesktopRow } from "./stock-movement-desktop-row";
 import { StockMovementMobileGroup } from "./stock-movement-mobile-group";
 import { StockMovementDetailModal } from "./stock-movement-detail-modal";
+import { usePullToRefreshHandler } from "@/lib/context/pull-to-refresh-context";
+
+const RECENT_ACTIVITY_WINDOW_DAYS = 30;
+
+function mapMovement(m: any): StockMovement {
+  return {
+    id: m.id,
+    date: m.created_at || m.date || m.movement_date,
+    product: m.product?.name || m.product_name || "Unknown",
+    type: m.type || m.movement_type || "adjustment",
+    quantity: m.quantity || 0,
+    reason: m.reason || "",
+    reference: m.reference || m.reference_id || "",
+    user: m.user?.name || m.user_name || "System",
+    supplier: m.supplier?.name || m.supplier_name,
+    batchNumber: m.batch_number,
+  };
+}
 
 export function StockMovements() {
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasFullHistory, setHasFullHistory] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [selectedMovement, setSelectedMovement] =
     useState<StockMovement | null>(null);
   const router = useRouter();
 
+  // Default view is bounded to recent activity since this log grows every sale/receive/adjustment.
+  // Respects whatever window is currently active (30-day or full history), so a manual/pull
+  // refresh doesn't quietly revert someone back out of full-history mode.
+  const fetchMovements = async () => {
+    setLoading(true);
+    try {
+      const { getStockMovements } = await import("@/lib/db/local-database");
+      const res = hasFullHistory
+        ? await getStockMovements()
+        : await getStockMovements({ sinceDays: RECENT_ACTIVITY_WINDOW_DAYS });
+      setMovements((res.data || []).map(mapMovement));
+    } catch (error) {
+      console.error("Failed to fetch stock movements:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    async function fetchMovements() {
-      setLoading(true);
+    fetchMovements();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  usePullToRefreshHandler(fetchMovements);
+
+  // Searching or filtering must match the entire log, not just the recent-activity window
+  // that's loaded by default — so upgrade to full history the first time either is used.
+  useEffect(() => {
+    if (hasFullHistory || (!searchTerm && typeFilter === "all")) return;
+    let cancelled = false;
+    async function fetchFullHistory() {
       try {
         const { getStockMovements } = await import("@/lib/db/local-database");
-        const res = await getStockMovements(1, 100);
-
-        const items = (res.data || []).map((m: any) => ({
-          id: m.id,
-          date: m.created_at || m.date || m.movement_date,
-          product: m.product?.name || m.product_name || "Unknown",
-          type: m.type || m.movement_type || "adjustment",
-          quantity: m.quantity || 0,
-          reason: m.reason || "",
-          reference: m.reference || m.reference_id || "",
-          user: m.user?.name || m.user_name || "System",
-          supplier: m.supplier?.name || m.supplier_name,
-          batchNumber: m.batch_number,
-        }));
-        setMovements(items);
+        const res = await getStockMovements();
+        if (cancelled) return;
+        setMovements((res.data || []).map(mapMovement));
+        setHasFullHistory(true);
       } catch (error) {
-        console.error("Failed to fetch stock movements:", error);
-      } finally {
-        setLoading(false);
+        console.error("Failed to fetch full stock movement history:", error);
       }
     }
-    fetchMovements();
-  }, []);
+    fetchFullHistory();
+    return () => {
+      cancelled = true;
+    };
+  }, [searchTerm, typeFilter, hasFullHistory]);
 
   const preFilteredMovements = movements.filter((movement) => {
     return typeFilter === "all" || movement.type === typeFilter;
@@ -59,6 +99,14 @@ export function StockMovements() {
     preFilteredMovements,
     ["product", "reference", "reason", "user"],
   );
+
+  const desktopScrollRef = useRef<HTMLDivElement>(null);
+  const rowVirtualizer = useVirtualizer({
+    count: filteredMovements.length,
+    getScrollElement: () => desktopScrollRef.current,
+    estimateSize: () => DESKTOP_ROW_HEIGHT,
+    overscan: 8,
+  });
 
   const groupedMovements = filteredMovements.reduce(
     (acc, movement) => {
@@ -83,24 +131,8 @@ export function StockMovements() {
     return <StockMovementsSkeleton />;
   }
 
-  const renderTypeChips = (triggerClass = "") => (
-    <Tabs
-      value={typeFilter}
-      onValueChange={setTypeFilter as any}
-      variant="chips"
-    >
-      <TabsList>
-        {FILTER_TYPES.map((ft) => (
-          <TabsTrigger key={ft.id} value={ft.id} className={triggerClass}>
-            {ft.label}
-          </TabsTrigger>
-        ))}
-      </TabsList>
-    </Tabs>
-  );
-
   return (
-    <div className="relative">
+    <div className="relative flex flex-col flex-1 min-h-0">
       {/* Mobile: search + chips stand alone above the list; no outer card, immutable-log note hidden */}
       <div className="md:hidden space-y-3 mb-4">
         <div className="flex items-center gap-2 bg-card border border-border rounded-[10px] px-3.5 py-2.5">
@@ -113,12 +145,19 @@ export function StockMovements() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        {renderTypeChips(
-          "data-[state=inactive]:bg-card data-[state=inactive]:border-border",
+        <StockMovementTypeFilter
+          typeFilter={typeFilter}
+          setTypeFilter={setTypeFilter}
+          triggerClassName="data-[state=inactive]:bg-card data-[state=inactive]:border-border"
+        />
+        {!hasFullHistory && (
+          <p className="text-[11.5px] text-muted-foreground/70 px-0.5">
+            Showing last {RECENT_ACTIVITY_WINDOW_DAYS} days — search to look further back.
+          </p>
         )}
       </div>
 
-      <div className="hidden md:flex bg-card border border-border rounded-2xl flex-col flex-1 min-h-[600px]">
+      <div className="hidden md:flex bg-card border border-border rounded-2xl flex-col flex-1 min-h-0">
         {/* Header & Filters */}
         <div className="p-4 pb-3 border-b border-border">
           <div className="flex flex-col md:flex-row md:items-center gap-2.5 mb-3">
@@ -137,8 +176,15 @@ export function StockMovements() {
               Immutable log — entries can't be edited
             </div>
           </div>
-          {renderTypeChips(
-            "data-[state=inactive]:bg-card data-[state=inactive]:border-border",
+          <StockMovementTypeFilter
+            typeFilter={typeFilter}
+            setTypeFilter={setTypeFilter}
+            triggerClassName="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none data-[state=inactive]:border-border data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-primary/10 data-[state=inactive]:hover:border-primary/50 data-[state=inactive]:hover:text-primary"
+          />
+          {!hasFullHistory && (
+            <p className="text-[11.5px] text-muted-foreground/70 mt-2">
+              Showing last {RECENT_ACTIVITY_WINDOW_DAYS} days — search to look further back.
+            </p>
           )}
         </div>
 
@@ -153,20 +199,37 @@ export function StockMovements() {
         </div>
 
         {/* List */}
-        <div className="flex-1 overflow-y-auto pb-6">
+        <div ref={desktopScrollRef} className="flex-1 overflow-y-auto pb-6">
           {filteredMovements.length === 0 && (
             <div className="p-8 text-center text-muted-foreground text-[13px]">
               No movements found.
             </div>
           )}
-          {filteredMovements.length > 0 &&
-            filteredMovements.map((movement) => (
-              <StockMovementDesktopRow
-                key={movement.id}
-                movement={movement}
-                onSelect={() => setSelectedMovement(movement)}
-              />
-            ))}
+          {filteredMovements.length > 0 && (
+            <div
+              className="relative w-full"
+              style={{ height: rowVirtualizer.getTotalSize() }}
+            >
+              {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                const movement = filteredMovements[virtualRow.index];
+                return (
+                  <div
+                    key={movement.id}
+                    className="absolute top-0 left-0 w-full"
+                    style={{
+                      height: virtualRow.size,
+                      transform: `translateY(${virtualRow.start}px)`,
+                    }}
+                  >
+                    <StockMovementDesktopRow
+                      movement={movement}
+                      onSelect={() => setSelectedMovement(movement)}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { useEffect } from "react";
+import { useFeatureGate } from "./use-feature-gate";
 
 interface AutoLockState {
   duration: number; // in minutes. 0 = off
@@ -27,20 +28,21 @@ export const useAutoLockStore = create<AutoLockState>()(
       name: "dumos_autolock",
       storage: createJSONStorage(() => localStorage),
       // We want to persist the duration, the locked state, and the lastActivity timestamp to survive page reloads
-      partialize: (state) => ({ 
-        duration: state.duration, 
+      partialize: (state) => ({
+        duration: state.duration,
         isLocked: state.isLocked,
-        lastActivity: state.lastActivity 
+        lastActivity: state.lastActivity,
       }),
-    }
-  )
+    },
+  ),
 );
 
 export function useAutoLockTimer() {
   const { duration, lock, updateActivity } = useAutoLockStore();
+  const { canAutoLock } = useFeatureGate();
 
   useEffect(() => {
-    if (duration <= 0) return; // auto lock is off
+    if (duration <= 0 || !canAutoLock) return; // auto lock is off or not available on this plan
 
     const handleActivity = () => updateActivity();
 
@@ -56,7 +58,7 @@ export function useAutoLockTimer() {
         isLocked: currentLocked,
         duration: currentDuration,
       } = useAutoLockStore.getState();
-      
+
       if (!currentLocked && currentDuration > 0) {
         const inactiveTime = Date.now() - lastActivity;
         if (inactiveTime > currentDuration * 60 * 1000) {
@@ -72,5 +74,5 @@ export function useAutoLockTimer() {
       window.removeEventListener("scroll", handleActivity);
       clearInterval(interval);
     };
-  }, [duration, updateActivity, lock]);
+  }, [duration, canAutoLock, updateActivity, lock]);
 }

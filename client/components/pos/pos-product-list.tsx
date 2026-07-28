@@ -187,7 +187,10 @@ export function POSProductList({
       {loadingProducts && (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3">
           {[...Array(8)].map((_, i) => (
-            <div key={i} className="p-2 sm:p-3 border rounded-xl sm:rounded-2xl space-y-1.5 sm:space-y-2 h-[100px] sm:h-[120px]">
+            <div
+              key={i}
+              className="p-2 sm:p-3 border rounded-xl sm:rounded-2xl space-y-1.5 sm:space-y-2 h-[100px] sm:h-[120px]"
+            >
               <Skeleton className="h-10 w-full rounded-xl" />
               <Skeleton className="h-3 w-1/2" />
               <Skeleton className="h-4 w-1/3" />
@@ -250,7 +253,7 @@ export function POSProductList({
                 </div>
               )}
               {canUseSmartSuggestions && suggestionsList.length > 0 && (
-                <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 hide-scrollbar snap-x snap-mandatory">
+                <div className="flex gap-3 overflow-x-auto pb-2 px-4 mx-0 sm:px-0 hide-scrollbar snap-x snap-mandatory">
                   {suggestionsList.map((product) => (
                     <div
                       key={product.id}
@@ -280,7 +283,7 @@ export function POSProductList({
                   <Clock className="h-3.5 w-3.5 text-blue-500" />
                   Recently sold
                 </div>
-                <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 hide-scrollbar snap-x snap-mandatory">
+                <div className="flex gap-3 overflow-x-auto pb-2 px-4 mx-0 sm:px-0 hide-scrollbar snap-x snap-mandatory">
                   {recentlySoldList.map((product) => (
                     <div
                       key={product.id}
@@ -299,23 +302,25 @@ export function POSProductList({
             )}
 
             {/* All Products */}
-            <div>
-              <div className="flex items-center gap-1.5 text-[13px] font-semibold text-muted-foreground mb-3">
-                <Package className="h-3.5 w-3.5 text-gray-500" />
-                All products
+            {(commonlySoldList.length > 0 || remainingList.length > 0) && (
+              <div>
+                <div className="flex items-center gap-1.5 text-[13px] font-semibold text-muted-foreground mb-3">
+                  <Package className="h-3.5 w-3.5 text-gray-500" />
+                  All products
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3">
+                  {[...commonlySoldList, ...remainingList].map((product) => (
+                    <POSProductCard
+                      key={product.id}
+                      product={product}
+                      currencyCode={currencyCode}
+                      addToCart={addToCart}
+                      cartQuantity={cartQuantityMap.get(product.id) || 0}
+                    />
+                  ))}
+                </div>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3">
-                {[...commonlySoldList, ...remainingList].map((product) => (
-                  <POSProductCard
-                    key={product.id}
-                    product={product}
-                    currencyCode={currencyCode}
-                    addToCart={addToCart}
-                    cartQuantity={cartQuantityMap.get(product.id) || 0}
-                  />
-                ))}
-              </div>
-            </div>
+            )}
           </div>
         )}
     </div>

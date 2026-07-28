@@ -24,6 +24,12 @@ interface DashboardHeaderProps {
 
 const PAGE_ROUTES = [
   {
+    path: "/dashboard",
+    title: "Dashboard",
+    desc: "Your store's daily overview.",
+    action: { label: "New Sale", path: "/pos" },
+  },
+  {
     path: "/inventory/catalog",
     title: "Product Catalog",
     desc: "Manage your pharmacy's core product database and pricing.",
@@ -73,6 +79,14 @@ const PAGE_ROUTES = [
     },
   },
   {
+    path: "/procurement/new",
+    title: "Create Purchase Order",
+    desc: "Make new purchase orders.",
+    // No header action — the page itself already has a back button, title,
+    // and item count in its own panel header (desktop), and this header is
+    // hidden entirely on mobile for this route (full-screen takeover).
+  },
+  {
     path: "/procurement",
     title: "Procurement",
     desc: "Manage suppliers, create purchase orders, and track deliveries.",
@@ -96,10 +110,14 @@ const PAGE_ROUTES = [
   },
 ];
 
+function getPageRoute(pathname: string) {
+  return PAGE_ROUTES.find((route) => pathname.startsWith(route.path));
+}
+
 function getPageInfo(pathname: string) {
   if (pathname === "/" || pathname === "/dashboard") return null; // Use greeting
 
-  const match = PAGE_ROUTES.find((route) => pathname.startsWith(route.path));
+  const match = getPageRoute(pathname);
   return match || { title: APP_NAME, desc: "", action: null };
 }
 
@@ -110,6 +128,9 @@ export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
   const { storeProfile } = useStore();
 
   const pageInfo = getPageInfo(pathname || "/");
+  // Greeting pages (dashboard home) don't use pageInfo for title/desc, but
+  // can still declare an explicit action via PAGE_ROUTES.
+  const action = pageInfo?.action || getPageRoute(pathname || "/")?.action;
 
   return (
     <header className="h-auto min-h-16 py-4 bg-card sm:bg-background border-b border-border sm:border-b-0 flex flex-col justify-center px-4 sm:px-6 shrink-0">
@@ -191,15 +212,12 @@ export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
             {pathname?.startsWith("/settings") ? (
               <UserProfileBadge />
             ) : (
-              <Button
-                onClick={() =>
-                  router.push(pageInfo?.action ? pageInfo.action.path : "/pos")
-                }
-              >
-                <Plus className="h-4 w-4" />
-                {!!pageInfo?.action && pageInfo.action.label}
-                {!pageInfo?.action && "New Sale"}
-              </Button>
+              action && (
+                <Button onClick={() => router.push(action.path)}>
+                  <Plus className="h-4 w-4" />
+                  {action.label}
+                </Button>
+              )
             )}
           </div>
 
@@ -231,18 +249,18 @@ export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
           <>
             <SyncIndicator collapsed={false} isMobileHeader={true} />
 
-            <div className="flex items-center gap-2 shrink-0">
-              <Button
-                size="sm"
-                className="rounded-full h-8 px-4 text-xs font-semibold"
-                onClick={() =>
-                  router.push(pageInfo?.action ? pageInfo.action.path : "/pos")
-                }
-              >
-                <Plus className="h-3.5 w-3.5 mr-1" />
-                {pageInfo?.action ? pageInfo.action.label : "New Sale"}
-              </Button>
-            </div>
+            {action && (
+              <div className="flex items-center gap-2 shrink-0">
+                <Button
+                  size="sm"
+                  className="rounded-full h-8 px-4 text-xs font-semibold"
+                  onClick={() => router.push(action.path)}
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1" />
+                  {action.label}
+                </Button>
+              </div>
+            )}
           </>
         )}
       </div>

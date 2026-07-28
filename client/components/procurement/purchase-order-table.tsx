@@ -15,10 +15,10 @@ import {
 } from "@/components/ui/table";
 
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrency } from "@/lib/utils";
 import { ReceivePOModal, type ReceivedItemPayload } from "./receive-po-modal";
 import { PurchaseOrderDetails } from "./purchase-order-details";
+import { PurchaseOrderStatusFilter } from "./purchase-order-status-filter";
 import { getPurchaseOrderById } from "@/lib/db/procurement";
 import { useMediaQuery } from "@/hooks/use-media-query";
 
@@ -142,45 +142,10 @@ export function PurchaseOrderTable({
               onChange={(e) => onSearchChange(e.target.value)}
             />
           </div>
-          <Tabs
-            value={activeTab}
-            onValueChange={onTabChange}
-            className="w-full"
-            variant="chips"
-          >
-            <TabsList className="w-full md:w-max justify-start overflow-x-auto hide-scrollbar">
-              <TabsTrigger
-                value="all"
-                className="data-[state=inactive]:bg-card data-[state=inactive]:border-border md:data-[state=inactive]:bg-transparent md:data-[state=inactive]:border-transparent"
-              >
-                All Orders
-              </TabsTrigger>
-              <TabsTrigger
-                value="pending"
-                className="data-[state=inactive]:bg-card data-[state=inactive]:border-border md:data-[state=inactive]:bg-transparent md:data-[state=inactive]:border-transparent"
-              >
-                Drafts
-              </TabsTrigger>
-              <TabsTrigger
-                value="sent"
-                className="data-[state=inactive]:bg-card data-[state=inactive]:border-border md:data-[state=inactive]:bg-transparent md:data-[state=inactive]:border-transparent"
-              >
-                Sent
-              </TabsTrigger>
-              <TabsTrigger
-                value="received"
-                className="data-[state=inactive]:bg-card data-[state=inactive]:border-border md:data-[state=inactive]:bg-transparent md:data-[state=inactive]:border-transparent"
-              >
-                Received
-              </TabsTrigger>
-              <TabsTrigger
-                value="missing-expiry"
-                className="data-[state=inactive]:bg-card data-[state=inactive]:border-border md:data-[state=inactive]:bg-transparent md:data-[state=inactive]:border-transparent data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-600"
-              >
-                Missing Expiry
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+          <PurchaseOrderStatusFilter
+            activeTab={activeTab}
+            onTabChange={onTabChange}
+          />
         </div>
 
         <div className="flex-1 overflow-auto">

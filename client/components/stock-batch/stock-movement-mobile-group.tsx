@@ -17,15 +17,14 @@ export function StockMovementMobileGroup({
 }: Props) {
   return (
     <div className="mb-6">
-      <div className="text-[11px] font-bold text-muted-foreground/70 uppercase tracking-wide md:px-4 mb-2">
+      <div className="text-[11px] font-bold text-muted-foreground/70 uppercase tracking-wide mb-2">
         {groupLabel}
       </div>
-      <div className="bg-card border border-border rounded-[14px] md:mx-4 shadow-sm overflow-hidden">
-        {movements.map((movement, i) => {
+      <div className="flex flex-col gap-2">
+        {movements.map((movement) => {
           const isPositive = movement.quantity > 0;
           const Icon = getTypeIcon(movement.type);
           const iconBg = getTypeIconBg(movement.type);
-          const isLast = i === movements.length - 1;
 
           let displayReason = movement.reason || movement.reference || "-";
           if (movement.type.toLowerCase() === "sale")
@@ -47,7 +46,7 @@ export function StockMovementMobileGroup({
             <div
               key={movement.id}
               onClick={() => onSelect(movement)}
-              className={`flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-accent/50 transition-colors ${!isLast ? "border-b border-border/40" : ""}`}
+              className="flex items-center gap-3 p-3 rounded-xl border border-border bg-card shadow-sm cursor-pointer hover:bg-accent/50 transition-colors"
             >
               <div
                 className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${iconBg}`}

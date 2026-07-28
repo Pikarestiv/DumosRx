@@ -33,7 +33,11 @@ const emptyForm: EditCustomerFormData = {
   date_of_birth: "",
 };
 
-export function EditCustomerModal({ customer, onClose, onSubmit }: EditCustomerModalProps) {
+export function EditCustomerModal({
+  customer,
+  onClose,
+  onSubmit,
+}: EditCustomerModalProps) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<EditCustomerFormData>(emptyForm);
 
@@ -50,7 +54,10 @@ export function EditCustomerModal({ customer, onClose, onSubmit }: EditCustomerM
     }
   }, [customer]);
 
-  const handleInputChange = (field: keyof EditCustomerFormData, value: string) => {
+  const handleInputChange = (
+    field: keyof EditCustomerFormData,
+    value: string,
+  ) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -71,16 +78,37 @@ export function EditCustomerModal({ customer, onClose, onSubmit }: EditCustomerM
       title={<span className="font-serif font-bold">Edit Customer</span>}
       description="Update the customer's details below."
       className="sm:max-w-xl max-h-[90vh] overflow-hidden flex flex-col"
+      footer={
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            form="edit-customer-form"
+            disabled={loading}
+            className="bg-accent hover:bg-accent/90"
+          >
+            {loading ? "Saving..." : "Save Changes"}
+          </Button>
+        </DialogFooter>
+      }
     >
       <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form
+          id="edit-customer-form"
+          onSubmit={handleSubmit}
+          className="space-y-4"
+        >
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="first_name">First Name *</Label>
               <Input
                 id="first_name"
                 value={formData.first_name}
-                onChange={(e) => handleInputChange("first_name", e.target.value)}
+                onChange={(e) =>
+                  handleInputChange("first_name", e.target.value)
+                }
                 placeholder="Jane"
                 required
               />
@@ -135,18 +163,11 @@ export function EditCustomerModal({ customer, onClose, onSubmit }: EditCustomerM
               id="date_of_birth"
               type="date"
               value={formData.date_of_birth}
-              onChange={(e) => handleInputChange("date_of_birth", e.target.value)}
+              onChange={(e) =>
+                handleInputChange("date_of_birth", e.target.value)
+              }
             />
           </div>
-
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={loading} className="bg-accent hover:bg-accent/90">
-              {loading ? "Saving..." : "Save Changes"}
-            </Button>
-          </DialogFooter>
         </form>
       </div>
     </ResponsiveModal>

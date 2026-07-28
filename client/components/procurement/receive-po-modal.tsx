@@ -4,7 +4,12 @@ import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
 import type { PurchaseOrder, PurchaseOrderItem } from "@/lib/db/local-database";
 import {
@@ -74,7 +79,8 @@ const ReceiveItemCard = React.memo(
                       Enter the number of {item.bulk_unit}s received, not base
                       units. This is automatically converted to{" "}
                       {(item.product_units_per_bulk || item.units_per_bulk) *
-                        (Number(state.quantity ?? item.bulk_quantity) || 0)}{" "}
+                        (Number(state.quantity ?? item.bulk_quantity) ||
+                          0)}{" "}
                       base units in stock, using the product&apos;s current
                       packaging setting.
                     </p>
@@ -196,6 +202,14 @@ export function ReceivePOModal({
         title={`Receive Goods: ${po.id}`}
         description="Please confirm the quantities received and provide the batch/lot numbers and expiry dates for each item."
         className="max-w-xl max-h-[90vh] overflow-hidden flex flex-col"
+        footer={
+          <div className="flex justify-end gap-3 pt-4 border-t">
+            <Button variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button onClick={handleConfirmClick}>Confirm & Receive</Button>
+          </div>
+        }
       >
         <div className="space-y-6 flex-1 overflow-y-auto px-4 sm:px-0">
           <div className="border rounded-lg divide-y">
@@ -212,20 +226,14 @@ export function ReceivePOModal({
             })}
           </div>
         </div>
-        <div className="mt-6 flex justify-end gap-3 shrink-0 pt-4 border-t">
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button onClick={handleConfirmClick}>Confirm & Receive</Button>
-        </div>
 
         <AlertDialog open={showWarningModal} onOpenChange={setShowWarningModal}>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Missing Expiry Date</AlertDialogTitle>
               <AlertDialogDescription>
-                Some items are missing an expiry date. They will be marked with a
-                warning badge. Are you sure you want to proceed?
+                Some items are missing an expiry date. They will be marked with
+                a warning badge. Are you sure you want to proceed?
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

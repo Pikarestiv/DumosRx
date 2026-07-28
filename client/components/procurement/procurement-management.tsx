@@ -13,10 +13,19 @@ import { genericFuzzySearch } from "@/lib/utils/search";
 import { toast } from "sonner";
 import { ProcurementStats } from "./procurement-stats";
 import { PurchaseOrderTable } from "./purchase-order-table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { SupplierManagement } from "@/components/stock-batch/supplier-management";
 import { RequestedProductsTab } from "./requested-products-tab";
-import { ResponsiveTabLabel } from "@/components/ui/responsive-tab-label";
+import { ProcurementTabNav } from "./procurement-tab-nav";
+import { usePullToRefreshHandler } from "@/lib/context/pull-to-refresh-context";
+
+// Radix only mounts the active TabsContent's children, so tying registration
+// to this tab-scoped component (rather than the top of ProcurementManagement)
+// ensures it's only active while the Orders tab actually is.
+function OrdersPullToRefresh({ onRefresh }: { onRefresh: () => Promise<void> }) {
+  usePullToRefreshHandler(onRefresh);
+  return null;
+}
 
 interface ProcurementManagementProps {
   initialTab?: "orders" | "requests" | "suppliers";
@@ -36,7 +45,7 @@ export function ProcurementManagement({ initialTab = "orders" }: ProcurementMana
   const fetchPurchaseOrders = async () => {
     setLoading(true);
     try {
-      const { data } = await getPurchaseOrders(1, 100);
+      const { data } = await getPurchaseOrders();
       setPurchaseOrders(data as PurchaseOrder[]);
     } catch (error) {
       console.error("Failed to fetch POs:", error);
@@ -101,33 +110,15 @@ export function ProcurementManagement({ initialTab = "orders" }: ProcurementMana
   };
 
   return (
-    <div className="flex flex-col min-h-0">
+    <div className="flex flex-col flex-1 min-h-0">
       <Tabs value={initialTab} onValueChange={handleTabChange} className="flex flex-col flex-1 min-h-0 gap-4">
-        <TabsList className="w-full md:w-max inline-flex gap-1 bg-card border border-border rounded-[11px] p-1 h-auto overflow-x-auto">
-          <TabsTrigger
-            value="orders"
-            className="px-5 py-2 rounded-lg text-[13px] font-semibold cursor-pointer whitespace-nowrap shrink-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent shadow-none"
-          >
-            <ResponsiveTabLabel short="Orders" long="Purchase Orders" />
-          </TabsTrigger>
-          <TabsTrigger
-            value="requests"
-            className="px-5 py-2 rounded-lg text-[13px] font-semibold cursor-pointer whitespace-nowrap shrink-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent shadow-none"
-          >
-            <ResponsiveTabLabel short="Requests" long="Requested Products" />
-          </TabsTrigger>
-          <TabsTrigger
-            value="suppliers"
-            className="px-5 py-2 rounded-lg text-[13px] font-semibold cursor-pointer whitespace-nowrap shrink-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent shadow-none"
-          >
-            Vendors
-          </TabsTrigger>
-        </TabsList>
+        <ProcurementTabNav />
 
         <TabsContent
           value="orders"
           className="flex flex-col flex-1 min-h-0 mt-0 border-0 p-0"
         >
+          <OrdersPullToRefresh onRefresh={fetchPurchaseOrders} />
           <ProcurementStats purchaseOrders={purchaseOrders} />
 
           <PurchaseOrderTable

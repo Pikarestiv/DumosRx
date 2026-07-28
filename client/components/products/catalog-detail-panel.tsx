@@ -1,5 +1,5 @@
 import React from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,6 +19,7 @@ import { ProductPricingInfo } from "./product-details/product-pricing-info";
 import { ProductStockInfo } from "./product-details/product-stock-info";
 import { ProductBatchHistory } from "./product-details/product-batch-history";
 import { ProductHistory } from "./product-details/product-history";
+import { ProductDetailTabNav } from "./product-detail-tab-nav";
 
 interface CatalogDetailPanelProps {
   product: Product | null;
@@ -162,26 +163,7 @@ export function CatalogDetailPanel({
       <Tabs defaultValue="details" className="flex flex-col flex-1 min-h-0">
         {/* Fixed tab header — stays in place while tab content scrolls */}
         <div className="shrink-0 bg-primary/5 border-b border-border px-4 py-3">
-          <TabsList className="w-full flex justify-between bg-transparent border-none !shadow-none p-0 h-auto space-x-2">
-            <TabsTrigger
-              value="details"
-              className="flex-1 py-2 rounded-xl data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground shadow-none"
-            >
-              Details
-            </TabsTrigger>
-            <TabsTrigger
-              value="batches"
-              className="flex-1 py-2 rounded-xl data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground shadow-none"
-            >
-              Batches
-            </TabsTrigger>
-            <TabsTrigger
-              value="history"
-              className="flex-1 py-2 rounded-xl data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground shadow-none"
-            >
-              History
-            </TabsTrigger>
-          </TabsList>
+          <ProductDetailTabNav />
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 hide-scrollbar">

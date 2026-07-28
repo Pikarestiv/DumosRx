@@ -1,5 +1,5 @@
 import React from "react";
-import { Search } from "lucide-react";
+import { ChevronLeft, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
@@ -10,6 +10,7 @@ interface SupplierDetailPaneProps {
   formatDate: (dateString: string) => string;
   getRatingStars: (rating: number) => React.ReactNode;
   setIsEditDialogOpen: (isOpen: boolean) => void;
+  onBack?: () => void;
 }
 
 export function SupplierDetailPane({
@@ -18,6 +19,7 @@ export function SupplierDetailPane({
   formatDate,
   getRatingStars,
   setIsEditDialogOpen,
+  onBack,
 }: SupplierDetailPaneProps) {
   const router = useRouter();
 
@@ -42,6 +44,14 @@ export function SupplierDetailPane({
       <div className="p-6 border-b border-border">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
+            {onBack && (
+              <button
+                className="md:hidden p-2 -ml-2 -my-2 text-muted-foreground hover:text-foreground shrink-0"
+                onClick={onBack}
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+            )}
             <div className="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[18px] font-bold shrink-0">
               {selectedSupplier.name[0]}
             </div>

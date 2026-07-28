@@ -19,6 +19,14 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useAutoLockStore, useAutoLockTimer } from "@/lib/hooks/use-auto-lock";
 import { useSwipeNavigation } from "@/lib/hooks/use-swipe-navigation";
+import { usePullToRefresh } from "@/lib/hooks/use-pull-to-refresh";
+import {
+  PullToRefreshProvider,
+  usePullToRefreshDispatcher,
+} from "@/lib/context/pull-to-refresh-context";
+import { PullToRefreshIndicator } from "@/components/ui/pull-to-refresh-indicator";
+import { sync } from "@/lib/db/sync-engine";
+import { queryClient } from "@/lib/query-client";
 import { LockScreen } from "@/components/auth/lock-screen";
 
 interface DashboardLayoutProps {
@@ -27,7 +35,20 @@ interface DashboardLayoutProps {
 
 const COLLAPSED_KEY = "sidebar_collapsed";
 
+const DIRECTION_ANIMATION: Record<string, string> = {
+  left: "slide-in-from-right-8",
+  right: "slide-in-from-left-8",
+};
+
 export function DashboardLayout({ children }: DashboardLayoutProps) {
+  return (
+    <PullToRefreshProvider>
+      <DashboardLayoutInner>{children}</DashboardLayoutInner>
+    </PullToRefreshProvider>
+  );
+}
+
+function DashboardLayoutInner({ children }: DashboardLayoutProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
@@ -55,6 +76,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   );
 
   const isPosRoute = pathname.startsWith("/pos");
+  // Create Purchase Order gets a POS-style full-screen takeover, but only on
+  // mobile (<lg) — desktop keeps the normal dashboard chrome since the page
+  // already renders as a self-contained bordered panel there.
+  const isCreatePORoute = pathname.startsWith("/procurement/new");
+  // Excludes the bare "/settings" index (mobile menu list) — only the inner
+  // tab detail routes ("/settings/appearance", etc.) get this treatment,
+  // since those are the ones with their own sticky mobile back-button header.
+  const isSettingsInnerRoute = pathname.startsWith("/settings/");
   const [hoverExpanded, setHoverExpanded] = useState(false);
   const [userNavOpen, setUserNavOpen] = useState(false);
   const isLogicallyCollapsed = isPosRoute ? true : sidebarCollapsed;
@@ -96,6 +125,51 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       router.push("/login");
     }
   }, [user, router]);
+
+  // POS and the mobile full-screen takeovers (create PO, settings inner
+  // tabs) manage their own padding/back-header, so <main> stays unpadded for
+  // them below their own "desktop" breakpoint; everywhere else gets the
+  // standard page gutter. Each takeover's restore breakpoint must match the
+  // breakpoint that page itself uses to switch to its desktop layout:
+  // create-PO uses lg: (see procurement/new/page.tsx), settings inner tabs
+  // use md: (see hooks/use-settings.ts's isDesktop, which flips at 768px) —
+  // using the wrong one here left settings content unpadded between 768–1023px.
+  const mainClassName = isPosRoute
+    ? ""
+    : isCreatePORoute
+      ? "p-0 lg:p-6 lg:pt-3"
+      : isSettingsInnerRoute
+        ? "p-0 md:p-6 md:pt-3"
+        : "p-4 sm:p-6 sm:pt-3";
+  // Bottom-nav clearance isn't needed for POS (no bottom nav there) or the
+  // create-PO takeover (it has its own fixed footer/drawer instead).
+  const mainStyle =
+    !isPosRoute && !isCreatePORoute
+      ? {
+          paddingBottom:
+            "calc(5.5rem + var(--tauri-bottom, env(safe-area-inset-bottom, 0px)))",
+        }
+      : undefined;
+
+  const shouldAnimate = !isPosRoute && !isCreatePORoute;
+
+  const getRegisteredHandler = usePullToRefreshDispatcher();
+  const { scrollRef, pullDistance, isRefreshing, threshold } =
+    usePullToRefresh<HTMLDivElement>({
+      disabled: !shouldAnimate,
+      onRefresh: async () => {
+        await sync(true);
+        await queryClient.invalidateQueries();
+        await getRegisteredHandler()?.();
+      },
+    });
+
+  // Single lookup — avoids indexing DIRECTION_ANIMATION twice (once to check,
+  // once to interpolate) and keeps the `direction === null` case contained
+  // to this one spot instead of repeating `?? ""` at each usage site.
+  const animationClass = shouldAnimate
+    ? DIRECTION_ANIMATION[direction ?? ""]
+    : undefined;
 
   return (
     <div className="min-h-screen bg-background relative">
@@ -180,7 +254,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         />
       </div>
 
-      {!isPosRoute && (
+      {!isPosRoute && !isCreatePORoute && (
         <div className="print:hidden">
           <MobileBottomNav
             onOpenFeedback={() => setFeedbackOpen(true)}
@@ -211,7 +285,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         onTouchEnd={handleTouchEnd}
       >
         <div
-          className="print:hidden shrink-0 bg-card sm:bg-background"
+          className={cn(
+            "print:hidden shrink-0 bg-card sm:bg-background",
+            isCreatePORoute && "hidden lg:block",
+          )}
           style={{
             paddingTop: !isPosRoute ? "var(--tauri-top, 0px)" : undefined,
           }}
@@ -223,22 +300,28 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         </div>
 
         {/* Page content — scrolls internally */}
-        <div className={cn("flex-1 relative overflow-x-clip", !isPosRoute && "overflow-y-auto")}>
+        <div
+          ref={scrollRef}
+          className={cn(
+            "flex-1 relative overflow-x-clip",
+            shouldAnimate && "overflow-y-auto",
+          )}
+        >
+          <PullToRefreshIndicator
+            pullDistance={pullDistance}
+            isRefreshing={isRefreshing}
+            threshold={threshold}
+          />
           <main
-            className={isPosRoute ? "" : "p-4 sm:p-6 sm:pt-3"}
-            style={!isPosRoute ? {
-              paddingBottom: "calc(5.5rem + var(--tauri-bottom, env(safe-area-inset-bottom, 0px)))",
-            } : undefined}
+            className={cn("flex-1 min-h-0 flex flex-col", mainClassName)}
+            style={mainStyle}
           >
             <div
               key={pathname}
               className={cn(
-                !isPosRoute &&
-                  direction === "left" &&
-                  "animate-in slide-in-from-right-8 fade-in duration-200",
-                !isPosRoute &&
-                  direction === "right" &&
-                  "animate-in slide-in-from-left-8 fade-in duration-200",
+                "flex-1 min-h-0 flex flex-col",
+                animationClass &&
+                  `animate-in ${animationClass} fade-in duration-200`,
               )}
             >
               {children}

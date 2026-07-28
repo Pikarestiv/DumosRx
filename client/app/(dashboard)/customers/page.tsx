@@ -1,4 +1,4 @@
-import { CustomerManagement } from "@/components/customers/customer-management";
+import { CustomerManagement } from "@/components/customers";
 
 export default function CustomersPage() {
   return (

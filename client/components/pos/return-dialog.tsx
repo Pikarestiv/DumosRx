@@ -1,9 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import {
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { DialogFooter } from "@/components/ui/dialog";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -52,9 +50,9 @@ export function ReturnDialog({
 
   // Fetch items for this sale
   const { data: saleItemsData } = useQuery({
-    queryKey: ['saleItems', sale?.id],
-    queryFn: () => sale ? getSaleItems(sale.id) : Promise.resolve([]),
-    enabled: !!sale
+    queryKey: ["saleItems", sale?.id],
+    queryFn: () => (sale ? getSaleItems(sale.id) : Promise.resolve([])),
+    enabled: !!sale,
   });
   const saleItems = saleItemsData || [];
 
@@ -171,19 +169,38 @@ export function ReturnDialog({
 
   return (
     <>
-    <ResponsiveModal
-      open={open}
-      onOpenChange={onOpenChange}
-      title={
-        <span className="flex items-center gap-2">
-          <RotateCcw className="h-5 w-5 text-accent" />
-          Process Return & Refund
-        </span>
-      }
-      description={`Select the items to return for Receipt #${sale.receipt_number || sale.id.substring(0, 8).toUpperCase()}`}
-      className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
-    >
-      <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
+      <ResponsiveModal
+        open={open}
+        onOpenChange={onOpenChange}
+        title={
+          <span className="flex items-center gap-2">
+            <RotateCcw className="h-5 w-5 text-accent" />
+            Process Return & Refund
+          </span>
+        }
+        description={`Select the items to return for Receipt #${sale.receipt_number || sale.id.substring(0, 8).toUpperCase()}`}
+        className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
+        footer={
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={processing}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleInitialSubmit}
+              disabled={processing}
+              className="bg-accent hover:bg-accent/90"
+            >
+              {processing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Confirm Return & Refund
+            </Button>
+          </DialogFooter>
+        }
+      >
+        <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
           <div className="border rounded-lg overflow-hidden">
             <Table>
               <TableHeader>
@@ -200,11 +217,15 @@ export function ReturnDialog({
                   <ReturnItemRow
                     key={item.id}
                     item={item}
-                    quantity={selectedItems.get(item.id)?.quantity ?? item.quantity}
+                    quantity={
+                      selectedItems.get(item.id)?.quantity ?? item.quantity
+                    }
                     selected={selectedItems.get(item.id)?.selected || false}
                     currencyCode={currencyCode}
                     onToggle={() => handleToggleItem(item.id, item.quantity)}
-                    onQtyChange={(qty) => handleQtyChange(item.id, qty, item.quantity)}
+                    onQtyChange={(qty) =>
+                      handleQtyChange(item.id, qty, item.quantity)
+                    }
                   />
                 ))}
               </TableBody>
@@ -221,25 +242,7 @@ export function ReturnDialog({
             />
           </div>
         </div>
-
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={processing}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleInitialSubmit}
-            disabled={processing}
-            className="bg-accent hover:bg-accent/90"
-          >
-            {processing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Confirm Return & Refund
-          </Button>
-        </DialogFooter>
-    </ResponsiveModal>
+      </ResponsiveModal>
 
       <ConfirmDialog
         open={showConfirm}

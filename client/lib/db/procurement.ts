@@ -36,24 +36,27 @@ export interface PurchaseOrderItem {
   product_units_per_bulk: number;
 }
 
-export async function getPurchaseOrders(page = 1, limit = 50) {
-  const offset = (page - 1) * limit;
+/**
+ * Loads every purchase order, not a page of them — the caller runs search/filter
+ * over the result, and this data set is small enough (dozens to low hundreds per
+ * store) that in-memory filtering stays correct without needing SQL-level WHERE
+ * clauses, matching the pattern used by getCustomers()/getDebtors() etc.
+ */
+export async function getPurchaseOrders() {
   const results = await query<PurchaseOrder>(
     `SELECT po.*, v.name as vendor_name,
        CASE WHEN EXISTS (
          SELECT 1 FROM stock_movements sm
          JOIN stock_batches sb ON sm.stock_batch_id = sb.id
-         WHERE sm.reference_id = po.id AND sm.reference_type = 'purchase_order' 
+         WHERE sm.reference_id = po.id AND sm.reference_type = 'purchase_order'
          AND (sb.expiry_date IS NULL OR sb.expiry_date = '')
        ) THEN 1 ELSE 0 END as has_missing_expiry
-     FROM purchase_orders po 
-     LEFT JOIN suppliers v ON po.supplier_id = v.id 
-     WHERE po._deleted = 0 
-     ORDER BY po.created_at DESC 
-     LIMIT ? OFFSET ?`,
-    [limit, offset]
+     FROM purchase_orders po
+     LEFT JOIN suppliers v ON po.supplier_id = v.id
+     WHERE po._deleted = 0
+     ORDER BY po.created_at DESC`
   );
-  return { data: results, page, limit };
+  return { data: results };
 }
 
 export async function getPurchaseOrderById(id: string) {
@@ -253,19 +256,23 @@ export async function receivePurchaseOrder(id: string, receivedItems?: any[]) {
   await logAction("RECEIVE_PO", "purchase_orders", id, { total_items: poData.items.length });
 }
 
-export async function getSuppliers(page = 1, limit = 50) {
-  const offset = (page - 1) * limit;
+/**
+ * Loads every supplier, not a page of them — the caller runs search/filter over
+ * the result, and suppliers stay small by nature (tens, rarely hundreds), so
+ * in-memory filtering stays correct without needing SQL-level WHERE clauses,
+ * matching the pattern used by getCustomers()/getPurchaseOrders() etc.
+ */
+export async function getSuppliers() {
   const results = await query<any>(
-    `SELECT s.*, 
+    `SELECT s.*,
             COALESCE(SUM(po.total_amount - po.amount_paid), 0) as total_debt
      FROM suppliers s
      LEFT JOIN purchase_orders po ON s.id = po.supplier_id AND po._deleted = 0 AND po.payment_status != 'paid'
-     WHERE s._deleted = 0 
+     WHERE s._deleted = 0
      GROUP BY s.id
-     ORDER BY s.created_at DESC LIMIT ? OFFSET ?`,
-    [limit, offset]
+     ORDER BY s.created_at DESC`,
   );
-  return { data: results, page, limit };
+  return { data: results };
 }
 
 export async function createSupplier(data: any) {

@@ -271,23 +271,43 @@ const transformTransaction = (row: any): CustomerTransaction => ({
   itemNames: row.item_names ? String(row.item_names).split("||").filter(Boolean) : [],
 });
 
+const TRANSACTIONS_RECENT_WINDOW_DAYS = 30;
+
 export function useCustomerTransactions() {
   const [transactions, setTransactions] = useState<CustomerTransaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasFullHistory, setHasFullHistory] = useState(false);
+
+  const fetchTransactions = async (fullHistory = hasFullHistory) => {
+    setLoading(true);
+    try {
+      const data = fullHistory
+        ? await getCustomerTransactions()
+        : await getCustomerTransactions({ sinceDays: TRANSACTIONS_RECENT_WINDOW_DAYS });
+      setTransactions(data.map(transformTransaction));
+    } catch (error) {
+      console.error("Failed to fetch customer transactions", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    (async () => {
-      setLoading(true);
-      try {
-        const data = await getCustomerTransactions();
-        setTransactions(data.map(transformTransaction));
-      } catch (error) {
-        console.error("Failed to fetch customer transactions", error);
-      } finally {
-        setLoading(false);
-      }
-    })();
+    fetchTransactions(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return { transactions, loading };
+  const loadFullHistory = async () => {
+    if (hasFullHistory) return;
+    await fetchTransactions(true);
+    setHasFullHistory(true);
+  };
+
+  return {
+    transactions,
+    loading,
+    hasFullHistory,
+    loadFullHistory,
+    refetch: () => fetchTransactions(),
+  };
 }

@@ -8,10 +8,19 @@ import { apiClient } from "@/lib/api/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Loader2, CheckCircle } from "lucide-react";
+import { Loader2, CheckCircle, PackageOpen } from "lucide-react";
 
 import { generateId, execute } from "@/lib/db/core";
 import { getStockBatchesForProduct } from "@/lib/db/queries/sales";
+
+function NoOnlineOrdersFound() {
+  return (
+    <div className="flex flex-col items-center gap-2 text-center p-8 text-muted-foreground">
+      <PackageOpen className="w-7 h-7 opacity-30" />
+      No online orders found.
+    </div>
+  );
+}
 
 export function OnlineOrdersModal() {
   const { isOpen, onClose } = useOnlineOrdersModal();
@@ -108,11 +117,7 @@ export function OnlineOrdersModal() {
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
           )}
-          {!loading && orders.length === 0 && (
-            <div className="text-center p-8 text-muted-foreground">
-              No online orders found.
-            </div>
-          )}
+          {!loading && orders.length === 0 && <NoOnlineOrdersFound />}
           {!loading && orders.length > 0 && (
             <div className="space-y-4">
               {orders.map(order => (

@@ -1,7 +1,19 @@
+import { Boxes } from "lucide-react";
+
 interface ProductBatchHistoryProps {
   batches: any[];
   loadingBatches: boolean;
   storeType: string;
+}
+
+function NoBatchRecordsFound({ storeType }: { storeType: string }) {
+  return (
+    <div className="flex flex-col items-center gap-2 py-8 text-sm text-muted-foreground italic">
+      <Boxes className="w-7 h-7 opacity-30" />
+      No batch records found for this{" "}
+      {storeType === "pharmacy" ? "product" : "item"}.
+    </div>
+  );
 }
 
 export function ProductBatchHistory({
@@ -18,12 +30,7 @@ export function ProductBatchHistory({
   }
 
   if (batches.length === 0) {
-    return (
-      <p className="text-center py-8 text-sm text-muted-foreground italic">
-        No batch records found for this{" "}
-        {storeType === "pharmacy" ? "product" : "item"}.
-      </p>
-    );
+    return <NoBatchRecordsFound storeType={storeType} />;
   }
 
   return (

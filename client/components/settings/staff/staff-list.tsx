@@ -9,7 +9,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
-import { Edit2, Trash2, Shield, Loader2 } from "lucide-react";
+import { Edit2, Trash2, Shield, Loader2, Users } from "lucide-react";
 import { toast } from "sonner";
 
 interface StaffListProps {
@@ -17,6 +17,17 @@ interface StaffListProps {
   isLoading: boolean;
   onEdit: (user: any) => void;
   onDelete: (id: string, name: string) => void;
+}
+
+function NoStaffFoundRow() {
+  return (
+    <TableRow>
+      <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+        <Users className="w-6 h-6 mx-auto mb-2 opacity-30" />
+        No staff members found.
+      </TableCell>
+    </TableRow>
+  );
 }
 
 export function StaffList({ users, isLoading, onEdit, onDelete }: StaffListProps) {
@@ -58,13 +69,7 @@ export function StaffList({ users, isLoading, onEdit, onDelete }: StaffListProps
                           </TableCell>
                         </TableRow>
                       )}
-              {(!(isLoading) && users.length === 0) && (
-                                      <TableRow>
-                                        <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
-                                          No staff members found.
-                                        </TableCell>
-                                      </TableRow>
-                                    )}
+              {(!(isLoading) && users.length === 0) && <NoStaffFoundRow />}
               {!(!(isLoading) && users.length === 0) && (
                                       users.map((user) => (
                                         <TableRow key={user.id}>

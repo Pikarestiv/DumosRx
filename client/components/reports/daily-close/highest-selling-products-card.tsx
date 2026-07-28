@@ -1,3 +1,4 @@
+import { PackageSearch } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -66,8 +67,9 @@ function EmptyProductsRow() {
     <TableRow>
       <TableCell
         colSpan={3}
-        className="text-center text-muted-foreground py-4"
+        className="text-center text-muted-foreground py-6"
       >
+        <PackageSearch className="w-6 h-6 mx-auto mb-2 opacity-30" />
         No items sold today.
       </TableCell>
     </TableRow>

@@ -1,5 +1,15 @@
 import React from 'react';
+import { Receipt } from 'lucide-react';
 import { TransactionItem } from './transaction-item';
+
+function NoRecentSalesFound() {
+  return (
+    <div className="flex flex-col items-center gap-2 py-10 text-muted-foreground border rounded-xl border-dashed">
+      <Receipt className="w-7 h-7 opacity-30" />
+      No recent sales found
+    </div>
+  );
+}
 
 export function TransactionList({
   groupedSales,
@@ -10,11 +20,7 @@ export function TransactionList({
   hasFilters,
 }: any) {
   if (hasFilters) {
-    return (
-      <div className="text-center py-10 text-muted-foreground border rounded-xl border-dashed">
-        No recent sales found
-      </div>
-    );
+    return <NoRecentSalesFound />;
   }
 
   return (

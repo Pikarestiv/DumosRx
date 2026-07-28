@@ -11,6 +11,7 @@ import {
   Info,
   Loader2,
   FileBarChart,
+  AlertCircle,
 } from "lucide-react";
 import { exportPLReportToPDF } from "@/lib/utils/pdf-export";
 import { useStore } from "@/lib/context/store-context";
@@ -21,6 +22,15 @@ import { usePnLReport } from "@/lib/hooks/use-finance-data";
 interface PandLReportDialogProps {
   isOpen: boolean;
   onClose: () => void;
+}
+
+function FailedToLoadReport() {
+  return (
+    <div className="py-10 flex flex-col items-center gap-2 text-center text-muted-foreground">
+      <AlertCircle className="w-7 h-7 opacity-30" />
+      Failed to load report data.
+    </div>
+  );
 }
 
 export function PandLReportDialog({ isOpen, onClose }: PandLReportDialogProps) {
@@ -131,11 +141,7 @@ export function PandLReportDialog({ isOpen, onClose }: PandLReportDialogProps) {
           </div>
         </div>
       )}
-      {!(!(!reportData && loading) && reportData) && (
-        <div className="py-10 text-center text-muted-foreground">
-          Failed to load report data.
-        </div>
-      )}
+      {!(!(!reportData && loading) && reportData) && <FailedToLoadReport />}
     </ResponsiveModal>
   );
 }

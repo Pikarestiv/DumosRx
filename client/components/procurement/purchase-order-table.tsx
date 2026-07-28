@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, CheckCircle2, Clock, ArrowRight } from "lucide-react";
+import { Search, CheckCircle2, Clock, ArrowRight, ClipboardList } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +33,17 @@ interface PurchaseOrderTableProps {
   onSendPO: (id: string) => void;
   onDeletePO?: (id: string) => void;
   isFuzzyFallback?: boolean;
+}
+
+function NoPurchaseOrdersRow() {
+  return (
+    <TableRow>
+      <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">
+        <ClipboardList className="w-6 h-6 mx-auto mb-2 opacity-30" />
+        No purchase orders found
+      </TableCell>
+    </TableRow>
+  );
 }
 
 export function PurchaseOrderTable({
@@ -232,16 +243,7 @@ export function PurchaseOrderTable({
                   </TableCell>
                 </TableRow>
               )}
-              {!loading && orders.length === 0 && (
-                <TableRow>
-                  <TableCell
-                    colSpan={5}
-                    className="h-32 text-center text-muted-foreground"
-                  >
-                    No purchase orders found
-                  </TableCell>
-                </TableRow>
-              )}
+              {!loading && orders.length === 0 && <NoPurchaseOrdersRow />}
               {!loading &&
                 orders.length > 0 &&
                 orders.map((po) => (

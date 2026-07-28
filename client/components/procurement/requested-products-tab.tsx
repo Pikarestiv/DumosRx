@@ -18,7 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card } from "@/components/ui/card";
-import { Search } from "lucide-react";
+import { Search, PackageSearch } from "lucide-react";
 import { genericFuzzySearch } from "@/lib/utils/search";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { RequestItemDialog } from "@/components/pos/request-item-dialog";
@@ -29,6 +29,26 @@ import { RequestedProductsStatusFilter } from "./requested-products-status-filte
 import { usePullToRefreshHandler } from "@/lib/context/pull-to-refresh-context";
 
 type RequestStatusFilter = "all" | "pending" | "ordered";
+
+function NoRequestedProductsCard() {
+  return (
+    <div className="h-24 flex flex-col items-center justify-center gap-2 text-muted-foreground text-[13px]">
+      <PackageSearch className="w-6 h-6 opacity-30" />
+      No requested products found.
+    </div>
+  );
+}
+
+function NoRequestedProductsRow() {
+  return (
+    <TableRow>
+      <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">
+        <PackageSearch className="w-6 h-6 mx-auto mb-2 opacity-30" />
+        No requested products found.
+      </TableCell>
+    </TableRow>
+  );
+}
 
 export function RequestedProductsTab() {
   const [requests, setRequests] = useState<RequestedProduct[]>([]);
@@ -151,11 +171,7 @@ export function RequestedProductsTab() {
                 Loading requests...
               </div>
             )}
-            {!loading && filteredRequests.length === 0 && (
-              <div className="h-24 flex items-center justify-center text-muted-foreground text-[13px]">
-                No requested products found.
-              </div>
-            )}
+            {!loading && filteredRequests.length === 0 && <NoRequestedProductsCard />}
             {!loading &&
               filteredRequests.length > 0 &&
               filteredRequests.map((req) => (
@@ -200,16 +216,7 @@ export function RequestedProductsTab() {
                   </TableCell>
                 </TableRow>
               )}
-              {!loading && filteredRequests.length === 0 && (
-                <TableRow>
-                  <TableCell
-                    colSpan={6}
-                    className="text-center h-24 text-muted-foreground"
-                  >
-                    No requested products found.
-                  </TableCell>
-                </TableRow>
-              )}
+              {!loading && filteredRequests.length === 0 && <NoRequestedProductsRow />}
               {!loading &&
                 filteredRequests.length > 0 &&
                 filteredRequests.map((req) => (

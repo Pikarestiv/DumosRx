@@ -4,6 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { formatCurrency } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Receipt } from "lucide-react";
 
 interface SalesListModalProps {
   isOpen: boolean;
@@ -114,6 +115,7 @@ function EmptySalesRow() {
         colSpan={4}
         className="text-center py-8 text-muted-foreground"
       >
+        <Receipt className="w-6 h-6 mx-auto mb-2 opacity-30" />
         No sales found.
       </TableCell>
     </TableRow>

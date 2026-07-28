@@ -5,6 +5,15 @@ import { getFastMovers } from "@/lib/db/queries/inventory";
 
 import { TrendingUp, TrendingDown } from "lucide-react";
 
+function NoFastMoversData() {
+  return (
+    <div className="flex flex-col items-center gap-2 text-sm text-muted-foreground py-4 text-center">
+      <TrendingUp className="w-6 h-6 opacity-30" />
+      No sales data found for the last 7 days.
+    </div>
+  );
+}
+
 export function FastMovers() {
   const { data: fastMoversData, isLoading } = useQuery({
     queryKey: ['fastMovers'],
@@ -33,9 +42,7 @@ export function FastMovers() {
         {!!(isLoading) && (
                         <div className="text-sm text-muted-foreground py-4 text-center">Loading...</div>
                       )}
-              {(!(isLoading) && fastMovers.length === 0) && (
-                                      <div className="text-sm text-muted-foreground py-4 text-center">No sales data found for the last 7 days.</div>
-                                    )}
+              {(!(isLoading) && fastMovers.length === 0) && <NoFastMoversData />}
               {!(!(isLoading) && fastMovers.length === 0) && (
                                       fastMovers.map((item: any, idx: number) => {
                                         const isPositive = item.percentageChange >= 0;

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { AuditCountStep } from "./audit-count-step";
 import { AuditReviewStep } from "./audit-review-step";
-import { ChevronLeft, Search, CheckCircle2 } from "lucide-react";
+import { ChevronLeft, Search, CheckCircle2, PackageSearch } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { getProductsWithDetails } from "@/lib/db/queries/products";
 import { genericFuzzySearch } from "@/lib/utils/search";
@@ -17,6 +17,15 @@ interface AuditItem {
   category: string;
   systemQty: number;
   countedQty?: number;
+}
+
+function NoAuditItemsFound() {
+  return (
+    <div className="flex flex-col items-center gap-2 text-muted-foreground text-[13px] py-4">
+      <PackageSearch className="w-6 h-6 opacity-30" />
+      No items found.
+    </div>
+  );
 }
 
 export function StockAudits({ onClose }: { onClose: () => void }) {
@@ -138,7 +147,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
                                         )}
                           {!(isLoading) && (
                                           <div className="flex flex-col gap-2.5 mb-2">
-                                            {categories.length === 0 && <div className="text-muted-foreground text-[13px]">No items found.</div>}
+                                            {categories.length === 0 && <NoAuditItemsFound />}
                                             
                                             {items.length > 0 && (
                                               <div 

@@ -1,4 +1,4 @@
-import { Trash2, Package, Pill } from "lucide-react";
+import { Trash2, Package, Pill, LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/utils";
@@ -10,15 +10,20 @@ interface POLineItemsListProps {
   storeType: StoreType;
 }
 
+function NoLineItemsAdded({ icon: Icon }: { icon: LucideIcon }) {
+  return (
+    <div className="py-8 flex flex-col items-center gap-2 text-center text-[12.5px] text-muted-foreground border-2 border-dashed border-border rounded-xl">
+      <Icon className="w-6 h-6 opacity-30" />
+      No items added to the purchase order yet.
+    </div>
+  );
+}
+
 export function POLineItemsList({ items, onRemoveItem, storeType }: POLineItemsListProps) {
   const ProductIcon = storeType === "pharmacy" ? Pill : Package;
 
   if (items.length === 0) {
-    return (
-      <div className="py-8 text-center text-[12.5px] text-muted-foreground border-2 border-dashed border-border rounded-xl">
-        No items added to the purchase order yet.
-      </div>
-    );
+    return <NoLineItemsAdded icon={ProductIcon} />;
   }
 
   return (

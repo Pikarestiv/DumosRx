@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Search } from "lucide-react";
+import { Search, Users } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Customer } from "@/lib/hooks/use-customer-data";
 import { Card } from "@/components/ui/card";
@@ -27,6 +27,15 @@ interface DirectoryTabProps {
 }
 
 type CustFilter = "all" | "debt" | "loyalty";
+
+function NoCustomersFound() {
+  return (
+    <div className="p-8 flex flex-col items-center gap-2 text-center text-muted-foreground text-[13px]">
+      <Users className="w-7 h-7 opacity-30" />
+      No customers found.
+    </div>
+  );
+}
 
 export function DirectoryTab({
   customers,
@@ -147,11 +156,7 @@ export function DirectoryTab({
               getTierColor={getTierColor}
             />
           ))}
-          {filteredCustomers.length === 0 && (
-            <div className="p-8 text-center text-muted-foreground text-[13px]">
-              No customers found.
-            </div>
-          )}
+          {filteredCustomers.length === 0 && <NoCustomersFound />}
         </div>
       </div>
 
@@ -200,11 +205,7 @@ export function DirectoryTab({
               })}
             </div>
           )}
-          {filteredCustomers.length === 0 && (
-            <div className="p-8 text-center text-muted-foreground text-[13px]">
-              No customers found.
-            </div>
-          )}
+          {filteredCustomers.length === 0 && <NoCustomersFound />}
         </div>
       </Card>
 

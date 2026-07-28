@@ -14,7 +14,18 @@ export async function getCustomers() {
   `);
 }
 
-export async function getCustomerTransactions(limit = 100) {
+/**
+ * Combined feed of every customer's transactions store-wide — grows the same way
+ * stock_movements does (a row per sale), so `sinceDays` bounds the default recent
+ * view. Omit it for full history, which the caller should only do when the user
+ * is actively searching or filtering to a specific customer, so those still
+ * match against every record, not just what's been loaded for browsing.
+ */
+export async function getCustomerTransactions(options: { sinceDays?: number } = {}) {
+  const { sinceDays } = options;
+  const dateFilter = sinceDays
+    ? `AND s.transaction_date >= datetime('now', '-${sinceDays} days')`
+    : "";
   return query<any>(
     `SELECT
       s.id,
@@ -29,10 +40,8 @@ export async function getCustomerTransactions(limit = 100) {
       (SELECT GROUP_CONCAT(pr.name, '||') FROM sale_items si JOIN products pr ON si.product_id = pr.id WHERE si.sale_id = s.id AND (si._deleted = 0 OR si._deleted IS NULL)) as item_names
     FROM sales s
     JOIN customers c ON s.customer_id = c.id
-    WHERE s.customer_id IS NOT NULL AND (s._deleted = 0 OR s._deleted IS NULL)
-    ORDER BY s.transaction_date DESC
-    LIMIT ?`,
-    [limit]
+    WHERE s.customer_id IS NOT NULL AND (s._deleted = 0 OR s._deleted IS NULL) ${dateFilter}
+    ORDER BY s.transaction_date DESC`,
   );
 }
 

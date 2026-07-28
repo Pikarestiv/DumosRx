@@ -17,7 +17,11 @@ import { MobileBottomNav } from "./mobile-bottom-nav";
 import { DashboardTour } from "./dashboard-tour";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { useAutoLockStore, useAutoLockTimer } from "@/lib/hooks/use-auto-lock";
+import {
+  useAutoLockStore,
+  useAutoLockTimer,
+  useLockOnFreshLoad,
+} from "@/lib/hooks/use-auto-lock";
 import { useSwipeNavigation } from "@/lib/hooks/use-swipe-navigation";
 import { useSidebarPeekPreference } from "@/lib/hooks/use-sidebar-peek-preference";
 import { usePullToRefresh } from "@/lib/hooks/use-pull-to-refresh";
@@ -55,10 +59,14 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
   const pathname = usePathname();
   const { user } = useAuth();
   const [feedbackOpen, setFeedbackOpen] = useState(false);
-  const { isLocked, unlock } = useAutoLockStore();
+  // Selectors, not a destructured whole-store call — see the comment in
+  // useAutoLockTimer for why (this component wraps the entire app).
+  const isLocked = useAutoLockStore((s) => s.isLocked);
+  const unlock = useAutoLockStore((s) => s.unlock);
   const [recentUsers, setRecentUsers] = useState<any[]>([]);
 
   useAutoLockTimer();
+  useLockOnFreshLoad();
 
   useEffect(() => {
     try {
@@ -177,7 +185,7 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
     <div className="min-h-screen bg-background relative">
       {isLocked && (
         <div
-          className="fixed inset-0 z-[99999] bg-background flex flex-col items-center justify-center p-0 sm:p-4 overflow-hidden"
+          className="fixed inset-0 z-[99999] bg-background flex flex-col items-center justify-center p-0 sm:p-4 overflow-y-auto"
           style={{
             paddingTop:
               "calc(var(--tauri-top, env(safe-area-inset-top, 0px)) + 1rem)",

@@ -21,6 +21,7 @@ interface PinEntryProps {
   isLoading: boolean;
   hasError: boolean;
   handleLogin: (e: React.FormEvent) => void;
+  onAutoSubmit: (pinValue: string) => void;
   onBack: () => void;
 }
 
@@ -31,6 +32,7 @@ export function PinEntry({
   isLoading,
   hasError,
   handleLogin,
+  onAutoSubmit,
   onBack,
 }: PinEntryProps) {
   // Touch capability decides this, not viewport width or user-agent sniffing:
@@ -84,10 +86,7 @@ export function PinEntry({
               onChange={(value) => {
                 setPin(value);
               }}
-              onComplete={() => {
-                // We don't auto-submit here because handleLogin expects an event,
-                // but we can simulate it or just let the button do it.
-              }}
+              onComplete={(value) => onAutoSubmit(value)}
               autoFocus
               inputMode={isTouchDevice ? "none" : "numeric"}
               containerClassName="gap-2"
@@ -103,35 +102,34 @@ export function PinEntry({
               </InputOTPGroup>
             </InputOTP>
           </motion.div>
+          {isLoading && (
+            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Verifying...
+            </div>
+          )}
         </div>
 
         {isTouchDevice && (
           <div className="mt-auto mb-3">
-            <PinPad value={pin} onChange={setPin} maxLength={4} />
+            <PinPad
+              value={pin}
+              onChange={setPin}
+              maxLength={4}
+              onSubmit={onAutoSubmit}
+            />
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-3 pt-1 pb-2 sm:pt-4 sm:pb-0">
+        <div className="pt-1 pb-2 sm:pt-4 sm:pb-0">
           <Button
             type="button"
             variant="outline"
-            className="h-11 rounded-lg border-border/60 font-medium hover:bg-muted/50"
+            className="w-full h-11 rounded-lg border-border/60 font-medium hover:bg-muted/50"
             onClick={onBack}
             disabled={isLoading}
           >
             <ArrowLeft className="mr-2 h-4 w-4" /> Back
-          </Button>
-          <Button
-            type="submit"
-            className="h-11 rounded-lg font-medium shadow-sm transition-all hover:shadow-md"
-            disabled={isLoading || pin.length < 4}
-          >
-            {!!(isLoading) && (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                  )}
-                      {!(isLoading) && (
-                                    "Unlock"
-                                  )}
           </Button>
         </div>
       </form>

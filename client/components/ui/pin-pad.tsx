@@ -10,7 +10,7 @@ interface PinPadProps {
   onChange: (value: string) => void;
   maxLength?: number;
   className?: string;
-  onSubmit?: () => void;
+  onSubmit?: (value: string) => void;
 }
 
 export function PinPad({
@@ -25,7 +25,10 @@ export function PinPad({
       const newValue = value + digit;
       onChange(newValue);
       if (newValue.length === maxLength && onSubmit) {
-        onSubmit();
+        // Passed explicitly rather than relying on the `value` prop — this fires
+        // synchronously right after onChange, before React applies the state
+        // update, so the `value` closure here would still be one digit behind.
+        onSubmit(newValue);
       }
     }
   };

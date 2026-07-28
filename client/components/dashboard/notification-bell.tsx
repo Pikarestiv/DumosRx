@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,7 +24,8 @@ import { useStore } from "@/lib/context/store-context";
 import { apiClient } from "@/lib/api/client";
 import { useRouter } from "next/navigation";
 import { useOnlineOrdersModal } from "@/lib/store/use-online-orders-modal";
-import { useMediaQuery } from "@/hooks/use-media-query";
+import { useIsTouchDevice } from "@/lib/hooks/use-is-touch-device";
+import { useBroadcasts } from "@/lib/hooks/use-broadcasts";
 import { cn } from "@/lib/utils";
 
 interface NotificationItem {
@@ -68,58 +69,62 @@ export function NotificationBell() {
   const { user, isCloudLinked } = useAuth();
   const { storeProfile } = useStore();
   const router = useRouter();
-  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  // Shared with BroadcastBanner (same query key/cache) so both fetch once
+  // and poll on one interval instead of duplicating the network call.
+  const { data: broadcastsData } = useBroadcasts(storeProfile?.id);
+  const [cloudNotifications, setCloudNotifications] = useState<
+    NotificationItem[]
+  >([]);
+  const [readBroadcastIds, setReadBroadcastIds] = useState<string[]>([]);
   const { onOpen } = useOnlineOrdersModal();
-  const isDesktop = useMediaQuery("(min-width: 768px)");
+  // Touch capability decides Drawer vs Dropdown, not viewport width — a wide
+  // touch device (like iPad landscape) still needs the Drawer. Radix's
+  // DropdownMenu has a known iOS WebKit bug where the dismissable-layer's
+  // outside-tap-to-close races the trigger's own click-to-toggle on iOS's
+  // delayed synthetic click, so the same tap that should close the menu can
+  // silently reopen it — needing a genuinely separate second tap to close.
+  const isTouchDevice = useIsTouchDevice();
   const [open, setOpen] = useState(false);
 
-  const fetchNotifications = async () => {
-    try {
-      const [notifsData, broadcastsData] = await Promise.all([
-        isCloudLinked ? apiClient.getNotifications().catch(() => []) : Promise.resolve([]),
-        apiClient.getBroadcasts(storeProfile?.id).catch(() => [])
-      ]);
-
-      let finalBroadcasts: any[] = [];
-      if (broadcastsData && (broadcastsData as any).success && Array.isArray((broadcastsData as any).data)) {
-        finalBroadcasts = (broadcastsData as any).data;
-      } else if (Array.isArray(broadcastsData)) {
-        finalBroadcasts = broadcastsData;
-      }
-
-      const standardBroadcasts = finalBroadcasts
-        .filter(b => b.type !== 'danger' && b.type !== 'warning')
-        .map(b => ({
-          id: `broadcast-${b.id}`,
-          title: b.title,
-          description: b.message,
-          time: 'System Broadcast',
-          type: b.type,
-          isRead: false,
-          category: 'broadcast'
-        }));
-
-      setNotifications([...standardBroadcasts, ...(Array.isArray(notifsData) ? notifsData : [])]);
-    } catch (e) {
-      console.error("Failed to fetch notifications", e);
-    }
-  };
-
   useEffect(() => {
-    if (!user) return;
-    fetchNotifications();
-    const interval = setInterval(fetchNotifications, 60000); // Poll every minute
+    if (!user || !isCloudLinked) return;
+    const fetchCloudNotifications = async () => {
+      try {
+        const data = await apiClient.getNotifications();
+        setCloudNotifications(Array.isArray(data) ? data : []);
+      } catch (e) {
+        console.error("Failed to fetch notifications", e);
+      }
+    };
+    fetchCloudNotifications();
+    const interval = setInterval(fetchCloudNotifications, 60000); // Poll every minute
     return () => clearInterval(interval);
-  }, [user]);
+  }, [user, isCloudLinked]);
+
+  const notifications = useMemo(() => {
+    const finalBroadcasts = Array.isArray(broadcastsData) ? broadcastsData : [];
+    const standardBroadcasts = finalBroadcasts
+      .filter((b: any) => b.type !== "danger" && b.type !== "warning")
+      .map((b: any) => ({
+        id: `broadcast-${b.id}`,
+        title: b.title,
+        description: b.message,
+        time: "System Broadcast",
+        type: b.type,
+        isRead: readBroadcastIds.includes(`broadcast-${b.id}`),
+        category: "broadcast",
+      }));
+    return [...standardBroadcasts, ...cloudNotifications];
+  }, [broadcastsData, cloudNotifications, readBroadcastIds]);
 
   const markAsRead = async (id: string) => {
     try {
       if (id.startsWith('broadcast-')) {
-        setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+        setReadBroadcastIds(prev => prev.includes(id) ? prev : [...prev, id]);
         return;
       }
       await apiClient.markNotificationRead(id);
-      setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+      setCloudNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
     } catch (e) {
       console.error(e);
     }
@@ -143,7 +148,7 @@ export function NotificationBell() {
     </div>
   );
 
-  if (isDesktop) {
+  if (!isTouchDevice) {
     return (
       <DropdownMenu open={open} onOpenChange={setOpen}>
         <DropdownMenuTrigger asChild>

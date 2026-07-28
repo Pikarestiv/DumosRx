@@ -32,13 +32,18 @@ export function LockScreen({
   const { login } = useAuth();
   const router = useRouter();
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedUser) return;
+  // Separated from the form's submit handler so it can also be triggered
+  // directly once the 4th digit is entered (auto-submit), not just via the
+  // Unlock button. Takes the pin value explicitly rather than reading `pin`
+  // from closure — PinPad's onSubmit fires synchronously right after its
+  // onChange, before React has applied the state update, so closure `pin`
+  // there would be stale by one digit.
+  const attemptLogin = async (pinValue: string) => {
+    if (!selectedUser || isLoading) return;
 
     setIsLoading(true);
     try {
-      const success = await login(selectedUser.username, pin);
+      const success = await login(selectedUser.username, pinValue);
       if (success) {
         toast.success(`Welcome back, ${selectedUser.first_name}!`);
         if (onUnlockSuccess) {
@@ -58,6 +63,11 @@ export function LockScreen({
       toast.error("Login failed. Database might not be initialized.");
       setIsLoading(false);
     }
+  };
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    attemptLogin(pin);
   };
 
   return (
@@ -80,6 +90,7 @@ export function LockScreen({
                           isLoading={isLoading}
                           hasError={hasError}
                           handleLogin={handleLogin}
+                          onAutoSubmit={attemptLogin}
                           onBack={() => {
                             setSelectedUser(null);
                             setPin("");

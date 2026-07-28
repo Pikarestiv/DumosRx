@@ -34,7 +34,7 @@ import {
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { ThemeCustomizer } from "@/components/ui/theme-customizer";
 import { getUserInitials } from "@/lib/utils";
-import { useMediaQuery } from "@/hooks/use-media-query";
+import { useIsTouchDevice } from "@/lib/hooks/use-is-touch-device";
 import { cn } from "@/lib/utils";
 
 interface NavAction {
@@ -130,7 +130,10 @@ export function UserNav({
 }: UserNavProps) {
   const { user, logout } = useAuth();
   const router = useRouter();
-  const isDesktop = useMediaQuery("(min-width: 768px)");
+  // Touch capability decides Drawer vs Dropdown, not viewport width — see the
+  // comment in notification-bell.tsx for why (Radix DropdownMenu's outside-tap
+  // close vs iOS's delayed synthetic click).
+  const isTouchDevice = useIsTouchDevice();
 
   const [open, setOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -355,7 +358,7 @@ export function UserNav({
 
   return (
     <>
-      {isDesktop ? renderDesktopMenu() : renderMobileDrawer()}
+      {!isTouchDevice ? renderDesktopMenu() : renderMobileDrawer()}
 
       <ConfirmDialog
         open={showLogoutConfirm}

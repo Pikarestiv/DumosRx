@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -9,11 +11,39 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ServerSelector } from "@/components/ui/server-selector";
+import { Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
 
 export default function HomePage() {
+  const router = useRouter();
+  // If this device has logged in before, skip straight past the marketing
+  // page to /login, which shows the lock screen for the recent account(s)
+  // instead of "Ready to Begin?" every single time.
+  const [checkingAccount, setCheckingAccount] = useState(true);
+
+  useEffect(() => {
+    try {
+      const recentUsers = localStorage.getItem("dumos_recent_users");
+      if (recentUsers && JSON.parse(recentUsers).length > 0) {
+        router.replace("/login");
+        return;
+      }
+    } catch {
+      // localStorage unavailable or malformed — fall through to the marketing page
+    }
+    setCheckingAccount(false);
+  }, [router]);
+
+  if (checkingAccount) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <div
       className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-background text-foreground transition-colors duration-500"

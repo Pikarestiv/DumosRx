@@ -108,6 +108,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(userProfile);
       setDbUser(userProfile);
       localStorage.setItem("dumos_user", JSON.stringify(userProfile));
+      // Marks this tab as already having gone through a real auth/unlock this
+      // session — DashboardLayout's fresh-load lock check reads this so it
+      // doesn't immediately re-lock right after a login/unlock that just
+      // succeeded. Cleared on logout; sessionStorage itself clears on tab
+      // close, so a genuinely new tab/session still locks correctly.
+      sessionStorage.setItem("dumos_session_authenticated", "1");
 
       // Update recent users list
       const recentUsersStr = localStorage.getItem("dumos_recent_users");
@@ -158,6 +164,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(defaultAdmin);
       setDbUser(defaultAdmin);
       localStorage.setItem("dumos_user", JSON.stringify(defaultAdmin));
+      sessionStorage.setItem("dumos_session_authenticated", "1");
 
       // Update recent users list for default admin
       const recentUsersStr = localStorage.getItem("dumos_recent_users");
@@ -188,6 +195,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setDbUser(null);
     localStorage.removeItem("dumos_user");
+    sessionStorage.removeItem("dumos_session_authenticated");
   };
 
   const changePin = async (currentPin: string, newPin: string) => {

@@ -87,31 +87,38 @@ export function useAutoLockTimer() {
   }, [duration, canAutoLock, updateActivity, lock]);
 }
 
-// Module-level, not persisted state — resets to false only on a genuine fresh
-// load (new tab, hard reload, cold app launch), never on client-side route
-// changes within an already-running session, since Next.js doesn't re-run
-// module top-level code for those.
-let hasCheckedFreshLoad = false;
-
 /**
  * Forces the lock screen whenever the app is freshly landed on with an
  * existing saved account — otherwise a device that was left unlocked (isLocked
  * persisted as false) would open straight into the dashboard for anyone who
  * picks it up, with no PIN check at all. "Login as someone else" on the lock
  * screen remains the escape hatch if it's not the account they want.
+ *
+ * Gated on sessionStorage's "dumos_session_authenticated" marker (set by
+ * auth-context's login(), cleared on logout) rather than a plain in-memory
+ * flag — a plain flag would re-fire this on every page reload, including a
+ * harmless refresh by someone already actively using the app, and critically
+ * it would also fire the instant DashboardLayout first mounts right after a
+ * fresh /login success, forcing an immediate, redundant second PIN entry.
+ * sessionStorage persists across reloads within the same tab but clears when
+ * the tab actually closes, so a genuinely new tab/session still locks.
  */
 export function useLockOnFreshLoad() {
   const lock = useAutoLockStore((s) => s.lock);
 
   useEffect(() => {
-    if (hasCheckedFreshLoad) return;
-    hasCheckedFreshLoad = true;
     try {
-      if (localStorage.getItem("dumos_user")) {
+      if (
+        localStorage.getItem("dumos_user") &&
+        !sessionStorage.getItem("dumos_session_authenticated")
+      ) {
         lock();
       }
     } catch {
-      // localStorage unavailable (e.g. private mode)
+      // localStorage/sessionStorage unavailable (e.g. private mode)
     }
-  }, [lock]);
+    // Deliberately runs once per DashboardLayout mount, not gated to a single
+    // module-lifetime flag — see comment above for why.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 }

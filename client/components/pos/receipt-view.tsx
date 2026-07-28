@@ -5,29 +5,36 @@ import { APP_NAME } from "@/lib/constants";
 import Barcode from "react-barcode";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
+import { ReceiptPaperSize } from "@/lib/hooks/use-receipt-paper-size";
 
-interface ReceiptProps {
-  transaction: {
-    id: string;
-    date: string;
-    cashier?: string;
-    items: any[];
-    customer: any;
-    subtotal: number;
-    tax: number;
-    discount: number;
-    total: number;
-    paymentMethod: string;
-    amountPaid: number;
-    change: number;
-    paymentSplits?: {method: string; amount: number; accountId?: string}[];
-  };
+export interface ReceiptTransaction {
+  id: string;
+  date: string;
+  cashier?: string;
+  items: any[];
+  customer: any;
+  subtotal: number;
+  tax: number;
+  discount: number;
+  total: number;
+  paymentMethod: string;
+  amountPaid: number;
+  change: number;
+  paymentSplits?: { method: string; amount: number; accountId?: string }[];
 }
 
-export function ReceiptView({ transaction }: ReceiptProps) {
+interface ReceiptProps {
+  transaction: ReceiptTransaction;
+  // Thermal (80mm roll) is narrower and tighter than a standard-paper copy —
+  // affects on-screen preview width too, not just the print @page size.
+  paperSize?: ReceiptPaperSize;
+}
+
+export function ReceiptView({ transaction, paperSize = "a4" }: ReceiptProps) {
   const { storeProfile, vatPercentage } = useStore();
   const { canCustomizeTheme, canRemoveBranding } = useFeatureGate();
   const hidePoweredBy = canRemoveBranding && storeProfile?.hide_powered_by === 1;
+  const isThermal = paperSize === "thermal";
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-NG", {
@@ -41,7 +48,13 @@ export function ReceiptView({ transaction }: ReceiptProps) {
   const invoiceNo = `INV-${shortId}`;
 
   return (
-    <div className="bg-white p-8 max-w-[400px] mx-auto text-black font-mono text-sm leading-tight printable-receipt">
+    <div
+      className={
+        isThermal
+          ? "bg-white p-3 w-[80mm] text-black font-mono text-[11px] leading-tight"
+          : "bg-white p-8 max-w-[400px] mx-auto text-black font-mono text-sm leading-tight"
+      }
+    >
       {/* Header */}
       <div className="text-center border-b border-black pb-4 mb-4">
         {canCustomizeTheme && storeProfile?.show_logo_on_receipt === 1 && storeProfile?.logo_url && (
@@ -184,9 +197,9 @@ export function ReceiptView({ transaction }: ReceiptProps) {
       <div className="flex flex-col items-center justify-center pt-4 mb-4 overflow-hidden">
         <Barcode
           value={transaction.id}
-          width={1.2}
-          height={40}
-          fontSize={10}
+          width={isThermal ? 1 : 1.2}
+          height={isThermal ? 30 : 40}
+          fontSize={isThermal ? 8 : 10}
           background="transparent"
         />
       </div>
@@ -204,24 +217,6 @@ export function ReceiptView({ transaction }: ReceiptProps) {
           Powered by dumosrx.com
         </div>
       )}
-
-      <style jsx global>{`
-        @media print {
-          body * {
-            visibility: hidden;
-          }
-          .printable-receipt,
-          .printable-receipt * {
-            visibility: visible;
-          }
-          .printable-receipt {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-          }
-        }
-      `}</style>
     </div>
   );
 }

@@ -15,7 +15,7 @@ const TIME_RANGE_DAYS: Record<string, number> = {
 export function useBusinessIntelligenceDashboard() {
   const [timeRange, setTimeRange] = useState("30d");
   const [exporting, setExporting] = useState(false);
-  const { exportProfitLossReport } = useReportExport();
+  const { exportReportCsv } = useReportExport();
 
   const handleExportReports = async () => {
     setExporting(true);
@@ -23,7 +23,7 @@ export function useBusinessIntelligenceDashboard() {
       const days = TIME_RANGE_DAYS[timeRange] ?? 30;
       const to = new Date().toISOString();
       const from = subDays(new Date(), days).toISOString();
-      await exportProfitLossReport(from, to);
+      await exportReportCsv("profit-loss", from, to);
       toast.success("Export successful", {
         description: "Your report has been downloaded.",
       });

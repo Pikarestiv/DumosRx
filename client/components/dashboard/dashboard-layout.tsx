@@ -270,31 +270,27 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
         </div>
       )}
 
-      <div className="print:hidden">
-        <DashboardSidebar
-          onOpenFeedback={() => setFeedbackOpen(true)}
-          collapsed={effectiveCollapsed}
-          logicalCollapsed={isLogicallyCollapsed}
-          onToggleCollapse={handleToggleCollapse}
-          onMouseEnter={() =>
-            !isPosRoute &&
-            !isTouchDevice &&
-            peekEnabled &&
-            setHoverExpanded(true)
-          }
-          onMouseLeave={() => setHoverExpanded(false)}
-          onUserNavOpenChange={setUserNavOpen}
-        />
-      </div>
+      <DashboardSidebar
+        onOpenFeedback={() => setFeedbackOpen(true)}
+        collapsed={effectiveCollapsed}
+        logicalCollapsed={isLogicallyCollapsed}
+        onToggleCollapse={handleToggleCollapse}
+        onMouseEnter={() =>
+          !isPosRoute &&
+          !isTouchDevice &&
+          peekEnabled &&
+          setHoverExpanded(true)
+        }
+        onMouseLeave={() => setHoverExpanded(false)}
+        onUserNavOpenChange={setUserNavOpen}
+      />
 
       {!isPosRoute && !isCreatePORoute && (
-        <div className="print:hidden">
-          <MobileBottomNav
-            onOpenFeedback={() => setFeedbackOpen(true)}
-            moreDrawerOpen={moreDrawerOpen}
-            onMoreDrawerOpenChange={setMoreDrawerOpen}
-          />
-        </div>
+        <MobileBottomNav
+          onOpenFeedback={() => setFeedbackOpen(true)}
+          moreDrawerOpen={moreDrawerOpen}
+          onMoreDrawerOpenChange={setMoreDrawerOpen}
+        />
       )}
 
       <FeedbackForm open={feedbackOpen} onOpenChange={setFeedbackOpen} />
@@ -319,7 +315,7 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
       >
         <div
           className={cn(
-            "print:hidden shrink-0 bg-card sm:bg-background",
+            "shrink-0 bg-card sm:bg-background",
             isCreatePORoute && "hidden lg:block",
           )}
           style={{
@@ -362,9 +358,7 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
           </main>
         </div>
       </div>
-      <div className="print:hidden">
-        <DashboardTour />
-      </div>
+      <DashboardTour />
     </div>
   );
 }

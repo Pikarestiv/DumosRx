@@ -18,7 +18,15 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
+import { useReceiptPaperSize } from "@/lib/hooks/use-receipt-paper-size";
 import { toast } from "sonner";
 import { useState } from "react";
 
@@ -63,6 +71,7 @@ export function ReceiptCustomizationCard({
 }: ReceiptCustomizationCardProps) {
   const { canCustomizeTheme, canRemoveBranding, withRestriction, getUpgradeMessage } = useFeatureGate();
   const [isEditing, setIsEditing] = useState(false);
+  const { paperSize, setPaperSize } = useReceiptPaperSize();
 
   const handleToggleLogo = (checked: boolean) => {
     if (checked && !localLogo) {
@@ -90,6 +99,25 @@ export function ReceiptCustomizationCard({
         </Button>
       </CardHeader>
       <CardContent className="space-y-6">
+        <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
+          <div className="space-y-0.5">
+            <Label className="text-base">Printer Paper Size</Label>
+            <p className="text-sm text-muted-foreground">
+              This device only — a receipt printer is a property of this
+              terminal, not your account.
+            </p>
+          </div>
+          <Select value={paperSize} onValueChange={setPaperSize}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="thermal">Thermal (80mm)</SelectItem>
+              <SelectItem value="a4">A4 / Standard paper</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
         <div className="flex flex-col md:flex-row gap-6">
           <div className="flex-1 space-y-4">
             <div className="space-y-3">

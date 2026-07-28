@@ -142,7 +142,7 @@ export function PurchaseOrderTable({
   return (
     <div className="flex flex-col lg:flex-row gap-5 flex-1 min-h-0 overflow-hidden">
       {/* Left Column - List */}
-      <Card className="print:hidden py-0 flex-[2] flex flex-col gap-0 md:rounded-[14px] border-0 md:border md:border-border bg-transparent md:bg-card shadow-none md:shadow-[0_1px_2px_rgba(16,24,40,0.04)] overflow-hidden">
+      <Card className="py-0 flex-[2] flex flex-col gap-0 md:rounded-[14px] border-0 md:border md:border-border bg-transparent md:bg-card shadow-none md:shadow-[0_1px_2px_rgba(16,24,40,0.04)] overflow-hidden">
         <div className="p-0 md:p-4 flex flex-col gap-4 border-b-0 md:border-b border-border">
           <div className="relative w-full">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 pointer-events-none" />

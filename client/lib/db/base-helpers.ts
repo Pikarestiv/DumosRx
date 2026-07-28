@@ -5,6 +5,19 @@
 import { execute, query, generateId, logAction } from "./core";
 import { queryClient } from "../query-client";
 
+// Every mutation invalidates the ENTIRE query cache, not just queries keyed
+// by the table name. Individual hooks use all sorts of descriptive keys
+// (`dashboardOverviewData`, `biMetrics`, `posProducts`...) that don't start
+// with the table they actually read, so a narrower `invalidateQueries({
+// queryKey: [table] })` silently misses most of them — stale dashboards/
+// reports until the user navigates away and back. Broad invalidation is
+// cheap and safe here specifically because every query re-reads local
+// SQLite, not a network API — there's no request-volume cost to worry about.
+function invalidateAllQueries() {
+  if (typeof window === "undefined") return;
+  queryClient.invalidateQueries();
+}
+
 export async function insert(
   table: string,
   data: Record<string, unknown>,
@@ -39,10 +52,7 @@ export async function insert(
   await addToSyncQueue(table, id, "INSERT", record);
   await logAction(options?.action || "INSERT", table, id, record);
 
-  if (typeof window !== "undefined") {
-    queryClient.invalidateQueries({ queryKey: ['localData'] });
-    queryClient.invalidateQueries({ queryKey: [table] });
-  }
+  invalidateAllQueries();
 
   return id;
 }
@@ -83,10 +93,7 @@ export async function update(
   await addToSyncQueue(table, id, "UPDATE", record);
   await logAction(options?.action || "UPDATE", table, id, record);
   
-  if (typeof window !== "undefined") {
-    queryClient.invalidateQueries({ queryKey: ['localData'] });
-    queryClient.invalidateQueries({ queryKey: [table] });
-  }
+  invalidateAllQueries();
 }
 
 export async function softDelete(table: string, id: string): Promise<void> {
@@ -104,10 +111,7 @@ export async function softDelete(table: string, id: string): Promise<void> {
   await addToSyncQueue(table, id, "DELETE", { id });
   await logAction("DELETE", table, id, { id });
 
-  if (typeof window !== "undefined") {
-    queryClient.invalidateQueries({ queryKey: ['localData'] });
-    queryClient.invalidateQueries({ queryKey: [table] });
-  }
+  invalidateAllQueries();
 }
 
 export async function remove(
@@ -130,10 +134,7 @@ export async function remove(
 
   await logAction(options?.action || "HARD_DELETE", table, id, existing[0] || { id });
 
-  if (typeof window !== "undefined") {
-    queryClient.invalidateQueries({ queryKey: ['localData'] });
-    queryClient.invalidateQueries({ queryKey: [table] });
-  }
+  invalidateAllQueries();
 }
 
 async function addToSyncQueue(

@@ -70,17 +70,17 @@ export async function sync(
     localStorage.setItem("last_sync_time", new Date().toISOString());
 
     if (typeof window !== "undefined") {
-      // Invalidate React Query cache for any tables that were updated
+      // Invalidate the ENTIRE query cache when any table changed, not just
+      // queries keyed by that table name — same reasoning as
+      // base-helpers.ts's invalidateAllQueries: most hooks use descriptive
+      // keys that don't start with the table they read, so a narrower
+      // invalidation silently misses most of the app after a sync pulls in
+      // changes from another device.
       if (pullResult.updatedTables && pullResult.updatedTables.length > 0) {
-        pullResult.updatedTables.forEach((table) => {
-          queryClient.invalidateQueries({ queryKey: [table] });
-          if (table === "stores") {
-            queryClient.invalidateQueries({ queryKey: ["storeProfile"] });
-            window.dispatchEvent(new CustomEvent("dumos_subscription_updated"));
-          }
-        });
-        // Globally invalidate localData abstraction queries
-        queryClient.invalidateQueries({ queryKey: ["localData"] });
+        queryClient.invalidateQueries();
+        if (pullResult.updatedTables.includes("stores")) {
+          window.dispatchEvent(new CustomEvent("dumos_subscription_updated"));
+        }
       }
 
       window.dispatchEvent(

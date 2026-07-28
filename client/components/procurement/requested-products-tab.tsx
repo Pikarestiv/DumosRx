@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   getRequestedProducts,
   markRequestedProductAsOrdered,
   deleteRequestedProduct,
-  RequestedProduct,
 } from "@/lib/db/requested-products-queries";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
@@ -51,8 +51,14 @@ function NoRequestedProductsRow() {
 }
 
 export function RequestedProductsTab() {
-  const [requests, setRequests] = useState<RequestedProduct[]>([]);
-  const [loading, setLoading] = useState(true);
+  const {
+    data: requests = [],
+    isLoading: loading,
+    refetch: fetchRequests,
+  } = useQuery({
+    queryKey: ["requested_products"],
+    queryFn: () => getRequestedProducts("all"),
+  });
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<RequestStatusFilter>("all");
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -75,28 +81,12 @@ export function RequestedProductsTab() {
     if (!showAddDialog) {
       fetchRequests();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showAddDialog]);
-
-  useEffect(() => {
-    fetchRequests();
-  }, []);
 
   usePullToRefreshHandler(async () => {
     await fetchRequests();
   });
-
-  const fetchRequests = async () => {
-    setLoading(true);
-    try {
-      const data = await getRequestedProducts("all");
-      setRequests(data);
-    } catch (error) {
-      console.error("Failed to fetch requested products:", error);
-      toast.error("Could not load requested products");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleMarkAsOrdered = async (id: string) => {
     try {

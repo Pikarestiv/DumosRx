@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   getPurchaseOrders,
@@ -11,28 +12,28 @@ import { genericFuzzySearch } from "@/lib/utils/search";
 
 /** All business logic for the Orders tab of Procurement Management. */
 export function usePurchaseOrders() {
-  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [poTab, setPoTab] = useState("all");
 
-  const fetchPurchaseOrders = async () => {
-    setLoading(true);
-    try {
+  const {
+    data: purchaseOrders = [],
+    isLoading: loading,
+    refetch,
+  } = useQuery({
+    // poTab isn't a query param — getPurchaseOrders() always fetches
+    // everything and filtering happens client-side below — so it doesn't
+    // belong in the key (the old effect refetched on every tab switch for
+    // no reason, since the underlying data never changed).
+    queryKey: ["purchase_orders"],
+    queryFn: async () => {
       const { data } = await getPurchaseOrders();
-      setPurchaseOrders(data as PurchaseOrder[]);
-    } catch (error) {
-      console.error("Failed to fetch POs:", error);
-      toast.error("Could not load purchase orders");
-    } finally {
-      setLoading(false);
-    }
-  };
+      return data as PurchaseOrder[];
+    },
+  });
 
-  useEffect(() => {
-    fetchPurchaseOrders();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [poTab]);
+  const fetchPurchaseOrders = async () => {
+    await refetch();
+  };
 
   const handleReceivePO = async (id: string, receivedItems: any[]) => {
     try {

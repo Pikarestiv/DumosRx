@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Search, CheckCircle2, Clock, ArrowRight, ClipboardList } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -60,9 +61,13 @@ export function PurchaseOrderTable({
 }: PurchaseOrderTableProps) {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [isReceiveModalOpen, setIsReceiveModalOpen] = useState(false);
-  const [fullSelectedPO, setFullSelectedPO] = useState<any>(null);
-  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   const isDesktop = useMediaQuery("(min-width: 1024px)");
+
+  const { data: fullSelectedPO, isLoading: isLoadingDetails } = useQuery({
+    queryKey: ["purchase_order_details", selectedOrderId],
+    queryFn: () => getPurchaseOrderById(selectedOrderId as string),
+    enabled: !!selectedOrderId,
+  });
 
   useEffect(() => {
     // Auto-selecting an order keeps the desktop details panel from sitting
@@ -82,26 +87,6 @@ export function PurchaseOrderTable({
       }
     }
   }, [orders, selectedOrderId, isDesktop]);
-
-  useEffect(() => {
-    async function loadDetails() {
-      if (!selectedOrderId) {
-        setFullSelectedPO(null);
-        return;
-      }
-      setIsLoadingDetails(true);
-      try {
-        const po = await getPurchaseOrderById(selectedOrderId);
-        setFullSelectedPO(po);
-      } catch (error) {
-        console.error("Failed to load PO details", error);
-        setFullSelectedPO(null);
-      } finally {
-        setIsLoadingDetails(false);
-      }
-    }
-    loadDetails();
-  }, [selectedOrderId]);
 
   // Merge full details with the latest row data from the list (so status updates reflect immediately)
   const listOrder = orders.find((o) => o.id === selectedOrderId);

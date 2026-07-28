@@ -1,22 +1,14 @@
 "use client";
-import { useState } from "react";
-import {
-  usePrescriptionQueue,
-  Prescription,
-} from "@/lib/hooks/use-prescription-queue";
-import { getSaleForPrescription } from "@/lib/db/queries/sales";
+import { usePrescriptionManagement } from "@/lib/hooks/use-prescription-management";
 import { PrescriptionStats } from "./prescription-stats";
 import { PrescriptionList } from "./prescription-list";
 import { PrescriptionSearchBar } from "./prescription-search-bar";
 import { PrescriptionDetailPanel } from "./prescription-detail-panel";
+import { PriorityBadge } from "./priority-badge";
 import { NewPrescription } from "./new-prescription";
 import { Card } from "@/components/ui/card";
 import { ArrowLeft } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 import { PrescriptionStatusFilter } from "./prescription-status-filter";
-
-import { useSearchParams } from "next/navigation";
 
 const STATUS_FILTERS = [
   { value: "all", label: "All", short: "All" },
@@ -27,17 +19,7 @@ const STATUS_FILTERS = [
 ];
 
 export function PrescriptionManagement() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const showNewPrescription =
-    searchParams.get("action") === "add" || !!searchParams.get("edit_rx");
-
-  const closeNewPrescription = () => {
-    router.push("/prescriptions");
-  };
-
   const {
-    loading: _loading,
     searchTerm,
     setSearchTerm,
     statusFilter,
@@ -48,76 +30,15 @@ export function PrescriptionManagement() {
     updatePrescriptionStatus,
     stats,
     isFuzzyFallback,
-  } = usePrescriptionQueue();
-
-  const getPriorityBadge = (priority: Prescription["priority"]) => {
-    const colors = {
-      normal: "text-muted-foreground",
-      urgent: "text-orange-600 font-bold",
-      stat: "text-red-600 font-bold",
-    };
-    const labels = {
-      normal: "Normal",
-      urgent: "Urgent",
-      stat: "STAT",
-    };
-    return (
-      <span className={`text-xs ${colors[priority]}`}>{labels[priority]}</span>
-    );
-  };
-
-  const formatDateTime = (dateString: string) => {
-    return new Date(dateString).toLocaleString("en-NG", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  const handleEdit = (prescription: Prescription) => {
-    // Navigate to edit form, could just show new prescription with ID
-    router.push(`/prescriptions?action=add&edit_rx=${prescription.id}`);
-  };
-
-  const handleDispense = (prescription: Prescription) => {
-    // Hand off to POS to actually deduct stock and record the sale — POS
-    // marks the prescription "completed" itself once payment succeeds
-    // (see usePOSPrescription / use-pos-payment.ts).
-    router.push(`/pos?dispense_rx=${prescription.id}`);
-  };
-
-  const handleDispenseRefill = (prescription: Prescription) => {
-    // Same POS flow, but flagged as a refill so payment completion bumps
-    // refills_used/next_refill_date instead of re-marking the rx "completed".
-    router.push(`/pos?dispense_rx=${prescription.id}&refill=1`);
-  };
-
-  const [processingReturnRxId, setProcessingReturnRxId] = useState<
-    string | null
-  >(null);
-
-  const handleProcessReturn = async (prescription: Prescription) => {
-    // A prescription-linked sale is the actual source of truth for stock/
-    // payment — "cancelling" a prescription used to just relabel its status
-    // without touching either. Route to the real Return flow instead, which
-    // reverses stock/payment and (on a full return) reverts the rx to
-    // "ready" itself (see return-dialog.tsx).
-    setProcessingReturnRxId(prescription.id);
-    try {
-      const sale = await getSaleForPrescription(prescription.id);
-      if (!sale) {
-        toast.error(
-          "No linked sale found for this prescription — nothing to return.",
-        );
-        return;
-      }
-      router.push(`/pos?tab=history&return_sale=${sale.id}`);
-    } finally {
-      setProcessingReturnRxId(null);
-    }
-  };
+    showNewPrescription,
+    closeNewPrescription,
+    formatDateTime,
+    handleEdit,
+    handleDispense,
+    handleDispenseRefill,
+    handleProcessReturn,
+    processingReturnRxId,
+  } = usePrescriptionManagement();
 
   return (
     <div className="flex flex-col lg:flex-1 lg:min-h-0 gap-4 lg:gap-6">
@@ -160,7 +81,7 @@ export function PrescriptionManagement() {
           {!!selectedPrescription && (
             <PrescriptionDetailPanel
               prescription={selectedPrescription}
-              getPriorityBadge={getPriorityBadge}
+              getPriorityBadge={(priority) => <PriorityBadge priority={priority} />}
               formatDateTime={formatDateTime}
               onClose={() => setSelectedPrescription(null)}
               onEdit={handleEdit}

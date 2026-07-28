@@ -6,33 +6,17 @@ import { StockMovements } from "./stock-movements";
 import { StockAudits } from "./stock-audits";
 import { ProductDatabase } from "@/components/products/product-database";
 import { Button } from "@/components/ui/button";
-
-import { useStore } from "@/lib/context/store-context";
-import { useAuth } from "@/lib/context/auth-context";
-import { useRouter } from "next/navigation";
 import { StockBatchMetrics } from "./stock-batch-metrics";
-import { useStockBatchStats } from "@/lib/hooks/use-stock-batch-stats";
 import { formatCurrency } from "@/lib/utils";
-import { useState, useEffect } from "react";
+import { useStockBatchManagement } from "@/lib/hooks/use-stock-batch-management";
 
 export function StockBatchManagement({
   currentTab = "overview",
 }: {
   currentTab?: string;
 }) {
-  const { t: _t } = useStore();
-  const { isAdmin } = useAuth();
-  const router = useRouter();
-  const [isAuditing, setIsAuditing] = useState(false);
-
-  const stats = useStockBatchStats();
-
-  useEffect(() => {
-    if (currentTab === "audits") {
-      setIsAuditing(true);
-      router.replace("/inventory/overview");
-    }
-  }, [currentTab, router]);
+  const { isAdmin, isAuditing, setIsAuditing, stats, handleTabChange } =
+    useStockBatchManagement(currentTab);
 
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-6 relative">
@@ -48,7 +32,7 @@ export function StockBatchManagement({
 
       <Tabs
         value={currentTab}
-        onValueChange={(val) => router.push(`/inventory/${val}`)}
+        onValueChange={handleTabChange}
         className="flex flex-col flex-1 min-h-0 gap-6"
       >
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">

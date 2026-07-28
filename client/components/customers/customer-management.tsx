@@ -1,14 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
-import { useStore } from "@/lib/context/store-context";
-import { useCustomerData, Customer } from "@/lib/hooks/use-customer-data";
-import { genericFuzzySearch } from "@/lib/utils/search";
-import { getLoyaltyTiers } from "@/lib/db/queries/loyalty";
-import { usePullToRefreshHandler } from "@/lib/context/pull-to-refresh-context";
+import { useCustomerManagement } from "@/lib/hooks/use-customer-management";
 
 import { InsightsStrip } from "./insights-strip";
 import { OverviewTab } from "./overview-tab";
@@ -21,162 +14,31 @@ import { RecordPaymentModal } from "./record-payment-modal";
 import { CustomerTabNav } from "./customer-tab-nav";
 
 export function CustomerManagement() {
-  const { storeType, storeProfile } = useStore();
-  const isStore = storeType === "pharmacy";
-
-  const { customers, metrics, fetchCustomers, addCustomer, updateCustomer, recordPayment } =
-    useCustomerData();
-
-  usePullToRefreshHandler(fetchCustomers);
-
-  const FALLBACK_TIERS = [
-    {
-      name: "Bronze",
-      minSpent: 0,
-      pointsMultiplier: 1,
-      benefits: ["Basic rewards", "Birthday discount 5%"],
-      color: "bg-amber-600",
-    },
-    {
-      name: "Silver",
-      minSpent: 100000,
-      pointsMultiplier: 1.5,
-      benefits: [
-        "Enhanced rewards",
-        "Birthday discount 10%",
-        "Priority support",
-      ],
-      color: "bg-gray-400",
-    },
-    {
-      name: "Gold",
-      minSpent: 300000,
-      pointsMultiplier: 2,
-      benefits: [
-        "Premium rewards",
-        "Birthday discount 15%",
-        "Exclusive offers",
-      ],
-      color: "bg-yellow-500",
-    },
-    {
-      name: "Platinum",
-      minSpent: 500000,
-      pointsMultiplier: 3,
-      benefits: [
-        "VIP rewards",
-        "Birthday discount 20%",
-        isStore ? "Personal specialist" : "Shopping assistant",
-        "Early access",
-      ],
-      color: "bg-purple-600",
-    },
-  ];
-
-  const { data: dbTiers } = useQuery({
-    queryKey: ["loyalty_tiers"],
-    queryFn: getLoyaltyTiers,
-  });
-
-  const loyaltyTiers =
-    dbTiers && dbTiers.length > 0
-      ? dbTiers
-          .map((t) => ({
-            name: t.name,
-            minSpent: t.min_spend,
-            pointsMultiplier: t.points_multiplier,
-            benefits: JSON.parse(t.benefits || "[]") as string[],
-            color: t.color,
-          }))
-          .sort((a, b) => a.minSpent - b.minSpent)
-      : FALLBACK_TIERS;
-
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
-    null,
-  );
-  const [isAddCustomerOpen, setIsAddCustomerOpen] = useState(false);
-  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
-  const [payingCustomer, setPayingCustomer] = useState<Customer | null>(null);
-  const [activityFilterCustomer, setActivityFilterCustomer] =
-    useState<Customer | null>(null);
-
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const pathname = usePathname();
-
-  const tabParam = searchParams.get("tab") || "overview";
-
-  const [activeTab, setActiveTab] = useState(tabParam);
-
-  useEffect(() => {
-    if (searchParams.get("action") === "add") {
-      setIsAddCustomerOpen(true);
-      const newParams = new URLSearchParams(searchParams.toString());
-      newParams.delete("action");
-      const newUrl =
-        pathname + (newParams.toString() ? `?${newParams.toString()}` : "");
-      router.replace(newUrl);
-    }
-  }, [searchParams, router, pathname]);
-
-  const handleAddCustomer = async (payload: any) => {
-    await addCustomer(payload);
-    setIsAddCustomerOpen(false);
-  };
-
-  const handleUpdateCustomer = async (payload: any) => {
-    if (!editingCustomer) return;
-    const updated = await updateCustomer(editingCustomer.id, payload);
-    if (updated) {
-      setSelectedCustomer(updated);
-      if (activityFilterCustomer?.id === updated.id) {
-        setActivityFilterCustomer(updated);
-      }
-    }
-    setEditingCustomer(null);
-  };
-
-  const handleViewHistory = (customer: Customer) => {
-    setActivityFilterCustomer(customer);
-    handleTabChange("activity");
-  };
-
-  const handleRecordPayment = async (
-    amount: number,
-    paymentMethod: string,
-    notes: string,
-  ) => {
-    if (!payingCustomer) return;
-    const updated = await recordPayment(
-      payingCustomer.id,
-      amount,
-      paymentMethod,
-      notes,
-    );
-    if (updated) {
-      setSelectedCustomer(updated);
-    }
-    setPayingCustomer(null);
-  };
-
-  const { results: filteredCustomers } = genericFuzzySearch(
+  const {
+    storeProfile,
+    metrics,
+    loyaltyTiers,
+    filteredCustomers,
+    getTierColor,
+    activeTab,
+    handleTabChange,
     searchTerm,
-    customers,
-    ["name", "email", "phone"],
-  );
-
-  const getTierColor = (tier: string) => {
-    const tierInfo = loyaltyTiers.find((t) => t.name === tier);
-    return tierInfo?.color || "bg-gray-400";
-  };
-
-  const handleTabChange = (value: string) => {
-    setActiveTab(value);
-    const newParams = new URLSearchParams(searchParams.toString());
-    newParams.set("tab", value);
-    router.replace(`${pathname}?${newParams.toString()}`, { scroll: false });
-  };
+    setSearchTerm,
+    selectedCustomer,
+    setSelectedCustomer,
+    activityFilterCustomer,
+    setActivityFilterCustomer,
+    isAddCustomerOpen,
+    setIsAddCustomerOpen,
+    editingCustomer,
+    setEditingCustomer,
+    payingCustomer,
+    setPayingCustomer,
+    handleAddCustomer,
+    handleUpdateCustomer,
+    handleViewHistory,
+    handleRecordPayment,
+  } = useCustomerManagement();
 
   return (
     <div className="flex flex-col h-full min-h-0 space-y-4 md:space-y-6">

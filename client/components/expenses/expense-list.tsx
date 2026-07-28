@@ -1,31 +1,19 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useRef } from "react";
 import { formatCurrency } from "@/lib/utils";
 import { format } from "date-fns";
 import { Search, ReceiptText, ChevronRight } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-
-const DESKTOP_ROW_HEIGHT = 56;
-import { useStore } from "@/lib/context/store-context";
-import { useExpenseList } from "@/lib/hooks/use-finance-data";
+import { useExpensesPage } from "@/lib/hooks/use-expenses-page";
 import { ExpenseDetailDialog } from "./expense-detail-dialog";
 import { AddExpenseDialog } from "./add-expense-dialog";
 import { ExpenseCategoryFilter } from "./expense-category-filter";
 import { Card } from "@/components/ui/card";
 import { Expense } from "@/lib/db/queries/finance";
 import { ExpenseInsightsStrip } from "./expense-insights-strip";
-import { usePullToRefreshHandler } from "@/lib/context/pull-to-refresh-context";
 
-const CATEGORIES = [
-  "All",
-  "Rent",
-  "Utilities",
-  "Salaries",
-  "Maintenance",
-  "Marketing",
-  "Other",
-];
+const DESKTOP_ROW_HEIGHT = 56;
 
 const CATEGORY_META: Record<string, { badgeClass: string }> = {
   Rent: { badgeClass: "bg-chart-1/10 text-chart-1" },
@@ -38,34 +26,26 @@ const CATEGORY_META: Record<string, { badgeClass: string }> = {
 };
 
 export function ExpenseList() {
-  const { expenses, isLoading, refetch: fetchExpenses } = useExpenseList();
-
-  usePullToRefreshHandler(async () => {
-    await fetchExpenses();
-  });
-  const { storeProfile } = useStore();
-
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("All");
-  const [selectedExpenseId, setSelectedExpenseId] = useState<string | null>(
-    null,
-  );
-  const [expenseToEdit, setExpenseToEdit] = useState<Expense | null>(null);
-
-  const filteredExpenses = useMemo(() => {
-    return expenses
-      .filter((exp) => {
-        const matchesSearch =
-          !searchTerm ||
-          (exp.description?.toLowerCase() || "").includes(
-            searchTerm.toLowerCase(),
-          );
-        const matchesCategory =
-          selectedCategory === "All" || exp.category === selectedCategory;
-        return matchesSearch && matchesCategory;
-      })
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [expenses, searchTerm, selectedCategory]);
+  const {
+    CATEGORIES,
+    isLoading,
+    fetchExpenses,
+    storeProfile,
+    searchTerm,
+    setSearchTerm,
+    selectedCategory,
+    setSelectedCategory,
+    selectedExpenseId,
+    setSelectedExpenseId,
+    expenseToEdit,
+    setExpenseToEdit,
+    filteredExpenses,
+    totalExpenses,
+    thisMonthExpenses,
+    topCategoryStr,
+    selectedExpense,
+    expenses,
+  } = useExpensesPage();
 
   const desktopScrollRef = useRef<HTMLDivElement>(null);
   const rowVirtualizer = useVirtualizer({
@@ -75,44 +55,6 @@ export function ExpenseList() {
     overscan: 8,
   });
 
-  const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
-
-  const thisMonthExpenses = expenses
-    .filter((exp) => {
-      const expDate = new Date(exp.date);
-      const now = new Date();
-      return (
-        expDate.getMonth() === now.getMonth() &&
-        expDate.getFullYear() === now.getFullYear()
-      );
-    })
-    .reduce((sum, exp) => sum + exp.amount, 0);
-
-  // Calculate top category this month
-  const categoryTotals = expenses
-    .filter((exp) => {
-      const expDate = new Date(exp.date);
-      const now = new Date();
-      return (
-        expDate.getMonth() === now.getMonth() &&
-        expDate.getFullYear() === now.getFullYear()
-      );
-    })
-    .reduce(
-      (acc, exp) => {
-        acc[exp.category] = (acc[exp.category] || 0) + exp.amount;
-        return acc;
-      },
-      {} as Record<string, number>,
-    );
-
-  const topCategoryStr =
-    Object.keys(categoryTotals).length > 0
-      ? Object.keys(categoryTotals).reduce((a, b) =>
-          categoryTotals[a] > categoryTotals[b] ? a : b,
-        )
-      : "—";
-
   if (isLoading) {
     return (
       <div className="p-8 text-center text-muted-foreground font-medium">
@@ -120,9 +62,6 @@ export function ExpenseList() {
       </div>
     );
   }
-
-  const selectedExpense =
-    expenses.find((e) => e.id === selectedExpenseId) || null;
 
   const EmptyState = (
     <div className="flex flex-col items-center justify-center p-10 text-muted-foreground">

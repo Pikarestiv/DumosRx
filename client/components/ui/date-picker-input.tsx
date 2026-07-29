@@ -14,6 +14,42 @@ import {
 } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 
+/**
+ * Walks a raw digit string one character at a time and drops the first
+ * digit that would make the day or month segment impossible to complete
+ * validly (day > 31, month > 12, or a "00" segment) — rather than accepting
+ * every digit and only checking validity once all 8 are in. This is what
+ * makes typing a month/year-only date (e.g. "11/2027", read as day 11 +
+ * "month" 20) get stopped immediately instead of silently discarding the
+ * whole entry.
+ */
+export function sanitizeDateDigits(digits: string): string {
+  let result = "";
+  for (let i = 0; i < digits.length; i++) {
+    const digit = digits[i];
+
+    if (i === 0) {
+      // Day tens digit: 0-3
+      if (Number(digit) > 3) break;
+    } else if (i === 1) {
+      // Day units digit
+      const tens = result[0];
+      if (tens === "3" && Number(digit) > 1) break; // day can't exceed 31
+      if (tens === "0" && digit === "0") break; // no day 00
+    } else if (i === 2) {
+      // Month tens digit: 0-1
+      if (Number(digit) > 1) break;
+    } else if (i === 3) {
+      // Month units digit
+      const tens = result[2];
+      if (tens === "1" && Number(digit) > 2) break; // month can't exceed 12
+      if (tens === "0" && digit === "0") break; // no month 00
+    }
+    result += digit;
+  }
+  return result;
+}
+
 interface DatePickerInputProps {
   value?: string; // Expects YYYY-MM-DD
   onChange?: (value: string) => void;
@@ -70,7 +106,15 @@ export function DatePickerInput({
     // Work from digits only — a slash can only ever come from the mask
     // itself, never from what the user types, so there's no way to end up
     // with a stray or doubled "/" no matter where they type or paste.
-    const digits = e.target.value.replace(/\D/g, "").slice(0, 8);
+    const rawDigits = e.target.value.replace(/\D/g, "").slice(0, 8);
+    // Reject (don't just clamp) any digit that would make the day or month
+    // segment impossible to complete validly — e.g. typing "9" as the first
+    // day digit, or "2" as the first month digit, is dropped rather than
+    // producing a nonsense date like day 39 or month 20. Anyone trying to
+    // type a month/year-only date (e.g. "11/2027") hits this on the very
+    // first digit of the "month" segment, instead of silently discarding
+    // their whole entry only once they reach 8 digits.
+    const digits = sanitizeDateDigits(rawDigits);
 
     let formatted = digits;
     if (digits.length > 4) {

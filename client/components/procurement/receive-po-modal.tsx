@@ -121,6 +121,13 @@ const ReceiveItemCard = React.memo(
               fromYear={new Date().getFullYear()}
               toYear={new Date().getFullYear() + 15}
             />
+            <div className="text-[11px] text-muted-foreground bg-primary/5 border border-primary/20 rounded-[10px] px-3 py-2 flex gap-1.5 items-start">
+              <Info className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
+              <span>
+                If the package only shows a month and year, pick the 1st of
+                that month.
+              </span>
+            </div>
           </div>
         </div>
       </div>

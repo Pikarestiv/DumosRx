@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Check, Database, Globe, Plus } from "lucide-react";
+import { Check, Database, Globe, Plus, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -27,6 +27,11 @@ export interface SelectedProduct {
 interface ProductComboboxProps {
   value: string;
   onChange: (product: SelectedProduct) => void;
+  /** Called only when the value is cleared via the explicit clear (X)
+   * button, not when the user backspaces the field to empty — lets
+   * consumers reset fields that were autofilled from the selection
+   * without wiping them out on incidental retyping. */
+  onClear?: () => void;
   placeholder?: string;
   disabled?: boolean;
   className?: string;
@@ -135,6 +140,7 @@ function AddNewProductOption({
 export function ProductCombobox({
   value,
   onChange,
+  onClear,
   placeholder = "Search products...",
   disabled = false,
   className,
@@ -184,6 +190,8 @@ export function ProductCombobox({
       generic_name: p.generic_name,
       category: p.category_id,
       manufacturer: p.manufacturer,
+      strength: p.strength,
+      dosageForm: p.dosage_form,
     }));
   }, [localProducts]);
 
@@ -226,40 +234,56 @@ export function ProductCombobox({
 
   return (
     <div className="relative w-full" ref={containerRef}>
-      <Input
-        value={value}
-        onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-          onChange({ name: e.target.value, source: "new" });
-          setOpen(true);
-        }}
-        onFocus={() => setOpen(true)}
-        onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-          if (e.key === "Escape") {
-            setOpen(false);
-          } else if (e.key === "ArrowDown") {
-            e.preventDefault();
-            if (!open) setOpen(true);
-            setActiveIndex((prev) =>
-              Math.min(prev + 1, filteredOptions.length - 1),
-            );
-          } else if (e.key === "ArrowUp") {
-            e.preventDefault();
-            setActiveIndex((prev) => Math.max(prev - 1, 0));
-          } else if (e.key === "Enter") {
-            if (open) {
-              e.preventDefault();
-              if (activeIndex >= 0 && activeIndex < filteredOptions.length) {
-                onChange(filteredOptions[activeIndex]);
-              }
+      <div className="relative">
+        <Input
+          value={value}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+            onChange({ name: e.target.value, source: "new" });
+            setOpen(true);
+          }}
+          onFocus={() => setOpen(true)}
+          onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+            if (e.key === "Escape") {
               setOpen(false);
+            } else if (e.key === "ArrowDown") {
+              e.preventDefault();
+              if (!open) setOpen(true);
+              setActiveIndex((prev) =>
+                Math.min(prev + 1, filteredOptions.length - 1),
+              );
+            } else if (e.key === "ArrowUp") {
+              e.preventDefault();
+              setActiveIndex((prev) => Math.max(prev - 1, 0));
+            } else if (e.key === "Enter") {
+              if (open) {
+                e.preventDefault();
+                if (activeIndex >= 0 && activeIndex < filteredOptions.length) {
+                  onChange(filteredOptions[activeIndex]);
+                }
+                setOpen(false);
+              }
             }
-          }
-        }}
-        placeholder={placeholder}
-        disabled={disabled}
-        autoComplete="off"
-        className={cn("w-full", className)}
-      />
+          }}
+          placeholder={placeholder}
+          disabled={disabled}
+          autoComplete="off"
+          className={cn("w-full", value && !disabled && "pr-8", className)}
+        />
+        {value && !disabled && (
+          <button
+            type="button"
+            onClick={() => {
+              onChange({ name: "", source: "new" });
+              onClear?.();
+              setOpen(false);
+            }}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            aria-label="Clear"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
 
       {open && filteredOptions.length > 0 && (
         <div className="absolute z-[999] w-full mt-1 bg-popover text-popover-foreground shadow-xl rounded-md border border-border outline-none animate-in fade-in-0 zoom-in-95 overflow-hidden">

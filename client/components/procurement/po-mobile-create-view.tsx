@@ -32,6 +32,7 @@ interface POMobileCreateViewProps {
   onOpenAddProduct: (productData: any) => void;
   newlyCreatedProductId: string | null;
   onNewlyCreatedProductConsumed: () => void;
+  onOpenAddSupplier: () => void;
   items: any[];
   removeLineItem: (index: number) => void;
   storeType: StoreType;
@@ -62,6 +63,7 @@ export function POMobileCreateView(props: POMobileCreateViewProps) {
     onOpenAddProduct,
     newlyCreatedProductId,
     onNewlyCreatedProductConsumed,
+    onOpenAddSupplier,
     items,
     removeLineItem,
     storeType,
@@ -133,6 +135,7 @@ export function POMobileCreateView(props: POMobileCreateViewProps) {
           onOpenAddProduct={onOpenAddProduct}
           newlyCreatedProductId={newlyCreatedProductId}
           onNewlyCreatedProductConsumed={onNewlyCreatedProductConsumed}
+          onOpenAddSupplier={onOpenAddSupplier}
         />
       </div>
 

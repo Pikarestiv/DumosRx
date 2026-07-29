@@ -4,10 +4,12 @@ import { useState, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { AddProductDialog } from "@/components/products/add-product-dialog";
+import { AddSupplierDialog } from "@/components/suppliers/add-supplier-dialog";
 import { POOrderFormFields } from "@/components/procurement/po-order-form-fields";
 import { POSummaryPane } from "@/components/procurement/po-summary-pane";
 import { POMobileCreateView } from "@/components/procurement/po-mobile-create-view";
 import { createProduct, createPurchaseOrder } from "@/lib/db/local-database";
+import { createSupplier } from "@/lib/db/procurement";
 import { toast } from "sonner";
 
 import { useStore } from "@/lib/context/store-context";
@@ -34,6 +36,7 @@ export default function CreateOrderPage() {
   const [newlyCreatedProductId, setNewlyCreatedProductId] = useState<
     string | null
   >(null);
+  const [isAddSupplierOpen, setIsAddSupplierOpen] = useState(false);
 
   const { suppliers, products, refetch: fetchData } = useProcurementData();
 
@@ -76,6 +79,19 @@ export default function CreateOrderPage() {
     } catch (error) {
       console.error("Failed to add product:", error);
       toast.error("Failed to add product");
+    }
+  };
+
+  const handleCreateSupplier = async (payload: any) => {
+    try {
+      const newId = await createSupplier(payload);
+      toast.success(`${payload.name} added to vendors`);
+      await fetchData();
+      setSelectedSupplierId(newId);
+      setIsAddSupplierOpen(false);
+    } catch (error) {
+      console.error("Failed to add supplier:", error);
+      toast.error("Failed to add supplier");
     }
   };
 
@@ -141,6 +157,7 @@ export default function CreateOrderPage() {
     onOpenAddProduct: handleOpenAddProduct,
     newlyCreatedProductId,
     onNewlyCreatedProductConsumed: () => setNewlyCreatedProductId(null),
+    onOpenAddSupplier: () => setIsAddSupplierOpen(true),
   };
 
   return (
@@ -203,6 +220,12 @@ export default function CreateOrderPage() {
         onAddProduct={handleCreateProduct}
         initialData={initialProductData}
         hideAddAnother
+      />
+
+      <AddSupplierDialog
+        open={isAddSupplierOpen}
+        onOpenChange={setIsAddSupplierOpen}
+        onAddSupplier={handleCreateSupplier}
       />
     </>
   );

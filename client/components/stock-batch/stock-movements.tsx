@@ -188,7 +188,7 @@ export function StockMovements() {
           <StockMovementTypeFilter
             typeFilter={typeFilter}
             setTypeFilter={setTypeFilter}
-            triggerClassName="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none data-[state=inactive]:border-border data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-primary/10 data-[state=inactive]:hover:border-primary/50 data-[state=inactive]:hover:text-primary"
+            triggerClassName="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none data-[state=inactive]:border-border data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground"
           />
           {!hasFullHistory && (
             <p className="text-[11.5px] text-muted-foreground/70 mt-2">

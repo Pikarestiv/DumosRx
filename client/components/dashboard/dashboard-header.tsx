@@ -42,6 +42,18 @@ const PAGE_ROUTES = [
     action: { label: "Add Batch", path: "/inventory/batches?action=add" },
   },
   {
+    path: "/inventory/overview",
+    title: "Inventory Dashboard",
+    desc: "Overview of your inventory health and metrics.",
+    action: { label: "Add Product", path: "/inventory/catalog?action=add" },
+  },
+  {
+    path: "/inventory/ledger",
+    title: "Stock Ledger",
+    desc: "Full audit trail of every stock movement — sales, receipts, and adjustments.",
+    action: { label: "Add Product", path: "/inventory/catalog?action=add" },
+  },
+  {
     path: "/inventory",
     title: "Inventory Dashboard",
     desc: "Overview of your inventory health and metrics.",

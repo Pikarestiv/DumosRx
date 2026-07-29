@@ -59,7 +59,9 @@ export function ResponsiveModal({
               <DialogDescription>{description}</DialogDescription>
             )}
           </DialogHeader>
-          <div className="responsive-modal-fields">{children}</div>
+          <div className="responsive-modal-fields flex flex-col flex-1 min-h-0 overflow-hidden">
+            {children}
+          </div>
           {footer}
         </DialogContent>
       </Dialog>

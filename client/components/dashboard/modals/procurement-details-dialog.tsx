@@ -23,6 +23,15 @@ const STATUS_STYLES: Record<string, string> = {
     "bg-red-100 text-red-700 border-red-200 dark:bg-red-500/20 dark:text-red-400 dark:border-red-500/30",
 };
 
+function NoProcurementItemsFound() {
+  return (
+    <div className="text-[13px] text-muted-foreground text-center py-4 flex flex-col items-center gap-2">
+      <Truck className="w-6 h-6 opacity-30" />
+      No items found.
+    </div>
+  );
+}
+
 export function ProcurementDetailsDialog({
   po,
   open,
@@ -130,11 +139,7 @@ export function ProcurementDetailsDialog({
                   </div>
                 </div>
               ))}
-              {items.length === 0 && (
-                <div className="text-[13px] text-muted-foreground text-center py-4">
-                  No items found.
-                </div>
-              )}
+              {items.length === 0 && <NoProcurementItemsFound />}
             </div>
           </div>
         </div>

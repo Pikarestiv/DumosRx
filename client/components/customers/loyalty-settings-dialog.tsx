@@ -27,6 +27,7 @@ import { REDEMPTION_ICONS, REDEMPTION_ICON_BG } from "./loyalty-icons";
 import { LoyaltySettingsRow } from "./loyalty-settings-row";
 import { LoyaltyTierFormDialog } from "./loyalty-tier-form-dialog";
 import { LoyaltyRedemptionFormDialog } from "./loyalty-redemption-form-dialog";
+import { queryKeys } from "@/lib/query-keys";
 
 interface Props {
   open: boolean;
@@ -48,20 +49,20 @@ export function LoyaltySettingsDialog({ open, onOpenChange }: Props) {
   useEffect(() => {
     if (!open) return;
     ensureLoyaltyDefaultsSeeded(user?.id).then(() => {
-      queryClient.invalidateQueries({ queryKey: ["loyalty_tiers"] });
-      queryClient.invalidateQueries({ queryKey: ["loyalty_redemption_options"] });
+      queryClient.invalidateQueries(queryKeys.loyalty.tiers());
+      queryClient.invalidateQueries(queryKeys.loyalty.redemptionOptions());
     });
   }, [open, user?.id]);
 
   const { data: tiersData, isLoading: loadingTiers, refetch: refetchTiers } = useQuery({
-    queryKey: ["loyalty_tiers"],
+    ...queryKeys.loyalty.tiers(),
     queryFn: getLoyaltyTiers,
     enabled: open,
   });
   const tiers = tiersData || [];
 
   const { data: optionsData, isLoading: loadingOptions, refetch: refetchOptions } = useQuery({
-    queryKey: ["loyalty_redemption_options"],
+    ...queryKeys.loyalty.redemptionOptions(),
     queryFn: getLoyaltyRedemptionOptions,
     enabled: open,
   });

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
+import { queryKeys } from "@/lib/query-keys";
 
 /**
  * Shared by BroadcastBanner and NotificationBell — both need the same
@@ -9,7 +10,7 @@ import { apiClient } from "@/lib/api/client";
  */
 export function useBroadcasts(storeId?: string) {
   return useQuery({
-    queryKey: ["broadcasts", storeId],
+    ...queryKeys.broadcasts.all(storeId),
     queryFn: async () => {
       const response = await apiClient.getBroadcasts(storeId);
       if (

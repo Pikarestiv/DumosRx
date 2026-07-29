@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { SmartSuppWidget } from "@/components/smartsupp-widget";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+import { apiClient } from "@/lib/api/base-client";
 
 /**
  * Fetches the Smartsupp key from the public system-configs endpoint
@@ -13,9 +12,9 @@ export function SmartSuppProvider() {
   const [chatKey, setChatKey] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch(`${API_BASE}/system-configs/smartsupp_key`)
-      .then((res) => res.json())
-      .then((data) => {
+    apiClient
+      .get("/system-configs/smartsupp_key")
+      .then(({ data }) => {
         if (data?.success) {
           const val = typeof data.data === "string" ? data.data : String(data.data ?? "");
           if (val.trim()) setChatKey(val.trim());

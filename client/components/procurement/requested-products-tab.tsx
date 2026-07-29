@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import {
   getRequestedProducts,
   markRequestedProductAsOrdered,
   deleteRequestedProduct,
-  RequestedProduct,
 } from "@/lib/db/requested-products-queries";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
@@ -18,7 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card } from "@/components/ui/card";
-import { Search } from "lucide-react";
+import { Search, PackageSearch } from "lucide-react";
 import { genericFuzzySearch } from "@/lib/utils/search";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { RequestItemDialog } from "@/components/pos/request-item-dialog";
@@ -30,9 +31,35 @@ import { usePullToRefreshHandler } from "@/lib/context/pull-to-refresh-context";
 
 type RequestStatusFilter = "all" | "pending" | "ordered";
 
+function NoRequestedProductsCard() {
+  return (
+    <div className="h-24 flex flex-col items-center justify-center gap-2 text-muted-foreground text-[13px]">
+      <PackageSearch className="w-6 h-6 opacity-30" />
+      No requested products found.
+    </div>
+  );
+}
+
+function NoRequestedProductsRow() {
+  return (
+    <TableRow>
+      <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">
+        <PackageSearch className="w-6 h-6 mx-auto mb-2 opacity-30" />
+        No requested products found.
+      </TableCell>
+    </TableRow>
+  );
+}
+
 export function RequestedProductsTab() {
-  const [requests, setRequests] = useState<RequestedProduct[]>([]);
-  const [loading, setLoading] = useState(true);
+  const {
+    data: requests = [],
+    isLoading: loading,
+    refetch: fetchRequests,
+  } = useQuery({
+    ...queryKeys.requestedProducts.all(),
+    queryFn: () => getRequestedProducts("all"),
+  });
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<RequestStatusFilter>("all");
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -55,28 +82,12 @@ export function RequestedProductsTab() {
     if (!showAddDialog) {
       fetchRequests();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showAddDialog]);
-
-  useEffect(() => {
-    fetchRequests();
-  }, []);
 
   usePullToRefreshHandler(async () => {
     await fetchRequests();
   });
-
-  const fetchRequests = async () => {
-    setLoading(true);
-    try {
-      const data = await getRequestedProducts("all");
-      setRequests(data);
-    } catch (error) {
-      console.error("Failed to fetch requested products:", error);
-      toast.error("Could not load requested products");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleMarkAsOrdered = async (id: string) => {
     try {
@@ -151,11 +162,7 @@ export function RequestedProductsTab() {
                 Loading requests...
               </div>
             )}
-            {!loading && filteredRequests.length === 0 && (
-              <div className="h-24 flex items-center justify-center text-muted-foreground text-[13px]">
-                No requested products found.
-              </div>
-            )}
+            {!loading && filteredRequests.length === 0 && <NoRequestedProductsCard />}
             {!loading &&
               filteredRequests.length > 0 &&
               filteredRequests.map((req) => (
@@ -200,16 +207,7 @@ export function RequestedProductsTab() {
                   </TableCell>
                 </TableRow>
               )}
-              {!loading && filteredRequests.length === 0 && (
-                <TableRow>
-                  <TableCell
-                    colSpan={6}
-                    className="text-center h-24 text-muted-foreground"
-                  >
-                    No requested products found.
-                  </TableCell>
-                </TableRow>
-              )}
+              {!loading && filteredRequests.length === 0 && <NoRequestedProductsRow />}
               {!loading &&
                 filteredRequests.length > 0 &&
                 filteredRequests.map((req) => (

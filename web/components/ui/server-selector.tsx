@@ -64,7 +64,7 @@ export function ServerSelector() {
         <Button
           variant="ghost"
           size="sm"
-          className="text-[10px] h-6 px-2 text-muted-foreground hover:bg-primary hover:text-white transition-colors flex items-center gap-1"
+          className="text-[10px] h-6 px-2 text-gray-400 hover:bg-primary hover:text-white transition-colors flex items-center gap-1"
         >
           <Server className="h-3 w-3" />
           Server Config

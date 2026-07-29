@@ -5,6 +5,7 @@ import { AlertCircle, Calendar, TrendingDown } from "lucide-react";
 import { getExpiringBatches } from "@/lib/db/queries/inventory";
 import { useStore } from "@/lib/context/store-context";
 import { useRouter } from "next/navigation";
+import { queryKeys } from "@/lib/query-keys";
 
 interface StockItem {
   id: string;
@@ -23,7 +24,7 @@ export function NeedsAttention({ stockData }: { stockData: StockItem[] }) {
   const expiryDays = storeProfile?.expiry_warning_days || 90;
 
   const { data: expiringBatchesData } = useQuery({
-    queryKey: ["expiringBatches", expiryDays],
+    ...queryKeys.stockBatches.expiring(expiryDays),
     queryFn: () => getExpiringBatches(expiryDays),
   });
 

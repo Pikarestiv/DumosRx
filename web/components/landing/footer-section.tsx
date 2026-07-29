@@ -4,14 +4,15 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Separator } from "@/components/ui/separator";
+import { apiClient } from "@/lib/api/base-client";
 
 export function FooterSection() {
   const [socialLinks, setSocialLinks] = useState<any>(null);
 
   useEffect(() => {
-    fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1"}/system-configs/social_links`)
-      .then((res) => res.json())
-      .then((data) => {
+    apiClient
+      .get("/system-configs/social_links")
+      .then(({ data }) => {
         if (data.success) {
           const val = typeof data.data === "string" ? JSON.parse(data.data) : data.data;
           setSocialLinks(val);

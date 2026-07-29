@@ -24,6 +24,7 @@ import {
 } from "@/lib/hooks/use-auto-lock";
 import { useSwipeNavigation } from "@/lib/hooks/use-swipe-navigation";
 import { useSidebarPeekPreference } from "@/lib/hooks/use-sidebar-peek-preference";
+import { useIsTouchDevice } from "@/lib/hooks/use-is-touch-device";
 import { usePullToRefresh } from "@/lib/hooks/use-pull-to-refresh";
 import {
   PullToRefreshProvider,
@@ -62,6 +63,7 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
   // Selectors, not a destructured whole-store call — see the comment in
   // useAutoLockTimer for why (this component wraps the entire app).
   const isLocked = useAutoLockStore((s) => s.isLocked);
+  const forceAccountSelection = useAutoLockStore((s) => s.forceAccountSelection);
   const unlock = useAutoLockStore((s) => s.unlock);
   const [recentUsers, setRecentUsers] = useState<any[]>([]);
 
@@ -96,6 +98,12 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
   const [hoverExpanded, setHoverExpanded] = useState(false);
   const [userNavOpen, setUserNavOpen] = useState(false);
   const { peekEnabled } = useSidebarPeekPreference();
+  // Touch devices (tablets/iPads at the lg: breakpoint where the desktop
+  // sidebar shows) don't get real hover intent — a tap can synthesize a
+  // hover-like event, which makes peek stick or flicker. Hard-disabled here
+  // regardless of the peekEnabled preference, since it doesn't make sense on
+  // touch at all: those devices only ever see plain collapsed or expanded.
+  const isTouchDevice = useIsTouchDevice();
   const isLogicallyCollapsed = isPosRoute ? true : sidebarCollapsed;
   const effectiveCollapsed =
     isLogicallyCollapsed && !hoverExpanded && !userNavOpen;
@@ -229,15 +237,25 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
 
               <div className="flex-1 flex flex-col pt-1 pb-0 px-4 sm:pb-6 sm:px-6">
                 <LockScreen
+                  // Force a remount when forceAccountSelection flips —
+                  // LockScreen's selectedUser state only reads defaultUser
+                  // on its initial render, so without this key, the fresh-
+                  // load effect (which sets forceAccountSelection true one
+                  // tick after mount, once it knows there are multiple
+                  // recent users) would arrive too late to have any effect.
+                  key={forceAccountSelection ? "select" : "default"}
                   recentUsers={recentUsers}
                   defaultUser={
-                    user
+                    !forceAccountSelection && user
                       ? { ...user, last_login: new Date().toISOString() }
                       : undefined
                   }
                   onLoginAsOther={() => {
                     unlock();
-                    router.push("/login");
+                    // "New credentials" mode — distinct from a plain /login
+                    // visit, which otherwise redirects straight back here
+                    // when recent accounts already exist (see app/login).
+                    router.push("/login?mode=new");
                   }}
                   onUnlockSuccess={() => unlock()}
                 />
@@ -252,26 +270,27 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
         </div>
       )}
 
-      <div className="print:hidden">
-        <DashboardSidebar
-          onOpenFeedback={() => setFeedbackOpen(true)}
-          collapsed={effectiveCollapsed}
-          logicalCollapsed={isLogicallyCollapsed}
-          onToggleCollapse={handleToggleCollapse}
-          onMouseEnter={() => !isPosRoute && peekEnabled && setHoverExpanded(true)}
-          onMouseLeave={() => setHoverExpanded(false)}
-          onUserNavOpenChange={setUserNavOpen}
-        />
-      </div>
+      <DashboardSidebar
+        onOpenFeedback={() => setFeedbackOpen(true)}
+        collapsed={effectiveCollapsed}
+        logicalCollapsed={isLogicallyCollapsed}
+        onToggleCollapse={handleToggleCollapse}
+        onMouseEnter={() =>
+          !isPosRoute &&
+          !isTouchDevice &&
+          peekEnabled &&
+          setHoverExpanded(true)
+        }
+        onMouseLeave={() => setHoverExpanded(false)}
+        onUserNavOpenChange={setUserNavOpen}
+      />
 
       {!isPosRoute && !isCreatePORoute && (
-        <div className="print:hidden">
-          <MobileBottomNav
-            onOpenFeedback={() => setFeedbackOpen(true)}
-            moreDrawerOpen={moreDrawerOpen}
-            onMoreDrawerOpenChange={setMoreDrawerOpen}
-          />
-        </div>
+        <MobileBottomNav
+          onOpenFeedback={() => setFeedbackOpen(true)}
+          moreDrawerOpen={moreDrawerOpen}
+          onMoreDrawerOpenChange={setMoreDrawerOpen}
+        />
       )}
 
       <FeedbackForm open={feedbackOpen} onOpenChange={setFeedbackOpen} />
@@ -296,7 +315,7 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
       >
         <div
           className={cn(
-            "print:hidden shrink-0 bg-card sm:bg-background",
+            "shrink-0 bg-card sm:bg-background",
             isCreatePORoute && "hidden lg:block",
           )}
           style={{
@@ -339,9 +358,7 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
           </main>
         </div>
       </div>
-      <div className="print:hidden">
-        <DashboardTour />
-      </div>
+      <DashboardTour />
     </div>
   );
 }

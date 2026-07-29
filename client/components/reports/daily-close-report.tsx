@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useDailyCloseData } from "@/lib/hooks/use-daily-close-data";
+import { useStore } from "@/lib/context/store-context";
 import { TransactionDetailsDialog } from "@/components/pos/transaction-details-dialog";
 
 import { DailyCloseHeader } from "./daily-close/daily-close-header";
@@ -16,6 +17,7 @@ interface DailyCloseReportProps {
 }
 
 export function DailyCloseReport({ reportDate }: DailyCloseReportProps) {
+  const { storeProfile } = useStore();
   const {
     currencyCode,
     salesToday,
@@ -28,6 +30,7 @@ export function DailyCloseReport({ reportDate }: DailyCloseReportProps) {
   const [isSalesModalOpen, setIsSalesModalOpen] = useState(false);
   const [selectedSale, setSelectedSale] = useState<any>(null);
   const [paymentFilter, setPaymentFilter] = useState("all");
+  const printRef = useRef<HTMLDivElement>(null);
 
   const openSalesModal = (filter: string) => {
     setPaymentFilter(filter);
@@ -38,26 +41,39 @@ export function DailyCloseReport({ reportDate }: DailyCloseReportProps) {
     <div className="space-y-4 sm:space-y-6">
       <DailyCloseHeader reportDate={reportDate} />
 
-      <DailyCloseMetrics
-        currencyCode={currencyCode}
-        aggregatedTotals={aggregatedTotals}
-        totalProfit={totalProfit}
-        openSalesModal={openSalesModal}
-      />
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <PaymentBreakdownCard
+      <div ref={printRef} className="space-y-4 sm:space-y-6">
+        <DailyCloseMetrics
           currencyCode={currencyCode}
           aggregatedTotals={aggregatedTotals}
+          totalProfit={totalProfit}
+          openSalesModal={openSalesModal}
         />
 
-        <HighestSellingProductsCard
-          currencyCode={currencyCode}
-          topSellingMeds={topSellingMeds}
-        />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <PaymentBreakdownCard
+            currencyCode={currencyCode}
+            aggregatedTotals={aggregatedTotals}
+          />
+
+          <HighestSellingProductsCard
+            currencyCode={currencyCode}
+            topSellingMeds={topSellingMeds}
+          />
+        </div>
       </div>
 
-      <DailyCloseActions exportToCSV={exportToCSV} />
+      <DailyCloseActions
+        exportToCSV={exportToCSV}
+        printRef={printRef}
+        pdfInput={{
+          storeName: storeProfile?.name || "Store",
+          reportDate,
+          currencyCode,
+          aggregatedTotals,
+          totalProfit,
+          topSellingMeds,
+        }}
+      />
 
       <SalesListModal
         isOpen={isSalesModalOpen}

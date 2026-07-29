@@ -1,10 +1,11 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getPurchasePatterns } from "@/lib/db/queries/reports";
+import { queryKeys } from "@/lib/query-keys";
 
 export function usePurchasePatterns(dateFilter: string) {
   const { data: metrics } = useQuery({
-    queryKey: ['purchasePatterns', dateFilter],
+    ...queryKeys.bi.purchasePatterns(dateFilter),
     queryFn: () => getPurchasePatterns(dateFilter)
   });
 

@@ -5,6 +5,7 @@ import { useStockBatchStats } from "@/lib/hooks/use-stock-batch-stats";
 import { useStore } from "@/lib/context/store-context";
 import { useAuth } from "@/lib/context/auth-context";
 import { formatCurrency } from "@/lib/utils";
+import { queryKeys } from "@/lib/query-keys";
 
 export type SalesComparison =
   | { state: "none" }
@@ -22,7 +23,7 @@ export function useDashboardOverview() {
   const isRestrictedRole =
     user?.role === "sales_staff" || user?.role === "specialist";
   const { data: dashboardData } = useQuery({
-    queryKey: ["dashboardOverviewData", user?.id, isRestrictedRole],
+    ...queryKeys.dashboard.overview(user?.id, isRestrictedRole),
     queryFn: () => getDashboardOverviewData(user?.id, isRestrictedRole),
   });
 

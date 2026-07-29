@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { format, subDays, subMonths } from "date-fns";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   FileText,
   Download,
+  FileDown,
+  Printer,
   BarChart,
   ClipboardList,
   Wallet,
@@ -15,7 +16,6 @@ import {
   Calendar as CalendarIcon,
   Loader2,
   CheckCircle2,
-  Eye,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -34,6 +34,7 @@ import {
 import {
   useReportExport,
   RecentDownload,
+  ReportId,
 } from "@/lib/hooks/use-report-export";
 import { toast } from "sonner";
 
@@ -58,19 +59,12 @@ function getDateRange(preset: string): { from?: string; to?: string } {
 }
 
 export function ReportCenter() {
-  const router = useRouter();
   const [datePreset, setDatePreset] = useState("30d");
   const [loadingReport, setLoadingReport] = useState<string | null>(null);
   const [recentDownloads, setRecentDownloads] = useState<RecentDownload[]>([]);
 
-  const {
-    exportSalesReport,
-    exportStockBatchReport,
-    exportProfitLossReport,
-    exportCustomerReport,
-    exportExpensesReport,
-    getRecentDownloads,
-  } = useReportExport();
+  const { exportReportCsv, downloadReportPdf, printReport, getRecentDownloads } =
+    useReportExport();
 
   const refreshRecent = useCallback(() => {
     setRecentDownloads(getRecentDownloads());
@@ -80,29 +74,23 @@ export function ReportCenter() {
     refreshRecent();
   }, [refreshRecent]);
 
-  const runExport = async (reportId: string) => {
+  const runAction = async (
+    reportId: ReportId,
+    action: "csv" | "pdf" | "print",
+  ) => {
     const { from, to } = getDateRange(datePreset);
     setLoadingReport(reportId);
     try {
-      switch (reportId) {
-        case "sales":
-          await exportSalesReport(from, to);
-          break;
-        case "stock_batches":
-          await exportStockBatchReport();
-          break;
-        case "profit-loss":
-          await exportProfitLossReport(from, to);
-          break;
-        case "customers":
-          await exportCustomerReport();
-          break;
-        case "expenses":
-          await exportExpensesReport(from, to);
-          break;
+      if (action === "csv") {
+        await exportReportCsv(reportId, from, to);
+        toast.success("Export successful", { description: "Your CSV has been downloaded." });
+      } else if (action === "pdf") {
+        await downloadReportPdf(reportId, from, to);
+        toast.success("Export successful", { description: "Your PDF has been downloaded." });
+      } else {
+        await printReport(reportId, from, to);
       }
       refreshRecent();
-      toast.success("Export successful", { description: "Your report has been downloaded." });
     } catch (err) {
       console.error(err);
       toast.error("Export failed", {
@@ -113,25 +101,13 @@ export function ReportCenter() {
     }
   };
 
-  const runPrint = (reportId: string) => {
-    const { from, to } = getDateRange(datePreset);
-    const params = new URLSearchParams({ report: reportId });
-    if (from) params.set("from", from);
-    if (to) params.set("to", to);
-    const printUrl = `/reports/print?${params.toString()}`;
-    router.push(printUrl);
-  };
-
-  const runPreview = (reportId: string) => {
-    const { from, to } = getDateRange(datePreset);
-    const params = new URLSearchParams({ report: reportId, preview: "true" });
-    if (from) params.set("from", from);
-    if (to) params.set("to", to);
-    const printUrl = `/reports/print?${params.toString()}`;
-    router.push(printUrl);
-  };
-
-  const reports = [
+  const reports: {
+    id: ReportId;
+    title: string;
+    description: string;
+    icon: typeof FileText;
+    category: string;
+  }[] = [
     {
       id: "sales",
       title: "Detailed Sales Report",
@@ -222,16 +198,6 @@ export function ReportCenter() {
                       {report.description}
                     </p>
                     <div className="flex flex-wrap items-center gap-2 mt-3">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 text-[11px] gap-1.5 flex-1 md:flex-none border-border"
-                        onClick={() => runPreview(report.id)}
-                        disabled={isLoading}
-                      >
-                        <Eye className="h-3 w-3" />
-                        Preview
-                      </Button>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button
@@ -249,14 +215,26 @@ export function ReportCenter() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => runExport(report.id)} className="cursor-pointer text-[12px]">
-                            Export CSV
+                          <DropdownMenuItem onClick={() => runAction(report.id, "pdf")} className="cursor-pointer text-[12px] gap-2">
+                            <FileDown className="h-3.5 w-3.5 text-inherit" />
+                            Download PDF
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => runPrint(report.id)} className="cursor-pointer text-[12px]">
-                            Export PDF
+                          <DropdownMenuItem onClick={() => runAction(report.id, "csv")} className="cursor-pointer text-[12px] gap-2">
+                            <FileText className="h-3.5 w-3.5 text-inherit" />
+                            Download CSV
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-[11px] gap-1.5 flex-1 md:flex-none border-border"
+                        onClick={() => runAction(report.id, "print")}
+                        disabled={isLoading}
+                      >
+                        <Printer className="h-3 w-3" />
+                        Print
+                      </Button>
                     </div>
                   </div>
                 </div>

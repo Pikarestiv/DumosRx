@@ -151,6 +151,29 @@ class AdminController extends Controller
         }
     }
 
+    public function activityLogs(Request $request)
+    {
+        if ($request->user()->role !== 'super_admin') {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        try {
+            $data = $this->adminService->getActivityLogs(
+                $request->query('page', 1),
+                $request->query('search'),
+                $request->query('action'),
+                $request->query('store_id'),
+                $request->query('user_id'),
+                $request->query('date_from'),
+                $request->query('date_to'),
+            );
+            return response()->json($data);
+        } catch (\Exception $e) {
+            Log::error("Admin Activity Logs Error: " . $e->getMessage());
+            return response()->json(['error' => 'Failed to fetch activity logs'], 500);
+        }
+    }
+
     public function search(Request $request)
     {
         if ($request->user()->role !== 'super_admin') {

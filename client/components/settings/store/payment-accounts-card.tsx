@@ -38,6 +38,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { NIGERIAN_BANKS } from "@/lib/constants/suggestions";
 import { SearchableInput } from "@/components/ui/searchable-input";
 import { useDefaultPaymentAccounts } from "@/lib/hooks/use-default-payment-accounts";
+import { queryKeys } from "@/lib/query-keys";
 
 interface PaymentAccount {
   id: string;
@@ -69,7 +70,7 @@ export function PaymentAccountsCard() {
   const activeUserId = user?.id;
 
   const { data: accountsData, isLoading: loading, refetch } = useQuery({
-    queryKey: ['paymentAccounts', activeStoreId],
+    ...queryKeys.paymentAccounts.all(activeStoreId),
     queryFn: () => getPaymentAccounts(activeStoreId)
   });
   const accounts = accountsData || [];

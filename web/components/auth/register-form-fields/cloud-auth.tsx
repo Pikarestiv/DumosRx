@@ -31,7 +31,7 @@ export function CloudAuth({ form, itemVariant }: CloudAuthProps) {
                   <Input
                     type="password"
                     placeholder="******"
-                    className="pl-10 bg-white/5 border-white/10 text-white focus:border-primary/50 focus:ring-primary/20 h-11"
+                    className="pl-10 bg-white/5 border-white/10 text-white placeholder:text-gray-400 focus:border-primary/50 focus:ring-primary/20 h-11"
                     {...field}
                   />
                 </div>
@@ -55,7 +55,7 @@ export function CloudAuth({ form, itemVariant }: CloudAuthProps) {
                   <Input
                     type="password"
                     placeholder="******"
-                    className="pl-10 bg-white/5 border-white/10 text-white focus:border-primary/50 focus:ring-primary/20 h-11"
+                    className="pl-10 bg-white/5 border-white/10 text-white placeholder:text-gray-400 focus:border-primary/50 focus:ring-primary/20 h-11"
                     {...field}
                   />
                 </div>

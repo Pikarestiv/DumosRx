@@ -16,6 +16,51 @@ import { useAuth } from "@/lib/context/auth-context";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { useQuery } from "@tanstack/react-query";
 import { getTransactionDetails } from "@/lib/db/queries/sales";
+import { queryKeys } from "@/lib/query-keys";
+import { usePrintReceipt } from "./use-print-receipt";
+import { ReceiptTransaction } from "./receipt-view";
+
+function saleToReceiptTransaction(
+  sale: any,
+  items: any[],
+): ReceiptTransaction {
+  let paymentSplits;
+  if (sale.payment_method === "mixed" && sale.payment_details) {
+    try {
+      const parsed =
+        typeof sale.payment_details === "string"
+          ? JSON.parse(sale.payment_details)
+          : sale.payment_details;
+      paymentSplits = Array.isArray(parsed) ? parsed : parsed?.splits;
+    } catch {
+      // payment_details wasn't valid JSON — fall back to the plain method line
+    }
+  }
+
+  return {
+    id: sale.id,
+    date: sale.transaction_date || sale.created_at,
+    cashier: sale.cashier_name || sale.user_name || sale.cashier,
+    items: items.map((item) => ({
+      id: item.id,
+      name: item.product_name || item.name || "Unknown Item",
+      quantity: item.quantity,
+      unit_price: item.unit_price,
+      subtotal: item.total_price ?? item.subtotal ?? item.unit_price * item.quantity,
+    })),
+    customer: sale.customer_name
+      ? { name: sale.customer_name, phone: sale.customer_phone }
+      : null,
+    subtotal: sale.subtotal ?? 0,
+    tax: sale.tax_amount ?? sale.tax ?? 0,
+    discount: sale.discount_total ?? sale.discount_amount ?? sale.discount ?? 0,
+    total: sale.total_amount !== undefined ? sale.total_amount : sale.total,
+    paymentMethod: sale.payment_method || "cash",
+    amountPaid: sale.amount_paid ?? (sale.total_amount ?? sale.total),
+    change: sale.change_given ?? sale.change ?? 0,
+    paymentSplits,
+  };
+}
 
 interface TransactionDetailsDialogProps {
   sale: any;
@@ -33,8 +78,9 @@ export function TransactionDetailsDialog({
   onReturnClick,
 }: TransactionDetailsDialogProps) {
   const { isAdmin } = useAuth();
+  const { print, portal } = usePrintReceipt();
   const { data: detailsData } = useQuery({
-    queryKey: ["transactionDetails", sale?.id],
+    ...queryKeys.sales.transactionDetails(sale?.id),
     queryFn: () =>
       open && sale?.id ? getTransactionDetails(sale.id) : Promise.resolve(null),
     enabled: !!(open && sale?.id),
@@ -83,7 +129,7 @@ export function TransactionDetailsDialog({
   );
 
   const footer = (
-    <div className="flex flex-col sm:flex-row justify-end gap-3 hide-on-print">
+    <div className="flex flex-col sm:flex-row justify-end gap-3">
       {isAdmin && onReturnClick && (
         <Button
           variant="outline"
@@ -97,7 +143,10 @@ export function TransactionDetailsDialog({
           Recall / Return
         </Button>
       )}
-      <Button onClick={() => window.print()} className="w-full sm:w-auto">
+      <Button
+        onClick={() => print(saleToReceiptTransaction(sale, items))}
+        className="w-full sm:w-auto"
+      >
         <Printer className="w-4 h-4 mr-2" />
         Print Receipt
       </Button>
@@ -238,20 +287,23 @@ export function TransactionDetailsDialog({
   );
 
   return (
-    <ResponsiveModal
-      open={open}
-      onOpenChange={onOpenChange}
-      title={title}
-      description={description}
-      className="sm:max-w-2xl w-full p-0 gap-0 overflow-hidden"
-      headerClassName="px-4 pt-0 pb-2 sm:px-6 sm:pt-6 sm:pb-3 border-b sm:border-b-0 border-border"
-      footer={
-        <div className="p-4 sm:px-6 sm:py-4 border-t border-border bg-background pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
-          {footer}
-        </div>
-      }
-    >
-      {content}
-    </ResponsiveModal>
+    <>
+      <ResponsiveModal
+        open={open}
+        onOpenChange={onOpenChange}
+        title={title}
+        description={description}
+        className="sm:max-w-2xl w-full p-0 gap-0 overflow-hidden"
+        headerClassName="px-4 pt-0 pb-2 sm:px-6 sm:pt-6 sm:pb-3 border-b sm:border-b-0 border-border"
+        footer={
+          <div className="p-4 sm:px-6 sm:py-4 border-t border-border bg-background pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
+            {footer}
+          </div>
+        }
+      >
+        {content}
+      </ResponsiveModal>
+      {portal}
+    </>
   );
 }

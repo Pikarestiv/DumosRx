@@ -1,9 +1,11 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { setCurrentUser as setDbUser } from "@/lib/db/local-database";
+import { setCurrentUser as setDbUser, logAction } from "@/lib/db/local-database";
 import { apiClient } from "@/lib/api/client";
 import { getUserByUsernameOrEmail, createDefaultAdmin, getUserPin, updateUserPin } from "@/lib/db/queries/auth";
+import { useAutoLockStore } from "@/lib/hooks/use-auto-lock";
+import { AUDIT_ACTIONS } from "@/lib/db/audit-actions";
 
 export interface User {
   id: string;
@@ -94,7 +96,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     if (dbUser) {
       // If PIN is provided, check it
-      if (pin && dbUser.pin !== pin) return false;
+      if (pin && dbUser.pin !== pin) {
+        // The acting user_id on this row will be whoever was previously
+        // logged in on this device (or null), not the failed identifier —
+        // audit_logs attributes actions to the current session, and there
+        // isn't one yet at this point. record_id + details.username still
+        // identify which account the attempt was against.
+        logAction(AUDIT_ACTIONS.LOGIN_FAILED, "users", dbUser.id, {
+          username: cleanIdentifier,
+          reason: "invalid_pin",
+        }).catch(() => {});
+        return false;
+      }
 
       const userProfile: User = {
         id: dbUser.id,
@@ -108,6 +121,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(userProfile);
       setDbUser(userProfile);
       localStorage.setItem("dumos_user", JSON.stringify(userProfile));
+      // Marks this tab as already having gone through a real auth/unlock this
+      // session — DashboardLayout's fresh-load lock check reads this so it
+      // doesn't immediately re-lock right after a login/unlock that just
+      // succeeded. Cleared on logout; sessionStorage itself clears on tab
+      // close, so a genuinely new tab/session still locks correctly.
+      sessionStorage.setItem("dumos_session_authenticated", "1");
+      // Any successful login means "not locked", full stop — regardless of
+      // which screen triggered it. Without this, a stale isLocked=true left
+      // over from an earlier auto-lock timeout (persisted in localStorage)
+      // would survive a fresh login untouched and immediately re-show the
+      // dashboard's lock overlay right after login just succeeded.
+      useAutoLockStore.getState().unlock();
 
       // Update recent users list
       const recentUsersStr = localStorage.getItem("dumos_recent_users");
@@ -127,10 +152,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (recentUsers.length > 5) recentUsers = recentUsers.slice(0, 5); // Keep last 5
 
       localStorage.setItem("dumos_recent_users", JSON.stringify(recentUsers));
-      
+
+      logAction(AUDIT_ACTIONS.LOGIN, "users", userProfile.id, {
+        username: userProfile.username,
+      }).catch(() => {});
+
       return true;
     }
-    
+
     // Fallback: If no users exist, create a default admin
     if (cleanIdentifier.toLowerCase() === "admin") {
       const defaultAdmin: User = {
@@ -158,6 +187,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(defaultAdmin);
       setDbUser(defaultAdmin);
       localStorage.setItem("dumos_user", JSON.stringify(defaultAdmin));
+      sessionStorage.setItem("dumos_session_authenticated", "1");
+      useAutoLockStore.getState().unlock();
 
       // Update recent users list for default admin
       const recentUsersStr = localStorage.getItem("dumos_recent_users");
@@ -178,6 +209,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       localStorage.setItem("dumos_recent_users", JSON.stringify(recentUsers));
 
+      logAction(AUDIT_ACTIONS.LOGIN, "users", defaultAdmin.id, {
+        username: defaultAdmin.username,
+      }).catch(() => {});
+
       return true;
     }
 
@@ -185,9 +220,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = () => {
+    // Captured before clearing — logAction attributes to the current
+    // session's user, which is about to be cleared.
+    if (user) {
+      logAction(AUDIT_ACTIONS.LOGOUT, "users", user.id, {
+        username: user.username,
+      }).catch(() => {});
+    }
     setUser(null);
     setDbUser(null);
     localStorage.removeItem("dumos_user");
+    sessionStorage.removeItem("dumos_session_authenticated");
   };
 
   const changePin = async (currentPin: string, newPin: string) => {
@@ -202,6 +245,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     try {
       await updateUserPin(user.id, newPin);
+      await logAction(AUDIT_ACTIONS.PIN_CHANGED, "users", user.id, {
+        username: user.username,
+      });
       return { success: true, message: "PIN updated successfully" };
     } catch (e) {
       console.error("Failed to update PIN", e);

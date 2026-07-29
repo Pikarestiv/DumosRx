@@ -97,7 +97,7 @@ function POSProductCard({
         {product.name}
       </div>
       <div className="text-[10px] sm:text-[11px] text-muted-foreground truncate mb-1 sm:mb-2">
-        {product.brand || "Generic"} • {product.strength || "-"}
+        {product.generic_name || "Generic"} • {product.strength || "-"}
       </div>
 
       <div className="flex items-center justify-between mt-auto pt-0.5 sm:pt-1">

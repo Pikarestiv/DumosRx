@@ -7,6 +7,7 @@ import { queryClient } from "@/lib/query-client";
 import { getAvailableStockBatches } from "@/lib/db/queries/inventory";
 import { createPrescription, generateId } from "@/lib/db/local-database";
 import { getPrescriptionById, getPrescriptionItems, updatePrescriptionRecord, deletePrescriptionItems, insertPrescriptionItem } from "@/lib/db/queries/prescriptions";
+import { queryKeys } from "@/lib/query-keys";
 
 export interface PrescriptionMedication {
   id: string;
@@ -43,7 +44,7 @@ export function useNewPrescription() {
   const [existingPrescriptionData, setExistingPrescriptionData] = useState<any>(null);
 
   const { data: stock_batchData } = useQuery({
-    queryKey: ['availableStockBatches'],
+    ...queryKeys.stockBatches.available(),
     queryFn: () => getAvailableStockBatches()
   });
 
@@ -286,9 +287,9 @@ export function useNewPrescription() {
 
         // updatePrescriptionRecord/deletePrescriptionItems/insertPrescriptionItem
         // all write via raw query() and don't go through the insert/update
-        // helpers that auto-invalidate queryKey: ["prescriptions"] — do it
-        // explicitly so the detail panel reflects the edited medications.
-        queryClient.invalidateQueries({ queryKey: ["prescriptions"] });
+        // helpers that auto-invalidate — do it explicitly so the detail
+        // panel reflects the edited medications.
+        queryClient.invalidateQueries(queryKeys.prescriptions.all());
 
         toast.success("Prescription updated successfully!");
         cancelEdit();

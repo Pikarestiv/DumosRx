@@ -1,8 +1,13 @@
 import React from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Clock, CheckCircle2, Edit2 } from "lucide-react";
+import { ArrowLeft, Clock, CheckCircle2, Edit2, Download } from "lucide-react";
+import { pdf } from "@react-pdf/renderer";
+import { format } from "date-fns";
 import { formatCurrency } from "@/lib/utils";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
+import { downloadBlob } from "@/lib/utils/report-pdf";
+import { PurchaseOrderPdf } from "./purchase-order-pdf";
+import { useStore } from "@/lib/context/store-context";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,6 +42,33 @@ export function PurchaseOrderDetails({
   onClose,
 }: PurchaseOrderDetailsProps) {
   const router = useRouter();
+  const { storeProfile } = useStore();
+
+  const handleDownloadPdf = async () => {
+    if (!selectedPO) return;
+    const blob = await pdf(
+      <PurchaseOrderPdf
+        storeName={storeProfile?.name || "Store"}
+        poNumber={`PO-${selectedPO.id.split("-")[0].toUpperCase()}`}
+        vendorName={selectedPO.vendor_name || "Unknown Vendor"}
+        createdAt={formatDateToDDMMYYYY(selectedPO.created_at)}
+        status={selectedPO.status}
+        notes={selectedPO.notes}
+        items={(selectedPO.items || []).map((item: any) => ({
+          product_name: item.product_name || "Unknown Product",
+          bulk_quantity: item.bulk_quantity || 0,
+          unit_cost: item.unit_cost || 0,
+          subtotal: item.subtotal || 0,
+        }))}
+        totalAmount={selectedPO.total_amount || 0}
+        generatedAt={format(new Date(), "d MMM yyyy, h:mm a")}
+      />,
+    ).toBlob();
+    downloadBlob(
+      blob,
+      `PO-${selectedPO.id.split("-")[0].toUpperCase()}.pdf`,
+    );
+  };
 
   if (!selectedPO) {
     return (
@@ -174,13 +206,14 @@ export function PurchaseOrderDetails({
             </div>
           </div>
 
-          <div className="print:hidden p-5 pb-[calc(var(--tauri-bottom,env(safe-area-inset-bottom,0px))+1.25rem)] lg:pb-5 border-t border-border bg-card mt-auto flex flex-col gap-3">
+          <div className="p-5 pb-[calc(var(--tauri-bottom,env(safe-area-inset-bottom,0px))+1.25rem)] lg:pb-5 border-t border-border bg-card mt-auto flex flex-col gap-3">
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
                 className="flex-1 bg-transparent h-10 text-[13.5px] font-bold"
-                onClick={() => window.print()}
+                onClick={handleDownloadPdf}
               >
+                <Download className="w-4 h-4 mr-2" />
                 Download PDF
               </Button>
               

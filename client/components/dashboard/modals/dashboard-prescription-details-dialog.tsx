@@ -25,6 +25,15 @@ const STATUS_STYLES: Record<string, string> = {
     "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/30",
 };
 
+function NoMedicationsFound() {
+  return (
+    <div className="text-[13px] text-muted-foreground text-center py-4 flex flex-col items-center gap-2">
+      <Pill className="w-6 h-6 opacity-30" />
+      No medications found.
+    </div>
+  );
+}
+
 export function DashboardPrescriptionDetailsDialog({
   prescription,
   open,
@@ -150,11 +159,7 @@ export function DashboardPrescriptionDetailsDialog({
                   )}
                 </div>
               ))}
-              {items.length === 0 && (
-                <div className="text-[13px] text-muted-foreground text-center py-4">
-                  No medications found.
-                </div>
-              )}
+              {items.length === 0 && <NoMedicationsFound />}
             </div>
           </div>
         </div>

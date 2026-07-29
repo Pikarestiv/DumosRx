@@ -1,11 +1,12 @@
 "use client";
 
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Card, CardHeader } from "@/components/ui/card";
 import { Lock, Loader2, ArrowLeft } from "lucide-react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
-import { LockScreen } from "@/components/auth/lock-screen";
 import { TraditionalLoginForm } from "@/components/auth/traditional-login-form";
 import {
   SetupPromptHeader,
@@ -14,6 +15,14 @@ import {
 import { useLogin } from "@/hooks/use-login";
 
 export default function LoginPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  // "New credentials" mode (from the dashboard lock overlay's "Login as
+  // someone else") — distinct from a plain /login visit, which otherwise
+  // redirects straight to the dashboard's own lock overlay when recent
+  // accounts already exist, to avoid ever showing two separate lock screens.
+  const isNewCredentialsMode = searchParams.get("mode") === "new";
+
   const {
     username,
     setUsername,
@@ -24,11 +33,22 @@ export default function LoginPage() {
     userCount,
     recentUsers,
     showTraditionalLogin,
-    setShowTraditionalLogin,
     handleLogin,
   } = useLogin();
 
-  if (isCheckingStatus) {
+  const showAccountSelection =
+    userCount > 0 &&
+    recentUsers.length > 0 &&
+    !showTraditionalLogin &&
+    !isNewCredentialsMode;
+
+  useEffect(() => {
+    if (showAccountSelection) {
+      router.replace("/dashboard");
+    }
+  }, [showAccountSelection, router]);
+
+  if (isCheckingStatus || showAccountSelection) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -41,7 +61,8 @@ export default function LoginPage() {
       className="fixed inset-0 flex flex-col sm:items-center sm:justify-center p-0 sm:p-4 overflow-hidden bg-background"
       style={{
         paddingTop: "calc(var(--tauri-top, env(safe-area-inset-top, 0px)))",
-        paddingBottom: "calc(var(--tauri-bottom, env(safe-area-inset-bottom, 0px)))",
+        paddingBottom:
+          "calc(var(--tauri-bottom, env(safe-area-inset-bottom, 0px)))",
       }}
     >
       {/* Mobile Top Background Layer */}
@@ -54,7 +75,9 @@ export default function LoginPage() {
 
       {/* Mobile Top Section (1/4 height) */}
       <div className="sm:hidden relative z-10 flex flex-col items-center justify-center shrink-0 min-h-[25dvh] pt-4 pb-6">
-        {(!recentUsers.length || showTraditionalLogin) && (
+        {(!recentUsers.length ||
+          showTraditionalLogin ||
+          isNewCredentialsMode) && (
           <Link
             href="/"
             className="absolute left-6 top-6 inline-flex items-center text-sm font-medium text-primary-foreground/90 hover:text-primary-foreground transition-colors group"
@@ -86,7 +109,9 @@ export default function LoginPage() {
         className="w-full h-full sm:h-auto sm:max-w-md z-10 flex flex-col mx-auto"
       >
         {/* Desktop Back Link */}
-        {(!recentUsers.length || showTraditionalLogin) && (
+        {(!recentUsers.length ||
+          showTraditionalLogin ||
+          isNewCredentialsMode) && (
           <div className="hidden sm:block px-4 sm:px-0">
             <Link
               href="/"
@@ -99,7 +124,6 @@ export default function LoginPage() {
         )}
 
         <Card className="flex-1 sm:flex-initial flex flex-col border-none sm:border-solid sm:border-border shadow-[0_-20px_40px_rgba(0,0,0,0.15)] sm:shadow-2xl bg-background sm:bg-card/60 sm:backdrop-blur-2xl rounded-t-[2.5rem] sm:rounded-xl overflow-hidden relative">
-          
           {/* Desktop Logo */}
           <div className="hidden sm:flex flex-col items-center pt-6 pb-2">
             <motion.div
@@ -130,32 +154,24 @@ export default function LoginPage() {
             </CardHeader>
           )}
 
-          {userCount === 0 && (
-            <SetupPromptContent />
-          )}
+          {userCount === 0 && <SetupPromptContent />}
 
-          {userCount > 0 && recentUsers.length > 0 && !showTraditionalLogin && (
-            <CardContent className="flex-1 flex flex-col pt-6 sm:pt-2 pb-0 px-4 sm:pb-6 sm:px-6">
-              <LockScreen
-                recentUsers={recentUsers}
-                onLoginAsOther={() => setShowTraditionalLogin(true)}
+          {userCount > 0 &&
+            (recentUsers.length === 0 ||
+              showTraditionalLogin ||
+              isNewCredentialsMode) && (
+              <TraditionalLoginForm
+                username={username}
+                setUsername={setUsername}
+                pin={pin}
+                setPin={setPin}
+                isLoading={isLoading}
+                onSubmit={handleLogin}
               />
-            </CardContent>
-          )}
-
-          {userCount > 0 && (recentUsers.length === 0 || showTraditionalLogin) && (
-            <TraditionalLoginForm
-              username={username}
-              setUsername={setUsername}
-              pin={pin}
-              setPin={setPin}
-              isLoading={isLoading}
-              onSubmit={handleLogin}
-            />
-          )}
+            )}
         </Card>
 
-        {userCount > 0 && showTraditionalLogin && (
+        {userCount > 0 && (showTraditionalLogin || isNewCredentialsMode) && (
           <div className="hidden sm:flex mt-4 items-center justify-center gap-2 text-xs font-medium text-muted-foreground/60 uppercase tracking-widest">
             <Lock className="w-3 h-3" />
             Terminal Access • Secure Login

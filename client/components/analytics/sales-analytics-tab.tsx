@@ -2,12 +2,22 @@
 
 import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
+import { TrendingUp, PieChart, LucideIcon } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
+
+function NoPeriodSalesData({ icon: Icon }: { icon: LucideIcon }) {
+  return (
+    <div className="flex flex-col items-center py-8 text-[13px] text-muted-foreground">
+      <Icon className="h-8 w-8 opacity-20 mb-2" />
+      No sales data available for this period.
+    </div>
+  );
+}
 
 interface SalesAnalyticsTabProps {
   monthlySalesData: any[];
@@ -119,11 +129,7 @@ export function SalesAnalyticsTab({
         </div>
 
         <div className="flex flex-col">
-          {products.length === 0 && (
-            <div className="text-center py-8 text-[13px] text-muted-foreground">
-              No sales data available for this period.
-            </div>
-          )}
+          {products.length === 0 && <NoPeriodSalesData icon={TrendingUp} />}
           {products.length > 0 &&
             products.map((product, index) => (
               <div
@@ -158,9 +164,7 @@ export function SalesAnalyticsTab({
         </div>
 
         {categoryDistribution.length === 0 ? (
-          <div className="text-center py-8 text-[13px] text-muted-foreground">
-            No sales data available for this period.
-          </div>
+          <NoPeriodSalesData icon={PieChart} />
         ) : (
           <div className="flex flex-col gap-3.5">
             {categoryDistribution.map((category, index) => (

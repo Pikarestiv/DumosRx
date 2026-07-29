@@ -24,14 +24,14 @@ export default function RegisterPage() {
 
   if (checking) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="min-h-dvh flex items-center justify-center bg-background">
         <Loader2 className="h-10 w-10 text-primary animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-background">
+    <div className="min-h-dvh flex items-center justify-center p-4 relative overflow-hidden bg-background">
       {/* Background Layer */}
       <div className="absolute inset-0 z-0">
         <Image

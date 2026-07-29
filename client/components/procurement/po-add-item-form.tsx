@@ -79,7 +79,6 @@ export function POAddItemForm({
           name: currentSelectedProduct.name,
           genericName: currentSelectedProduct.generic_name,
           manufacturer: currentSelectedProduct.manufacturer,
-          brand: currentSelectedProduct.brand_name,
           strength: currentSelectedProduct.strength,
           dosageForm: currentSelectedProduct.dosageForm,
         });
@@ -159,8 +158,21 @@ export function POAddItemForm({
           />
         </div>
         <div className="space-y-1">
-          <Label className="text-[10.5px] font-semibold text-primary uppercase tracking-wide">
+          <Label className="text-[10.5px] font-semibold text-primary uppercase tracking-wide flex items-center gap-1">
             Bulk Cost ({selectedProduct?.bulk_unit || "Unit"})
+            <TooltipProvider delayDuration={0}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="w-3 h-3 opacity-50 cursor-pointer" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>
+                    The cost of one {(selectedProduct?.bulk_unit || "bulk unit").toLowerCase()}{" "}
+                    (e.g. one Carton), not the price per individual base unit.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </Label>
           <Input
             type="number"

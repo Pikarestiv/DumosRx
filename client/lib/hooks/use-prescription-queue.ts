@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getActivePrescriptions, getAllPrescriptionItems, updatePrescriptionStatus as updateDbPrescriptionStatus } from "@/lib/db/queries/prescriptions";
 import { genericFuzzySearch } from "@/lib/utils/search";
+import { queryKeys } from "@/lib/query-keys";
 
 export interface PrescriptionMedication {
   id: string;
@@ -107,11 +108,11 @@ export function usePrescriptionQueue() {
   const [selectedPrescriptionId, setSelectedPrescriptionId] = useState<string | null>(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
 
-  // Keyed to match the "prescriptions" table name so it auto-refetches whenever
-  // insert/update/softDelete touches that table anywhere in the app (base-helpers
-  // invalidates queryKey: [table] on every write) — no manual refetch wiring needed.
+  // Tagged with meta.tables: ["prescriptions"] (see lib/query-keys.ts) so it
+  // auto-refetches whenever insert/update/softDelete touches that table
+  // anywhere in the app — no manual refetch wiring needed.
   const { data, isLoading: loading, refetch } = useQuery({
-    queryKey: ["prescriptions"],
+    ...queryKeys.prescriptions.all(),
     queryFn: fetchPrescriptions,
   });
   const prescriptions = data || [];

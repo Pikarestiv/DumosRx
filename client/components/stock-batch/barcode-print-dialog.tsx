@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -12,10 +12,42 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Barcode as BarcodeIcon, Printer, Minus, Plus } from "lucide-react";
-import { printBarcodeLabels } from "@/lib/utils/barcode-generator";
+import ReactBarcode from "react-barcode";
+import { printNode } from "@/lib/utils/print-node";
 import { toast } from "sonner";
 import { useStore } from "@/lib/context/store-context";
 import type { POSProduct } from "@/lib/types/product";
+
+const LABEL_PAGE_STYLE = `
+  @page { size: 50mm 25mm; margin: 0; }
+  body { margin: 0; padding: 0; }
+  .label {
+    width: 50mm;
+    height: 25mm;
+    box-sizing: border-box;
+    padding: 2mm;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    page-break-after: always;
+    font-family: sans-serif;
+  }
+  .label .name {
+    font-size: 8pt;
+    font-weight: bold;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+  }
+  .label .price {
+    font-size: 9pt;
+    font-weight: bold;
+    margin-top: 1mm;
+  }
+`;
 
 interface BarcodePrintDialogProps {
   isOpen: boolean;
@@ -30,22 +62,15 @@ export function BarcodePrintDialog({
 }: BarcodePrintDialogProps) {
   const { storeProfile } = useStore();
   const [quantity, setQuantity] = useState(1);
+  const printRef = useRef<HTMLDivElement>(null);
 
   const handlePrint = () => {
     if (!product) return;
 
     try {
-      printBarcodeLabels(
-        [
-          {
-            name: product.name,
-            price: product.unit_price,
-            barcode: product.barcode || product.id, // Fallback to ID if no barcode
-            currency: storeProfile?.currency || "NGN",
-          },
-        ],
-        quantity,
-      );
+      requestAnimationFrame(() => {
+        if (printRef.current) printNode(printRef.current, LABEL_PAGE_STYLE);
+      });
 
       toast.success(`Printing ${quantity} labels for ${product.name}`);
       onClose();
@@ -111,19 +136,46 @@ export function BarcodePrintDialog({
             </div>
 
             <div className="p-4 rounded-xl border-2 border-dashed border-accent/10 flex flex-col items-center justify-center gap-3 bg-accent/5">
-              <div className="w-full h-8 bg-black/80 rounded flex items-center justify-center">
-                <div className="w-full h-full flex items-center justify-around px-2">
-                  {[...Array(15)].map((_, i) => (
-                    <div
-                      key={i}
-                      className={`h-full bg-white/20 w-${Math.floor(Math.random() * 2) + 1}`}
-                    />
-                  ))}
-                </div>
+              <div className="bg-white rounded p-2">
+                <ReactBarcode
+                  value={product.barcode || product.id}
+                  width={1.4}
+                  height={40}
+                  fontSize={11}
+                  margin={0}
+                />
               </div>
               <p className="text-[10px] text-muted-foreground font-mono italic">
                 Label Preview (50mm x 25mm)
               </p>
+            </div>
+          </div>
+        )}
+
+        {/* Off-screen — printed via printNode, not display:none (that would
+            carry over into the printed clone and hide it there too). */}
+        {product && (
+          <div
+            aria-hidden="true"
+            style={{ position: "fixed", left: -9999, top: -9999 }}
+          >
+            <div ref={printRef}>
+              {Array.from({ length: quantity }).map((_, i) => (
+                <div className="label" key={i}>
+                  <div className="name">{product.name}</div>
+                  <ReactBarcode
+                    value={product.barcode || product.id}
+                    width={1}
+                    height={26}
+                    fontSize={8}
+                    margin={0}
+                  />
+                  <div className="price">
+                    {storeProfile?.currency || "NGN"}{" "}
+                    {product.unit_price.toLocaleString()}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}

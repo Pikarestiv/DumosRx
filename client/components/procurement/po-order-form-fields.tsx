@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { ShoppingCart } from "lucide-react";
+import { Plus, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -39,6 +39,7 @@ interface POOrderFormFieldsProps {
   onOpenAddProduct: (productData: any) => void;
   newlyCreatedProductId: string | null;
   onNewlyCreatedProductConsumed: () => void;
+  onOpenAddSupplier: () => void;
 }
 
 /** Vendor/notes/payment/due-date/add-item fields shared by the create and
@@ -61,6 +62,7 @@ export function POOrderFormFields({
   onOpenAddProduct,
   newlyCreatedProductId,
   onNewlyCreatedProductConsumed,
+  onOpenAddSupplier,
 }: POOrderFormFieldsProps) {
   const router = useRouter();
 
@@ -71,37 +73,49 @@ export function POOrderFormFields({
           <Label className="text-[12.5px] font-semibold text-foreground">
             Select Vendor
           </Label>
-          <Select
-            value={selectedSupplierId}
-            onValueChange={setSelectedSupplierId}
-          >
-            <SelectTrigger className="w-full border border-border rounded-[10px] px-3.5 h-11 text-[13px] bg-card shadow-sm">
-              <SelectValue placeholder="Choose a supplier..." />
-            </SelectTrigger>
-            <SelectContent className="bg-card border-border">
-              {suppliers.length === 0 ? (
-                <div className="py-4 text-center text-[12.5px] text-muted-foreground px-2 flex flex-col items-center justify-center gap-1.5">
-                  <span>No suppliers available</span>
-                  <Button
-                    variant="link"
-                    className="h-auto p-0 text-[11px]"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      router.push("/procurement/vendors?action=add");
-                    }}
-                  >
-                    Add a supplier first
-                  </Button>
-                </div>
-              ) : (
-                suppliers.map((v) => (
-                  <SelectItem key={v.id} value={v.id}>
-                    {v.name}
-                  </SelectItem>
-                ))
-              )}
-            </SelectContent>
-          </Select>
+          <div className="flex gap-2">
+            <Select
+              value={selectedSupplierId}
+              onValueChange={setSelectedSupplierId}
+            >
+              <SelectTrigger className="w-full border border-border rounded-[10px] px-3.5 h-11 data-[size=default]:h-11 text-[13px] bg-card shadow-sm">
+                <SelectValue placeholder="Choose a supplier..." />
+              </SelectTrigger>
+              <SelectContent className="bg-card border-border">
+                {suppliers.length === 0 ? (
+                  <div className="py-4 text-center text-[12.5px] text-muted-foreground px-2 flex flex-col items-center justify-center gap-1.5">
+                    <span>No suppliers available</span>
+                    <Button
+                      variant="link"
+                      className="h-auto p-0 text-[11px]"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        router.push("/procurement/vendors?action=add");
+                      }}
+                    >
+                      Add a supplier first
+                    </Button>
+                  </div>
+                ) : (
+                  suppliers.map((v) => (
+                    <SelectItem key={v.id} value={v.id}>
+                      {v.name}
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-11 w-11 shrink-0 rounded-[10px] border-border bg-card shadow-sm"
+              title="Add New Supplier"
+              onClick={onOpenAddSupplier}
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
         <div className="space-y-1.5">
           <Label className="text-[12.5px] font-semibold text-foreground">
@@ -122,7 +136,7 @@ export function POOrderFormFields({
             Payment Status
           </Label>
           <Select value={paymentStatus} onValueChange={setPaymentStatus}>
-            <SelectTrigger className="w-full border border-border rounded-[10px] px-3.5 h-11 text-[13px] bg-card shadow-sm">
+            <SelectTrigger className="w-full border border-border rounded-[10px] px-3.5 h-11 data-[size=default]:h-11 text-[13px] bg-card shadow-sm">
               <SelectValue placeholder="Select status..." />
             </SelectTrigger>
             <SelectContent className="bg-card border-border">
@@ -139,6 +153,9 @@ export function POOrderFormFields({
           <DatePickerInput
             value={dueDate}
             onChange={(val) => setDueDate(val)}
+            disablePast
+            fromYear={new Date().getFullYear()}
+            toYear={new Date().getFullYear() + 3}
             className="w-full [&_input]:bg-card [&_input]:shadow-sm [&_input]:border [&_input]:border-border [&_input]:rounded-[10px] [&_input]:px-3.5 [&_input]:h-11 [&_input]:text-[13px]"
           />
         </div>
@@ -181,7 +198,13 @@ export function POOrderFormFields({
         </div>
       </div>
       <div className="text-[11.5px] text-muted-foreground px-1">
-        Items appear in the Order Summary panel on the right as you add them.
+        <span className="lg:hidden">
+          Items appear in the Order Summary below as you add them.
+        </span>
+        <span className="hidden lg:inline">
+          Items appear in the Order Summary panel on the right as you add
+          them.
+        </span>
       </div>
     </>
   );

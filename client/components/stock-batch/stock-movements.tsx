@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Search, Lock } from "lucide-react";
+import { Search, Lock, ArrowLeftRight } from "lucide-react";
 import { format, isToday, isYesterday, differenceInDays } from "date-fns";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { genericFuzzySearch } from "@/lib/utils/search";
@@ -31,6 +31,15 @@ function mapMovement(m: any): StockMovement {
     supplier: m.supplier?.name || m.supplier_name,
     batchNumber: m.batch_number,
   };
+}
+
+function NoMovementsFound() {
+  return (
+    <div className="p-8 flex flex-col items-center gap-2 text-center text-muted-foreground text-[13px]">
+      <ArrowLeftRight className="w-7 h-7 opacity-30" />
+      No movements found.
+    </div>
+  );
 }
 
 export function StockMovements() {
@@ -179,7 +188,7 @@ export function StockMovements() {
           <StockMovementTypeFilter
             typeFilter={typeFilter}
             setTypeFilter={setTypeFilter}
-            triggerClassName="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none data-[state=inactive]:border-border data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-primary/10 data-[state=inactive]:hover:border-primary/50 data-[state=inactive]:hover:text-primary"
+            triggerClassName="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none data-[state=inactive]:border-border data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground"
           />
           {!hasFullHistory && (
             <p className="text-[11.5px] text-muted-foreground/70 mt-2">
@@ -200,11 +209,7 @@ export function StockMovements() {
 
         {/* List */}
         <div ref={desktopScrollRef} className="flex-1 overflow-y-auto pb-6">
-          {filteredMovements.length === 0 && (
-            <div className="p-8 text-center text-muted-foreground text-[13px]">
-              No movements found.
-            </div>
-          )}
+          {filteredMovements.length === 0 && <NoMovementsFound />}
           {filteredMovements.length > 0 && (
             <div
               className="relative w-full"
@@ -235,11 +240,7 @@ export function StockMovements() {
 
       {/* Mobile: grouped list, each group already renders its own card */}
       <div className="md:hidden">
-        {filteredMovements.length === 0 && (
-          <div className="p-8 text-center text-muted-foreground text-[13px]">
-            No movements found.
-          </div>
-        )}
+        {filteredMovements.length === 0 && <NoMovementsFound />}
         {filteredMovements.length > 0 &&
           Object.entries(groupedMovements).map(([groupLabel, groupItems]) => (
             <StockMovementMobileGroup

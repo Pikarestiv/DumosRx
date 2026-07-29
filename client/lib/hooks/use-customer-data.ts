@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { insert, update, generateId } from "@/lib/db/local-database";
 import { getCustomers, getCustomerRetentionMetrics, getCustomerTransactions } from "@/lib/db/queries/customers";
 import { getLoyaltyTiers, LoyaltyTierRow } from "@/lib/db/queries/loyalty";
+import { queryKeys } from "@/lib/query-keys";
 export interface Customer {
   id: string;
   name: string;
@@ -72,68 +74,68 @@ export interface CustomerMetrics {
   segmentation: { name: string; count: number; percentage: number }[];
 }
 
-export function useCustomerData() {
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [metrics, setMetrics] = useState<CustomerMetrics | null>(null);
-  const [loading, setLoading] = useState(true);
-  const tiersRef = useRef<LoyaltyTierRow[]>([]);
+async function fetchCustomerData() {
+  const dbTiers = await getLoyaltyTiers();
+  const tiers = dbTiers.length > 0 ? dbTiers : undefined;
 
-  const fetchCustomers = async () => {
-    setLoading(true);
-    try {
-      const dbTiers = await getLoyaltyTiers();
-      if (dbTiers.length > 0) tiersRef.current = dbTiers;
+  const data = await getCustomers();
+  const transformed = data.map((c: any) => transformCustomer(c, tiers));
 
-      const data = await getCustomers();
-      const transformed = data.map((c: any) => transformCustomer(c, tiersRef.current.length ? tiersRef.current : undefined));
-      setCustomers(transformed);
+  const retMetrics = await getCustomerRetentionMetrics();
 
-      const retMetrics = await getCustomerRetentionMetrics();
+  const totalCustomers = transformed.length;
+  const loyaltyMembers = transformed.filter((c) => c.points > 0).length;
+  const totalPoints = transformed.reduce((acc, c) => acc + (c.points || 0), 0);
+  const avgPoints = totalCustomers > 0 ? Math.round(totalPoints / totalCustomers) : 0;
 
-      const totalCustomers = transformed.length;
-      const loyaltyMembers = transformed.filter(c => c.points > 0).length;
-      const totalPoints = transformed.reduce((acc, c) => acc + (c.points || 0), 0);
-      const avgPoints = totalCustomers > 0 ? Math.round(totalPoints / totalCustomers) : 0;
+  const tierNames = tiers?.length
+    ? [...tiers].sort((a, b) => b.min_spend - a.min_spend).map((t) => t.name)
+    : FALLBACK_TIERS.map((t) => t.name);
+  const segmentation = tierNames.map((t) => {
+    const count = transformed.filter((c) => c.tier === t).length;
+    return {
+      name: t,
+      count,
+      percentage: totalCustomers > 0 ? Math.round((count / totalCustomers) * 100) : 0,
+    };
+  });
 
-      const tierNames = tiersRef.current.length
-        ? [...tiersRef.current].sort((a, b) => b.min_spend - a.min_spend).map((t) => t.name)
-        : FALLBACK_TIERS.map((t) => t.name);
-      const segmentation = tierNames.map(t => {
-        const count = transformed.filter(c => c.tier === t).length;
-        return {
-          name: t,
-          count,
-          percentage: totalCustomers > 0 ? Math.round((count / totalCustomers) * 100) : 0
-        };
-      });
-      
-      setMetrics({
-        totalCustomers,
-        loyaltyMembers,
-        totalPoints,
-        avgPoints,
-        retentionRate: retMetrics.retentionRate || 0,
-        avgVisits: retMetrics.avgVisits || 0,
-        avgTransaction: retMetrics.avgTransactionValue || 0,
-        segmentation
-      });
-      
-    } catch (error) {
-      console.error("Failed to fetch customers", error);
-    } finally {
-      setLoading(false);
-    }
+  const metrics: CustomerMetrics = {
+    totalCustomers,
+    loyaltyMembers,
+    totalPoints,
+    avgPoints,
+    retentionRate: retMetrics.retentionRate || 0,
+    avgVisits: retMetrics.avgVisits || 0,
+    avgTransaction: retMetrics.avgTransactionValue || 0,
+    segmentation,
   };
 
-  useEffect(() => {
-    fetchCustomers();
-  }, []);
+  return { customers: transformed, metrics, tiers };
+}
+
+export function useCustomerData() {
+  const {
+    data,
+    isLoading: loading,
+    refetch,
+  } = useQuery({
+    ...queryKeys.customers.all(),
+    queryFn: fetchCustomerData,
+  });
+
+  const fetchCustomers = async () => {
+    await refetch();
+  };
+
+  const customers = data?.customers ?? [];
+  const metrics = data?.metrics ?? null;
 
   const addCustomer = async (payload: any) => {
     try {
       const now = new Date().toISOString();
       const customerId = generateId();
-      
+
       const customerData = {
         id: customerId,
         first_name: payload.first_name,
@@ -150,10 +152,12 @@ export function useCustomerData() {
         updated_at: now,
       };
 
+      // insert()'s global cache invalidation refreshes the `customers`
+      // query in the background — no need to hand-splice the new row into
+      // local state, we just return it for the caller's immediate use.
       await insert("customers", customerData);
-      
-      const newCustomer = transformCustomer(customerData, tiersRef.current.length ? tiersRef.current : undefined);
-      setCustomers((prev) => [newCustomer, ...prev]);
+
+      const newCustomer = transformCustomer(customerData, data?.tiers);
       toast.success("Customer added successfully");
       return newCustomer;
     } catch (error: any) {
@@ -191,9 +195,8 @@ export function useCustomerData() {
         created_at: existing.joinDate,
         is_active: existing.status === "active",
         outstanding_balance: existing.outstanding_balance,
-      }, tiersRef.current.length ? tiersRef.current : undefined);
+      }, data?.tiers);
 
-      setCustomers((prev) => prev.map((c) => (c.id === id ? updatedCustomer : c)));
       toast.success("Customer updated successfully");
       return updatedCustomer;
     } catch (error: any) {
@@ -226,7 +229,6 @@ export function useCustomerData() {
       await update("customers", id, { outstanding_balance: newBalance });
 
       const updatedCustomer: Customer = { ...existing, outstanding_balance: newBalance };
-      setCustomers((prev) => prev.map((c) => (c.id === id ? updatedCustomer : c)));
       toast.success("Payment recorded successfully");
       return updatedCustomer;
     } catch (error: any) {
@@ -274,32 +276,24 @@ const transformTransaction = (row: any): CustomerTransaction => ({
 const TRANSACTIONS_RECENT_WINDOW_DAYS = 30;
 
 export function useCustomerTransactions() {
-  const [transactions, setTransactions] = useState<CustomerTransaction[]>([]);
-  const [loading, setLoading] = useState(true);
   const [hasFullHistory, setHasFullHistory] = useState(false);
 
-  const fetchTransactions = async (fullHistory = hasFullHistory) => {
-    setLoading(true);
-    try {
-      const data = fullHistory
+  const {
+    data: transactions = [],
+    isLoading: loading,
+    refetch,
+  } = useQuery({
+    ...queryKeys.customers.transactions(hasFullHistory),
+    queryFn: async () => {
+      const data = hasFullHistory
         ? await getCustomerTransactions()
         : await getCustomerTransactions({ sinceDays: TRANSACTIONS_RECENT_WINDOW_DAYS });
-      setTransactions(data.map(transformTransaction));
-    } catch (error) {
-      console.error("Failed to fetch customer transactions", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchTransactions(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+      return data.map(transformTransaction);
+    },
+  });
 
   const loadFullHistory = async () => {
     if (hasFullHistory) return;
-    await fetchTransactions(true);
     setHasFullHistory(true);
   };
 
@@ -308,6 +302,8 @@ export function useCustomerTransactions() {
     loading,
     hasFullHistory,
     loadFullHistory,
-    refetch: () => fetchTransactions(),
+    refetch: async () => {
+      await refetch();
+    },
   };
 }

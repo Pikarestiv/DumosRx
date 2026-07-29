@@ -52,7 +52,7 @@ export async function getProductByName(name: string) {
 
 export async function getProductList() {
   return query<any>(
-    "SELECT id, name, generic_name, category_id, manufacturer FROM products WHERE _deleted = 0 ORDER BY name ASC",
+    "SELECT id, name, generic_name, category_id, manufacturer, strength, dosage_form FROM products WHERE _deleted = 0 ORDER BY name ASC",
   );
 }
 

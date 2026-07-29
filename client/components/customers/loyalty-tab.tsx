@@ -9,6 +9,7 @@ import { getLoyaltyRedemptionOptions } from "@/lib/db/queries/loyalty";
 import { LoyaltySettingsDialog } from "./loyalty-settings-dialog";
 import { ResponsiveTabLabel } from "@/components/ui/responsive-tab-label";
 import { REDEMPTION_ICONS, REDEMPTION_ICON_BG } from "./loyalty-icons";
+import { queryKeys } from "@/lib/query-keys";
 
 interface Tier {
   name: string;
@@ -28,7 +29,7 @@ export function LoyaltyTab({
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   const { data: optionsData } = useQuery({
-    queryKey: ["loyalty_redemption_options"],
+    ...queryKeys.loyalty.redemptionOptions(),
     queryFn: getLoyaltyRedemptionOptions,
   });
   const redemptionOptions = (optionsData || []).filter((o) => o.is_active);

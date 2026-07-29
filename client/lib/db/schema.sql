@@ -9,7 +9,6 @@ CREATE TABLE IF NOT EXISTS products (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   generic_name TEXT,
-  brand TEXT,
   category TEXT,
   nafdac_number TEXT,
   dosage_form TEXT,

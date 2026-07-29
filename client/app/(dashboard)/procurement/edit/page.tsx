@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Clock } from "lucide-react";
 import { AddProductDialog } from "@/components/products/add-product-dialog";
+import { AddSupplierDialog } from "@/components/suppliers/add-supplier-dialog";
 import { POOrderFormFields } from "@/components/procurement/po-order-form-fields";
 import { POSummaryPane } from "@/components/procurement/po-summary-pane";
 import {
@@ -11,11 +12,13 @@ import {
   getPurchaseOrderById,
   updatePurchaseOrder,
 } from "@/lib/db/local-database";
+import { createSupplier } from "@/lib/db/procurement";
 import { toast } from "sonner";
 
 import { useStore } from "@/lib/context/store-context";
 import { useProcurementData } from "@/lib/hooks/use-procurement-data";
 import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 
 function EditOrderContent() {
   const router = useRouter();
@@ -38,6 +41,7 @@ function EditOrderContent() {
   const [newlyCreatedProductId, setNewlyCreatedProductId] = useState<
     string | null
   >(null);
+  const [isAddSupplierOpen, setIsAddSupplierOpen] = useState(false);
 
   const { suppliers, products, refetch: fetchData } = useProcurementData();
 
@@ -81,6 +85,19 @@ function EditOrderContent() {
     setIsAddProductOpen(true);
   };
 
+  const handleCreateSupplier = async (payload: any) => {
+    try {
+      const newId = await createSupplier(payload);
+      toast.success(`${payload.name} added to vendors`);
+      await fetchData();
+      setSelectedSupplierId(newId);
+      setIsAddSupplierOpen(false);
+    } catch (error) {
+      console.error("Failed to add supplier:", error);
+      toast.error("Failed to add supplier");
+    }
+  };
+
   const handleCreateProduct = async (productData: any, keepOpen?: boolean) => {
     try {
       const newProductId = await createProduct(productData);
@@ -88,7 +105,7 @@ function EditOrderContent() {
 
       // Refresh products list
       await fetchData();
-      await queryClient.invalidateQueries({ queryKey: ["productList"] });
+      await queryClient.invalidateQueries(queryKeys.products.list());
       setNewlyCreatedProductId(newProductId);
 
       if (!keepOpen) {
@@ -204,6 +221,7 @@ function EditOrderContent() {
             onOpenAddProduct={handleOpenAddProduct}
             newlyCreatedProductId={newlyCreatedProductId}
             onNewlyCreatedProductConsumed={() => setNewlyCreatedProductId(null)}
+            onOpenAddSupplier={() => setIsAddSupplierOpen(true)}
           />
         </div>
 
@@ -225,6 +243,12 @@ function EditOrderContent() {
         onAddProduct={handleCreateProduct}
         initialData={initialProductData}
         hideAddAnother
+      />
+
+      <AddSupplierDialog
+        open={isAddSupplierOpen}
+        onOpenChange={setIsAddSupplierOpen}
+        onAddSupplier={handleCreateSupplier}
       />
     </div>
   );

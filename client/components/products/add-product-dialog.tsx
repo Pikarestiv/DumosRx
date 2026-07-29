@@ -61,6 +61,10 @@ export function AddProductDialog({
     expiryDate: "",
   });
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
+  const [missingFieldsWarning, setMissingFieldsWarning] = useState<{
+    keepOpen: boolean;
+    fields: string[];
+  } | null>(null);
 
   // Load editing product data if provided
   useEffect(() => {
@@ -192,6 +196,18 @@ export function AddProductDialog({
       return;
     }
 
+    const missingFields: string[] = [];
+    if (!formData.sellingPrice) missingFields.push("Selling Price");
+    if (!formData.reorderLevel) missingFields.push("Reorder Level");
+    if (missingFields.length > 0) {
+      setMissingFieldsWarning({ keepOpen, fields: missingFields });
+      return;
+    }
+
+    submitProduct(keepOpen);
+  };
+
+  const submitProduct = (keepOpen: boolean) => {
     // Determine status
     const status: Product["status"] = formData.status || "active";
 
@@ -310,7 +326,7 @@ export function AddProductDialog({
           onSubmit={withRestriction(handleSubmit)}
           className="flex flex-col flex-1 min-h-0 overflow-hidden"
         >
-          <div className="flex-1 overflow-y-auto px-4 sm:px-0 py-2">
+          <div className="flex-1 overflow-y-auto hide-scrollbar px-4 sm:px-0 py-2">
             <ProductFormFields
               formData={formData}
               onInputChange={handleInputChange}
@@ -333,6 +349,20 @@ export function AddProductDialog({
         confirmLabel="OK"
         hideCancel
         onConfirm={() => setAlertMessage(null)}
+      />
+      <ConfirmDialog
+        open={!!missingFieldsWarning}
+        onOpenChange={(open) => {
+          if (!open) setMissingFieldsWarning(null);
+        }}
+        title="Missing details"
+        description={`${missingFieldsWarning?.fields.join(" and ")} ${missingFieldsWarning && missingFieldsWarning.fields.length > 1 ? "are" : "is"} not set. You can add ${missingFieldsWarning && missingFieldsWarning.fields.length > 1 ? "these" : "this"} later, but stock alerts and sales may not work as expected until you do. Continue anyway?`}
+        confirmLabel="Continue Anyway"
+        variant="default"
+        autoFocusConfirm
+        onConfirm={() => {
+          if (missingFieldsWarning) submitProduct(missingFieldsWarning.keepOpen);
+        }}
       />
     </>
   );

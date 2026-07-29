@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
@@ -56,12 +58,18 @@ const transformSupplier = (apiData: any): Supplier => ({
 export function SupplierManagement() {
   const { t: _t } = useStore();
   const isDesktop = useMediaQuery("(min-width: 768px)");
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filter, setFilter] = useState("all");
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [_loading, setLoading] = useState(true);
+
+  const { data: suppliers = [], refetch: fetchSuppliers } = useQuery({
+    ...queryKeys.suppliers.all(),
+    queryFn: async () => {
+      const { data } = await getSuppliers();
+      return data.map(transformSupplier);
+    },
+  });
 
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -83,10 +91,6 @@ export function SupplierManagement() {
   const selectedSupplier =
     suppliers.find((s) => s.id === selectedSupplierId) || null;
 
-  useEffect(() => {
-    fetchSuppliers();
-  }, []);
-
   // Ensure selectedSupplier defaults to the first supplier when data loads
   // (desktop only — on mobile a selection opens a full-screen takeover, so
   // it shouldn't be forced open on load).
@@ -101,24 +105,12 @@ export function SupplierManagement() {
     await fetchSuppliers();
   });
 
-  const fetchSuppliers = async () => {
-    setLoading(true);
-    try {
-      const { data } = await getSuppliers();
-      const transformed = data.map(transformSupplier);
-      setSuppliers(transformed);
-    } catch (error) {
-      console.error("Failed to fetch suppliers:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleAddSupplier = async (payload: any) => {
     try {
+      // insert()'s global cache invalidation refreshes the `suppliers`
+      // query automatically — no need to hand-splice the new row into
+      // local state.
       const newId = await createSupplier(payload);
-      const newSupplier = transformSupplier({ ...payload, id: newId });
-      setSuppliers([newSupplier, ...suppliers]);
       setSelectedSupplierId(newId);
       setShowAddDialog(false);
     } catch (error) {

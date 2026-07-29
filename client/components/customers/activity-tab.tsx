@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Search, Star, X } from "lucide-react";
+import { Search, Star, X, Receipt } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Card } from "@/components/ui/card";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
@@ -53,6 +53,15 @@ interface ActivityTabProps {
   filterCustomerId?: string;
   filterCustomerName?: string;
   onClearFilter?: () => void;
+}
+
+function ActivityEmptyState({ loading }: { loading: boolean }) {
+  return (
+    <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground text-[13px] py-12">
+      {!loading && <Receipt className="w-7 h-7 opacity-30" />}
+      {loading ? "Loading activity..." : "No transactions found."}
+    </div>
+  );
 }
 
 export function ActivityTab({
@@ -127,11 +136,7 @@ export function ActivityTab({
     </p>
   );
 
-  const EmptyState = (
-    <div className="flex items-center justify-center text-muted-foreground text-[13px] py-12">
-      {loading ? "Loading activity..." : "No transactions found."}
-    </div>
-  );
+  const EmptyState = <ActivityEmptyState loading={loading} />;
 
   return (
     <div className="flex flex-col md:flex-1 md:min-h-0 gap-4">

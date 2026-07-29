@@ -125,7 +125,7 @@ export function PinEntry({
           <Button
             type="button"
             variant="outline"
-            className="w-full h-11 rounded-lg border-border/60 font-medium hover:bg-muted/50"
+            className="w-full h-11 rounded-lg border-border font-medium hover:bg-muted/50 hover:text-foreground hover:font-bold"
             onClick={onBack}
             disabled={isLoading}
           >

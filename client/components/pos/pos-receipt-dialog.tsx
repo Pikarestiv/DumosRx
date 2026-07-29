@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { Receipt } from "lucide-react";
 import { ReceiptView } from "./receipt-view";
+import { usePrintReceipt } from "./use-print-receipt";
 
 interface POSReceiptDialogProps {
   showReceiptDialog: boolean;
@@ -20,8 +21,10 @@ export function POSReceiptDialog({
   setShowReceiptDialog,
   completedTransaction,
 }: POSReceiptDialogProps) {
+  const { print, portal, paperSize } = usePrintReceipt();
+
   const handlePrint = () => {
-    window.print();
+    if (completedTransaction) print(completedTransaction);
   };
 
   return (
@@ -37,7 +40,10 @@ export function POSReceiptDialog({
 
         <div className="max-h-[60vh] overflow-y-auto">
           {completedTransaction && (
-            <ReceiptView transaction={completedTransaction} />
+            <ReceiptView
+              transaction={completedTransaction}
+              paperSize={paperSize}
+            />
           )}
         </div>
 
@@ -55,6 +61,7 @@ export function POSReceiptDialog({
           </Button>
         </div>
       </DialogContent>
+      {portal}
     </Dialog>
   );
 }

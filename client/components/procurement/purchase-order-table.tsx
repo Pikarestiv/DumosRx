@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, CheckCircle2, Clock, ArrowRight } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
+import { Search, CheckCircle2, Clock, ArrowRight, ClipboardList } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +37,17 @@ interface PurchaseOrderTableProps {
   isFuzzyFallback?: boolean;
 }
 
+function NoPurchaseOrdersRow() {
+  return (
+    <TableRow>
+      <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">
+        <ClipboardList className="w-6 h-6 mx-auto mb-2 opacity-30" />
+        No purchase orders found
+      </TableCell>
+    </TableRow>
+  );
+}
+
 export function PurchaseOrderTable({
   orders,
   loading,
@@ -49,9 +62,13 @@ export function PurchaseOrderTable({
 }: PurchaseOrderTableProps) {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [isReceiveModalOpen, setIsReceiveModalOpen] = useState(false);
-  const [fullSelectedPO, setFullSelectedPO] = useState<any>(null);
-  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   const isDesktop = useMediaQuery("(min-width: 1024px)");
+
+  const { data: fullSelectedPO, isLoading: isLoadingDetails } = useQuery({
+    ...queryKeys.purchaseOrders.detail(selectedOrderId),
+    queryFn: () => getPurchaseOrderById(selectedOrderId as string),
+    enabled: !!selectedOrderId,
+  });
 
   useEffect(() => {
     // Auto-selecting an order keeps the desktop details panel from sitting
@@ -71,26 +88,6 @@ export function PurchaseOrderTable({
       }
     }
   }, [orders, selectedOrderId, isDesktop]);
-
-  useEffect(() => {
-    async function loadDetails() {
-      if (!selectedOrderId) {
-        setFullSelectedPO(null);
-        return;
-      }
-      setIsLoadingDetails(true);
-      try {
-        const po = await getPurchaseOrderById(selectedOrderId);
-        setFullSelectedPO(po);
-      } catch (error) {
-        console.error("Failed to load PO details", error);
-        setFullSelectedPO(null);
-      } finally {
-        setIsLoadingDetails(false);
-      }
-    }
-    loadDetails();
-  }, [selectedOrderId]);
 
   // Merge full details with the latest row data from the list (so status updates reflect immediately)
   const listOrder = orders.find((o) => o.id === selectedOrderId);
@@ -131,7 +128,7 @@ export function PurchaseOrderTable({
   return (
     <div className="flex flex-col lg:flex-row gap-5 flex-1 min-h-0 overflow-hidden">
       {/* Left Column - List */}
-      <Card className="print:hidden py-0 flex-[2] flex flex-col gap-0 md:rounded-[14px] border-0 md:border md:border-border bg-transparent md:bg-card shadow-none md:shadow-[0_1px_2px_rgba(16,24,40,0.04)] overflow-hidden">
+      <Card className="py-0 flex-[2] flex flex-col gap-0 md:rounded-[14px] border-0 md:border md:border-border bg-transparent md:bg-card shadow-none md:shadow-[0_1px_2px_rgba(16,24,40,0.04)] overflow-hidden">
         <div className="p-0 md:p-4 flex flex-col gap-4 border-b-0 md:border-b border-border">
           <div className="relative w-full">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 pointer-events-none" />
@@ -232,16 +229,7 @@ export function PurchaseOrderTable({
                   </TableCell>
                 </TableRow>
               )}
-              {!loading && orders.length === 0 && (
-                <TableRow>
-                  <TableCell
-                    colSpan={5}
-                    className="h-32 text-center text-muted-foreground"
-                  >
-                    No purchase orders found
-                  </TableCell>
-                </TableRow>
-              )}
+              {!loading && orders.length === 0 && <NoPurchaseOrdersRow />}
               {!loading &&
                 orders.length > 0 &&
                 orders.map((po) => (

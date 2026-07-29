@@ -11,8 +11,12 @@ import {
   Info,
   Loader2,
   FileBarChart,
+  AlertCircle,
 } from "lucide-react";
-import { exportPLReportToPDF } from "@/lib/utils/pdf-export";
+import { pdf } from "@react-pdf/renderer";
+import { format } from "date-fns";
+import { PnlSummaryPdf } from "./pnl-summary-pdf";
+import { downloadBlob } from "@/lib/utils/report-pdf";
 import { useStore } from "@/lib/context/store-context";
 import { toast } from "sonner";
 
@@ -21,6 +25,15 @@ import { usePnLReport } from "@/lib/hooks/use-finance-data";
 interface PandLReportDialogProps {
   isOpen: boolean;
   onClose: () => void;
+}
+
+function FailedToLoadReport() {
+  return (
+    <div className="py-10 flex flex-col items-center gap-2 text-center text-muted-foreground">
+      <AlertCircle className="w-7 h-7 opacity-30" />
+      Failed to load report data.
+    </div>
+  );
 }
 
 export function PandLReportDialog({ isOpen, onClose }: PandLReportDialogProps) {
@@ -33,10 +46,22 @@ export function PandLReportDialog({ isOpen, onClose }: PandLReportDialogProps) {
     }
   }, [isOpen]);
 
-  const handleExport = () => {
+  const handleExport = async () => {
     if (!reportData) return;
     try {
-      exportPLReportToPDF(reportData, storeProfile?.name || "DumosRx Store");
+      const blob = await pdf(
+        <PnlSummaryPdf
+          storeName={storeProfile?.name || "DumosRx Store"}
+          period={reportData.period}
+          revenue={reportData.revenue}
+          cogs={reportData.cogs}
+          expenses={reportData.expenses}
+          netProfit={reportData.netProfit}
+          expenseBreakdown={reportData.expenseBreakdown || []}
+          generatedAt={format(new Date(), "d MMM yyyy, h:mm a")}
+        />,
+      ).toBlob();
+      downloadBlob(blob, `ProfitLoss_Summary_${new Date().toISOString().slice(0, 10)}.pdf`);
       toast.success("P&L Report exported successfully");
       onClose();
     } catch (err) {
@@ -131,11 +156,7 @@ export function PandLReportDialog({ isOpen, onClose }: PandLReportDialogProps) {
           </div>
         </div>
       )}
-      {!(!(!reportData && loading) && reportData) && (
-        <div className="py-10 text-center text-muted-foreground">
-          Failed to load report data.
-        </div>
-      )}
+      {!(!(!reportData && loading) && reportData) && <FailedToLoadReport />}
     </ResponsiveModal>
   );
 }

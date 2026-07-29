@@ -60,6 +60,9 @@ export default function ReportsPage() {
             <DatePickerInput
               value={reportDate}
               onChange={setReportDate}
+              disableFuture
+              fromYear={new Date().getFullYear() - 5}
+              toYear={new Date().getFullYear()}
               className="w-40 border-none shadow-none focus-visible:ring-0 px-1"
             />
           </div>

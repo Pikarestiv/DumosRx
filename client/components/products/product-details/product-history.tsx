@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import { format } from "date-fns";
 import {
   Activity,
@@ -22,62 +23,48 @@ interface HistoryItem {
   meta?: any;
 }
 
+async function loadProductHistory(productId: string): Promise<HistoryItem[]> {
+  const { auditLogs, stockMovements } = await getProductHistory(productId);
+
+  const normalizedLogs: HistoryItem[] = auditLogs.map((log: any) => ({
+    id: `audit-${log.id}`,
+    type: "audit",
+    title: formatAuditTitle(log.action),
+    description: log.details || "No details provided",
+    date: new Date(log.created_at),
+    action: log.action,
+    user: log.user_id || "System",
+  }));
+
+  const normalizedMovements: HistoryItem[] = stockMovements.map((mov: any) => {
+    const isAddition = ["in", "addition", "purchase"].includes(
+      mov.movement_type.toLowerCase()
+    );
+    return {
+      id: `mov-${mov.id}`,
+      type: "movement",
+      title: isAddition ? "Stock Added" : "Stock Deducted",
+      description: `${isAddition ? "+" : "-"}${mov.quantity} units. ${
+        mov.reason ? `Reason: ${mov.reason}` : ""
+      }`,
+      date: new Date(mov.created_at || mov.movement_date),
+      action: mov.movement_type,
+      user: mov.performed_by || "System",
+      meta: { quantity: mov.quantity, type: mov.movement_type },
+    };
+  });
+
+  return [...normalizedLogs, ...normalizedMovements].sort(
+    (a, b) => b.date.getTime() - a.date.getTime()
+  );
+}
+
 export function ProductHistory({ productId }: { productId: string }) {
-  const [loading, setLoading] = useState(true);
-  const [history, setHistory] = useState<HistoryItem[]>([]);
-
-  useEffect(() => {
-    async function load() {
-      try {
-        setLoading(true);
-        const { auditLogs, stockMovements } = await getProductHistory(productId);
-
-        const normalizedLogs: HistoryItem[] = auditLogs.map((log: any) => ({
-          id: `audit-${log.id}`,
-          type: "audit",
-          title: formatAuditTitle(log.action),
-          description: log.details || "No details provided",
-          date: new Date(log.created_at),
-          action: log.action,
-          user: log.user_id || "System",
-        }));
-
-        const normalizedMovements: HistoryItem[] = stockMovements.map(
-          (mov: any) => {
-            const isAddition = ["in", "addition", "purchase"].includes(
-              mov.movement_type.toLowerCase()
-            );
-            return {
-              id: `mov-${mov.id}`,
-              type: "movement",
-              title: isAddition ? "Stock Added" : "Stock Deducted",
-              description: `${isAddition ? "+" : "-"}${mov.quantity} units. ${
-                mov.reason ? `Reason: ${mov.reason}` : ""
-              }`,
-              date: new Date(mov.created_at || mov.movement_date),
-              action: mov.movement_type,
-              user: mov.performed_by || "System",
-              meta: { quantity: mov.quantity, type: mov.movement_type },
-            };
-          }
-        );
-
-        const combined = [...normalizedLogs, ...normalizedMovements].sort(
-          (a, b) => b.date.getTime() - a.date.getTime()
-        );
-
-        setHistory(combined);
-      } catch (error) {
-        console.error("Failed to load product history:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    if (productId) {
-      load();
-    }
-  }, [productId]);
+  const { data: history = [], isLoading: loading } = useQuery({
+    ...queryKeys.products.history(productId),
+    queryFn: () => loadProductHistory(productId),
+    enabled: !!productId,
+  });
 
   if (loading) {
     return (

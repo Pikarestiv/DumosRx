@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   Smartphone,
   Monitor,
@@ -7,11 +8,14 @@ import {
   Download,
   ArrowRight,
   Laptop,
+  Apple,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DOWNLOAD_URL } from "@/lib/constants";
+import { IosInstallDialog } from "./ios-install-dialog";
+import { useInstallPrompt } from "@/lib/hooks/use-install-prompt";
 
 interface DownloadsViewProps {
   releaseLinks: any;
@@ -22,6 +26,9 @@ export function DownloadsView({
   releaseLinks,
   requiresVerification,
 }: DownloadsViewProps) {
+  const [iosDialogOpen, setIosDialogOpen] = useState(false);
+  const { canInstall, promptInstall } = useInstallPrompt();
+
   if (!releaseLinks || !releaseLinks.version) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] text-center px-4 animate-in fade-in duration-500">
@@ -169,7 +176,7 @@ export function DownloadsView({
         ))}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-dashed border-border/50">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 border-t border-dashed border-border/50">
         {secondaryApps.map((app, i) => (
           <div
             key={i}
@@ -181,6 +188,18 @@ export function DownloadsView({
             <div className="flex-1">
               <h4 className="text-lg font-bold">{app.os}</h4>
               <p className="text-sm text-muted-foreground">{app.description}</p>
+              {/* Nudge Android users toward the one-tap PWA install even
+                  though the native APK above is the primary path — it skips
+                  enabling "install from unknown sources" and auto-updates. */}
+              {app.os === "Android" && canInstall && (
+                <button
+                  type="button"
+                  onClick={promptInstall}
+                  className="text-xs font-semibold text-primary hover:underline mt-0.5"
+                >
+                  Or install as an app (no APK needed) →
+                </button>
+              )}
             </div>
             <div className="text-right mr-5 hidden sm:block">
               <p className="text-sm font-medium">
@@ -208,7 +227,32 @@ export function DownloadsView({
             </Button>
           </div>
         ))}
+
+        {/* iOS has no downloadable file — Safari only lets users add the
+            dashboard to the Home Screen via its Share sheet, so this opens
+            instructions instead of linking to anything. */}
+        <div className="flex items-center p-6 bg-muted/60 rounded-3xl border border-transparent hover:border-border transition-colors">
+          <div className="w-12 h-12 bg-background rounded-xl flex items-center justify-center text-foreground shadow-sm mr-5">
+            <Apple className="h-6 w-6" />
+          </div>
+          <div className="flex-1">
+            <h4 className="text-lg font-bold">iOS</h4>
+            <p className="text-sm text-muted-foreground">
+              Add to Home Screen (iPhone/iPad)
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            className="font-bold rounded-full px-6"
+            disabled={requiresVerification}
+            onClick={() => setIosDialogOpen(true)}
+          >
+            {requiresVerification ? "Verify" : "Instructions"}
+          </Button>
+        </div>
       </div>
+
+      <IosInstallDialog open={iosDialogOpen} onOpenChange={setIosDialogOpen} />
 
       <div className="bg-linear-to-r from-muted/60 to-muted/40 border border-muted rounded-[2rem] p-10 text-center max-w-3xl mx-auto mt-16 backdrop-blur-sm">
         <h3 className="text-xl font-black mb-3 text-foreground">

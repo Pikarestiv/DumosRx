@@ -10,6 +10,7 @@ import { useStore } from "@/lib/context/store-context";
 import { NeedsAttention } from "./needs-attention";
 import { FastMovers } from "./fast-movers";
 import { BarcodePrintDialog } from "./barcode-print-dialog";
+import { queryKeys } from "@/lib/query-keys";
 
 interface StockItem {
   id: string;
@@ -33,7 +34,7 @@ export function StockOverview() {
 
   // Stock list — read aggregated batch details
   const { data: stockDataRaw, isLoading: stockLoading } = useQuery({
-    queryKey: ['stockOverviewData'],
+    ...queryKeys.stockBatches.overview(),
     queryFn: () => getStockOverviewData()
   });
   const stockData = stockDataRaw || [];

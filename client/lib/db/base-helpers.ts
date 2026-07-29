@@ -5,7 +5,30 @@
 import { execute, query, generateId, logAction } from "./core";
 import { queryClient } from "../query-client";
 
-export async function insert(table: string, data: Record<string, unknown>): Promise<string> {
+// Invalidates exactly the queries that could be affected by a mutation on
+// `table` — matched via each query's `meta.tables` (see lib/query-keys.ts),
+// not queryKey prefix matching, since several queries (dashboard, BI,
+// daily-close) legitimately depend on more than one table and a prefix
+// match can only ever express one. A query with no `meta.tables` hasn't
+// been migrated to the factory yet, so it falls back to always invalidating
+// — that's the same broad behavior this replaced, just scoped down to the
+// queries that haven't opted into precise tagging yet, so adopting the
+// factory anywhere is strictly an improvement, never a regression.
+function invalidateQueriesForTable(table: string) {
+  if (typeof window === "undefined") return;
+  queryClient.invalidateQueries({
+    predicate: (q) => {
+      const tables = q.meta?.tables as string[] | undefined;
+      return !tables || tables.includes(table);
+    },
+  });
+}
+
+export async function insert(
+  table: string,
+  data: Record<string, unknown>,
+  options?: { action?: string },
+): Promise<string> {
   const id = (data.id as string) || generateId();
   const now = new Date().toISOString();
 
@@ -33,12 +56,9 @@ export async function insert(table: string, data: Record<string, unknown>): Prom
   );
 
   await addToSyncQueue(table, id, "INSERT", record);
-  await logAction("INSERT", table, id, record);
+  await logAction(options?.action || "INSERT", table, id, record);
 
-  if (typeof window !== "undefined") {
-    queryClient.invalidateQueries({ queryKey: ['localData'] });
-    queryClient.invalidateQueries({ queryKey: [table] });
-  }
+  invalidateQueriesForTable(table);
 
   return id;
 }
@@ -47,6 +67,7 @@ export async function update(
   table: string,
   id: string,
   data: Record<string, unknown>,
+  options?: { action?: string },
 ): Promise<void> {
   const now = new Date().toISOString();
 
@@ -76,12 +97,9 @@ export async function update(
   await execute(`UPDATE ${table} SET ${setClause} WHERE id = ?`, values);
 
   await addToSyncQueue(table, id, "UPDATE", record);
-  await logAction("UPDATE", table, id, record);
+  await logAction(options?.action || "UPDATE", table, id, record);
   
-  if (typeof window !== "undefined") {
-    queryClient.invalidateQueries({ queryKey: ['localData'] });
-    queryClient.invalidateQueries({ queryKey: [table] });
-  }
+  invalidateQueriesForTable(table);
 }
 
 export async function softDelete(table: string, id: string): Promise<void> {
@@ -99,21 +117,30 @@ export async function softDelete(table: string, id: string): Promise<void> {
   await addToSyncQueue(table, id, "DELETE", { id });
   await logAction("DELETE", table, id, { id });
 
-  if (typeof window !== "undefined") {
-    queryClient.invalidateQueries({ queryKey: ['localData'] });
-    queryClient.invalidateQueries({ queryKey: [table] });
-  }
+  invalidateQueriesForTable(table);
 }
 
-export async function remove(table: string, id: string): Promise<void> {
+export async function remove(
+  table: string,
+  id: string,
+  options?: { action?: string },
+): Promise<void> {
+  // Fetched before the delete so the audit trail still has a record of what
+  // was destroyed — this is a hard, unrecoverable delete (unlike softDelete),
+  // so it's the one place where NOT capturing this would leave a real blind
+  // spot in the audit log.
+  const existing = await query<Record<string, unknown>>(
+    `SELECT * FROM ${table} WHERE id = ?`,
+    [id],
+  );
+
   await execute(`DELETE FROM ${table} WHERE id = ?`, [id]);
   // Also remove from sync queue if it was pending
   await execute(`DELETE FROM _sync_queue WHERE table_name = ? AND record_id = ?`, [table, id]);
 
-  if (typeof window !== "undefined") {
-    queryClient.invalidateQueries({ queryKey: ['localData'] });
-    queryClient.invalidateQueries({ queryKey: [table] });
-  }
+  await logAction(options?.action || "HARD_DELETE", table, id, existing[0] || { id });
+
+  invalidateQueriesForTable(table);
 }
 
 async function addToSyncQueue(
@@ -167,13 +194,21 @@ export async function recordSyncFailure(queueId: number, errorMessage: string): 
   const delay = Math.min(SYNC_FAILURE_BASE_DELAY_MS * 2 ** (nextRetryCount - 1), SYNC_FAILURE_MAX_DELAY_MS);
   const nextRetryAt = new Date(Date.now() + delay).toISOString();
   const alreadyReported = item.last_error?.startsWith("[REPORTED]");
+  const shouldReport = nextRetryCount >= SYNC_FAILURE_REPORT_THRESHOLD && !alreadyReported;
+
+  // Preserve the "[REPORTED]" marker once it's set — writing the bare
+  // errorMessage here unconditionally used to clobber it on every later
+  // call, so `alreadyReported` flipped back to false every other retry and
+  // logCrash() fired again and again instead of exactly once.
+  const nextLastError =
+    alreadyReported || shouldReport ? `[REPORTED] ${errorMessage}` : errorMessage;
 
   await execute(
     "UPDATE _sync_queue SET retry_count = ?, last_error = ?, next_retry_at = ? WHERE id = ?",
-    [nextRetryCount, errorMessage, nextRetryAt, queueId],
+    [nextRetryCount, nextLastError, nextRetryAt, queueId],
   );
 
-  if (nextRetryCount >= SYNC_FAILURE_REPORT_THRESHOLD && !alreadyReported) {
+  if (shouldReport) {
     try {
       const { logCrash } = await import("../utils/error-logger");
       await logCrash(
@@ -182,10 +217,6 @@ export async function recordSyncFailure(queueId: number, errorMessage: string): 
         ),
         false,
       );
-      await execute("UPDATE _sync_queue SET last_error = ? WHERE id = ?", [
-        `[REPORTED] ${errorMessage}`,
-        queueId,
-      ]);
     } catch (e) {
       console.error("Failed to report stuck sync item", e);
     }

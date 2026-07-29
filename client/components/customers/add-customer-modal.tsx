@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { DatePickerInput } from "@/components/ui/date-picker-input";
 
 interface AddCustomerModalProps {
   isOpen: boolean;
@@ -27,6 +28,7 @@ export function AddCustomerModal({
 }: AddCustomerModalProps) {
   const [loading, setLoading] = useState(false);
   const [gender, setGender] = useState("");
+  const [dateOfBirth, setDateOfBirth] = useState("");
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -34,6 +36,7 @@ export function AddCustomerModal({
     const formData = new FormData(e.currentTarget);
     const payload = Object.fromEntries(formData.entries());
     payload.gender = gender;
+    payload.date_of_birth = dateOfBirth;
 
     try {
       await onSubmit(payload);
@@ -103,7 +106,13 @@ export function AddCustomerModal({
             </div>
             <div className="space-y-2">
               <Label htmlFor="date_of_birth">Date of Birth</Label>
-              <Input id="date_of_birth" name="date_of_birth" type="date" />
+              <DatePickerInput
+                value={dateOfBirth}
+                onChange={setDateOfBirth}
+                disableFuture
+                fromYear={new Date().getFullYear() - 120}
+                toYear={new Date().getFullYear()}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="gender">Gender</Label>

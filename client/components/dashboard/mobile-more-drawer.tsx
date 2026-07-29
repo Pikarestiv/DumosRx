@@ -13,6 +13,7 @@ import { useStore } from "@/lib/context/store-context";
 import { useQuery } from "@tanstack/react-query";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { getSyncQueueCount } from "@/lib/db/queries/setup";
+import { queryKeys } from "@/lib/query-keys";
 import { useAuth } from "@/lib/context/auth-context";
 import { SyncIndicator } from "./sync-indicator";
 import { cn } from "@/lib/utils";
@@ -43,7 +44,7 @@ export function MobileMoreDrawer({
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const { data: pendingCountData } = useQuery({
-    queryKey: ["syncQueueCount"],
+    ...queryKeys.sync.queueCount(),
     queryFn: () => getSyncQueueCount(),
   });
   const pendingCount = pendingCountData || 0;

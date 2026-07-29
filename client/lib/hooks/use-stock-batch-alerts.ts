@@ -1,15 +1,16 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getLowStockAlerts, getExpiryAlerts } from "@/lib/db/queries/inventory";
+import { queryKeys } from "@/lib/query-keys";
 
 export function useStockBatchAlerts() {
   const { data: lowStockAlerts } = useQuery({
-    queryKey: ['lowStockAlerts'],
+    ...queryKeys.stockBatches.lowStockAlerts(),
     queryFn: () => getLowStockAlerts(),
   });
 
   const { data: expiryAlerts } = useQuery({
-    queryKey: ['expiryAlerts'],
+    ...queryKeys.stockBatches.expiryAlerts(),
     queryFn: () => getExpiryAlerts(),
   });
 

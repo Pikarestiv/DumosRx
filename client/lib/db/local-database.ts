@@ -13,6 +13,14 @@ export * from "./schema";
 import { query, execute } from "./core";
 import { insert, update, softDelete } from "./base-helpers";
 import { queryClient } from "../query-client";
+import { AUDIT_ACTIONS } from "./audit-actions";
+import { queryKeys } from "../query-keys";
+
+const STOCK_MOVEMENT_AUDIT_ACTIONS: Record<string, string> = {
+  adjustment: AUDIT_ACTIONS.STOCK_ADJUSTMENT,
+  expired: AUDIT_ACTIONS.STOCK_EXPIRED,
+  damaged: AUDIT_ACTIONS.STOCK_DAMAGED,
+};
 
 // --- Specialized Domain Helpers ---
 
@@ -149,22 +157,6 @@ export async function getCustomers() {
 }
 
 /**
- * Expenses
- */
-export async function getExpenses(page = 1, limit = 50) {
-  const offset = (page - 1) * limit;
-  const results = await query<any>(
-    "SELECT * FROM expenses WHERE _deleted = 0 ORDER BY date DESC LIMIT ? OFFSET ?",
-    [limit, offset],
-  );
-  return { data: results, page, limit };
-}
-
-export async function createExpense(data: any) {
-  return await insert("expenses", data);
-}
-
-/**
  * Prescriptions
  */
 export async function createPrescription(data: any, items: any[]) {
@@ -177,12 +169,12 @@ export async function createPrescription(data: any, items: any[]) {
     });
   }
 
-  // insert("prescriptions", ...) above already invalidated queryKey:
-  // ["prescriptions"] and refetched, but that refetch can race the
-  // prescription_items inserts still running in this loop, caching a
-  // partial medications list. Invalidate again now that all items exist.
+  // insert("prescriptions", ...) above already invalidated the prescriptions
+  // query and refetched, but that refetch can race the prescription_items
+  // inserts still running in this loop, caching a partial medications list.
+  // Invalidate again now that all items exist.
   if (typeof window !== "undefined") {
-    queryClient.invalidateQueries({ queryKey: ["prescriptions"] });
+    queryClient.invalidateQueries(queryKeys.prescriptions.all());
   }
 
   return prescriptionId;
@@ -269,13 +261,17 @@ export async function getStockAdjustments(page = 1, limit = 50) {
 }
 
 export async function createStockMovement(data: any) {
-  return await insert("stock_movements", {
-    ...data,
-    id: data.id || crypto.randomUUID(),
-    created_at: new Date().toISOString(),
-    _version: 1,
-    _synced: 0,
-  });
+  return await insert(
+    "stock_movements",
+    {
+      ...data,
+      id: data.id || crypto.randomUUID(),
+      created_at: new Date().toISOString(),
+      _version: 1,
+      _synced: 0,
+    },
+    { action: STOCK_MOVEMENT_AUDIT_ACTIONS[data.movement_type] },
+  );
 }
 
 // Dev utility to force sync all tables

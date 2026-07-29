@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -25,6 +25,11 @@ interface ConfirmDialogProps {
   variant?: "destructive" | "default";
   onConfirm: (pin?: string) => void;
   requirePin?: boolean;
+  /** Focus the confirm button (instead of the default first-focusable
+   * element, usually Cancel) when the dialog opens, so pressing Enter
+   * immediately confirms. Use for non-destructive confirmations where
+   * the fast path should be "continue", not "cancel". */
+  autoFocusConfirm?: boolean;
 }
 
 export function ConfirmDialog({
@@ -38,8 +43,10 @@ export function ConfirmDialog({
   variant = "destructive",
   onConfirm,
   requirePin = false,
+  autoFocusConfirm = false,
 }: ConfirmDialogProps) {
   const [pin, setPin] = useState("");
+  const confirmButtonRef = useRef<HTMLButtonElement>(null);
 
   const handleConfirm = () => {
     onConfirm(requirePin ? pin : undefined);
@@ -56,7 +63,15 @@ export function ConfirmDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent showCloseButton={false}>
+      <DialogContent
+        showCloseButton={false}
+        onOpenAutoFocus={(e) => {
+          if (autoFocusConfirm) {
+            e.preventDefault();
+            confirmButtonRef.current?.focus();
+          }
+        }}
+      >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           {typeof description === "string" && (
@@ -95,6 +110,7 @@ export function ConfirmDialog({
             </Button>
           )}
           <Button
+            ref={confirmButtonRef}
             variant={variant === "destructive" ? "destructive" : "default"}
             disabled={isConfirmDisabled}
             onClick={handleConfirm}

@@ -4,6 +4,7 @@ import { formatCurrency } from "@/lib/utils";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
+import { queryKeys } from "@/lib/query-keys";
 
 import { Product } from "../types";
 export type { Product };
@@ -13,7 +14,7 @@ export function useProductDetails(
   storeProfile: any,
 ) {
   const { data: batchesData, isLoading: loadingBatches } = useQuery({
-    queryKey: ['productBatches', product?.id],
+    ...queryKeys.products.batches(product?.id),
     queryFn: () => product?.id ? getStockBatchesForProductDetails(product.id) : Promise.resolve([]),
     enabled: !!product?.id
   });

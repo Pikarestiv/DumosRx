@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/context/auth-context";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { getSyncQueueCount } from "@/lib/db/queries/setup";
+import { queryKeys } from "@/lib/query-keys";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   DropdownMenu,
@@ -35,6 +36,7 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { ThemeCustomizer } from "@/components/ui/theme-customizer";
 import { getUserInitials } from "@/lib/utils";
 import { useIsTouchDevice } from "@/lib/hooks/use-is-touch-device";
+import { useAutoLockStore } from "@/lib/hooks/use-auto-lock";
 import { cn } from "@/lib/utils";
 
 interface NavAction {
@@ -137,16 +139,13 @@ export function UserNav({
 
   const [open, setOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [pendingLogoutType, setPendingLogoutType] = useState<
-    "switch" | "full" | null
-  >(null);
 
   useEffect(() => {
     onOpenChange?.(open);
   }, [open, onOpenChange]);
 
   const { data: pendingCountData } = useQuery({
-    queryKey: ["syncQueueCount"],
+    ...queryKeys.sync.queueCount(),
     queryFn: () => getSyncQueueCount(),
   });
   const pendingCount = pendingCountData || 0;
@@ -155,31 +154,28 @@ export function UserNav({
 
   const initials = getUserInitials(user.first_name, user.last_name);
 
-  const performLogout = (type: "switch" | "full") => {
-    if (type === "full") {
-      localStorage.removeItem("dumos_recent_users"); // Clear lock screen history
-    }
+  const performFullLogout = () => {
+    localStorage.removeItem("dumos_recent_users"); // Clear lock screen history
     logout();
     router.push("/login");
   };
 
-  const handleLogoutAttempt = (type: "switch" | "full") => {
-    if (pendingCount > 0) {
-      setPendingLogoutType(type);
-      setShowLogoutConfirm(true);
-    } else {
-      performLogout(type);
-    }
-  };
-
+  // Not destructive — the local session/data stays intact, this just shows
+  // the same lock screen used for idle re-auth, forced to account-selection
+  // mode instead of defaulting to the current user's PIN entry. No
+  // logout/unsynced-changes warning needed since nothing is being cleared.
   const handleSwitchAccount = () => {
     setOpen(false);
-    handleLogoutAttempt("switch");
+    useAutoLockStore.getState().lockForSwitch();
   };
 
   const handleFullLogout = () => {
     setOpen(false);
-    handleLogoutAttempt("full");
+    if (pendingCount > 0) {
+      setShowLogoutConfirm(true);
+    } else {
+      performFullLogout();
+    }
   };
 
   const goToSettings = () => {
@@ -367,11 +363,7 @@ export function UserNav({
         description={`You have ${pendingCount} offline transaction${pendingCount > 1 ? "s" : ""} pending sync. If you log out now, another user logging into this device will sync them on their account. Are you sure you want to sign out?`}
         confirmLabel="Sign Out Anyway"
         variant="destructive"
-        onConfirm={() => {
-          if (pendingLogoutType) {
-            performLogout(pendingLogoutType);
-          }
-        }}
+        onConfirm={performFullLogout}
       />
     </>
   );

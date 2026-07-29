@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { queryKeys } from "./query-keys";
+import { queryKeys } from "@/lib/query-keys";
 import {
   getUsers,
   createUser,
@@ -9,7 +9,7 @@ import {
 
 export function useUsers(storeId?: string | null) {
   return useQuery({
-    queryKey: queryKeys.users(),
+    ...queryKeys.staff.users(),
     queryFn: () => {
       // If storeId is provided, local-database expects it or we just fetch all
       // For now, getUsers in local-database doesn't take storeId natively if it just returns all,
@@ -25,8 +25,7 @@ export function useMutateUser() {
   const create = useMutation({
     mutationFn: (data: any) => createUser(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.users() });
-      queryClient.invalidateQueries({ queryKey: ["localData"] });
+      queryClient.invalidateQueries(queryKeys.staff.users());
     },
   });
 
@@ -34,16 +33,14 @@ export function useMutateUser() {
     mutationFn: ({ id, data }: { id: string; data: any }) =>
       updateUser(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.users() });
-      queryClient.invalidateQueries({ queryKey: ["localData"] });
+      queryClient.invalidateQueries(queryKeys.staff.users());
     },
   });
 
   const remove = useMutation({
     mutationFn: (id: string) => deleteUser(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.users() });
-      queryClient.invalidateQueries({ queryKey: ["localData"] });
+      queryClient.invalidateQueries(queryKeys.staff.users());
     },
   });
 

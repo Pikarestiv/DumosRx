@@ -70,17 +70,23 @@ export async function sync(
     localStorage.setItem("last_sync_time", new Date().toISOString());
 
     if (typeof window !== "undefined") {
-      // Invalidate React Query cache for any tables that were updated
+      // Invalidate exactly the queries tagged (via meta.tables, see
+      // lib/query-keys.ts) as depending on any table that changed —
+      // same predicate-based approach as base-helpers.ts's
+      // invalidateQueriesForTable. Untagged queries still fall back to
+      // always invalidating, so this stays safe for anything not yet
+      // migrated to the factory.
       if (pullResult.updatedTables && pullResult.updatedTables.length > 0) {
-        pullResult.updatedTables.forEach((table) => {
-          queryClient.invalidateQueries({ queryKey: [table] });
-          if (table === "stores") {
-            queryClient.invalidateQueries({ queryKey: ["storeProfile"] });
-            window.dispatchEvent(new CustomEvent("dumos_subscription_updated"));
-          }
+        const updated = pullResult.updatedTables;
+        queryClient.invalidateQueries({
+          predicate: (q) => {
+            const tables = q.meta?.tables as string[] | undefined;
+            return !tables || tables.some((t) => updated.includes(t));
+          },
         });
-        // Globally invalidate localData abstraction queries
-        queryClient.invalidateQueries({ queryKey: ["localData"] });
+        if (pullResult.updatedTables.includes("stores")) {
+          window.dispatchEvent(new CustomEvent("dumos_subscription_updated"));
+        }
       }
 
       window.dispatchEvent(
@@ -200,11 +206,13 @@ export async function syncSubscriptionStatus(): Promise<{
       ["stores", response.server_timestamp]
     );
 
-    // Invalidate React Query cache so UI re-renders with new tier/status
+    // Invalidate React Query cache so UI re-renders with new tier/status.
+    // Prefix-only keys (no targetId/userStoreId arg) so this matches every
+    // variant of these queries regardless of which store/user they're
+    // scoped to — invalidateQueries does prefix matching by default.
     if (typeof window !== "undefined") {
-      queryClient.invalidateQueries({ queryKey: ["localData"] });
-      queryClient.invalidateQueries({ queryKey: ["stores"] });
       queryClient.invalidateQueries({ queryKey: ["storeProfile"] });
+      queryClient.invalidateQueries({ queryKey: ["allStores"] });
       window.dispatchEvent(new CustomEvent("dumos_subscription_updated"));
     }
 

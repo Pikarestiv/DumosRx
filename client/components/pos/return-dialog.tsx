@@ -15,9 +15,11 @@ import {
 } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/utils";
 import { insert, update } from "@/lib/db/local-database";
+import { AUDIT_ACTIONS } from "@/lib/db/audit-actions";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { getSaleItems } from "@/lib/db/queries/sales";
+import { queryKeys } from "@/lib/query-keys";
 import { restoreReturnedStock } from "@/lib/db/queries/returns";
 import { updatePrescriptionStatus } from "@/lib/db/queries/prescriptions";
 import { Loader2, RotateCcw } from "lucide-react";
@@ -50,7 +52,7 @@ export function ReturnDialog({
 
   // Fetch items for this sale
   const { data: saleItemsData } = useQuery({
-    queryKey: ["saleItems", sale?.id],
+    ...queryKeys.sales.saleItems(sale?.id),
     queryFn: () => (sale ? getSaleItems(sale.id) : Promise.resolve([])),
     enabled: !!sale,
   });
@@ -106,13 +108,17 @@ export function ReturnDialog({
     setProcessing(true);
     try {
       // 1. Create return record
-      const returnId = await insert("returns", {
-        sale_id: sale.id,
-        user_id: user?.id || "system",
-        reason: reason,
-        total_refunded: totalRefund,
-        created_at: new Date().toISOString(),
-      });
+      const returnId = await insert(
+        "returns",
+        {
+          sale_id: sale.id,
+          user_id: user?.id || "system",
+          reason: reason,
+          total_refunded: totalRefund,
+          created_at: new Date().toISOString(),
+        },
+        { action: AUDIT_ACTIONS.SALE_RETURN },
+      );
 
       // 2. Create return items and restore stock
       const dumosUser = JSON.parse(localStorage.getItem("dumos_user") || "{}");

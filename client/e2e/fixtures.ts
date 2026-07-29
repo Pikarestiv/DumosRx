@@ -1,6 +1,24 @@
-import { test as base, expect } from '@playwright/test';
+import { test as base, expect, type Page } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
+
+/** Logs into the seeded test store (username "admin", PIN "1234") and waits
+ * for the dashboard to render. Centralized here so every spec uses the same
+ * selectors as the real login form (components/auth/traditional-login-form.tsx)
+ * instead of each spec guessing its own copy that can drift out of sync. */
+export async function login(page: Page) {
+  await page.goto('/login');
+  // Skip the first-login onboarding tour (components/dashboard/dashboard-tour.tsx)
+  // — its react-joyride overlay otherwise intercepts pointer events on the
+  // sidebar/header for every fresh test-store session and blocks clicks.
+  await page.evaluate(() => {
+    localStorage.setItem('dumos_client_tour_completed', 'true');
+  });
+  await page.getByPlaceholder('admin').fill('admin');
+  await page.getByPlaceholder('••••').fill('1234');
+  await page.getByRole('button', { name: /Authorize Entry/i }).click();
+  await expect(page.getByText(/Today's Sales/i)).toBeVisible({ timeout: 10000 });
+}
 
 export const test = base.extend({
   page: async ({ page }, use) => {

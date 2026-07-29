@@ -6,6 +6,7 @@ import { useCustomerData, Customer } from "@/lib/hooks/use-customer-data";
 import { genericFuzzySearch } from "@/lib/utils/search";
 import { getLoyaltyTiers } from "@/lib/db/queries/loyalty";
 import { usePullToRefreshHandler } from "@/lib/context/pull-to-refresh-context";
+import { queryKeys } from "@/lib/query-keys";
 
 interface LoyaltyTier {
   name: string;
@@ -76,7 +77,7 @@ export function useCustomerManagement() {
   usePullToRefreshHandler(fetchCustomers);
 
   const { data: dbTiers } = useQuery({
-    queryKey: ["loyalty_tiers"],
+    ...queryKeys.loyalty.tiers(),
     queryFn: getLoyaltyTiers,
   });
 
@@ -129,8 +130,14 @@ export function useCustomerManagement() {
   };
 
   const handleAddCustomer = async (payload: any) => {
-    await addCustomer(payload);
+    const newCustomer = await addCustomer(payload);
     setIsAddCustomerOpen(false);
+    if (newCustomer) {
+      setSelectedCustomer(newCustomer);
+      if (activeTab !== "directory") {
+        handleTabChange("directory");
+      }
+    }
   };
 
   const handleUpdateCustomer = async (payload: any) => {

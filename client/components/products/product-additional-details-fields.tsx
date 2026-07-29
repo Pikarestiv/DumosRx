@@ -17,7 +17,15 @@ interface Props {
   onToggle: () => void;
 }
 
-export function ProductAdditionalDetailsFields({ formData, onInputChange, isPharmacy, suggestions, t, isOpen, onToggle }: Props) {
+export function ProductAdditionalDetailsFields({
+  formData,
+  onInputChange,
+  isPharmacy,
+  suggestions,
+  t,
+  isOpen,
+  onToggle,
+}: Props) {
   return (
     <div className="space-y-4">
       <button
@@ -33,7 +41,12 @@ export function ProductAdditionalDetailsFields({ formData, onInputChange, isPhar
         )}
       </button>
 
-      <div className={cn("grid grid-cols-1 md:grid-cols-2 gap-4 transition-all overflow-hidden", isOpen ? "max-h-[1000px] opacity-100 mt-4" : "max-h-0 opacity-0 m-0")}>
+      <div
+        className={cn(
+          "grid grid-cols-1 md:grid-cols-2 gap-4 pl-[1px] transition-all overflow-hidden",
+          isOpen ? "max-h-[1000px] opacity-100 mt-4" : "max-h-0 opacity-0 m-0",
+        )}
+      >
         {isPharmacy && (
           <div className="space-y-2">
             <Label htmlFor="genericName">Generic Name</Label>
@@ -68,25 +81,35 @@ export function ProductAdditionalDetailsFields({ formData, onInputChange, isPhar
         </div>
 
         {isPharmacy && (
-          <div className="space-y-4 pt-2 md:col-span-2 flex flex-col sm:flex-row sm:items-center gap-6">
-            <div className="flex items-center justify-between space-x-2">
-              <Label htmlFor="requiresPrescription" className="flex-1 cursor-pointer">
+          <div className="pt-2 md:col-span-2 flex flex-row flex-wrap items-center gap-6">
+            <div className="flex items-center gap-2">
+              <Label
+                htmlFor="requiresPrescription"
+                className="cursor-pointer whitespace-nowrap"
+              >
                 Requires Prescription (Rx)
               </Label>
               <Switch
                 id="requiresPrescription"
                 checked={formData.requiresPrescription}
-                onCheckedChange={(checked) => onInputChange("requiresPrescription", checked)}
+                onCheckedChange={(checked) =>
+                  onInputChange("requiresPrescription", checked)
+                }
               />
             </div>
-            <div className="flex items-center justify-between space-x-2">
-              <Label htmlFor="isControlled" className="flex-1 cursor-pointer">
+            <div className="flex items-center gap-2">
+              <Label
+                htmlFor="isControlled"
+                className="cursor-pointer whitespace-nowrap"
+              >
                 Controlled Substance
               </Label>
               <Switch
                 id="isControlled"
                 checked={formData.isControlled}
-                onCheckedChange={(checked) => onInputChange("isControlled", checked)}
+                onCheckedChange={(checked) =>
+                  onInputChange("isControlled", checked)
+                }
               />
             </div>
           </div>

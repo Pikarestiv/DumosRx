@@ -98,7 +98,7 @@ export async function fetchSalesReportData(dateFrom?: string, dateTo?: string) {
   return query<Record<string, any>>(
     `SELECT
       s.transaction_number as "Transaction #",
-      s.transaction_date as "Date",
+      date(s.transaction_date) as "Date",
       COALESCE(c.first_name || ' ' || COALESCE(c.last_name, ''), 'Walk-in') as "Customer",
       s.payment_method as "Payment Method",
       s.subtotal as "Subtotal",
@@ -126,7 +126,7 @@ export async function fetchStockBatchReportData() {
       inv.cost_price as "Cost Price",
       inv.selling_price as "Selling Price",
       SUM(inv.quantity * inv.cost_price) as "Stock Value",
-      MIN(inv.expiry_date) as "Nearest Expiry"
+      MIN(date(inv.expiry_date)) as "Nearest Expiry"
      FROM stock_batches inv
      JOIN products m ON inv.product_id = m.id
      WHERE inv._deleted = 0 AND m._deleted = 0
@@ -254,7 +254,7 @@ export async function fetchCustomerReportData() {
       c.credit_limit as "Credit Limit",
       COUNT(s.id) as "Total Purchases",
       SUM(s.total_amount) as "Total Spent",
-      MAX(s.transaction_date) as "Last Purchase"
+      MAX(date(s.transaction_date)) as "Last Purchase"
      FROM customers c
      LEFT JOIN sales s ON s.customer_id = c.id AND s._deleted = 0
      WHERE c._deleted = 0
@@ -271,7 +271,7 @@ export async function fetchExpensesReportData(dateFrom?: string, dateTo?: string
 
   return query<Record<string, any>>(
     `SELECT
-      date as "Date",
+      date(date) as "Date",
       category as "Category",
       description as "Description",
       vendor_name as "Vendor",

@@ -12,9 +12,18 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('purchase_orders', function (Blueprint $table) {
-            DB::statement("ALTER TABLE purchase_orders MODIFY COLUMN status VARCHAR(255) DEFAULT 'pending'");
-        });
+        // MySQL's MODIFY COLUMN syntax isn't valid SQL on SQLite (used for
+        // the test suite), which broke every Feature test that migrates
+        // fresh. SQLite has no real ENUM/MODIFY concept anyway, so the
+        // portable Schema builder path is equivalent there.
+        if (DB::getDriverName() === 'sqlite') {
+            Schema::table('purchase_orders', function (Blueprint $table) {
+                $table->string('status')->default('pending')->change();
+            });
+            return;
+        }
+
+        DB::statement("ALTER TABLE purchase_orders MODIFY COLUMN status VARCHAR(255) DEFAULT 'pending'");
     }
 
     /**
@@ -22,8 +31,13 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('purchase_orders', function (Blueprint $table) {
-            DB::statement("ALTER TABLE purchase_orders MODIFY COLUMN status ENUM('pending', 'approved', 'ordered', 'received', 'cancelled') DEFAULT 'pending'");
-        });
+        if (DB::getDriverName() === 'sqlite') {
+            Schema::table('purchase_orders', function (Blueprint $table) {
+                $table->string('status')->default('pending')->change();
+            });
+            return;
+        }
+
+        DB::statement("ALTER TABLE purchase_orders MODIFY COLUMN status ENUM('pending', 'approved', 'ordered', 'received', 'cancelled') DEFAULT 'pending'");
     }
 };

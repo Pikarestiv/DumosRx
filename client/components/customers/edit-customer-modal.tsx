@@ -7,6 +7,7 @@ import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { Customer } from "@/lib/hooks/use-customer-data";
 
 interface EditCustomerFormData {
@@ -159,13 +160,12 @@ export function EditCustomerModal({
 
           <div className="space-y-2">
             <Label htmlFor="date_of_birth">Date of Birth</Label>
-            <Input
-              id="date_of_birth"
-              type="date"
+            <DatePickerInput
               value={formData.date_of_birth}
-              onChange={(e) =>
-                handleInputChange("date_of_birth", e.target.value)
-              }
+              onChange={(val) => handleInputChange("date_of_birth", val)}
+              disableFuture
+              fromYear={new Date().getFullYear() - 120}
+              toYear={new Date().getFullYear()}
             />
           </div>
         </form>

@@ -1,20 +1,13 @@
 "use client";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { StoreType } from "@/lib/context/store-context";
-import { DevSeedButton } from "@/components/dev/seed-button";
 
 import { BusinessVerticalCard } from "./store/business-vertical-card";
 import { StoreInformationCard } from "./store/store-information-card";
 import { ReceiptCustomizationCard } from "./store/receipt-customization-card";
 import { PaymentSettingsCard } from "./store/payment-settings-card";
 import { PaymentAccountsCard } from "./store/payment-accounts-card";
+import { MultiStoreCard } from "./store/multi-store-card";
 
 interface StoreSettingsProps {
   storeType: StoreType;
@@ -147,20 +140,7 @@ export function StoreSettings({
 
       <PaymentAccountsCard />
 
-      {/* Developer Tools */}
-      {process.env.NODE_ENV === "development" && (
-        <Card className="border-primary/20 bg-primary/5">
-          <CardHeader>
-            <CardTitle>Developer Tools</CardTitle>
-            <CardDescription>
-              Local database management utilities. These are only visible in development mode.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <DevSeedButton />
-          </CardContent>
-        </Card>
-      )}
+      <MultiStoreCard />
     </div>
   );
 }

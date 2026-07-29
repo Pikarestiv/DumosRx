@@ -118,7 +118,7 @@ export function LoginForm({ redirectPath = "/dashboard" }: { redirectPath?: stri
                         <Input
                           placeholder="name@example.com"
                           type="email"
-                          className="pl-10 bg-white/5 border-white/10 text-white focus:border-primary/50 focus:ring-primary/20 transition-all h-11"
+                          className="pl-10 bg-white/5 border-white/10 text-white placeholder:text-gray-400 focus:border-primary/50 focus:ring-primary/20 transition-all h-11"
                           {...field}
                         />
                       </div>
@@ -150,7 +150,7 @@ export function LoginForm({ redirectPath = "/dashboard" }: { redirectPath?: stri
                         <Input
                           type={showPassword ? "text" : "password"}
                           placeholder="******"
-                          className="pl-10 pr-10 bg-white/5 border-white/10 text-white focus:border-primary/50 focus:ring-primary/20 transition-all h-11"
+                          className="pl-10 pr-10 bg-white/5 border-white/10 text-white placeholder:text-gray-400 focus:border-primary/50 focus:ring-primary/20 transition-all h-11"
                           {...field}
                         />
                         <button

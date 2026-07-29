@@ -11,21 +11,21 @@ export interface Expense {
 
 export async function getCurrentMonthRevenue() {
   const res = await query<{total: number}>(
-    "SELECT SUM(total_amount) as total FROM sales WHERE strftime('%Y-%m', transaction_date) = strftime('%Y-%m', 'now')"
+    "SELECT SUM(total_amount) as total FROM sales WHERE _deleted = 0 AND strftime('%Y-%m', transaction_date) = strftime('%Y-%m', 'now')"
   );
   return res[0]?.total || 0;
 }
 
 export async function getCurrentMonthCOGS() {
   const res = await query<{total: number}>(
-    "SELECT SUM(si.quantity * si.cost_price) as total FROM sale_items si JOIN sales s ON si.sale_id = s.id WHERE strftime('%Y-%m', s.transaction_date) = strftime('%Y-%m', 'now')"
+    "SELECT SUM(si.quantity * si.cost_price) as total FROM sale_items si JOIN sales s ON si.sale_id = s.id WHERE s._deleted = 0 AND strftime('%Y-%m', s.transaction_date) = strftime('%Y-%m', 'now')"
   );
   return res[0]?.total || 0;
 }
 
 export async function getCurrentMonthExpensesByCategory() {
   return query<{total: number, category: string}>(
-    "SELECT SUM(amount) as total, category FROM expenses WHERE strftime('%Y-%m', created_at) = strftime('%Y-%m', 'now') GROUP BY category"
+    "SELECT SUM(amount) as total, category FROM expenses WHERE _deleted = 0 AND strftime('%Y-%m', date) = strftime('%Y-%m', 'now') GROUP BY category"
   );
 }
 

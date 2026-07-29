@@ -40,14 +40,14 @@ export default function AdminLoginPage() {
 
   if (checking) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950">
+      <div className="min-h-dvh flex items-center justify-center bg-slate-950">
         <Loader2 className="h-10 w-10 text-indigo-500 animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-slate-950">
+    <div className="min-h-dvh flex items-center justify-center p-4 relative overflow-hidden bg-slate-950">
       {/* Dynamic Background */}
       <div className="absolute inset-0 z-0">
         <div className="absolute top-0 -left-4 w-72 h-72 bg-indigo-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob" />

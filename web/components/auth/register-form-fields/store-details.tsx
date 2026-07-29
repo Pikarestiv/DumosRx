@@ -32,7 +32,7 @@ export function StoreDetails({ form, itemVariant }: StoreDetailsProps) {
                   <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 group-focus-within:text-primary transition-colors" />
                   <Input
                     placeholder="Dumos Store"
-                    className="pl-10 bg-white/5 border-white/10 text-white focus:border-primary/50 focus:ring-primary/20 h-11"
+                    className="pl-10 bg-white/5 border-white/10 text-white placeholder:text-gray-400 focus:border-primary/50 focus:ring-primary/20 h-11"
                     {...field}
                   />
                 </div>

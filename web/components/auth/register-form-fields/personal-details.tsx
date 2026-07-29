@@ -29,7 +29,7 @@ export function PersonalDetails({ form, itemVariant }: PersonalDetailsProps) {
                 <FormControl>
                   <Input
                     placeholder="John"
-                    className="bg-white/5 border-white/10 text-white focus:border-primary/50 focus:ring-primary/20 h-11"
+                    className="bg-white/5 border-white/10 text-white placeholder:text-gray-400 focus:border-primary/50 focus:ring-primary/20 h-11"
                     {...field}
                   />
                 </FormControl>
@@ -49,7 +49,7 @@ export function PersonalDetails({ form, itemVariant }: PersonalDetailsProps) {
                 <FormControl>
                   <Input
                     placeholder="Doe"
-                    className="bg-white/5 border-white/10 text-white focus:border-primary/50 focus:ring-primary/20 h-11"
+                    className="bg-white/5 border-white/10 text-white placeholder:text-gray-400 focus:border-primary/50 focus:ring-primary/20 h-11"
                     {...field}
                   />
                 </FormControl>
@@ -74,7 +74,7 @@ export function PersonalDetails({ form, itemVariant }: PersonalDetailsProps) {
                     <Input
                       placeholder="name@example.com"
                       type="email"
-                      className="pl-10 bg-white/5 border-white/10 text-white focus:border-primary/50 focus:ring-primary/20 h-11"
+                      className="pl-10 bg-white/5 border-white/10 text-white placeholder:text-gray-400 focus:border-primary/50 focus:ring-primary/20 h-11"
                       {...field}
                     />
                   </div>
@@ -98,7 +98,7 @@ export function PersonalDetails({ form, itemVariant }: PersonalDetailsProps) {
                     <Input
                       placeholder="08012345678"
                       type="tel"
-                      className="pl-10 bg-white/5 border-white/10 text-white focus:border-primary/50 focus:ring-primary/20 h-11"
+                      className="pl-10 bg-white/5 border-white/10 text-white placeholder:text-gray-400 focus:border-primary/50 focus:ring-primary/20 h-11"
                       {...field}
                     />
                   </div>

@@ -106,7 +106,7 @@ export function AdminLoginForm() {
                         <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 group-focus-within:text-indigo-500 transition-colors" />
                         <Input
                           placeholder="admin@dumosrx.com"
-                          className="pl-10 bg-white/5 border-white/10 text-white focus:border-indigo-500/50 focus:ring-indigo-500/20 h-12"
+                          className="pl-10 bg-white/5 border-white/10 text-white placeholder:text-slate-400 focus:border-indigo-500/50 focus:ring-indigo-500/20 h-12"
                           {...field}
                         />
                       </div>
@@ -130,7 +130,7 @@ export function AdminLoginForm() {
                           <Input
                             type={showPassword ? "text" : "password"}
                             placeholder="••••••••"
-                            className="pl-10 pr-10 bg-white/5 border-white/10 text-white focus:border-indigo-500/50 focus:ring-indigo-500/20 h-12"
+                            className="pl-10 pr-10 bg-white/5 border-white/10 text-white placeholder:text-slate-400 focus:border-indigo-500/50 focus:ring-indigo-500/20 h-12"
                             {...field}
                           />
                           <button

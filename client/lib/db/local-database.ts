@@ -157,22 +157,6 @@ export async function getCustomers() {
 }
 
 /**
- * Expenses
- */
-export async function getExpenses(page = 1, limit = 50) {
-  const offset = (page - 1) * limit;
-  const results = await query<any>(
-    "SELECT * FROM expenses WHERE _deleted = 0 ORDER BY date DESC LIMIT ? OFFSET ?",
-    [limit, offset],
-  );
-  return { data: results, page, limit };
-}
-
-export async function createExpense(data: any) {
-  return await insert("expenses", data);
-}
-
-/**
  * Prescriptions
  */
 export async function createPrescription(data: any, items: any[]) {

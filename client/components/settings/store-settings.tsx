@@ -1,14 +1,6 @@
 "use client";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { StoreType } from "@/lib/context/store-context";
-import { DevSeedButton } from "@/components/dev/seed-button";
 
 import { BusinessVerticalCard } from "./store/business-vertical-card";
 import { StoreInformationCard } from "./store/store-information-card";
@@ -149,21 +141,6 @@ export function StoreSettings({
       <PaymentAccountsCard />
 
       <MultiStoreCard />
-
-      {/* Developer Tools */}
-      {process.env.NODE_ENV === "development" && (
-        <Card className="border-primary/20 bg-primary/5">
-          <CardHeader>
-            <CardTitle>Developer Tools</CardTitle>
-            <CardDescription>
-              Local database management utilities. These are only visible in development mode.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <DevSeedButton />
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

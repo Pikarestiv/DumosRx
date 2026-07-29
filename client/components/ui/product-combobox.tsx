@@ -17,7 +17,6 @@ export interface SelectedProduct {
   name: string;
   source: ProductSource;
   localId?: string;
-  brand_name?: string;
   generic_name?: string;
   category?: string;
   manufacturer?: string;
@@ -68,7 +67,6 @@ export function ProductCombobox({
           manufacturer: prod.manufacturer,
           strength: prod.strength,
           dosageForm: prod.dosageForm,
-          brand_name: prod.brand || prod.name,
         });
       });
     }
@@ -81,7 +79,6 @@ export function ProductCombobox({
       name: p.name,
       source: "local" as ProductSource,
       localId: p.id,
-      brand_name: p.brand_name,
       generic_name: p.generic_name,
       category: p.category_id,
       manufacturer: p.manufacturer,
@@ -96,7 +93,6 @@ export function ProductCombobox({
     
     const { results } = genericFuzzySearch(deferredValue, allSuggestions, [
       "name",
-      "brand_name",
       "generic_name",
     ]);
 
@@ -178,15 +174,9 @@ export function ProductCombobox({
                     <Globe className={cn("h-3 w-3 ml-2 shrink-0", idx === activeIndex ? "text-accent-foreground" : "text-blue-500 group-hover:text-accent-foreground")} />
                   ) : null}
                 </div>
-                {(option.generic_name || option.brand_name) && (
+                {option.generic_name && (
                   <div className="pl-6 text-xs text-muted-foreground mt-0.5 w-full truncate">
-                    {option.generic_name && (
-                      <span className="italic">{option.generic_name}</span>
-                    )}
-                    {option.generic_name && option.brand_name && (
-                      <span className="mx-1">•</span>
-                    )}
-                    {option.brand_name && <span>{option.brand_name}</span>}
+                    <span className="italic">{option.generic_name}</span>
                   </div>
                 )}
               </div>

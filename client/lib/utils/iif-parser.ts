@@ -47,7 +47,6 @@ export function parseIIF(fileContent: string): ParsedIIF {
           id: `qb_${crypto.randomUUID()}`,
           name,
           generic_name: '',
-          brand: '',
           strength: '',
           unit_price: isNaN(price) ? 0 : price,
           stock: isNaN(stock) ? 0 : stock,

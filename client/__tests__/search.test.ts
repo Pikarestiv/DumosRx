@@ -26,9 +26,9 @@ describe('Search Utilities', () => {
 
   describe('searchProducts', () => {
     const products = [
-      { id: '1', name: 'Paracetamol', brand: 'Panadol', generic_name: 'Acetaminophen', barcode: '12345' },
-      { id: '2', name: 'Amoxicillin', brand: 'Amoxil', generic_name: 'Amoxicillin', barcode: '67890' },
-      { id: '3', name: 'Ibuprofen', brand: 'Advil', generic_name: 'Ibuprofen', barcode: '11111' },
+      { id: '1', name: 'Paracetamol', generic_name: 'Acetaminophen', barcode: '12345' },
+      { id: '2', name: 'Amoxicillin', generic_name: 'Amoxicillin', barcode: '67890' },
+      { id: '3', name: 'Ibuprofen', generic_name: 'Ibuprofen', barcode: '11111' },
     ];
 
     it('returns exact match (Tier 1)', () => {
@@ -38,8 +38,8 @@ describe('Search Utilities', () => {
       expect(result.isFuzzyFallback).toBe(false);
     });
 
-    it('returns brand match', () => {
-      const result = searchProducts('Panadol', products);
+    it('returns generic name match', () => {
+      const result = searchProducts('Acetaminophen', products);
       expect(result.results.length).toBe(1);
       expect(result.results[0].id).toBe('1');
     });

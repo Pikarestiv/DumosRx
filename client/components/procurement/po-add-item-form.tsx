@@ -79,7 +79,6 @@ export function POAddItemForm({
           name: currentSelectedProduct.name,
           genericName: currentSelectedProduct.generic_name,
           manufacturer: currentSelectedProduct.manufacturer,
-          brand: currentSelectedProduct.brand_name,
           strength: currentSelectedProduct.strength,
           dosageForm: currentSelectedProduct.dosageForm,
         });

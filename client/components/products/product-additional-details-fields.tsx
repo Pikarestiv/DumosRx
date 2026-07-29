@@ -68,9 +68,9 @@ export function ProductAdditionalDetailsFields({ formData, onInputChange, isPhar
         </div>
 
         {isPharmacy && (
-          <div className="space-y-4 pt-2 md:col-span-2 flex flex-col sm:flex-row sm:items-center gap-6">
-            <div className="flex items-center justify-between space-x-2">
-              <Label htmlFor="requiresPrescription" className="flex-1 cursor-pointer">
+          <div className="pt-2 md:col-span-2 flex flex-row flex-wrap items-center gap-6">
+            <div className="flex items-center gap-2">
+              <Label htmlFor="requiresPrescription" className="cursor-pointer whitespace-nowrap">
                 Requires Prescription (Rx)
               </Label>
               <Switch
@@ -79,8 +79,8 @@ export function ProductAdditionalDetailsFields({ formData, onInputChange, isPhar
                 onCheckedChange={(checked) => onInputChange("requiresPrescription", checked)}
               />
             </div>
-            <div className="flex items-center justify-between space-x-2">
-              <Label htmlFor="isControlled" className="flex-1 cursor-pointer">
+            <div className="flex items-center gap-2">
+              <Label htmlFor="isControlled" className="cursor-pointer whitespace-nowrap">
                 Controlled Substance
               </Label>
               <Switch

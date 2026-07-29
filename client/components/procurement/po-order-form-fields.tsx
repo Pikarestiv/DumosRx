@@ -198,7 +198,13 @@ export function POOrderFormFields({
         </div>
       </div>
       <div className="text-[11.5px] text-muted-foreground px-1">
-        Items appear in the Order Summary panel on the right as you add them.
+        <span className="lg:hidden">
+          Items appear in the Order Summary below as you add them.
+        </span>
+        <span className="hidden lg:inline">
+          Items appear in the Order Summary panel on the right as you add
+          them.
+        </span>
       </div>
     </>
   );

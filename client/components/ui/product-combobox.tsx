@@ -56,8 +56,10 @@ export function ProductCombobox({
   // Compile global suggestions
   const globalSuggestions = React.useMemo(() => {
     const list: SelectedProduct[] = [];
-    const source = isPharmacy ? FORM_SUGGESTIONS.store : FORM_SUGGESTIONS.retail;
-    
+    const source = isPharmacy
+      ? FORM_SUGGESTIONS.store
+      : FORM_SUGGESTIONS.retail;
+
     if (source && source.products) {
       source.products.forEach((prod: any) => {
         list.push({
@@ -89,26 +91,38 @@ export function ProductCombobox({
   const deferredValue = React.useDeferredValue(value);
 
   const filteredOptions = React.useMemo(() => {
-    if (!deferredValue) return allSuggestions.slice(0, 50); // Limit initial display
-    
-    const { results } = genericFuzzySearch(deferredValue, allSuggestions, [
-      "name",
-      "generic_name",
-    ]);
+    const base = !deferredValue
+      ? allSuggestions.slice(0, 50) // Limit initial display
+      : genericFuzzySearch(deferredValue, allSuggestions, [
+          "name",
+          "generic_name",
+        ]).results.slice(0, 50);
 
-    return results.slice(0, 50);
+    // Always show products already in this store's inventory before global
+    // suggestions/other stores' products, regardless of fuzzy-match score —
+    // that's almost always the correct pick (it's the one with real stock
+    // and pricing), and a new user shouldn't have to know to look for it.
+    // Array.sort is stable, so this only reorders across the two groups,
+    // never within one.
+    return [...base].sort((a, b) => {
+      if (a.source === b.source) return 0;
+      return a.source === "local" ? -1 : b.source === "local" ? 1 : 0;
+    });
   }, [deferredValue, allSuggestions]);
 
   // Handle clicks outside to close the menu
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setOpen(false)
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(event.target as Node)
+      ) {
+        setOpen(false);
       }
-    }
-    document.addEventListener("mousedown", handleClickOutside)
-    return () => document.removeEventListener("mousedown", handleClickOutside)
-  }, [])
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   return (
     <div className="relative w-full" ref={containerRef}>
@@ -125,7 +139,9 @@ export function ProductCombobox({
           } else if (e.key === "ArrowDown") {
             e.preventDefault();
             if (!open) setOpen(true);
-            setActiveIndex((prev) => Math.min(prev + 1, filteredOptions.length - 1));
+            setActiveIndex((prev) =>
+              Math.min(prev + 1, filteredOptions.length - 1),
+            );
           } else if (e.key === "ArrowUp") {
             e.preventDefault();
             setActiveIndex((prev) => Math.max(prev - 1, 0));
@@ -144,10 +160,10 @@ export function ProductCombobox({
         autoComplete="off"
         className={cn("w-full", className)}
       />
-      
+
       {open && filteredOptions.length > 0 && (
         <div className="absolute z-[999] w-full mt-1 bg-popover text-popover-foreground shadow-xl rounded-md border border-border outline-none animate-in fade-in-0 zoom-in-95 overflow-hidden">
-          <div className="max-h-[300px] overflow-y-auto p-1">
+          <div className="max-h-[300px] overflow-y-auto hide-scrollbar p-1">
             {filteredOptions.map((option, idx) => (
               <div
                 key={`${option.source}_${option.name}_${idx}`}
@@ -157,21 +173,43 @@ export function ProductCombobox({
                 }}
                 className={cn(
                   "relative flex cursor-pointer select-none flex-col items-start rounded-sm py-2 px-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground group",
-                  idx === activeIndex && "bg-accent text-accent-foreground"
+                  idx === activeIndex && "bg-accent text-accent-foreground",
                 )}
               >
                 <div className="flex items-center w-full">
                   <Check
                     className={cn(
                       "mr-2 h-4 w-4 shrink-0",
-                      value === option.name ? "opacity-100" : "opacity-0"
+                      value === option.name ? "opacity-100" : "opacity-0",
                     )}
                   />
-                  <span className="truncate flex-1 font-medium">{option.name}</span>
+                  <span className="truncate flex-1 font-medium">
+                    {option.name}
+                  </span>
                   {option.source === "local" ? (
-                    <Database className={cn("h-3 w-3 ml-2 shrink-0", idx === activeIndex ? "text-accent-foreground" : "text-emerald-500 group-hover:text-accent-foreground")} />
+                    <span
+                      className={cn(
+                        "ml-2 shrink-0 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold whitespace-nowrap",
+                        idx === activeIndex
+                          ? "bg-accent-foreground/10 text-accent-foreground"
+                          : "bg-emerald-500/10 text-emerald-600",
+                      )}
+                    >
+                      <Database className="h-2.5 w-2.5" />
+                      In Catalog
+                    </span>
                   ) : option.source === "global" ? (
-                    <Globe className={cn("h-3 w-3 ml-2 shrink-0", idx === activeIndex ? "text-accent-foreground" : "text-blue-500 group-hover:text-accent-foreground")} />
+                    <span
+                      className={cn(
+                        "ml-2 shrink-0 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold whitespace-nowrap",
+                        idx === activeIndex
+                          ? "bg-accent-foreground/10 text-accent-foreground"
+                          : "bg-blue-500/10 text-blue-600",
+                      )}
+                    >
+                      <Globe className="h-2.5 w-2.5" />
+                      Suggested
+                    </span>
                   ) : null}
                 </div>
                 {option.generic_name && (
@@ -189,7 +227,8 @@ export function ProductCombobox({
                 }}
                 className={cn(
                   "relative flex cursor-pointer select-none items-center rounded-sm py-2 px-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground",
-                  activeIndex === filteredOptions.length && "bg-accent text-accent-foreground"
+                  activeIndex === filteredOptions.length &&
+                    "bg-accent text-accent-foreground",
                 )}
               >
                 <Plus className="mr-2 h-4 w-4 shrink-0" />

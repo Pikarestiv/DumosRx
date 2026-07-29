@@ -67,7 +67,9 @@ export function ProductPackagingFields({ formData, onInputChange, commonSuggesti
             Contains how many base units?
           </Label>
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium whitespace-nowrap">1 Bulk =</span>
+            <span className="text-sm font-medium whitespace-nowrap">
+              1 {formData.bulkUnit || "Bulk"} =
+            </span>
             <Input
               id="unitsPerBulk"
               type="number"
@@ -108,6 +110,12 @@ export function ProductPackagingFields({ formData, onInputChange, commonSuggesti
           />
         </div>
       </div>
+      {formData.bulkUnit && formData.unitsPerBulk && formData.baseUnit && (
+        <p className="text-xs text-muted-foreground text-center -mt-2">
+          1 {formData.bulkUnit} = {formData.unitsPerBulk} {formData.baseUnit}
+          {formData.unitsPerBulk === 1 ? "" : "s"}
+        </p>
+      )}
     </div>
   );
 }

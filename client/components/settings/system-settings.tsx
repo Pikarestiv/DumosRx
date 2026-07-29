@@ -11,10 +11,12 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { APP_NAME, APP_VERSION } from "@/lib/constants";
 import { isTauri } from "@/lib/db/core";
+import { IosInstallCard } from "./ios-install-card";
 
 export function SystemSettings() {
   return (
     <div className="space-y-6">
+      <IosInstallCard />
       <Card>
         <CardHeader>
           <CardTitle>System Updates</CardTitle>

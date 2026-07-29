@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { apiClient } from "@/lib/api/base-client";
 
 interface CheckoutFormProps {
   storeSlug: string;
@@ -51,8 +52,6 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
     setLoading(true);
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api/v1";
-      
       const payload = {
         ...formData,
         items: cart.items.map(item => ({
@@ -67,19 +66,7 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
         payload.payment_method = 'in_store';
       }
 
-      const res = await fetch(`${apiUrl}/storefront/${storeSlug}/checkout`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || "Failed to place order");
-      }
+      await apiClient.post(`/storefront/${storeSlug}/checkout`, payload);
 
       toast.success("Order placed successfully!");
       cart.clearCart();

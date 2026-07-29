@@ -32,6 +32,106 @@ interface ProductComboboxProps {
   className?: string;
 }
 
+function SourceBadge({
+  source,
+  active,
+}: {
+  source: "local" | "global";
+  active: boolean;
+}) {
+  if (source === "local") {
+    return (
+      <span
+        className={cn(
+          "ml-2 shrink-0 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold whitespace-nowrap group-hover:bg-white",
+          active
+            ? "bg-accent-foreground/10 text-accent-foreground"
+            : "bg-emerald-500/10 text-emerald-600",
+        )}
+      >
+        <Database className="h-2.5 w-2.5" />
+        In Catalog
+      </span>
+    );
+  }
+  return (
+    <span
+      className={cn(
+        "ml-2 shrink-0 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold whitespace-nowrap group-hover:bg-white",
+        active
+          ? "bg-accent-foreground/10 text-accent-foreground"
+          : "bg-blue-500/10 text-blue-600",
+      )}
+    >
+      <Globe className="h-2.5 w-2.5" />
+      Suggested
+    </span>
+  );
+}
+
+function ProductComboboxItem({
+  option,
+  isSelected,
+  isActive,
+  onSelect,
+}: {
+  option: SelectedProduct;
+  isSelected: boolean;
+  isActive: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <div
+      onClick={onSelect}
+      className={cn(
+        "relative flex cursor-pointer select-none flex-col items-start rounded-sm py-2 px-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground group",
+        isActive && "bg-accent text-accent-foreground",
+      )}
+    >
+      <div className="flex items-center w-full">
+        <Check
+          className={cn(
+            "mr-2 h-4 w-4 shrink-0",
+            isSelected ? "opacity-100" : "opacity-0",
+          )}
+        />
+        <span className="truncate flex-1 font-medium">{option.name}</span>
+        {(option.source === "local" || option.source === "global") && (
+          <SourceBadge source={option.source} active={isActive} />
+        )}
+      </div>
+      {option.generic_name && (
+        <div className="pl-6 text-xs text-muted-foreground group-hover:text-accent-foreground/70 mt-0.5 w-full truncate">
+          <span className="italic">{option.generic_name}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AddNewProductOption({
+  value,
+  isActive,
+  onSelect,
+}: {
+  value: string;
+  isActive: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <div
+      onClick={onSelect}
+      className={cn(
+        "relative flex cursor-pointer select-none items-center rounded-sm py-2 px-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground",
+        isActive && "bg-accent text-accent-foreground",
+      )}
+    >
+      <Plus className="mr-2 h-4 w-4 shrink-0" />
+      Add "{value}" as new product
+    </div>
+  );
+}
+
 export function ProductCombobox({
   value,
   onChange,
@@ -165,75 +265,26 @@ export function ProductCombobox({
         <div className="absolute z-[999] w-full mt-1 bg-popover text-popover-foreground shadow-xl rounded-md border border-border outline-none animate-in fade-in-0 zoom-in-95 overflow-hidden">
           <div className="max-h-[300px] overflow-y-auto hide-scrollbar p-1">
             {filteredOptions.map((option, idx) => (
-              <div
+              <ProductComboboxItem
                 key={`${option.source}_${option.name}_${idx}`}
-                onClick={() => {
+                option={option}
+                isSelected={value === option.name}
+                isActive={idx === activeIndex}
+                onSelect={() => {
                   onChange(option);
                   setOpen(false);
                 }}
-                className={cn(
-                  "relative flex cursor-pointer select-none flex-col items-start rounded-sm py-2 px-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground group",
-                  idx === activeIndex && "bg-accent text-accent-foreground",
-                )}
-              >
-                <div className="flex items-center w-full">
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4 shrink-0",
-                      value === option.name ? "opacity-100" : "opacity-0",
-                    )}
-                  />
-                  <span className="truncate flex-1 font-medium">
-                    {option.name}
-                  </span>
-                  {option.source === "local" ? (
-                    <span
-                      className={cn(
-                        "ml-2 shrink-0 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold whitespace-nowrap",
-                        idx === activeIndex
-                          ? "bg-accent-foreground/10 text-accent-foreground"
-                          : "bg-emerald-500/10 text-emerald-600",
-                      )}
-                    >
-                      <Database className="h-2.5 w-2.5" />
-                      In Catalog
-                    </span>
-                  ) : option.source === "global" ? (
-                    <span
-                      className={cn(
-                        "ml-2 shrink-0 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold whitespace-nowrap",
-                        idx === activeIndex
-                          ? "bg-accent-foreground/10 text-accent-foreground"
-                          : "bg-blue-500/10 text-blue-600",
-                      )}
-                    >
-                      <Globe className="h-2.5 w-2.5" />
-                      Suggested
-                    </span>
-                  ) : null}
-                </div>
-                {option.generic_name && (
-                  <div className="pl-6 text-xs text-muted-foreground mt-0.5 w-full truncate">
-                    <span className="italic">{option.generic_name}</span>
-                  </div>
-                )}
-              </div>
+              />
             ))}
             {value && filteredOptions.length === 0 && (
-              <div
-                onClick={() => {
+              <AddNewProductOption
+                value={value}
+                isActive={activeIndex === filteredOptions.length}
+                onSelect={() => {
                   onChange({ name: value, source: "new" });
                   setOpen(false);
                 }}
-                className={cn(
-                  "relative flex cursor-pointer select-none items-center rounded-sm py-2 px-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground",
-                  activeIndex === filteredOptions.length &&
-                    "bg-accent text-accent-foreground",
-                )}
-              >
-                <Plus className="mr-2 h-4 w-4 shrink-0" />
-                Add "{value}" as new product
-              </div>
+              />
             )}
           </div>
         </div>

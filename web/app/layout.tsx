@@ -77,6 +77,7 @@ export const metadata: Metadata = {
 };
 
 import { Providers } from "@/components/providers";
+import { PwaRegistrar } from "@/components/pwa-registrar";
 
 export default function RootLayout({
   children,
@@ -90,6 +91,7 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <Providers>{children}</Providers>
+        <PwaRegistrar />
       </body>
     </html>
   );

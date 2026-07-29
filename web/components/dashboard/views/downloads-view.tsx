@@ -15,6 +15,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DOWNLOAD_URL } from "@/lib/constants";
 import { IosInstallDialog } from "./ios-install-dialog";
+import { useInstallPrompt } from "@/lib/hooks/use-install-prompt";
 
 interface DownloadsViewProps {
   releaseLinks: any;
@@ -26,6 +27,7 @@ export function DownloadsView({
   requiresVerification,
 }: DownloadsViewProps) {
   const [iosDialogOpen, setIosDialogOpen] = useState(false);
+  const { canInstall, promptInstall } = useInstallPrompt();
 
   if (!releaseLinks || !releaseLinks.version) {
     return (
@@ -186,6 +188,18 @@ export function DownloadsView({
             <div className="flex-1">
               <h4 className="text-lg font-bold">{app.os}</h4>
               <p className="text-sm text-muted-foreground">{app.description}</p>
+              {/* Nudge Android users toward the one-tap PWA install even
+                  though the native APK above is the primary path — it skips
+                  enabling "install from unknown sources" and auto-updates. */}
+              {app.os === "Android" && canInstall && (
+                <button
+                  type="button"
+                  onClick={promptInstall}
+                  className="text-xs font-semibold text-primary hover:underline mt-0.5"
+                >
+                  Or install as an app (no APK needed) →
+                </button>
+              )}
             </div>
             <div className="text-right mr-5 hidden sm:block">
               <p className="text-sm font-medium">

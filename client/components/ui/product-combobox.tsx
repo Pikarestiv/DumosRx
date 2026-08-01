@@ -188,7 +188,7 @@ export function ProductCombobox({
       source: "local" as ProductSource,
       localId: p.id,
       generic_name: p.generic_name,
-      category: p.category_id,
+      category: p.category_name,
       manufacturer: p.manufacturer,
       strength: p.strength,
       dosageForm: p.dosage_form,

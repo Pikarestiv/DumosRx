@@ -338,16 +338,13 @@ class SyncController extends Controller
                         
                         $model->save();
 
-                        // Process stock_movements deltas
-                        if ($change['table_name'] === 'stock_movements') {
-                            $stockBatchId = $payload['stock_batch_id'] ?? null;
-                            $qtyDelta = $payload['quantity'] ?? 0;
-                            if ($stockBatchId && $qtyDelta != 0) {
-                                DB::table('stock_batches')
-                                    ->where('id', $stockBatchId)
-                                    ->increment('quantity', $qtyDelta);
-                            }
-                        }
+                        // Note: stock_movements rows are a pure audit log from the client's
+                        // perspective — every caller that inserts one (procurement receiving,
+                        // sales, returns, POS checkout) has already applied the real quantity
+                        // change to stock_batches itself (via its own INSERT/UPDATE, which is
+                        // pushed and applied separately). Re-applying the movement's quantity
+                        // as a delta here double-counted every stock change on sync — this used
+                        // to live here but was removed for exactly that reason.
 
                         // Handle _deleted flag for soft deletes
                         if ($isDeleted) {

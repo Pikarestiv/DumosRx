@@ -45,3 +45,22 @@ Enter each row through "Add Items to Order." **Qty** is in the product's Bulk Un
 **Order Total: ₦933,800** (Amount Paid ₦300,000 above leaves ₦633,800 outstanding as a partial payment — adjust either number if you want a different split.)
 
 Bulk Cost per carton was derived from a ~60–65% cost-to-selling markup at the per-card/per-bottle level × Units per Bulk from the products sheet — realistic but made up, adjust to your actual supplier pricing.
+
+## 3. Receiving (Procurement → this PO → "Receive Goods")
+
+Once the PO is created, open it and hit Receive Goods. This is a separate step per item with its own Batch/Lot No. and Expiry Date fields — Qty Received defaults to what was ordered, so only change it if the delivery was short. Dates below assume you're receiving on **Aug 1, 2026** (today) — deliberately spread across urgent / close-to-expiry / healthy / long-dated so your Inventory expiry filters and dashboard alerts have something real to show. Your store's expiry warning threshold defaults to 90 days out.
+
+| # | Product | Qty Received | Batch / Lot No. | Expiry Date | Status |
+|---|---|---:|---|---|---|
+| 1 | Panadol Extra | 3 | PNDX-2601 | 2026-09-15 | Close to expiry (~45 days) |
+| 2 | Coartem | 2 | CRTM-2547 | 2028-03-01 | Healthy (~19 months) |
+| 3 | Augmentin 625mg | 4 | AUGM-1198 | 2026-08-20 | Urgent (~19 days) |
+| 4 | Zyrtec | 2 | ZYRT-3320 | 2027-11-10 | Healthy (~15 months) |
+| 5 | Norvasc | 2 | NRVC-0876 | 2027-06-30 | Healthy (~11 months) |
+| 6 | Glucophage | 3 | GLCP-4410 | 2026-10-05 | Close to expiry (~65 days) |
+| 7 | Emzor Vitamin C | 2 | EMVC-7702 | 2028-01-15 | Healthy, long-dated (~17 months) |
+| 8 | Benylin | 2 | BNLN-2219 | 2027-02-28 | Healthy (~7 months) |
+| 9 | Gaviscon | 1 | GVSC-5563 | 2026-08-10 | Urgent (~9 days) |
+| 10 | Dettol Antiseptic | 2 | DTTL-8801 | 2029-05-01 | Long-dated (~33 months, household item) |
+
+That's 2 urgent (under 30 days — good for testing a critical-expiry alert/badge), 2 close-to-expiry (inside the 90-day warning window), and 6 healthy/long-dated, so you get all three states represented in Inventory at once. Batch numbers are made up, formatted like a real lot code — swap for your supplier's actual batch numbers when you have real stock.

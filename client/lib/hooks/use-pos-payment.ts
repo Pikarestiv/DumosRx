@@ -137,7 +137,10 @@ export function usePOSPayment({
         discount_percentage: discountType === "percentage" ? rawDiscount : 0,
         discount_type: discountType,
         tax_amount: tax,
-        tax_percentage: 7.5,
+        // Derived from the actual charged amounts rather than hardcoded, so it
+        // always matches whatever VAT rate was really applied (the store's
+        // configured rate, which may not be 7.5% — or may be 0).
+        tax_percentage: subtotal > 0 ? (tax / subtotal) * 100 : 0,
         total_amount: total,
         amount_paid:
           paymentMethod === "cash"

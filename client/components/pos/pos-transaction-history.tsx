@@ -46,13 +46,22 @@ export function POSTransactionHistory({
       (s) => s.created_at && isToday(parseISO(s.created_at)),
     );
 
+    // Net of refunds — a fully-returned sale should not still count toward
+    // today's revenue, here or anywhere else that reads this figure.
     const totalSales = todaySales.reduce(
-      (acc, s) => acc + (Number(s.total_amount) || Number(s.total) || 0),
+      (acc, s) =>
+        acc +
+        Math.max(
+          0,
+          (Number(s.total_amount) || Number(s.total) || 0) -
+            (Number(s.total_refunded) || 0),
+        ),
       0,
     );
     const transactions = todaySales.length;
     const refunded = todaySales.filter(
       (s) =>
+        (Number(s.total_refunded) || 0) > 0 ||
         s.payment_status?.toLowerCase() === "refunded" ||
         s.status?.toLowerCase() === "refunded",
     ).length;

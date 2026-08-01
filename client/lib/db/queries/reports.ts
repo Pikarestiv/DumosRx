@@ -35,27 +35,47 @@ export async function getDashboardOverviewData(viewerId?: string) {
   );
 
   const recentSales = await query<any>(
-    `SELECT * FROM sales WHERE _deleted = 0${viewerId ? " AND user_id = ?" : ""} ORDER BY created_at DESC LIMIT 5`,
+    `SELECT s.*, TRIM(u.first_name || ' ' || u.last_name) as cashier_name
+     FROM sales s
+     LEFT JOIN users u ON u.id = s.user_id
+     WHERE s._deleted = 0${viewerId ? " AND s.user_id = ?" : ""}
+     ORDER BY s.created_at DESC LIMIT 5`,
     viewerId ? [viewerId] : []
   );
 
   const recentMovements = await query<any>(
-    `SELECT * FROM stock_movements WHERE _deleted = 0${viewerId ? " AND performed_by = ?" : ""} ORDER BY created_at DESC LIMIT 5`,
+    `SELECT sm.*, TRIM(u.first_name || ' ' || u.last_name) as performed_by_name
+     FROM stock_movements sm
+     LEFT JOIN users u ON u.id = sm.performed_by
+     WHERE sm._deleted = 0${viewerId ? " AND sm.performed_by = ?" : ""}
+     ORDER BY sm.created_at DESC LIMIT 5`,
     viewerId ? [viewerId] : []
   );
 
   const recentPurchaseOrders = await query<any>(
-    `SELECT * FROM purchase_orders WHERE _deleted = 0${viewerId ? " AND ordered_by = ?" : ""} ORDER BY created_at DESC LIMIT 5`,
+    `SELECT po.*, TRIM(u.first_name || ' ' || u.last_name) as ordered_by_name
+     FROM purchase_orders po
+     LEFT JOIN users u ON u.id = po.ordered_by
+     WHERE po._deleted = 0${viewerId ? " AND po.ordered_by = ?" : ""}
+     ORDER BY po.created_at DESC LIMIT 5`,
     viewerId ? [viewerId] : []
   );
 
   const recentExpenses = await query<any>(
-    `SELECT * FROM expenses WHERE _deleted = 0${viewerId ? " AND user_id = ?" : ""} ORDER BY created_at DESC LIMIT 5`,
+    `SELECT e.*, TRIM(u.first_name || ' ' || u.last_name) as recorded_by_name
+     FROM expenses e
+     LEFT JOIN users u ON u.id = e.user_id
+     WHERE e._deleted = 0${viewerId ? " AND e.user_id = ?" : ""}
+     ORDER BY e.created_at DESC LIMIT 5`,
     viewerId ? [viewerId] : []
   );
 
   const recentPrescriptions = await query<any>(
-    `SELECT * FROM prescriptions WHERE _deleted = 0${viewerId ? " AND user_id = ?" : ""} ORDER BY created_at DESC LIMIT 5`,
+    `SELECT p.*, TRIM(u.first_name || ' ' || u.last_name) as created_by_name
+     FROM prescriptions p
+     LEFT JOIN users u ON u.id = p.user_id
+     WHERE p._deleted = 0${viewerId ? " AND p.user_id = ?" : ""}
+     ORDER BY p.created_at DESC LIMIT 5`,
     viewerId ? [viewerId] : []
   );
 

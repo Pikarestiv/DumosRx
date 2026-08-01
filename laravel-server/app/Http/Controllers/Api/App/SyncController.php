@@ -247,7 +247,10 @@ class SyncController extends Controller
                     // Prevent duplicate email/username crashes for users
                     if (!$exists && $change['table_name'] === 'users') {
                         $conflict = $modelClass::where('email', $payload['email'])
-                                             ->orWhere('username', $payload['username'])
+                                             ->orWhere(function ($q) use ($payload) {
+                                                 $q->where('username', $payload['username'] ?? null)
+                                                   ->where('store_id', $payload['store_id'] ?? null);
+                                             })
                                              ->first();
                         if ($conflict) {
                             Log::warning("Sync push skipped user insert due to duplicate email/username: {$payload['email']}");

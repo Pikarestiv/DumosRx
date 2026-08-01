@@ -55,7 +55,7 @@ class StaffController extends Controller
             'first_name' => 'required|string',
             'last_name' => 'required|string',
             'email' => 'nullable|email|unique:users',
-            'username' => 'required|string|unique:users',
+            'username' => ['required', 'string', Rule::unique('users', 'username')->where('store_id', $request->store_id)],
             'role' => 'required|string|in:admin,manager,specialist,sales_staff,auditor',
             'password' => 'nullable|min:8',
             'pin' => 'nullable|string|size:4',
@@ -94,7 +94,12 @@ class StaffController extends Controller
             'first_name' => 'string',
             'last_name' => 'string',
             'email' => ['nullable', 'email', Rule::unique('users', 'email')->ignore($staff->id)],
-            'username' => ['string', Rule::unique('users', 'username')->ignore($staff->id)],
+            'username' => [
+                'string',
+                Rule::unique('users', 'username')
+                    ->where('store_id', $request->store_id ?? $staff->store_id)
+                    ->ignore($staff->id),
+            ],
             'role' => 'string|in:admin,manager,specialist,sales_staff,auditor',
             'pin' => 'string|size:4',
             'store_id' => 'exists:stores,id',

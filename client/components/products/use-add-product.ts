@@ -1,19 +1,16 @@
 import { toast } from "sonner";
 import { insert, update } from "@/lib/db/local-database";
 import { getCategoryByName } from "@/lib/db/queries/products";
-import { Product } from "./types";
 import { useStore } from "@/lib/context/store-context";
 
 interface UseAddProductProps {
   refetch: () => void;
   setShowAddDialog: (open: boolean) => void;
-  setSelectedProduct: (product: Product | null) => void;
 }
 
 export function useAddProduct({
   refetch,
   setShowAddDialog,
-  setSelectedProduct,
 }: UseAddProductProps) {
   const { t } = useStore();
 
@@ -63,7 +60,6 @@ export function useAddProduct({
       if (!keepOpen) {
         setShowAddDialog(false);
       }
-      setSelectedProduct(null);
     } catch (error) {
       console.error(`Failed to save ${t("product")}:`, error);
       toast.error(`Failed to save ${t("product")}.`);

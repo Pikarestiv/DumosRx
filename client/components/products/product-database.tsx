@@ -93,7 +93,6 @@ export function ProductDatabase() {
   const { handleAddProduct } = useAddProduct({
     refetch,
     setShowAddDialog,
-    setSelectedProduct,
   });
 
   const handleEditProduct = (product: Product) => {
@@ -230,10 +229,7 @@ export function ProductDatabase() {
       {/* Dialogs */}
       <AddProductDialog
         open={showAddDialog}
-        onOpenChange={(open) => {
-          setShowAddDialog(open);
-          if (!open) setSelectedProduct(null);
-        }}
+        onOpenChange={setShowAddDialog}
         onAddProduct={handleAddProduct}
         editingProduct={selectedProduct}
       />

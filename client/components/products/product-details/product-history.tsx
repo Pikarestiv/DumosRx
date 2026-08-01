@@ -30,10 +30,10 @@ async function loadProductHistory(productId: string): Promise<HistoryItem[]> {
     id: `audit-${log.id}`,
     type: "audit",
     title: formatAuditTitle(log.action),
-    description: log.details || "No details provided",
+    description: describeAuditDetails(log.action, log.details),
     date: new Date(log.created_at),
     action: log.action,
-    user: log.user_id || "System",
+    user: log.user_name || "System",
   }));
 
   const normalizedMovements: HistoryItem[] = stockMovements.map((mov: any) => {
@@ -49,7 +49,7 @@ async function loadProductHistory(productId: string): Promise<HistoryItem[]> {
       }`,
       date: new Date(mov.created_at || mov.movement_date),
       action: mov.movement_type,
-      user: mov.performed_by || "System",
+      user: mov.performed_by_name || "System",
       meta: { quantity: mov.quantity, type: mov.movement_type },
     };
   });
@@ -113,11 +113,98 @@ export function ProductHistory({ productId }: { productId: string }) {
   );
 }
 
+/** audit_logs.action is usually the raw DB op ("INSERT"/"UPDATE"/"DELETE"/
+ * "HARD_DELETE") from the generic insert()/update()/softDelete() helpers,
+ * not a friendly verb — normalize case so both that and any hand-picked
+ * AUDIT_ACTIONS value map to a readable title. */
+function normalizeAction(action: string) {
+  return (action || "").toLowerCase();
+}
+
 function formatAuditTitle(action: string) {
-  if (action === "create") return "Product Created";
-  if (action === "update") return "Product Updated";
-  if (action === "delete") return "Product Deleted";
-  return action.charAt(0).toUpperCase() + action.slice(1);
+  const a = normalizeAction(action);
+  if (a === "create" || a === "insert") return "Product Created";
+  if (a === "update") return "Product Updated";
+  if (a === "delete" || a === "hard_delete") return "Product Deleted";
+  return action
+    .toLowerCase()
+    .split("_")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+// Internal/bookkeeping columns that aren't useful to show a user reading history.
+const AUDIT_DETAIL_HIDDEN_KEYS = new Set([
+  "id",
+  "created_at",
+  "updated_at",
+  "_version",
+  "_synced",
+  "_synced_at",
+  "_deleted",
+  "store_id",
+  "category_id", // raw UUID, not human-readable
+]);
+
+const AUDIT_DETAIL_LABELS: Record<string, string> = {
+  name: "Name",
+  generic_name: "Generic Name",
+  nafdac_number: "NAFDAC No.",
+  strength: "Strength",
+  dosage_form: "Dosage Form",
+  manufacturer: "Manufacturer",
+  selling_price: "Selling Price",
+  reorder_level: "Reorder Level",
+  barcode: "Barcode",
+  base_unit: "Base Unit",
+  bulk_unit: "Bulk Unit",
+  units_per_bulk: "Units per Bulk",
+  is_active: "Active",
+  show_online: "Show Online",
+  requires_prescription: "Requires Prescription",
+  is_controlled: "Controlled Substance",
+};
+
+function formatAuditValue(value: unknown): string {
+  if (value === null || value === undefined || value === "") return "—";
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  if (value === 1 || value === 0) return value === 1 ? "Yes" : "No";
+  return String(value);
+}
+
+/** Turns the raw JSON payload logAction() stores into a short, readable
+ * summary instead of dumping the JSON blob in the UI. */
+function describeAuditDetails(action: string, details: string | null) {
+  const a = normalizeAction(action);
+  if (a === "delete" || a === "hard_delete") {
+    return "Product removed from the catalog.";
+  }
+
+  if (!details) return "No details provided";
+
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(details);
+  } catch {
+    return details;
+  }
+
+  const entries = Object.entries(parsed).filter(
+    ([key, value]) => !AUDIT_DETAIL_HIDDEN_KEYS.has(key) && value !== undefined,
+  );
+
+  if (entries.length === 0) {
+    return a === "insert" ? "Product created." : "Details updated.";
+  }
+
+  const summary = entries
+    .map(([key, value]) => {
+      const label = AUDIT_DETAIL_LABELS[key] || key;
+      return `${label}: ${formatAuditValue(value)}`;
+    })
+    .join(" • ");
+
+  return (a === "insert" ? "Created with — " : "Changed — ") + summary;
 }
 
 function getIconForAction(item: HistoryItem) {
@@ -127,8 +214,9 @@ function getIconForAction(item: HistoryItem) {
     if (t === "in" || t === "addition") return PackagePlus;
     return PackageMinus;
   }
-  if (item.action === "create") return PlusCircle;
-  if (item.action === "update") return Edit;
+  const a = normalizeAction(item.action);
+  if (a === "create" || a === "insert") return PlusCircle;
+  if (a === "update") return Edit;
   return Activity;
 }
 
@@ -140,7 +228,8 @@ function getColorForAction(item: HistoryItem) {
     if (t.includes("sale")) return "text-blue-500 border-blue-200";
     return "text-rose-500 border-rose-200";
   }
-  if (item.action === "create") return "text-emerald-500 border-emerald-200";
-  if (item.action === "update") return "text-amber-500 border-amber-200";
+  const a = normalizeAction(item.action);
+  if (a === "create" || a === "insert") return "text-emerald-500 border-emerald-200";
+  if (a === "update") return "text-amber-500 border-amber-200";
   return "text-slate-500 border-slate-200";
 }

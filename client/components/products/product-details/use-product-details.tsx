@@ -54,12 +54,13 @@ export function useProductDetails(
 
   const expiryWarningDays = storeProfile?.expiry_warning_days || 90;
 
-  const profitMargin = product
-    ? (
-        ((product.sellingPrice - product.costPrice) / product.costPrice) *
-        100
-      ).toFixed(1)
-    : "0.0";
+  const profitMargin =
+    product && product.costPrice > 0
+      ? (
+          ((product.sellingPrice - product.costPrice) / product.costPrice) *
+          100
+        ).toFixed(1)
+      : null;
 
   const daysToExpiry = product && product.expiryDate
     ? Math.ceil(

@@ -47,6 +47,9 @@ export function ProductBasicInfoFields({
                 onInputChange("manufacturer", option.manufacturer || "");
                 onInputChange("strength", option.strength || "");
                 onInputChange("dosageForm", option.dosageForm || "");
+                if (option.category) {
+                  onInputChange("category", option.category);
+                }
               }
             }}
             onClear={() => {

@@ -52,7 +52,11 @@ export async function getProductByName(name: string) {
 
 export async function getProductList() {
   return query<any>(
-    "SELECT id, name, generic_name, category_id, manufacturer, strength, dosage_form FROM products WHERE _deleted = 0 ORDER BY name ASC",
+    `SELECT p.id, p.name, p.generic_name, p.category_id, c.name as category_name, p.manufacturer, p.strength, p.dosage_form
+     FROM products p
+     LEFT JOIN categories c ON c.id = p.category_id AND c._deleted = 0
+     WHERE p._deleted = 0
+     ORDER BY p.name ASC`,
   );
 }
 
@@ -85,12 +89,20 @@ export async function getProductsWithStock() {
 
 export async function getProductHistory(productId: string) {
   const auditLogs = await query<any>(
-    "SELECT * FROM audit_logs WHERE record_id = ? ORDER BY created_at DESC",
+    `SELECT al.*, TRIM(u.first_name || ' ' || u.last_name) as user_name
+     FROM audit_logs al
+     LEFT JOIN users u ON u.id = al.user_id
+     WHERE al.record_id = ?
+     ORDER BY al.created_at DESC`,
     [productId]
   );
-  
+
   const stockMovements = await query<any>(
-    "SELECT * FROM stock_movements WHERE product_id = ? ORDER BY created_at DESC",
+    `SELECT sm.*, TRIM(u.first_name || ' ' || u.last_name) as performed_by_name
+     FROM stock_movements sm
+     LEFT JOIN users u ON u.id = sm.performed_by
+     WHERE sm.product_id = ?
+     ORDER BY sm.created_at DESC`,
     [productId]
   );
 

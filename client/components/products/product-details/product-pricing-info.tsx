@@ -6,7 +6,7 @@ import type { Product } from "./use-product-details";
 interface ProductPricingInfoProps {
   product: Product;
   formatPrice: (amount: number) => string;
-  profitMargin: string;
+  profitMargin: string | null;
 }
 
 export function ProductPricingInfo({
@@ -40,12 +40,16 @@ export function ProductPricingInfo({
         <Separator />
         <div>
           <p className="text-sm text-muted-foreground">Profit Margin</p>
-          <p className="font-bold text-lg text-primary">{profitMargin}%</p>
+          <p className="font-bold text-lg text-primary">
+            {profitMargin !== null ? `${profitMargin}%` : "—"}
+          </p>
         </div>
         <div>
           <p className="text-sm text-muted-foreground">Profit per Unit</p>
           <p className="font-bold text-lg text-primary">
-            {formatPrice(product.sellingPrice - product.costPrice)}
+            {product.costPrice > 0
+              ? formatPrice(product.sellingPrice - product.costPrice)
+              : "—"}
           </p>
         </div>
       </CardContent>

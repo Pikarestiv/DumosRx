@@ -73,6 +73,24 @@ export function TransactionItem({
           Resumed hold
         </Badge>
       );
+    if (s === "partial")
+      return (
+        <Badge
+          variant="secondary"
+          className="bg-amber-100 text-amber-700 hover:bg-amber-100/80 border-0"
+        >
+          Partially paid
+        </Badge>
+      );
+    if (s === "pending")
+      return (
+        <Badge
+          variant="secondary"
+          className="bg-orange-100 text-orange-700 hover:bg-orange-100/80 border-0"
+        >
+          Pending
+        </Badge>
+      );
     return (
       <Badge
         variant="secondary"

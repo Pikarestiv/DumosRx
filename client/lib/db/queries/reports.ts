@@ -148,8 +148,8 @@ export async function fetchStockBatchReportData() {
       m.strength as "Strength",
       SUM(inv.quantity) as "Stock Qty",
       m.reorder_level as "Reorder Level",
-      inv.cost_price as "Cost Price",
-      inv.selling_price as "Selling Price",
+      AVG(inv.cost_price) as "Cost Price",
+      m.selling_price as "Selling Price",
       SUM(inv.quantity * inv.cost_price) as "Stock Value",
       MIN(date(inv.expiry_date)) as "Nearest Expiry"
      FROM stock_batches inv

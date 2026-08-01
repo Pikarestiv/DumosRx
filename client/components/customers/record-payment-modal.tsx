@@ -26,6 +26,14 @@ interface RecordPaymentModalProps {
     paymentMethod: string,
     notes: string,
   ) => Promise<void>;
+  /** Prefill amount when it should differ from the customer's full
+   * outstanding_balance — e.g. opened from one specific sale's remaining
+   * balance rather than their total debt across every sale. */
+  defaultAmount?: number;
+  /** Extra note shown under the description — e.g. warning that payments
+   * settle the customer's oldest outstanding sale first (FIFO), which may
+   * not be the sale this modal was opened from. */
+  helperNote?: string;
 }
 
 export function RecordPaymentModal({
@@ -33,6 +41,8 @@ export function RecordPaymentModal({
   currencyCode = "NGN",
   onClose,
   onSubmit,
+  defaultAmount,
+  helperNote,
 }: RecordPaymentModalProps) {
   const [loading, setLoading] = useState(false);
   const [amount, setAmount] = useState("");
@@ -41,11 +51,11 @@ export function RecordPaymentModal({
 
   useEffect(() => {
     if (customer) {
-      setAmount(customer.outstanding_balance.toString());
+      setAmount((defaultAmount ?? customer.outstanding_balance).toString());
       setPaymentMethod("cash");
       setNotes("");
     }
-  }, [customer]);
+  }, [customer, defaultAmount]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,6 +106,11 @@ export function RecordPaymentModal({
           onSubmit={handleSubmit}
           className="space-y-4"
         >
+          {helperNote && (
+            <p className="text-xs text-muted-foreground bg-muted/50 rounded-md p-2.5">
+              {helperNote}
+            </p>
+          )}
           <div className="space-y-2">
             <Label htmlFor="amount">Amount *</Label>
             <Input

@@ -12,6 +12,7 @@ import {
   ReactNode,
 } from "react";
 import { initDatabase, isTauri } from "./local-database";
+import { devLog } from "@/lib/utils/dev-log";
 
 interface DatabaseContextType {
   isReady: boolean;
@@ -46,7 +47,7 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
     initDatabase()
       .then(() => {
         setIsReady(true);
-        console.log("[DB] Local database initialized");
+        devLog("[DB] Local database initialized");
         // Flush any offline crashes queued in localStorage
         import("@/lib/utils/error-logger").then(({ flushPendingCrashes }) => {
           flushPendingCrashes().catch(console.error);
@@ -64,12 +65,12 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
 
     const handleOnline = () => {
       setIsOffline(false);
-      console.log("[DB] Network: online");
+      devLog("[DB] Network: online");
     };
 
     const handleOffline = () => {
       setIsOffline(true);
-      console.log("[DB] Network: offline");
+      devLog("[DB] Network: offline");
     };
 
     setIsOffline(!navigator.onLine);

@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getStoreById, getFirstStore, getAllStores } from "@/lib/db/queries/setup";
 import { useAuth } from "@/lib/context/auth-context";
 import { queryKeys } from "@/lib/query-keys";
+import { devLog } from "@/lib/utils/dev-log";
 
 export type StoreType = "pharmacy" | "grocery" | "supermarket" | "retail";
 
@@ -173,12 +174,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const triggerSync = async () => {
       const token = localStorage.getItem("auth_token");
       if (navigator.onLine && token) {
-        console.log("[StoreContext] Network online or app mounted: triggering sync");
+        devLog("[StoreContext] Network online or app mounted: triggering sync");
         try {
           const { sync } = await import("@/lib/db/sync-engine");
           const result = await sync();
           if (result.success) {
-            console.log("[StoreContext] Sync successful, refetching local store profile");
+            devLog("[StoreContext] Sync successful, refetching local store profile");
             await refetch();
           }
         } catch (e) {
@@ -194,7 +195,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     };
 
     const handleSyncCompleted = () => {
-      console.log("[StoreContext] Received sync completed event, refetching local store profile");
+      devLog("[StoreContext] Received sync completed event, refetching local store profile");
       refetch();
     };
 
@@ -219,7 +220,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const { syncSubscriptionStatus } = await import("@/lib/db/sync-engine");
         const result = await syncSubscriptionStatus();
         if (result.updated) {
-          console.log("[StoreContext] Subscription status updated from server, refetching profile");
+          devLog("[StoreContext] Subscription status updated from server, refetching profile");
           await refetch();
         }
       } catch (e) {

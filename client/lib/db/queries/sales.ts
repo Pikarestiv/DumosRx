@@ -164,17 +164,20 @@ export async function getSaleForPrescription(prescriptionId: string) {
 }
 
 export async function getRecentSales(userId?: string) {
-  const userFilter = userId ? ` AND s.user_id = '${userId}'` : "";
+  const userFilter = userId ? ` AND s.user_id = ?` : "";
   return query<any>(
-    `SELECT 
-      s.*, 
+    `SELECT
+      s.*,
       TRIM(c.first_name || ' ' || COALESCE(c.last_name, '')) as customer_name,
+      TRIM(u.first_name || ' ' || u.last_name) as cashier_name,
       (SELECT SUM(quantity) FROM sale_items si WHERE si.sale_id = s.id AND (si._deleted = 0 OR si._deleted IS NULL)) as item_count
-     FROM sales s 
-     LEFT JOIN customers c ON s.customer_id = c.id 
-     WHERE s._deleted = 0${userFilter} 
-     ORDER BY s.created_at DESC 
-     LIMIT 100`
+     FROM sales s
+     LEFT JOIN customers c ON s.customer_id = c.id
+     LEFT JOIN users u ON u.id = s.user_id
+     WHERE s._deleted = 0${userFilter}
+     ORDER BY s.created_at DESC
+     LIMIT 100`,
+    userId ? [userId] : []
   );
 }
 

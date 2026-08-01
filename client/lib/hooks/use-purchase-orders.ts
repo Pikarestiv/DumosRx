@@ -10,11 +10,14 @@ import {
 } from "@/lib/db/local-database";
 import { genericFuzzySearch } from "@/lib/utils/search";
 import { queryKeys } from "@/lib/query-keys";
+import { useAuth, checkCanViewAllActivity } from "@/lib/context/auth-context";
 
 /** All business logic for the Orders tab of Procurement Management. */
 export function usePurchaseOrders() {
   const [searchQuery, setSearchQuery] = useState("");
   const [poTab, setPoTab] = useState("all");
+  const { user } = useAuth();
+  const viewerId = checkCanViewAllActivity(user?.role) ? undefined : user?.id;
 
   const {
     data: purchaseOrders = [],
@@ -25,9 +28,9 @@ export function usePurchaseOrders() {
     // everything and filtering happens client-side below — so it doesn't
     // belong in the key (the old effect refetched on every tab switch for
     // no reason, since the underlying data never changed).
-    ...queryKeys.purchaseOrders.all(),
+    ...queryKeys.purchaseOrders.all(viewerId),
     queryFn: async () => {
-      const { data } = await getPurchaseOrders();
+      const { data } = await getPurchaseOrders(viewerId);
       return data as PurchaseOrder[];
     },
   });

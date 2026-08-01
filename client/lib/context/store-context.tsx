@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getStoreById, getFirstStore, getAllStores } from "@/lib/db/queries/setup";
 import { useAuth } from "@/lib/context/auth-context";
 import { queryKeys } from "@/lib/query-keys";
+import { devLog } from "@/lib/utils/dev-log";
 
 export type StoreType = "pharmacy" | "grocery" | "supermarket" | "retail";
 
@@ -150,7 +151,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const storeType = storeProfile?.store_type || "pharmacy";
   const theme = storeProfile?.theme || "default";
   const isInitialized = storeProfile?.is_initialized === 1;
-  const vatPercentage = storeProfile?.vat_percentage ?? 7.5;
+  const vatPercentage = storeProfile?.vat_percentage ?? 0;
 
   // Apply theme class to root
   React.useEffect(() => {
@@ -173,12 +174,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const triggerSync = async () => {
       const token = localStorage.getItem("auth_token");
       if (navigator.onLine && token) {
-        console.log("[StoreContext] Network online or app mounted: triggering sync");
+        devLog("[StoreContext] Network online or app mounted: triggering sync");
         try {
           const { sync } = await import("@/lib/db/sync-engine");
           const result = await sync();
           if (result.success) {
-            console.log("[StoreContext] Sync successful, refetching local store profile");
+            devLog("[StoreContext] Sync successful, refetching local store profile");
             await refetch();
           }
         } catch (e) {
@@ -194,7 +195,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     };
 
     const handleSyncCompleted = () => {
-      console.log("[StoreContext] Received sync completed event, refetching local store profile");
+      devLog("[StoreContext] Received sync completed event, refetching local store profile");
       refetch();
     };
 
@@ -219,7 +220,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const { syncSubscriptionStatus } = await import("@/lib/db/sync-engine");
         const result = await syncSubscriptionStatus();
         if (result.updated) {
-          console.log("[StoreContext] Subscription status updated from server, refetching profile");
+          devLog("[StoreContext] Subscription status updated from server, refetching profile");
           await refetch();
         }
       } catch (e) {
@@ -250,7 +251,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         name: "My Store",
         store_type: "pharmacy",
         is_initialized: 0,
-        vat_percentage: 7.5,
+        vat_percentage: 0,
         currency: "NGN",
         theme: "default",
         ...data,

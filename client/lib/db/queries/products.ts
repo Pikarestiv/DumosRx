@@ -87,23 +87,26 @@ export async function getProductsWithStock() {
   }));
 }
 
-export async function getProductHistory(productId: string) {
+/** @param viewerId - when provided, restricts results to entries performed by this
+ * user (pass undefined for viewers allowed to see everyone's activity, i.e.
+ * checkCanViewAllActivity(role) === true). */
+export async function getProductHistory(productId: string, viewerId?: string) {
   const auditLogs = await query<any>(
     `SELECT al.*, TRIM(u.first_name || ' ' || u.last_name) as user_name
      FROM audit_logs al
      LEFT JOIN users u ON u.id = al.user_id
-     WHERE al.record_id = ?
+     WHERE al.record_id = ?${viewerId ? " AND al.user_id = ?" : ""}
      ORDER BY al.created_at DESC`,
-    [productId]
+    viewerId ? [productId, viewerId] : [productId]
   );
 
   const stockMovements = await query<any>(
     `SELECT sm.*, TRIM(u.first_name || ' ' || u.last_name) as performed_by_name
      FROM stock_movements sm
      LEFT JOIN users u ON u.id = sm.performed_by
-     WHERE sm.product_id = ?
+     WHERE sm.product_id = ?${viewerId ? " AND sm.performed_by = ?" : ""}
      ORDER BY sm.created_at DESC`,
-    [productId]
+    viewerId ? [productId, viewerId] : [productId]
   );
 
   return {

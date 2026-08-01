@@ -19,6 +19,8 @@ export interface PurchaseOrder {
   due_date?: string;
   has_missing_expiry?: boolean;
   items?: PurchaseOrderItem[];
+  ordered_by?: string;
+  ordered_by_name?: string;
 }
 
 export interface PurchaseOrderItem {
@@ -41,10 +43,15 @@ export interface PurchaseOrderItem {
  * over the result, and this data set is small enough (dozens to low hundreds per
  * store) that in-memory filtering stays correct without needing SQL-level WHERE
  * clauses, matching the pattern used by getCustomers()/getDebtors() etc.
+ *
+ * @param viewerId - when provided, restricts results to orders placed by this
+ * user (pass undefined for viewers allowed to see everyone's activity, i.e.
+ * checkCanViewAllActivity(role) === true).
  */
-export async function getPurchaseOrders() {
+export async function getPurchaseOrders(viewerId?: string) {
   const results = await query<PurchaseOrder>(
     `SELECT po.*, v.name as vendor_name,
+       TRIM(u.first_name || ' ' || u.last_name) as ordered_by_name,
        CASE WHEN EXISTS (
          SELECT 1 FROM stock_movements sm
          JOIN stock_batches sb ON sm.stock_batch_id = sb.id
@@ -53,8 +60,10 @@ export async function getPurchaseOrders() {
        ) THEN 1 ELSE 0 END as has_missing_expiry
      FROM purchase_orders po
      LEFT JOIN suppliers v ON po.supplier_id = v.id
-     WHERE po._deleted = 0
-     ORDER BY po.created_at DESC`
+     LEFT JOIN users u ON u.id = po.ordered_by
+     WHERE po._deleted = 0${viewerId ? " AND po.ordered_by = ?" : ""}
+     ORDER BY po.created_at DESC`,
+    viewerId ? [viewerId] : []
   );
   return { data: results };
 }
@@ -62,14 +71,16 @@ export async function getPurchaseOrders() {
 export async function getPurchaseOrderById(id: string) {
   const po = await query<PurchaseOrder>(
     `SELECT po.*, v.name as vendor_name,
+       TRIM(u.first_name || ' ' || u.last_name) as ordered_by_name,
        CASE WHEN EXISTS (
          SELECT 1 FROM stock_movements sm
          JOIN stock_batches sb ON sm.stock_batch_id = sb.id
-         WHERE sm.reference_id = po.id AND sm.reference_type = 'purchase_order' 
+         WHERE sm.reference_id = po.id AND sm.reference_type = 'purchase_order'
          AND (sb.expiry_date IS NULL OR sb.expiry_date = '')
        ) THEN 1 ELSE 0 END as has_missing_expiry
-     FROM purchase_orders po 
-     LEFT JOIN suppliers v ON po.supplier_id = v.id 
+     FROM purchase_orders po
+     LEFT JOIN suppliers v ON po.supplier_id = v.id
+     LEFT JOIN users u ON u.id = po.ordered_by
      WHERE po.id = ? AND po._deleted = 0`,
     [id]
   );

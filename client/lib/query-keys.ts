@@ -32,8 +32,8 @@ export const queryKeys = {
     withDetails: () =>
       resource(["productsWithDetails"] as const, ["products", "categories", "stock_batches"]),
     detail: (id: string) => resource(["products", "detail", id] as const, ["products"]),
-    history: (id: string) =>
-      resource(["productHistory", id] as const, ["audit_logs", "stock_movements"]),
+    history: (id: string, viewerId?: string) =>
+      resource(["productHistory", id, viewerId] as const, ["audit_logs", "stock_movements"]),
     batches: (id?: string) => resource(["productBatches", id] as const, ["stock_batches"]),
   },
   categories: {
@@ -65,7 +65,7 @@ export const queryKeys = {
     fastMovers: () => resource(["fastMovers"] as const, ["sales", "sale_items", "products"]),
   },
   purchaseOrders: {
-    all: () => resource(["purchase_orders"] as const, ["purchase_orders"]),
+    all: (viewerId?: string) => resource(["purchase_orders", viewerId] as const, ["purchase_orders"]),
     detail: (id: string | null) =>
       resource(["purchase_order_details", id] as const, [
         "purchase_orders",
@@ -137,8 +137,8 @@ export const queryKeys = {
       resource(["setupData", "totalRecordCount"] as const, ["products", "sales"]),
   },
   dashboard: {
-    overview: (userId?: string, isRestrictedRole?: boolean) =>
-      resource(["dashboardOverviewData", userId, isRestrictedRole] as const, [
+    overview: (viewerId?: string) =>
+      resource(["dashboardOverviewData", viewerId] as const, [
         "sales",
         "returns",
         "stock_movements",

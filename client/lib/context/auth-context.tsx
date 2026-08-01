@@ -34,6 +34,7 @@ interface AuthContextType {
   isAdmin: boolean;
   canManageStockBatch: boolean;
   canProcessSales: boolean;
+  canViewAllActivity: boolean;
   changePin: (currentPin: string, newPin: string) => Promise<{ success: boolean; message: string }>;
   verifyPin: (pin: string) => Promise<boolean>;
   linkCloudAccount: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
@@ -56,6 +57,17 @@ export const checkCanProcessSales = (role?: string) => {
   if (!role) return false;
   const normalizedRole = role.toLowerCase().replace(/[^a-z_]/g, "");
   return ["admin", "manager", "specialist", "sales_staff", "store_owner"].includes(normalizedRole);
+};
+
+/** Activity/history views (audit logs, stock movements, sales, expenses,
+ * purchase orders, stock audits, prescriptions, returns) are scoped to the
+ * viewer's own actions unless they're a store owner or admin — everyone
+ * else (manager, specialist, sales_staff, auditor) only sees what they
+ * themselves performed. */
+export const checkCanViewAllActivity = (role?: string) => {
+  if (!role) return false;
+  const normalizedRole = role.toLowerCase().replace(/[^a-z_]/g, "");
+  return ["admin", "store_owner"].includes(normalizedRole);
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -298,6 +310,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isAdmin = user ? checkIsAdmin(user.role) : false;
   const canManageStockBatch = user ? checkCanManageStockBatch(user.role) : false;
   const canProcessSales = user ? checkCanProcessSales(user.role) : false;
+  const canViewAllActivity = user ? checkCanViewAllActivity(user.role) : false;
 
   return (
     <AuthContext.Provider
@@ -309,6 +322,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isAdmin,
         canManageStockBatch,
         canProcessSales,
+        canViewAllActivity,
         changePin,
         verifyPin,
         linkCloudAccount,

@@ -5,6 +5,7 @@ import { apiClient } from "@/lib/api/client";
 import { queryClient } from "@/lib/query-client";
 import { query, execute } from "../core";
 import { getValidColumns } from "./schema";
+import { devLog } from "@/lib/utils/dev-log";
 
 let isSyncInProgress = false;
 
@@ -45,7 +46,7 @@ export async function sync(
     const pullResult = await pullChanges(isManual, isSetup);
 
     if (pushResult.pushed > 0 || pullResult.pulled > 0) {
-      console.log(
+      devLog(
         `Sync completed: Pushed ${pushResult.pushed}, Pulled ${pullResult.pulled}`
       );
     }
@@ -128,15 +129,10 @@ export async function syncSubscriptionStatus(): Promise<{
   success: boolean;
   updated: boolean;
 }> {
-  console.log("Syncing sub");
-
   const token =
     typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
-  console.log("Token", token);
 
   if (!token || !navigator.onLine) {
-    console.log("No token");
-
     return { success: false, updated: false };
   }
 
@@ -151,7 +147,6 @@ export async function syncSubscriptionStatus(): Promise<{
       false,
       true
     )) as PullResponse;
-    console.log("🚀 ~ syncSubscriptionStatus ~ response:", response);
 
     const storeRecords = response?.changes?.stores;
     if (!storeRecords || storeRecords.length === 0) {
@@ -168,10 +163,6 @@ export async function syncSubscriptionStatus(): Promise<{
       "license_token",
       "updated_at",
     ]);
-    console.log(
-      "🚀 ~ syncSubscriptionStatus ~ SUBSCRIPTION_FIELDS:",
-      SUBSCRIPTION_FIELDS
-    );
 
     for (const record of storeRecords) {
       const { id, _deleted, ...rawData } = record as any;
@@ -216,7 +207,7 @@ export async function syncSubscriptionStatus(): Promise<{
       window.dispatchEvent(new CustomEvent("dumos_subscription_updated"));
     }
 
-    console.log("[SyncEngine] Subscription status synced from server.");
+    devLog("[SyncEngine] Subscription status synced from server.");
     return { success: true, updated: true };
   } catch (error) {
     console.error("[SyncEngine] Failed to sync subscription status:", error);

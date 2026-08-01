@@ -152,6 +152,12 @@ export function RegionalSettingsCard({
               onChange={(e) => setLocalVat(e.target.value)}
               placeholder="e.g. 7.5"
             />
+            <p className="text-xs text-muted-foreground">
+              This percentage is added on top of every sale's subtotal at
+              checkout — it is not deducted from your product prices. Leave
+              this at 0 (the default) if you don't want to charge VAT, or if
+              your prices already include it.
+            </p>
           </div>
         </CardContent>
       )}

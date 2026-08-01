@@ -7,6 +7,7 @@ import {
   getAllExpenses,
   Expense
 } from '../db/queries/finance';
+import { useAuth, checkCanViewAllActivity } from '../context/auth-context';
 
 export function usePnLReport() {
   const [reportData, setReportData] = useState<any>(null);
@@ -48,11 +49,13 @@ export function useExpenseList() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const { user } = useAuth();
+  const viewerId = checkCanViewAllActivity(user?.role) ? undefined : user?.id;
 
   const fetchExpenses = async () => {
     setIsLoading(true);
     try {
-      const data = await getAllExpenses();
+      const data = await getAllExpenses(viewerId);
       setExpenses(data);
       setError(null);
     } catch (err) {
@@ -65,7 +68,8 @@ export function useExpenseList() {
 
   useEffect(() => {
     fetchExpenses();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewerId]);
 
   return { expenses, isLoading, error, refetch: fetchExpenses };
 }

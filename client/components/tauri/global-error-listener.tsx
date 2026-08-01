@@ -2,6 +2,7 @@
 
 import { useEffect, ReactNode } from "react";
 import { logCrash } from "@/lib/utils/error-logger";
+import { devLog } from "@/lib/utils/dev-log";
 
 // Benign browser-internal notices that show up as window "error" events but
 // don't indicate anything actually broke — e.g. ResizeObserver's loop-limit
@@ -31,7 +32,7 @@ export function GlobalErrorListener({ children }: { children: ReactNode }) {
     window.addEventListener("error", handleError);
     window.addEventListener("unhandledrejection", handleUnhandledRejection);
 
-    console.log("[Logger] Global error listeners initialized");
+    devLog("[Logger] Global error listeners initialized");
 
     return () => {
       window.removeEventListener("error", handleError);

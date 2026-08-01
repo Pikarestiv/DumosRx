@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useAuthStore } from "@/lib/auth/store";
+import { useAuth, checkCanViewAllActivity } from "@/lib/context/auth-context";
 import { getProductsWithStock } from "@/lib/db/queries/products";
 import { getRecentSales, getRecentlySoldProductIds, getCommonlySoldProductIds } from "@/lib/db/queries/sales";
 import { getAllCustomers } from "@/lib/db/queries/customers";
@@ -17,8 +17,8 @@ export interface Customer {
 }
 
 export function usePOSData() {
-  const { user } = useAuthStore();
-  const isRestrictedRole = user?.role === "sales_staff" || user?.role === "specialist";
+  const { user } = useAuth();
+  const canViewAllActivity = checkCanViewAllActivity(user?.role);
 
   const {
     data: products,
@@ -31,7 +31,7 @@ export function usePOSData() {
 
   const { data: recentSales, refetch: refetchSales } = useQuery({
     ...queryKeys.sales.recent(user?.id),
-    queryFn: () => getRecentSales(isRestrictedRole ? user?.id : undefined)
+    queryFn: () => getRecentSales(canViewAllActivity ? undefined : user?.id)
   });
 
   const { data: recentlySoldIdsData } = useQuery({

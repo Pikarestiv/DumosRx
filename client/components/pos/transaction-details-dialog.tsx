@@ -116,6 +116,8 @@ export function TransactionDetailsDialog({
     totalRefunded -
     (totalCostPrice - returnedCostPrice);
 
+  const cashierName = sale.cashier_name || sale.user_name || sale.cashier;
+
   const title = "Transaction Details";
   const description = (
     <>
@@ -125,6 +127,14 @@ export function TransactionDetailsDialog({
         {formatDateToDDMMYYYY(sale.created_at)}{" "}
         {new Date(sale.created_at).toLocaleTimeString()}
       </span>
+      {cashierName && (
+        <>
+          <span className="hidden sm:inline"> • </span>
+          <span className="block sm:inline mt-1 sm:mt-0 text-muted-foreground/80 sm:text-muted-foreground">
+            Sold by {cashierName}
+          </span>
+        </>
+      )}
     </>
   );
 

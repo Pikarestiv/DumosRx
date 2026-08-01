@@ -53,6 +53,15 @@ To maintain the DumosRx "Premium" feel:
 - **Tooltips:** Use Radix UI tooltips with a subtle 1000ms delay to prevent flickering.
 - **Localization (Dates):** Always maintain Nigeria's date structure (`DD/MM/YYYY`) for UI elements instead of the US format (`MM/DD/YYYY`). Use custom DatePicker components (like `DatePickerInput`) rather than native `<input type="date">` to enforce this visual format across all browsers.
 
+## 6a. 🕐 Server Clock / MySQL Timezone Gotcha
+
+The Namecheap shared-hosting box's MySQL is configured with `time_zone = SYSTEM`, which reports the OS's raw local clock (observed as **EDT**, ~4 hours behind UTC) instead of converting to UTC. Laravel's PHP layer (`date.timezone = UTC`) generates all of its own timestamps (`now()`, `updated_at` via Eloquent, `_synced_at`) correctly in UTC — the two clocks disagree by design unless corrected.
+
+- **Consequence if missed:** the sync engine's incremental pull (`SyncController.php`) filters rows by `updated_at`/`_synced_at > lastSynced`, comparing PHP-generated UTC timestamps. Any **raw SQL** that sets a timestamp via MySQL's own `NOW()`/`CURRENT_TIMESTAMP()` (e.g. a manual `UPDATE ... SET updated_at = NOW()` run directly against the DB) will silently write a timestamp ~4 hours in the "past" relative to UTC — meaning the sync pull filter can permanently skip that row, even though the data itself is correct. This is exactly what happened while manually correcting a stock-batch double-count bug: the value was fixed, but two attempts to bump `updated_at` via `NOW()` never propagated to the client because MySQL's clock never actually caught up to the UTC watermark already recorded in `_synced_at`.
+- **Fix in place:** `config/database.php`'s `mysql` connection sets `\PDO::MYSQL_ATTR_INIT_COMMAND => "SET time_zone = '+00:00'"`, forcing every connection Laravel opens to run in UTC. This only applies to connections opened through the app — **not** to phpMyAdmin or any other tool connecting directly.
+- **phpMyAdmin (or any direct DB client) still shows raw local time.** Its session is separate from the app's PDO connections, so `NOW()`/`CURRENT_TIMESTAMP()` run there will still return the ~4-hours-behind local clock, not UTC, unless you explicitly run `SET time_zone = '+00:00';` at the top of that session first. When manually inspecting or correcting timestamp columns via phpMyAdmin, either do that, or set an explicit literal UTC timestamp (e.g. `'2026-08-02 00:00:00'`) rather than relying on `NOW()`.
+- **General rule:** never use MySQL's `NOW()`/`CURRENT_TIMESTAMP()` in raw SQL against this database, in migrations or otherwise — let Eloquent set timestamps (it already does, correctly, in UTC).
+
 ## 6. 🔒 Security & Optimization Standards
 
 - **Prototype Pollution:** Never perform dynamic bracket lookup `obj[key]` using values fetched directly from inputs. Use ES6 `Map` or strict `switch` statements.

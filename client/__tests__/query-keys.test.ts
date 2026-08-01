@@ -36,7 +36,7 @@ describe('queryKeys factory', () => {
   });
 
   it('tags multi-table resources with every table they depend on', () => {
-    const dashboard = queryKeys.dashboard.overview('user-1', false);
+    const dashboard = queryKeys.dashboard.overview('user-1');
     expect(dashboard.meta.tables).toEqual(
       expect.arrayContaining(['sales', 'returns', 'stock_movements', 'purchase_orders', 'expenses', 'prescriptions', 'products']),
     );

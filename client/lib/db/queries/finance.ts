@@ -7,6 +7,8 @@ export interface Expense {
   description: string;
   date: string;
   payment_method: string;
+  user_id?: string;
+  recorded_by_name?: string;
 }
 
 export async function getCurrentMonthRevenue() {
@@ -29,8 +31,16 @@ export async function getCurrentMonthExpensesByCategory() {
   );
 }
 
-export async function getAllExpenses() {
+/** @param viewerId - when provided, restricts results to expenses recorded by this
+ * user (pass undefined for viewers allowed to see everyone's activity, i.e.
+ * checkCanViewAllActivity(role) === true). */
+export async function getAllExpenses(viewerId?: string) {
   return query<Expense>(
-    "SELECT * FROM expenses WHERE _deleted = 0 ORDER BY date DESC"
+    `SELECT e.*, TRIM(u.first_name || ' ' || u.last_name) as recorded_by_name
+     FROM expenses e
+     LEFT JOIN users u ON u.id = e.user_id
+     WHERE e._deleted = 0${viewerId ? " AND e.user_id = ?" : ""}
+     ORDER BY e.date DESC`,
+    viewerId ? [viewerId] : []
   );
 }

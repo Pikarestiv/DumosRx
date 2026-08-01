@@ -49,7 +49,9 @@ export function POAddItemForm({
         setCurrentProductId(newlyAddedProduct.id);
         setCurrentProductName(newlyAddedProduct.name);
         setCurrentCost(
-          (newlyAddedProduct.cost_price || 0) * (newlyAddedProduct.units_per_bulk || 1)
+          newlyAddedProduct.cost_price
+            ? newlyAddedProduct.cost_price * (newlyAddedProduct.units_per_bulk || 1)
+            : ""
         );
         onNewlyCreatedProductConsumed?.();
       }
@@ -63,7 +65,9 @@ export function POAddItemForm({
       setCurrentProductId(option.localId);
       const product = products.find((m) => m.id === option.localId);
       if (product) {
-        setCurrentCost((product.cost_price || 0) * (product.units_per_bulk || 1));
+        setCurrentCost(
+          product.cost_price ? product.cost_price * (product.units_per_bulk || 1) : ""
+        );
       }
     } else {
       setCurrentProductId("");
@@ -154,6 +158,7 @@ export function POAddItemForm({
             value={currentBulkQty}
             min={1}
             onChange={(e) => setCurrentBulkQty(e.target.value === "" ? "" : Number(e.target.value))}
+            onFocus={(e) => e.target.select()}
             placeholder="Qty"
           />
         </div>
@@ -180,6 +185,7 @@ export function POAddItemForm({
             value={currentCost}
             min={0}
             onChange={(e) => setCurrentCost(e.target.value === "" ? "" : Number(e.target.value))}
+            onFocus={(e) => e.target.select()}
             placeholder="0.00"
           />
         </div>

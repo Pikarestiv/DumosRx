@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { insert, update, generateId } from "@/lib/db/local-database";
-import { getCustomers, getCustomerRetentionMetrics, getCustomerTransactions } from "@/lib/db/queries/customers";
+import { getCustomers, getCustomerRetentionMetrics, getCustomerTransactions, recordCustomerPayment } from "@/lib/db/queries/customers";
 import { getLoyaltyTiers, LoyaltyTierRow } from "@/lib/db/queries/loyalty";
 import { queryKeys } from "@/lib/query-keys";
 export interface Customer {
@@ -216,17 +216,7 @@ export function useCustomerData() {
       const existing = customers.find((c) => c.id === id);
       if (!existing) return null;
 
-      const now = new Date().toISOString();
-      await insert("customer_payments", {
-        customer_id: id,
-        amount,
-        payment_method: paymentMethod,
-        notes: notes || null,
-        payment_date: now,
-      });
-
-      const newBalance = Math.max(0, existing.outstanding_balance - amount);
-      await update("customers", id, { outstanding_balance: newBalance });
+      const newBalance = await recordCustomerPayment(id, amount, paymentMethod, notes);
 
       const updatedCustomer: Customer = { ...existing, outstanding_balance: newBalance };
       toast.success("Payment recorded successfully");

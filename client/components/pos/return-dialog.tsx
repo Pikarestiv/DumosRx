@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { getSaleItems } from "@/lib/db/queries/sales";
 import { queryKeys } from "@/lib/query-keys";
 import { restoreReturnedStock } from "@/lib/db/queries/returns";
+import { getCustomerBalance } from "@/lib/db/queries/customers";
 import { updatePrescriptionStatus } from "@/lib/db/queries/prescriptions";
 import { Loader2, RotateCcw } from "lucide-react";
 import { useAuth } from "@/lib/context/auth-context";
@@ -168,6 +169,43 @@ export function ReturnDialog({
       // (e.g. one med out of several) leave the prescription's status alone.
       if (sale.prescription_id && allItemsReturned) {
         await updatePrescriptionStatus(sale.prescription_id, "ready");
+      }
+
+      // If any part of this sale was paid on credit, returning goods must also
+      // reduce what the customer owes — otherwise they're still on the hook
+      // for items they gave back. Prorate by the credit share of the original
+      // sale for mixed-payment sales; a plain "credit" sale is 100% credit.
+      if (sale.customer_id) {
+        let creditFraction = 0;
+        if (sale.payment_method === "credit") {
+          creditFraction = 1;
+        } else if (sale.payment_method === "mixed" && sale.payment_details) {
+          try {
+            const details =
+              typeof sale.payment_details === "string"
+                ? JSON.parse(sale.payment_details)
+                : sale.payment_details;
+            const splits = Array.isArray(details) ? details : details?.splits;
+            const creditAmount =
+              splits?.find((s: any) => s.method === "credit")?.amount || 0;
+            creditFraction =
+              sale.total_amount > 0 ? creditAmount / sale.total_amount : 0;
+          } catch {
+            // payment_details wasn't valid JSON — no credit portion to reduce
+          }
+        }
+
+        if (creditFraction > 0) {
+          const creditPortionOfRefund = totalRefund * creditFraction;
+          const balanceRows = await getCustomerBalance(sale.customer_id);
+          const currentBalance = balanceRows[0]?.balance || 0;
+          await update("customers", sale.customer_id, {
+            outstanding_balance: Math.max(
+              0,
+              currentBalance - creditPortionOfRefund,
+            ),
+          });
+        }
       }
 
       toast.success(

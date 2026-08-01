@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   Table,
   TableBody,
@@ -11,14 +12,17 @@ import {
 import { formatCurrency } from "@/lib/utils";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { Button } from "@/components/ui/button";
-import { Printer, RotateCcw } from "lucide-react";
+import { Printer, RotateCcw, Wallet } from "lucide-react";
 import { useAuth } from "@/lib/context/auth-context";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getTransactionDetails } from "@/lib/db/queries/sales";
+import { getCustomerById, recordCustomerPayment } from "@/lib/db/queries/customers";
 import { queryKeys } from "@/lib/query-keys";
 import { usePrintReceipt } from "./use-print-receipt";
 import { ReceiptTransaction } from "./receipt-view";
+import { RecordPaymentModal } from "@/components/customers/record-payment-modal";
+import { toast } from "sonner";
 
 function saleToReceiptTransaction(
   sale: any,
@@ -79,17 +83,44 @@ export function TransactionDetailsDialog({
 }: TransactionDetailsDialogProps) {
   const { isAdmin } = useAuth();
   const { print, portal } = usePrintReceipt();
+  const queryClient = useQueryClient();
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const { data: detailsData } = useQuery({
     ...queryKeys.sales.transactionDetails(sale?.id),
     queryFn: () =>
       open && sale?.id ? getTransactionDetails(sale.id) : Promise.resolve(null),
     enabled: !!(open && sale?.id),
   });
+  const { data: paymentCustomer } = useQuery({
+    queryKey: ["customerById", sale?.customer_id],
+    queryFn: () => getCustomerById(sale.customer_id),
+    enabled: showPaymentModal && !!sale?.customer_id,
+  });
 
   const items = detailsData?.items || [];
   const returnsData = detailsData?.returnsData || [];
 
   if (!sale) return null;
+
+  const hasOutstandingBalance =
+    (sale.payment_status === "pending" || sale.payment_status === "partial") &&
+    !!sale.customer_id;
+  const saleRemaining = Math.max(
+    0,
+    (sale.total_amount ?? sale.total ?? 0) - (sale.amount_paid || 0),
+  );
+
+  const handleRecordPayment = async (
+    amount: number,
+    paymentMethod: string,
+    notes: string,
+  ) => {
+    if (!sale.customer_id) return;
+    await recordCustomerPayment(sale.customer_id, amount, paymentMethod, notes);
+    toast.success("Payment recorded successfully");
+    queryClient.invalidateQueries({ queryKey: ["customerById", sale.customer_id] });
+    setShowPaymentModal(false);
+  };
 
   const totalRefunded = returnsData?.[0]?.total_refunded || 0;
 
@@ -140,6 +171,16 @@ export function TransactionDetailsDialog({
 
   const footer = (
     <div className="flex flex-col sm:flex-row justify-end gap-3">
+      {hasOutstandingBalance && (
+        <Button
+          variant="outline"
+          onClick={() => setShowPaymentModal(true)}
+          className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 border-emerald-200 w-full sm:w-auto"
+        >
+          <Wallet className="w-4 h-4 mr-2" />
+          Record Payment
+        </Button>
+      )}
       {isAdmin && onReturnClick && (
         <Button
           variant="outline"
@@ -314,6 +355,36 @@ export function TransactionDetailsDialog({
         {content}
       </ResponsiveModal>
       {portal}
+      {showPaymentModal && (
+        <RecordPaymentModal
+          customer={
+            paymentCustomer
+              ? {
+                  id: paymentCustomer.id,
+                  name: `${paymentCustomer.first_name} ${paymentCustomer.last_name || ""}`.trim(),
+                  outstanding_balance: paymentCustomer.outstanding_balance || 0,
+                  firstName: paymentCustomer.first_name || "",
+                  lastName: paymentCustomer.last_name || "",
+                  email: "",
+                  phone: "",
+                  address: "",
+                  joinDate: "",
+                  tier: "",
+                  points: 0,
+                  totalSpent: 0,
+                  lastVisit: "",
+                  birthday: "",
+                  status: "",
+                }
+              : null
+          }
+          currencyCode={currencyCode}
+          defaultAmount={saleRemaining}
+          helperNote="Payments settle this customer's oldest outstanding sale first — if they have older unpaid sales, this payment may not fully clear this one."
+          onClose={() => setShowPaymentModal(false)}
+          onSubmit={handleRecordPayment}
+        />
+      )}
     </>
   );
 }

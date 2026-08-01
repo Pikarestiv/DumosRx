@@ -1,4 +1,4 @@
-import { query } from "@/lib/db/local-database";
+import { query, insert, update } from "@/lib/db/local-database";
 
 export async function getCustomers() {
   return query<any>(`
@@ -56,6 +56,78 @@ export async function getCustomerBalance(id: string) {
     "SELECT id, outstanding_balance as balance FROM customers WHERE id = ?",
     [id],
   );
+}
+
+/** Minimal customer shape for contexts (e.g. POS transaction detail) that only
+ * need enough to open the Record Payment modal, not the full customer record. */
+export async function getCustomerById(id: string) {
+  const rows = await query<any>(
+    "SELECT id, first_name, last_name, outstanding_balance FROM customers WHERE id = ? AND _deleted = 0",
+    [id],
+  );
+  return rows[0] || null;
+}
+
+/** Applies a credit payment to a customer's oldest outstanding credit sales
+ * first (FIFO) — a sale is marked "completed" once its cumulative amount_paid
+ * reaches its total, otherwise "partial". Doesn't touch the customer's
+ * outstanding_balance; the caller (recordCustomerPayment) does that. */
+async function applyCreditPaymentFIFO(customerId: string, amount: number) {
+  const pendingSales = await query<any>(
+    `SELECT id, total_amount, amount_paid FROM sales
+     WHERE customer_id = ? AND payment_status IN ('pending', 'partial')
+       AND (_deleted = 0 OR _deleted IS NULL)
+     ORDER BY created_at ASC`,
+    [customerId],
+  );
+
+  let remaining = amount;
+  for (const sale of pendingSales) {
+    if (remaining <= 0) break;
+    const owed = (sale.total_amount || 0) - (sale.amount_paid || 0);
+    if (owed <= 0) continue;
+
+    const applied = Math.min(owed, remaining);
+    const newAmountPaid = (sale.amount_paid || 0) + applied;
+    const newStatus = newAmountPaid >= sale.total_amount ? "completed" : "partial";
+
+    await update("sales", sale.id, {
+      amount_paid: newAmountPaid,
+      payment_status: newStatus,
+    });
+
+    remaining -= applied;
+  }
+}
+
+/** Single source of truth for recording a customer debt payment — used by
+ * both the Customer Directory and the Record Payment button on a specific
+ * sale's transaction details. Self-contained (re-reads the customer's
+ * current balance rather than trusting caller-held state) since it's called
+ * from more than one page. */
+export async function recordCustomerPayment(
+  customerId: string,
+  amount: number,
+  paymentMethod: string,
+  notes?: string,
+): Promise<number> {
+  const now = new Date().toISOString();
+  await insert("customer_payments", {
+    customer_id: customerId,
+    amount,
+    payment_method: paymentMethod,
+    notes: notes || null,
+    payment_date: now,
+  });
+
+  const balanceRows = await getCustomerBalance(customerId);
+  const currentBalance = balanceRows[0]?.balance || 0;
+  const newBalance = Math.max(0, currentBalance - amount);
+  await update("customers", customerId, { outstanding_balance: newBalance });
+
+  await applyCreditPaymentFIFO(customerId, amount);
+
+  return newBalance;
 }
 
 export async function getAllCustomers() {

@@ -11,6 +11,7 @@ import {
   Calendar,
   CreditCard,
   Tag,
+  User,
 } from "lucide-react";
 import { softDelete } from "@/lib/db/local-database";
 import { toast } from "sonner";
@@ -129,6 +130,22 @@ export function ExpenseDetailDialog({
                 </div>
               </div>
             </div>
+
+            {expense.recorded_by_name && (
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                  <User className="w-4 h-4 text-muted-foreground" />
+                </div>
+                <div>
+                  <div className="text-[11.5px] text-muted-foreground font-semibold mb-0.5">
+                    Recorded By
+                  </div>
+                  <div className="text-[14px] font-medium text-foreground">
+                    {expense.recorded_by_name}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {expense.notes && (

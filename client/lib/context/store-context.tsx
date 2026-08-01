@@ -151,7 +151,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const storeType = storeProfile?.store_type || "pharmacy";
   const theme = storeProfile?.theme || "default";
   const isInitialized = storeProfile?.is_initialized === 1;
-  const vatPercentage = storeProfile?.vat_percentage ?? 7.5;
+  const vatPercentage = storeProfile?.vat_percentage ?? 0;
 
   // Apply theme class to root
   React.useEffect(() => {
@@ -251,7 +251,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         name: "My Store",
         store_type: "pharmacy",
         is_initialized: 0,
-        vat_percentage: 7.5,
+        vat_percentage: 0,
         currency: "NGN",
         theme: "default",
         ...data,

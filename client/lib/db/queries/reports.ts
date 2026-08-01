@@ -1,57 +1,62 @@
 import { query } from "@/lib/db";
 import { getLocalTodayDate } from "@/lib/utils";
 
-export async function getDashboardOverviewData(userId?: string, isRestrictedRole?: boolean) {
-  const userFilter = isRestrictedRole && userId ? ` AND user_id = '${userId}'` : "";
-  const userFilterAliasS = isRestrictedRole && userId ? ` AND s.user_id = '${userId}'` : "";
+/** @param viewerId - when provided, restricts the recent-activity feed (sales,
+ * stock movements, purchase orders, expenses, prescriptions) to entries
+ * performed by this user (pass undefined for viewers allowed to see everyone's
+ * activity, i.e. checkCanViewAllActivity(role) === true). Today's revenue/
+ * refund totals are NOT scoped by this — those stay store-wide regardless of
+ * role, since cashiers need accurate shift/till totals for reconciliation. */
+export async function getDashboardOverviewData(viewerId?: string) {
   const today = getLocalTodayDate();
 
   const salesToday = await query<any>(
-    `SELECT 
-      SUM(total_amount) as total, 
+    `SELECT
+      SUM(total_amount) as total,
       COUNT(*) as count,
       SUM(CASE WHEN payment_method = 'cash' THEN total_amount ELSE 0 END) as cash,
       SUM(CASE WHEN payment_method = 'card' THEN total_amount ELSE 0 END) as card,
       SUM(CASE WHEN payment_method = 'credit' THEN total_amount ELSE 0 END) as debt
-     FROM sales 
-     WHERE date(transaction_date) = ? AND (_deleted = 0 OR _deleted IS NULL)${userFilter}`,
+     FROM sales
+     WHERE date(transaction_date) = ? AND (_deleted = 0 OR _deleted IS NULL)`,
     [today]
   );
 
   const refundsToday = await query<any>(
-    `SELECT 
+    `SELECT
       SUM(r.total_refunded) as total,
       SUM(CASE WHEN s.payment_method = 'cash' OR s.payment_method = 'mixed' THEN r.total_refunded ELSE 0 END) as cash,
       SUM(CASE WHEN s.payment_method = 'card' THEN r.total_refunded ELSE 0 END) as card,
       SUM(CASE WHEN s.payment_method = 'credit' THEN r.total_refunded ELSE 0 END) as debt
      FROM returns r
      JOIN sales s ON r.sale_id = s.id
-     WHERE date(r.created_at) = ? AND (r._deleted = 0 OR r._deleted IS NULL)${userFilterAliasS}`,
+     WHERE date(r.created_at) = ? AND (r._deleted = 0 OR r._deleted IS NULL)`,
     [today]
   );
 
   const recentSales = await query<any>(
-    `SELECT * FROM sales WHERE _deleted = 0${userFilter} ORDER BY created_at DESC LIMIT 5`
+    `SELECT * FROM sales WHERE _deleted = 0${viewerId ? " AND user_id = ?" : ""} ORDER BY created_at DESC LIMIT 5`,
+    viewerId ? [viewerId] : []
   );
 
-  const smFilter = isRestrictedRole && userId ? ` AND performed_by = '${userId}'` : "";
   const recentMovements = await query<any>(
-    `SELECT * FROM stock_movements WHERE _deleted = 0${smFilter} ORDER BY created_at DESC LIMIT 5`
+    `SELECT * FROM stock_movements WHERE _deleted = 0${viewerId ? " AND performed_by = ?" : ""} ORDER BY created_at DESC LIMIT 5`,
+    viewerId ? [viewerId] : []
   );
 
-  const poFilter = isRestrictedRole && userId ? ` AND ordered_by = '${userId}'` : "";
   const recentPurchaseOrders = await query<any>(
-    `SELECT * FROM purchase_orders WHERE _deleted = 0${poFilter} ORDER BY created_at DESC LIMIT 5`
+    `SELECT * FROM purchase_orders WHERE _deleted = 0${viewerId ? " AND ordered_by = ?" : ""} ORDER BY created_at DESC LIMIT 5`,
+    viewerId ? [viewerId] : []
   );
 
-  const expFilter = isRestrictedRole && userId ? ` AND user_id = '${userId}'` : "";
   const recentExpenses = await query<any>(
-    `SELECT * FROM expenses WHERE _deleted = 0${expFilter} ORDER BY created_at DESC LIMIT 5`
+    `SELECT * FROM expenses WHERE _deleted = 0${viewerId ? " AND user_id = ?" : ""} ORDER BY created_at DESC LIMIT 5`,
+    viewerId ? [viewerId] : []
   );
 
-  const rxFilter = isRestrictedRole && userId ? ` AND user_id = '${userId}'` : "";
   const recentPrescriptions = await query<any>(
-    `SELECT * FROM prescriptions WHERE _deleted = 0${rxFilter} ORDER BY created_at DESC LIMIT 5`
+    `SELECT * FROM prescriptions WHERE _deleted = 0${viewerId ? " AND user_id = ?" : ""} ORDER BY created_at DESC LIMIT 5`,
+    viewerId ? [viewerId] : []
   );
 
   const allActivities = [
@@ -71,7 +76,7 @@ export async function getDashboardOverviewData(userId?: string, isRestrictedRole
   const yesterday = `${dateYesterday.getFullYear()}-${String(dateYesterday.getMonth() + 1).padStart(2, '0')}-${String(dateYesterday.getDate()).padStart(2, '0')}`;
 
   const salesYesterday = await query<any>(
-    `SELECT SUM(total_amount) as total FROM sales WHERE date(transaction_date) = ? AND (_deleted = 0 OR _deleted IS NULL)${userFilter}`,
+    `SELECT SUM(total_amount) as total FROM sales WHERE date(transaction_date) = ? AND (_deleted = 0 OR _deleted IS NULL)`,
     [yesterday]
   );
 

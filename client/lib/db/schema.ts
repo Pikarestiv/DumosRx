@@ -287,7 +287,7 @@ CREATE TABLE IF NOT EXISTS stores (
   email TEXT,
   logo_url TEXT,
   currency TEXT DEFAULT 'NGN',
-  vat_percentage REAL DEFAULT 7.5,
+  vat_percentage REAL DEFAULT 0,
   is_initialized INTEGER DEFAULT 0,
   theme TEXT DEFAULT 'default',
   license_token TEXT,

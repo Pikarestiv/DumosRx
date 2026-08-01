@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getDashboardOverviewData } from "@/lib/db/queries/reports";
 import { useStockBatchStats } from "@/lib/hooks/use-stock-batch-stats";
 import { useStore } from "@/lib/context/store-context";
-import { useAuth } from "@/lib/context/auth-context";
+import { useAuth, checkCanViewAllActivity } from "@/lib/context/auth-context";
 import { formatCurrency } from "@/lib/utils";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -20,11 +20,10 @@ export function useDashboardOverview() {
   // Single source of truth for all stock-batch-related stat cards
   const stock_batchStats = useStockBatchStats();
 
-  const isRestrictedRole =
-    user?.role === "sales_staff" || user?.role === "specialist";
+  const viewerId = checkCanViewAllActivity(user?.role) ? undefined : user?.id;
   const { data: dashboardData } = useQuery({
-    ...queryKeys.dashboard.overview(user?.id, isRestrictedRole),
-    queryFn: () => getDashboardOverviewData(user?.id, isRestrictedRole),
+    ...queryKeys.dashboard.overview(viewerId),
+    queryFn: () => getDashboardOverviewData(viewerId),
   });
 
   const salesToday = dashboardData?.salesToday

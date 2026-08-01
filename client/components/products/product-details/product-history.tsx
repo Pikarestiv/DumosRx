@@ -11,6 +11,7 @@ import {
   RefreshCcw,
 } from "lucide-react";
 import { getProductHistory } from "@/lib/db/queries/products";
+import { useAuth, checkCanViewAllActivity } from "@/lib/context/auth-context";
 
 interface HistoryItem {
   id: string;
@@ -23,8 +24,8 @@ interface HistoryItem {
   meta?: any;
 }
 
-async function loadProductHistory(productId: string): Promise<HistoryItem[]> {
-  const { auditLogs, stockMovements } = await getProductHistory(productId);
+async function loadProductHistory(productId: string, viewerId?: string): Promise<HistoryItem[]> {
+  const { auditLogs, stockMovements } = await getProductHistory(productId, viewerId);
 
   const normalizedLogs: HistoryItem[] = auditLogs.map((log: any) => ({
     id: `audit-${log.id}`,
@@ -60,9 +61,13 @@ async function loadProductHistory(productId: string): Promise<HistoryItem[]> {
 }
 
 export function ProductHistory({ productId }: { productId: string }) {
+  const { user } = useAuth();
+  const canViewAllActivity = checkCanViewAllActivity(user?.role);
+  const viewerId = canViewAllActivity ? undefined : user?.id;
+
   const { data: history = [], isLoading: loading } = useQuery({
-    ...queryKeys.products.history(productId),
-    queryFn: () => loadProductHistory(productId),
+    ...queryKeys.products.history(productId, viewerId),
+    queryFn: () => loadProductHistory(productId, viewerId),
     enabled: !!productId,
   });
 

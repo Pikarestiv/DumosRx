@@ -100,6 +100,9 @@ export function PurchaseOrderDetails({
               <p className="text-[13px] text-muted-foreground font-medium truncate">
                 {selectedPO.vendor_name} ·{" "}
                 {formatDateToDDMMYYYY(selectedPO.created_at)}
+                {selectedPO.ordered_by_name && (
+                  <> · Ordered by {selectedPO.ordered_by_name}</>
+                )}
               </p>
             </div>
           </div>

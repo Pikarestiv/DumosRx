@@ -224,41 +224,67 @@ export async function createStockBatch(batch: {
 }
 
 export async function getFastMovers(days: number = 7) {
+  // Returned quantities/amounts are netted out of both periods below — a
+  // sale that was largely returned shouldn't still count as a "fast mover".
   const result = await query<any>(
     `WITH current_period AS (
-      SELECT 
-        p.id, 
-        p.name, 
-        p.generic_name as genericName, 
-        p.category_id, 
-        SUM(si.quantity) as soldQuantity, 
-        SUM(si.total_price) as revenue
+      SELECT
+        p.id,
+        p.name,
+        p.generic_name as genericName,
+        p.category_id,
+        SUM(si.quantity) as grossQuantity,
+        SUM(si.total_price) as grossRevenue,
+        COALESCE((
+          SELECT SUM(ri.quantity) FROM return_items ri
+          JOIN returns r ON ri.return_id = r.id
+          WHERE ri.product_id = p.id AND (ri._deleted = 0 OR ri._deleted IS NULL)
+            AND (r._deleted = 0 OR r._deleted IS NULL)
+            AND r.created_at >= date('now', '-' || ? || ' days')
+        ), 0) as returnedQuantity,
+        COALESCE((
+          SELECT SUM(ri.subtotal) FROM return_items ri
+          JOIN returns r ON ri.return_id = r.id
+          WHERE ri.product_id = p.id AND (ri._deleted = 0 OR ri._deleted IS NULL)
+            AND (r._deleted = 0 OR r._deleted IS NULL)
+            AND r.created_at >= date('now', '-' || ? || ' days')
+        ), 0) as returnedRevenue
       FROM sales s
-      JOIN sale_items si ON s.id = si.sale_id
+      JOIN sale_items si ON s.id = si.sale_id AND (si._deleted = 0 OR si._deleted IS NULL)
       JOIN products p ON si.product_id = p.id
       WHERE s.created_at >= date('now', '-' || ? || ' days')
         AND (s._deleted = 0 OR s._deleted IS NULL)
       GROUP BY p.id
     ),
     previous_period AS (
-      SELECT 
-        si.product_id, 
-        SUM(si.quantity) as prevQuantity
+      SELECT
+        si.product_id,
+        SUM(si.quantity) as grossPrevQuantity,
+        COALESCE((
+          SELECT SUM(ri.quantity) FROM return_items ri
+          JOIN returns r ON ri.return_id = r.id
+          WHERE ri.product_id = si.product_id AND (ri._deleted = 0 OR ri._deleted IS NULL)
+            AND (r._deleted = 0 OR r._deleted IS NULL)
+            AND r.created_at >= date('now', '-' || (? * 2) || ' days')
+            AND r.created_at < date('now', '-' || ? || ' days')
+        ), 0) as returnedPrevQuantity
       FROM sales s
-      JOIN sale_items si ON s.id = si.sale_id
+      JOIN sale_items si ON s.id = si.sale_id AND (si._deleted = 0 OR si._deleted IS NULL)
       WHERE s.created_at >= date('now', '-' || (? * 2) || ' days')
         AND s.created_at < date('now', '-' || ? || ' days')
         AND (s._deleted = 0 OR s._deleted IS NULL)
       GROUP BY si.product_id
     )
-    SELECT 
-      c.*,
-      COALESCE(p.prevQuantity, 0) as prevQuantity
+    SELECT
+      c.id, c.name, c.genericName, c.category_id,
+      MAX(c.grossQuantity - c.returnedQuantity, 0) as soldQuantity,
+      MAX(c.grossRevenue - c.returnedRevenue, 0) as revenue,
+      COALESCE(MAX(p.grossPrevQuantity - p.returnedPrevQuantity, 0), 0) as prevQuantity
     FROM current_period c
     LEFT JOIN previous_period p ON c.id = p.product_id
-    ORDER BY c.soldQuantity DESC
+    ORDER BY soldQuantity DESC
     LIMIT 5`,
-    [days.toString(), days.toString(), days.toString()]
+    [days.toString(), days.toString(), days.toString(), days.toString(), days.toString(), days.toString(), days.toString()]
   );
   
   const items = result.map((row: any) => {

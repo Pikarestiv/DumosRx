@@ -2,6 +2,22 @@
   RewriteEngine On
   RewriteBase /
   RewriteRule ^index\.html$ - [L]
+
+  # Drop a trailing slash (except for the root) before matching below, so
+  # /settings/ and /settings resolve the same way.
+  RewriteCond %{REQUEST_URI} ^/(.+)/$
+  RewriteRule ^ /%1 [L,R=301]
+
+  # Several routes (settings, inventory, procurement, ...) export both a
+  # page.html AND a same-named directory for their sub-routes (e.g.
+  # settings.html and settings/staff.html). The plain "!-d" fallback below
+  # would never match those because the directory exists, so serve the
+  # sibling .html file explicitly first when there is no real file at the
+  # requested path.
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{DOCUMENT_ROOT}%{REQUEST_URI}.html -f
+  RewriteRule ^(.*)$ /$1.html [L]
+
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
   RewriteCond %{REQUEST_FILENAME} !-l

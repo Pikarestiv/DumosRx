@@ -184,7 +184,11 @@ export function StaffFormDialog({
         </DialogFooter>
       }
     >
-      <form id="staff-form" onSubmit={handleSubmit} className="space-y-4 py-4">
+      <form
+        id="staff-form"
+        onSubmit={handleSubmit}
+        className="space-y-4 py-4 my-0.5"
+      >
         <div className="grid grid-cols-2 gap-4">
           <div className="grid gap-2">
             <Label htmlFor="first_name">First Name *</Label>

@@ -340,7 +340,7 @@ CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
   first_name TEXT,
   last_name TEXT,
-  username TEXT UNIQUE,
+  username TEXT,
   email TEXT UNIQUE,
   pin TEXT,
   role TEXT DEFAULT 'staff',
@@ -351,7 +351,8 @@ CREATE TABLE IF NOT EXISTS users (
   _version INTEGER DEFAULT 1,
   _synced INTEGER DEFAULT 0,
   _synced_at TEXT,
-  _deleted INTEGER DEFAULT 0
+  _deleted INTEGER DEFAULT 0,
+  UNIQUE(store_id, username)
 );
 
 CREATE TABLE IF NOT EXISTS audit_logs (

@@ -431,6 +431,45 @@ export async function initDatabase(): Promise<any> {
         }
       }
 
+      // Rebuild users table to scope the username uniqueness constraint to store_id
+      // (SQLite can't ALTER a column-level constraint, so recreate the table)
+      try {
+        const tableInfo = await db.select(
+          "SELECT sql FROM sqlite_master WHERE type='table' AND name='users'"
+        );
+        const usersTableSql = tableInfo?.[0]?.sql || "";
+        if (usersTableSql && !/UNIQUE\s*\(\s*store_id\s*,\s*username\s*\)/i.test(usersTableSql)) {
+          await db.execute(`
+            CREATE TABLE users_new (
+              id TEXT PRIMARY KEY,
+              first_name TEXT,
+              last_name TEXT,
+              username TEXT,
+              email TEXT UNIQUE,
+              pin TEXT,
+              role TEXT DEFAULT 'staff',
+              store_id TEXT,
+              is_active INTEGER DEFAULT 1,
+              created_at TEXT,
+              updated_at TEXT,
+              _version INTEGER DEFAULT 1,
+              _synced INTEGER DEFAULT 0,
+              _synced_at TEXT,
+              _deleted INTEGER DEFAULT 0,
+              UNIQUE(store_id, username)
+            )
+          `);
+          await db.execute(`
+            INSERT INTO users_new (id, first_name, last_name, username, email, pin, role, store_id, is_active, created_at, updated_at, _version, _synced, _synced_at, _deleted)
+            SELECT id, first_name, last_name, username, email, pin, role, store_id, is_active, created_at, updated_at, _version, _synced, _synced_at, _deleted FROM users
+          `);
+          await db.execute("DROP TABLE users");
+          await db.execute("ALTER TABLE users_new RENAME TO users");
+        }
+      } catch (e) {
+        console.error("Failed to migrate users username uniqueness constraint", e);
+      }
+
       // One-off data clearing for legacy transactions (retaining products, batches, users, and settings)
       try {
         const hasClearedLegacy = typeof window !== "undefined" && window.localStorage
@@ -587,6 +626,45 @@ export async function initDatabase(): Promise<any> {
           // Column likely already exists; ignore
         }
       }
+    }
+
+    // Rebuild users table to scope the username uniqueness constraint to store_id
+    // (SQLite can't ALTER a column-level constraint, so recreate the table)
+    try {
+      const tableInfoRes = db.exec(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='users'"
+      );
+      const usersTableSql = tableInfoRes?.[0]?.values?.[0]?.[0] || "";
+      if (usersTableSql && !/UNIQUE\s*\(\s*store_id\s*,\s*username\s*\)/i.test(String(usersTableSql))) {
+        db.run(`
+          CREATE TABLE users_new (
+            id TEXT PRIMARY KEY,
+            first_name TEXT,
+            last_name TEXT,
+            username TEXT,
+            email TEXT UNIQUE,
+            pin TEXT,
+            role TEXT DEFAULT 'staff',
+            store_id TEXT,
+            is_active INTEGER DEFAULT 1,
+            created_at TEXT,
+            updated_at TEXT,
+            _version INTEGER DEFAULT 1,
+            _synced INTEGER DEFAULT 0,
+            _synced_at TEXT,
+            _deleted INTEGER DEFAULT 0,
+            UNIQUE(store_id, username)
+          )
+        `);
+        db.run(`
+          INSERT INTO users_new (id, first_name, last_name, username, email, pin, role, store_id, is_active, created_at, updated_at, _version, _synced, _synced_at, _deleted)
+          SELECT id, first_name, last_name, username, email, pin, role, store_id, is_active, created_at, updated_at, _version, _synced, _synced_at, _deleted FROM users
+        `);
+        db.run("DROP TABLE users");
+        db.run("ALTER TABLE users_new RENAME TO users");
+      }
+    } catch (e) {
+      console.error("Failed to migrate users username uniqueness constraint", e);
     }
 
     // One-off data clearing for legacy transactions (retaining products, batches, users, and settings)

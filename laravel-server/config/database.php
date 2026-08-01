@@ -32,7 +32,14 @@ return [
             'strict' => true,
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
-                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+                \PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+                // The host's MySQL is configured with time_zone=SYSTEM, which reports
+                // the OS's local zone (observed as EDT) instead of UTC — while the app
+                // (date.timezone=UTC) generates all its own timestamps in UTC. Any raw
+                // SQL that calls NOW()/CURRENT_TIMESTAMP() on this connection would be
+                // ~4 hours off from what the app expects otherwise. Force every
+                // connection to UTC so the two can never drift apart again.
+                \PDO::MYSQL_ATTR_INIT_COMMAND => "SET time_zone = '+00:00'",
             ]) : [],
         ],
 

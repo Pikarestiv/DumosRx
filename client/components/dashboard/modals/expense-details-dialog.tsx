@@ -61,6 +61,9 @@ export function ExpenseDetailsDialog({
           {expense.vendor_name && (
             <DetailRow label="Vendor name" value={expense.vendor_name} />
           )}
+          {expense.recorded_by_name && (
+            <DetailRow label="Recorded by" value={expense.recorded_by_name} />
+          )}
           <div>
             <div className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wide mb-1">
               Description

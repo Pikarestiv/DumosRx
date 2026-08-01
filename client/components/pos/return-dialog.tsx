@@ -91,10 +91,22 @@ export function ReturnDialog({
       returnQuantity: val.quantity,
     }));
 
-  const totalRefund = itemsToReturn.reduce(
+  const itemsSubtotal = itemsToReturn.reduce(
     (sum, item) => sum + (item.unit_price || 0) * item.returnQuantity,
     0,
   );
+  // Refund proportionally includes the tax and discount the customer actually
+  // paid on these items, not just their raw unit price — otherwise a full
+  // return of a sale refunds less than the customer paid (the tax/discount
+  // share is left behind as phantom "revenue" everywhere downstream: the
+  // dashboard, POS today's-sales tile, and BI reports all derive their
+  // totals from sales.total_amount minus returns.total_refunded).
+  const saleSubtotal = sale?.subtotal || 0;
+  const returnShare = saleSubtotal > 0 ? itemsSubtotal / saleSubtotal : 0;
+  const taxShare = returnShare * (sale?.tax_amount || 0);
+  const discountShare =
+    returnShare * (sale?.discount_total ?? sale?.discount_amount ?? 0);
+  const totalRefund = Math.max(0, itemsSubtotal + taxShare - discountShare);
 
   const handleInitialSubmit = () => {
     if (itemsToReturn.length === 0) {

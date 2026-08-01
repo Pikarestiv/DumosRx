@@ -105,6 +105,9 @@ export function DashboardPrescriptionDetailsDialog({
               label="Doctor"
               value={prescription.doctor_name || "N/A"}
             />
+            {prescription.created_by_name && (
+              <DetailRow label="Created by" value={prescription.created_by_name} />
+            )}
           </div>
           {prescription.notes && (
             <div>

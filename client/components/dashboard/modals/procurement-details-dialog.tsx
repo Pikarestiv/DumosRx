@@ -104,6 +104,9 @@ export function ProcurementDetailsDialog({
             label="Expected delivery"
             value={po.due_date ? formatDateTime(po.due_date) : "N/A"}
           />
+          {po.ordered_by_name && (
+            <DetailRow label="Ordered by" value={po.ordered_by_name} />
+          )}
           {po.notes && (
             <div>
               <div className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wide mb-1">

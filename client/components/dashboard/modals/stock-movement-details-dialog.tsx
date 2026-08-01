@@ -102,6 +102,9 @@ export function StockMovementDetailsDialog({
               valueClassName="break-all"
             />
           )}
+          {movement.performed_by_name && (
+            <DetailRow label="Performed by" value={movement.performed_by_name} />
+          )}
           <div>
             <div className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wide mb-1">
               Reason / notes

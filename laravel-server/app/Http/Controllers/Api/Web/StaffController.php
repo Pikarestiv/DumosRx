@@ -7,9 +7,22 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
+use OpenApi\Attributes as OA;
 
 class StaffController extends Controller
 {
+    #[OA\Get(
+        path: '/staff',
+        summary: "List staff accounts for the caller's store(s)",
+        description: '`super_admin` sees all non-super_admin users platform-wide (optionally filtered by `store_id`); everyone else sees only their own store\'s staff.',
+        tags: ['Staff'],
+        security: [['sanctum' => []]],
+        parameters: [new OA\Parameter(name: 'store_id', in: 'query', description: 'Filter to one store, or "all"', schema: new OA\Schema(type: 'string'))],
+        responses: [
+            new OA\Response(response: 200, description: 'Staff users', content: new OA\JsonContent(type: 'array', items: new OA\Items(type: 'object'))),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+        ],
+    )]
     public function index(Request $request)
     {
         $user = $request->user();
@@ -43,6 +56,31 @@ class StaffController extends Controller
         return $query->get();
     }
 
+    #[OA\Post(
+        path: '/staff',
+        summary: 'Create a staff account',
+        description: 'Blocked (422) if the store\'s plan staff limit is already reached. If no password is given, one is derived from the PIN (or "1234" if no PIN either) — not secure, treat staff accounts as PIN-first.',
+        tags: ['Staff'],
+        security: [['sanctum' => []]],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            required: ['first_name', 'last_name', 'username', 'role', 'store_id'],
+            properties: [
+                new OA\Property(property: 'first_name', type: 'string'),
+                new OA\Property(property: 'last_name', type: 'string'),
+                new OA\Property(property: 'email', type: 'string', format: 'email', nullable: true, description: 'Auto-generated as `{username}@local.dumosrx.com` if omitted'),
+                new OA\Property(property: 'username', type: 'string', description: 'Unique per store'),
+                new OA\Property(property: 'role', type: 'string', enum: ['admin', 'manager', 'specialist', 'sales_staff', 'auditor']),
+                new OA\Property(property: 'password', type: 'string', nullable: true, minLength: 8),
+                new OA\Property(property: 'pin', type: 'string', nullable: true, minLength: 4, maxLength: 4),
+                new OA\Property(property: 'store_id', type: 'string'),
+            ],
+        )),
+        responses: [
+            new OA\Response(response: 201, description: 'Created', content: new OA\JsonContent(type: 'object')),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+            new OA\Response(response: 422, ref: '#/components/responses/ValidationError', description: 'Validation failure, or staff limit reached for the plan'),
+        ],
+    )]
     public function store(Request $request)
     {
         if (!app(\App\Services\SubscriptionService::class)->checkLimit($request->user(), 'staff')) {
@@ -88,6 +126,56 @@ class StaffController extends Controller
         return response()->json($user, 201);
     }
 
+    #[OA\Patch(
+        path: '/staff/{staff}',
+        summary: 'Update a staff account (PATCH alias of PUT)',
+        description: 'Re-activating a previously deactivated staff member (`is_active: true`) is blocked (422) if it would exceed the plan\'s staff limit.',
+        tags: ['Staff'],
+        security: [['sanctum' => []]],
+        parameters: [new OA\Parameter(name: 'staff', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
+        requestBody: new OA\RequestBody(content: new OA\JsonContent(properties: [
+            new OA\Property(property: 'first_name', type: 'string'),
+            new OA\Property(property: 'last_name', type: 'string'),
+            new OA\Property(property: 'email', type: 'string', format: 'email', nullable: true),
+            new OA\Property(property: 'username', type: 'string'),
+            new OA\Property(property: 'role', type: 'string', enum: ['admin', 'manager', 'specialist', 'sales_staff', 'auditor']),
+            new OA\Property(property: 'password', type: 'string', nullable: true),
+            new OA\Property(property: 'pin', type: 'string'),
+            new OA\Property(property: 'store_id', type: 'string'),
+            new OA\Property(property: 'is_active', type: 'boolean'),
+        ])),
+        responses: [
+            new OA\Response(response: 200, description: 'Updated', content: new OA\JsonContent(type: 'object')),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+            new OA\Response(response: 404, ref: '#/components/responses/NotFound'),
+            new OA\Response(response: 422, ref: '#/components/responses/ValidationError'),
+        ],
+    )]
+    #[OA\Put(
+        path: '/staff/{staff}',
+        summary: 'Update a staff account',
+        description: 'Re-activating a previously deactivated staff member (`is_active: true`) is blocked (422) if it would exceed the plan\'s staff limit.',
+        tags: ['Staff'],
+        security: [['sanctum' => []]],
+        parameters: [new OA\Parameter(name: 'staff', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
+        requestBody: new OA\RequestBody(content: new OA\JsonContent(properties: [
+            new OA\Property(property: 'first_name', type: 'string'),
+            new OA\Property(property: 'last_name', type: 'string'),
+            new OA\Property(property: 'email', type: 'string', format: 'email', nullable: true),
+            new OA\Property(property: 'username', type: 'string'),
+            new OA\Property(property: 'role', type: 'string', enum: ['admin', 'manager', 'specialist', 'sales_staff', 'auditor']),
+            new OA\Property(property: 'password', type: 'string', nullable: true),
+            new OA\Property(property: 'pin', type: 'string'),
+            new OA\Property(property: 'store_id', type: 'string'),
+            new OA\Property(property: 'is_active', type: 'boolean'),
+        ])),
+        responses: [
+            new OA\Response(response: 200, description: 'Updated', content: new OA\JsonContent(type: 'object')),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+            new OA\Response(response: 404, ref: '#/components/responses/NotFound'),
+            new OA\Response(response: 422, ref: '#/components/responses/ValidationError'),
+        ],
+    )]
     public function update(Request $request, User $staff)
     {
         $request->validate([
@@ -133,6 +221,19 @@ class StaffController extends Controller
         return response()->json($staff);
     }
 
+    #[OA\Delete(
+        path: '/staff/{staff}',
+        summary: 'Deactivate a staff account',
+        description: 'Soft "delete" — sets `is_active: false` rather than removing the record.',
+        tags: ['Staff'],
+        security: [['sanctum' => []]],
+        parameters: [new OA\Parameter(name: 'staff', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
+        responses: [
+            new OA\Response(response: 200, description: 'Deactivated', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+            new OA\Response(response: 404, ref: '#/components/responses/NotFound'),
+        ],
+    )]
     public function destroy(User $staff)
     {
         $staff->update(['is_active' => false]);

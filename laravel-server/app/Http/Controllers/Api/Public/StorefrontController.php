@@ -6,9 +6,25 @@ use App\Http\Controllers\Controller;
 use App\Models\Store;
 use App\Models\Product;
 use Illuminate\Http\Request;
+use OpenApi\Attributes as OA;
 
 class StorefrontController extends Controller
 {
+    #[OA\Get(
+        path: '/storefront/{store_slug}',
+        summary: 'Get a public storefront (store info + browsable products)',
+        description: "SECURITY/CORRECTNESS NOTE: the product query has no store scoping at all — it returns every store's active, show-online-enabled products globally, not just this store's. Every storefront currently shows an identical, unscoped catalog regardless of `store_slug`.",
+        tags: ['Storefront'],
+        parameters: [new OA\Parameter(name: 'store_slug', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
+        responses: [
+            new OA\Response(response: 200, description: 'Store + products', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'store', type: 'object'),
+                new OA\Property(property: 'products', type: 'array', items: new OA\Items(type: 'object')),
+            ])),
+            new OA\Response(response: 403, description: 'Store is suspended'),
+            new OA\Response(response: 404, ref: '#/components/responses/NotFound'),
+        ],
+    )]
     public function show($store_slug)
     {
         $store = Store::where('store_slug', $store_slug)->firstOrFail();
@@ -37,6 +53,38 @@ class StorefrontController extends Controller
         ]);
     }
 
+    #[OA\Post(
+        path: '/storefront/{store_slug}/checkout',
+        summary: 'Place a public storefront order',
+        description: "SECURITY NOTE: `paystack_reference` is trusted as-is from the client to set `payment_status: paid` when payment_method is paystack — there is no server-side verification of the reference against Paystack's API here. A client can fabricate a reference string and get an order marked paid without having actually paid.",
+        tags: ['Storefront'],
+        parameters: [new OA\Parameter(name: 'store_slug', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            required: ['customer_name', 'customer_phone', 'payment_method', 'items'],
+            properties: [
+                new OA\Property(property: 'customer_name', type: 'string', maxLength: 255),
+                new OA\Property(property: 'customer_phone', type: 'string', maxLength: 20),
+                new OA\Property(property: 'customer_address', type: 'string', nullable: true, maxLength: 1000),
+                new OA\Property(property: 'payment_method', type: 'string', enum: ['paystack', 'transfer', 'in_store']),
+                new OA\Property(property: 'paystack_reference', type: 'string', nullable: true),
+                new OA\Property(property: 'items', type: 'array', items: new OA\Items(
+                    properties: [
+                        new OA\Property(property: 'product_id', type: 'string', format: 'uuid'),
+                        new OA\Property(property: 'quantity', type: 'integer', minimum: 1),
+                    ],
+                )),
+            ],
+        )),
+        responses: [
+            new OA\Response(response: 201, description: 'Order placed', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'message', type: 'string'),
+                new OA\Property(property: 'order', type: 'object'),
+            ])),
+            new OA\Response(response: 403, description: 'Store is suspended'),
+            new OA\Response(response: 404, ref: '#/components/responses/NotFound'),
+            new OA\Response(response: 422, ref: '#/components/responses/ValidationError'),
+        ],
+    )]
     public function checkout(Request $request, $store_slug)
     {
         $store = Store::where('store_slug', $store_slug)->firstOrFail();

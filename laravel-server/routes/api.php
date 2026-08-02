@@ -38,6 +38,8 @@ Route::prefix('v1')->group(function () {
         Route::post('/verify-email', [AuthController::class, 'verifyEmail']);
         Route::post('/resend-verification', [AuthController::class, 'resendVerification']);
     });
+    // Documented via App\OpenApi\ClosureRoutes (swagger-php doesn't scan inline
+    // closure docblocks — see that file for why).
     Route::get('/health', function () {
         return response()->json(['status' => 'ok', 'timestamp' => now()]);
     });
@@ -58,13 +60,6 @@ Route::prefix('v1')->group(function () {
     // Webhooks (Public)
     Route::post('/webhooks/paystack', [\App\Http\Controllers\Api\Web\PaymentController::class, 'handlePaystack']);
     Route::post('/webhooks/flutterwave', [\App\Http\Controllers\Api\Web\PaymentController::class, 'handleFlutterwave']);
-
-    Route::get('/dev/clear-stock-batches', function () {
-        \Illuminate\Support\Facades\DB::table('stock_batches')->delete();
-        \Illuminate\Support\Facades\DB::table('categories')->delete();
-
-        return 'Cleared';
-    });
 
     // Protected Routes
     Route::middleware(['auth:sanctum', 'account_status', \App\Http\Middleware\EnsureEmailIsVerified::class, 'throttle:60,1'])->group(function () {

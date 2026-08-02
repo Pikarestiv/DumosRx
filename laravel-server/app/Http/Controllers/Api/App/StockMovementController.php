@@ -7,12 +7,27 @@ use App\Models\StockMovement;
 use App\Models\Store;
 use App\Models\User;
 use Illuminate\Http\Request;
+use OpenApi\Attributes as OA;
 
 class StockMovementController extends Controller
 {
-    /**
-     * Get list of stock movements
-     */
+    #[OA\Get(
+        path: '/stock-movements',
+        summary: 'List the stock ledger (sales, restocks, adjustments) for the store',
+        tags: ['Stock Movements'],
+        security: [['sanctum' => []]],
+        parameters: [new OA\Parameter(name: 'limit', in: 'query', schema: new OA\Schema(type: 'integer', default: 50))],
+        responses: [
+            new OA\Response(response: 200, description: 'Paginated movements', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'success', type: 'boolean'),
+                new OA\Property(property: 'data', type: 'array', items: new OA\Items(type: 'object')),
+                new OA\Property(property: 'current_page', type: 'integer'),
+                new OA\Property(property: 'last_page', type: 'integer'),
+                new OA\Property(property: 'total', type: 'integer'),
+            ])),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+        ],
+    )]
     public function index(Request $request)
     {
         $user = $request->user();
@@ -54,9 +69,24 @@ class StockMovementController extends Controller
         ]);
     }
 
-    /**
-     * Get list of stock adjustments specifically
-     */
+    #[OA\Get(
+        path: '/stock-adjustments',
+        summary: 'List stock movements filtered to adjustment/expired/damaged types',
+        description: 'Same shape as `/stock-movements` but pre-filtered, plus an `adjustment_type` (increase/decrease) derived from quantity sign. `approved` is always hard-coded `true` — there is no approval workflow.',
+        tags: ['Stock Movements'],
+        security: [['sanctum' => []]],
+        parameters: [new OA\Parameter(name: 'limit', in: 'query', schema: new OA\Schema(type: 'integer', default: 50))],
+        responses: [
+            new OA\Response(response: 200, description: 'Paginated adjustments', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'success', type: 'boolean'),
+                new OA\Property(property: 'data', type: 'array', items: new OA\Items(type: 'object')),
+                new OA\Property(property: 'current_page', type: 'integer'),
+                new OA\Property(property: 'last_page', type: 'integer'),
+                new OA\Property(property: 'total', type: 'integer'),
+            ])),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+        ],
+    )]
     public function adjustments(Request $request)
     {
         $user = $request->user();

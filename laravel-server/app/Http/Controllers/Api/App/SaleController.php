@@ -10,9 +10,21 @@ use App\Models\User;
 use App\Models\Store;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use OpenApi\Attributes as OA;
 
 class SaleController extends Controller
 {
+    #[OA\Get(
+        path: '/app/sales',
+        summary: "List the store's sales (all staff)",
+        tags: ['Sales'],
+        security: [['sanctum' => []]],
+        parameters: [new OA\Parameter(name: 'limit', in: 'query', schema: new OA\Schema(type: 'integer', default: 50))],
+        responses: [
+            new OA\Response(response: 200, description: 'Paginated sales, with items/customer/user eager-loaded', content: new OA\JsonContent(type: 'object')),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+        ],
+    )]
     public function index(Request $request)
     {
         $limit = $request->get('limit', 50);
@@ -33,6 +45,32 @@ class SaleController extends Controller
         return response()->json($sales);
     }
 
+    #[OA\Post(
+        path: '/app/sales',
+        summary: 'Record a sale (POS checkout)',
+        description: 'NOTE: item price is trusted from the request body (`unit_price`) rather than looked up server-side from the current product/batch price — client is responsible for sending the correct price.',
+        tags: ['Sales'],
+        security: [['sanctum' => []]],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            required: ['items', 'payment_method'],
+            properties: [
+                new OA\Property(property: 'items', type: 'array', items: new OA\Items(
+                    properties: [
+                        new OA\Property(property: 'product_id', type: 'string'),
+                        new OA\Property(property: 'quantity', type: 'integer', minimum: 1),
+                        new OA\Property(property: 'unit_price', type: 'number', format: 'float'),
+                    ],
+                )),
+                new OA\Property(property: 'payment_method', type: 'string'),
+                new OA\Property(property: 'customer_id', type: 'string', nullable: true),
+            ],
+        )),
+        responses: [
+            new OA\Response(response: 201, description: 'Sale recorded', content: new OA\JsonContent(type: 'object')),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+            new OA\Response(response: 422, ref: '#/components/responses/ValidationError'),
+        ],
+    )]
     public function store(Request $request)
     {
         $request->validate([
@@ -87,6 +125,22 @@ class SaleController extends Controller
         });
     }
 
+    #[OA\Get(
+        path: '/app/sales/daily',
+        summary: 'Get sales totals for a single day',
+        tags: ['Sales'],
+        security: [['sanctum' => []]],
+        parameters: [new OA\Parameter(name: 'date', in: 'query', description: 'Defaults to today', schema: new OA\Schema(type: 'string', format: 'date'))],
+        responses: [
+            new OA\Response(response: 200, description: 'Daily totals', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'date', type: 'string', format: 'date'),
+                new OA\Property(property: 'total_sales', type: 'number'),
+                new OA\Property(property: 'transaction_count', type: 'integer'),
+                new OA\Property(property: 'sales', type: 'array', items: new OA\Items(type: 'object')),
+            ])),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+        ],
+    )]
     public function dailySales(Request $request)
     {
         $date = $request->get('date', now()->toDateString());
@@ -115,6 +169,20 @@ class SaleController extends Controller
         ]);
     }
 
+    #[OA\Get(
+        path: '/app/sales/top-products',
+        summary: 'Best-selling products by quantity sold (all-time)',
+        tags: ['Sales'],
+        security: [['sanctum' => []]],
+        parameters: [new OA\Parameter(name: 'limit', in: 'query', schema: new OA\Schema(type: 'integer', default: 10))],
+        responses: [
+            new OA\Response(response: 200, description: 'Top products', content: new OA\JsonContent(type: 'array', items: new OA\Items(properties: [
+                new OA\Property(property: 'name', type: 'string'),
+                new OA\Property(property: 'total_quantity', type: 'integer'),
+            ]))),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+        ],
+    )]
     public function topProducts(Request $request)
     {
         $limit = $request->get('limit', 10);

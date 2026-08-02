@@ -9,6 +9,7 @@ use App\Services\Admin\AdminService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
+use OpenApi\Attributes as OA;
 
 class AdminController extends Controller
 {
@@ -22,6 +23,17 @@ class AdminController extends Controller
         $this->adminService = $adminService;
     }
 
+    #[OA\Get(
+        path: '/admin/summary',
+        summary: 'Platform-wide summary metrics',
+        tags: ['Admin'],
+        security: [['sanctum' => []]],
+        responses: [
+            new OA\Response(response: 200, description: 'Summary', content: new OA\JsonContent(type: 'object')),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
+        ],
+    )]
     public function summary(Request $request)
     {
         // Ensure only super_admin can access
@@ -38,6 +50,23 @@ class AdminController extends Controller
         }
     }
 
+    #[OA\Get(
+        path: '/admin/stores',
+        summary: 'List/search stores platform-wide',
+        tags: ['Admin'],
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'page', in: 'query', schema: new OA\Schema(type: 'integer', default: 1)),
+            new OA\Parameter(name: 'search', in: 'query', schema: new OA\Schema(type: 'string')),
+            new OA\Parameter(name: 'status', in: 'query', schema: new OA\Schema(type: 'string')),
+            new OA\Parameter(name: 'plan', in: 'query', schema: new OA\Schema(type: 'string')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Stores', content: new OA\JsonContent(type: 'object')),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
+        ],
+    )]
     public function stores(Request $request)
     {
         if ($request->user()->role !== 'super_admin') {
@@ -57,6 +86,29 @@ class AdminController extends Controller
         }
     }
 
+    #[OA\Post(
+        path: '/admin/stores',
+        summary: 'Register a new store + owner on behalf of a customer',
+        tags: ['Admin'],
+        security: [['sanctum' => []]],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            required: ['store_name', 'first_name', 'last_name', 'email', 'phone', 'password'],
+            properties: [
+                new OA\Property(property: 'store_name', type: 'string', minLength: 2),
+                new OA\Property(property: 'first_name', type: 'string', minLength: 2),
+                new OA\Property(property: 'last_name', type: 'string', minLength: 2),
+                new OA\Property(property: 'email', type: 'string', format: 'email'),
+                new OA\Property(property: 'phone', type: 'string', minLength: 10),
+                new OA\Property(property: 'password', type: 'string', format: 'password', minLength: 8),
+            ],
+        )),
+        responses: [
+            new OA\Response(response: 201, description: 'Created', content: new OA\JsonContent(type: 'object')),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 422, ref: '#/components/responses/ValidationError'),
+            new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
+        ],
+    )]
     public function registerStore(Request $request)
     {
         if ($request->user()->role !== 'super_admin') {
@@ -84,6 +136,25 @@ class AdminController extends Controller
         }
     }
 
+    #[OA\Get(
+        path: '/admin/products',
+        summary: 'Global product catalog view (across all stores) + catalog metrics',
+        tags: ['Admin'],
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'page', in: 'query', schema: new OA\Schema(type: 'integer', default: 1)),
+            new OA\Parameter(name: 'search', in: 'query', schema: new OA\Schema(type: 'string')),
+            new OA\Parameter(name: 'category', in: 'query', schema: new OA\Schema(type: 'string')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Products + metrics + distinct generic-name categories', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'products', type: 'object'),
+                new OA\Property(property: 'metrics', type: 'object'),
+                new OA\Property(property: 'categories', type: 'array', items: new OA\Items(type: 'string')),
+            ])),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+        ],
+    )]
     public function products(Request $request)
     {
         if ($request->user()->role !== 'super_admin') {
@@ -104,6 +175,17 @@ class AdminController extends Controller
         ]);
     }
 
+    #[OA\Post(
+        path: '/admin/products/standardize',
+        summary: 'Run catalog standardization (dedupe/normalize product names) across all stores',
+        tags: ['Admin'],
+        security: [['sanctum' => []]],
+        responses: [
+            new OA\Response(response: 200, description: 'Standardization result', content: new OA\JsonContent(type: 'object')),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
+        ],
+    )]
     public function standardize(Request $request)
     {
         if ($request->user()->role !== 'super_admin') {
@@ -119,6 +201,17 @@ class AdminController extends Controller
         }
     }
 
+    #[OA\Get(
+        path: '/admin/health',
+        summary: 'Platform system health snapshot',
+        tags: ['Admin'],
+        security: [['sanctum' => []]],
+        responses: [
+            new OA\Response(response: 200, description: 'Health data', content: new OA\JsonContent(type: 'object')),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
+        ],
+    )]
     public function health(Request $request)
     {
         if ($request->user()->role !== 'super_admin') {
@@ -134,6 +227,21 @@ class AdminController extends Controller
         }
     }
 
+    #[OA\Get(
+        path: '/admin/users',
+        summary: 'List/search users platform-wide',
+        tags: ['Admin'],
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'page', in: 'query', schema: new OA\Schema(type: 'integer', default: 1)),
+            new OA\Parameter(name: 'search', in: 'query', schema: new OA\Schema(type: 'string')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Users', content: new OA\JsonContent(type: 'object')),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
+        ],
+    )]
     public function users(Request $request)
     {
         if ($request->user()->role !== 'super_admin') {
@@ -151,6 +259,26 @@ class AdminController extends Controller
         }
     }
 
+    #[OA\Get(
+        path: '/admin/activity-logs',
+        summary: 'Platform-wide activity/audit log',
+        tags: ['Admin'],
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'page', in: 'query', schema: new OA\Schema(type: 'integer', default: 1)),
+            new OA\Parameter(name: 'search', in: 'query', schema: new OA\Schema(type: 'string')),
+            new OA\Parameter(name: 'action', in: 'query', schema: new OA\Schema(type: 'string')),
+            new OA\Parameter(name: 'store_id', in: 'query', schema: new OA\Schema(type: 'string')),
+            new OA\Parameter(name: 'user_id', in: 'query', schema: new OA\Schema(type: 'string')),
+            new OA\Parameter(name: 'date_from', in: 'query', schema: new OA\Schema(type: 'string', format: 'date')),
+            new OA\Parameter(name: 'date_to', in: 'query', schema: new OA\Schema(type: 'string', format: 'date')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Activity logs', content: new OA\JsonContent(type: 'object')),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
+        ],
+    )]
     public function activityLogs(Request $request)
     {
         if ($request->user()->role !== 'super_admin') {
@@ -174,6 +302,18 @@ class AdminController extends Controller
         }
     }
 
+    #[OA\Get(
+        path: '/admin/search',
+        summary: 'Global platform search (stores, users, etc.)',
+        tags: ['Admin'],
+        security: [['sanctum' => []]],
+        parameters: [new OA\Parameter(name: 'query', in: 'query', required: true, schema: new OA\Schema(type: 'string'))],
+        responses: [
+            new OA\Response(response: 200, description: 'Search results (empty array if no query given)', content: new OA\JsonContent(type: 'array', items: new OA\Items(type: 'object'))),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
+        ],
+    )]
     public function search(Request $request)
     {
         if ($request->user()->role !== 'super_admin') {
@@ -191,6 +331,21 @@ class AdminController extends Controller
             return response()->json(['error' => 'Search failed'], 500);
         }
     }
+    #[OA\Post(
+        path: '/admin/stores/{id}/suspend',
+        summary: 'Suspend a store',
+        tags: ['Admin'],
+        security: [['sanctum' => []]],
+        parameters: [new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
+        requestBody: new OA\RequestBody(content: new OA\JsonContent(properties: [
+            new OA\Property(property: 'reason', type: 'string', maxLength: 1000, nullable: true),
+        ])),
+        responses: [
+            new OA\Response(response: 200, description: 'Suspended', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
+        ],
+    )]
     public function suspendStore(Request $request, $id)
     {
         if ($request->user()->role !== 'super_admin') {
@@ -210,6 +365,18 @@ class AdminController extends Controller
         }
     }
 
+    #[OA\Post(
+        path: '/admin/stores/{id}/unsuspend',
+        summary: 'Re-activate a suspended store',
+        tags: ['Admin'],
+        security: [['sanctum' => []]],
+        parameters: [new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
+        responses: [
+            new OA\Response(response: 200, description: 'Re-activated', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
+        ],
+    )]
     public function unsuspendStore(Request $request, $id)
     {
         if ($request->user()->role !== 'super_admin') {
@@ -225,6 +392,28 @@ class AdminController extends Controller
         }
     }
 
+    #[OA\Post(
+        path: '/admin/stores/{id}/grant-trial',
+        summary: 'Grant a store a trial subscription',
+        description: 'Pass either `duration` (a preset like "14 days", "1 month", "1 year") or an explicit `end_date` — exactly one is required. `end_date` always wins if both are somehow present.',
+        tags: ['Admin'],
+        security: [['sanctum' => []]],
+        parameters: [new OA\Parameter(name: 'id', in: 'path', description: 'Store ID', required: true, schema: new OA\Schema(type: 'string'))],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            required: ['plan'],
+            properties: [
+                new OA\Property(property: 'plan', type: 'string', enum: ['starter', 'pro', 'enterprise']),
+                new OA\Property(property: 'duration', type: 'string', nullable: true, example: '14 days', description: 'One of: 1 day, 3 days, 7 days, 14 days, 21 days, 30 days, 1 month, 3 months, 6 months, 1 year'),
+                new OA\Property(property: 'end_date', type: 'string', format: 'date', nullable: true, description: 'Must be after today. Use instead of `duration` for an exact expiry date.'),
+            ],
+        )),
+        responses: [
+            new OA\Response(response: 200, description: 'Granted', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 422, ref: '#/components/responses/ValidationError'),
+            new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
+        ],
+    )]
     public function grantTrial(Request $request, $id)
     {
         if ($request->user()->role !== 'super_admin') {
@@ -246,6 +435,28 @@ class AdminController extends Controller
         }
     }
 
+    #[OA\Post(
+        path: '/admin/users/{id}/grant-trial',
+        summary: 'Grant a user (rather than a store) a trial subscription',
+        description: 'Same semantics as `/admin/stores/{id}/grant-trial` — pass either `duration` or `end_date`.',
+        tags: ['Admin'],
+        security: [['sanctum' => []]],
+        parameters: [new OA\Parameter(name: 'id', in: 'path', description: 'User ID', required: true, schema: new OA\Schema(type: 'string'))],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            required: ['plan'],
+            properties: [
+                new OA\Property(property: 'plan', type: 'string', enum: ['starter', 'pro', 'enterprise']),
+                new OA\Property(property: 'duration', type: 'string', nullable: true, example: '14 days'),
+                new OA\Property(property: 'end_date', type: 'string', format: 'date', nullable: true),
+            ],
+        )),
+        responses: [
+            new OA\Response(response: 200, description: 'Granted', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 422, ref: '#/components/responses/ValidationError'),
+            new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
+        ],
+    )]
     public function grantUserTrial(Request $request, $id)
     {
         if ($request->user()->role !== 'super_admin') {
@@ -267,6 +478,28 @@ class AdminController extends Controller
         }
     }
 
+    #[OA\Post(
+        path: '/admin/users',
+        summary: 'Create a new platform admin account',
+        tags: ['Admin'],
+        security: [['sanctum' => []]],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            required: ['first_name', 'last_name', 'email', 'password'],
+            properties: [
+                new OA\Property(property: 'first_name', type: 'string', minLength: 2),
+                new OA\Property(property: 'last_name', type: 'string', minLength: 2),
+                new OA\Property(property: 'email', type: 'string', format: 'email'),
+                new OA\Property(property: 'phone', type: 'string', nullable: true),
+                new OA\Property(property: 'password', type: 'string', format: 'password', minLength: 8),
+            ],
+        )),
+        responses: [
+            new OA\Response(response: 201, description: 'Created', content: new OA\JsonContent(type: 'object')),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 422, ref: '#/components/responses/ValidationError'),
+            new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
+        ],
+    )]
     public function createPlatformAdmin(Request $request)
     {
         if ($request->user()->role !== 'super_admin') {
@@ -293,6 +526,18 @@ class AdminController extends Controller
         }
     }
 
+    #[OA\Post(
+        path: '/admin/users/{id}/deactivate',
+        summary: 'Deactivate a user account',
+        tags: ['Admin'],
+        security: [['sanctum' => []]],
+        parameters: [new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
+        responses: [
+            new OA\Response(response: 200, description: 'Deactivated', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
+        ],
+    )]
     public function deactivateUser(Request $request, $id)
     {
         if ($request->user()->role !== 'super_admin') {
@@ -308,6 +553,18 @@ class AdminController extends Controller
         }
     }
 
+    #[OA\Post(
+        path: '/admin/users/{id}/reactivate',
+        summary: 'Reactivate a deactivated user account',
+        tags: ['Admin'],
+        security: [['sanctum' => []]],
+        parameters: [new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
+        responses: [
+            new OA\Response(response: 200, description: 'Reactivated', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
+        ],
+    )]
     public function reactivateUser(Request $request, $id)
     {
         if ($request->user()->role !== 'super_admin') {
@@ -323,6 +580,19 @@ class AdminController extends Controller
         }
     }
 
+    #[OA\Delete(
+        path: '/admin/users/{id}',
+        summary: 'Permanently delete a user and all associated data',
+        description: 'Irreversible — not a soft delete.',
+        tags: ['Admin'],
+        security: [['sanctum' => []]],
+        parameters: [new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
+        responses: [
+            new OA\Response(response: 200, description: 'Deleted', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
+        ],
+    )]
     public function deleteUser(Request $request, $id)
     {
         if ($request->user()->role !== 'super_admin') {
@@ -338,6 +608,22 @@ class AdminController extends Controller
         }
     }
 
+    #[OA\Post(
+        path: '/admin/users/{id}/reset-password',
+        summary: "Force-reset a user's password to a temporary one",
+        description: 'Returns the temp password in the response — surface it to the admin so they can relay it out-of-band.',
+        tags: ['Admin'],
+        security: [['sanctum' => []]],
+        parameters: [new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
+        responses: [
+            new OA\Response(response: 200, description: 'Reset', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'message', type: 'string'),
+                new OA\Property(property: 'temp_password', type: 'string'),
+            ])),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
+        ],
+    )]
     public function forcePasswordReset(Request $request, $id)
     {
         if ($request->user()->role !== 'super_admin') {
@@ -356,6 +642,26 @@ class AdminController extends Controller
         }
     }
 
+    #[OA\Post(
+        path: '/admin/users/{id}/notify',
+        summary: 'Send an in-app notification to a single user',
+        tags: ['Admin'],
+        security: [['sanctum' => []]],
+        parameters: [new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            required: ['title', 'message'],
+            properties: [
+                new OA\Property(property: 'title', type: 'string', minLength: 3, maxLength: 100),
+                new OA\Property(property: 'message', type: 'string', minLength: 5),
+            ],
+        )),
+        responses: [
+            new OA\Response(response: 200, description: 'Sent', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 422, ref: '#/components/responses/ValidationError'),
+            new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
+        ],
+    )]
     public function notifyUser(Request $request, $id)
     {
         if ($request->user()->role !== 'super_admin') {
@@ -376,6 +682,29 @@ class AdminController extends Controller
         }
     }
 
+    #[OA\Post(
+        path: '/admin/users/bulk-notify',
+        summary: 'Send an in-app notification to a filtered set of users',
+        tags: ['Admin'],
+        security: [['sanctum' => []]],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            required: ['title', 'message'],
+            properties: [
+                new OA\Property(property: 'title', type: 'string', minLength: 3, maxLength: 100),
+                new OA\Property(property: 'message', type: 'string', minLength: 5),
+                new OA\Property(property: 'filters', type: 'object', nullable: true, description: 'Recipient filter criteria (plan, status, etc.) — see AdminService::bulkNotify'),
+            ],
+        )),
+        responses: [
+            new OA\Response(response: 200, description: 'Sent', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'message', type: 'string'),
+                new OA\Property(property: 'count', type: 'integer'),
+            ])),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 422, ref: '#/components/responses/ValidationError'),
+            new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
+        ],
+    )]
     public function bulkNotify(Request $request)
     {
         if ($request->user()->role !== 'super_admin') {
@@ -400,6 +729,19 @@ class AdminController extends Controller
         }
     }
 
+    #[OA\Post(
+        path: '/admin/stores/{id}/impersonate',
+        summary: "Start impersonating a store's owner session",
+        description: 'Sets the `drx_admin_session` cookie to the impersonated user\'s token — use `/admin/restore-session` to end it.',
+        tags: ['Admin'],
+        security: [['sanctum' => []]],
+        parameters: [new OA\Parameter(name: 'id', in: 'path', description: 'Store ID', required: true, schema: new OA\Schema(type: 'string'))],
+        responses: [
+            new OA\Response(response: 200, description: 'Impersonation session started', content: new OA\JsonContent(type: 'object')),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
+        ],
+    )]
     public function impersonateStore(Request $request, $id)
     {
         if ($request->user()->role !== 'super_admin') {
@@ -431,6 +773,22 @@ class AdminController extends Controller
         }
     }
 
+    #[OA\Post(
+        path: '/admin/restore-session',
+        summary: "End impersonation and restore the admin's own session",
+        description: 'Note: unlike every other admin endpoint, this one has no super_admin role check — any authenticated user hitting it can set their session cookie to an arbitrary token they supply.',
+        tags: ['Admin'],
+        security: [['sanctum' => []]],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            required: ['token'],
+            properties: [new OA\Property(property: 'token', type: 'string', description: "The admin's own token to restore")],
+        )),
+        responses: [
+            new OA\Response(response: 200, description: 'Restored', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+            new OA\Response(response: 422, ref: '#/components/responses/ValidationError'),
+        ],
+    )]
     public function restoreSession(Request $request)
     {
         $validated = $request->validate([

@@ -6,12 +6,23 @@ use App\Http\Controllers\Controller;
 use App\Models\Broadcast;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use OpenApi\Attributes as OA;
 
 class BroadcastController extends Controller
 {
-    /**
-     * Get all active broadcasts (for clients)
-     */
+    #[OA\Get(
+        path: '/announcements',
+        summary: 'Get active broadcast announcements targeted at the caller',
+        description: 'Public, but targeting narrows based on the caller: authenticated users see "all", announcements naming their user ID, and (for store_owner/admin) "pharmacies"/"stores"-targeted ones. Unauthenticated callers with an `X-Store-ID` header see "all" plus store-targeted ones naming that store. Everyone else just sees "all".',
+        tags: ['Announcements'],
+        parameters: [new OA\HeaderParameter(name: 'X-Store-ID', schema: new OA\Schema(type: 'string'))],
+        responses: [
+            new OA\Response(response: 200, description: 'Announcements', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'success', type: 'boolean'),
+                new OA\Property(property: 'data', type: 'array', items: new OA\Items(type: 'object')),
+            ])),
+        ],
+    )]
     public function index(Request $request)
     {
         $user = auth('sanctum')->user();
@@ -58,9 +69,19 @@ class BroadcastController extends Controller
         ]);
     }
 
-    /**
-     * Get all broadcasts (for admin)
-     */
+    #[OA\Get(
+        path: '/admin/announcements',
+        summary: 'List all broadcast announcements (admin)',
+        tags: ['Announcements'],
+        security: [['sanctum' => []]],
+        responses: [
+            new OA\Response(response: 200, description: 'All announcements, active or not', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'success', type: 'boolean'),
+                new OA\Property(property: 'data', type: 'array', items: new OA\Items(type: 'object')),
+            ])),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+        ],
+    )]
     public function adminIndex()
     {
         $broadcasts = Broadcast::orderBy('created_at', 'desc')->get();
@@ -71,9 +92,33 @@ class BroadcastController extends Controller
         ]);
     }
 
-    /**
-     * Store a new broadcast
-     */
+    #[OA\Post(
+        path: '/admin/announcements',
+        summary: 'Create a broadcast announcement',
+        tags: ['Announcements'],
+        security: [['sanctum' => []]],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            required: ['title', 'message', 'type', 'target_type'],
+            properties: [
+                new OA\Property(property: 'title', type: 'string', maxLength: 255),
+                new OA\Property(property: 'message', type: 'string'),
+                new OA\Property(property: 'type', type: 'string', enum: ['info', 'warning', 'danger', 'success']),
+                new OA\Property(property: 'target_type', type: 'string', enum: ['all', 'pharmacies', 'stores', 'specific']),
+                new OA\Property(property: 'user_ids', type: 'array', items: new OA\Items(type: 'string'), nullable: true, description: 'Required when target_type=specific'),
+                new OA\Property(property: 'expires_at', type: 'string', format: 'date-time', nullable: true),
+                new OA\Property(property: 'is_active', type: 'boolean'),
+            ],
+        )),
+        responses: [
+            new OA\Response(response: 200, description: 'Created', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'success', type: 'boolean'),
+                new OA\Property(property: 'message', type: 'string'),
+                new OA\Property(property: 'data', type: 'object'),
+            ])),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+            new OA\Response(response: 422, ref: '#/components/responses/ValidationError'),
+        ],
+    )]
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -99,9 +144,35 @@ class BroadcastController extends Controller
         ]);
     }
 
-    /**
-     * Update an existing broadcast
-     */
+    #[OA\Put(
+        path: '/admin/announcements/{id}',
+        summary: 'Update a broadcast announcement',
+        tags: ['Announcements'],
+        security: [['sanctum' => []]],
+        parameters: [new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
+        requestBody: new OA\RequestBody(content: new OA\JsonContent(properties: [
+            new OA\Property(property: 'title', type: 'string', maxLength: 255),
+            new OA\Property(property: 'message', type: 'string'),
+            new OA\Property(property: 'type', type: 'string', enum: ['info', 'warning', 'danger', 'success']),
+            new OA\Property(property: 'target_type', type: 'string', enum: ['all', 'pharmacies', 'stores', 'specific']),
+            new OA\Property(property: 'user_ids', type: 'array', items: new OA\Items(type: 'string'), nullable: true),
+            new OA\Property(property: 'expires_at', type: 'string', format: 'date-time', nullable: true),
+            new OA\Property(property: 'is_active', type: 'boolean'),
+        ])),
+        responses: [
+            new OA\Response(response: 200, description: 'Updated', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'success', type: 'boolean'),
+                new OA\Property(property: 'message', type: 'string'),
+                new OA\Property(property: 'data', type: 'object'),
+            ])),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+            new OA\Response(response: 404, description: 'Broadcast not found', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'success', type: 'boolean', example: false),
+                new OA\Property(property: 'message', type: 'string'),
+            ])),
+            new OA\Response(response: 422, ref: '#/components/responses/ValidationError'),
+        ],
+    )]
     public function update(Request $request, $id)
     {
         $broadcast = Broadcast::find($id);
@@ -133,9 +204,22 @@ class BroadcastController extends Controller
         ]);
     }
 
-    /**
-     * Toggle active status
-     */
+    #[OA\Patch(
+        path: '/admin/announcements/{id}/toggle',
+        summary: 'Toggle a broadcast announcement active/inactive',
+        tags: ['Announcements'],
+        security: [['sanctum' => []]],
+        parameters: [new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
+        responses: [
+            new OA\Response(response: 200, description: 'Toggled', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'success', type: 'boolean'),
+                new OA\Property(property: 'message', type: 'string'),
+                new OA\Property(property: 'data', type: 'object'),
+            ])),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+            new OA\Response(response: 404, description: 'Broadcast not found'),
+        ],
+    )]
     public function toggle($id)
     {
         $broadcast = Broadcast::find($id);
@@ -154,9 +238,21 @@ class BroadcastController extends Controller
         ]);
     }
 
-    /**
-     * Remove a broadcast
-     */
+    #[OA\Delete(
+        path: '/admin/announcements/{id}',
+        summary: 'Delete a broadcast announcement',
+        tags: ['Announcements'],
+        security: [['sanctum' => []]],
+        parameters: [new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
+        responses: [
+            new OA\Response(response: 200, description: 'Deleted', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'success', type: 'boolean'),
+                new OA\Property(property: 'message', type: 'string'),
+            ])),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+            new OA\Response(response: 404, description: 'Broadcast not found'),
+        ],
+    )]
     public function destroy($id)
     {
         $broadcast = Broadcast::find($id);

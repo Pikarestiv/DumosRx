@@ -22,12 +22,43 @@ use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
 use App\Models\RequestedProduct;
 use App\Services\Web\SyncPayloadMapper;
+use OpenApi\Attributes as OA;
 
 class SyncController extends Controller
 {
-    /**
-     * Push changes from client to server
-     */
+    #[OA\Post(
+        path: '/app/sync/push',
+        summary: 'Push offline-first client changes to the server',
+        description: 'Applies a batch of INSERT/UPDATE/DELETE changes from the client\'s local SQLite database. Conflict resolution uses `_version` (falling back to `updated_at`) — an incoming UPDATE older than the server\'s copy is silently ignored. May reject the whole request (403/429) if the store\'s plan disables cloud sync or the sync-interval throttle hasn\'t elapsed yet.',
+        tags: ['Sync'],
+        security: [['sanctum' => []]],
+        parameters: [new OA\HeaderParameter(name: 'X-Store-Id', description: 'Which of the caller\'s stores to sync (defaults to their primary store)', schema: new OA\Schema(type: 'string'))],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            required: ['changes'],
+            properties: [
+                new OA\Property(property: 'changes', type: 'array', items: new OA\Items(
+                    properties: [
+                        new OA\Property(property: 'table_name', type: 'string'),
+                        new OA\Property(property: 'operation', type: 'string', enum: ['INSERT', 'UPDATE', 'DELETE']),
+                        new OA\Property(property: 'record_id', type: 'string'),
+                        new OA\Property(property: 'payload', type: 'object', nullable: true),
+                    ],
+                )),
+                new OA\Property(property: 'manual', type: 'boolean', description: 'Bypasses the plan\'s sync-interval throttle when true'),
+            ],
+        )),
+        responses: [
+            new OA\Response(response: 200, description: 'Changes applied', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'success', type: 'boolean'),
+                new OA\Property(property: 'processed', type: 'integer'),
+            ])),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+            new OA\Response(response: 403, description: 'Cloud sync disabled on current plan, or store count exceeds plan limit'),
+            new OA\Response(response: 422, ref: '#/components/responses/ValidationError'),
+            new OA\Response(response: 429, description: 'Sync-interval throttle not yet elapsed for this plan'),
+            new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
+        ],
+    )]
     public function push(Request $request)
     {
         $validation = $this->validateSync($request, true);
@@ -492,9 +523,32 @@ class SyncController extends Controller
         }
     }
 
-    /**
-     * Pull changes from server to client
-     */
+    #[OA\Post(
+        path: '/app/sync/pull',
+        summary: 'Pull server-side changes down to the client',
+        description: 'Returns, per table, every row changed since the client\'s last-known sync timestamp for that table (max 500 rows/table/call — clients should loop until a response comes back empty). Soft-deleted rows are included with `_deleted: 1` so the client can remove them locally too.',
+        tags: ['Sync'],
+        security: [['sanctum' => []]],
+        parameters: [new OA\HeaderParameter(name: 'X-Store-Id', description: 'Which of the caller\'s stores to sync (defaults to their primary store)', schema: new OA\Schema(type: 'string'))],
+        requestBody: new OA\RequestBody(content: new OA\JsonContent(properties: [
+            new OA\Property(
+                property: 'last_synced',
+                type: 'object',
+                description: 'Map of table_name -> ISO8601 timestamp of the last successful pull for that table. Omit/empty to do a full initial sync.',
+                additionalProperties: new OA\AdditionalProperties(type: 'string', format: 'date-time'),
+            ),
+        ])),
+        responses: [
+            new OA\Response(response: 200, description: 'Changed rows per table', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'success', type: 'boolean'),
+                new OA\Property(property: 'server_timestamp', type: 'string', format: 'date-time'),
+                new OA\Property(property: 'changes', type: 'object', description: 'Keyed by table name, each value an array of row objects', additionalProperties: new OA\AdditionalProperties(type: 'array', items: new OA\Items(type: 'object'))),
+            ])),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+            new OA\Response(response: 403, description: 'Cloud sync disabled on current plan, or store count exceeds plan limit'),
+            new OA\Response(response: 429, description: 'Sync-interval throttle not yet elapsed for this plan'),
+        ],
+    )]
     public function pull(Request $request)
     {
         $validation = $this->validateSync($request, false);

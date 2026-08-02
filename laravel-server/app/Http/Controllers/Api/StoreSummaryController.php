@@ -8,12 +8,22 @@ use App\Models\Store;
 use App\Models\Subscription;
 use App\Mail\EndOfDaySummaryMail;
 use Illuminate\Support\Facades\Mail;
+use OpenApi\Attributes as OA;
 
 class StoreSummaryController extends Controller
 {
-    /**
-     * Generate and send the end of day summary manually.
-     */
+    #[OA\Post(
+        path: '/dashboard/send-summary',
+        summary: 'Manually trigger the end-of-day summary email',
+        description: 'Gated behind the `auto_backup` feature flag for the caller\'s plan (falls back to pro/enterprise if the flag is unset).',
+        tags: ['Dashboard'],
+        security: [['sanctum' => []]],
+        responses: [
+            new OA\Response(response: 200, description: 'Sent', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+            new OA\Response(response: 403, description: 'Not available on the caller\'s plan', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
+        ],
+    )]
     public function sendSummary(Request $request)
     {
         $user = $request->user();

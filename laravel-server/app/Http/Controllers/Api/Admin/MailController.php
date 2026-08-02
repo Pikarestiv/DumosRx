@@ -8,9 +8,35 @@ use App\Models\User;
 use App\Mail\AdminCustomMail;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
+use OpenApi\Attributes as OA;
 
 class MailController extends Controller
 {
+    #[OA\Post(
+        path: '/admin/mail/send',
+        summary: 'Send a one-off custom email to all users or a specific set',
+        description: 'Queued (not sent synchronously) — `target_type: all` chunks through every user 100 at a time.',
+        tags: ['Admin: Mail'],
+        security: [['sanctum' => []]],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            required: ['subject', 'message', 'target_type'],
+            properties: [
+                new OA\Property(property: 'subject', type: 'string', maxLength: 255),
+                new OA\Property(property: 'message', type: 'string'),
+                new OA\Property(property: 'target_type', type: 'string', enum: ['all', 'specific']),
+                new OA\Property(property: 'user_ids', type: 'array', items: new OA\Items(type: 'string'), description: 'Required when target_type=specific'),
+            ],
+        )),
+        responses: [
+            new OA\Response(response: 200, description: 'Queued', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'success', type: 'boolean'),
+                new OA\Property(property: 'message', type: 'string'),
+            ])),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+            new OA\Response(response: 422, ref: '#/components/responses/ValidationError'),
+            new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
+        ],
+    )]
     public function send(Request $request)
     {
         $request->validate([

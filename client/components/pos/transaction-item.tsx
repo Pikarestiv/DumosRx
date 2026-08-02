@@ -73,6 +73,15 @@ export function TransactionItem({
           Resumed hold
         </Badge>
       );
+    if (s === "partially_refunded")
+      return (
+        <Badge
+          variant="secondary"
+          className="bg-amber-100 text-amber-700 hover:bg-amber-100/80 border-0"
+        >
+          Partially refunded
+        </Badge>
+      );
     if (s === "partial")
       return (
         <Badge

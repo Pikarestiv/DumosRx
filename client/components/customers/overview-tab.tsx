@@ -84,6 +84,7 @@ export function OverviewTab({ metrics }: { metrics: CustomerMetrics | null }) {
             ₦{" "}
             {metrics.avgTransaction.toLocaleString(undefined, {
               minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
             })}
           </div>
         </div>

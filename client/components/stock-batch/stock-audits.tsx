@@ -40,6 +40,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submittedSummary, setSubmittedSummary] = useState<{ counted: number; adjusted: number } | null>(null);
 
   // Data fetching
   const { data: rawProducts, isLoading } = useQuery({
@@ -124,6 +125,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
         })),
         user?.id || null,
       );
+      setSubmittedSummary({ counted: countedItems.length, adjusted: adjustedItems.length });
       queryClient.invalidateQueries({ queryKey: queryKeys.products.withDetails().queryKey });
       queryClient.invalidateQueries({ queryKey: queryKeys.stockAudits.all().queryKey });
       setStep("done");
@@ -333,8 +335,8 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
                 Audit submitted
               </div>
               <div className="text-[13px] text-muted-foreground mb-6">
-                {countedItems.length} items counted · {adjustedItems.length}{" "}
-                adjusted
+                {submittedSummary?.counted ?? countedItems.length} items counted ·{" "}
+                {submittedSummary?.adjusted ?? adjustedItems.length} adjusted
               </div>
             </div>
           )}

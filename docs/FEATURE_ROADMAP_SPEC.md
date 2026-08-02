@@ -159,6 +159,23 @@ Surfaced while prepping for a store-owner demo. None of this blocks the demo —
 
 ---
 
+## 💰 Prepaid / Amortized Expense Recognition (Deferred 2026-08-02)
+
+Surfaced during demo prep: a store logged a full year's rent (₦270,000) as one lump-sum expense entry. Because the P&L/Analytics views window by calendar period (e.g. "Last 30 Days"), the entire amount hit that one period's Net Profit, showing a large one-time paper loss that doesn't reflect actual monthly burn. This is a reporting-accuracy gap, not a data-entry mistake — the current `expenses` model has no concept of an expense covering more than the period it's logged in.
+
+**How real-world accounting software handles this:** this is the standard treatment of a **prepaid expense**. QuickBooks/Xero post the payment to a "Prepaid Expenses" asset account, then auto-generate a scheduled monthly journal entry that recognizes a portion of it as a real expense each period — the balance sheet asset decreases as the P&L expense increases, matching the accrual "matching principle." Zoho Books/FreshBooks offer a simpler framing: mark an expense as spread over N months and the reports auto-smooth it. Wave (closest to DumosRx's target market) does *not* do this — cash-basis only — which is exactly the failure mode we hit.
+
+**Two implementation tiers:**
+
+1. **Minimal (display-hint only, recommended first pass):** Add an optional `covers_months` (or `recognition_period_months`) field to an expense entry. No accounting logic changes — purely a *reporting* hint. P&L/Analytics views detect a large one-time expense and either (a) show a "spread over N months" note, or (b) offer a toggle between "as-paid" (cash) and "smoothed" (recognized-to-date) Net Profit. Low risk, no migration of historical data required, fixes the actual demo-facing problem (a bookkeeping lump-sum misrepresenting a single period).
+2. **Full accrual (real feature, do later):** Proper `prepaid_expenses` concept — record the cash payment once, generate N real monthly recognition ledger rows automatically, and switch every P&L query (`use-bi-data.ts`, `use-daily-close-data.ts`, `use-finance-data.ts`, `lib/db/queries/reports.ts`) from summing `expenses.amount` directly to summing recognized-to-date. Requires a migration for existing large expense entries, new UI for entering "amortize over X months," and careful handling of cash-flow reports (which should still reflect the real one-time payment, not the smoothed figure).
+
+**Recommendation:** Ship tier 1 first — DumosRx's users are small retail/pharmacy owners, not accountants, so the reporting-accuracy fix matters more than full GAAP-style accrual books. Revisit tier 2 if there's demand for accountant-facing exports.
+
+- **Effort:** Tier 1 ~1 day. Tier 2 ~3-5 days (schema + migration + query rewrites across multiple report hooks).
+
+---
+
 ## 🛑 FUTURE ROADMAP — v2.0+
 
 These change the core business model. Hold until core ERP/POS is dominant.

@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Printer, RotateCcw, Wallet } from "lucide-react";
 import { useAuth } from "@/lib/context/auth-context";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
+import { ScrollFade } from "@/components/ui/scroll-fade";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getTransactionDetails } from "@/lib/db/queries/sales";
 import { getCustomerById, recordCustomerPayment } from "@/lib/db/queries/customers";
@@ -206,7 +207,7 @@ export function TransactionDetailsDialog({
 
   const content = (
     <div className="flex flex-col max-h-[85vh] sm:max-h-[80vh]">
-      <div className="flex-1 overflow-y-auto px-4 sm:px-6 pb-4">
+      <ScrollFade containerClassName="flex-1" className="px-4 sm:px-6 pb-4">
         <div className="grid grid-cols-2 gap-3 sm:gap-4 mt-2 p-3 sm:p-4 bg-muted/30 rounded-lg">
           <div>
             <p className="text-xs sm:text-sm text-muted-foreground">Customer</p>
@@ -333,7 +334,7 @@ export function TransactionDetailsDialog({
             </div>
           ))}
         </div>
-      </div>
+      </ScrollFade>
     </div>
   );
 

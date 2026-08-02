@@ -169,6 +169,7 @@ Route::prefix('v1')->group(function () {
             // Coupons
             Route::get('/coupons', [\App\Http\Controllers\Api\Admin\CouponController::class, 'index']);
             Route::post('/coupons', [\App\Http\Controllers\Api\Admin\CouponController::class, 'store']);
+            Route::put('/coupons/{coupon}', [\App\Http\Controllers\Api\Admin\CouponController::class, 'update']);
             Route::put('/coupons/{coupon}/toggle', [\App\Http\Controllers\Api\Admin\CouponController::class, 'toggleActive']);
             Route::get('/coupons/{coupon}/usages', [\App\Http\Controllers\Api\Admin\CouponController::class, 'usages']);
             Route::delete('/coupons/{coupon}', [\App\Http\Controllers\Api\Admin\CouponController::class, 'destroy']);
@@ -196,11 +197,11 @@ Route::prefix('v1')->group(function () {
             });
 
             // Sales & POS
-            Route::prefix('sales')->group(function () {
-                Route::get('/daily', [SaleController::class, 'dailySales']);
-                Route::get('/top-products', [SaleController::class, 'topProducts']);
-                Route::apiResource('/', SaleController::class)->only(['index', 'store', 'show']);
-            });
+            // /daily and /top-products must stay registered before the {sale}
+            // wildcard from apiResource, or they'd be swallowed by it.
+            Route::get('sales/daily', [SaleController::class, 'dailySales']);
+            Route::get('sales/top-products', [SaleController::class, 'topProducts']);
+            Route::apiResource('sales', SaleController::class)->only(['index', 'store', 'show']);
 
             // CRM & Supply Chain
             Route::apiResource('customers', CustomerController::class);

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Public;
 use App\Http\Controllers\Controller;
 use App\Models\Store;
 use App\Models\Product;
+use App\Services\Payment\PaymentService;
 use Illuminate\Http\Request;
 use OpenApi\Attributes as OA;
 
@@ -13,7 +14,6 @@ class StorefrontController extends Controller
     #[OA\Get(
         path: '/storefront/{store_slug}',
         summary: 'Get a public storefront (store info + browsable products)',
-        description: "SECURITY/CORRECTNESS NOTE: the product query has no store scoping at all — it returns every store's active, show-online-enabled products globally, not just this store's. Every storefront currently shows an identical, unscoped catalog regardless of `store_slug`.",
         tags: ['Storefront'],
         parameters: [new OA\Parameter(name: 'store_slug', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
         responses: [
@@ -36,6 +36,7 @@ class StorefrontController extends Controller
 
         // We fetch products that are active and marked to show online
         $products = Product::with('category')
+            ->where('user_id', $store->user_id)
             ->where('is_active', true)
             ->where('show_online', true)
             ->get();
@@ -56,7 +57,7 @@ class StorefrontController extends Controller
     #[OA\Post(
         path: '/storefront/{store_slug}/checkout',
         summary: 'Place a public storefront order',
-        description: "SECURITY NOTE: `paystack_reference` is trusted as-is from the client to set `payment_status: paid` when payment_method is paystack — there is no server-side verification of the reference against Paystack's API here. A client can fabricate a reference string and get an order marked paid without having actually paid.",
+        description: 'For `payment_method: paystack`, `paystack_reference` is verified server-side against the Paystack API (status must be successful and the paid amount must cover the order total) before the order is marked paid — a fabricated or under-paying reference is rejected with a 422.',
         tags: ['Storefront'],
         parameters: [new OA\Parameter(name: 'store_slug', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
@@ -66,7 +67,7 @@ class StorefrontController extends Controller
                 new OA\Property(property: 'customer_phone', type: 'string', maxLength: 20),
                 new OA\Property(property: 'customer_address', type: 'string', nullable: true, maxLength: 1000),
                 new OA\Property(property: 'payment_method', type: 'string', enum: ['paystack', 'transfer', 'in_store']),
-                new OA\Property(property: 'paystack_reference', type: 'string', nullable: true),
+                new OA\Property(property: 'paystack_reference', type: 'string', nullable: true, description: 'Required when payment_method is paystack'),
                 new OA\Property(property: 'items', type: 'array', items: new OA\Items(
                     properties: [
                         new OA\Property(property: 'product_id', type: 'string', format: 'uuid'),
@@ -82,10 +83,10 @@ class StorefrontController extends Controller
             ])),
             new OA\Response(response: 403, description: 'Store is suspended'),
             new OA\Response(response: 404, ref: '#/components/responses/NotFound'),
-            new OA\Response(response: 422, ref: '#/components/responses/ValidationError'),
+            new OA\Response(response: 422, ref: '#/components/responses/ValidationError', description: 'Validation failure, or Paystack reference could not be verified / didn\'t cover the order total'),
         ],
     )]
-    public function checkout(Request $request, $store_slug)
+    public function checkout(Request $request, $store_slug, PaymentService $paymentService)
     {
         $store = Store::where('store_slug', $store_slug)->firstOrFail();
 
@@ -98,7 +99,7 @@ class StorefrontController extends Controller
             'customer_phone' => 'required|string|max:20',
             'customer_address' => 'nullable|string|max:1000',
             'payment_method' => 'required|in:paystack,transfer,in_store',
-            'paystack_reference' => 'nullable|string',
+            'paystack_reference' => 'required_if:payment_method,paystack|nullable|string',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|uuid|exists:products,id',
             'items.*.quantity' => 'required|integer|min:1',
@@ -108,7 +109,10 @@ class StorefrontController extends Controller
         $orderItems = [];
 
         foreach ($validated['items'] as $item) {
-            $product = Product::findOrFail($item['product_id']);
+            // Scoped to this store's own catalog — a product ID belonging to
+            // a different store must not be purchasable through this store's
+            // checkout.
+            $product = Product::where('user_id', $store->user_id)->findOrFail($item['product_id']);
             $subtotal = $product->selling_price * $item['quantity'];
             $totalAmount += $subtotal;
 
@@ -120,14 +124,25 @@ class StorefrontController extends Controller
             ];
         }
 
+        $paymentStatus = 'pending';
+        if ($validated['payment_method'] === 'paystack') {
+            $verification = $paymentService->verifyTransaction($validated['paystack_reference'], 'paystack');
+            if (!($verification['success'] ?? false) || (float) ($verification['amount'] ?? 0) < $totalAmount) {
+                return response()->json([
+                    'message' => 'Payment could not be verified for this order.',
+                ], 422);
+            }
+            $paymentStatus = 'paid';
+        }
+
         $order = \App\Models\OnlineOrder::create([
             'store_id' => $store->id,
             'customer_name' => $validated['customer_name'],
             'customer_phone' => $validated['customer_phone'],
-            'customer_address' => $validated['customer_address'],
+            'customer_address' => $validated['customer_address'] ?? null,
             'total_amount' => $totalAmount,
             'payment_method' => $validated['payment_method'],
-            'payment_status' => $validated['payment_method'] === 'paystack' && $validated['paystack_reference'] ? 'paid' : 'pending',
+            'payment_status' => $paymentStatus,
             'order_status' => 'pending',
             'paystack_reference' => $validated['paystack_reference'] ?? null,
             'synced_at' => now(), // Initial sync timestamp

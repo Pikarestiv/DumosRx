@@ -8,7 +8,7 @@ use App\Models\Product;
 use App\Services\Admin\AdminService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Auth;
+use Laravel\Sanctum\PersonalAccessToken;
 use OpenApi\Attributes as OA;
 
 class AdminController extends Controller
@@ -776,7 +776,7 @@ class AdminController extends Controller
     #[OA\Post(
         path: '/admin/restore-session',
         summary: "End impersonation and restore the admin's own session",
-        description: 'Note: unlike every other admin endpoint, this one has no super_admin role check — any authenticated user hitting it can set their session cookie to an arbitrary token they supply.',
+        description: 'The supplied token must resolve to a real Sanctum token owned by a super_admin — it is not trusted blindly, since this cookie doubles as the bearer token for every subsequent request (see AuthenticateFromCookie middleware).',
         tags: ['Admin'],
         security: [['sanctum' => []]],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
@@ -786,6 +786,7 @@ class AdminController extends Controller
         responses: [
             new OA\Response(response: 200, description: 'Restored', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
             new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+            new OA\Response(response: 403, description: 'Token does not belong to a super_admin', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
             new OA\Response(response: 422, ref: '#/components/responses/ValidationError'),
         ],
     )]
@@ -795,9 +796,16 @@ class AdminController extends Controller
             'token' => 'required|string'
         ]);
 
+        $accessToken = PersonalAccessToken::findToken($validated['token']);
+        $admin = $accessToken?->tokenable;
+
+        if (!$admin || $admin->role !== 'super_admin') {
+            return response()->json(['error' => 'Invalid restore token.'], 403);
+        }
+
         // Log the end of impersonation
         ActivityLog::create([
-            'user_id' => Auth::id(),
+            'user_id' => $admin->id,
             'action' => 'ADMIN_IMPERSONATION_END',
             'description' => "Admin ended impersonation session",
             'status' => 'success'

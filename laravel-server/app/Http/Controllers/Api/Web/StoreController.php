@@ -27,6 +27,24 @@ class StoreController extends Controller
     }
 
     #[OA\Get(
+        path: '/stores/{store}',
+        summary: 'Get one of the caller\'s stores',
+        tags: ['Stores'],
+        security: [['sanctum' => []]],
+        parameters: [new OA\Parameter(name: 'store', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
+        responses: [
+            new OA\Response(response: 200, description: 'The store', content: new OA\JsonContent(type: 'object')),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+            new OA\Response(response: 404, ref: '#/components/responses/NotFound'),
+        ],
+    )]
+    public function show(Request $request, $id)
+    {
+        $store = $request->user()->stores()->findOrFail($id);
+        return response()->json($store);
+    }
+
+    #[OA\Get(
         path: '/stores/check-slug',
         summary: 'Check whether a storefront slug is available',
         tags: ['Stores'],

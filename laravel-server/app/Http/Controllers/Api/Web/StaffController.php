@@ -23,27 +23,34 @@ class StaffController extends Controller
             new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
         ],
     )]
-    public function index(Request $request)
+    /**
+     * Query scoped to staff the caller is allowed to see: super_admin sees
+     * everyone (optionally filtered to one store), everyone else sees only
+     * their own store's staff (or themselves). Shared by index() and show()
+     * so a staff record invisible to index() can't be fetched directly by
+     * ID via show() either.
+     */
+    private function visibleStaffQuery(Request $request)
     {
         $user = $request->user();
-        
+
         if ($user->role === 'super_admin') {
             $query = User::where('role', '!=', 'super_admin');
-            
+
             if ($request->has('store_id') && $request->store_id !== 'all') {
                 $query->where('store_id', $request->store_id);
             }
         } else {
             $subscriptionService = app(\App\Services\SubscriptionService::class);
             $owner = $subscriptionService->getSubscriptionOwner($user);
-            
+
             $storeIds = \App\Models\Store::where('user_id', $owner->id)->pluck('id')->toArray();
-            
+
             $query = User::where(function($q) use ($storeIds, $owner) {
                 $q->whereIn('store_id', $storeIds)
                   ->orWhere('id', $owner->id);
             });
-            
+
             if ($request->has('store_id') && $request->store_id !== 'all') {
                 if (in_array($request->store_id, $storeIds)) {
                     $query->where('store_id', $request->store_id);
@@ -52,8 +59,32 @@ class StaffController extends Controller
                 }
             }
         }
-        
-        return $query->get();
+
+        return $query;
+    }
+
+    public function index(Request $request)
+    {
+        return $this->visibleStaffQuery($request)->get();
+    }
+
+    #[OA\Get(
+        path: '/staff/{staff}',
+        summary: 'Get a staff account',
+        description: 'Same visibility rules as the list endpoint — a staff member outside the caller\'s scope 404s rather than leaking whether the ID exists.',
+        tags: ['Staff'],
+        security: [['sanctum' => []]],
+        parameters: [new OA\Parameter(name: 'staff', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
+        responses: [
+            new OA\Response(response: 200, description: 'The staff user', content: new OA\JsonContent(type: 'object')),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+            new OA\Response(response: 404, ref: '#/components/responses/NotFound'),
+        ],
+    )]
+    public function show(Request $request, $id)
+    {
+        $staff = $this->visibleStaffQuery($request)->findOrFail($id);
+        return response()->json($staff);
     }
 
     #[OA\Post(

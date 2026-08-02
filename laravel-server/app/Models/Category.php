@@ -10,7 +10,7 @@ class Category extends Model
 {
     use HasFactory, HasUuids;
 
-    protected $fillable = ['name', 'description', 'parent_id', 'is_active'];
+    protected $fillable = ['name', 'description', 'parent_id', 'is_active', 'user_id'];
 
     public function parent()
     {

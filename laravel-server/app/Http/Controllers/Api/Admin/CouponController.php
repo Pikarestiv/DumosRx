@@ -74,9 +74,33 @@ class CouponController extends Controller
         return response()->json($coupon, 201);
     }
 
-    /**
-     * Update the specified coupon in storage.
-     */
+    #[OA\Put(
+        path: '/admin/coupons/{coupon}',
+        summary: 'Update a coupon',
+        tags: ['Admin: Coupons'],
+        security: [['sanctum' => []]],
+        parameters: [new OA\Parameter(name: 'coupon', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            required: ['code', 'type', 'value'],
+            properties: [
+                new OA\Property(property: 'code', type: 'string'),
+                new OA\Property(property: 'type', type: 'string', enum: ['discount_percent', 'discount_amount', 'trial_extension']),
+                new OA\Property(property: 'value', type: 'integer', minimum: 0),
+                new OA\Property(property: 'max_uses', type: 'integer', nullable: true),
+                new OA\Property(property: 'max_uses_per_user', type: 'integer', nullable: true, description: 'Defaults to 1'),
+                new OA\Property(property: 'assigned_to_user_id', type: 'string', format: 'uuid', nullable: true),
+                new OA\Property(property: 'target_plan', type: 'string', nullable: true),
+                new OA\Property(property: 'target_interval', type: 'string', enum: ['monthly', 'yearly'], nullable: true),
+                new OA\Property(property: 'expires_at', type: 'string', format: 'date-time', nullable: true),
+            ],
+        )),
+        responses: [
+            new OA\Response(response: 200, description: 'Updated', content: new OA\JsonContent(type: 'object')),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+            new OA\Response(response: 404, ref: '#/components/responses/NotFound'),
+            new OA\Response(response: 422, ref: '#/components/responses/ValidationError'),
+        ],
+    )]
     public function update(Request $request, Coupon $coupon)
     {
         $validated = $request->validate([

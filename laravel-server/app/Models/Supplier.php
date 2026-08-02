@@ -13,9 +13,9 @@ class Supplier extends Model
     use HasFactory, HasUuids, SoftDeletes;
 
     protected $fillable = [
-        'name', 'contact_person', 'email', 'phone', 'address', 
-        'city', 'state', 'country', 'tax_id', 'payment_terms', 
-        'is_active', 'rating'
+        'name', 'contact_person', 'email', 'phone', 'address',
+        'city', 'state', 'country', 'tax_id', 'payment_terms',
+        'is_active', 'rating', 'user_id'
     ];
 
     public function products()

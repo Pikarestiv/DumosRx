@@ -37,6 +37,46 @@ export function calculateChangeDue(amountPaid: number, total: number): number {
   return Math.max(0, amountPaid - total);
 }
 
+export function calculateTaxPercentage(
+  taxAmount: number,
+  subtotal: number
+): number {
+  if (subtotal <= 0) return 0;
+  return (taxAmount / subtotal) * 100;
+}
+
+export function calculateProportionalRefund(params: {
+  itemsSubtotal: number;
+  saleSubtotal: number;
+  saleTaxAmount: number;
+  saleDiscountAmount: number;
+}): number {
+  const { itemsSubtotal, saleSubtotal, saleTaxAmount, saleDiscountAmount } =
+    params;
+  const returnShare = saleSubtotal > 0 ? itemsSubtotal / saleSubtotal : 0;
+  const taxShare = returnShare * (saleTaxAmount || 0);
+  const discountShare = returnShare * (saleDiscountAmount || 0);
+  return Math.max(0, itemsSubtotal + taxShare - discountShare);
+}
+
+export function calculateNetSaleAmount(
+  totalAmount: number,
+  totalRefunded: number
+): number {
+  return Math.max(0, (totalAmount || 0) - (totalRefunded || 0));
+}
+
+export function calculateAvgBasket(
+  sales: { totalAmount: number; totalRefunded?: number }[]
+): number {
+  if (sales.length === 0) return 0;
+  const netTotal = sales.reduce(
+    (acc, s) => acc + calculateNetSaleAmount(s.totalAmount, s.totalRefunded || 0),
+    0
+  );
+  return netTotal / sales.length;
+}
+
 export function calculateSplitShortage(
   splits: { amount: number }[],
   total: number

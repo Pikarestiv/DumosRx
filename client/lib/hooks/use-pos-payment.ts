@@ -7,6 +7,7 @@ import { getBatchesForProduct } from "@/lib/db/queries/inventory";
 import { updatePrescriptionStatus, dispensePrescriptionRefill } from "@/lib/db/queries/prescriptions";
 import { CartItem } from "./use-pos-cart";
 import { calculateEarnedPoints } from "@/lib/utils/loyalty-calculator";
+import { calculateTaxPercentage } from "@/lib/utils/pos-calculations";
 
 export interface Customer {
   id: string;
@@ -140,7 +141,7 @@ export function usePOSPayment({
         // Derived from the actual charged amounts rather than hardcoded, so it
         // always matches whatever VAT rate was really applied (the store's
         // configured rate, which may not be 7.5% — or may be 0).
-        tax_percentage: subtotal > 0 ? (tax / subtotal) * 100 : 0,
+        tax_percentage: calculateTaxPercentage(tax, subtotal),
         total_amount: total,
         amount_paid:
           paymentMethod === "cash"

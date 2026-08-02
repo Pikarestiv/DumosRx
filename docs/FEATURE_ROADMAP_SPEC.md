@@ -130,6 +130,35 @@ This section tracks high-value features derived from recent commercial strategy 
 
 ---
 
+## 🔐 RBAC, Admin Tooling & Observability (Deferred 2026-08-02)
+
+Surfaced while prepping for a store-owner demo. None of this blocks the demo — the underlying plumbing already exists, it's incomplete/inconsistent rather than missing. Revisit after the demo.
+
+### Roles & Permissions cleanup
+
+- **Current state:** A real `Role`/`Permission` system already exists server-side (`app/Models/Role.php`, `Permission.php`, `RolesAndPermissionsSeeder`) with roles `super_admin`, `admin`, `store_owner`, `manager`, `specialist`, `sales_staff`, `auditor`, each mapped to permissions (`manage_staff`, `view_reports`, `manage_inventory`, `process_sales`, `dispense_prescriptions`, `view_own_sales`), plus a `permission:` middleware wired to some routes (`routes/api.php`).
+- **Gap:** Enforcement is inconsistent. `AdminController` checks `$user->role !== 'super_admin'` as a raw string in ~18 places instead of using `hasRole()`/`hasPermission()` uniformly. The client (`pos-transaction-history.tsx`, `staff-list.tsx`) only recognizes `store_owner|admin|manager`, not the full seeded role list.
+- **Action:** Audit every raw `role ===` / `role !==` check (client and server) and replace with the permission-based helpers so the seeded roles actually take effect everywhere.
+
+### New "agent" role (app installers)
+
+- **Description:** A role for people who install/onboard DumosRx for new pharmacies (co-founders would be `admin`, you `super_admin`, installers get this new role).
+- **Foundation already present:** `users` table already has `referral_code` / `referred_by_id` / `referral_credits` columns — likely the intended basis for tracking who onboarded which store.
+- **Action:** Add an `agent` (or better name — "installer"? "onboarding_partner"?) role/permission scoped to store registration only (no access to a store's sales/financial data), and a simple attribution view (which agent onboarded which stores).
+
+### Impersonate feature
+
+- **Current state:** Already built, not hypothetical — `AdminController::impersonateStore` + `AdminService` (backend), and `web/app/admin/stores` already has a working impersonate button (`useImpersonateStoreMutation`) that swaps in the store's session cookie.
+- **Action:** No build needed. Just needs a deliberate test pass (start impersonation, confirm scoped access, end session cleanly) — treat as verification work, not a new feature.
+
+### Remote bug/error visibility
+
+- **Current state:** There's an activity/audit log (`web/app/admin/activity`), a `feedback` table + `communications` admin page for user-submitted feedback, and a `system` health page (`web/app/admin/system`) — but no automatic crash/error capture anywhere in the repo (no Sentry or equivalent).
+- **Gap:** If something breaks silently on a pharmacy's device, you only find out if they tell you or you remote in — no passive visibility.
+- **Action:** Wire up lightweight error tracking (e.g. Sentry free tier) in the client (Next.js/Tauri) and Laravel server, surfaced in the admin dashboard, so store-side crashes/errors are visible without depending on the user reporting them.
+
+---
+
 ## 🛑 FUTURE ROADMAP — v2.0+
 
 These change the core business model. Hold until core ERP/POS is dominant.

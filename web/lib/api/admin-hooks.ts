@@ -80,10 +80,10 @@ export const useUnsuspendStoreMutation = () => {
 export const useGrantTrialMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, plan, duration }: { id: string; plan: string; duration: string }) => 
-      webApiClient.request<any>(`admin/stores/${id}/grant-trial`, { 
-        method: "POST", 
-        body: { plan, duration } 
+    mutationFn: ({ id, plan, duration, endDate }: { id: string; plan: string; duration?: string; endDate?: string }) =>
+      webApiClient.request<any>(`admin/stores/${id}/grant-trial`, {
+        method: "POST",
+        body: { plan, duration, end_date: endDate }
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-stores"] });
@@ -95,10 +95,10 @@ export const useGrantTrialMutation = () => {
 export const useGrantUserTrialMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, plan, duration }: { id: string; plan: string; duration: string }) => 
-      webApiClient.request<any>(`admin/users/${id}/grant-trial`, { 
-        method: "POST", 
-        body: { plan, duration } 
+    mutationFn: ({ id, plan, duration, endDate }: { id: string; plan: string; duration?: string; endDate?: string }) =>
+      webApiClient.request<any>(`admin/users/${id}/grant-trial`, {
+        method: "POST",
+        body: { plan, duration, end_date: endDate }
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });

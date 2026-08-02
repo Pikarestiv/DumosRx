@@ -115,13 +115,14 @@ export default function StoresManagement() {
     });
   };
 
-  const handleGrantTrial = async (plan: string, duration: string) => {
+  const handleGrantTrial = async (plan: string, duration?: string, endDate?: string) => {
     if (!selectedStore) return;
 
-    grantTrialMutation.mutate({ id: selectedStore.id, plan, duration }, {
+    grantTrialMutation.mutate({ id: selectedStore.id, plan, duration, endDate }, {
       onSuccess: () => {
+        const durationLabel = endDate ? `until ${endDate}` : duration;
         toast.success("Trial Granted", {
-          description: `Granted ${duration} ${plan} trial to ${selectedStore.name}.`,
+          description: `Granted ${durationLabel} ${plan} trial to ${selectedStore.name}.`,
         });
         setIsTrialDialogOpen(false);
         setSelectedStore(null);

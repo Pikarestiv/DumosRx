@@ -233,11 +233,12 @@ class AdminController extends Controller
 
         $validated = $request->validate([
             'plan' => 'required|string|in:starter,pro,enterprise',
-            'duration' => 'required|string',
+            'duration' => 'required_without:end_date|nullable|string',
+            'end_date' => 'required_without:duration|nullable|date|after:today',
         ]);
 
         try {
-            $this->adminService->grantTrial($id, $validated['plan'], $validated['duration']);
+            $this->adminService->grantTrial($id, $validated['plan'], $validated['duration'] ?? null, $validated['end_date'] ?? null);
             return response()->json(['message' => 'Trial granted successfully']);
         } catch (\Exception $e) {
             Log::error("Admin Grant Trial Error: " . $e->getMessage());
@@ -253,11 +254,12 @@ class AdminController extends Controller
 
         $validated = $request->validate([
             'plan' => 'required|string|in:starter,pro,enterprise',
-            'duration' => 'required|string',
+            'duration' => 'required_without:end_date|nullable|string',
+            'end_date' => 'required_without:duration|nullable|date|after:today',
         ]);
 
         try {
-            $this->adminService->grantUserTrial($id, $validated['plan'], $validated['duration']);
+            $this->adminService->grantUserTrial($id, $validated['plan'], $validated['duration'] ?? null, $validated['end_date'] ?? null);
             return response()->json(['message' => 'Trial granted successfully']);
         } catch (\Exception $e) {
             Log::error("Admin Grant User Trial Error: " . $e->getMessage());

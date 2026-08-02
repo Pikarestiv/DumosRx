@@ -111,13 +111,14 @@ function GlobalUsersDirectoryContent() {
     toast.success("User list exported successfully");
   };
 
-  const handleGrantTrial = async (plan: string, duration: string) => {
+  const handleGrantTrial = async (plan: string, duration?: string, endDate?: string) => {
     if (!selectedUser) return;
 
-    grantTrialMutation.mutate({ id: selectedUser.id, plan, duration }, {
+    grantTrialMutation.mutate({ id: selectedUser.id, plan, duration, endDate }, {
       onSuccess: () => {
+        const durationLabel = endDate ? `until ${endDate}` : duration;
         toast.success("Trial Granted", {
-          description: `Granted ${duration} ${plan} trial to ${selectedUser.name}.`,
+          description: `Granted ${durationLabel} ${plan} trial to ${selectedUser.name}.`,
         });
         setIsTrialDialogOpen(false);
         setSelectedUser(null);

@@ -17,13 +17,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { TRIAL_DURATIONS } from "@/lib/constants";
+
+const CUSTOM_DATE_OPTION = "custom_date";
 
 interface SharedGrantTrialDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   targetName?: string;
-  onConfirm: (plan: string, duration: string) => void;
+  onConfirm: (plan: string, duration?: string, endDate?: string) => void;
   isPending: boolean;
 }
 
@@ -36,10 +39,12 @@ export function SharedGrantTrialDialog({
 }: SharedGrantTrialDialogProps) {
   const [plan, setPlan] = useState("pro");
   const [duration, setDuration] = useState("14 days");
+  const [customEndDate, setCustomEndDate] = useState("");
+  const isCustomDate = duration === CUSTOM_DATE_OPTION;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px] rounded-3xl">
+      <DialogContent className="sm:max-w-106.25 rounded-3xl">
         <DialogHeader>
           <DialogTitle className="text-xl">Grant Free Trial</DialogTitle>
           <DialogDescription>
@@ -47,7 +52,8 @@ export function SharedGrantTrialDialog({
             <span className="font-bold text-slate-900 dark:text-white">
               {targetName || "this account"}
             </span>
-            . They will have access to the selected plan features for the specified duration.
+            . They will have access to the selected plan features for the
+            specified duration.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-6 py-4">
@@ -76,9 +82,24 @@ export function SharedGrantTrialDialog({
                     {d}
                   </SelectItem>
                 ))}
+                <SelectItem value={CUSTOM_DATE_OPTION}>
+                  Custom date...
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
+          {isCustomDate && (
+            <div className="grid gap-3">
+              <Label>Expires on</Label>
+              <Input
+                type="date"
+                className="h-12 rounded-xl"
+                value={customEndDate}
+                min={new Date().toISOString().split("T")[0]}
+                onChange={(e) => setCustomEndDate(e.target.value)}
+              />
+            </div>
+          )}
         </div>
         <DialogFooter className="gap-2 sm:space-x-2">
           <Button
@@ -90,9 +111,13 @@ export function SharedGrantTrialDialog({
             Cancel
           </Button>
           <Button
-            onClick={() => onConfirm(plan, duration)}
+            onClick={() =>
+              isCustomDate
+                ? onConfirm(plan, undefined, customEndDate)
+                : onConfirm(plan, duration)
+            }
             className="rounded-xl h-11 bg-indigo-600 hover:bg-indigo-700 text-white"
-            disabled={isPending}
+            disabled={isPending || (isCustomDate && !customEndDate)}
           >
             {isPending ? (
               <Loader2 className="h-4 w-4 animate-spin mr-2" />

@@ -1,5 +1,5 @@
-import { DollarSign, TrendingUp, Receipt, Package, Users } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { DollarSign, TrendingUp, TrendingDown, Receipt, Package, Users } from "lucide-react";
+import { cn, formatCurrency } from "@/lib/utils";
 import { MetricCard } from "@/components/ui/metric-card";
 
 interface BIKeyMetricsProps {
@@ -17,6 +17,7 @@ export function BIKeyMetrics({
   activeCustomers,
   netProfit,
 }: BIKeyMetricsProps) {
+  const isProfitable = netProfit >= 0;
   return (
     <div className="flex flex-col gap-5">
       <div className="-mx-4 sm:mx-0 px-4 sm:px-0">
@@ -31,12 +32,17 @@ export function BIKeyMetrics({
             description="Gross billings"
           />
           <MetricCard
-            className="min-w-[180px] sm:min-w-0 snap-center shrink-0 border-emerald-200/50 hover:border-emerald-500/50"
+            className={cn(
+              "min-w-[180px] sm:min-w-0 snap-center shrink-0",
+              isProfitable
+                ? "border-emerald-200/50 hover:border-emerald-500/50"
+                : "border-red-200/50 hover:border-red-500/50",
+            )}
             title="Net Profit"
             value={formatCurrency(netProfit)}
-            icon={<TrendingUp className="h-4 w-4" />}
-            iconBgClass="bg-emerald-50 text-emerald-700"
-            valueClassName="font-serif text-emerald-600"
+            icon={isProfitable ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
+            iconBgClass={isProfitable ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}
+            valueClassName={cn("font-serif", isProfitable ? "text-emerald-600" : "text-red-600")}
             description="After COGS & expenses"
           />
           <MetricCard

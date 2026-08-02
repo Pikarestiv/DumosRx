@@ -130,6 +130,52 @@ This section tracks high-value features derived from recent commercial strategy 
 
 ---
 
+## 🔐 RBAC, Admin Tooling & Observability (Deferred 2026-08-02)
+
+Surfaced while prepping for a store-owner demo. None of this blocks the demo — the underlying plumbing already exists, it's incomplete/inconsistent rather than missing. Revisit after the demo.
+
+### Roles & Permissions cleanup
+
+- **Current state:** A real `Role`/`Permission` system already exists server-side (`app/Models/Role.php`, `Permission.php`, `RolesAndPermissionsSeeder`) with roles `super_admin`, `admin`, `store_owner`, `manager`, `specialist`, `sales_staff`, `auditor`, each mapped to permissions (`manage_staff`, `view_reports`, `manage_inventory`, `process_sales`, `dispense_prescriptions`, `view_own_sales`), plus a `permission:` middleware wired to some routes (`routes/api.php`).
+- **Gap:** Enforcement is inconsistent. `AdminController` checks `$user->role !== 'super_admin'` as a raw string in ~18 places instead of using `hasRole()`/`hasPermission()` uniformly. The client (`pos-transaction-history.tsx`, `staff-list.tsx`) only recognizes `store_owner|admin|manager`, not the full seeded role list.
+- **Action:** Audit every raw `role ===` / `role !==` check (client and server) and replace with the permission-based helpers so the seeded roles actually take effect everywhere.
+
+### New "agent" role (app installers)
+
+- **Description:** A role for people who install/onboard DumosRx for new pharmacies (co-founders would be `admin`, you `super_admin`, installers get this new role).
+- **Foundation already present:** `users` table already has `referral_code` / `referred_by_id` / `referral_credits` columns — likely the intended basis for tracking who onboarded which store.
+- **Action:** Add an `agent` (or better name — "installer"? "onboarding_partner"?) role/permission scoped to store registration only (no access to a store's sales/financial data), and a simple attribution view (which agent onboarded which stores).
+
+### Impersonate feature
+
+- **Current state:** Already built, not hypothetical — `AdminController::impersonateStore` + `AdminService` (backend), and `web/app/admin/stores` already has a working impersonate button (`useImpersonateStoreMutation`) that swaps in the store's session cookie.
+- **Action:** No build needed. Just needs a deliberate test pass (start impersonation, confirm scoped access, end session cleanly) — treat as verification work, not a new feature.
+
+### Remote bug/error visibility
+
+- **Current state:** There's an activity/audit log (`web/app/admin/activity`), a `feedback` table + `communications` admin page for user-submitted feedback, and a `system` health page (`web/app/admin/system`) — but no automatic crash/error capture anywhere in the repo (no Sentry or equivalent).
+- **Gap:** If something breaks silently on a pharmacy's device, you only find out if they tell you or you remote in — no passive visibility.
+- **Action:** Wire up lightweight error tracking (e.g. Sentry free tier) in the client (Next.js/Tauri) and Laravel server, surfaced in the admin dashboard, so store-side crashes/errors are visible without depending on the user reporting them.
+
+---
+
+## 💰 Prepaid / Amortized Expense Recognition (Deferred 2026-08-02)
+
+Surfaced during demo prep: a store logged a full year's rent (₦270,000) as one lump-sum expense entry. Because the P&L/Analytics views window by calendar period (e.g. "Last 30 Days"), the entire amount hit that one period's Net Profit, showing a large one-time paper loss that doesn't reflect actual monthly burn. This is a reporting-accuracy gap, not a data-entry mistake — the current `expenses` model has no concept of an expense covering more than the period it's logged in.
+
+**How real-world accounting software handles this:** this is the standard treatment of a **prepaid expense**. QuickBooks/Xero post the payment to a "Prepaid Expenses" asset account, then auto-generate a scheduled monthly journal entry that recognizes a portion of it as a real expense each period — the balance sheet asset decreases as the P&L expense increases, matching the accrual "matching principle." Zoho Books/FreshBooks offer a simpler framing: mark an expense as spread over N months and the reports auto-smooth it. Wave (closest to DumosRx's target market) does *not* do this — cash-basis only — which is exactly the failure mode we hit.
+
+**Two implementation tiers:**
+
+1. **Minimal (display-hint only, recommended first pass):** Add an optional `covers_months` (or `recognition_period_months`) field to an expense entry. No accounting logic changes — purely a *reporting* hint. P&L/Analytics views detect a large one-time expense and either (a) show a "spread over N months" note, or (b) offer a toggle between "as-paid" (cash) and "smoothed" (recognized-to-date) Net Profit. Low risk, no migration of historical data required, fixes the actual demo-facing problem (a bookkeeping lump-sum misrepresenting a single period).
+2. **Full accrual (real feature, do later):** Proper `prepaid_expenses` concept — record the cash payment once, generate N real monthly recognition ledger rows automatically, and switch every P&L query (`use-bi-data.ts`, `use-daily-close-data.ts`, `use-finance-data.ts`, `lib/db/queries/reports.ts`) from summing `expenses.amount` directly to summing recognized-to-date. Requires a migration for existing large expense entries, new UI for entering "amortize over X months," and careful handling of cash-flow reports (which should still reflect the real one-time payment, not the smoothed figure).
+
+**Recommendation:** Ship tier 1 first — DumosRx's users are small retail/pharmacy owners, not accountants, so the reporting-accuracy fix matters more than full GAAP-style accrual books. Revisit tier 2 if there's demand for accountant-facing exports.
+
+- **Effort:** Tier 1 ~1 day. Tier 2 ~3-5 days (schema + migration + query rewrites across multiple report hooks).
+
+---
+
 ## 🛑 FUTURE ROADMAP — v2.0+
 
 These change the core business model. Hold until core ERP/POS is dominant.

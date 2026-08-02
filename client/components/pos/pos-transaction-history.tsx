@@ -9,6 +9,7 @@ import { isToday, isYesterday, parseISO } from "date-fns";
 
 import { useAuth } from "@/lib/context/auth-context";
 import { TransactionDetailsDialog } from "./transaction-details-dialog";
+import { calculateNetSaleAmount, calculateAvgBasket } from "@/lib/utils/pos-calculations";
 
 // ============================================================================
 // Types
@@ -51,10 +52,9 @@ export function POSTransactionHistory({
     const totalSales = todaySales.reduce(
       (acc, s) =>
         acc +
-        Math.max(
-          0,
-          (Number(s.total_amount) || Number(s.total) || 0) -
-            (Number(s.total_refunded) || 0),
+        calculateNetSaleAmount(
+          Number(s.total_amount) || Number(s.total) || 0,
+          Number(s.total_refunded) || 0,
         ),
       0,
     );
@@ -65,7 +65,12 @@ export function POSTransactionHistory({
         s.payment_status?.toLowerCase() === "refunded" ||
         s.status?.toLowerCase() === "refunded",
     ).length;
-    const avgBasket = transactions > 0 ? totalSales / transactions : 0;
+    const avgBasket = calculateAvgBasket(
+      todaySales.map((s) => ({
+        totalAmount: Number(s.total_amount) || Number(s.total) || 0,
+        totalRefunded: Number(s.total_refunded) || 0,
+      })),
+    );
 
     return { totalSales, transactions, refunded, avgBasket };
   }, [recentSales]);

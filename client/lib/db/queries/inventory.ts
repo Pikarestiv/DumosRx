@@ -190,24 +190,13 @@ export async function updateStockBatchQuantity(
   batchId: string,
   quantityDelta: number,
 ) {
-  // We need to fetch it first to add the delta, or just use raw query to update directly
-  // Using update from local-database requires passing all fields we want to update.
-  // Actually, raw update query is better here to avoid race conditions.
-  const { execute: coreExecute } = await import("@/lib/db/core");
-  await coreExecute(
-    "UPDATE stock_batches SET quantity = quantity + ?, updated_at = ? WHERE id = ?",
-    [quantityDelta, new Date().toISOString(), batchId],
-  );
-
-  // also add a sync queue entry manually if we bypass the helper
-  // But let's just use local-database update. We have to fetch it first.
   const batch = await query<any>(
     "SELECT quantity FROM stock_batches WHERE id = ?",
     [batchId],
   );
   if (batch.length > 0) {
     return update("stock_batches", batchId, {
-      quantity: batch[0].quantity + quantityDelta,
+      quantity: Math.max(0, (batch[0].quantity || 0) + quantityDelta),
     });
   }
 }
@@ -221,6 +210,104 @@ export async function createStockBatch(batch: {
   cost_price?: number;
 }) {
   return insert("stock_batches", batch);
+}
+
+export interface StockAuditSubmission {
+  productId: string;
+  systemQty: number;
+  countedQty: number;
+  reason?: string;
+}
+
+/** Persists a completed cycle count: for each product whose counted quantity
+ * differs from the system quantity, records a reconciled stock_audits entry,
+ * applies the difference to stock_batches (FEFO — soonest-expiring batch
+ * first, same convention as sale consumption/returns), and logs a
+ * stock_movements("adjustment") entry so it shows up on the stock ledger. */
+export async function submitStockAudit(
+  items: StockAuditSubmission[],
+  performedBy: string | null,
+) {
+  for (const item of items) {
+    const diff = item.countedQty - item.systemQty;
+    if (diff === 0) continue;
+
+    const auditId = crypto.randomUUID();
+    await insert("stock_audits", {
+      id: auditId,
+      product_id: item.productId,
+      expected_quantity: item.systemQty,
+      actual_quantity: item.countedQty,
+      difference: diff,
+      notes: item.reason || null,
+      user_id: performedBy || "system",
+      status: "reconciled",
+      reconciled_at: new Date().toISOString(),
+    });
+
+    let remaining = Math.abs(diff);
+    const batches = await getBatchesForProduct(item.productId);
+
+    if (diff > 0) {
+      // Found more stock than recorded — add it to the soonest-expiring
+      // active batch, or open a new one if the product has none.
+      if (batches.length > 0) {
+        await updateStockBatchQuantity(batches[0].id, remaining);
+        await insert("stock_movements", {
+          product_id: item.productId,
+          stock_batch_id: batches[0].id,
+          movement_type: "adjustment",
+          quantity: remaining,
+          reason: item.reason || "Cycle count adjustment",
+          reference_id: auditId,
+          reference_type: "stock_audit",
+          performed_by: performedBy || null,
+          movement_date: new Date().toISOString(),
+        });
+      } else {
+        const newBatchId = crypto.randomUUID();
+        await createStockBatch({
+          id: newBatchId,
+          product_id: item.productId,
+          batch_number: `AUDIT-${new Date().toISOString().slice(0, 10)}`,
+          quantity: remaining,
+        });
+        await insert("stock_movements", {
+          product_id: item.productId,
+          stock_batch_id: newBatchId,
+          movement_type: "adjustment",
+          quantity: remaining,
+          reason: item.reason || "Cycle count adjustment",
+          reference_id: auditId,
+          reference_type: "stock_audit",
+          performed_by: performedBy || null,
+          movement_date: new Date().toISOString(),
+        });
+      }
+    } else {
+      // Found less stock than recorded — deduct FEFO across batches until
+      // the shortfall is accounted for or stock runs out.
+      for (const batch of batches) {
+        if (remaining <= 0) break;
+        const deductQty = Math.min(batch.quantity, remaining);
+        if (deductQty <= 0) continue;
+
+        await updateStockBatchQuantity(batch.id, -deductQty);
+        await insert("stock_movements", {
+          product_id: item.productId,
+          stock_batch_id: batch.id,
+          movement_type: "adjustment",
+          quantity: -deductQty,
+          reason: item.reason || "Cycle count adjustment",
+          reference_id: auditId,
+          reference_type: "stock_audit",
+          performed_by: performedBy || null,
+          movement_date: new Date().toISOString(),
+        });
+        remaining -= deductQty;
+      }
+    }
+  }
 }
 
 export async function getFastMovers(days: number = 7) {

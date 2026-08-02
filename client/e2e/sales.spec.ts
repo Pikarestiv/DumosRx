@@ -25,6 +25,10 @@ test.describe('Sales Module', () => {
     const productName = `E2E Cart Test Product ${Date.now()}`;
     await page.getByRole('dialog').getByRole('textbox').first().fill(productName);
     await page.getByRole('button', { name: /^Add Product$/i }).last().click();
+
+    // Selling Price / Reorder Level were left blank, so the app warns before
+    // saving ("Missing details ... Continue anyway?") — confirm through it.
+    await page.getByRole('button', { name: /Continue Anyway/i }).click();
     await expect(page.getByText('Add New Product', { exact: true })).not.toBeVisible();
 
     await page.goto('/pos');

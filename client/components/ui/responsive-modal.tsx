@@ -19,6 +19,7 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { X } from "lucide-react";
+import { ScrollFade } from "@/components/ui/scroll-fade";
 
 interface ResponsiveModalProps {
   open: boolean;
@@ -90,9 +91,9 @@ export function ResponsiveModal({
             <span className="sr-only">Close</span>
           </DrawerClose>
         </DrawerHeader>
-        <div className="responsive-modal-fields overflow-y-auto">
+        <ScrollFade containerClassName="responsive-modal-fields flex-1">
           {children}
-        </div>
+        </ScrollFade>
         {footer && <div className="pt-4 pb-2 shrink-0">{footer}</div>}
       </DrawerContent>
     </Drawer>

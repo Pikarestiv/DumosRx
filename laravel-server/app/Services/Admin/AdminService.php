@@ -682,9 +682,35 @@ class AdminService
         });
     }
 
-    public function grantTrial($storeId, $plan, $durationString)
+    /** Resolves an admin-picked trial duration string (e.g. "3 months") into
+     * an absolute end Carbon instant. An explicit $endDate always wins when
+     * present — used for exact-date grants instead of a preset window. */
+    private function resolveTrialEndDate(?string $durationString, ?string $endDate)
     {
-        return DB::transaction(function () use ($storeId, $plan, $durationString) {
+        if ($endDate) {
+            return \Carbon\Carbon::parse($endDate)->endOfDay();
+        }
+
+        $daysByDuration = [
+            '1 day' => 1,
+            '3 days' => 3,
+            '7 days' => 7,
+            '14 days' => 14,
+            '21 days' => 21,
+            '30 days' => 30,
+            '1 month' => 30,
+            '3 months' => 90,
+            '6 months' => 180,
+            '1 year' => 365,
+        ];
+
+        $days = $daysByDuration[$durationString] ?? 14; // Default
+        return now()->addDays($days);
+    }
+
+    public function grantTrial($storeId, $plan, $durationString = null, $endDate = null)
+    {
+        return DB::transaction(function () use ($storeId, $plan, $durationString, $endDate) {
             $store = Store::findOrFail($storeId);
             $user = $store->user;
 
@@ -692,25 +718,7 @@ class AdminService
                 throw new \Exception('Store has no owner.');
             }
 
-            // Parse duration string into days
-            $days = 14; // Default
-            if (str_contains($durationString, '1day')) {
-                $days = 1;
-            } elseif (str_contains($durationString, '3 days')) {
-                $days = 3;
-            } elseif (str_contains($durationString, '7 days')) {
-                $days = 7;
-            } elseif (str_contains($durationString, '14 days')) {
-                $days = 14;
-            } elseif (str_contains($durationString, '21 days')) {
-                $days = 21;
-            } elseif (str_contains($durationString, '30 days')) {
-                $days = 30;
-            } elseif (str_contains($durationString, '3 months')) {
-                $days = 90;
-            } elseif (str_contains($durationString, '6 months')) {
-                $days = 180;
-            }
+            $resolvedEndDate = $this->resolveTrialEndDate($durationString, $endDate);
 
             // Optional: Mark previous active subscriptions as expired or just leave them
             $user->subscriptions()->where('status', 'active')->update(['status' => 'expired']);
@@ -720,8 +728,9 @@ class AdminService
                 'user_id' => $user->id,
                 'plan_name' => strtolower($plan),
                 'start_date' => now(),
-                'end_date' => now()->addDays($days),
+                'end_date' => $resolvedEndDate,
                 'status' => 'active',
+                'is_trial' => true,
                 'license_key' => 'DRX-TRIAL-'.strtoupper(Str::random(12)),
             ]);
 
@@ -730,10 +739,11 @@ class AdminService
             $store->save();
 
             // Log activity
+            $durationLabel = $endDate ? "until {$resolvedEndDate->toDateString()}" : $durationString;
             ActivityLog::create([
                 'user_id' => Auth::id(),
                 'action' => 'GRANT_FREE_TRIAL',
-                'description' => "Granted {$durationString} {$plan} Free Trial to {$store->name} ({$store->id})",
+                'description' => "Granted {$durationLabel} {$plan} Free Trial to {$store->name} ({$store->id})",
                 'status' => 'success',
             ]);
 
@@ -741,30 +751,12 @@ class AdminService
         });
     }
 
-    public function grantUserTrial($userId, $plan, $durationString)
+    public function grantUserTrial($userId, $plan, $durationString = null, $endDate = null)
     {
-        return DB::transaction(function () use ($userId, $plan, $durationString) {
+        return DB::transaction(function () use ($userId, $plan, $durationString, $endDate) {
             $user = User::findOrFail($userId);
 
-            // Parse duration string into days
-            $days = 14; // Default
-            if (str_contains($durationString, '1day')) {
-                $days = 1;
-            } elseif (str_contains($durationString, '3 days')) {
-                $days = 3;
-            } elseif (str_contains($durationString, '7 days')) {
-                $days = 7;
-            } elseif (str_contains($durationString, '14 days')) {
-                $days = 14;
-            } elseif (str_contains($durationString, '21 days')) {
-                $days = 21;
-            } elseif (str_contains($durationString, '30 days')) {
-                $days = 30;
-            } elseif (str_contains($durationString, '3 months')) {
-                $days = 90;
-            } elseif (str_contains($durationString, '6 months')) {
-                $days = 180;
-            }
+            $resolvedEndDate = $this->resolveTrialEndDate($durationString, $endDate);
 
             // Optional: Mark previous active subscriptions as expired or just leave them
             $user->subscriptions()->where('status', 'active')->update(['status' => 'expired']);
@@ -774,8 +766,9 @@ class AdminService
                 'user_id' => $user->id,
                 'plan_name' => strtolower($plan),
                 'start_date' => now(),
-                'end_date' => now()->addDays($days),
+                'end_date' => $resolvedEndDate,
                 'status' => 'active',
+                'is_trial' => true,
                 'license_key' => 'DRX-TRIAL-'.strtoupper(Str::random(12)),
             ]);
 
@@ -783,10 +776,11 @@ class AdminService
             Store::where('user_id', $user->id)->update(['last_sync_at' => now()]);
 
             // Log activity
+            $durationLabel = $endDate ? "until {$resolvedEndDate->toDateString()}" : $durationString;
             ActivityLog::create([
                 'user_id' => Auth::id(),
                 'action' => 'GRANT_FREE_TRIAL',
-                'description' => "Granted {$durationString} {$plan} Free Trial to user {$user->email} ({$user->id})",
+                'description' => "Granted {$durationLabel} {$plan} Free Trial to user {$user->email} ({$user->id})",
                 'status' => 'success',
             ]);
 

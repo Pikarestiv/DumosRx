@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/utils";
+import { calculateProportionalRefund } from "@/lib/utils/pos-calculations";
 import { insert, update } from "@/lib/db/local-database";
 import { AUDIT_ACTIONS } from "@/lib/db/audit-actions";
 import { useQuery } from "@tanstack/react-query";
@@ -103,11 +104,12 @@ export function ReturnDialog({
   // dashboard, POS today's-sales tile, and BI reports all derive their
   // totals from sales.total_amount minus returns.total_refunded).
   const saleSubtotal = sale?.subtotal || 0;
-  const returnShare = saleSubtotal > 0 ? itemsSubtotal / saleSubtotal : 0;
-  const taxShare = returnShare * (sale?.tax_amount || 0);
-  const discountShare =
-    returnShare * (sale?.discount_total ?? sale?.discount_amount ?? 0);
-  const totalRefund = Math.max(0, itemsSubtotal + taxShare - discountShare);
+  const totalRefund = calculateProportionalRefund({
+    itemsSubtotal,
+    saleSubtotal,
+    saleTaxAmount: sale?.tax_amount || 0,
+    saleDiscountAmount: sale?.discount_total ?? sale?.discount_amount ?? 0,
+  });
 
   const handleInitialSubmit = () => {
     if (itemsToReturn.length === 0) {

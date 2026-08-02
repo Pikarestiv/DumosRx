@@ -6,6 +6,10 @@ import {
   calculateTotal,
   calculateChangeDue,
   calculateSplitShortage,
+  calculateTaxPercentage,
+  calculateProportionalRefund,
+  calculateNetSaleAmount,
+  calculateAvgBasket,
 } from '@/lib/utils/pos-calculations';
 
 describe('POS Calculations', () => {
@@ -72,6 +76,92 @@ describe('POS Calculations', () => {
       expect(result.totalSplitAmount).toBe(1000);
       expect(result.shortageAmount).toBe(0);
       expect(result.changeDueAmount).toBe(75);
+    });
+  });
+
+  describe('Tax percentage (stored on sale, derived not hardcoded)', () => {
+    it('derives the effective rate from actual tax/subtotal', () => {
+      expect(calculateTaxPercentage(75, 1000)).toBe(7.5);
+    });
+
+    it('returns 0 when VAT is disabled (tax amount is 0)', () => {
+      expect(calculateTaxPercentage(0, 1000)).toBe(0);
+    });
+
+    it('returns 0 for a zero or negative subtotal instead of dividing by zero', () => {
+      expect(calculateTaxPercentage(0, 0)).toBe(0);
+      expect(calculateTaxPercentage(75, -100)).toBe(0);
+    });
+  });
+
+  describe('Proportional refund (tax/discount share included on returns)', () => {
+    it('refunds exactly the sale total when every item is returned', () => {
+      // subtotal 1000, 7.5% tax = 75, total = 1075. Returning all of it
+      // must refund the full 1075, not just the 1000 item price.
+      const refund = calculateProportionalRefund({
+        itemsSubtotal: 1000,
+        saleSubtotal: 1000,
+        saleTaxAmount: 75,
+        saleDiscountAmount: 0,
+      });
+      expect(refund).toBe(1075);
+    });
+
+    it('refunds a proportional tax/discount share on a partial return', () => {
+      // Sale: subtotal 1000, tax 75 (7.5%), discount 100. Returning half the items.
+      const refund = calculateProportionalRefund({
+        itemsSubtotal: 500,
+        saleSubtotal: 1000,
+        saleTaxAmount: 75,
+        saleDiscountAmount: 100,
+      });
+      // 500 + (0.5 * 75) - (0.5 * 100) = 500 + 37.5 - 50 = 487.5
+      expect(refund).toBe(487.5);
+    });
+
+    it('refunds only the item price when VAT is 0', () => {
+      const refund = calculateProportionalRefund({
+        itemsSubtotal: 500,
+        saleSubtotal: 1000,
+        saleTaxAmount: 0,
+        saleDiscountAmount: 0,
+      });
+      expect(refund).toBe(500);
+    });
+
+    it('never returns a negative refund', () => {
+      // Pathological case: discount larger than the subtotal itself.
+      const refund = calculateProportionalRefund({
+        itemsSubtotal: 100,
+        saleSubtotal: 1000,
+        saleTaxAmount: 0,
+        saleDiscountAmount: 1500,
+      });
+      expect(refund).toBe(0);
+    });
+  });
+
+  describe('Net sale amount and average basket (POS recent-sales tile)', () => {
+    it('nets a fully refunded sale down to zero', () => {
+      expect(calculateNetSaleAmount(1075, 1075)).toBe(0);
+    });
+
+    it('nets a partially refunded sale to the remainder', () => {
+      expect(calculateNetSaleAmount(1075, 487.5)).toBe(587.5);
+    });
+
+    it('averages net sales across today\'s transactions, including fully-returned ones as zero', () => {
+      const sales = [
+        { totalAmount: 1000, totalRefunded: 0 },
+        { totalAmount: 1075, totalRefunded: 1075 }, // fully returned
+        { totalAmount: 2500, totalRefunded: 0 },
+      ];
+      // (1000 + 0 + 2500) / 3 = 1166.67
+      expect(calculateAvgBasket(sales)).toBeCloseTo(1166.67, 2);
+    });
+
+    it('returns 0 average when there are no sales today', () => {
+      expect(calculateAvgBasket([])).toBe(0);
     });
   });
 });

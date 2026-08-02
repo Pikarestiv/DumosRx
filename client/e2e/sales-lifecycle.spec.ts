@@ -2,17 +2,23 @@ import { test, expect, login } from './fixtures';
 
 /** Full golden-path lifecycle test using realistic pharmacy data (not
  * "Test Product 1" placeholders), covering the flow a real demo/store walk-
- * through exercises end to end: stock a real medicine via procurement,
- * sell it with a discount, return part of it, log a real expense, and
- * confirm the dashboard/POS tiles reflect all of it correctly. */
+ * through exercises end to end: stock a real medicine via a cycle count,
+ * sell it with a discount, log a real expense, and confirm the dashboard/POS
+ * tiles reflect all of it correctly.
+ *
+ * Stock is added via Inventory -> Cycle Count rather than Procurement,
+ * because Procurement is gated behind a paid subscription tier (Starter and
+ * above) — a fresh free-tier store like this test's seeded fixture can't
+ * reach it. Cycle Count isn't tier-gated and is the other real path to
+ * getting stock into the system. */
 test.describe('Sales Lifecycle (realistic data)', () => {
-  test('stock, sell, discount, return, and expense flow', async ({ page }) => {
+  test('stock via cycle count, sell with discount, and log an expense', async ({ page }) => {
     test.setTimeout(120000);
     await login(page);
 
     const productName = `Amoxicillin 500mg Capsules ${Date.now()}`;
 
-    // 1. Create a real product with pricing set (so procurement can cost it).
+    // 1. Create a real product with pricing set.
     await page.goto('/inventory/catalog');
     await page.getByRole('button', { name: /Add Product/i }).click();
     const dialog = page.getByRole('dialog');
@@ -25,35 +31,22 @@ test.describe('Sales Lifecycle (realistic data)', () => {
     await page.getByRole('button', { name: /^Add Product$/i }).last().click();
     await expect(page.getByText('Add New Product', { exact: true })).not.toBeVisible();
 
-    // 2. Stock it via a real purchase order (Procurement -> Create -> Send -> Receive).
-    await page.goto('/procurement/new');
-    await page.getByRole('button', { name: /Add New Supplier/i }).click();
-    const supplierName = `HealthPlus Distributors ${Date.now()}`;
-    await page.getByLabel(/Supplier Name/i).fill(supplierName);
-    await page.getByRole('button', { name: /^Add Supplier$/i }).click();
+    // 2. Stock it via a Cycle Count (physical count of 50 units found on the shelf).
+    await page.getByRole('button', { name: /Start Audit/i }).click();
+    await page.getByText('All Categories').click();
+    await page.getByRole('button', { name: /Start count/i }).click();
+    await page.getByText(productName, { exact: false }).first().click();
 
-    await page.locator('input[placeholder="e.g. Amoxicillin 500mg"] >> visible=true').first().fill(productName);
-    await page.waitForTimeout(500);
-    // Select the matching product from the combobox dropdown
-    await page.getByText(productName, { exact: false }).last().click();
-    await page.locator('input[placeholder="Qty"] >> visible=true').first().fill('50');
-    const costInputs = page.locator('input[placeholder="0.00"] >> visible=true');
-    await costInputs.first().fill('45000'); // bulk cost for 50 units
-    await page.getByRole('button', { name: 'Add', exact: true }).and(page.locator(':visible')).first().click();
+    const countInput = page.locator('input[type="number"]');
+    await countInput.fill('50');
+    await page.getByText('Found', { exact: true }).click();
+    await page.getByRole('button', { name: /Save count/i }).click();
 
-    await page.getByRole('button', { name: /Save Purchase Order/i }).click();
-    await expect(page).toHaveURL(/\/procurement$/, { timeout: 15000 });
-
-    // Open the order we just created (only PO in this fresh store) and receive it.
-    await page.getByText(supplierName).first().click();
-    await expect(page.getByRole('button', { name: /Mark as Sent/i })).toBeVisible({ timeout: 10000 });
-    await page.getByRole('button', { name: /Mark as Sent/i }).click();
-    await expect(page.getByRole('button', { name: /Receive Goods/i })).toBeVisible({ timeout: 10000 });
-    await page.getByRole('button', { name: /Receive Goods/i }).click();
-
-    await page.getByPlaceholder(/e\.g\. BATCH-123/i).first().fill('BATCH-2026-08');
-    await page.getByRole('button', { name: /Confirm & Receive/i }).click();
-    await expect(page.getByRole('button', { name: /Completed/i })).toBeVisible({ timeout: 10000 });
+    await page.getByRole('button', { name: /Review & submit/i }).click();
+    await expect(page.getByText('1', { exact: true }).first()).toBeVisible(); // "Adjusted" count tile
+    await page.getByRole('button', { name: /Submit audit/i }).click();
+    await expect(page.getByText('Audit submitted', { exact: true })).toBeVisible({ timeout: 10000 });
+    await page.getByRole('button', { name: /Close Audit/i }).click();
 
     // 3. Sell it at POS with a discount and a cash payment.
     await page.goto('/pos');
@@ -76,7 +69,7 @@ test.describe('Sales Lifecycle (realistic data)', () => {
 
     // Receipt confirms the sale went through.
     await expect(page.getByText(/Payment Successful|Receipt/i).first()).toBeVisible({ timeout: 10000 });
-    await page.getByRole('button', { name: /Close/i }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).first().click();
 
     // 4. Log a real expense (not "Test expense").
     await page.goto('/expenses');

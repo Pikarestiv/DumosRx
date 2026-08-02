@@ -3,11 +3,14 @@
 import { useState, useEffect } from "react";
 import { AuditCountStep } from "./audit-count-step";
 import { AuditReviewStep } from "./audit-review-step";
-import { ChevronLeft, Search, CheckCircle2, PackageSearch } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { ChevronLeft, Search, CheckCircle2, PackageSearch, Loader2 } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getProductsWithDetails } from "@/lib/db/queries/products";
+import { submitStockAudit } from "@/lib/db/queries/inventory";
 import { genericFuzzySearch } from "@/lib/utils/search";
 import { queryKeys } from "@/lib/query-keys";
+import { useAuth } from "@/lib/context/auth-context";
+import { toast } from "sonner";
 
 type AuditStep = "setup" | "list" | "count" | "review" | "done";
 
@@ -18,6 +21,7 @@ interface AuditItem {
   category: string;
   systemQty: number;
   countedQty?: number;
+  reason?: string;
 }
 
 function NoAuditItemsFound() {
@@ -30,9 +34,12 @@ function NoAuditItemsFound() {
 }
 
 export function StockAudits({ onClose }: { onClose: () => void }) {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [step, setStep] = useState<AuditStep>("setup");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Data fetching
   const { data: rawProducts, isLoading } = useQuery({
@@ -97,15 +104,35 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
     const finalCount = typeof currentCount === "number" ? currentCount : 0;
     setItems((prev) =>
       prev.map((i) =>
-        i.id === activeItem.id ? { ...i, countedQty: finalCount } : i,
+        i.id === activeItem.id
+          ? { ...i, countedQty: finalCount, reason: finalCount === i.systemQty ? undefined : reason }
+          : i,
       ),
     );
     setStep("list");
   };
 
-  const submitAudit = () => {
-    // Send changes to backend
-    setStep("done");
+  const submitAudit = async () => {
+    setIsSubmitting(true);
+    try {
+      await submitStockAudit(
+        adjustedItems.map((i) => ({
+          productId: i.id,
+          systemQty: i.systemQty,
+          countedQty: i.countedQty as number,
+          reason: i.reason,
+        })),
+        user?.id || null,
+      );
+      queryClient.invalidateQueries({ queryKey: queryKeys.products.withDetails().queryKey });
+      queryClient.invalidateQueries({ queryKey: queryKeys.stockAudits.all().queryKey });
+      setStep("done");
+    } catch (error) {
+      console.error("Failed to submit stock audit:", error);
+      toast.error("Failed to save the cycle count. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -348,10 +375,12 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
 
           {step === "review" && (
             <button
-              className="w-full bg-primary text-white border-0 py-3.5 rounded-xl text-[14px] font-bold cursor-pointer hover:bg-primary/90 transition-colors"
+              className="w-full bg-primary text-white border-0 py-3.5 rounded-xl text-[14px] font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
+              disabled={isSubmitting}
               onClick={submitAudit}
             >
-              Submit audit
+              {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
+              {isSubmitting ? "Submitting..." : "Submit audit"}
             </button>
           )}
 

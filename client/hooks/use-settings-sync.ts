@@ -6,12 +6,12 @@ import { sync, syncSubscriptionStatus } from "@/lib/db/sync-engine";
 
 export function useSettingsSync(
   isCloudLinked: boolean,
-  refetchStore: () => Promise<void>
+  refetchStore: () => Promise<unknown>
 ) {
   const [isCloudLinkOpen, setIsCloudLinkOpen] = useState(false);
   const [syncAfterLink, setSyncAfterLink] = useState(false);
 
-  const handleSync = async (forceStart?: boolean | any) => {
+  const handleSync = async (forceStart?: boolean) => {
     if (!isCloudLinked && forceStart !== true) {
       setSyncAfterLink(true);
       setIsCloudLinkOpen(true);

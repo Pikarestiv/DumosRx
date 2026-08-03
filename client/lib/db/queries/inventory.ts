@@ -9,7 +9,14 @@ export async function getAvailableStockBatches() {
 }
 
 export async function getBatchTrackingData() {
-  return query<any>(
+  return query<{
+    id: string;
+    product_name: string;
+    batch_number?: string;
+    expiry_date?: string;
+    quantity: number;
+    cost_price?: number;
+  }>(
     `SELECT sb.id, p.name as product_name, sb.batch_number, sb.expiry_date, sb.quantity, sb.cost_price FROM stock_batches sb JOIN products p ON sb.product_id = p.id WHERE sb._deleted = 0 AND p._deleted = 0 ORDER BY sb.expiry_date ASC`
   );
 }
@@ -22,13 +29,25 @@ export async function getStockBatchesForProductDetails(productId: string) {
 }
 
 export async function getStockBatchById(id: string) {
-  const result = await query<any>("SELECT * FROM stock_batches WHERE id = ?", [id]);
+  const result = await query<StockBatch>("SELECT * FROM stock_batches WHERE id = ?", [id]);
   return result.length > 0 ? result[0] : null;
 }
 
+export interface StockOverviewRow {
+  id: string;
+  product_name: string;
+  reorder_level?: number;
+  selling_price?: number;
+  barcode?: string;
+  cost_price?: number;
+  quantity: number;
+  expiry_date?: string;
+  batch_number?: string;
+}
+
 export async function getStockOverviewData() {
-  return query<any>(
-    `SELECT 
+  return query<StockOverviewRow>(
+    `SELECT
       p.id, p.name as product_name, p.reorder_level, p.selling_price, p.barcode,
       sb.avg_cost as cost_price,
       COALESCE(sb.total_qty, 0) as quantity,
@@ -79,7 +98,7 @@ export async function getProductsForAudit() {
 }
 
 export async function getBatchesForProduct(productId: string) {
-  return query<any>(
+  return query<StockBatch>(
     "SELECT * FROM stock_batches WHERE product_id = ? AND _deleted = 0 AND quantity > 0 ORDER BY expiry_date ASC, created_at ASC",
     [productId],
   );
@@ -146,8 +165,20 @@ export async function getExpiryAlerts() {
   );
 }
 
+export interface StockBatchStatsRow {
+  total_products: number;
+  active_products: number;
+  low_stock_count: number;
+  critical_stock_count: number;
+  expiring_soon_count: number;
+  expired_count: number;
+  missing_expiry_count: number;
+  total_stock_batch_value: number;
+  active_categories: number;
+}
+
 export async function getStockBatchStats(expiryDays: number = 30) {
-  const result = await query<any>(
+  const result = await query<StockBatchStatsRow>(
     `SELECT
       COUNT(p.id) AS total_products,
       SUM(CASE WHEN p.is_active = 1 THEN 1 ELSE 0 END) AS active_products,
@@ -192,7 +223,7 @@ export async function updateStockBatchQuantity(
   batchId: string,
   quantityDelta: number,
 ) {
-  const batch = await query<any>(
+  const batch = await query<{ quantity: number }>(
     "SELECT quantity FROM stock_batches WHERE id = ?",
     [batchId],
   );
@@ -395,27 +426,27 @@ export async function getStockMoM() {
   const dateFilter30 = thirtyDaysAgo.toISOString();
 
   // Value added in last 30 days
-  const added30 = await query<any>(`
+  const added30 = await query<{ total_added?: number }>(`
     SELECT SUM(ABS(quantity) * IFNULL(unit_cost, 0)) as total_added
     FROM stock_movements
     WHERE created_at >= ? AND movement_type IN ('addition', 'IN', 'purchase', 'return') AND (_deleted = 0 OR _deleted IS NULL)
   `, [dateFilter30]);
 
   // Value removed in last 30 days
-  const removed30 = await query<any>(`
+  const removed30 = await query<{ total_removed?: number }>(`
     SELECT SUM(ABS(quantity) * IFNULL(unit_cost, 0)) as total_removed
     FROM stock_movements
     WHERE created_at >= ? AND movement_type IN ('deduction', 'OUT', 'sale', 'damaged', 'adjustment') AND (_deleted = 0 OR _deleted IS NULL) AND quantity < 0
   `, [dateFilter30]);
-  
+
   // Adjusted additions from positive adjustments
-  const positiveAdjustments = await query<any>(`
+  const positiveAdjustments = await query<{ total_added?: number }>(`
     SELECT SUM(ABS(quantity) * IFNULL(unit_cost, 0)) as total_added
     FROM stock_movements
     WHERE created_at >= ? AND movement_type = 'adjustment' AND (_deleted = 0 OR _deleted IS NULL) AND quantity > 0
   `, [dateFilter30]);
 
-  const currentStock = await query<any>(`
+  const currentStock = await query<{ total_value?: number }>(`
     SELECT SUM(cost_price * quantity) as total_value
     FROM stock_batches
     WHERE is_active = 1 AND (_deleted = 0 OR _deleted IS NULL)

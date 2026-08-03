@@ -11,17 +11,18 @@ import { NeedsAttention } from "./needs-attention";
 import { FastMovers } from "./fast-movers";
 import { BarcodePrintDialog } from "./barcode-print-dialog";
 import { queryKeys } from "@/lib/query-keys";
+import type { POSProduct } from "@/lib/types/product";
 
 interface StockItem {
   id: string;
   product_id: string;
   product_name: string;
-  batch_number: string;
+  batch_number?: string;
   quantity: number;
-  reorder_level: number;
+  reorder_level?: number;
   unit_price: number;
   unit_cost: number;
-  expiry_date: string;
+  expiry_date?: string;
   status: "healthy" | "low" | "critical" | "overstock";
   barcode?: string;
 }
@@ -59,7 +60,7 @@ export function StockOverview() {
   }));
 
   const loading = stockLoading || stats.loading;
-  const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  const [selectedProduct, setSelectedProduct] = useState<POSProduct | null>(null);
 
   if (loading) {
     return (

@@ -184,7 +184,7 @@ export async function updatePurchaseOrder(
   }
 
   // Soft delete existing items
-  const existingItems = await query<any>(
+  const existingItems = await query<{ id: string }>(
     "SELECT id FROM purchase_order_items WHERE po_id = ? AND _deleted = 0",
     [poId]
   );

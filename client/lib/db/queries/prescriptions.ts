@@ -22,7 +22,7 @@ export async function getPrescriptionItems(prescriptionId: string) {
 }
 
 export async function getQueueCount() {
-  const result = await query<any>(
+  const result = await query<{ count: number }>(
     "SELECT COUNT(*) as count FROM prescriptions WHERE _deleted = 0 AND status IN ('pending', 'processing')"
   );
   return result[0]?.count || 0;
@@ -79,9 +79,29 @@ export async function insertPrescriptionItem(data: PrescriptionItemInsertPayload
     ]
   );
 }
+export interface RefillManagementRow {
+  id: string;
+  prescription_id: string;
+  prescription_number?: string;
+  patient_name?: string;
+  patient_phone?: string;
+  doctor_name?: string;
+  product_name: string;
+  strength?: string;
+  dosage?: string;
+  quantity?: number;
+  instructions?: string;
+  cost?: number;
+  refills_authorized?: number;
+  refills_used?: number;
+  refill_interval_days?: number;
+  next_refill_date?: string;
+  updated_at?: string;
+}
+
 export async function getRefillManagementData() {
-  return query<any>(
-    `SELECT 
+  return query<RefillManagementRow>(
+    `SELECT
       pi.id,
       p.id as prescription_id,
       p.prescription_number,
@@ -115,13 +135,13 @@ export async function getActivePrescriptions() {
 }
 
 export async function getHistoryPrescriptions() {
-  return query<any>(
+  return query<PrescriptionRow>(
     "SELECT * FROM prescriptions WHERE _deleted = 0 AND status = 'completed' ORDER BY created_at DESC"
   );
 }
 
 export async function getAllPrescriptionItems() {
-  return await query<any>(
+  return await query<PrescriptionItem>(
     "SELECT * FROM prescription_items WHERE _deleted = 0"
   );
 }
@@ -145,7 +165,7 @@ export async function dispensePrescriptionRefill(prescriptionId: string) {
   const { update } = await import("@/lib/db/local-database");
   const now = new Date();
 
-  const items = await query<any>(
+  const items = await query<PrescriptionItem>(
     "SELECT * FROM prescription_items WHERE prescription_id = ? AND _deleted = 0 AND refills_authorized > refills_used",
     [prescriptionId]
   );
@@ -166,7 +186,7 @@ export async function dispensePrescriptionRefill(prescriptionId: string) {
 
 /** Prescription items with at least one refill remaining and due today or earlier. */
 export async function getRefillsDue() {
-  return query<any>(
+  return query<PrescriptionItem & { prescription_number?: string; patient_name?: string; prescription_status?: string }>(
     `SELECT pi.*, p.prescription_number, p.patient_name, p.status as prescription_status
      FROM prescription_items pi
      JOIN prescriptions p ON pi.prescription_id = p.id

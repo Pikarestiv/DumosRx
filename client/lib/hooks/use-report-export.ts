@@ -71,8 +71,8 @@ const REPORT_CONFIG = {
 
 export type ReportId = keyof typeof REPORT_CONFIG;
 
-function formatCsv(headers: string[], rows: Record<string, any>[]): string {
-  const escape = (v: any) => {
+function formatCsv(headers: string[], rows: Record<string, unknown>[]): string {
+  const escape = (v: unknown) => {
     const s = String(v ?? "");
     return s.includes(",") || s.includes('"') || s.includes("\n")
       ? `"${s.replace(/"/g, '""')}"`
@@ -114,8 +114,8 @@ export function useReportExport() {
     async (reportId: ReportId, dateFrom?: string, dateTo?: string) => {
       const config = REPORT_CONFIG[reportId];
       const rows = await (config.takesDateRange
-        ? (config.fetch as (from?: string, to?: string) => Promise<any[]>)(dateFrom, dateTo)
-        : (config.fetch as () => Promise<any[]>)());
+        ? (config.fetch as (from?: string, to?: string) => Promise<Record<string, unknown>[]>)(dateFrom, dateTo)
+        : (config.fetch as () => Promise<Record<string, unknown>[]>)());
 
       // The DB stores these as raw date/datetime strings — format them
       // consistently (dd/mm/yyyy) instead of leaking whatever precision
@@ -126,7 +126,10 @@ export function useReportExport() {
       return rows.map((row) => {
         const formatted = { ...row };
         for (const col of dateColumns) {
-          if (formatted[col]) formatted[col] = formatDateToDDMMYYYY(formatted[col]);
+          const value = formatted[col];
+          if (typeof value === "string" || value instanceof Date) {
+            formatted[col] = formatDateToDDMMYYYY(value);
+          }
         }
         return formatted;
       });

@@ -112,12 +112,12 @@ export async function getDashboardOverviewData(viewerId?: string) {
   dateYesterday.setDate(dateYesterday.getDate() - 1);
   const yesterday = `${dateYesterday.getFullYear()}-${String(dateYesterday.getMonth() + 1).padStart(2, '0')}-${String(dateYesterday.getDate()).padStart(2, '0')}`;
 
-  const salesYesterday = await query<any>(
+  const salesYesterday = await query<{ total?: number }>(
     `SELECT SUM(total_amount) as total FROM sales WHERE date(transaction_date) = ? AND (_deleted = 0 OR _deleted IS NULL)`,
     [yesterday]
   );
 
-  const activeCategories = await query<any>(
+  const activeCategories = await query<{ count?: number }>(
     `SELECT COUNT(DISTINCT category_id) as count FROM products WHERE _deleted = 0`
   );
 
@@ -137,7 +137,7 @@ export async function fetchSalesReportData(dateFrom?: string, dateTo?: string) {
   if (dateFrom) { where += " AND s.transaction_date >= ?"; params.push(dateFrom); }
   if (dateTo) { where += " AND s.transaction_date <= ?"; params.push(dateTo); }
 
-  return query<Record<string, any>>(
+  return query<Record<string, unknown>>(
     `SELECT
       s.transaction_number as "Transaction #",
       date(s.transaction_date) as "Date",
@@ -157,7 +157,7 @@ export async function fetchSalesReportData(dateFrom?: string, dateTo?: string) {
 }
 
 export async function fetchStockBatchReportData() {
-  return query<Record<string, any>>(
+  return query<Record<string, unknown>>(
     `SELECT
       m.name as "Product",
       m.generic_name as "Generic Name",
@@ -242,7 +242,7 @@ export async function fetchProfitLossReportData(dateFrom?: string, dateTo?: stri
   if (dateFrom) { where += " AND s.transaction_date >= ?"; params.push(dateFrom); }
   if (dateTo) { where += " AND s.transaction_date <= ?"; params.push(dateTo); }
 
-  const salesRows = await query<Record<string, any>>(
+  const salesRows = await query<Record<string, unknown>>(
     `SELECT
       strftime('%Y-%m', s.transaction_date) as "Month",
       SUM(s.total_amount) as "Revenue",
@@ -260,7 +260,7 @@ export async function fetchProfitLossReportData(dateFrom?: string, dateTo?: stri
   if (dateFrom) { expWhere += " AND date >= ?"; expParams.push(dateFrom); }
   if (dateTo) { expWhere += " AND date <= ?"; expParams.push(dateTo); }
 
-  const expRows = await query<Record<string, any>>(
+  const expRows = await query<{ month: string; expenses?: number }>(
     `SELECT strftime('%Y-%m', date) as month, SUM(amount) as expenses
      FROM expenses WHERE ${expWhere}
      GROUP BY strftime('%Y-%m', date)`,
@@ -286,7 +286,7 @@ export async function fetchProfitLossReportData(dateFrom?: string, dateTo?: stri
 }
 
 export async function fetchCustomerReportData() {
-  return query<Record<string, any>>(
+  return query<Record<string, unknown>>(
     `SELECT
       c.first_name || ' ' || COALESCE(c.last_name, '') as "Name",
       c.phone as "Phone",
@@ -311,7 +311,7 @@ export async function fetchExpensesReportData(dateFrom?: string, dateTo?: string
   if (dateFrom) { where += " AND date >= ?"; params.push(dateFrom); }
   if (dateTo) { where += " AND date <= ?"; params.push(dateTo); }
 
-  return query<Record<string, any>>(
+  return query<Record<string, unknown>>(
     `SELECT
       date(date) as "Date",
       category as "Category",

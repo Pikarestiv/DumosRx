@@ -24,9 +24,9 @@ interface StockItem {
   id: string;
   product_id: string;
   product_name: string;
-  batch_number: string;
+  batch_number?: string;
   quantity: number;
-  reorder_level: number;
+  reorder_level?: number;
   status: "healthy" | "low" | "critical" | "overstock";
   expiry_date?: string;
 }

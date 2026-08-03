@@ -5,7 +5,7 @@ import type { StoreOption } from "@/lib/types/store";
 import type { StoreProfile } from "@/lib/context/store-context";
 
 export async function checkIfTableExists(tableName: string) {
-  const tables = await query<any>(
+  const tables = await query<{ name: string }>(
     "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
     [tableName]
   );
@@ -13,7 +13,7 @@ export async function checkIfTableExists(tableName: string) {
 }
 
 export async function getExistingCustomers() {
-  const existingCustomers = await query<any>("SELECT first_name, last_name FROM customers");
+  const existingCustomers = await query<{ first_name?: string; last_name?: string }>("SELECT first_name, last_name FROM customers");
   return existingCustomers;
 }
 
@@ -30,17 +30,17 @@ export async function getTotalRecordCount() {
 }
 
 export async function getStoreById(id: string) {
-  const stores = await query<any>("SELECT * FROM stores WHERE id = ?", [id]);
+  const stores = await query<StoreProfile>("SELECT * FROM stores WHERE id = ?", [id]);
   return stores[0] || null;
 }
 
 export async function getFirstStore() {
-  const stores = await query<any>("SELECT * FROM stores LIMIT 1");
+  const stores = await query<StoreProfile>("SELECT * FROM stores LIMIT 1");
   return stores[0] || null;
 }
 
 export async function getAllStores() {
-  return query<any>("SELECT * FROM stores");
+  return query<StoreProfile>("SELECT * FROM stores");
 }
 
 export async function getPaymentAccounts(storeId?: string) {
@@ -56,14 +56,14 @@ export async function getPaymentAccounts(storeId?: string) {
 }
 
 export async function getActiveUserCount() {
-  const result = await query<any>(
+  const result = await query<{ count: number }>(
     "SELECT COUNT(*) as count FROM users WHERE is_active = 1",
   );
   return Number(result[0]?.count || 0);
 }
 
 export async function getTotalUserCount() {
-  const users = await query<any>("SELECT COUNT(*) as count FROM users WHERE _deleted = 0");
+  const users = await query<{ count: number }>("SELECT COUNT(*) as count FROM users WHERE _deleted = 0");
   return Number(users[0]?.count || 0);
 }
 
@@ -106,7 +106,7 @@ export async function importQuickbooksData(
             );
 
             // Update or insert QB_IMPORT batch
-            const existingBatch = await query<any>(
+            const existingBatch = await query<{ id: string }>(
               "SELECT id FROM stock_batches WHERE product_id = ? AND batch_number = ? AND _deleted = 0",
               [existingMed.id, "QB_IMPORT"]
             );

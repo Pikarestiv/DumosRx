@@ -7,7 +7,7 @@ export interface ReportPdfInput {
   title: string;
   subtitle?: string;
   headers: string[];
-  rows: Record<string, any>[];
+  rows: Record<string, unknown>[];
 }
 
 export async function generateReportPdfBlob(

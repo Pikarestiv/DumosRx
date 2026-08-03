@@ -6,7 +6,7 @@ import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { useAuth } from "@/lib/context/auth-context";
+import { useAuth, type RecentUser } from "@/lib/context/auth-context";
 import { FeedbackForm } from "@/components/feedback/feedback-form";
 import { OnlineOrdersModal } from "@/components/pos/online-orders-modal";
 import { Lock } from "lucide-react";
@@ -65,7 +65,7 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
   const isLocked = useAutoLockStore((s) => s.isLocked);
   const forceAccountSelection = useAutoLockStore((s) => s.forceAccountSelection);
   const unlock = useAutoLockStore((s) => s.unlock);
-  const [recentUsers, setRecentUsers] = useState<any[]>([]);
+  const [recentUsers, setRecentUsers] = useState<RecentUser[]>([]);
 
   useAutoLockTimer();
   useLockOnFreshLoad();

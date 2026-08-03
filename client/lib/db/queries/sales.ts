@@ -1,5 +1,6 @@
 import { query } from "@/lib/db/local-database";
 import type { Sale, SaleWithDetails, SaleItemDetail, ReturnRecord, ReturnItemDetail } from "@/lib/types/sale";
+import type { StockBatch } from "@/lib/types/stock-batch";
 
 export async function getSaleItems(saleId: string) {
   return query<SaleItemDetail>(
@@ -10,8 +11,8 @@ export async function getSaleItems(saleId: string) {
 
 export async function getTransactionDetails(saleId: string) {
   try {
-    const items = await query<any>(
-      `SELECT 
+    const items = await query<SaleItemDetail>(
+      `SELECT
         si.*, 
         m.name as product_name, 
         si.cost_price as med_cost_price,
@@ -27,7 +28,7 @@ export async function getTransactionDetails(saleId: string) {
       [saleId]
     );
 
-    const returnsData = await query<any>(
+    const returnsData = await query<{ total_refunded?: number }>(
       `SELECT SUM(total_refunded) as total_refunded FROM returns WHERE sale_id = ? AND (_deleted = 0 OR _deleted IS NULL)`,
       [saleId]
     );
@@ -38,8 +39,8 @@ export async function getTransactionDetails(saleId: string) {
     
     // Fallback simple query just in case the complex one fails due to schema issues
     try {
-      const fallbackItems = await query<any>(
-        `SELECT si.*, m.name as product_name, si.cost_price as med_cost_price, 0 as returned_quantity 
+      const fallbackItems = await query<SaleItemDetail>(
+        `SELECT si.*, m.name as product_name, si.cost_price as med_cost_price, 0 as returned_quantity
          FROM sale_items si 
          LEFT JOIN products m ON si.product_id = m.id 
          WHERE si.sale_id = ? AND (si._deleted = 0 OR si._deleted IS NULL)`,
@@ -90,7 +91,7 @@ export async function getSaleItemBatches(saleItemId: string) {
 }
 
 export async function getStockBatchById(batchId: string) {
-  const invs = await query<any>(
+  const invs = await query<StockBatch>(
     "SELECT * FROM stock_batches WHERE id = ?",
     [batchId],
   );
@@ -158,7 +159,7 @@ export async function getSaleById(saleId: string) {
 
 /** Most recent (non-deleted) sale a prescription was dispensed through, if any. */
 export async function getSaleForPrescription(prescriptionId: string) {
-  const rows = await query<any>(
+  const rows = await query<Sale>(
     `SELECT * FROM sales WHERE prescription_id = ? AND _deleted = 0 ORDER BY created_at DESC LIMIT 1`,
     [prescriptionId]
   );

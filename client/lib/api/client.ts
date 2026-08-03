@@ -5,6 +5,16 @@ import type { NewProductPayload } from "@/lib/types/product";
 import type { SupplierPayload } from "@/lib/types/supplier";
 import type { SyncChange } from "@/lib/types/sync";
 import type { StoreOption } from "@/lib/types/store";
+import type { OnlineOrder } from "@/lib/types/online-order";
+
+/** Loose shape shared by the legacy cloud list/aggregate endpoints below —
+ * callers only ever read `.total`/`.count`/`.data?.length`/`.revenue`. */
+interface CloudListResponse {
+  total?: number;
+  count?: number;
+  revenue?: number;
+  data?: unknown[];
+}
 
 class ApiClient extends BaseApiClient {
   // Auth endpoints
@@ -25,24 +35,29 @@ class ApiClient extends BaseApiClient {
   }
 
   async getProfile() {
-    return this.request<any>("/user");
+    return this.request<unknown>("/user");
   }
 
+  // NOTE: the endpoints below (products/sales/customers/categories/suppliers/
+  // stock-movements/purchase-orders/stock-adjustments/prescriptions cloud CRUD)
+  // predate the offline-first SQLite architecture and have no callers left in
+  // the app (superseded by lib/db/queries/*) — typed loosely since their
+  // response shape is unused, not because it's unknowable.
   async getProducts(page = 1, limit = 50) {
-    return this.request<any>(`/app/products?page=${page}&limit=${limit}`);
+    return this.request<CloudListResponse>(`/app/products?page=${page}&limit=${limit}`);
   }
 
   async searchProducts(params: Record<string, string>) {
     const searchParams = new URLSearchParams(params);
-    return this.request<any>(`/app/products/search?${searchParams}`);
+    return this.request<unknown>(`/app/products/search?${searchParams}`);
   }
 
   async getProduct(id: string) {
-    return this.request<any>(`/app/products/${id}`);
+    return this.request<unknown>(`/app/products/${id}`);
   }
 
   async createProduct(data: NewProductPayload) {
-    return this.request<any>("/app/products", {
+    return this.request<unknown>("/app/products", {
       method: "POST",
       body: JSON.stringify(data),
     });
@@ -50,49 +65,49 @@ class ApiClient extends BaseApiClient {
 
   // Stock Batch endpoints
   async getStockBatch(page = 1, limit = 50) {
-    return this.request<any>(`/app/stock-batches?page=${page}&limit=${limit}`);
+    return this.request<unknown>(`/app/stock-batches?page=${page}&limit=${limit}`);
   }
 
   async getLowStockItems() {
-    return this.request<any>("/app/stock-batches/low-stock");
+    return this.request<CloudListResponse>("/app/stock-batches/low-stock");
   }
 
   async getExpiringItems(days = 90) {
-    return this.request<any>(`/app/stock-batches/expiring?days=${days}`);
+    return this.request<CloudListResponse>(`/app/stock-batches/expiring?days=${days}`);
   }
 
   async getStockBatchValue() {
-    return this.request<any>("/app/stock-batches/value");
+    return this.request<unknown>("/app/stock-batches/value");
   }
 
   // Sales endpoints
   async createSale(data: Record<string, unknown>) {
-    return this.request<any>("/app/sales", {
+    return this.request<unknown>("/app/sales", {
       method: "POST",
       body: JSON.stringify(data),
     });
   }
 
   async getSales(page = 1, limit = 50) {
-    return this.request<any>(`/app/sales?page=${page}&limit=${limit}`);
+    return this.request<unknown>(`/app/sales?page=${page}&limit=${limit}`);
   }
 
   async getDailySales(date?: string) {
     const params = date ? `?date=${date}` : "";
-    return this.request<any>(`/app/sales/daily${params}`);
+    return this.request<CloudListResponse>(`/app/sales/daily${params}`);
   }
 
   async getTopSellingProducts(limit = 10, days = 30) {
-    return this.request<any>(`/app/sales/top-products?limit=${limit}&days=${days}`);
+    return this.request<unknown>(`/app/sales/top-products?limit=${limit}&days=${days}`);
   }
 
   // Customers endpoints
   async getCustomers(page = 1, limit = 50) {
-    return this.request<any>(`/app/customers?page=${page}&limit=${limit}`);
+    return this.request<unknown>(`/app/customers?page=${page}&limit=${limit}`);
   }
 
   async createCustomer(data: CustomerFormPayload) {
-    return this.request<any>("/app/customers", {
+    return this.request<unknown>("/app/customers", {
       method: "POST",
       body: JSON.stringify(data),
     });
@@ -100,7 +115,7 @@ class ApiClient extends BaseApiClient {
 
   // Categories endpoints
   async getCategories() {
-    return this.request<any>("/app/categories");
+    return this.request<unknown>("/app/categories");
   }
 
   // Dashboard endpoints
@@ -108,10 +123,10 @@ class ApiClient extends BaseApiClient {
     // Aggregate stats from multiple endpoints
     const [products, dailySales, expiringItems, lowStockItems] =
       await Promise.all([
-        this.getProducts(1, 1).catch(() => ({ total: 0 })),
-        this.getDailySales().catch(() => ({ total: 0, revenue: 0 })),
-        this.getExpiringItems(30).catch(() => ({ data: [] })),
-        this.getLowStockItems().catch(() => ({ data: [] })),
+        this.getProducts(1, 1).catch((): CloudListResponse => ({ total: 0 })),
+        this.getDailySales().catch((): CloudListResponse => ({ total: 0, revenue: 0 })),
+        this.getExpiringItems(30).catch((): CloudListResponse => ({ data: [] })),
+        this.getLowStockItems().catch((): CloudListResponse => ({ data: [] })),
       ]);
 
     return {
@@ -123,18 +138,18 @@ class ApiClient extends BaseApiClient {
   }
 
   async getRecentActivity(limit = 5) {
-    return this.request<any>(`/activity?limit=${limit}`).catch(() => ({
-      data: [],
-    }));
+    return this.request<CloudListResponse>(`/activity?limit=${limit}`).catch(
+      (): CloudListResponse => ({ data: [] }),
+    );
   }
 
   // Suppliers endpoints
   async getSuppliers(page = 1, limit = 50) {
-    return this.request<any>(`/app/suppliers?page=${page}&limit=${limit}`);
+    return this.request<unknown>(`/app/suppliers?page=${page}&limit=${limit}`);
   }
 
   async createSupplier(data: SupplierPayload) {
-    return this.request<any>("/app/suppliers", {
+    return this.request<unknown>("/app/suppliers", {
       method: "POST",
       body: JSON.stringify(data),
     });
@@ -142,30 +157,30 @@ class ApiClient extends BaseApiClient {
 
   // Stock Movements endpoints
   async getStockMovements(page = 1, limit = 50) {
-    return this.request<any>(
+    return this.request<CloudListResponse>(
       `/stock-movements?page=${page}&limit=${limit}`,
-    ).catch(() => ({ data: [] }));
+    ).catch((): CloudListResponse => ({ data: [] }));
   }
 
   // Purchase Orders endpoints
   async getPurchaseOrders(page = 1, limit = 50) {
-    return this.request<any>(
+    return this.request<CloudListResponse>(
       `/purchase-orders?page=${page}&limit=${limit}`,
-    ).catch(() => ({ data: [] }));
+    ).catch((): CloudListResponse => ({ data: [] }));
   }
 
   // Stock Adjustments endpoints
   async getStockAdjustments(page = 1, limit = 50) {
-    return this.request<any>(
+    return this.request<CloudListResponse>(
       `/stock-adjustments?page=${page}&limit=${limit}`,
-    ).catch(() => ({ data: [] }));
+    ).catch((): CloudListResponse => ({ data: [] }));
   }
 
   // Prescriptions endpoints
   async getPrescriptions(page = 1, limit = 50) {
-    return this.request<any>(
+    return this.request<CloudListResponse>(
       `/prescriptions?page=${page}&limit=${limit}`,
-    ).catch(() => ({ data: [] }));
+    ).catch((): CloudListResponse => ({ data: [] }));
   }
 
   // Sync Endpoints
@@ -248,22 +263,22 @@ class ApiClient extends BaseApiClient {
 
   // Notifications
   async getNotifications() {
-    return this.request<any>("/alerts");
+    return this.request<unknown>("/alerts");
   }
 
   async markNotificationRead(id: string) {
-    return this.request<any>(`/alerts/${id}/read`, {
+    return this.request<unknown>(`/alerts/${id}/read`, {
       method: "POST",
     });
   }
 
   // Online Orders
   async getOnlineOrders() {
-    return this.request<any>("/app/online-orders");
+    return this.request<{ orders?: OnlineOrder[] }>("/app/online-orders");
   }
 
   async fulfillOnlineOrder(id: string) {
-    return this.request<any>(`/app/online-orders/${id}/fulfill`, {
+    return this.request<unknown>(`/app/online-orders/${id}/fulfill`, {
       method: "POST",
       body: JSON.stringify({ status: "fulfilled" }),
     });

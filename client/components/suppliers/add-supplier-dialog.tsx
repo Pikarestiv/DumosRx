@@ -79,7 +79,7 @@ export function AddSupplierDialog({
     }
 
     try {
-      const existing = await query<any[]>(
+      const existing = await query<{ id: string }>(
         "SELECT id FROM suppliers WHERE LOWER(name) = LOWER(?) LIMIT 1",
         [formData.name],
       );

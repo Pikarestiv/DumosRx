@@ -19,6 +19,8 @@ import type { NewProductPayload } from "@/lib/types/product";
 import type { StockMovementDbRow } from "@/lib/types/stock-movement";
 import type { PrescriptionItemInsertPayload } from "@/lib/types/prescription";
 import type { StaffCreatePayload, StaffUpdatePayload, StaffListItem } from "@/lib/types/user";
+import type { Product } from "@/lib/types/product";
+import type { CustomerDbRow } from "@/lib/types/customer";
 
 const STOCK_MOVEMENT_AUDIT_ACTIONS: Record<string, string> = {
   adjustment: AUDIT_ACTIONS.STOCK_ADJUSTMENT,
@@ -60,12 +62,12 @@ export async function getProducts(page = 1, limit = 50, search = "") {
   sql += " ORDER BY m.name ASC LIMIT ? OFFSET ?";
   params.push(limit, offset);
 
-  const data = await query<any>(sql, params);
+  const data = await query<Product>(sql, params);
   return { data, page, limit };
 }
 
 export async function getProductById(id: string) {
-  const results = await query<any>(
+  const results = await query<Product>(
     `SELECT p.*, 
             COALESCE(sb.total_qty, 0) as stock_quantity,
             sb.earliest_expiry as expiry_date,
@@ -91,7 +93,7 @@ export async function createProduct(data: NewProductPayload) {
   const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
   
   if (data.category_id && !UUID_REGEX.test(data.category_id)) {
-    const categories = await query<any>(
+    const categories = await query<{ id: string }>(
       "SELECT id FROM categories WHERE name = ? COLLATE NOCASE",
       [data.category_id]
     );
@@ -163,7 +165,7 @@ export async function createSale(saleData: Record<string, unknown>, items: Creat
  * Customers
  */
 export async function getCustomers() {
-  return await query<any>(
+  return await query<CustomerDbRow>(
     "SELECT * FROM customers WHERE _deleted = 0 ORDER BY first_name ASC",
   );
 }
@@ -332,7 +334,7 @@ export async function forceSyncAllData() {
   for (const table of tables) {
     try {
       await execute(`UPDATE ${table} SET _synced = 0`);
-      const records = await query<any>(`SELECT * FROM ${table}`);
+      const records = await query<{ id: string; [key: string]: unknown }>(`SELECT * FROM ${table}`);
 
       for (const record of records) {
         await execute(

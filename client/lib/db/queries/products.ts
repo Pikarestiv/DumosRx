@@ -18,13 +18,13 @@ export async function getProductsWithDetails() {
 }
 
 export async function getCategoriesList() {
-  return query<any>(
+  return query<{ name: string }>(
     "SELECT name FROM categories WHERE _deleted = 0 ORDER BY name ASC"
   );
 }
 
 export async function getCategoryByName(name: string) {
-  const existing = await query<any>(
+  const existing = await query<{ id: string }>(
     "SELECT id FROM categories WHERE name = ? AND _deleted = 0",
     [name],
   );
@@ -35,7 +35,7 @@ export async function getCategoryByName(name: string) {
 }
 
 export async function getSupplierByName(name: string) {
-  const existing = await query<any>(
+  const existing = await query<{ id: string }>(
     "SELECT id FROM suppliers WHERE name = ? AND _deleted = 0",
     [name],
   );
@@ -46,7 +46,7 @@ export async function getSupplierByName(name: string) {
 }
 
 export async function getProductByName(name: string) {
-  const med = await query<any>(
+  const med = await query<{ id: string }>(
     "SELECT id FROM products WHERE name = ? LIMIT 1",
     [name],
   );

@@ -8,15 +8,9 @@ import { updatePrescriptionStatus, dispensePrescriptionRefill } from "@/lib/db/q
 import { CartItem } from "./use-pos-cart";
 import { calculateEarnedPoints } from "@/lib/utils/loyalty-calculator";
 import { calculateTaxPercentage } from "@/lib/utils/pos-calculations";
+import type { Customer } from "@/lib/types/customer";
 
-export interface Customer {
-  id: string;
-  first_name: string;
-  last_name: string;
-  phone: string;
-  loyalty_points: number;
-  outstanding_balance: number;
-}
+export type { Customer };
 
 interface UsePOSPaymentProps {
   cart: CartItem[];

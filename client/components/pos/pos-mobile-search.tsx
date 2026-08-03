@@ -34,7 +34,7 @@ export function POSMobileSearch({
         selectedCustomer={selectedCustomer}
         customers={customers}
         loadingCustomers={loadingCustomers}
-        onSelectCustomer={onSelectCustomer as any}
+        onSelectCustomer={onSelectCustomer}
         cartLength={cartLength}
       />
       <div className="flex gap-2">

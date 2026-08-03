@@ -179,7 +179,7 @@ export function POSSystem() {
                   selectedCustomer={selectedCustomer}
                   customers={customers}
                   loadingCustomers={loadingCustomers}
-                  onSelectCustomer={setSelectedCustomer as any}
+                  onSelectCustomer={setSelectedCustomer}
                   cartLength={cart.length}
                   searchTerm={searchTerm}
                   setSearchTerm={setSearchTerm}
@@ -255,7 +255,7 @@ export function POSSystem() {
         selectedCustomer={selectedCustomer}
         customers={customers}
         loadingCustomers={loadingCustomers}
-        onSelectCustomer={setSelectedCustomer as any}
+        onSelectCustomer={setSelectedCustomer}
       />
       <POSDialogs {...posDialogProps} />
     </div>

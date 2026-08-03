@@ -15,6 +15,7 @@ import { getProductList } from "@/lib/db/queries/products";
 import { SearchableInput } from "@/components/ui/searchable-input";
 import { genericFuzzySearch } from "@/lib/utils/search";
 import { queryKeys } from "@/lib/query-keys";
+import type { Customer } from "@/lib/types/customer";
 
 export function RequestItemDialog({
   open: controlledOpen,
@@ -169,7 +170,7 @@ export function RequestItemDialog({
                   placeholder="Select or type..."
                   value={customerName}
                   onValueChange={setCustomerName}
-                  options={customers.map((c: any) => ({
+                  options={customers.map((c: Customer) => ({
                     label:
                       `${c.first_name} ${c.last_name}${c.phone ? ` (${c.phone})` : ""}`.trim(),
                     value: `${c.first_name} ${c.last_name}`.trim(),

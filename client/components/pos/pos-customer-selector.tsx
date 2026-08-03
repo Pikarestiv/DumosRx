@@ -9,14 +9,7 @@ import { insert } from "@/lib/db/local-database";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { queryKeys } from "@/lib/query-keys";
-
-interface Customer {
-  id: string;
-  first_name: string;
-  last_name: string;
-  phone: string;
-  loyalty_points: number;
-}
+import type { Customer } from "@/lib/types/customer";
 
 interface POSCustomerSelectorProps {
   selectedCustomer: Customer | null;
@@ -43,7 +36,7 @@ export function POSCustomerSelector({
   const queryClient = useQueryClient();
 
   const createCustomerMutation = useMutation({
-    mutationFn: async (data: Partial<Customer>) => {
+    mutationFn: async (data: Pick<Customer, "first_name" | "last_name" | "phone">) => {
       const id = crypto.randomUUID();
       await insert("customers", {
         id,
@@ -60,7 +53,7 @@ export function POSCustomerSelector({
     onSuccess: (data) => {
       toast.success("Customer created successfully");
       queryClient.invalidateQueries(queryKeys.customers.posList());
-      onSelectCustomer(data as any);
+      onSelectCustomer(data);
       setOpen(false);
       setShowAddForm(false);
       setNewFirstName("");

@@ -1,4 +1,5 @@
 import { query, insert, update } from "@/lib/db/local-database";
+import { Customer } from "@/lib/types/customer";
 
 export async function getCustomers() {
   return query<any>(`
@@ -130,11 +131,11 @@ export async function recordCustomerPayment(
   return newBalance;
 }
 
-export async function getAllCustomers() {
+export async function getAllCustomers(): Promise<Customer[]> {
   const items = await query<any>(
     "SELECT * FROM customers WHERE _deleted = 0 ORDER BY first_name ASC"
   );
-  
+
   return items.map((c: any) => ({
     id: c.id,
     first_name: c.first_name || "",

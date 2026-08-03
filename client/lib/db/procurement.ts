@@ -2,7 +2,7 @@
  * Procurement Database Helpers
  */
 
-import { query, logAction, generateId } from "./core";
+import { query, logAction, generateId, transaction } from "./core";
 import { insert, update, softDelete } from "./base-helpers";
 import type { SupplierPayload, SupplierDbRow } from "@/lib/types/supplier";
 
@@ -260,61 +260,63 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
 
   const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
 
-  for (const item of poData.items) {
-    const receivedItem = receivedItems?.find(ri => ri.po_item_id === item.id);
-    
-    // Default to the original ordered bulk quantity if not provided in payload
-    const bulkQty = receivedItem?.quantity !== undefined ? Number(receivedItem.quantity) : Number(item.bulk_quantity);
-    // Always use the product's current conversion factor, not the snapshot stored on the
-    // PO line item — the product's packaging may have been corrected since the order was placed.
-    const unitsPerBulk = Number(item.product_units_per_bulk) || Number(item.units_per_bulk) || 1;
-    const totalBaseUnits = bulkQty * unitsPerBulk;
-    
-    const batchNumber = receivedItem?.lot_number?.trim() || poData.id.split('-')[0].toUpperCase();
-    const expiryDate = receivedItem?.expiry_date ? new Date(receivedItem.expiry_date).toISOString().slice(0, 10) : null;
+  return transaction(async () => {
+    for (const item of poData.items) {
+      const receivedItem = receivedItems?.find(ri => ri.po_item_id === item.id);
 
-    const safeUnitsPerBulk = unitsPerBulk || 1;
-    const baseUnitCost = Number(item.unit_cost) / safeUnitsPerBulk;
+      // Default to the original ordered bulk quantity if not provided in payload
+      const bulkQty = receivedItem?.quantity !== undefined ? Number(receivedItem.quantity) : Number(item.bulk_quantity);
+      // Always use the product's current conversion factor, not the snapshot stored on the
+      // PO line item — the product's packaging may have been corrected since the order was placed.
+      const unitsPerBulk = Number(item.product_units_per_bulk) || Number(item.units_per_bulk) || 1;
+      const totalBaseUnits = bulkQty * unitsPerBulk;
 
-    const invId = await insert("stock_batches", {
-      product_id: item.product_id,
-      quantity: totalBaseUnits,
-      cost_price: baseUnitCost,
-      batch_number: batchNumber,
-      expiry_date: expiryDate,
-      created_at: now,
-      is_active: 1,
-      _version: 1,
-      _synced: 0,
-      _deleted: 0
-    });
+      const batchNumber = receivedItem?.lot_number?.trim() || poData.id.split('-')[0].toUpperCase();
+      const expiryDate = receivedItem?.expiry_date ? new Date(receivedItem.expiry_date).toISOString().slice(0, 10) : null;
 
-    // Log local stock movement
-    const dumosUser = JSON.parse(localStorage.getItem("dumos_user") || "{}");
-    await insert("stock_movements", {
-      id: crypto.randomUUID(),
-      product_id: item.product_id,
-      stock_batch_id: invId,
-      movement_type: "purchase",
-      quantity: totalBaseUnits,
-      unit_cost: baseUnitCost,
-      // Recalculated from what was actually received, not item.subtotal (the full
-      // ordered-line total) — those diverge whenever this is a partial receipt.
-      total_cost: baseUnitCost * totalBaseUnits,
-      reference_id: poData.id,
-      reference_type: "purchase_order",
-      reason: "Purchase order received",
-      performed_by: dumosUser?.id || null,
-      movement_date: now,
-      created_at: now,
-      _version: 1,
-      _synced: 0,
-      _deleted: 0
-    });
-  }
+      const safeUnitsPerBulk = unitsPerBulk || 1;
+      const baseUnitCost = Number(item.unit_cost) / safeUnitsPerBulk;
 
-  await updatePurchaseOrderStatus(id, "received");
-  await logAction("RECEIVE_PO", "purchase_orders", id, { total_items: poData.items.length });
+      const invId = await insert("stock_batches", {
+        product_id: item.product_id,
+        quantity: totalBaseUnits,
+        cost_price: baseUnitCost,
+        batch_number: batchNumber,
+        expiry_date: expiryDate,
+        created_at: now,
+        is_active: 1,
+        _version: 1,
+        _synced: 0,
+        _deleted: 0
+      });
+
+      // Log local stock movement
+      const dumosUser = JSON.parse(localStorage.getItem("dumos_user") || "{}");
+      await insert("stock_movements", {
+        id: crypto.randomUUID(),
+        product_id: item.product_id,
+        stock_batch_id: invId,
+        movement_type: "purchase",
+        quantity: totalBaseUnits,
+        unit_cost: baseUnitCost,
+        // Recalculated from what was actually received, not item.subtotal (the full
+        // ordered-line total) — those diverge whenever this is a partial receipt.
+        total_cost: baseUnitCost * totalBaseUnits,
+        reference_id: poData.id,
+        reference_type: "purchase_order",
+        reason: "Purchase order received",
+        performed_by: dumosUser?.id || null,
+        movement_date: now,
+        created_at: now,
+        _version: 1,
+        _synced: 0,
+        _deleted: 0
+      });
+    }
+
+    await updatePurchaseOrderStatus(id, "received");
+    await logAction("RECEIVE_PO", "purchase_orders", id, { total_items: poData.items.length });
+  });
 }
 
 /**

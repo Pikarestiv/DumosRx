@@ -753,6 +753,11 @@ export async function query<T = Record<string, unknown>>(
   return results;
 }
 
+// Set while a transaction() block is running so execute() can defer the
+// (expensive, whole-database) sql.js saveDatabase() to a single call at
+// commit time instead of after every individual statement in the block.
+let inTransaction = false;
+
 export async function execute(
   sql: string,
   params: (string | number | null | Uint8Array)[] = [],
@@ -774,7 +779,88 @@ export async function execute(
   }
 
   db.run(sql, params);
-  saveDatabase();
+  if (!inTransaction) {
+    saveDatabase();
+  }
+}
+
+/**
+ * Runs `fn` inside a real SQL transaction so a multi-statement operation
+ * (e.g. recording a sale and deducting stock for every line item) either
+ * fully applies or fully rolls back — a crash, thrown error, or early return
+ * partway through can never leave the database with only some of the writes
+ * applied. Every write inside `fn` must go through query()/execute() (and by
+ * extension insert()/update()/etc. in base-helpers.ts) against the same `db`
+ * handle used here so it participates in the transaction.
+ *
+ * Nested calls (a transaction() started from inside another) just run `fn`
+ * inline against the already-open outer transaction — SQLite doesn't support
+ * real nested transactions without savepoints, and callers that compose
+ * smaller transactional helpers into a bigger operation don't need them.
+ *
+ * If BEGIN itself fails (e.g. the Tauri SQL plugin's pooled connection
+ * doesn't hand back the same connection for the follow-up statements — a
+ * real risk with sqlx pooling that can't be verified from static analysis
+ * alone), this falls back to running `fn` without transaction semantics
+ * rather than blocking the operation entirely: no worse than the previous
+ * behavior, just not improved for that run.
+ */
+export async function transaction<T>(fn: () => Promise<T>): Promise<T> {
+  if (!db) {
+    await initDatabase();
+  }
+  if (!db) {
+    // Database unavailable — let fn() surface whatever error it hits.
+    return fn();
+  }
+
+  if (inTransaction) {
+    return fn();
+  }
+
+  let began = false;
+  try {
+    if (isTauri()) {
+      await db.execute("BEGIN");
+    } else {
+      db.exec("BEGIN");
+    }
+    began = true;
+  } catch (err) {
+    console.error("[DB] Failed to start transaction, running without atomicity:", err);
+  }
+
+  if (!began) {
+    return fn();
+  }
+
+  inTransaction = true;
+  try {
+    const result = await fn();
+    if (isTauri()) {
+      await db.execute("COMMIT");
+    } else {
+      db.exec("COMMIT");
+    }
+    return result;
+  } catch (err) {
+    try {
+      if (isTauri()) {
+        await db.execute("ROLLBACK");
+      } else {
+        db.exec("ROLLBACK");
+      }
+    } catch (rollbackErr) {
+      console.error("[DB] Rollback failed after transaction error:", rollbackErr);
+    }
+    throw err;
+  } finally {
+    inTransaction = false;
+    if (!isTauri()) {
+      // sql.js: persist once for the whole block instead of per-statement.
+      await saveDatabase();
+    }
+  }
 }
 
 /**

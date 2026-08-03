@@ -1,4 +1,4 @@
-import { query, insert, update } from "@/lib/db/local-database";
+import { query, insert, update, transaction } from "@/lib/db/local-database";
 import type { FastMoverRow } from "@/lib/types/fast-mover";
 import type { StockBatch, AvailableStockBatch } from "@/lib/types/stock-batch";
 
@@ -261,86 +261,88 @@ export async function submitStockAudit(
   items: StockAuditSubmission[],
   performedBy: string | null,
 ) {
-  for (const item of items) {
-    const diff = item.countedQty - item.systemQty;
-    if (diff === 0) continue;
+  return transaction(async () => {
+    for (const item of items) {
+      const diff = item.countedQty - item.systemQty;
+      if (diff === 0) continue;
 
-    const auditId = crypto.randomUUID();
-    await insert("stock_audits", {
-      id: auditId,
-      product_id: item.productId,
-      expected_quantity: item.systemQty,
-      actual_quantity: item.countedQty,
-      difference: diff,
-      notes: item.reason || null,
-      user_id: performedBy || "system",
-      status: "reconciled",
-      reconciled_at: new Date().toISOString(),
-    });
+      const auditId = crypto.randomUUID();
+      await insert("stock_audits", {
+        id: auditId,
+        product_id: item.productId,
+        expected_quantity: item.systemQty,
+        actual_quantity: item.countedQty,
+        difference: diff,
+        notes: item.reason || null,
+        user_id: performedBy || "system",
+        status: "reconciled",
+        reconciled_at: new Date().toISOString(),
+      });
 
-    let remaining = Math.abs(diff);
-    const batches = await getBatchesForProduct(item.productId);
+      let remaining = Math.abs(diff);
+      const batches = await getBatchesForProduct(item.productId);
 
-    if (diff > 0) {
-      // Found more stock than recorded — add it to the soonest-expiring
-      // active batch, or open a new one if the product has none.
-      if (batches.length > 0) {
-        await updateStockBatchQuantity(batches[0].id, remaining);
-        await insert("stock_movements", {
-          product_id: item.productId,
-          stock_batch_id: batches[0].id,
-          movement_type: "adjustment",
-          quantity: remaining,
-          reason: item.reason || "Cycle count adjustment",
-          reference_id: auditId,
-          reference_type: "stock_audit",
-          performed_by: performedBy || null,
-          movement_date: new Date().toISOString(),
-        });
+      if (diff > 0) {
+        // Found more stock than recorded — add it to the soonest-expiring
+        // active batch, or open a new one if the product has none.
+        if (batches.length > 0) {
+          await updateStockBatchQuantity(batches[0].id, remaining);
+          await insert("stock_movements", {
+            product_id: item.productId,
+            stock_batch_id: batches[0].id,
+            movement_type: "adjustment",
+            quantity: remaining,
+            reason: item.reason || "Cycle count adjustment",
+            reference_id: auditId,
+            reference_type: "stock_audit",
+            performed_by: performedBy || null,
+            movement_date: new Date().toISOString(),
+          });
+        } else {
+          const newBatchId = crypto.randomUUID();
+          await createStockBatch({
+            id: newBatchId,
+            product_id: item.productId,
+            batch_number: `AUDIT-${new Date().toISOString().slice(0, 10)}`,
+            quantity: remaining,
+          });
+          await insert("stock_movements", {
+            product_id: item.productId,
+            stock_batch_id: newBatchId,
+            movement_type: "adjustment",
+            quantity: remaining,
+            reason: item.reason || "Cycle count adjustment",
+            reference_id: auditId,
+            reference_type: "stock_audit",
+            performed_by: performedBy || null,
+            movement_date: new Date().toISOString(),
+          });
+        }
       } else {
-        const newBatchId = crypto.randomUUID();
-        await createStockBatch({
-          id: newBatchId,
-          product_id: item.productId,
-          batch_number: `AUDIT-${new Date().toISOString().slice(0, 10)}`,
-          quantity: remaining,
-        });
-        await insert("stock_movements", {
-          product_id: item.productId,
-          stock_batch_id: newBatchId,
-          movement_type: "adjustment",
-          quantity: remaining,
-          reason: item.reason || "Cycle count adjustment",
-          reference_id: auditId,
-          reference_type: "stock_audit",
-          performed_by: performedBy || null,
-          movement_date: new Date().toISOString(),
-        });
-      }
-    } else {
-      // Found less stock than recorded — deduct FEFO across batches until
-      // the shortfall is accounted for or stock runs out.
-      for (const batch of batches) {
-        if (remaining <= 0) break;
-        const deductQty = Math.min(batch.quantity, remaining);
-        if (deductQty <= 0) continue;
+        // Found less stock than recorded — deduct FEFO across batches until
+        // the shortfall is accounted for or stock runs out.
+        for (const batch of batches) {
+          if (remaining <= 0) break;
+          const deductQty = Math.min(batch.quantity, remaining);
+          if (deductQty <= 0) continue;
 
-        await updateStockBatchQuantity(batch.id, -deductQty);
-        await insert("stock_movements", {
-          product_id: item.productId,
-          stock_batch_id: batch.id,
-          movement_type: "adjustment",
-          quantity: -deductQty,
-          reason: item.reason || "Cycle count adjustment",
-          reference_id: auditId,
-          reference_type: "stock_audit",
-          performed_by: performedBy || null,
-          movement_date: new Date().toISOString(),
-        });
-        remaining -= deductQty;
+          await updateStockBatchQuantity(batch.id, -deductQty);
+          await insert("stock_movements", {
+            product_id: item.productId,
+            stock_batch_id: batch.id,
+            movement_type: "adjustment",
+            quantity: -deductQty,
+            reason: item.reason || "Cycle count adjustment",
+            reference_id: auditId,
+            reference_type: "stock_audit",
+            performed_by: performedBy || null,
+            movement_date: new Date().toISOString(),
+          });
+          remaining -= deductQty;
+        }
       }
     }
-  }
+  });
 }
 
 export async function getFastMovers(days: number = 7) {

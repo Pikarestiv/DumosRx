@@ -57,6 +57,7 @@ vi.mock('@/lib/db/local-database', () => ({
     if (table === 'stock_batches') batches[id] = { ...batches[id], ...data };
     return id;
   }),
+  transaction: vi.fn(async (fn: () => Promise<unknown>) => fn()),
 }));
 
 import { submitStockAudit } from '@/lib/db/queries/inventory';

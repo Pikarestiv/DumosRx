@@ -10,7 +10,7 @@ export * from "./base-helpers";
 export * from "./procurement";
 export * from "./schema";
 
-import { query, execute } from "./core";
+import { query, execute, transaction } from "./core";
 import { insert, update, softDelete } from "./base-helpers";
 import { queryClient } from "../query-client";
 import { AUDIT_ACTIONS } from "./audit-actions";
@@ -122,43 +122,45 @@ interface CreateSaleItem {
 }
 
 export async function createSale(saleData: Record<string, unknown>, items: CreateSaleItem[]) {
-  const saleId = await insert("sales", saleData);
+  return transaction(async () => {
+    const saleId = await insert("sales", saleData);
 
-  for (const item of items) {
-    await insert("sale_items", {
-      ...item,
-      sale_id: saleId,
-    });
+    for (const item of items) {
+      await insert("sale_items", {
+        ...item,
+        sale_id: saleId,
+      });
 
-    // Update stock batch quantity
-    if (item.stock_batch_id) {
-      await execute(
-        "UPDATE stock_batches SET quantity = quantity - ? WHERE id = ?",
-        [item.quantity, item.stock_batch_id],
-      );
+      // Update stock batch quantity
+      if (item.stock_batch_id) {
+        await execute(
+          "UPDATE stock_batches SET quantity = quantity - ? WHERE id = ?",
+          [item.quantity, item.stock_batch_id],
+        );
+      }
+
+      // Log local stock movement
+      await insert("stock_movements", {
+        id: crypto.randomUUID(),
+        product_id: item.product_id,
+        stock_batch_id: item.stock_batch_id || null,
+        movement_type: "sale",
+        quantity: -Math.abs(item.quantity),
+        unit_cost: item.cost_price || 0,
+        total_cost: (item.cost_price || 0) * item.quantity,
+        reference_id: saleId,
+        reference_type: "sale",
+        reason: "Customer sale",
+        movement_date: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        _version: 1,
+        _synced: 0,
+        _deleted: 0,
+      });
     }
 
-    // Log local stock movement
-    await insert("stock_movements", {
-      id: crypto.randomUUID(),
-      product_id: item.product_id,
-      stock_batch_id: item.stock_batch_id || null,
-      movement_type: "sale",
-      quantity: -Math.abs(item.quantity),
-      unit_cost: item.cost_price || 0,
-      total_cost: (item.cost_price || 0) * item.quantity,
-      reference_id: saleId,
-      reference_type: "sale",
-      reason: "Customer sale",
-      movement_date: new Date().toISOString(),
-      created_at: new Date().toISOString(),
-      _version: 1,
-      _synced: 0,
-      _deleted: 0,
-    });
-  }
-
-  return saleId;
+    return saleId;
+  });
 }
 
 /**

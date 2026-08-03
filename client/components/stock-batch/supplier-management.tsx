@@ -29,6 +29,7 @@ const transformSupplier = (apiData: SupplierDbRow): SupplierViewModel => ({
   email: apiData.email || "",
   phone: apiData.phone || "",
   address: apiData.address || "",
+  taxId: apiData.tax_id || "",
   status: apiData.is_active ? "active" : "inactive",
   totalOrders: 0,
   totalValue: 0,

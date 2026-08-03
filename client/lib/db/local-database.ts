@@ -250,9 +250,14 @@ export async function getStockMovements(options: { sinceDays?: number } = {}) {
     ? `AND sm.created_at >= datetime('now', '-${sinceDays} days')`
     : "";
   const results = await query<StockMovementDbRow>(
-    `SELECT sm.*, m.name as product_name
+    `SELECT sm.*, m.name as product_name,
+            TRIM(u.first_name || ' ' || COALESCE(u.last_name, '')) as performed_by_name,
+            sb.batch_number, sp.name as supplier_name
      FROM stock_movements sm
      LEFT JOIN products m ON sm.product_id = m.id
+     LEFT JOIN users u ON sm.performed_by = u.id
+     LEFT JOIN stock_batches sb ON sm.stock_batch_id = sb.id
+     LEFT JOIN suppliers sp ON sb.supplier_id = sp.id
      WHERE sm._deleted = 0 ${dateFilter}
      ORDER BY sm.created_at DESC`,
   );
@@ -262,9 +267,14 @@ export async function getStockMovements(options: { sinceDays?: number } = {}) {
 export async function getStockAdjustments(page = 1, limit = 50) {
   const offset = (page - 1) * limit;
   const results = await query<StockMovementDbRow>(
-    `SELECT sm.*, m.name as product_name
+    `SELECT sm.*, m.name as product_name,
+            TRIM(u.first_name || ' ' || COALESCE(u.last_name, '')) as performed_by_name,
+            sb.batch_number, sp.name as supplier_name
      FROM stock_movements sm
      LEFT JOIN products m ON sm.product_id = m.id
+     LEFT JOIN users u ON sm.performed_by = u.id
+     LEFT JOIN stock_batches sb ON sm.stock_batch_id = sb.id
+     LEFT JOIN suppliers sp ON sb.supplier_id = sp.id
      WHERE sm._deleted = 0 AND sm.movement_type IN ('adjustment', 'expired', 'damaged')
      ORDER BY sm.created_at DESC
      LIMIT ? OFFSET ?`,

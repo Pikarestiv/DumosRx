@@ -19,9 +19,6 @@ import type { StockMovementDbRow } from "@/lib/types/stock-movement";
 
 const RECENT_ACTIVITY_WINDOW_DAYS = 30;
 
-// user/supplier/batchNumber aren't populated here — getStockMovements() never
-// joins users/suppliers/stock_batches, so these always fall back (see
-// docs/KNOWN_BUGS.md).
 function mapMovement(m: StockMovementDbRow): StockMovement {
   return {
     id: m.id,
@@ -31,9 +28,9 @@ function mapMovement(m: StockMovementDbRow): StockMovement {
     quantity: m.quantity || 0,
     reason: m.reason || "",
     reference: m.reference_id || "",
-    user: "System",
-    supplier: undefined,
-    batchNumber: undefined,
+    user: m.performed_by_name?.trim() || "System",
+    supplier: m.supplier_name || undefined,
+    batchNumber: m.batch_number || undefined,
   };
 }
 

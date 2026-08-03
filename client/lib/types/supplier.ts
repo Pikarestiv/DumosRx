@@ -30,8 +30,6 @@ export interface SupplierViewModel {
   rating: number;
   hasDebt: boolean;
   debtAmount: number;
-  // Not currently populated by transformSupplier() (see supplier-management.tsx) —
-  // present here only because AddSupplierDialog reads it when pre-filling an edit.
   taxId?: string;
 }
 

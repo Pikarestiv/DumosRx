@@ -6,9 +6,10 @@ import { formatCurrency, formatDateTime } from "@/lib/utils";
 import { query } from "@/lib/db";
 import { Pill } from "lucide-react";
 import { DetailRow } from "./detail-row";
+import type { PrescriptionRow, PrescriptionItem } from "@/lib/types/prescription";
 
 interface DashboardPrescriptionDetailsDialogProps {
-  prescription: any;
+  prescription: PrescriptionRow | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   currencyCode?: string;
@@ -40,11 +41,11 @@ export function DashboardPrescriptionDetailsDialog({
   onOpenChange,
   currencyCode = "NGN",
 }: DashboardPrescriptionDetailsDialogProps) {
-  const [items, setItems] = useState<any[]>([]);
+  const [items, setItems] = useState<PrescriptionItem[]>([]);
 
   useEffect(() => {
     if (prescription?.id && open) {
-      query<any>("SELECT * FROM prescription_items WHERE prescription_id = ?", [
+      query<PrescriptionItem>("SELECT * FROM prescription_items WHERE prescription_id = ?", [
         prescription.id,
       ]).then((res) => setItems(res || []));
     } else if (!open) {
@@ -89,7 +90,7 @@ export function DashboardPrescriptionDetailsDialog({
               {prescription.status || "Pending"}
             </span>
             <div className="text-[18px] font-semibold text-primary mt-1">
-              {formatCurrency(prescription.total_cost, currencyCode)}
+              {formatCurrency(prescription.total_cost || 0, currencyCode)}
             </div>
           </div>
         </div>
@@ -146,9 +147,9 @@ export function DashboardPrescriptionDetailsDialog({
                     </div>
                     <div className="text-right shrink-0">
                       <div className="text-[13px] font-semibold">
-                        {formatCurrency(med.cost, currencyCode)}
+                        {formatCurrency(med.cost || 0, currencyCode)}
                       </div>
-                      {med.refills_authorized > 0 && (
+                      {(med.refills_authorized || 0) > 0 && (
                         <div className="text-[10px] text-muted-foreground mt-0.5">
                           {med.refills_authorized} refills
                         </div>

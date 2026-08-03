@@ -5,6 +5,8 @@ export interface StockMovementDbRow {
   product_id: string;
   movement_type: string;
   quantity: number;
+  unit_cost?: number;
+  total_cost?: number;
   reason?: string;
   reference_id?: string;
   performed_by?: string;

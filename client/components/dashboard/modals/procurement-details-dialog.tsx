@@ -6,9 +6,18 @@ import { formatCurrency, formatDateTime } from "@/lib/utils";
 import { query } from "@/lib/db";
 import { Truck } from "lucide-react";
 import { DetailRow } from "./detail-row";
+import type { PurchaseOrder } from "@/lib/db/procurement";
+
+interface PODetailItem {
+  id: string;
+  product_name?: string;
+  quantity: number;
+  unit_price: number;
+  total_price: number;
+}
 
 interface ProcurementDetailsDialogProps {
-  po: any;
+  po: PurchaseOrder | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   currencyCode?: string;
@@ -38,11 +47,11 @@ export function ProcurementDetailsDialog({
   onOpenChange,
   currencyCode = "NGN",
 }: ProcurementDetailsDialogProps) {
-  const [items, setItems] = useState<any[]>([]);
+  const [items, setItems] = useState<PODetailItem[]>([]);
 
   useEffect(() => {
     if (po?.id && open) {
-      query<any>(
+      query<PODetailItem>(
         `SELECT
           poi.*,
           p.name as product_name,

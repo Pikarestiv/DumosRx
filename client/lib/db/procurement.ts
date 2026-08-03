@@ -8,6 +8,8 @@ import type { SupplierPayload, SupplierDbRow } from "@/lib/types/supplier";
 
 export interface PurchaseOrder {
   id: string;
+  order_number?: string;
+  order_date?: string;
   supplier_id: string;
   status: string;
   total_amount: number;
@@ -220,7 +222,7 @@ export async function updatePurchaseOrder(
 }
 
 export async function updatePurchaseOrderStatus(id: string, status: string) {
-  const updateData: any = { status };
+  const updateData: { status: string; received_at?: string } = { status };
   if (status === "received") {
     updateData.received_at = new Date().toISOString().slice(0, 19).replace('T', ' ');
   }

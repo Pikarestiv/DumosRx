@@ -19,6 +19,10 @@ import { DashboardPrescriptionDetailsDialog } from "./modals/dashboard-prescript
 import { StockMovementDetailsDialog } from "./modals/stock-movement-details-dialog";
 import { formatCurrency } from "@/lib/utils";
 import type { SaleWithDetails } from "@/lib/types/sale";
+import type { Expense } from "@/lib/db/queries/finance";
+import type { PurchaseOrder } from "@/lib/db/procurement";
+import type { PrescriptionRow } from "@/lib/types/prescription";
+import type { StockMovementHistoryRow } from "@/lib/types/stock-movement";
 
 function renderSalesComparison(comparison: SalesComparison) {
   if (comparison.state === "none") {
@@ -148,7 +152,7 @@ export function DashboardOverview() {
       <ExpenseDetailsDialog
         expense={
           selectedActivity?.type === "expense"
-            ? selectedActivity.rawActivity
+            ? (selectedActivity.rawActivity as unknown as Expense)
             : null
         }
         open={selectedActivity?.type === "expense"}
@@ -158,7 +162,7 @@ export function DashboardOverview() {
       <ProcurementDetailsDialog
         po={
           selectedActivity?.type === "purchase_order"
-            ? selectedActivity.rawActivity
+            ? (selectedActivity.rawActivity as unknown as PurchaseOrder)
             : null
         }
         open={selectedActivity?.type === "purchase_order"}
@@ -168,7 +172,7 @@ export function DashboardOverview() {
       <DashboardPrescriptionDetailsDialog
         prescription={
           selectedActivity?.type === "prescription"
-            ? selectedActivity.rawActivity
+            ? (selectedActivity.rawActivity as unknown as PrescriptionRow)
             : null
         }
         open={selectedActivity?.type === "prescription"}
@@ -178,7 +182,7 @@ export function DashboardOverview() {
       <StockMovementDetailsDialog
         movement={
           selectedActivity?.type === "stock_movement"
-            ? selectedActivity.rawActivity
+            ? (selectedActivity.rawActivity as unknown as StockMovementHistoryRow)
             : null
         }
         open={selectedActivity?.type === "stock_movement"}

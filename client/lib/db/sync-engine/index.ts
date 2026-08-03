@@ -102,13 +102,13 @@ export async function sync(
       pushed: pushResult.pushed,
       pulled: pullResult.pulled,
     };
-  } catch (error: any) {
+  } catch (error) {
     console.error("Sync failed:", error);
     return {
       success: false,
       pushed: 0,
       pulled: 0,
-      error: error.message || error,
+      error: error instanceof Error ? error.message : error,
     };
   } finally {
     isSyncInProgress = false;
@@ -165,9 +165,10 @@ export async function syncSubscriptionStatus(): Promise<{
     ]);
 
     for (const record of storeRecords) {
-      const { id, _deleted, ...rawData } = record as any;
+      const { id, _deleted, ...rawData } = record;
+      const storeId = id as string;
 
-      const data: Record<string, any> = {};
+      const data: Record<string, unknown> = {};
       for (const key in rawData) {
         if (validColumns.has(key) && SUBSCRIPTION_FIELDS.has(key)) {
           data[key] = rawData[key];
@@ -180,13 +181,13 @@ export async function syncSubscriptionStatus(): Promise<{
       const setClause = columns.map((c) => `${c} = ?`).join(", ");
       const values = columns.map((c) => data[c]);
 
-      const exists = await query<any>(`SELECT 1 FROM stores WHERE id = ?`, [
-        id,
+      const exists = await query<{ 1: number }>(`SELECT 1 FROM stores WHERE id = ?`, [
+        storeId,
       ]);
       if (exists.length > 0) {
         await execute(
           `UPDATE stores SET ${setClause}, _synced = 1 WHERE id = ?`,
-          [...values, id]
+          [...values as (string | number | null)[], storeId]
         );
       }
     }

@@ -66,9 +66,10 @@ export async function pullChanges(
         const validColumns = await getValidColumns(table);
 
         for (const record of records) {
-          const { id, _deleted, ...rawData } = record as any;
+          const { id, _deleted, ...rawData } = record;
+          const recordId = id as string;
 
-          const data: Record<string, any> = {};
+          const data: Record<string, unknown> = {};
           for (const key in rawData) {
             if (validColumns.has(key)) {
               data[key] = rawData[key];
@@ -85,10 +86,12 @@ export async function pullChanges(
           });
 
           // Check if record already exists to preserve local-only columns (e.g. is_initialized, theme, license_token)
-          const exists = await query<any>(
+          const exists = await query<{ 1: number }>(
             `SELECT 1 FROM ${table} WHERE id = ?`,
-            [id]
+            [recordId]
           );
+
+          const version = (rawData._version as number) || 1;
 
           if (exists.length > 0) {
             // Update only columns returned by server to preserve local columns
@@ -97,11 +100,11 @@ export async function pullChanges(
               .join(", ");
             const sql = `UPDATE ${table} SET ${setClause} WHERE id = ?`;
             const params = [
-              ...values,
+              ...values as (string | number | null)[],
               1,
-              (record as any)._version || 1,
+              version,
               _deleted ? 1 : 0,
-              id,
+              recordId,
             ];
 
             try {
@@ -110,13 +113,13 @@ export async function pullChanges(
               } else if (rawDb) {
                 rawDb.run(sql, params);
               }
-            } catch (err: any) {
+            } catch (err) {
               const errMsg =
-                typeof err === "string" ? err : err?.message || String(err);
+                typeof err === "string" ? err : err instanceof Error ? err.message : String(err);
               if (errMsg.includes("UNIQUE constraint failed")) {
                 console.warn(
                   `[Sync] Skipped updating record in ${table} due to unique constraint:`,
-                  id,
+                  recordId,
                   errMsg
                 );
               } else {
@@ -135,10 +138,10 @@ export async function pullChanges(
             const allPlaceholders = allCols.map(() => "?");
             const sql = `INSERT INTO ${table} (${allCols.join(", ")}) VALUES (${allPlaceholders.join(", ")})`;
             const params = [
-              id,
-              ...values,
+              recordId,
+              ...values as (string | number | null)[],
               1,
-              (record as any)._version || 1,
+              version,
               _deleted ? 1 : 0,
             ];
 
@@ -148,13 +151,13 @@ export async function pullChanges(
               } else if (rawDb) {
                 rawDb.run(sql, params);
               }
-            } catch (err: any) {
+            } catch (err) {
               const errMsg =
-                typeof err === "string" ? err : err?.message || String(err);
+                typeof err === "string" ? err : err instanceof Error ? err.message : String(err);
               if (errMsg.includes("UNIQUE constraint failed")) {
                 console.warn(
                   `[Sync] Skipped inserting record in ${table} due to unique constraint:`,
-                  id,
+                  recordId,
                   errMsg
                 );
               } else {

@@ -19,6 +19,7 @@ import {
 import { Loader2, Info } from "lucide-react";
 import { toast } from "sonner";
 import { useMutateUser } from "@/lib/hooks/queries/use-users";
+import type { StaffUpdatePayload } from "@/lib/types/user";
 import {
   Tooltip,
   TooltipContent,
@@ -99,7 +100,7 @@ export function StaffFormDialog({
     setIsSubmitting(true);
     try {
       if (isEditing) {
-        const updateData: any = {
+        const updateData: StaffUpdatePayload = {
           first_name: formData.first_name.trim(),
           last_name: formData.last_name.trim(),
           username: formData.username,

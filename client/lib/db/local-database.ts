@@ -17,6 +17,8 @@ import { AUDIT_ACTIONS } from "./audit-actions";
 import { queryKeys } from "../query-keys";
 import type { NewProductPayload } from "@/lib/types/product";
 import type { StockMovementDbRow } from "@/lib/types/stock-movement";
+import type { PrescriptionItemInsertPayload } from "@/lib/types/prescription";
+import type { StaffCreatePayload, StaffUpdatePayload } from "@/lib/types/user";
 
 const STOCK_MOVEMENT_AUDIT_ACTIONS: Record<string, string> = {
   adjustment: AUDIT_ACTIONS.STOCK_ADJUSTMENT,
@@ -47,7 +49,7 @@ export async function getProducts(page = 1, limit = 50, search = "") {
                GROUP BY product_id
              ) sb ON m.id = sb.product_id
              WHERE m._deleted = 0`;
-  const params: any[] = [];
+  const params: (string | number)[] = [];
 
   if (search) {
     sql += " AND (m.name LIKE ? OR m.generic_name LIKE ? OR m.barcode LIKE ?)";
@@ -109,7 +111,15 @@ export async function createProduct(data: NewProductPayload) {
 /**
  * Sales & Transactions
  */
-export async function createSale(saleData: any, items: any[]) {
+interface CreateSaleItem {
+  product_id: string;
+  stock_batch_id?: string;
+  quantity: number;
+  cost_price?: number;
+  [key: string]: unknown;
+}
+
+export async function createSale(saleData: Record<string, unknown>, items: CreateSaleItem[]) {
   const saleId = await insert("sales", saleData);
 
   for (const item of items) {
@@ -161,7 +171,10 @@ export async function getCustomers() {
 /**
  * Prescriptions
  */
-export async function createPrescription(data: any, items: any[]) {
+export async function createPrescription(
+  data: Record<string, unknown>,
+  items: Omit<PrescriptionItemInsertPayload, "prescription_id">[],
+) {
   const prescriptionId = await insert("prescriptions", data);
 
   for (const item of items) {
@@ -197,7 +210,7 @@ export async function getUsers(storeId?: string | null) {
   );
 }
 
-export async function createUser(data: any) {
+export async function createUser(data: StaffCreatePayload) {
   return await insert("users", {
     ...data,
     id: data.id || crypto.randomUUID(),
@@ -208,7 +221,7 @@ export async function createUser(data: any) {
   });
 }
 
-export async function updateUser(id: string, data: any) {
+export async function updateUser(id: string, data: StaffUpdatePayload) {
   return await update("users", id, data);
 }
 
@@ -262,7 +275,7 @@ export async function getStockAdjustments(page = 1, limit = 50) {
   return { data: mapped, page, limit };
 }
 
-export async function createStockMovement(data: any) {
+export async function createStockMovement(data: Partial<StockMovementDbRow> & { id?: string }) {
   return await insert(
     "stock_movements",
     {
@@ -272,7 +285,7 @@ export async function createStockMovement(data: any) {
       _version: 1,
       _synced: 0,
     },
-    { action: STOCK_MOVEMENT_AUDIT_ACTIONS[data.movement_type] },
+    { action: STOCK_MOVEMENT_AUDIT_ACTIONS[data.movement_type as string] },
   );
 }
 
@@ -338,5 +351,5 @@ export async function forceSyncAllData() {
 }
 
 if (typeof window !== "undefined") {
-  (window as any).forceSyncAllData = forceSyncAllData;
+  window.forceSyncAllData = forceSyncAllData;
 }

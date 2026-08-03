@@ -70,7 +70,7 @@ export async function logRequestedProduct(product_name: string, requested_by_cus
 
 export async function getRequestedProducts(status: 'pending' | 'ordered' | 'all' = 'pending'): Promise<RequestedProduct[]> {
   let sql = `SELECT * FROM requested_products WHERE _deleted = 0`;
-  const params: any[] = [];
+  const params: string[] = [];
 
   if (status !== 'all') {
     sql += ` AND status = ?`;

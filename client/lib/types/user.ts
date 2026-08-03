@@ -12,3 +12,19 @@ export interface UserDbRow {
   store_id?: string;
   is_active?: number;
 }
+
+/** Payload built by the staff create/edit form — createUser() requires
+ * store_id/pin, updateUser() only ever sends a partial edit. */
+export interface StaffCreatePayload {
+  [key: string]: unknown;
+  id?: string;
+  first_name: string;
+  last_name: string;
+  username: string;
+  email?: string;
+  pin: string;
+  role: string;
+  store_id: string;
+}
+
+export type StaffUpdatePayload = Partial<StaffCreatePayload>;

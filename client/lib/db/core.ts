@@ -8,7 +8,12 @@ import { get, set } from "idb-keyval";
 /* eslint-disable max-lines */
 import { SCHEMA_SQL } from "./schema";
 
+// Dual-backend handle: sql.js's Database in the browser, @tauri-apps/plugin-sql's
+// Database (a different, incompatible shape — .execute()/.select() vs sql.js's
+// .exec()/.run()) when running inside Tauri. Deliberately untyped rather than a
+// misleading union, since callers already branch on isTauri() before touching it.
 let SQL: SqlJsStatic | null = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let db: any = null;
 let currentUser: {
   id: string;
@@ -31,8 +36,8 @@ export function setCurrentUser(
 export function isTauri(): boolean {
   return (
     typeof window !== "undefined" &&
-    ((window as any).__TAURI__ !== undefined ||
-      (window as any).__TAURI_INTERNALS__ !== undefined)
+    (window.__TAURI__ !== undefined ||
+      window.__TAURI_INTERNALS__ !== undefined)
   );
 }
 
@@ -795,8 +800,8 @@ export async function restoreDatabase(binaryData: Uint8Array): Promise<void> {
 }
 
 if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
-  (window as any).getDatabaseBinary = getDatabaseBinary;
-  (window as any).restoreDatabase = restoreDatabase;
+  window.getDatabaseBinary = getDatabaseBinary;
+  window.restoreDatabase = restoreDatabase;
 }
 
 /**
@@ -919,7 +924,7 @@ export async function logAction(
   action: string,
   table: string,
   recordId: string,
-  details?: any,
+  details?: Record<string, unknown>,
 ) {
   if (!db) return;
   const id = generateId();
@@ -977,7 +982,7 @@ export async function getSystemConfig(key: string): Promise<any | null> {
   return null;
 }
 
-export async function setSystemConfig(key: string, value: any): Promise<void> {
+export async function setSystemConfig(key: string, value: unknown): Promise<void> {
   const now = new Date().toISOString();
   const valueStr = JSON.stringify(value);
 

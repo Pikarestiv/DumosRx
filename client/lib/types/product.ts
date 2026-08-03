@@ -20,6 +20,16 @@ export interface Product {
   is_controlled?: boolean;
 }
 
+/** Row shape returned by getProductsWithDetails() — the `products` table
+ * joined with its category name and current stock_batches aggregates
+ * (on-hand quantity, latest cost, soonest-expiring batch). */
+export interface ProductWithDetails extends Product {
+  category_name?: string;
+  stock_quantity?: number;
+  expiry_date?: string | null;
+  batch_number?: string;
+}
+
 export interface POSProduct {
   id: string;
   name: string;

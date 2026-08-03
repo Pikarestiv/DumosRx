@@ -1,4 +1,5 @@
 import { query, insert, update } from "@/lib/db/local-database";
+import type { FastMoverRow } from "@/lib/types/fast-mover";
 
 export async function getAvailableStockBatches() {
   return query<any>(
@@ -313,7 +314,7 @@ export async function submitStockAudit(
 export async function getFastMovers(days: number = 7) {
   // Returned quantities/amounts are netted out of both periods below — a
   // sale that was largely returned shouldn't still count as a "fast mover".
-  const result = await query<any>(
+  const result = await query<FastMoverRow>(
     `WITH current_period AS (
       SELECT
         p.id,
@@ -374,7 +375,7 @@ export async function getFastMovers(days: number = 7) {
     [days.toString(), days.toString(), days.toString(), days.toString(), days.toString(), days.toString(), days.toString()]
   );
   
-  const items = result.map((row: any) => {
+  const items = result.map((row) => {
     let percentageChange = 0;
     if (row.prevQuantity > 0) {
       percentageChange = ((row.soldQuantity - row.prevQuantity) / row.prevQuantity) * 100;

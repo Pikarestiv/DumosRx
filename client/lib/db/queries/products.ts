@@ -1,8 +1,8 @@
 import { query } from "@/lib/db/local-database";
-import type { Product } from "@/lib/types/product";
+import type { Product, ProductWithDetails } from "@/lib/types/product";
 
 export async function getProductsWithDetails() {
-  return query<any>(
+  return query<ProductWithDetails>(
     `SELECT m.*, c.name as category_name,
        (SELECT SUM(quantity) FROM stock_batches WHERE product_id = m.id AND _deleted = 0 AND is_active = 1) as stock_quantity,
        (SELECT cost_price FROM stock_batches WHERE product_id = m.id AND _deleted = 0 ORDER BY created_at DESC LIMIT 1) as cost_price,

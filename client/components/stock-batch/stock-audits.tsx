@@ -11,10 +11,11 @@ import { genericFuzzySearch } from "@/lib/utils/search";
 import { queryKeys } from "@/lib/query-keys";
 import { useAuth } from "@/lib/context/auth-context";
 import { toast } from "sonner";
+import type { ProductWithDetails } from "@/lib/types/product";
 
 type AuditStep = "setup" | "list" | "count" | "review" | "done";
 
-interface AuditItem {
+export interface AuditItem {
   id: string;
   name: string;
   sku: string;
@@ -55,7 +56,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     if (rawProducts) {
-      const formatted: AuditItem[] = rawProducts.map((p: any) => ({
+      const formatted: AuditItem[] = rawProducts.map((p: ProductWithDetails) => ({
         id: p.id,
         name: p.name,
         sku: p.barcode || `SKU-${p.id.substring(0, 6)}`,

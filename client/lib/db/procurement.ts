@@ -4,7 +4,7 @@
 
 import { query, logAction, generateId } from "./core";
 import { insert, update, softDelete } from "./base-helpers";
-import type { SupplierPayload } from "@/lib/types/supplier";
+import type { SupplierPayload, SupplierDbRow } from "@/lib/types/supplier";
 
 export interface PurchaseOrder {
   id: string;
@@ -297,7 +297,7 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
  * matching the pattern used by getCustomers()/getPurchaseOrders() etc.
  */
 export async function getSuppliers() {
-  const results = await query<any>(
+  const results = await query<SupplierDbRow>(
     `SELECT s.*,
             COALESCE(SUM(po.total_amount - po.amount_paid), 0) as total_debt
      FROM suppliers s

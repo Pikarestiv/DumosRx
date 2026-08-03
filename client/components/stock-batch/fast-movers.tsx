@@ -5,6 +5,7 @@ import { getFastMovers } from "@/lib/db/queries/inventory";
 import { queryKeys } from "@/lib/query-keys";
 
 import { TrendingUp, TrendingDown } from "lucide-react";
+import type { FastMover } from "@/lib/types/fast-mover";
 
 function NoFastMoversData() {
   return (
@@ -45,7 +46,7 @@ export function FastMovers() {
                       )}
               {(!(isLoading) && fastMovers.length === 0) && <NoFastMoversData />}
               {!(!(isLoading) && fastMovers.length === 0) && (
-                                      fastMovers.map((item: any, idx: number) => {
+                                      fastMovers.map((item: FastMover, idx: number) => {
                                         const isPositive = item.percentageChange >= 0;
                                         return (
                                           <div key={item.id} className={`flex items-center gap-3 p-3 md:py-3 md:px-0 rounded-xl md:rounded-none border md:border-0 border-border bg-card md:bg-transparent ${idx !== fastMovers.length - 1 ? 'md:border-b md:border-border' : ''}`}>

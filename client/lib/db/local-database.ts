@@ -16,6 +16,7 @@ import { queryClient } from "../query-client";
 import { AUDIT_ACTIONS } from "./audit-actions";
 import { queryKeys } from "../query-keys";
 import type { NewProductPayload } from "@/lib/types/product";
+import type { StockMovementDbRow } from "@/lib/types/stock-movement";
 
 const STOCK_MOVEMENT_AUDIT_ACTIONS: Record<string, string> = {
   adjustment: AUDIT_ACTIONS.STOCK_ADJUSTMENT,
@@ -231,7 +232,7 @@ export async function getStockMovements(options: { sinceDays?: number } = {}) {
   const dateFilter = sinceDays
     ? `AND sm.created_at >= datetime('now', '-${sinceDays} days')`
     : "";
-  const results = await query<any>(
+  const results = await query<StockMovementDbRow>(
     `SELECT sm.*, m.name as product_name
      FROM stock_movements sm
      LEFT JOIN products m ON sm.product_id = m.id
@@ -243,17 +244,17 @@ export async function getStockMovements(options: { sinceDays?: number } = {}) {
 
 export async function getStockAdjustments(page = 1, limit = 50) {
   const offset = (page - 1) * limit;
-  const results = await query<any>(
-    `SELECT sm.*, m.name as product_name 
-     FROM stock_movements sm 
-     LEFT JOIN products m ON sm.product_id = m.id 
-     WHERE sm._deleted = 0 AND sm.movement_type IN ('adjustment', 'expired', 'damaged') 
-     ORDER BY sm.created_at DESC 
+  const results = await query<StockMovementDbRow>(
+    `SELECT sm.*, m.name as product_name
+     FROM stock_movements sm
+     LEFT JOIN products m ON sm.product_id = m.id
+     WHERE sm._deleted = 0 AND sm.movement_type IN ('adjustment', 'expired', 'damaged')
+     ORDER BY sm.created_at DESC
      LIMIT ? OFFSET ?`,
     [limit, offset],
   );
   // Map fields to match what frontend expects
-  const mapped = results.map((r: any) => ({
+  const mapped = results.map((r) => ({
     ...r,
     adjustment_type: r.quantity > 0 ? "increase" : "decrease",
     approved: 1,

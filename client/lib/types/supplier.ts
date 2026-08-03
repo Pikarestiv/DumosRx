@@ -34,3 +34,20 @@ export interface SupplierViewModel {
   // present here only because AddSupplierDialog reads it when pre-filling an edit.
   taxId?: string;
 }
+
+/** Row shape returned by getSuppliers() — the raw `suppliers` table joined
+ * with each supplier's total outstanding debt across unpaid purchase orders. */
+export interface SupplierDbRow {
+  id: string;
+  name: string;
+  contact_person?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  tax_id?: string;
+  payment_terms?: string | number;
+  rating?: number;
+  is_active?: number | boolean;
+  created_at?: string;
+  total_debt?: number;
+}

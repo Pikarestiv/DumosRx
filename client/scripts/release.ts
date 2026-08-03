@@ -272,9 +272,12 @@ if (!dryRun) {
   try {
     run("npx tsc --noEmit -p tsconfig.json", CLIENT_DIR);
     console.log("  typecheck passed");
-  } catch (e: any) {
+  } catch (e) {
+    // execSync throws an Error whose `stdout`/`stderr` (Buffer) carry the
+    // actual compiler output — more useful here than the generic message.
+    const { stdout, message } = e as Error & { stdout?: Buffer };
     fail(
-      `Typecheck failed — fix errors before releasing:\n\n${e.stdout || e.message}`,
+      `Typecheck failed — fix errors before releasing:\n\n${stdout?.toString() || message}`,
     );
   }
 }

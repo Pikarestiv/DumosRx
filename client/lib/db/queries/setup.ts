@@ -1,6 +1,8 @@
 import { query, execute, insert } from "@/lib/db/local-database";
 import { ParsedIIF } from "@/lib/utils/iif-parser";
 import type { PaymentAccount } from "@/lib/types/payment-account";
+import type { StoreOption } from "@/lib/types/store";
+import type { StoreProfile } from "@/lib/context/store-context";
 
 export async function checkIfTableExists(tableName: string) {
   const tables = await query<any>(
@@ -66,11 +68,11 @@ export async function getTotalUserCount() {
 }
 
 export async function getLocalStores() {
-  return query<any>("SELECT id, name FROM stores WHERE _deleted = 0");
+  return query<StoreOption>("SELECT id, name FROM stores WHERE _deleted = 0");
 }
 
 export async function getStoreProfile() {
-  const profiles = await query<any>("SELECT * FROM stores LIMIT 1");
+  const profiles = await query<StoreProfile>("SELECT * FROM stores LIMIT 1");
   return profiles[0] || null;
 }
 

@@ -5,15 +5,16 @@ import { formatCurrency } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Receipt } from "lucide-react";
+import type { Sale } from "@/lib/types/sale";
 
 interface SalesListModalProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   reportDate: string;
-  salesToday: any[];
+  salesToday: Sale[];
   paymentFilter: string;
   setPaymentFilter: (filter: string) => void;
-  setSelectedSale: (sale: any) => void;
+  setSelectedSale: (sale: Sale) => void;
   currencyCode?: string;
 }
 
@@ -30,7 +31,7 @@ export function SalesListModal({
   const [salesSearch, setSalesSearch] = useState("");
 
   const filteredSales = useMemo(() => {
-    return salesToday.filter((s: any) => {
+    return salesToday.filter((s) => {
       const matchesSearch = s.transaction_number
         .toLowerCase()
         .includes(salesSearch.toLowerCase());
@@ -78,14 +79,14 @@ export function SalesListModal({
             </TableHeader>
             <TableBody>
               {filteredSales.length === 0 && <EmptySalesRow />}
-              {filteredSales.length > 0 && filteredSales.map((sale: any) => (
+              {filteredSales.length > 0 && filteredSales.map((sale) => (
                 <TableRow
                   key={sale.id}
                   className="cursor-pointer hover:bg-muted/50"
                   onClick={() => setSelectedSale(sale)}
                 >
                   <TableCell>
-                    {new Date(sale.transaction_date).toLocaleTimeString([], {
+                    {new Date(sale.transaction_date || 0).toLocaleTimeString([], {
                       hour: "2-digit",
                       minute: "2-digit",
                     })}

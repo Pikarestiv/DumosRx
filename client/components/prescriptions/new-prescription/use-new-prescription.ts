@@ -8,8 +8,26 @@ import { getAvailableStockBatches } from "@/lib/db/queries/inventory";
 import { createPrescription, generateId } from "@/lib/db/local-database";
 import { getPrescriptionById, getPrescriptionItems, updatePrescriptionRecord, deletePrescriptionItems, insertPrescriptionItem } from "@/lib/db/queries/prescriptions";
 import { queryKeys } from "@/lib/query-keys";
-import type { PrescriptionItem, PrescriptionPriority } from "@/lib/types/prescription";
+import type { PrescriptionItem, PrescriptionPriority, PrescriptionRow } from "@/lib/types/prescription";
 import { toPrescriptionPriority } from "@/lib/types/prescription";
+
+export interface AvailablePrescriptionProduct {
+  name: string;
+  strength: string;
+  cost: number;
+  stock_batch_id: string;
+}
+
+export interface NewMedicationForm {
+  productName: string;
+  strength: string;
+  dosage: string;
+  quantity: number | "";
+  instructions: string;
+  refillsAuthorized: number | "";
+  refillIntervalDays: number | "";
+  cost: number | "";
+}
 
 export interface PrescriptionMedication {
   id: string;
@@ -43,15 +61,15 @@ export function useNewPrescription() {
   const { user } = useAuth();
 
   const [isEditing, setIsEditing] = useState(false);
-  const [existingPrescriptionData, setExistingPrescriptionData] = useState<any>(null);
+  const [existingPrescriptionData, setExistingPrescriptionData] = useState<PrescriptionRow | null>(null);
 
   const { data: stock_batchData } = useQuery({
     ...queryKeys.stockBatches.available(),
     queryFn: () => getAvailableStockBatches()
   });
 
-  const availableProducts = (stock_batchData || []).map((item) => ({
-    name: item.product_name,
+  const availableProducts: AvailablePrescriptionProduct[] = (stock_batchData || []).map((item) => ({
+    name: item.product_name || "",
     strength: item.m_strength || item.strength || "",
     cost: item.selling_price || 0,
     stock_batch_id: item.id,
@@ -69,15 +87,15 @@ export function useNewPrescription() {
     notes: "",
   });
 
-  const [newMedication, setNewMedication] = useState({
+  const [newMedication, setNewMedication] = useState<NewMedicationForm>({
     productName: "",
     strength: "",
     dosage: "",
-    quantity: 1 as number | "",
+    quantity: 1,
     instructions: "",
-    refillsAuthorized: 0 as number | "",
-    refillIntervalDays: 30 as number | "",
-    cost: "" as number | "",
+    refillsAuthorized: 0,
+    refillIntervalDays: 30,
+    cost: "",
   });
 
   useEffect(() => {

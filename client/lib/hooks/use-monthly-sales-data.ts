@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getAdvancedMonthlySalesData } from "@/lib/db/queries/reports";
 import { queryKeys } from "@/lib/query-keys";
+import type { MonthlySalesDataPoint } from "@/lib/types/analytics";
 
 export function useMonthlySalesData(dateFilter: string) {
   const { data: metrics } = useQuery({
@@ -13,7 +14,7 @@ export function useMonthlySalesData(dateFilter: string) {
   const rawMonthlyReturns = metrics?.rawMonthlyReturns || [];
   const rawExpenseData = metrics?.rawExpenseData || [];
 
-  const monthlySalesData = useMemo(() => {
+  const monthlySalesData: MonthlySalesDataPoint[] = useMemo(() => {
     const monthNames = [
       "Jan",
       "Feb",

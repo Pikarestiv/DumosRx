@@ -18,7 +18,7 @@ import { queryKeys } from "../query-keys";
 import type { NewProductPayload } from "@/lib/types/product";
 import type { StockMovementDbRow } from "@/lib/types/stock-movement";
 import type { PrescriptionItemInsertPayload } from "@/lib/types/prescription";
-import type { StaffCreatePayload, StaffUpdatePayload } from "@/lib/types/user";
+import type { StaffCreatePayload, StaffUpdatePayload, StaffListItem } from "@/lib/types/user";
 
 const STOCK_MOVEMENT_AUDIT_ACTIONS: Record<string, string> = {
   adjustment: AUDIT_ACTIONS.STOCK_ADJUSTMENT,
@@ -198,15 +198,17 @@ export async function createPrescription(
 /**
  * Staff & Users
  */
+const STAFF_LIST_COLUMNS = "id, first_name, last_name, username, email, role, store_id, is_active, created_at";
+
 export async function getUsers(storeId?: string | null) {
   if (storeId) {
-    return await query<any>(
-      "SELECT * FROM users WHERE _deleted = 0 AND (store_id = ? OR store_id IS NULL OR role = 'admin' OR role = 'store_owner') ORDER BY first_name ASC",
+    return await query<StaffListItem>(
+      `SELECT ${STAFF_LIST_COLUMNS} FROM users WHERE _deleted = 0 AND (store_id = ? OR store_id IS NULL OR role = 'admin' OR role = 'store_owner') ORDER BY first_name ASC`,
       [storeId],
     );
   }
-  return await query<any>(
-    "SELECT * FROM users WHERE _deleted = 0 ORDER BY first_name ASC",
+  return await query<StaffListItem>(
+    `SELECT ${STAFF_LIST_COLUMNS} FROM users WHERE _deleted = 0 ORDER BY first_name ASC`,
   );
 }
 

@@ -1,9 +1,9 @@
 import { query, insert, update } from "@/lib/db/local-database";
 import type { FastMoverRow } from "@/lib/types/fast-mover";
-import type { StockBatch } from "@/lib/types/stock-batch";
+import type { StockBatch, AvailableStockBatch } from "@/lib/types/stock-batch";
 
 export async function getAvailableStockBatches() {
-  return query<any>(
+  return query<AvailableStockBatch>(
     `SELECT i.*, m.name as product_name, m.strength as m_strength, m.selling_price FROM stock_batches i JOIN products m ON i.product_id = m.id WHERE i._deleted = 0 AND i.quantity > 0`
   );
 }

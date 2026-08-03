@@ -2,6 +2,7 @@ import { toast } from "sonner";
 import { insert, update } from "@/lib/db/local-database";
 import { getCategoryByName } from "@/lib/db/queries/products";
 import { useStore } from "@/lib/context/store-context";
+import type { NewProductPayload } from "@/lib/types/product";
 
 interface UseAddProductProps {
   refetch: () => void;
@@ -14,16 +15,13 @@ export function useAddProduct({
 }: UseAddProductProps) {
   const { t } = useStore();
 
-  const handleAddProduct = async (payload: any, keepOpen?: boolean) => {
+  const handleAddProduct = async (payload: NewProductPayload, keepOpen?: boolean) => {
     try {
       const isEditing = !!payload.id;
 
-      // Create locally
-      const localPayload: any = {
-        ...payload,
-        is_active: payload.status === "inactive" ? 0 : 1,
-      };
-      delete localPayload.status;
+      // Create locally — is_active is already set correctly (0/1) by
+      // AddProductDialog's submit handler, so just pass the payload through.
+      const localPayload: NewProductPayload = { ...payload };
 
       // Resolve category string to UUID
       if (payload.category_id) {
@@ -42,12 +40,12 @@ export function useAddProduct({
           localPayload.category_id = newId;
         }
       } else {
-        localPayload.category_id = null;
+        localPayload.category_id = undefined;
       }
 
 
       if (isEditing) {
-        const id = localPayload.id;
+        const id = localPayload.id as string;
         delete localPayload.id;
         await update("products", id, localPayload);
         toast.success(`${t("product")} updated successfully`);

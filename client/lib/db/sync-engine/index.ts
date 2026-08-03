@@ -52,17 +52,17 @@ export async function sync(
     }
 
     try {
-      const suggestionsConfig = await apiClient
+      // getSystemConfig() already unwraps the server's {success, data}
+      // envelope, so the fetched value itself is the suggestions payload —
+      // not a nested {success, data} object.
+      const value = await apiClient
         .getSystemConfig("global_suggestions")
         .catch(() => null);
-      if (suggestionsConfig && suggestionsConfig.success) {
-        const value = suggestionsConfig.data;
-        if (typeof value === "string") {
-          JSON.parse(value); // Validate JSON
-          localStorage.setItem("dumos_suggestions", value);
-        } else if (value && typeof value === "object") {
-          localStorage.setItem("dumos_suggestions", JSON.stringify(value));
-        }
+      if (typeof value === "string") {
+        JSON.parse(value); // Validate JSON
+        localStorage.setItem("dumos_suggestions", value);
+      } else if (value && typeof value === "object") {
+        localStorage.setItem("dumos_suggestions", JSON.stringify(value));
       }
     } catch (err) {
       console.error("Failed to sync autocomplete suggestions:", err);

@@ -9,22 +9,15 @@ import { Combobox } from "@/components/ui/combobox";
 import type {
   NewPrescriptionForm,
   PrescriptionMedication,
+  NewMedicationForm,
+  AvailablePrescriptionProduct,
 } from "./use-new-prescription";
 
 interface PrescriptionMedicationsProps {
   formData: NewPrescriptionForm;
-  newMedication: {
-    productName: string;
-    strength: string;
-    dosage: string;
-    quantity: number | "";
-    instructions: string;
-    refillsAuthorized: number | "";
-    refillIntervalDays: number | "";
-    cost: number | "";
-  };
-  setNewMedication: React.Dispatch<React.SetStateAction<any>>;
-  availableProducts: any[];
+  newMedication: NewMedicationForm;
+  setNewMedication: React.Dispatch<React.SetStateAction<NewMedicationForm>>;
+  availableProducts: AvailablePrescriptionProduct[];
   addMedication: () => void;
   removeMedication: (id: string) => void;
   editMedication: (id: string) => void;
@@ -79,7 +72,7 @@ export function PrescriptionMedications({
                 options={uniqueProductNames}
                 value={newMedication.productName}
                 onChange={(value) => {
-                  setNewMedication((prev: any) => ({
+                  setNewMedication((prev: NewMedicationForm) => ({
                     ...prev,
                     productName: value,
                     strength: "",
@@ -96,7 +89,7 @@ export function PrescriptionMedications({
                 options={strengthOptions}
                 value={newMedication.strength}
                 onChange={(value) =>
-                  setNewMedication((prev: any) => ({
+                  setNewMedication((prev: NewMedicationForm) => ({
                     ...prev,
                     strength: value,
                   }))
@@ -116,7 +109,7 @@ export function PrescriptionMedications({
                 value={newMedication.quantity}
                 onChange={(e) => {
                   const val = e.target.value;
-                  setNewMedication((prev: any) => ({
+                  setNewMedication((prev: NewMedicationForm) => ({
                     ...prev,
                     quantity: val === "" ? "" : Number.parseInt(val) || 1,
                   }));
@@ -131,7 +124,7 @@ export function PrescriptionMedications({
               <Input
                 value={newMedication.dosage}
                 onChange={(e) =>
-                  setNewMedication((prev: any) => ({
+                  setNewMedication((prev: NewMedicationForm) => ({
                     ...prev,
                     dosage: e.target.value,
                   }))
@@ -147,7 +140,7 @@ export function PrescriptionMedications({
                 value={newMedication.cost}
                 onChange={(e) => {
                   const val = e.target.value;
-                  setNewMedication((prev: any) => ({
+                  setNewMedication((prev: NewMedicationForm) => ({
                     ...prev,
                     cost: val === "" ? "" : Number.parseFloat(val) || 0,
                   }));
@@ -164,7 +157,7 @@ export function PrescriptionMedications({
                 value={newMedication.refillsAuthorized}
                 onChange={(e) => {
                   const val = e.target.value;
-                  setNewMedication((prev: any) => ({
+                  setNewMedication((prev: NewMedicationForm) => ({
                     ...prev,
                     refillsAuthorized:
                       val === "" ? "" : Number.parseInt(val) || 0,
@@ -182,7 +175,7 @@ export function PrescriptionMedications({
                 value={newMedication.refillIntervalDays}
                 onChange={(e) => {
                   const val = e.target.value;
-                  setNewMedication((prev: any) => ({
+                  setNewMedication((prev: NewMedicationForm) => ({
                     ...prev,
                     refillIntervalDays:
                       val === "" ? "" : Number.parseInt(val) || 30,
@@ -198,7 +191,7 @@ export function PrescriptionMedications({
               <Input
                 value={newMedication.instructions}
                 onChange={(e) =>
-                  setNewMedication((prev: any) => ({
+                  setNewMedication((prev: NewMedicationForm) => ({
                     ...prev,
                     instructions: e.target.value,
                   }))

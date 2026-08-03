@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { getSystemConfig, setSystemConfig } from "@/lib/db/core";
 import { useSystemConfigStore } from "@/lib/store/system-config-store";
 import { apiClient } from "@/lib/api/client";
+import type { SubscriptionPlansConfig } from "@/lib/types/subscription-plans";
 
 export function SystemConfigLoader() {
   const { setSubscriptionPlans, setLoadedFromDB } = useSystemConfigStore();
@@ -14,7 +15,7 @@ export function SystemConfigLoader() {
     async function loadConfigs() {
       // 1. Fast load from SQLite first to instantly hydrate UI
       try {
-        const localPlans = await getSystemConfig("subscription_plans");
+        const localPlans = await getSystemConfig<SubscriptionPlansConfig>("subscription_plans");
         if (mounted && localPlans) {
           setSubscriptionPlans(localPlans);
         }
@@ -26,7 +27,7 @@ export function SystemConfigLoader() {
 
       // 2. Background fetch from server to get latest truth
       try {
-        const remotePlans = await apiClient.getSystemConfig("subscription_plans");
+        const remotePlans = await apiClient.getSystemConfig<SubscriptionPlansConfig>("subscription_plans");
         if (remotePlans && mounted) {
           setSubscriptionPlans(remotePlans);
           // 3. Save it back to local SQLite for next time

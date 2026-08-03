@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useDailyCloseData } from "@/lib/hooks/use-daily-close-data";
 import { useStore } from "@/lib/context/store-context";
 import { TransactionDetailsDialog } from "@/components/pos/transaction-details-dialog";
+import type { Sale } from "@/lib/types/sale";
 
 import { DailyCloseHeader } from "./daily-close/daily-close-header";
 import { DailyCloseMetrics } from "./daily-close/daily-close-metrics";
@@ -28,7 +29,7 @@ export function DailyCloseReport({ reportDate }: DailyCloseReportProps) {
   } = useDailyCloseData(reportDate);
 
   const [isSalesModalOpen, setIsSalesModalOpen] = useState(false);
-  const [selectedSale, setSelectedSale] = useState<any>(null);
+  const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [paymentFilter, setPaymentFilter] = useState("all");
   const printRef = useRef<HTMLDivElement>(null);
 

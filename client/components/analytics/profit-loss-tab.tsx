@@ -23,6 +23,7 @@ import {
   ChartTooltipContent 
 } from "@/components/ui/chart";
 import { formatCurrency } from "@/lib/utils";
+import type { MonthlySalesDataPoint } from "@/lib/types/analytics";
 
 interface ProfitLossTabProps {
   totalRevenue: number;
@@ -30,7 +31,7 @@ interface ProfitLossTabProps {
   totalExpenses: number;
   grossProfit: number;
   netProfit: number;
-  monthlySalesData: any[];
+  monthlySalesData: MonthlySalesDataPoint[];
 }
 
 const chartConfig = {

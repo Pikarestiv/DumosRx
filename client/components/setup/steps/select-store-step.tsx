@@ -19,9 +19,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Store as StoreIcon, Loader2, ArrowLeft } from "lucide-react";
+import type { StoreOption } from "@/lib/types/store";
 
 interface SelectStoreStepProps {
-  stores: any[];
+  stores: StoreOption[];
   selectedStoreId: string;
   setSelectedStoreId: (id: string) => void;
   onConfirm: () => void;

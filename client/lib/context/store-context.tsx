@@ -42,6 +42,9 @@ export interface StoreProfile {
   enabled_payment_methods?: string;
   store_slug?: string;
   updated_at?: string;
+  license_token?: string;
+  last_monotonic_time?: string;
+  device_id?: string;
 }
 
 interface StoreContextType {

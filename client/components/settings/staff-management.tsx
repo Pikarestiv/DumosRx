@@ -7,6 +7,7 @@ import { UserPlus } from "lucide-react";
 import { useUsers } from "@/lib/hooks/queries/use-users";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { useStore } from "@/lib/context/store-context";
+import type { StaffListItem } from "@/lib/types/user";
 
 import { StaffList } from "./staff/staff-list";
 import { StaffFormDialog } from "./staff/staff-form-dialog";
@@ -20,7 +21,7 @@ export function StaffManagement() {
   
   // Dialog States
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [userToEdit, setUserToEdit] = useState<any | null>(null);
+  const [userToEdit, setUserToEdit] = useState<StaffListItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   const handleOpenCreate = () => {
@@ -28,7 +29,7 @@ export function StaffManagement() {
     setIsFormOpen(true);
   };
 
-  const handleOpenEdit = (user: any) => {
+  const handleOpenEdit = (user: StaffListItem) => {
     setUserToEdit(user);
     setIsFormOpen(true);
   };

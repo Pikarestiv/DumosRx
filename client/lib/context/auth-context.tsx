@@ -302,8 +302,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: true, message: "Cloud account linked successfully!" };
       }
       return { success: false, message: "Invalid credentials" };
-    } catch (e: any) {
-      return { success: false, message: e.message || "Failed to connect to cloud" };
+    } catch (e) {
+      return { success: false, message: e instanceof Error ? e.message : "Failed to connect to cloud" };
     }
   };
 

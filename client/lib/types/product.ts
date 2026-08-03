@@ -15,9 +15,9 @@ export interface Product {
   cost_price?: number;
   selling_price?: number;
   reorder_level?: number;
-  show_online?: boolean;
-  requires_prescription?: boolean;
-  is_controlled?: boolean;
+  show_online?: number;
+  requires_prescription?: number;
+  is_controlled?: number;
 }
 
 /** Row shape returned by getProductsWithDetails() — the `products` table

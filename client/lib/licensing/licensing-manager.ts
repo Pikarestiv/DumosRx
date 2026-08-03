@@ -6,9 +6,22 @@
 import { execute } from "@/lib/db/core";
 import { getStoreProfile, updateStoreMonotonicTime } from "@/lib/db/queries/setup";
 
+const LICENSE_TIERS = ["free", "local", "pro", "enterprise"] as const;
+export type LicenseTier = (typeof LICENSE_TIERS)[number];
+
+/** Narrows a raw tier string (from the store profile or a license token) to a
+ * known LicenseTier, falling back to "free" for anything unrecognized —
+ * this gates paid-feature access, so an unchecked cast could grant tiers
+ * that don't exist. */
+function toLicenseTier(value: string | null | undefined): LicenseTier {
+  return (LICENSE_TIERS as readonly string[]).includes(value ?? "")
+    ? (value as LicenseTier)
+    : "free";
+}
+
 export interface LicenseInfo {
   isValid: boolean;
-  tier: "free" | "local" | "pro" | "enterprise";
+  tier: LicenseTier;
   expiryDate: string | null;
   isClockTampered: boolean;
   isTrial?: boolean;
@@ -26,7 +39,7 @@ export async function checkLicenseStatus(): Promise<LicenseInfo> {
   if (profile.status === "Suspended") {
     return {
       isValid: false,
-      tier: profile.subscription_tier as any,
+      tier: toLicenseTier(profile.subscription_tier),
       expiryDate: null,
       isClockTampered: false,
       message: profile.suspension_reason || "Your store account has been suspended for violating our terms of usage. Please contact administrative support."
@@ -41,7 +54,7 @@ export async function checkLicenseStatus(): Promise<LicenseInfo> {
   if (profile.last_monotonic_time && nowIso < profile.last_monotonic_time) {
     return { 
       isValid: false, 
-      tier: profile.subscription_tier as any, 
+      tier: toLicenseTier(profile.subscription_tier), 
       expiryDate: null, 
       isClockTampered: true,
       message: "System clock discrepancy detected. Please ensure your computer date is correct and sync online."
@@ -87,7 +100,7 @@ export async function checkLicenseStatus(): Promise<LicenseInfo> {
       }
       return { 
         isValid: false, 
-        tier: tokenData.tier as any, 
+        tier: toLicenseTier(tokenData.tier), 
         expiryDate: tokenData.expiry, 
         isClockTampered: false,
         message: "Your subscription has expired. Please renew to continue using Pro features." 
@@ -96,7 +109,7 @@ export async function checkLicenseStatus(): Promise<LicenseInfo> {
 
     return { 
       isValid: true, 
-      tier: tokenData.tier as any, 
+      tier: toLicenseTier(tokenData.tier), 
       expiryDate: tokenData.expiry, 
       isTrial: tokenData.is_trial,
       isClockTampered: false 

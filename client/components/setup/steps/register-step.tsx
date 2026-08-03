@@ -15,12 +15,13 @@ import {
 } from "@/components/ui/card";
 import { UserPlus, Loader2 } from "lucide-react";
 import { useState } from "react";
+import type { StoreOption } from "@/lib/types/store";
 
 interface RegisterStepProps {
   onRegister: (firstName: string, lastName: string, username: string, pin: string, storeName: string, existingStoreId?: string) => Promise<void>;
   isLoading: boolean;
   isCloudLinked?: boolean;
-  existingStores?: any[];
+  existingStores?: StoreOption[];
 }
 
 export function RegisterStep({ onRegister, isLoading, isCloudLinked, existingStores = [] }: RegisterStepProps) {

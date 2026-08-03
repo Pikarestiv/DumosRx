@@ -967,7 +967,7 @@ export function getDatabase(): Database | null {
   return db;
 }
 
-export async function getSystemConfig(key: string): Promise<any | null> {
+export async function getSystemConfig<T = unknown>(key: string): Promise<T | null> {
   const result = await query<{ value: string }>(
     "SELECT value FROM system_configs WHERE key = ?",
     [key],

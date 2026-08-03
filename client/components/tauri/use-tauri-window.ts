@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { Window as TauriWindow } from "@tauri-apps/api/window";
 
 export function useTauriWindow() {
   const [isTauri, setIsTauri] = useState(false);
@@ -6,13 +7,13 @@ export function useTauriWindow() {
   const [isDesktop, setIsDesktop] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [platform, setPlatform] = useState<string>("windows");
-  const [appWindow, setAppWindow] = useState<any>(null);
+  const [appWindow, setAppWindow] = useState<TauriWindow | null>(null);
 
   useEffect(() => {
     const init = async () => {
       if (
         typeof window !== "undefined" &&
-        (window as any).__TAURI_INTERNALS__
+        window.__TAURI_INTERNALS__
       ) {
         setIsTauri(true);
         try {

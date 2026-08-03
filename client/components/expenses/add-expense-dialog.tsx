@@ -8,11 +8,12 @@ import { toast } from "sonner";
 import { useAuth } from "@/lib/context/auth-context";
 import { Info } from "lucide-react";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
+import type { Expense } from "@/lib/db/queries/finance";
 
 interface AddExpenseDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  expenseToEdit?: any;
+  expenseToEdit?: Expense | null;
   onSaved?: () => void;
 }
 

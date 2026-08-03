@@ -15,6 +15,7 @@ import {
   ChartTooltip,
   ChartTooltipContent
 } from "@/components/ui/chart";
+import type { CategoryDistributionItem } from "@/lib/types/analytics";
 
 const chartConfig = {
   stock_batch: {
@@ -36,7 +37,7 @@ interface StockBatchAlert {
 
 interface StockBatchInsightsTabProps {
   stock_batchAlerts: StockBatchAlert[];
-  salesByCategory: any[];
+  salesByCategory: CategoryDistributionItem[];
 }
 
 function NoCategorySalesData() {

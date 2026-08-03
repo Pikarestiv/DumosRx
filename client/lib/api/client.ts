@@ -4,6 +4,7 @@ import type { Broadcast } from "@/lib/types/broadcast";
 import type { NewProductPayload } from "@/lib/types/product";
 import type { SupplierPayload } from "@/lib/types/supplier";
 import type { SyncChange } from "@/lib/types/sync";
+import type { StoreOption } from "@/lib/types/store";
 
 class ApiClient extends BaseApiClient {
   // Auth endpoints
@@ -230,14 +231,14 @@ class ApiClient extends BaseApiClient {
   }
 
   // System Configurations
-  async getSystemConfig(key: string) {
-    const response = await this.request<any>(`/system-configs/${key}`);
+  async getSystemConfig<T = unknown>(key: string) {
+    const response = await this.request<{ data: T }>(`/system-configs/${key}`);
     return response.data;
   }
 
   // Stores
   async getStores() {
-    return this.request<any[]>("/stores");
+    return this.request<StoreOption[]>("/stores");
   }
 
   async checkStoreSlug(slug: string, ignoreId?: string) {

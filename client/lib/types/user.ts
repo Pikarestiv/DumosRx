@@ -11,6 +11,7 @@ export interface UserDbRow {
   role: string;
   store_id?: string;
   is_active?: number;
+  created_at?: string;
 }
 
 /** Payload built by the staff create/edit form — createUser() requires
@@ -28,3 +29,7 @@ export interface StaffCreatePayload {
 }
 
 export type StaffUpdatePayload = Partial<StaffCreatePayload>;
+
+/** Staff directory row — UserDbRow without the PIN hash, since the staff
+ * list/edit-form never needs it (edits always start with a blank PIN field). */
+export type StaffListItem = Omit<UserDbRow, "pin">;

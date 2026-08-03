@@ -29,9 +29,9 @@ function queueToLocalStorage(info: CrashInfo) {
 }
 
 // Log a crash to SQLite database or local storage fallback
-export async function logCrash(error: any, isFatal = false) {
+export async function logCrash(error: unknown, isFatal = false) {
   const timestamp = new Date().toISOString();
-  
+
   // Extract error info
   let message = "Unknown Error";
   let stack = "";
@@ -41,13 +41,14 @@ export async function logCrash(error: any, isFatal = false) {
   } else if (typeof error === "string") {
     message = error;
   } else if (error && typeof error === "object") {
-    message = error.message || JSON.stringify(error);
-    stack = error.stack || "";
+    const err = error as { message?: string; stack?: string };
+    message = err.message || JSON.stringify(error);
+    stack = err.stack || "";
   }
 
   // Detect platform
-  const isTauri = typeof window !== "undefined" && 
-    ((window as any).__TAURI__ !== undefined || (window as any).__TAURI_INTERNALS__ !== undefined);
+  const isTauri = typeof window !== "undefined" &&
+    (window.__TAURI__ !== undefined || window.__TAURI_INTERNALS__ !== undefined);
 
   const info: CrashInfo = {
     message,

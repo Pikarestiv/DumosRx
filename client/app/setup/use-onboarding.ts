@@ -10,6 +10,7 @@ import { sync } from "@/lib/db/sync-engine";
 import { restoreDatabase, clearDatabaseForNewStore } from "@/lib/db/core";
 import { apiClient } from "@/lib/api/client";
 import { toast } from "sonner";
+import type { StoreOption } from "@/lib/types/store";
 
 export type OnboardingStep = "welcome" | "register" | "cloud" | "backup" | "syncing" | "select-store";
 
@@ -19,15 +20,15 @@ export function useOnboarding() {
   const [isCheckingStatus, setIsCheckingStatus] = useState(true);
   const [syncProgress, setSyncProgress] = useState(0);
   const [syncStatus, setSyncStatus] = useState("Initializing sync...");
-  const [existingStores, setExistingStores] = useState<any[]>([]);
-  
+  const [existingStores, setExistingStores] = useState<StoreOption[]>([]);
+
   // Custom modal confirmation states
   const [showConfirmSwitch, setShowConfirmSwitch] = useState(false);
   const [pendingStoreName, setPendingStoreName] = useState("");
   const [pendingEmail, setPendingEmail] = useState("");
 
   // Store selection states
-  const [cloudStores, setCloudStores] = useState<any[]>([]);
+  const [cloudStores, setCloudStores] = useState<StoreOption[]>([]);
   const [selectedStoreId, setSelectedStoreId] = useState<string>("");
 
   const { login, linkCloudAccount, isCloudLinked, logout } = useAuth();

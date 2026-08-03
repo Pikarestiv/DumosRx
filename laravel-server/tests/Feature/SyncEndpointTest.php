@@ -288,6 +288,231 @@ class SyncEndpointTest extends TestCase
         ]);
     }
 
+    /**
+     * A batch created and immediately partially sold before its first-ever
+     * sync (e.g. procurement receiving + a POS sale, both offline) pushes a
+     * stock_batches INSERT with an already-net quantity AND the matching
+     * sale movement in the same payload. The server must not trust the
+     * INSERT's quantity (it would already reflect the sale) while also
+     * applying the movement's delta on top — that's the exact double-count
+     * the original bug caused, just triggered by first-sync instead of by
+     * a version conflict.
+     */
+    public function test_push_sync_reconciles_new_batch_created_and_sold_in_same_push()
+    {
+        DB::table('products')->insert([
+            'id' => 'prod_456',
+            'user_id' => $this->user->id,
+            'name' => 'Amoxicillin',
+            '_version' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $batchId = 'batch_456';
+        $payload = [
+            'setup' => true,
+            'changes' => [
+                [
+                    'table_name' => 'stock_batches',
+                    'operation' => 'INSERT',
+                    'record_id' => $batchId,
+                    'payload' => [
+                        'id' => $batchId,
+                        'product_id' => 'prod_456',
+                        // Client's local value already nets out the 10 sold below —
+                        // received 100, sold 10, so it pushes 90.
+                        'quantity' => 90,
+                        'cost_price' => 20.00,
+                        'batch_number' => 'B002',
+                        'expiry_date' => now()->addYear()->toDateString(),
+                        '_version' => 1,
+                        'created_at' => now()->toDateTimeString(),
+                        'updated_at' => now()->toDateTimeString(),
+                    ],
+                ],
+                [
+                    // The opening receipt — establishes the true starting quantity.
+                    'table_name' => 'stock_movements',
+                    'operation' => 'INSERT',
+                    'record_id' => 'mov_456_a',
+                    'payload' => [
+                        'id' => 'mov_456_a',
+                        'stock_batch_id' => $batchId,
+                        'product_id' => 'prod_456',
+                        'movement_type' => 'purchase',
+                        'quantity' => 100,
+                        'performed_by' => $this->user->id,
+                        'created_at' => now()->toDateTimeString(),
+                        'updated_at' => now()->toDateTimeString(),
+                    ],
+                ],
+                [
+                    // The offline sale against that same batch.
+                    'table_name' => 'stock_movements',
+                    'operation' => 'INSERT',
+                    'record_id' => 'mov_456_b',
+                    'payload' => [
+                        'id' => 'mov_456_b',
+                        'stock_batch_id' => $batchId,
+                        'product_id' => 'prod_456',
+                        'movement_type' => 'sale',
+                        'quantity' => -10,
+                        'performed_by' => $this->user->id,
+                        'created_at' => now()->toDateTimeString(),
+                        'updated_at' => now()->toDateTimeString(),
+                    ],
+                ],
+            ],
+        ];
+
+        $response = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', $payload);
+        $response->assertStatus(200);
+
+        // 0 (new batch default) + 100 (opening) - 10 (sale) = 90 — matches what
+        // the client expected, but derived from movements, not trusted directly.
+        $this->assertDatabaseHas('stock_batches', [
+            'id' => $batchId,
+            'quantity' => 90,
+        ]);
+    }
+
+    /**
+     * Offline clients retry pushes after network failures without knowing
+     * whether the server already applied them. A retried movement must not
+     * apply its delta a second time — the existing "convert INSERT to
+     * UPDATE when the record already exists" logic should make this safe
+     * for free, since the delta is only accumulated in the INSERT branch.
+     */
+    public function test_push_sync_does_not_double_apply_delta_on_retried_movement()
+    {
+        DB::table('products')->insert([
+            'id' => 'prod_999',
+            'user_id' => $this->user->id,
+            'name' => 'Vitamin C',
+            '_version' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $batchId = 'batch_999';
+        $payload = [
+            'setup' => true,
+            'changes' => [
+                [
+                    'table_name' => 'stock_batches',
+                    'operation' => 'INSERT',
+                    'record_id' => $batchId,
+                    'payload' => [
+                        'id' => $batchId,
+                        'product_id' => 'prod_999',
+                        'quantity' => 100,
+                        'cost_price' => 5.00,
+                        'batch_number' => 'B004',
+                        'expiry_date' => now()->addYear()->toDateString(),
+                        '_version' => 1,
+                        'created_at' => now()->toDateTimeString(),
+                        'updated_at' => now()->toDateTimeString(),
+                    ],
+                ],
+                [
+                    'table_name' => 'stock_movements',
+                    'operation' => 'INSERT',
+                    'record_id' => 'mov_999',
+                    'payload' => [
+                        'id' => 'mov_999',
+                        'stock_batch_id' => $batchId,
+                        'product_id' => 'prod_999',
+                        'movement_type' => 'purchase',
+                        'quantity' => 100,
+                        'performed_by' => $this->user->id,
+                        'created_at' => now()->toDateTimeString(),
+                        'updated_at' => now()->toDateTimeString(),
+                    ],
+                ],
+            ],
+        ];
+
+        // First push: the network call succeeds server-side...
+        $first = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', $payload);
+        $first->assertStatus(200);
+
+        // ...but the client never got the response (e.g. connection dropped)
+        // and retries the exact same payload.
+        $second = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', $payload);
+        $second->assertStatus(200);
+
+        $this->assertDatabaseHas('stock_batches', [
+            'id' => $batchId,
+            'quantity' => 100, // NOT 200
+        ]);
+    }
+
+    /**
+     * Clients are not guaranteed to order a new batch's INSERT before its
+     * movement in the same payload. Applying deltas in a deferred pass after
+     * the whole payload is processed (rather than inline, as changes are
+     * seen) must make this order-independent.
+     */
+    public function test_push_sync_reconciles_new_batch_when_movement_precedes_batch_insert()
+    {
+        DB::table('products')->insert([
+            'id' => 'prod_789',
+            'user_id' => $this->user->id,
+            'name' => 'Ibuprofen',
+            '_version' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $batchId = 'batch_789';
+        $payload = [
+            'setup' => true,
+            'changes' => [
+                [
+                    // Movement arrives BEFORE the batch it references even exists.
+                    'table_name' => 'stock_movements',
+                    'operation' => 'INSERT',
+                    'record_id' => 'mov_789_a',
+                    'payload' => [
+                        'id' => 'mov_789_a',
+                        'stock_batch_id' => $batchId,
+                        'product_id' => 'prod_789',
+                        'movement_type' => 'purchase',
+                        'quantity' => 50,
+                        'performed_by' => $this->user->id,
+                        'created_at' => now()->toDateTimeString(),
+                        'updated_at' => now()->toDateTimeString(),
+                    ],
+                ],
+                [
+                    'table_name' => 'stock_batches',
+                    'operation' => 'INSERT',
+                    'record_id' => $batchId,
+                    'payload' => [
+                        'id' => $batchId,
+                        'product_id' => 'prod_789',
+                        'quantity' => 50,
+                        'cost_price' => 15.00,
+                        'batch_number' => 'B003',
+                        'expiry_date' => now()->addYear()->toDateString(),
+                        '_version' => 1,
+                        'created_at' => now()->toDateTimeString(),
+                        'updated_at' => now()->toDateTimeString(),
+                    ],
+                ],
+            ],
+        ];
+
+        $response = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', $payload);
+        $response->assertStatus(200);
+
+        $this->assertDatabaseHas('stock_batches', [
+            'id' => $batchId,
+            'quantity' => 50,
+        ]);
+    }
+
     public function test_push_sync_handles_expense_inserts_with_notes()
     {
         $expenseId = 'exp_123';

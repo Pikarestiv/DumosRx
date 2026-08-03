@@ -29,7 +29,7 @@ class SyncController extends Controller
     #[OA\Post(
         path: '/app/sync/push',
         summary: 'Push offline-first client changes to the server',
-        description: 'Applies a batch of INSERT/UPDATE/DELETE changes from the client\'s local SQLite database. Conflict resolution uses `_version` (falling back to `updated_at`) — an incoming UPDATE older than the server\'s copy is silently ignored. May reject the whole request (403/429) if the store\'s plan disables cloud sync or the sync-interval throttle hasn\'t elapsed yet.',
+        description: 'Applies a batch of INSERT/UPDATE/DELETE changes from the client\'s local SQLite database. Conflict resolution uses `_version` (falling back to `updated_at`) — an incoming UPDATE older than the server\'s copy is silently ignored, EXCEPT for `stock_batches.quantity`, which is never trusted from the client at all (INSERT or UPDATE): it is always derived by applying `stock_movements` deltas on top of the server\'s current value, since concurrent quantity changes are commutative and both should apply rather than one winning by version. May reject the whole request (403/429) if the store\'s plan disables cloud sync or the sync-interval throttle hasn\'t elapsed yet.',
         tags: ['Sync'],
         security: [['sanctum' => []]],
         parameters: [new OA\HeaderParameter(name: 'X-Store-Id', description: 'Which of the caller\'s stores to sync (defaults to their primary store)', schema: new OA\Schema(type: 'string'))],
@@ -78,6 +78,18 @@ class SyncController extends Controller
         ]);
 
         $changes = $request->input('changes');
+
+        // stock_movements rows carry a foreign key (stock_batch_id) that may
+        // point at a batch created earlier in this very same payload. FK
+        // constraints are checked per-statement, not deferred to commit, so
+        // if a client happens to send the movement before the batch, the
+        // INSERT fails outright — not just the quantity reconciliation.
+        // Stable-sort (PHP's sort functions are stable as of 8.0) all
+        // stock_movements changes to the end so every batch/product they
+        // could reference is guaranteed to exist by the time they're
+        // processed, regardless of the order the client sent them in.
+        usort($changes, fn ($a, $b) => ($a['table_name'] === 'stock_movements') <=> ($b['table_name'] === 'stock_movements'));
+
         $processed = 0;
 
 
@@ -105,6 +117,16 @@ class SyncController extends Controller
 
         try {
             $idMap = [];
+
+            // stock_batches.quantity is never trusted from a client payload
+            // (see the INSERT/UPDATE handling below) — it is always derived
+            // by applying stock_movements deltas on top of whatever the
+            // server currently has. Deltas are accumulated here and applied
+            // in one atomic pass after the main loop, rather than inline,
+            // so a movement's delta is never skipped just because its batch
+            // happened to be processed later in the same payload (clients
+            // are not guaranteed to order changes batch-before-movement).
+            $stockBatchDeltas = [];
 
             foreach ($changes as $change) {
                 $modelClass = $this->getModelForTable($change['table_name']);
@@ -366,16 +388,39 @@ class SyncController extends Controller
                                 $model->device_id = $request->header('X-Device-Id') ?? 'web-client';
                             }
                         }
-                        
+
+                        // A brand-new batch's quantity is never trusted from the client
+                        // either — a batch created locally and already partially sold
+                        // before its first-ever sync would arrive with an already-net
+                        // value, and applying the accompanying stock_movements delta on
+                        // top of that would double-count exactly like it used to (see
+                        // git history: 83ffb95 removed the delta application because of
+                        // this, without noticing the real fix is to stop trusting
+                        // quantity on both INSERT and UPDATE, not just UPDATE). New
+                        // batches start at the column default (0) and every caller that
+                        // creates one (procurement receiving, at minimum) already pushes
+                        // a matching opening-balance movement in the same sync, so this
+                        // is reconstructed correctly below.
+                        if ($change['table_name'] === 'stock_batches') {
+                            $model->quantity = 0;
+                        }
+
                         $model->save();
 
-                        // Note: stock_movements rows are a pure audit log from the client's
-                        // perspective — every caller that inserts one (procurement receiving,
-                        // sales, returns, POS checkout) has already applied the real quantity
-                        // change to stock_batches itself (via its own INSERT/UPDATE, which is
-                        // pushed and applied separately). Re-applying the movement's quantity
-                        // as a delta here double-counted every stock change on sync — this used
-                        // to live here but was removed for exactly that reason.
+                        // stock_batches.quantity is derived from stock_movements deltas,
+                        // never trusted directly from a client payload (INSERT above, or
+                        // UPDATE below) — see the comment on $stockBatchDeltas. Accumulate
+                        // rather than apply immediately: a client is not guaranteed to
+                        // order a new batch's INSERT before its movement in the same
+                        // payload, and incrementing against a batch row that doesn't
+                        // exist yet would silently do nothing.
+                        if ($change['table_name'] === 'stock_movements') {
+                            $stockBatchId = $payload['stock_batch_id'] ?? null;
+                            $qtyDelta = (float) ($payload['quantity'] ?? 0);
+                            if ($stockBatchId && $qtyDelta != 0) {
+                                $stockBatchDeltas[$stockBatchId] = ($stockBatchDeltas[$stockBatchId] ?? 0) + $qtyDelta;
+                            }
+                        }
 
                         // Handle _deleted flag for soft deletes
                         if ($isDeleted) {
@@ -479,6 +524,22 @@ class SyncController extends Controller
                 }
 
                 $processed++;
+            }
+
+            // Apply every accumulated stock_movements delta in one atomic pass,
+            // now that every change in this push has been processed and any
+            // batch created earlier in the same payload definitely exists.
+            // Uses a raw atomic UPDATE (quantity = quantity + delta) rather
+            // than load-mutate-save, so concurrent syncs from different
+            // devices can't race and clobber each other's deltas.
+            foreach ($stockBatchDeltas as $stockBatchId => $delta) {
+                $affected = DB::table('stock_batches')
+                    ->where('id', $stockBatchId)
+                    ->increment('quantity', $delta);
+
+                if (!$affected) {
+                    Log::warning("Sync push: stock_movements delta of {$delta} referenced unknown stock_batch_id {$stockBatchId} — no batch to apply it to.");
+                }
             }
 
             // Update the last sync time for the user's store

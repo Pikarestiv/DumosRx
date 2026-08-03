@@ -2,17 +2,19 @@ import { insert, remove } from "@/lib/db/local-database";
 import { toast } from "sonner";
 import { Customer } from "./use-pos-data";
 import type { POSProduct as Product } from "@/lib/types/product";
+import type { CartItem } from "./use-pos-cart";
+import type { HeldTransaction } from "@/lib/db/queries/sales";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 
 interface UsePOSHeldTransactionsProps {
-  cart: any[];
+  cart: CartItem[];
   total: number;
   selectedCustomer: Customer | null;
   clearCart: () => void;
   setSelectedCustomer: (customer: Customer | null) => void;
   products: Product[];
-  restoreCart: (items: any[]) => void;
+  restoreCart: (items: CartItem[]) => void;
   customers: Customer[];
   setShowHeldDialog: (show: boolean) => void;
 }
@@ -58,15 +60,17 @@ export function usePOSHeldTransactions({
     }
   };
 
-  const handleRecallTransaction = async (held: any) => {
+  const handleRecallTransaction = async (held: HeldTransaction) => {
     try {
       // 1. Clear current cart (maybe ask user?)
       clearCart();
 
       // 2. Parse items and add to cart
-      const items = JSON.parse(held.items_json);
+      const items: (CartItem & { product_id?: string })[] = JSON.parse(
+        held.items_json,
+      );
       const restoredItems = items
-        .map((item: any) => {
+        .map((item) => {
           const product = products.find(
             (m) => m.id === (item.product_id || item.id),
           );
@@ -79,7 +83,7 @@ export function usePOSHeldTransactions({
           }
           return null;
         })
-        .filter((item: any) => item !== null) as any;
+        .filter((item): item is CartItem => item !== null);
 
       restoreCart(restoredItems);
 

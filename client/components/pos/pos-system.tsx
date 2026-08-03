@@ -122,7 +122,6 @@ export function POSSystem() {
     saleToReturn,
     refetchProducts,
     refetchSales,
-    toast,
     showHeldDialog,
     setShowHeldDialog,
     handleRecallTransaction,

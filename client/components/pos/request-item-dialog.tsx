@@ -16,6 +16,7 @@ import { SearchableInput } from "@/components/ui/searchable-input";
 import { genericFuzzySearch } from "@/lib/utils/search";
 import { queryKeys } from "@/lib/query-keys";
 import type { Customer } from "@/lib/types/customer";
+import type { Product } from "@/lib/types/product";
 
 export function RequestItemDialog({
   open: controlledOpen,
@@ -131,7 +132,7 @@ export function RequestItemDialog({
                 placeholder="e.g., Panadol Extra"
                 value={productName}
                 onValueChange={setProductName}
-                options={products.map((p: any) => p.name)}
+                options={products.map((p: Product) => p.name)}
                 autoFocus
                 required
               />

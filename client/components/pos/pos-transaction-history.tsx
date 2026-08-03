@@ -10,14 +10,15 @@ import { isToday, isYesterday, parseISO } from "date-fns";
 import { useAuth } from "@/lib/context/auth-context";
 import { TransactionDetailsDialog } from "./transaction-details-dialog";
 import { calculateNetSaleAmount, calculateAvgBasket } from "@/lib/utils/pos-calculations";
+import type { SaleWithDetails } from "@/lib/types/sale";
 
 // ============================================================================
 // Types
 // ============================================================================
 
 interface POSTransactionHistoryProps {
-  recentSales: any[];
-  onReturnClick: (sale: any) => void;
+  recentSales: SaleWithDetails[];
+  onReturnClick: (sale: SaleWithDetails) => void;
   currencyCode?: string;
 }
 
@@ -30,7 +31,9 @@ export function POSTransactionHistory({
   onReturnClick,
   currencyCode,
 }: POSTransactionHistoryProps) {
-  const [selectedSale, setSelectedSale] = useState<any>(null);
+  const [selectedSale, setSelectedSale] = useState<SaleWithDetails | null>(
+    null,
+  );
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFilter, setDateFilter] = useState<string>("All");
   const [paymentFilter, setPaymentFilter] = useState<string>("All");
@@ -109,7 +112,7 @@ export function POSTransactionHistory({
 
   // Group by relative date
   const groupedSales = useMemo(() => {
-    const groups: { [key: string]: any[] } = {
+    const groups: { [key: string]: SaleWithDetails[] } = {
       TODAY: [],
       YESTERDAY: [],
       "THIS WEEK": [],

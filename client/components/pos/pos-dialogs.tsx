@@ -8,6 +8,9 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Customer } from "@/lib/hooks/use-pos-data";
 import type { ReceiptTransaction } from "./receipt-view";
 import type { PaymentAccount } from "@/lib/types/payment-account";
+import type { SaleWithDetails } from "@/lib/types/sale";
+import type { HeldTransaction } from "@/lib/db/queries/sales";
+import { toast } from "sonner";
 
 type PaymentMethod = "cash" | "card" | "transfer" | "credit" | "mixed";
 type PaymentSplit = { method: string; amount: number; accountId?: string };
@@ -39,13 +42,12 @@ interface POSDialogsProps {
   completedTransaction: ReceiptTransaction | null;
   showReturnDialog: boolean;
   setShowReturnDialog: (show: boolean) => void;
-  saleToReturn: any;
+  saleToReturn: SaleWithDetails | null;
   refetchProducts: () => void;
   refetchSales: () => void;
-  toast: any;
   showHeldDialog: boolean;
   setShowHeldDialog: (show: boolean) => void;
-  handleRecallTransaction: any;
+  handleRecallTransaction: (transaction: HeldTransaction) => void;
   showClearCartDialog: boolean;
   setShowClearCartDialog: (show: boolean) => void;
   clearCart: () => void;
@@ -81,7 +83,6 @@ export function POSDialogs({
   saleToReturn,
   refetchProducts,
   refetchSales,
-  toast,
   showHeldDialog,
   setShowHeldDialog,
   handleRecallTransaction,

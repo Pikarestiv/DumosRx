@@ -4,6 +4,15 @@ import { Receipt, RotateCcw, Banknote, CreditCard, ArrowLeftRight, Pill } from '
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/utils';
+import type { SaleWithDetails } from '@/lib/types/sale';
+
+interface TransactionItemProps {
+  sale: SaleWithDetails;
+  currencyCode?: string;
+  canReturn?: boolean;
+  onClick: () => void;
+  onReturnClick: (sale: SaleWithDetails) => void;
+}
 
 export function TransactionItem({
   sale,
@@ -11,14 +20,14 @@ export function TransactionItem({
   canReturn,
   onClick,
   onReturnClick,
-}: any) {
+}: TransactionItemProps) {
   const time = sale.created_at
     ? format(parseISO(sale.created_at), "h:mm a")
     : "";
   const itemCount = sale.item_count || 1;
   const amount = Number(sale.total_amount) || Number(sale.total) || 0;
 
-  const getPaymentIcon = (method: string) => {
+  const getPaymentIcon = (method?: string) => {
     switch (method?.toLowerCase()) {
       case "cash":
         return <Banknote className="h-5 w-5 text-emerald-600" />;
@@ -31,7 +40,7 @@ export function TransactionItem({
     }
   };
 
-  const getPaymentIconBg = (method: string) => {
+  const getPaymentIconBg = (method?: string) => {
     switch (method?.toLowerCase()) {
       case "cash":
         return "bg-emerald-100";
@@ -44,7 +53,7 @@ export function TransactionItem({
     }
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status?: string) => {
     const s = status?.toLowerCase() || "completed";
     if (s === "completed")
       return (

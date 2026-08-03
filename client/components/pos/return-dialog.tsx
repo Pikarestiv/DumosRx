@@ -28,14 +28,20 @@ import { Loader2, RotateCcw } from "lucide-react";
 import { useAuth } from "@/lib/context/auth-context";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ReturnItemRow } from "./return-item-row";
+import type { SaleWithDetails, SaleItemDetail } from "@/lib/types/sale";
 
 interface ReturnDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  sale: any;
+  sale: SaleWithDetails | null;
   onSuccess: () => void;
   currencyCode?: string;
 }
+
+type ReturnableItem = SaleItemDetail & {
+  returnQuantity: number;
+  stock_batch_id?: string;
+};
 
 export function ReturnDialog({
   open,
@@ -59,6 +65,8 @@ export function ReturnDialog({
     enabled: !!sale,
   });
   const saleItems = saleItemsData || [];
+
+  if (!sale) return null;
 
   const handleToggleItem = (itemId: string, maxQty: number) => {
     setSelectedItems((prev) => {
@@ -86,10 +94,10 @@ export function ReturnDialog({
     });
   };
 
-  const itemsToReturn = Array.from(selectedItems.entries())
+  const itemsToReturn: ReturnableItem[] = Array.from(selectedItems.entries())
     .filter(([_, val]) => val.selected)
     .map(([id, val]) => ({
-      ...(saleItems?.find((si: any) => si.id === id) || {}),
+      ...(saleItems?.find((si) => si.id === id) as SaleItemDetail),
       returnQuantity: val.quantity,
     }));
 
@@ -189,7 +197,8 @@ export function ReturnDialog({
                 : sale.payment_details;
             const splits = Array.isArray(details) ? details : details?.splits;
             const creditAmount =
-              splits?.find((s: any) => s.method === "credit")?.amount || 0;
+              splits?.find((s: { method: string; amount: number }) => s.method === "credit")
+                ?.amount || 0;
             creditFraction =
               sale.total_amount > 0 ? creditAmount / sale.total_amount : 0;
           } catch {
@@ -222,8 +231,6 @@ export function ReturnDialog({
       setProcessing(false);
     }
   };
-
-  if (!sale) return null;
 
   return (
     <>
@@ -271,7 +278,7 @@ export function ReturnDialog({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {saleItems?.map((item: any) => (
+                {saleItems?.map((item) => (
                   <ReturnItemRow
                     key={item.id}
                     item={item}
@@ -313,7 +320,7 @@ export function ReturnDialog({
               You are about to process a return for the following item(s):
             </p>
             <ul className="list-disc pl-5 text-sm space-y-1">
-              {itemsToReturn.map((item: any) => (
+              {itemsToReturn.map((item) => (
                 <li key={item.id}>
                   <span className="font-medium">{item.returnQuantity}x</span>{" "}
                   {item.product_name}

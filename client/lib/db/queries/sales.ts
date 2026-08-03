@@ -1,7 +1,8 @@
 import { query } from "@/lib/db/local-database";
+import type { SaleWithDetails, SaleItemDetail } from "@/lib/types/sale";
 
 export async function getSaleItems(saleId: string) {
-  return query<any>(
+  return query<SaleItemDetail>(
     "SELECT si.*, m.name as product_name FROM sale_items si JOIN products m ON si.product_id = m.id WHERE si.sale_id = ?",
     [saleId]
   );
@@ -54,6 +55,7 @@ export async function getTransactionDetails(saleId: string) {
 
 export interface HeldTransaction {
   id: string;
+  customer_id?: string | null;
   customer_name: string;
   items_json: string;
   total_amount: number;
@@ -165,7 +167,7 @@ export async function getSaleForPrescription(prescriptionId: string) {
 
 export async function getRecentSales(userId?: string) {
   const userFilter = userId ? ` AND s.user_id = ?` : "";
-  return query<any>(
+  return query<SaleWithDetails>(
     `SELECT
       s.*,
       TRIM(c.first_name || ' ' || COALESCE(c.last_name, '')) as customer_name,

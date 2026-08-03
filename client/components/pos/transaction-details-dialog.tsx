@@ -24,10 +24,11 @@ import { usePrintReceipt } from "./use-print-receipt";
 import { ReceiptTransaction } from "./receipt-view";
 import { RecordPaymentModal } from "@/components/customers/record-payment-modal";
 import { toast } from "sonner";
+import type { SaleWithDetails, SaleItemDetail } from "@/lib/types/sale";
 
 function saleToReceiptTransaction(
-  sale: any,
-  items: any[],
+  sale: SaleWithDetails,
+  items: SaleItemDetail[],
 ): ReceiptTransaction {
   let paymentSplits;
   if (sale.payment_method === "mixed" && sale.payment_details) {
@@ -44,7 +45,7 @@ function saleToReceiptTransaction(
 
   return {
     id: sale.id,
-    date: sale.transaction_date || sale.created_at,
+    date: sale.transaction_date || sale.created_at || "",
     cashier: sale.cashier_name || sale.user_name || sale.cashier,
     items: items.map((item) => ({
       id: item.id,
@@ -59,20 +60,20 @@ function saleToReceiptTransaction(
     subtotal: sale.subtotal ?? 0,
     tax: sale.tax_amount ?? sale.tax ?? 0,
     discount: sale.discount_total ?? sale.discount_amount ?? sale.discount ?? 0,
-    total: sale.total_amount !== undefined ? sale.total_amount : sale.total,
+    total: sale.total_amount ?? sale.total ?? 0,
     paymentMethod: sale.payment_method || "cash",
-    amountPaid: sale.amount_paid ?? (sale.total_amount ?? sale.total),
+    amountPaid: sale.amount_paid ?? sale.total_amount ?? sale.total ?? 0,
     change: sale.change_given ?? sale.change ?? 0,
     paymentSplits,
   };
 }
 
 interface TransactionDetailsDialogProps {
-  sale: any;
+  sale: SaleWithDetails | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   currencyCode?: string;
-  onReturnClick?: (sale: any) => void;
+  onReturnClick?: (sale: SaleWithDetails) => void;
 }
 
 export function TransactionDetailsDialog({
@@ -94,7 +95,7 @@ export function TransactionDetailsDialog({
   });
   const { data: paymentCustomer } = useQuery({
     queryKey: ["customerById", sale?.customer_id],
-    queryFn: () => getCustomerById(sale.customer_id),
+    queryFn: () => getCustomerById(sale?.customer_id ?? ""),
     enabled: showPaymentModal && !!sale?.customer_id,
   });
 
@@ -126,7 +127,7 @@ export function TransactionDetailsDialog({
   const totalRefunded = returnsData?.[0]?.total_refunded || 0;
 
   const totalCostPrice =
-    items?.reduce((acc: number, item: any) => {
+    items?.reduce((acc: number, item: SaleItemDetail) => {
       const cost =
         item.cost_price !== null && item.cost_price !== undefined
           ? item.cost_price
@@ -135,7 +136,7 @@ export function TransactionDetailsDialog({
     }, 0) || 0;
 
   const returnedCostPrice =
-    items?.reduce((acc: number, item: any) => {
+    items?.reduce((acc: number, item: SaleItemDetail) => {
       const cost =
         item.cost_price !== null && item.cost_price !== undefined
           ? item.cost_price
@@ -144,7 +145,7 @@ export function TransactionDetailsDialog({
     }, 0) || 0;
 
   const profit =
-    (sale.total_amount !== undefined ? sale.total_amount : sale.total) -
+    (sale.total_amount ?? sale.total ?? 0) -
     totalRefunded -
     (totalCostPrice - returnedCostPrice);
 
@@ -156,8 +157,8 @@ export function TransactionDetailsDialog({
       <span>Reference: {sale.transaction_number}</span>
       <span className="hidden sm:inline"> • </span>
       <span className="block sm:inline mt-1 sm:mt-0 text-muted-foreground/80 sm:text-muted-foreground">
-        {formatDateToDDMMYYYY(sale.created_at)}{" "}
-        {new Date(sale.created_at).toLocaleTimeString()}
+        {formatDateToDDMMYYYY(sale.created_at || "")}{" "}
+        {sale.created_at && new Date(sale.created_at).toLocaleTimeString()}
       </span>
       {cashierName && (
         <>
@@ -229,9 +230,7 @@ export function TransactionDetailsDialog({
             </p>
             <p className="font-medium text-base sm:text-lg text-primary">
               {formatCurrency(
-                sale.total_amount !== undefined
-                  ? sale.total_amount
-                  : sale.total,
+                sale.total_amount ?? sale.total ?? 0,
                 currencyCode,
               )}
             </p>
@@ -265,14 +264,14 @@ export function TransactionDetailsDialog({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {items?.map((item: any) => (
+              {items?.map((item: SaleItemDetail) => (
                 <TableRow key={item.id}>
                   <TableCell className="font-medium">
                     {item.product_name || "Unknown Item"}
                   </TableCell>
                   <TableCell className="text-right">
                     <span>{item.quantity}</span>
-                    {item.returned_quantity > 0 && (
+                    {(item.returned_quantity ?? 0) > 0 && (
                       <span className="text-destructive text-xs ml-1 font-medium block">
                         (-{item.returned_quantity} returned)
                       </span>
@@ -295,7 +294,7 @@ export function TransactionDetailsDialog({
           <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
             Items
           </h4>
-          {items?.map((item: any) => (
+          {items?.map((item: SaleItemDetail) => (
             <div
               key={item.id}
               className="bg-card border border-border rounded-[14px] p-3.5 shadow-sm"
@@ -325,7 +324,7 @@ export function TransactionDetailsDialog({
                   {formatCurrency(item.total_price, currencyCode)}
                 </span>
               </div>
-              {item.returned_quantity > 0 && (
+              {(item.returned_quantity ?? 0) > 0 && (
                 <div className="mt-2 pt-2 border-t border-destructive/10 text-[12px] font-semibold text-destructive flex items-center">
                   <RotateCcw className="w-3 h-3 mr-1" />
                   {item.returned_quantity} units returned

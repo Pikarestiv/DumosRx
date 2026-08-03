@@ -4,6 +4,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
+interface TransactionFiltersProps {
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
+  dateFilter: string;
+  setDateFilter: (filter: string) => void;
+  paymentFilter: string;
+  setPaymentFilter: (filter: string) => void;
+}
+
 export function TransactionFilters({
   searchQuery,
   setSearchQuery,
@@ -11,7 +20,7 @@ export function TransactionFilters({
   setDateFilter,
   paymentFilter,
   setPaymentFilter,
-}: any) {
+}: TransactionFiltersProps) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex gap-2">

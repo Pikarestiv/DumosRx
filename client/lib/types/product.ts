@@ -3,6 +3,7 @@ export interface Product {
   name: string;
   generic_name?: string;
   category_id?: string;
+  category_name?: string;
   nafdac_number?: string;
   strength?: string;
   dosage_form?: string;

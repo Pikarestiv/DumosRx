@@ -2,11 +2,18 @@ import React from "react";
 import { formatCurrency } from "@/lib/utils";
 import { MetricCard } from "@/components/ui/metric-card";
 
+interface TransactionMetricsData {
+  totalSales: number;
+  transactions: number;
+  refunded: number;
+  avgBasket: number;
+}
+
 export function TransactionMetrics({
   metrics,
   currencyCode,
 }: {
-  metrics: any;
+  metrics: TransactionMetricsData;
   currencyCode?: string;
 }) {
   return (

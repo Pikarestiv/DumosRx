@@ -1,4 +1,5 @@
 import { query } from "@/lib/db/local-database";
+import type { Product } from "@/lib/types/product";
 
 export async function getProductsWithDetails() {
   return query<any>(
@@ -51,7 +52,7 @@ export async function getProductByName(name: string) {
 }
 
 export async function getProductList() {
-  return query<any>(
+  return query<Product>(
     `SELECT p.id, p.name, p.generic_name, p.category_id, c.name as category_name, p.manufacturer, p.strength, p.dosage_form
      FROM products p
      LEFT JOIN categories c ON c.id = p.category_id AND c._deleted = 0

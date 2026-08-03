@@ -1,6 +1,7 @@
 import React from 'react';
 import { Receipt } from 'lucide-react';
 import { TransactionItem } from './transaction-item';
+import type { SaleWithDetails } from '@/lib/types/sale';
 
 function NoRecentSalesFound() {
   return (
@@ -11,6 +12,15 @@ function NoRecentSalesFound() {
   );
 }
 
+interface TransactionListProps {
+  groupedSales: { [key: string]: SaleWithDetails[] };
+  currencyCode?: string;
+  canReturn?: boolean;
+  onSelectSale: (sale: SaleWithDetails) => void;
+  onReturnClick: (sale: SaleWithDetails) => void;
+  hasFilters: boolean;
+}
+
 export function TransactionList({
   groupedSales,
   currencyCode,
@@ -18,14 +28,14 @@ export function TransactionList({
   onSelectSale,
   onReturnClick,
   hasFilters,
-}: any) {
+}: TransactionListProps) {
   if (hasFilters) {
     return <NoRecentSalesFound />;
   }
 
   return (
     <div className="space-y-6 pb-6">
-      {Object.entries(groupedSales).map(([groupName, sales]: [string, any]) => {
+      {Object.entries(groupedSales).map(([groupName, sales]) => {
         if (sales.length === 0) return null;
         return (
           <div key={groupName} className="space-y-3">
@@ -33,7 +43,7 @@ export function TransactionList({
               {groupName}
             </h3>
             <div className="flex flex-col gap-3">
-              {sales.map((sale: any) => (
+              {sales.map((sale) => (
                 <TransactionItem
                   key={sale.id}
                   sale={sale}

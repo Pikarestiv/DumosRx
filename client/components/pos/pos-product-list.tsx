@@ -12,19 +12,24 @@ import {
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { getCategoryIcon } from "@/lib/constants/category-icons";
+import type { POSProduct } from "@/lib/types/product";
+import type { CartItem } from "@/lib/hooks/use-pos-cart";
+
+type PosGroup = "suggestion" | "recent" | "common" | "standard";
+type GroupedProduct = POSProduct & { posGroup: PosGroup };
 
 interface POSProductListProps {
   loadingProducts: boolean;
-  filteredProducts: any[];
-  addToCart: (product: any) => void;
+  filteredProducts: POSProduct[];
+  addToCart: (product: POSProduct) => void;
   productTerm: string;
   searchTerm?: string;
   currencyCode?: string;
   isFuzzyFallback?: boolean;
-  suggestions?: any[];
+  suggestions?: POSProduct[];
   recentlySoldIds?: string[];
   commonlySoldIds?: string[];
-  cart?: any[];
+  cart?: CartItem[];
   canUseSmartSuggestions?: boolean;
   onUpgradeClick?: () => void;
 }
@@ -35,9 +40,9 @@ function POSProductCard({
   addToCart,
   cartQuantity = 0,
 }: {
-  product: any;
+  product: GroupedProduct;
   currencyCode?: string;
-  addToCart: (product: any) => void;
+  addToCart: (product: POSProduct) => void;
   cartQuantity?: number;
 }) {
   let indicator = null;
@@ -137,7 +142,7 @@ export function POSProductList({
 }: POSProductListProps) {
   // Use a map for O(1) lookups
   const cartQuantityMap = new Map(
-    cart.map((item: any) => [item.id, item.quantity]),
+    cart.map((item) => [item.id, item.quantity]),
   );
 
   // Segment the products for prioritization
@@ -145,10 +150,10 @@ export function POSProductList({
   const recentSet = new Set(recentlySoldIds);
   const commonSet = new Set(commonlySoldIds);
 
-  const suggestionsList: any[] = [];
-  const recentlySoldList: any[] = [];
-  const commonlySoldList: any[] = [];
-  const remainingList: any[] = [];
+  const suggestionsList: GroupedProduct[] = [];
+  const recentlySoldList: GroupedProduct[] = [];
+  const commonlySoldList: GroupedProduct[] = [];
+  const remainingList: GroupedProduct[] = [];
 
   filteredProducts.forEach((product) => {
     if (suggestionsSet.has(product.id)) {

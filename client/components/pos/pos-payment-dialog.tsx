@@ -13,6 +13,7 @@ import { formatCurrency } from "@/lib/utils";
 import { useDefaultPaymentAccounts } from "@/lib/hooks/use-default-payment-accounts";
 import { useStore } from "@/lib/context/store-context";
 import type { Customer } from "@/lib/types/customer";
+import type { PaymentAccount } from "@/lib/types/payment-account";
 
 interface POSPaymentDialogProps {
   showPaymentDialog: boolean;
@@ -36,7 +37,7 @@ interface POSPaymentDialogProps {
   ) => void;
   requirePaymentAccount?: boolean;
   enabledPaymentMethods?: string[];
-  paymentAccounts?: any[];
+  paymentAccounts?: PaymentAccount[];
 }
 
 export function POSPaymentDialog({

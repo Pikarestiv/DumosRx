@@ -7,6 +7,7 @@ import { getPaymentAccounts } from "@/lib/db/queries/setup";
 import { queryKeys } from "@/lib/query-keys";
 export type { POSProduct as Product } from "@/lib/types/product";
 export type { Customer } from "@/lib/types/customer";
+export type { PaymentAccount } from "@/lib/types/payment-account";
 
 export function usePOSData() {
   const { user } = useAuth();

@@ -11,9 +11,10 @@ import {
 import { formatCurrency } from "@/lib/utils";
 import { RequestItemDialog } from "./request-item-dialog";
 import { POSCartItem } from "./pos-cart-item";
+import type { CartItem } from "@/lib/hooks/use-pos-cart";
 
 interface POSCartProps {
-  cart: any[];
+  cart: CartItem[];
   subtotal: number;
   tax: number;
   total: number;

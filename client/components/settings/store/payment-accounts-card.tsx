@@ -39,14 +39,7 @@ import { NIGERIAN_BANKS } from "@/lib/constants/suggestions";
 import { SearchableInput } from "@/components/ui/searchable-input";
 import { useDefaultPaymentAccounts } from "@/lib/hooks/use-default-payment-accounts";
 import { queryKeys } from "@/lib/query-keys";
-
-interface PaymentAccount {
-  id: string;
-  name: string;
-  account_type: "bank" | "pos_terminal" | "mobile_money";
-  account_number: string;
-  bank_name: string;
-}
+import type { PaymentAccount } from "@/lib/types/payment-account";
 
 export function PaymentAccountsCard() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);

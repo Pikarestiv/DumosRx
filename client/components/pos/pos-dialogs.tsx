@@ -6,6 +6,11 @@ import { ReturnDialog } from "./return-dialog";
 import { HeldTransactionsDialog } from "./held-transactions-dialog";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Customer } from "@/lib/hooks/use-pos-data";
+import type { ReceiptTransaction } from "./receipt-view";
+import type { PaymentAccount } from "@/lib/types/payment-account";
+
+type PaymentMethod = "cash" | "card" | "transfer" | "credit" | "mixed";
+type PaymentSplit = { method: string; amount: number; accountId?: string };
 
 interface POSDialogsProps {
   isMobileScannerOpen: boolean;
@@ -14,24 +19,24 @@ interface POSDialogsProps {
   showPaymentDialog: boolean;
   setShowPaymentDialog: (show: boolean) => void;
   total: number;
-  paymentMethod: any;
-  setPaymentMethod: any;
+  paymentMethod: PaymentMethod;
+  setPaymentMethod: (method: PaymentMethod) => void;
   amountPaid: string;
   setAmountPaid: (amount: string) => void;
   selectedAccountId: string;
   setSelectedAccountId: (id: string) => void;
-  paymentSplits: any;
-  setPaymentSplits: any;
+  paymentSplits: PaymentSplit[];
+  setPaymentSplits: (splits: PaymentSplit[]) => void;
   processingPayment: boolean;
   handlePayment: () => void;
   selectedCustomer: Customer | null;
   currencyCode?: string;
   requirePaymentAccount: boolean;
-  enabledPaymentMethods: any[];
-  paymentAccounts: any[];
+  enabledPaymentMethods: string[];
+  paymentAccounts: PaymentAccount[];
   showReceiptDialog: boolean;
   setShowReceiptDialog: (show: boolean) => void;
-  completedTransaction: any;
+  completedTransaction: ReceiptTransaction | null;
   showReturnDialog: boolean;
   setShowReturnDialog: (show: boolean) => void;
   saleToReturn: any;

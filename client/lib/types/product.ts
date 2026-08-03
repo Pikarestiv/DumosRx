@@ -31,6 +31,7 @@ export interface POSProduct {
   batch_number?: string;
   category_id?: string;
   category_name?: string;
+  reorder_level?: number;
 }
 
 export interface ProductViewModel {

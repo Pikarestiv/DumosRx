@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
 import type { Customer } from "@/lib/types/customer";
+import type { PaymentAccount } from "@/lib/types/payment-account";
 
 interface PaymentSplitsProps {
   total: number;
@@ -14,7 +15,7 @@ interface PaymentSplitsProps {
     splits: { method: string; amount: number; accountId?: string }[],
   ) => void;
   requirePaymentAccount?: boolean;
-  paymentAccounts?: any[];
+  paymentAccounts?: PaymentAccount[];
   selectedCustomer: Customer | null;
   defaults: Record<string, string>;
   storeProfileId?: string;

@@ -1,5 +1,6 @@
 import { query, execute, insert } from "@/lib/db/local-database";
 import { ParsedIIF } from "@/lib/utils/iif-parser";
+import type { PaymentAccount } from "@/lib/types/payment-account";
 
 export async function checkIfTableExists(tableName: string) {
   const tables = await query<any>(
@@ -42,12 +43,12 @@ export async function getAllStores() {
 
 export async function getPaymentAccounts(storeId?: string) {
   if (storeId) {
-    return query<any>(
+    return query<PaymentAccount>(
       "SELECT * FROM payment_accounts WHERE _deleted = 0 AND store_id = ? ORDER BY created_at DESC",
       [storeId]
     );
   }
-  return query<any>(
+  return query<PaymentAccount>(
     "SELECT * FROM payment_accounts WHERE _deleted = 0 ORDER BY created_at DESC"
   );
 }

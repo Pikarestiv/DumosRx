@@ -7,12 +7,25 @@ import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { ReceiptPaperSize } from "@/lib/hooks/use-receipt-paper-size";
 
+export interface ReceiptCustomer {
+  name: string;
+  phone?: string;
+}
+
+export interface ReceiptItem {
+  id: string;
+  name: string;
+  quantity: number;
+  unit_price: number;
+  subtotal: number;
+}
+
 export interface ReceiptTransaction {
   id: string;
   date: string;
   cashier?: string;
-  items: any[];
-  customer: any;
+  items: ReceiptItem[];
+  customer: ReceiptCustomer | null;
   subtotal: number;
   tax: number;
   discount: number;

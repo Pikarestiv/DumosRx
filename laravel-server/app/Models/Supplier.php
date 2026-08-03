@@ -8,6 +8,9 @@ use Illuminate\Database\Eloquent\Model;
 
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * @mixin IdeHelperSupplier
+ */
 class Supplier extends Model
 {
     use HasFactory, HasUuids, SoftDeletes;

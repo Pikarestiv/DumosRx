@@ -6,6 +6,9 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @mixin IdeHelperPurchaseOrderItem
+ */
 class PurchaseOrderItem extends Model
 {
     use HasFactory, HasUuids;

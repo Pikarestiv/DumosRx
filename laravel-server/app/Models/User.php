@@ -11,6 +11,9 @@ use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Support\Str;
 use Exception;
 
+/**
+ * @mixin IdeHelperUser
+ */
 class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable, HasUuids, SoftDeletes;

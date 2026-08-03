@@ -4,6 +4,7 @@
 
 import { query, logAction, generateId } from "./core";
 import { insert, update, softDelete } from "./base-helpers";
+import type { SupplierPayload } from "@/lib/types/supplier";
 
 export interface PurchaseOrder {
   id: string;
@@ -36,6 +37,28 @@ export interface PurchaseOrderItem {
   bulk_unit: string;
   /** Live conversion factor from the product record — always used for receiving math, since units_per_bulk above is a point-in-time snapshot that can go stale if the product's packaging is edited later. */
   product_units_per_bulk: number;
+}
+
+/** Per-line-item receiving overrides submitted from the "Receive Order" form —
+ * only po_item_id is required, the rest default to the ordered quantity/PO id. */
+export interface ReceivedItem {
+  po_item_id: string;
+  quantity?: number | string;
+  lot_number?: string;
+  expiry_date?: string;
+}
+
+/** A line item as it exists in the create/edit PO form before submission —
+ * not yet persisted, so it has no `id`/`po_id` (those are assigned by
+ * createPurchaseOrder()/updatePurchaseOrder()). */
+export interface DraftPOLineItem {
+  product_id: string;
+  product_name: string;
+  bulk_unit: string;
+  bulk_quantity: number;
+  units_per_bulk: number;
+  unit_cost: number;
+  subtotal: number;
 }
 
 /**
@@ -99,9 +122,9 @@ export async function getPurchaseOrderById(id: string) {
 }
 
 export async function createPurchaseOrder(
-  supplierId: string, 
-  notes: string, 
-  items: any[],
+  supplierId: string,
+  notes: string,
+  items: DraftPOLineItem[],
   paymentStatus: string = 'unpaid',
   amountPaid: number = 0,
   dueDate: string | null = null
@@ -144,9 +167,9 @@ export async function createPurchaseOrder(
 
 export async function updatePurchaseOrder(
   poId: string,
-  supplierId: string, 
-  notes: string, 
-  items: any[],
+  supplierId: string,
+  notes: string,
+  items: DraftPOLineItem[],
   paymentStatus: string = 'unpaid',
   amountPaid: number = 0,
   dueDate: string | null = null
@@ -204,7 +227,7 @@ export async function updatePurchaseOrderStatus(id: string, status: string) {
   await update("purchase_orders", id, updateData);
 }
 
-export async function receivePurchaseOrder(id: string, receivedItems?: any[]) {
+export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedItem[]) {
   const poData = await getPurchaseOrderById(id);
   if (!poData || poData.status === "received") return;
 
@@ -286,7 +309,7 @@ export async function getSuppliers() {
   return { data: results };
 }
 
-export async function createSupplier(data: any) {
+export async function createSupplier(data: SupplierPayload) {
   return await insert("suppliers", data);
 }
 

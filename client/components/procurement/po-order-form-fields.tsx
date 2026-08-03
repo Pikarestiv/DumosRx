@@ -14,7 +14,8 @@ import {
 } from "@/components/ui/select";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { POAddItemForm } from "./po-add-item-form";
-import type { Product } from "@/lib/types/product";
+import type { Product, ProductViewModel } from "@/lib/types/product";
+import type { DraftPOLineItem } from "@/lib/db/procurement";
 
 interface Supplier {
   id: string;
@@ -35,8 +36,8 @@ interface POOrderFormFieldsProps {
   setAmountPaid: (amount: string) => void;
   totalAmount: number;
   products: Product[];
-  onAddLineItem: (item: any) => void;
-  onOpenAddProduct: (productData: any) => void;
+  onAddLineItem: (item: DraftPOLineItem) => void;
+  onOpenAddProduct: (productData: Partial<ProductViewModel>) => void;
   newlyCreatedProductId: string | null;
   onNewlyCreatedProductConsumed: () => void;
   onOpenAddSupplier: () => void;

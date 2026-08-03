@@ -1,5 +1,5 @@
 import { query } from "@/lib/db/local-database";
-import type { SaleWithDetails, SaleItemDetail } from "@/lib/types/sale";
+import type { Sale, SaleWithDetails, SaleItemDetail, ReturnRecord, ReturnItemDetail } from "@/lib/types/sale";
 
 export async function getSaleItems(saleId: string) {
   return query<SaleItemDetail>(
@@ -143,7 +143,7 @@ export async function getTopStaffByDate(dateStr: string) {
 }
 
 export async function getSaleById(saleId: string) {
-  const rows = await query<any>(
+  const rows = await query<SaleWithDetails>(
     `SELECT
       s.*,
       TRIM(c.first_name || ' ' || COALESCE(c.last_name, '')) as customer_name,
@@ -203,22 +203,22 @@ export async function getDailyCloseData(reportDate: string) {
   const startIso = new Date(year, month - 1, day, 0, 0, 0, 0).toISOString();
   const endIso = new Date(year, month - 1, day, 23, 59, 59, 999).toISOString();
 
-  const salesToday = await query<any>(
+  const salesToday = await query<Sale>(
     `SELECT * FROM sales WHERE transaction_date >= ? AND transaction_date <= ? AND _deleted = 0`,
     [startIso, endIso]
   );
 
-  const itemsToday = await query<any>(
+  const itemsToday = await query<SaleItemDetail>(
     `SELECT si.*, m.name as product_name, si.cost_price as med_cost_price FROM sale_items si JOIN sales s ON si.sale_id = s.id LEFT JOIN products m ON si.product_id = m.id WHERE s.transaction_date >= ? AND s.transaction_date <= ? AND (si._deleted = 0 OR si._deleted IS NULL) AND (s._deleted = 0 OR s._deleted IS NULL)`,
     [startIso, endIso]
   );
 
-  const returnsToday = await query<any>(
+  const returnsToday = await query<ReturnRecord>(
     `SELECT r.*, s.payment_method, s.payment_details FROM returns r JOIN sales s ON r.sale_id = s.id WHERE r.created_at >= ? AND r.created_at <= ? AND (r._deleted = 0 OR r._deleted IS NULL)`,
     [startIso, endIso]
   );
 
-  const returnItemsToday = await query<any>(
+  const returnItemsToday = await query<ReturnItemDetail & { med_cost_price?: number }>(
     `SELECT ri.*, IFNULL((SELECT AVG(cost_price) FROM stock_batches WHERE product_id = ri.product_id AND is_active = 1), 0) as med_cost_price FROM return_items ri JOIN returns r ON ri.return_id = r.id LEFT JOIN products m ON ri.product_id = m.id WHERE r.created_at >= ? AND r.created_at <= ? AND (ri._deleted = 0 OR ri._deleted IS NULL) AND (r._deleted = 0 OR r._deleted IS NULL)`,
     [startIso, endIso]
   );

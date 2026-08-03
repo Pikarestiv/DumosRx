@@ -18,6 +18,7 @@ import { ProcurementDetailsDialog } from "./modals/procurement-details-dialog";
 import { DashboardPrescriptionDetailsDialog } from "./modals/dashboard-prescription-details-dialog";
 import { StockMovementDetailsDialog } from "./modals/stock-movement-details-dialog";
 import { formatCurrency } from "@/lib/utils";
+import type { SaleWithDetails } from "@/lib/types/sale";
 
 function renderSalesComparison(comparison: SalesComparison) {
   if (comparison.state === "none") {
@@ -137,7 +138,7 @@ export function DashboardOverview() {
       <TransactionDetailsDialog
         sale={
           selectedActivity?.type === "sale"
-            ? selectedActivity.rawActivity
+            ? (selectedActivity.rawActivity as unknown as SaleWithDetails)
             : null
         }
         open={selectedActivity?.type === "sale"}

@@ -9,12 +9,13 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { ProductCombobox, SelectedProduct } from "@/components/ui/product-combobox";
 import { toast } from "sonner";
 import { useStore } from "@/lib/context/store-context";
-import type { Product } from "@/lib/types/product";
+import type { Product, ProductViewModel } from "@/lib/types/product";
+import type { DraftPOLineItem } from "@/lib/db/procurement";
 
 interface POAddItemFormProps {
   products: Product[];
-  onAddItem: (item: any) => void;
-  onOpenAddProduct: (productData: any) => void;
+  onAddItem: (item: DraftPOLineItem) => void;
+  onOpenAddProduct: (productData: Partial<ProductViewModel>) => void;
   newlyCreatedProductId?: string | null;
   onNewlyCreatedProductConsumed?: () => void;
 }

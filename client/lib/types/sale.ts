@@ -57,3 +57,27 @@ export interface SaleItemDetail {
   subtotal?: number;
   returned_quantity?: number;
 }
+
+/** returns row joined with the originating sale's payment fields — used to
+ * work out which payment bucket (cash/card/transfer) a refund reduces. */
+export interface ReturnRecord {
+  id: string;
+  sale_id: string;
+  user_id: string;
+  reason?: string;
+  total_refunded: number;
+  created_at?: string;
+  payment_method?: string;
+  payment_details?: string;
+}
+
+export interface ReturnItemDetail {
+  id: string;
+  return_id: string;
+  product_id: string;
+  quantity: number;
+  unit_price: number;
+  subtotal: number;
+  cost_price?: number;
+  med_cost_price?: number;
+}

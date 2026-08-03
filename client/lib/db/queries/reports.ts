@@ -1,5 +1,6 @@
 import { query } from "@/lib/db";
 import { getLocalTodayDate } from "@/lib/utils";
+import type { DashboardActivity } from "@/lib/types/dashboard-activity";
 
 /** @param viewerId - when provided, restricts the recent-activity feed (sales,
  * stock movements, purchase orders, expenses, prescriptions) to entries
@@ -79,12 +80,12 @@ export async function getDashboardOverviewData(viewerId?: string) {
     viewerId ? [viewerId] : []
   );
 
-  const allActivities = [
-    ...(recentSales || []).map((s: any) => ({ ...s, activity_type: 'sale' })),
-    ...(recentMovements || []).map((m: any) => ({ ...m, activity_type: 'stock_movement' })),
-    ...(recentPurchaseOrders || []).map((po: any) => ({ ...po, activity_type: 'purchase_order' })),
-    ...(recentExpenses || []).map((e: any) => ({ ...e, activity_type: 'expense' })),
-    ...(recentPrescriptions || []).map((p: any) => ({ ...p, activity_type: 'prescription' }))
+  const allActivities: DashboardActivity[] = [
+    ...(recentSales || []).map((s: any) => ({ ...s, activity_type: 'sale' as const })),
+    ...(recentMovements || []).map((m: any) => ({ ...m, activity_type: 'stock_movement' as const })),
+    ...(recentPurchaseOrders || []).map((po: any) => ({ ...po, activity_type: 'purchase_order' as const })),
+    ...(recentExpenses || []).map((e: any) => ({ ...e, activity_type: 'expense' as const })),
+    ...(recentPrescriptions || []).map((p: any) => ({ ...p, activity_type: 'prescription' as const }))
   ].sort((a, b) => {
     const timeA = new Date(a.created_at || a.date || a.transaction_date).getTime();
     const timeB = new Date(b.created_at || b.date || b.transaction_date).getTime();

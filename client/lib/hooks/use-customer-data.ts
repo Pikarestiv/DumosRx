@@ -7,6 +7,7 @@ import { insert, update, generateId } from "@/lib/db/local-database";
 import { getCustomers, getCustomerRetentionMetrics, getCustomerTransactions, recordCustomerPayment } from "@/lib/db/queries/customers";
 import { getLoyaltyTiers, LoyaltyTierRow } from "@/lib/db/queries/loyalty";
 import { queryKeys } from "@/lib/query-keys";
+import type { CustomerDbRow, CustomerFormPayload, CustomerTransactionRow } from "@/lib/types/customer";
 export interface Customer {
   id: string;
   name: string;
@@ -39,7 +40,7 @@ const getTier = (spent: number, tiers: Pick<LoyaltyTierRow, "name" | "min_spend"
 };
 
 const transformCustomer = (
-  dbData: any,
+  dbData: CustomerDbRow,
   tiers?: Pick<LoyaltyTierRow, "name" | "min_spend">[],
 ): Customer => {
   const totalSpent = dbData.total_spent || 0;
@@ -79,7 +80,7 @@ async function fetchCustomerData() {
   const tiers = dbTiers.length > 0 ? dbTiers : undefined;
 
   const data = await getCustomers();
-  const transformed = data.map((c: any) => transformCustomer(c, tiers));
+  const transformed = data.map((c) => transformCustomer(c, tiers));
 
   const retMetrics = await getCustomerRetentionMetrics();
 
@@ -131,7 +132,7 @@ export function useCustomerData() {
   const customers = data?.customers ?? [];
   const metrics = data?.metrics ?? null;
 
-  const addCustomer = async (payload: any) => {
+  const addCustomer = async (payload: CustomerFormPayload) => {
     try {
       const now = new Date().toISOString();
       const customerId = generateId();
@@ -160,14 +161,14 @@ export function useCustomerData() {
       const newCustomer = transformCustomer(customerData, data?.tiers);
       toast.success("Customer added successfully");
       return newCustomer;
-    } catch (error: any) {
+    } catch (error) {
       console.error("Failed to create customer", error);
       toast.error("Failed to create customer locally");
       throw error;
     }
   };
 
-  const updateCustomer = async (id: string, payload: any): Promise<Customer | null> => {
+  const updateCustomer = async (id: string, payload: CustomerFormPayload): Promise<Customer | null> => {
     try {
       const existing = customers.find((c) => c.id === id);
       if (!existing) return null;
@@ -199,7 +200,7 @@ export function useCustomerData() {
 
       toast.success("Customer updated successfully");
       return updatedCustomer;
-    } catch (error: any) {
+    } catch (error) {
       console.error("Failed to update customer", error);
       toast.error("Failed to update customer");
       throw error;
@@ -221,7 +222,7 @@ export function useCustomerData() {
       const updatedCustomer: Customer = { ...existing, outstanding_balance: newBalance };
       toast.success("Payment recorded successfully");
       return updatedCustomer;
-    } catch (error: any) {
+    } catch (error) {
       console.error("Failed to record payment", error);
       toast.error("Failed to record payment");
       throw error;
@@ -251,7 +252,7 @@ export interface CustomerTransaction {
   itemNames: string[];
 }
 
-const transformTransaction = (row: any): CustomerTransaction => ({
+const transformTransaction = (row: CustomerTransactionRow): CustomerTransaction => ({
   id: row.id,
   transactionNumber: row.transaction_number,
   customerId: row.customer_id,

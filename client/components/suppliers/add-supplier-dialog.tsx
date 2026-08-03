@@ -14,8 +14,9 @@ import { SearchableInput } from "@/components/ui/searchable-input";
 import { FORM_SUGGESTIONS } from "@/lib/constants/suggestions";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { query } from "@/lib/db/core";
+import type { SupplierPayload, SupplierViewModel } from "@/lib/types/supplier";
 
-interface Supplier {
+interface SupplierFormState {
   name: string;
   contactPerson: string;
   email: string;
@@ -29,8 +30,8 @@ interface Supplier {
 interface AddSupplierDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAddSupplier: (supplier: any) => void;
-  initialSupplier?: any;
+  onAddSupplier: (supplier: SupplierPayload) => void;
+  initialSupplier?: SupplierViewModel;
 }
 
 export function AddSupplierDialog({
@@ -41,7 +42,7 @@ export function AddSupplierDialog({
 }: AddSupplierDialogProps) {
   const { storeType } = useStore();
   const isPharmacy = storeType === "pharmacy";
-  const [formData, setFormData] = useState<Supplier>({
+  const [formData, setFormData] = useState<SupplierFormState>({
     name: "",
     contactPerson: "",
     email: "",
@@ -120,7 +121,7 @@ export function AddSupplierDialog({
   };
 
   const handleInputChange = (
-    field: keyof Supplier,
+    field: keyof SupplierFormState,
     value: string | boolean,
   ) => {
     setFormData((prev) => ({ ...prev, [field]: value }));

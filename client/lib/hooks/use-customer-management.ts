@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useStore } from "@/lib/context/store-context";
 import { useCustomerData, Customer } from "@/lib/hooks/use-customer-data";
+import type { CustomerFormPayload } from "@/lib/types/customer";
 import { genericFuzzySearch } from "@/lib/utils/search";
 import { getLoyaltyTiers } from "@/lib/db/queries/loyalty";
 import { usePullToRefreshHandler } from "@/lib/context/pull-to-refresh-context";
@@ -129,7 +130,7 @@ export function useCustomerManagement() {
     router.replace(`${pathname}?${newParams.toString()}`, { scroll: false });
   };
 
-  const handleAddCustomer = async (payload: any) => {
+  const handleAddCustomer = async (payload: CustomerFormPayload) => {
     const newCustomer = await addCustomer(payload);
     setIsAddCustomerOpen(false);
     if (newCustomer) {
@@ -140,7 +141,7 @@ export function useCustomerManagement() {
     }
   };
 
-  const handleUpdateCustomer = async (payload: any) => {
+  const handleUpdateCustomer = async (payload: CustomerFormPayload) => {
     if (!editingCustomer) return;
     const updated = await updateCustomer(editingCustomer.id, payload);
     if (updated) {

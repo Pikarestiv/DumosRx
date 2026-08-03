@@ -11,16 +11,7 @@ import {
   Truck,
   Pill,
 } from "lucide-react";
-
-interface ActivityItem {
-  id: string;
-  type: string;
-  displayType?: string;
-  message: string;
-  timestamp: string;
-  amount?: string;
-  rawSale?: any;
-}
+import type { ActivityFeedItem as ActivityItem } from "@/lib/types/dashboard-activity";
 
 interface DashboardRecentActivityProps {
   activities: ActivityItem[];

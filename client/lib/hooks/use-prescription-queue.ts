@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getActivePrescriptions, getAllPrescriptionItems, updatePrescriptionStatus as updateDbPrescriptionStatus } from "@/lib/db/queries/prescriptions";
 import { genericFuzzySearch } from "@/lib/utils/search";
 import { queryKeys } from "@/lib/query-keys";
+import type { PrescriptionRow } from "@/lib/types/prescription";
 
 export interface PrescriptionMedication {
   id: string;
@@ -46,7 +47,7 @@ async function fetchPrescriptions(): Promise<Prescription[]> {
   const itemsData = await getAllPrescriptionItems();
 
   // 2. Group items by prescription_id
-  const itemsMap = new Map<string, any[]>();
+  const itemsMap = new Map<string, PrescriptionMedication[]>();
   itemsData.forEach((item) => {
     if (!itemsMap.has(item.prescription_id)) {
       itemsMap.set(item.prescription_id, []);
@@ -70,7 +71,7 @@ async function fetchPrescriptions(): Promise<Prescription[]> {
   const nowIso = new Date().toISOString();
 
   // 3. Map to Prescription objects
-  return pData.map((p: any) => {
+  return pData.map((p: PrescriptionRow) => {
     const medications = itemsMap.get(p.id) || [];
     const isDispensable = p.status === "dispensed" || p.status === "completed";
     const hasRefillDue = isDispensable && medications.some(
@@ -82,19 +83,19 @@ async function fetchPrescriptions(): Promise<Prescription[]> {
 
     return {
       id: p.id,
-      prescriptionNumber: p.prescription_number,
-      patientName: p.patient_name,
-      patientPhone: p.patient_phone,
-      patientAge: p.patient_age,
-      doctorName: p.doctor_name,
-      doctorLicense: p.doctor_license,
-      dateIssued: p.issued_at,
+      prescriptionNumber: p.prescription_number || "",
+      patientName: p.patient_name || "",
+      patientPhone: p.patient_phone || "",
+      patientAge: p.patient_age || 0,
+      doctorName: p.doctor_name || "",
+      doctorLicense: p.doctor_license || "",
+      dateIssued: p.issued_at || "",
       dateDispensed: p.dispensed_at || undefined,
-      status: p.status,
-      priority: p.priority,
+      status: p.status as Prescription["status"],
+      priority: p.priority as Prescription["priority"],
       medications,
       insurance: p.insurance,
-      totalCost: p.total_cost,
+      totalCost: p.total_cost || 0,
       notes: p.notes,
       hasRefillDue,
     };

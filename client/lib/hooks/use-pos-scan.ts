@@ -1,10 +1,11 @@
 import { toast } from "sonner";
+import type { POSProduct } from "@/lib/types/product";
 
 interface Params {
-  products: any[];
+  products: POSProduct[];
   searchTerm: string;
   setSearchTerm: (term: string) => void;
-  addToCart: (product: any) => void;
+  addToCart: (product: POSProduct) => void;
 }
 
 /** Barcode-scan handling for the POS search box: Enter-to-scan and the shared scan-success lookup. */

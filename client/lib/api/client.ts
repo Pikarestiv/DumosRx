@@ -1,4 +1,6 @@
 import { BaseApiClient } from "./base-client";
+import type { CustomerFormPayload } from "@/lib/types/customer";
+import type { Broadcast } from "@/lib/types/broadcast";
 
 class ApiClient extends BaseApiClient {
   // Auth endpoints
@@ -85,7 +87,7 @@ class ApiClient extends BaseApiClient {
     return this.request<any>(`/app/customers?page=${page}&limit=${limit}`);
   }
 
-  async createCustomer(data: any) {
+  async createCustomer(data: CustomerFormPayload) {
     return this.request<any>("/app/customers", {
       method: "POST",
       body: JSON.stringify(data),
@@ -218,7 +220,10 @@ class ApiClient extends BaseApiClient {
   // Broadcasts
   async getBroadcasts(storeId?: string) {
     const headers: Record<string, string> = storeId ? { "X-Store-ID": storeId } : {};
-    return this.request<any>("/announcements", { headers });
+    return this.request<{ success: boolean; data: Broadcast[] }>(
+      "/announcements",
+      { headers },
+    );
   }
 
   // System Configurations

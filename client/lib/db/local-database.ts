@@ -15,6 +15,7 @@ import { insert, update, softDelete } from "./base-helpers";
 import { queryClient } from "../query-client";
 import { AUDIT_ACTIONS } from "./audit-actions";
 import { queryKeys } from "../query-keys";
+import type { NewProductPayload } from "@/lib/types/product";
 
 const STOCK_MOVEMENT_AUDIT_ACTIONS: Record<string, string> = {
   adjustment: AUDIT_ACTIONS.STOCK_ADJUSTMENT,
@@ -82,7 +83,7 @@ export async function getProductById(id: string) {
   return results[0] || null;
 }
 
-export async function createProduct(data: any) {
+export async function createProduct(data: NewProductPayload) {
   // Ensure we have a valid UUID for category, else wait for sync
   const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
   

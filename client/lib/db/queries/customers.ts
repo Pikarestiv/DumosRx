@@ -1,8 +1,8 @@
 import { query, insert, update } from "@/lib/db/local-database";
-import { Customer } from "@/lib/types/customer";
+import { Customer, CustomerDbRow, CustomerTransactionRow } from "@/lib/types/customer";
 
 export async function getCustomers() {
-  return query<any>(`
+  return query<CustomerDbRow>(`
     SELECT 
       c.*,
       COALESCE(SUM(s.total_amount), 0) as total_spent,
@@ -27,7 +27,7 @@ export async function getCustomerTransactions(options: { sinceDays?: number } = 
   const dateFilter = sinceDays
     ? `AND s.transaction_date >= datetime('now', '-${sinceDays} days')`
     : "";
-  return query<any>(
+  return query<CustomerTransactionRow>(
     `SELECT
       s.id,
       s.transaction_number,

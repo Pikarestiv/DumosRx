@@ -21,9 +21,10 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import type { PurchaseOrder } from "@/lib/db/procurement";
 
 interface PurchaseOrderDetailsProps {
-  selectedPO: any;
+  selectedPO: PurchaseOrder | null;
   isLoadingDetails: boolean;
   getStatusBadge: (status: string) => React.ReactNode;
   onSendPO: (id: string) => void;
@@ -54,7 +55,7 @@ export function PurchaseOrderDetails({
         createdAt={formatDateToDDMMYYYY(selectedPO.created_at)}
         status={selectedPO.status}
         notes={selectedPO.notes}
-        items={(selectedPO.items || []).map((item: any) => ({
+        items={(selectedPO.items || []).map((item) => ({
           product_name: item.product_name || "Unknown Product",
           bulk_quantity: item.bulk_quantity || 0,
           unit_cost: item.unit_cost || 0,
@@ -127,7 +128,7 @@ export function PurchaseOrderDetails({
                   </h4>
                   <div className="flex flex-col gap-3">
                     {selectedPO.items && selectedPO.items.length > 0 ? (
-                      selectedPO.items.map((item: any, idx: number) => (
+                      selectedPO.items.map((item, idx) => (
                         <div
                           key={idx}
                           className="flex items-start justify-between text-[13px]"

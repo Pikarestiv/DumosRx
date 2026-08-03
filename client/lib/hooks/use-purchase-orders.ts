@@ -7,6 +7,7 @@ import {
   updatePurchaseOrderStatus,
   deletePurchaseOrder,
   type PurchaseOrder,
+  type ReceivedItem,
 } from "@/lib/db/local-database";
 import { genericFuzzySearch } from "@/lib/utils/search";
 import { queryKeys } from "@/lib/query-keys";
@@ -39,7 +40,7 @@ export function usePurchaseOrders() {
     await refetch();
   };
 
-  const handleReceivePO = async (id: string, receivedItems: any[]) => {
+  const handleReceivePO = async (id: string, receivedItems: ReceivedItem[]) => {
     try {
       await receivePurchaseOrder(id, receivedItems);
       toast.success("Order received and stock updated!");

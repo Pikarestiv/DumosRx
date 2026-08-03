@@ -43,9 +43,9 @@ export function useMonthlySalesData(dateFilter: string) {
       }
       const monthKey = `${y}-${String(m + 1).padStart(2, "0")}`;
       
-      const salesItem = rawMonthlyData.find((d: any) => d.month === monthKey);
-      const returnsItem = rawMonthlyReturns.find((d: any) => d.month === monthKey);
-      const expenseItem = rawExpenseData.find((d: any) => d.month === monthKey);
+      const salesItem = rawMonthlyData.find((d) => d.month === monthKey);
+      const returnsItem = rawMonthlyReturns.find((d) => d.month === monthKey);
+      const expenseItem = rawExpenseData.find((d) => d.month === monthKey);
 
       const rawRevenue = salesItem?.revenue || 0;
       const rawCogs = salesItem?.cogs || 0;

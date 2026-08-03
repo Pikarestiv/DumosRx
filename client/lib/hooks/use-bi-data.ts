@@ -97,7 +97,7 @@ export function useBIData(externalTimeRange?: string) {
   const colors = ["#0ea5e9", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
   const categoryDistribution = metrics?.categoryDistribution || [];
   const formattedCategoryData = useMemo(() => {
-    return categoryDistribution.map((item: any, index: number) => ({
+    return categoryDistribution.map((item, index) => ({
       ...item,
       color: colors[index % colors.length],
     }));

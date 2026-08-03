@@ -13,11 +13,12 @@ import { FORM_SUGGESTIONS } from "@/lib/constants/suggestions";
 import { Product } from "./types";
 import { ProductFormFields } from "./product-form-fields";
 import { query } from "@/lib/db/core";
+import type { NewProductPayload } from "@/lib/types/product";
 
 interface AddProductDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAddProduct: (product: any, keepOpen?: boolean) => void;
+  onAddProduct: (product: NewProductPayload, keepOpen?: boolean) => void;
   editingProduct?: Product | null;
   initialData?: Partial<Product>;
   /** Hide "Save & Add Another" — for flows (e.g. quick-adding a product from
@@ -233,7 +234,7 @@ export function AddProductDialog({
       is_controlled: formData.isControlled ? 1 : 0,
     };
 
-    onAddProduct(payload as any, keepOpen);
+    onAddProduct(payload, keepOpen);
 
     // Reset form
     setFormData({

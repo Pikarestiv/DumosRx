@@ -5,6 +5,13 @@ import { useStore } from "@/lib/context/store-context";
 import { getDailyCloseData } from "@/lib/db/queries/sales";
 import { getPaymentAccounts } from "@/lib/db/queries/setup";
 import { queryKeys } from "@/lib/query-keys";
+import type { PaymentAccount } from "@/lib/types/payment-account";
+
+interface PaymentSplitEntry {
+  method: string;
+  amount: number;
+  accountId?: string;
+}
 
 export function useDailyCloseData(reportDate: string) {
   const { storeProfile } = useStore();
@@ -43,7 +50,7 @@ export function useDailyCloseData(reportDate: string) {
       const bucket = method === "card" ? totals.cardAccounts : totals.transferAccounts;
       const key = accountId || "uncategorized";
       if (!bucket[key]) {
-        const acc = paymentAccounts?.find((a: any) => a.id === key);
+        const acc = paymentAccounts?.find((a: PaymentAccount) => a.id === key);
         bucket[key] = { 
           name: key === "uncategorized" ? `Uncategorized ${method === "card" ? "Card" : "Transfer"}` : (acc?.name || "Unknown Account"), 
           total: 0 
@@ -52,10 +59,10 @@ export function useDailyCloseData(reportDate: string) {
       bucket[key].total += amount;
     };
 
-    salesToday.forEach((sale: any) => {
+    salesToday.forEach((sale) => {
       totals.total += sale.total_amount;
       const method = sale.payment_method?.toLowerCase();
-      let parsedDetails: any = null;
+      let parsedDetails: { splits?: PaymentSplitEntry[]; accountId?: string } | null = null;
 
       try {
         if (sale.payment_details) {
@@ -66,17 +73,17 @@ export function useDailyCloseData(reportDate: string) {
       }
 
       if (method === "mixed" && parsedDetails?.splits && Array.isArray(parsedDetails.splits)) {
-        parsedDetails.splits.forEach((split: any) => {
+        parsedDetails.splits.forEach((split) => {
           const splitMethod = split.method?.toLowerCase();
           if (totals[splitMethod as keyof typeof totals] !== undefined) {
-            (totals as any)[splitMethod] += split.amount;
+            (totals as Record<"cash" | "card" | "transfer" | "credit" | "total" | "refunds", number>)[splitMethod as "cash" | "card" | "transfer" | "credit" | "total" | "refunds"] += split.amount;
             if (splitMethod === "card" || splitMethod === "transfer") {
               addAccountTotal(splitMethod, split.accountId || null, split.amount);
             }
           }
         });
       } else if (totals[method as keyof typeof totals] !== undefined) {
-        (totals as any)[method] += sale.total_amount;
+        (totals as Record<"cash" | "card" | "transfer" | "credit" | "total" | "refunds", number>)[method as "cash" | "card" | "transfer" | "credit" | "total" | "refunds"] += sale.total_amount;
         if (method === "card" || method === "transfer") {
           addAccountTotal(method, parsedDetails?.accountId || null, sale.total_amount);
         }
@@ -86,7 +93,7 @@ export function useDailyCloseData(reportDate: string) {
       }
     });
 
-    returnsToday.forEach((ret: any) => {
+    returnsToday.forEach((ret) => {
       totals.total -= ret.total_refunded;
       totals.refunds += ret.total_refunded;
       const method = ret.payment_method?.toLowerCase();
@@ -98,7 +105,7 @@ export function useDailyCloseData(reportDate: string) {
         method !== "total" &&
         method !== "refunds"
       ) {
-        (totals as any)[method] -= ret.total_refunded;
+        (totals as Record<"cash" | "card" | "transfer" | "credit" | "total" | "refunds", number>)[method as "cash" | "card" | "transfer" | "credit" | "total" | "refunds"] -= ret.total_refunded;
       } else if (method === "mobile") {
         totals.transfer -= ret.total_refunded;
       }
@@ -111,7 +118,7 @@ export function useDailyCloseData(reportDate: string) {
       { name: string; quantity: number; revenue: number }
     > = {};
 
-    itemsToday.forEach((item: any) => {
+    itemsToday.forEach((item) => {
       const cost = item.cost_price || item.med_cost_price || 0;
       totalCostPrice += cost * item.quantity;
 
@@ -126,7 +133,7 @@ export function useDailyCloseData(reportDate: string) {
       itemMap[item.product_id].revenue += item.total_price;
     });
 
-    returnItemsToday.forEach((item: any) => {
+    returnItemsToday.forEach((item) => {
       const cost = item.cost_price || item.med_cost_price || 0;
       totalCostPrice -= cost * item.quantity;
     });

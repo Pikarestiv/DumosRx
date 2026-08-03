@@ -1,4 +1,5 @@
 import { query } from "@/lib/db/local-database";
+import type { PrescriptionItem, PrescriptionRow } from "@/lib/types/prescription";
 
 export async function getPrescriptionById(id: string) {
   const pData = await query<any>(
@@ -9,7 +10,7 @@ export async function getPrescriptionById(id: string) {
 }
 
 export async function getPrescriptionItems(prescriptionId: string) {
-  return await query<any>(
+  return await query<PrescriptionItem>(
     "SELECT * FROM prescription_items WHERE prescription_id = ? AND _deleted = 0",
     [prescriptionId]
   );
@@ -77,7 +78,7 @@ export async function getActivePrescriptions() {
   // Includes completed prescriptions too — the queue view filters by status
   // client-side (including the "History" chip), so excluding completed here
   // made that chip always render empty.
-  return query<any>(
+  return query<PrescriptionRow>(
     "SELECT * FROM prescriptions WHERE _deleted = 0 ORDER BY created_at DESC"
   );
 }

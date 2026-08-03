@@ -21,11 +21,11 @@ import { formatCurrency } from "@/lib/utils";
 import { ReceivePOModal, type ReceivedItemPayload } from "./receive-po-modal";
 import { PurchaseOrderDetails } from "./purchase-order-details";
 import { PurchaseOrderStatusFilter } from "./purchase-order-status-filter";
-import { getPurchaseOrderById } from "@/lib/db/procurement";
+import { getPurchaseOrderById, type PurchaseOrder } from "@/lib/db/procurement";
 import { useMediaQuery } from "@/hooks/use-media-query";
 
 interface PurchaseOrderTableProps {
-  orders: any[];
+  orders: PurchaseOrder[];
   loading: boolean;
   searchQuery: string;
   onSearchChange: (query: string) => void;

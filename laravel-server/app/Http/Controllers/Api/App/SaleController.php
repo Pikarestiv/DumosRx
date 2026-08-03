@@ -21,7 +21,7 @@ class SaleController extends Controller
         security: [['sanctum' => []]],
         parameters: [new OA\Parameter(name: 'limit', in: 'query', schema: new OA\Schema(type: 'integer', default: 50))],
         responses: [
-            new OA\Response(response: 200, description: 'Paginated sales, with items/customer/user eager-loaded', content: new OA\JsonContent(type: 'object')),
+            new OA\Response(response: 200, description: 'Paginated sales, with items/customer/cashier eager-loaded', content: new OA\JsonContent(type: 'object')),
             new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
         ],
     )]
@@ -38,7 +38,7 @@ class SaleController extends Controller
         }
 
         $sales = Sale::whereIn('cashier_id', $userIds)
-            ->with('items', 'customer', 'user')
+            ->with('items', 'customer', 'cashier')
             ->latest()
             ->paginate($limit);
 
@@ -123,6 +123,36 @@ class SaleController extends Controller
 
             return response()->json($sale->load('items'), 201);
         });
+    }
+
+    #[OA\Get(
+        path: '/app/sales/{sale}',
+        summary: 'Get a single sale',
+        tags: ['Sales'],
+        security: [['sanctum' => []]],
+        parameters: [new OA\Parameter(name: 'sale', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
+        responses: [
+            new OA\Response(response: 200, description: 'The sale, with items/customer/cashier eager-loaded', content: new OA\JsonContent(type: 'object')),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+            new OA\Response(response: 404, ref: '#/components/responses/NotFound'),
+        ],
+    )]
+    public function show(Request $request, $id)
+    {
+        $user = $request->user();
+
+        if ($user->store_id) {
+            $userIds = User::where('store_id', $user->store_id)->pluck('id')->toArray();
+        } else {
+            $storeIds = Store::where('user_id', $user->id)->pluck('id')->toArray();
+            $userIds = User::whereIn('store_id', $storeIds)->pluck('id')->push($user->id)->toArray();
+        }
+
+        $sale = Sale::whereIn('cashier_id', $userIds)
+            ->with('items', 'customer', 'cashier')
+            ->findOrFail($id);
+
+        return response()->json($sale);
     }
 
     #[OA\Get(

@@ -33,6 +33,16 @@ export function setCurrentUser(
   currentUser = user;
 }
 
+/** Test-only: injects a bare database instance directly, bypassing
+ * initDatabase()'s IndexedDB persistence and schema-migration machinery, so
+ * unit tests can exercise query()/execute()/transaction() against a real
+ * SQLite engine (e.g. a throwaway sql.js instance) instead of mocks. Never
+ * called from production code paths. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function __setDatabaseForTesting(instance: any): void {
+  db = instance;
+}
+
 export function isTauri(): boolean {
   return (
     typeof window !== "undefined" &&

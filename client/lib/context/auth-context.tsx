@@ -159,7 +159,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         last_login: new Date().toISOString(),
       };
 
-      recentUsers = recentUsers.filter((u) => u.id !== recentUser.id);
+      // Dedupe by username, not id — if this device's local DB was ever
+      // rebuilt/restored, the same real-world person can come back with a
+      // brand new user id but the same username, and login() itself matches
+      // by username anyway. Deduping by id alone left stale ghost tiles for
+      // the old id permanently stuck in this cache, showing as duplicate
+      // "accounts" on the lock screen that were really all the same person.
+      recentUsers = recentUsers.filter(
+        (u) => u.username.toLowerCase() !== recentUser.username.toLowerCase(),
+      );
       recentUsers.unshift(recentUser);
       if (recentUsers.length > 5) recentUsers = recentUsers.slice(0, 5); // Keep last 5
 
@@ -215,7 +223,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         last_login: new Date().toISOString(),
       };
 
-      recentUsers = recentUsers.filter((u) => u.id !== recentUser.id);
+      recentUsers = recentUsers.filter(
+        (u) => u.username.toLowerCase() !== recentUser.username.toLowerCase(),
+      );
       recentUsers.unshift(recentUser);
       if (recentUsers.length > 5) recentUsers = recentUsers.slice(0, 5); // Keep last 5
 

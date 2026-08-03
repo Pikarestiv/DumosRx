@@ -1,5 +1,4 @@
 "use client";
-import { toast } from "sonner";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { usePOSSystem } from "@/lib/hooks/use-pos-system";
 import { POSLayoutHeader } from "./pos-layout-header";

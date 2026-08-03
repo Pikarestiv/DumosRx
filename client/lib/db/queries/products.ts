@@ -1,5 +1,5 @@
 import { query } from "@/lib/db/local-database";
-import type { Product, ProductWithDetails } from "@/lib/types/product";
+import type { Product, ProductWithDetails, ProductWithStockRow, POSProduct } from "@/lib/types/product";
 import type { AuditLogRow } from "@/lib/types/audit-log";
 import type { StockMovementHistoryRow } from "@/lib/types/stock-movement";
 
@@ -63,8 +63,8 @@ export async function getProductList() {
   );
 }
 
-export async function getProductsWithStock() {
-  const items = await query<any>(
+export async function getProductsWithStock(): Promise<POSProduct[]> {
+  const items = await query<ProductWithStockRow>(
     `SELECT p.*, c.name as category_name, COALESCE(SUM(sb.quantity), 0) as stock_quantity, GROUP_CONCAT(sb.batch_number, ', ') as batch_number, AVG(sb.cost_price) as avg_cost_price
      FROM products p
      LEFT JOIN categories c ON p.category_id = c.id AND c._deleted = 0
@@ -74,7 +74,7 @@ export async function getProductsWithStock() {
      ORDER BY p.name ASC`,
   );
 
-  return items.map((m: any) => ({
+  return items.map((m) => ({
     id: m.id,
     name: m.name,
     generic_name: m.generic_name || "",

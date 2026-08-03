@@ -3,7 +3,7 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/context/auth-context";
-import { useStore } from "@/lib/context/store-context";
+import { useStore, type StoreProfile } from "@/lib/context/store-context";
 import { useQuery } from "@tanstack/react-query";
 import { getStaffCount } from "@/lib/db/queries/auth";
 import { getSyncQueueCount } from "@/lib/db/queries/setup";
@@ -134,13 +134,13 @@ function useActionCenterAlerts(
       }
 
       if (storeProfile) {
-        const fieldsToCheck = ["name", "address", "phone", "email", "logo_url"];
+        const fieldsToCheck: (keyof StoreProfile)[] = ["name", "address", "phone", "email", "logo_url"];
         if (storeProfile.store_type === "pharmacy") {
           fieldsToCheck.push("pcn_license");
         }
 
         const filledFields = fieldsToCheck.filter(
-          (field) => !!(storeProfile as any)[field],
+          (field) => !!storeProfile[field],
         );
         const percentage = Math.round(
           (filledFields.length / fieldsToCheck.length) * 100,

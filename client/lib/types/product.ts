@@ -30,6 +30,16 @@ export interface ProductWithDetails extends Product {
   batch_number?: string;
 }
 
+/** Row shape returned by getProductsWithStock()'s raw query — `products`
+ * joined with the category name and stock_batches aggregates (on-hand
+ * quantity, concatenated batch numbers, average cost across active batches). */
+export interface ProductWithStockRow extends Product {
+  category_name?: string;
+  stock_quantity?: number;
+  batch_number?: string;
+  avg_cost_price?: number;
+}
+
 export interface POSProduct {
   id: string;
   name: string;

@@ -8,6 +8,8 @@ import { getAvailableStockBatches } from "@/lib/db/queries/inventory";
 import { createPrescription, generateId } from "@/lib/db/local-database";
 import { getPrescriptionById, getPrescriptionItems, updatePrescriptionRecord, deletePrescriptionItems, insertPrescriptionItem } from "@/lib/db/queries/prescriptions";
 import { queryKeys } from "@/lib/query-keys";
+import type { PrescriptionItem, PrescriptionPriority } from "@/lib/types/prescription";
+import { toPrescriptionPriority } from "@/lib/types/prescription";
 
 export interface PrescriptionMedication {
   id: string;
@@ -27,7 +29,7 @@ export interface NewPrescriptionForm {
   patientAge: string;
   doctorName: string;
   doctorLicense: string;
-  priority: "normal" | "urgent" | "stat";
+  priority: PrescriptionPriority;
   insurance: string;
   medications: PrescriptionMedication[];
   notes: string;
@@ -96,10 +98,10 @@ export function useNewPrescription() {
             patientAge: prescription.patient_age?.toString() || "",
             doctorName: prescription.doctor_name || "",
             doctorLicense: prescription.doctor_license || "",
-            priority: prescription.priority || "normal",
+            priority: toPrescriptionPriority(prescription.priority),
             insurance: prescription.insurance || "",
             notes: prescription.notes || "",
-            medications: itemsData.map((item: any) => ({
+            medications: itemsData.map((item: PrescriptionItem) => ({
               id: item.id,
               productName: item.product_name,
               strength: item.strength || "",

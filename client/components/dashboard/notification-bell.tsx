@@ -26,6 +26,7 @@ import { useRouter } from "next/navigation";
 import { useOnlineOrdersModal } from "@/lib/store/use-online-orders-modal";
 import { useIsTouchDevice } from "@/lib/hooks/use-is-touch-device";
 import { useBroadcasts } from "@/lib/hooks/use-broadcasts";
+import type { Broadcast } from "@/lib/types/broadcast";
 import { cn } from "@/lib/utils";
 
 interface NotificationItem {
@@ -104,8 +105,8 @@ export function NotificationBell() {
   const notifications = useMemo(() => {
     const finalBroadcasts = Array.isArray(broadcastsData) ? broadcastsData : [];
     const standardBroadcasts = finalBroadcasts
-      .filter((b: any) => b.type !== "danger" && b.type !== "warning")
-      .map((b: any) => ({
+      .filter((b: Broadcast) => b.type !== "danger" && b.type !== "warning")
+      .map((b: Broadcast) => ({
         id: `broadcast-${b.id}`,
         title: b.title,
         description: b.message,

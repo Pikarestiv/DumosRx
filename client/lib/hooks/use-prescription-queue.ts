@@ -5,7 +5,8 @@ import { useQuery } from "@tanstack/react-query";
 import { getActivePrescriptions, getAllPrescriptionItems, updatePrescriptionStatus as updateDbPrescriptionStatus } from "@/lib/db/queries/prescriptions";
 import { genericFuzzySearch } from "@/lib/utils/search";
 import { queryKeys } from "@/lib/query-keys";
-import type { PrescriptionRow } from "@/lib/types/prescription";
+import type { PrescriptionRow, PrescriptionStatus, PrescriptionPriority } from "@/lib/types/prescription";
+import { toPrescriptionStatus, toPrescriptionPriority } from "@/lib/types/prescription";
 
 export interface PrescriptionMedication {
   id: string;
@@ -32,8 +33,8 @@ export interface Prescription {
   doctorLicense: string;
   dateIssued: string;
   dateDispensed?: string;
-  status: "pending" | "in_progress" | "ready" | "dispensed" | "completed" | "on_hold" | "partially_dispensed" | "cancelled";
-  priority: "normal" | "urgent" | "stat";
+  status: PrescriptionStatus;
+  priority: PrescriptionPriority;
   medications: PrescriptionMedication[];
   insurance?: string;
   totalCost: number;
@@ -91,8 +92,8 @@ async function fetchPrescriptions(): Promise<Prescription[]> {
       doctorLicense: p.doctor_license || "",
       dateIssued: p.issued_at || "",
       dateDispensed: p.dispensed_at || undefined,
-      status: p.status as Prescription["status"],
-      priority: p.priority as Prescription["priority"],
+      status: toPrescriptionStatus(p.status),
+      priority: toPrescriptionPriority(p.priority),
       medications,
       insurance: p.insurance,
       totalCost: p.total_cost || 0,

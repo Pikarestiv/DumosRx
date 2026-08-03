@@ -1,6 +1,11 @@
 import { query } from "@/lib/db";
 import { getLocalTodayDate } from "@/lib/utils";
 import type { DashboardActivity } from "@/lib/types/dashboard-activity";
+import type { SaleWithDetails } from "@/lib/types/sale";
+import type { StockMovementHistoryRow } from "@/lib/types/stock-movement";
+import type { PurchaseOrder } from "@/lib/db/procurement";
+import type { Expense } from "@/lib/db/queries/finance";
+import type { PrescriptionRow } from "@/lib/types/prescription";
 
 /** @param viewerId - when provided, restricts the recent-activity feed (sales,
  * stock movements, purchase orders, expenses, prescriptions) to entries
@@ -11,7 +16,13 @@ import type { DashboardActivity } from "@/lib/types/dashboard-activity";
 export async function getDashboardOverviewData(viewerId?: string) {
   const today = getLocalTodayDate();
 
-  const salesToday = await query<any>(
+  const salesToday = await query<{
+    total: number;
+    count: number;
+    cash: number;
+    card: number;
+    debt: number;
+  }>(
     `SELECT
       SUM(total_amount) as total,
       COUNT(*) as count,
@@ -23,7 +34,12 @@ export async function getDashboardOverviewData(viewerId?: string) {
     [today]
   );
 
-  const refundsToday = await query<any>(
+  const refundsToday = await query<{
+    total: number;
+    cash: number;
+    card: number;
+    debt: number;
+  }>(
     `SELECT
       SUM(r.total_refunded) as total,
       SUM(CASE WHEN s.payment_method = 'cash' OR s.payment_method = 'mixed' THEN r.total_refunded ELSE 0 END) as cash,
@@ -35,7 +51,7 @@ export async function getDashboardOverviewData(viewerId?: string) {
     [today]
   );
 
-  const recentSales = await query<any>(
+  const recentSales = await query<SaleWithDetails>(
     `SELECT s.*, TRIM(u.first_name || ' ' || u.last_name) as cashier_name
      FROM sales s
      LEFT JOIN users u ON u.id = s.user_id
@@ -44,7 +60,7 @@ export async function getDashboardOverviewData(viewerId?: string) {
     viewerId ? [viewerId] : []
   );
 
-  const recentMovements = await query<any>(
+  const recentMovements = await query<StockMovementHistoryRow>(
     `SELECT sm.*, TRIM(u.first_name || ' ' || u.last_name) as performed_by_name
      FROM stock_movements sm
      LEFT JOIN users u ON u.id = sm.performed_by
@@ -53,7 +69,7 @@ export async function getDashboardOverviewData(viewerId?: string) {
     viewerId ? [viewerId] : []
   );
 
-  const recentPurchaseOrders = await query<any>(
+  const recentPurchaseOrders = await query<PurchaseOrder>(
     `SELECT po.*, TRIM(u.first_name || ' ' || u.last_name) as ordered_by_name
      FROM purchase_orders po
      LEFT JOIN users u ON u.id = po.ordered_by
@@ -62,7 +78,7 @@ export async function getDashboardOverviewData(viewerId?: string) {
     viewerId ? [viewerId] : []
   );
 
-  const recentExpenses = await query<any>(
+  const recentExpenses = await query<Expense>(
     `SELECT e.*, TRIM(u.first_name || ' ' || u.last_name) as recorded_by_name
      FROM expenses e
      LEFT JOIN users u ON u.id = e.user_id
@@ -71,7 +87,7 @@ export async function getDashboardOverviewData(viewerId?: string) {
     viewerId ? [viewerId] : []
   );
 
-  const recentPrescriptions = await query<any>(
+  const recentPrescriptions = await query<PrescriptionRow>(
     `SELECT p.*, TRIM(u.first_name || ' ' || u.last_name) as created_by_name
      FROM prescriptions p
      LEFT JOIN users u ON u.id = p.user_id
@@ -81,14 +97,14 @@ export async function getDashboardOverviewData(viewerId?: string) {
   );
 
   const allActivities: DashboardActivity[] = [
-    ...(recentSales || []).map((s: any) => ({ ...s, activity_type: 'sale' as const })),
-    ...(recentMovements || []).map((m: any) => ({ ...m, activity_type: 'stock_movement' as const })),
-    ...(recentPurchaseOrders || []).map((po: any) => ({ ...po, activity_type: 'purchase_order' as const })),
-    ...(recentExpenses || []).map((e: any) => ({ ...e, activity_type: 'expense' as const })),
-    ...(recentPrescriptions || []).map((p: any) => ({ ...p, activity_type: 'prescription' as const }))
+    ...(recentSales || []).map((s): DashboardActivity => ({ ...s, activity_type: 'sale' })),
+    ...(recentMovements || []).map((m): DashboardActivity => ({ ...m, activity_type: 'stock_movement' })),
+    ...(recentPurchaseOrders || []).map((po): DashboardActivity => ({ ...po, activity_type: 'purchase_order' })),
+    ...(recentExpenses || []).map((e): DashboardActivity => ({ ...e, activity_type: 'expense' })),
+    ...(recentPrescriptions || []).map((p): DashboardActivity => ({ ...p, activity_type: 'prescription' }))
   ].sort((a, b) => {
-    const timeA = new Date(a.created_at || a.date || a.transaction_date).getTime();
-    const timeB = new Date(b.created_at || b.date || b.transaction_date).getTime();
+    const timeA = new Date(a.created_at || a.date || a.transaction_date || 0).getTime();
+    const timeB = new Date(b.created_at || b.date || b.transaction_date || 0).getTime();
     return timeB - timeA;
   }).slice(0, 10);
 

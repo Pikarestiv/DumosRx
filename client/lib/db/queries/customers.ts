@@ -132,11 +132,11 @@ export async function recordCustomerPayment(
 }
 
 export async function getAllCustomers(): Promise<Customer[]> {
-  const items = await query<any>(
+  const items = await query<CustomerDbRow>(
     "SELECT * FROM customers WHERE _deleted = 0 ORDER BY first_name ASC"
   );
 
-  return items.map((c: any) => ({
+  return items.map((c) => ({
     id: c.id,
     first_name: c.first_name || "",
     last_name: c.last_name || "",

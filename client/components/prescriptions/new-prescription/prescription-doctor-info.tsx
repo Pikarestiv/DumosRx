@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/select";
 import { FileText } from "lucide-react";
 import type { NewPrescriptionForm } from "./use-new-prescription";
+import type { PrescriptionPriority } from "@/lib/types/prescription";
 
 interface PrescriptionDoctorInfoProps {
   formData: NewPrescriptionForm;
@@ -64,7 +65,7 @@ export function PrescriptionDoctorInfo({
             <Label htmlFor="priority">Priority</Label>
             <Select
               value={formData.priority}
-              onValueChange={(value: "normal" | "urgent" | "stat") =>
+              onValueChange={(value: PrescriptionPriority) =>
                 setFormData((prev) => ({ ...prev, priority: value }))
               }
             >

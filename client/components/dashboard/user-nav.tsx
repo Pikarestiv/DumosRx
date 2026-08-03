@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useState, useEffect } from "react";
-import { useAuth } from "@/lib/context/auth-context";
+import { useAuth, type User } from "@/lib/context/auth-context";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { getSyncQueueCount } from "@/lib/db/queries/setup";
@@ -53,7 +53,7 @@ const NavTrigger = ({
   showDetails,
 }: {
   initials: string;
-  user?: any;
+  user?: User;
   showDetails?: boolean;
 }) => (
   <Button

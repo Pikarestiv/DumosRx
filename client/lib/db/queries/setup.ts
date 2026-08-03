@@ -88,15 +88,15 @@ export async function importQuickbooksData(
 
   // Import Products
   if (importProducts && parsedData.products.length > 0) {
-    const existingProducts = await query<any>("SELECT id, name FROM products");
-    const existingNames = new Set(existingProducts.map((m: any) => m.name.toLowerCase()));
+    const existingProducts = await query<{ id: string; name: string }>("SELECT id, name FROM products");
+    const existingNames = new Set(existingProducts.map((m) => m.name.toLowerCase()));
 
     for (const med of parsedData.products) {
       const isDuplicate = existingNames.has(med.name.toLowerCase());
 
       if (isDuplicate) {
         if (duplicateStrategy === "overwrite") {
-          const existingMed = existingProducts.find((p: any) => p.name.toLowerCase() === med.name.toLowerCase());
+          const existingMed = existingProducts.find((p) => p.name.toLowerCase() === med.name.toLowerCase());
           if (existingMed) {
             await execute(
               "UPDATE products SET selling_price = ?, updated_at = ? WHERE id = ?",
@@ -159,11 +159,11 @@ export async function importQuickbooksData(
 
   // Import Customers
   if (importCustomers && parsedData.customers.length > 0) {
-    const existingCustomers = await query<any>("SELECT first_name, last_name FROM customers");
+    const existingCustomers = await query<{ first_name?: string; last_name?: string }>("SELECT first_name, last_name FROM customers");
     // Must match the SQL-side comparison below exactly: SQLite's `||` returns NULL
     // if any operand is NULL, so a customer with no last_name would never match
     // here unless both sides treat a missing last_name as an empty string.
-    const getFullName = (c: any) => `${c.first_name || ""} ${c.last_name || ""}`.trim().toLowerCase();
+    const getFullName = (c: { first_name?: string; last_name?: string }) => `${c.first_name || ""} ${c.last_name || ""}`.trim().toLowerCase();
     const existingNames = new Set(existingCustomers.map(getFullName));
 
     for (const cust of parsedData.customers) {

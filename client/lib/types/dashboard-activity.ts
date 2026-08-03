@@ -9,7 +9,7 @@ export interface DashboardActivity {
   date?: string;
   transaction_date?: string;
   // sale
-  prescription_id?: string;
+  prescription_id?: string | null;
   transaction_number?: string;
   total_amount?: number;
   total?: number;
@@ -24,6 +24,12 @@ export interface DashboardActivity {
   amount?: number;
   // purchase_order
   po_number?: string;
+  // Actor display name joined in per activity type — differs by source table.
+  cashier_name?: string;
+  performed_by_name?: string;
+  ordered_by_name?: string;
+  recorded_by_name?: string;
+  created_by_name?: string;
 }
 
 /** The transformed, display-ready shape of a DashboardActivity row, plus the

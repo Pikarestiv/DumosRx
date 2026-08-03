@@ -123,10 +123,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const userProfile: User = {
         id: dbUser.id,
-        first_name: dbUser.first_name,
-        last_name: dbUser.last_name,
-        username: dbUser.username,
-        role: dbUser.role as any,
+        first_name: dbUser.first_name || "",
+        last_name: dbUser.last_name || "",
+        username: dbUser.username || "",
+        role: dbUser.role as User["role"],
         store_id: dbUser.store_id,
       };
 

@@ -185,17 +185,17 @@ export async function getRecentSales(userId?: string) {
 }
 
 export async function getRecentlySoldProductIds() {
-  const data = await query<any>(
+  const data = await query<{ product_id: string }>(
     "SELECT DISTINCT product_id FROM sale_items ORDER BY created_at DESC LIMIT 8"
   );
-  return data.map((d: any) => d.product_id);
+  return data.map((d) => d.product_id);
 }
 
 export async function getCommonlySoldProductIds() {
-  const data = await query<any>(
+  const data = await query<{ product_id: string; total_qty: number }>(
     "SELECT product_id, SUM(quantity) as total_qty FROM sale_items GROUP BY product_id ORDER BY total_qty DESC LIMIT 8"
   );
-  return data.map((d: any) => d.product_id);
+  return data.map((d) => d.product_id);
 }
 
 export async function getDailyCloseData(reportDate: string) {

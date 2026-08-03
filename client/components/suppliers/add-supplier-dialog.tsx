@@ -13,7 +13,7 @@ import { useStore } from "@/lib/context/store-context";
 import { SearchableInput } from "@/components/ui/searchable-input";
 import { FORM_SUGGESTIONS } from "@/lib/constants/suggestions";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { query } from "@/lib/db/core";
+import { getSupplierByName } from "@/lib/db/queries/products";
 import type { SupplierPayload, SupplierViewModel } from "@/lib/types/supplier";
 
 interface SupplierFormState {
@@ -79,11 +79,8 @@ export function AddSupplierDialog({
     }
 
     try {
-      const existing = await query<{ id: string }>(
-        "SELECT id FROM suppliers WHERE LOWER(name) = LOWER(?) LIMIT 1",
-        [formData.name],
-      );
-      if (existing && existing.length > 0) {
+      const existingId = await getSupplierByName(formData.name);
+      if (existingId) {
         setAlertMessage(
           `A supplier with the name "${formData.name}" already exists.`,
         );

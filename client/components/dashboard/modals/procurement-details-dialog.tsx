@@ -3,18 +3,10 @@
 import { useEffect, useState } from "react";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
-import { query } from "@/lib/db";
+import { getPurchaseOrderItemsForDetail } from "@/lib/db/procurement";
 import { Truck } from "lucide-react";
 import { DetailRow } from "./detail-row";
-import type { PurchaseOrder } from "@/lib/db/procurement";
-
-interface PODetailItem {
-  id: string;
-  product_name?: string;
-  quantity: number;
-  unit_price: number;
-  total_price: number;
-}
+import type { PurchaseOrder, PODetailItem } from "@/lib/db/procurement";
 
 interface ProcurementDetailsDialogProps {
   po: PurchaseOrder | null;
@@ -51,18 +43,7 @@ export function ProcurementDetailsDialog({
 
   useEffect(() => {
     if (po?.id && open) {
-      query<PODetailItem>(
-        `SELECT
-          poi.*,
-          p.name as product_name,
-          poi.bulk_quantity as quantity,
-          poi.unit_cost as unit_price,
-          poi.subtotal as total_price
-         FROM purchase_order_items poi
-         LEFT JOIN products p ON poi.product_id = p.id
-         WHERE poi.po_id = ?`,
-        [po.id],
-      ).then((res) => setItems(res || []));
+      getPurchaseOrderItemsForDetail(po.id).then((res) => setItems(res || []));
     } else if (!open) {
       setItems([]);
     }

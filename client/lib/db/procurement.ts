@@ -63,6 +63,31 @@ export interface DraftPOLineItem {
   subtotal: number;
 }
 
+export interface PODetailItem {
+  id: string;
+  product_name?: string;
+  quantity: number;
+  unit_price: number;
+  total_price: number;
+}
+
+/** Line items for the purchase order detail view — aliased to the display
+ * field names the dialog renders directly. */
+export async function getPurchaseOrderItemsForDetail(poId: string) {
+  return query<PODetailItem>(
+    `SELECT
+      poi.*,
+      p.name as product_name,
+      poi.bulk_quantity as quantity,
+      poi.unit_cost as unit_price,
+      poi.subtotal as total_price
+     FROM purchase_order_items poi
+     LEFT JOIN products p ON poi.product_id = p.id
+     WHERE poi.po_id = ? AND poi._deleted = 0`,
+    [poId],
+  );
+}
+
 /**
  * Loads every purchase order, not a page of them — the caller runs search/filter
  * over the result, and this data set is small enough (dozens to low hundreds per

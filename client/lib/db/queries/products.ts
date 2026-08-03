@@ -36,13 +36,30 @@ export async function getCategoryByName(name: string) {
 
 export async function getSupplierByName(name: string) {
   const existing = await query<{ id: string }>(
-    "SELECT id FROM suppliers WHERE name = ? AND _deleted = 0",
+    "SELECT id FROM suppliers WHERE name = ? COLLATE NOCASE AND _deleted = 0",
     [name],
   );
   if (existing && existing.length > 0) {
     return existing[0].id;
   }
   return null;
+}
+
+export async function getSupplierNames() {
+  const suppliers = await query<{ name: string }>(
+    "SELECT name FROM suppliers WHERE _deleted = 0",
+  );
+  return suppliers.map((s) => s.name);
+}
+
+/** Lightweight product lookup for contexts (e.g. stock movement detail) that
+ * only need the name/generic name/dosage form, not the full product record. */
+export async function getProductBasicInfo(productId: string) {
+  const rows = await query<{ name: string; generic_name?: string; dosage_form?: string }>(
+    "SELECT name, generic_name, dosage_form FROM products WHERE id = ?",
+    [productId],
+  );
+  return rows[0] || null;
 }
 
 export async function getProductByName(name: string) {

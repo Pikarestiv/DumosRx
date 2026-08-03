@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
-import { query } from "@/lib/db";
+import { getPrescriptionItems } from "@/lib/db/queries/prescriptions";
 import { Pill } from "lucide-react";
 import { DetailRow } from "./detail-row";
 import type { PrescriptionRow, PrescriptionItem } from "@/lib/types/prescription";
@@ -45,9 +45,7 @@ export function DashboardPrescriptionDetailsDialog({
 
   useEffect(() => {
     if (prescription?.id && open) {
-      query<PrescriptionItem>("SELECT * FROM prescription_items WHERE prescription_id = ?", [
-        prescription.id,
-      ]).then((res) => setItems(res || []));
+      getPrescriptionItems(prescription.id).then((res) => setItems(res || []));
     } else if (!open) {
       setItems([]);
     }

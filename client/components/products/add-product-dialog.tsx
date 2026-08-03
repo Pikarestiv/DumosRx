@@ -12,7 +12,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { FORM_SUGGESTIONS } from "@/lib/constants/suggestions";
 import { Product } from "./types";
 import { ProductFormFields, type ProductSuggestions } from "./product-form-fields";
-import { query } from "@/lib/db/core";
+import { getSupplierNames } from "@/lib/db/queries/products";
 import type { NewProductPayload } from "@/lib/types/product";
 
 interface AddProductDialogProps {
@@ -176,14 +176,9 @@ export function AddProductDialog({
       setSuggestions({ ...retailList, names: retailNames, suppliers: [] });
     }
 
-    query<{ name: string }>("SELECT name FROM suppliers WHERE _deleted = 0")
-      .then((res) => {
-        if (res && Array.isArray(res)) {
-          setSuggestions((prev) => ({
-            ...prev,
-            suppliers: res.map((s) => s.name),
-          }));
-        }
+    getSupplierNames()
+      .then((names) => {
+        setSuggestions((prev) => ({ ...prev, suppliers: names }));
       })
       .catch(console.error);
   }, [isPharmacy, storeProfile?.show_retail_suggestions]);

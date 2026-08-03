@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { formatCurrency } from "@/lib/utils";
-import { query } from "@/lib/db";
+import { getProductBasicInfo } from "@/lib/db/queries/products";
 import {
   getTypeColor,
   getTypeIcon,
@@ -14,11 +14,7 @@ import {
 import { DetailRow } from "./detail-row";
 import type { StockMovementHistoryRow } from "@/lib/types/stock-movement";
 
-interface ProductInfo {
-  name: string;
-  generic_name?: string;
-  dosage_form?: string;
-}
+type ProductInfo = Awaited<ReturnType<typeof getProductBasicInfo>>;
 
 interface StockMovementDetailsDialogProps {
   movement: StockMovementHistoryRow | null;
@@ -37,11 +33,8 @@ export function StockMovementDetailsDialog({
 
   useEffect(() => {
     if (movement?.product_id && open) {
-      query<ProductInfo>(
-        "SELECT name, generic_name, dosage_form FROM products WHERE id = ?",
-        [movement.product_id],
-      ).then((res) => {
-        if (res && res[0]) setProductInfo(res[0]);
+      getProductBasicInfo(movement.product_id).then((res) => {
+        if (res) setProductInfo(res);
       });
     } else if (!open) {
       setProductInfo(null);

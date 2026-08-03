@@ -21,6 +21,7 @@ import {
   useAutoLockStore,
   useAutoLockTimer,
   useLockOnFreshLoad,
+  useLockShortcut,
 } from "@/lib/hooks/use-auto-lock";
 import { useSwipeNavigation } from "@/lib/hooks/use-swipe-navigation";
 import { useSidebarPeekPreference } from "@/lib/hooks/use-sidebar-peek-preference";
@@ -69,6 +70,7 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
 
   useAutoLockTimer();
   useLockOnFreshLoad();
+  useLockShortcut();
 
   useEffect(() => {
     try {

@@ -102,6 +102,27 @@ export function useAutoLockTimer() {
 }
 
 /**
+ * Ctrl+L (Cmd+L on Mac) manually locks the app on demand — deliberately not
+ * Win+L, which is the OS's own lock-the-whole-machine shortcut on Windows and
+ * can't be (and shouldn't be) intercepted by a single app.
+ */
+export function useLockShortcut() {
+  const lock = useAutoLockStore((s) => s.lock);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() === "l" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        lock();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [lock]);
+}
+
+/**
  * Forces the lock screen whenever the app is freshly landed on with an
  * existing saved account — otherwise a device that was left unlocked (isLocked
  * persisted as false) would open straight into the dashboard for anyone who

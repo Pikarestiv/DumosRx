@@ -143,6 +143,54 @@ describe('Sync Engine & Local Database', () => {
       
       expect(wasUpsertExecuted).toBe(true);
     });
+
+    it('does not overwrite a local row with a pending unsynced edit, and does not advance the sync cursor for that table', async () => {
+      vi.mocked(apiClient.pullChanges).mockResolvedValueOnce({
+        success: true,
+        changes: {
+          products: [
+            { id: 'rec-conflict', name: 'Server Name', _version: 5, deleted_at: null },
+          ],
+        },
+        server_timestamp: '2026-07-21T00:00:00Z',
+      });
+
+      vi.mocked(query).mockImplementation(async (sql: string) => {
+        if (sql.includes('PRAGMA table_info')) {
+          return [{ name: 'id' }, { name: 'name' }, { name: '_version' }];
+        }
+        // A pending local edit exists for this exact record...
+        if (sql.includes('FROM _sync_queue')) return [{ 1: 1 }];
+        // ...and the record already exists locally.
+        if (sql.includes('SELECT 1 FROM products')) return [{ 1: 1 }];
+        return [];
+      });
+
+      const result = await pullChanges();
+
+      // The conflicted record was deliberately skipped, not applied.
+      expect(result.pulled).toBe(0);
+
+      const executeMock = vi.mocked(execute);
+
+      // No UPDATE/INSERT was issued for the conflicted record — the user's
+      // own unsynced edit must survive until the next push resolves it.
+      const touchedProducts = executeMock.mock.calls.some(
+        (call) =>
+          typeof call[0] === 'string' &&
+          call[0].includes('products') &&
+          (call[0].includes('UPDATE') || call[0].includes('INSERT')),
+      );
+      expect(touchedProducts).toBe(false);
+
+      // The per-table sync cursor must not advance either, or the server's
+      // copy of this record would never be re-offered once the local edit
+      // is pushed and resolved.
+      const cursorAdvanced = executeMock.mock.calls.some(
+        (call) => typeof call[0] === 'string' && call[0].includes('_sync_state'),
+      );
+      expect(cursorAdvanced).toBe(false);
+    });
   });
 
   describe('sync() cache invalidation', () => {

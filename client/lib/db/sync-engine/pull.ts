@@ -65,6 +65,17 @@ export async function pullChanges(
 
         const validColumns = await getValidColumns(table);
 
+        // If any record in this table's batch gets skipped below (because a
+        // local edit for it hasn't been pushed yet), the per-table sync
+        // cursor must not advance past it — otherwise the server's copy of
+        // that record would never be re-offered on a future pull (its
+        // updated_at is already older than the new cursor), and the local
+        // row would be stuck showing stale, already-superseded data forever.
+        // Leaving the cursor where it was just means this same batch gets
+        // re-fetched and re-applied next time, which is harmless — applying
+        // an already-applied change again is a no-op.
+        let anySkipped = false;
+
         for (const record of records) {
           const { id, _deleted, ...rawData } = record;
           const recordId = id as string;
@@ -94,6 +105,22 @@ export async function pullChanges(
           const version = (rawData._version as number) || 1;
 
           if (exists.length > 0) {
+            // Don't blindly overwrite a row that has a local edit still
+            // waiting to be pushed — otherwise the user's own not-yet-synced
+            // change gets silently discarded here, before the server ever
+            // gets a chance to compare versions and decide which edit should
+            // win. Defer to the next push (now that push preserves _version
+            // instead of stripping it) to resolve the conflict properly;
+            // this pull just leaves the local row alone for now.
+            const pendingLocalEdit = await query<{ 1: number }>(
+              "SELECT 1 FROM _sync_queue WHERE table_name = ? AND record_id = ? LIMIT 1",
+              [table, recordId],
+            );
+            if (pendingLocalEdit.length > 0) {
+              anySkipped = true;
+              continue;
+            }
+
             // Update only columns returned by server to preserve local columns
             const setClause = [...columns, "_synced", "_version", "_deleted"]
               .map((c) => `${c} = ?`)
@@ -169,14 +196,16 @@ export async function pullChanges(
           pulledCount++;
         }
 
-        const syncSql =
-          "INSERT OR REPLACE INTO _sync_state (table_name, last_synced_at) VALUES (?, ?)";
-        const syncParams = [table, server_timestamp];
+        if (!anySkipped) {
+          const syncSql =
+            "INSERT OR REPLACE INTO _sync_state (table_name, last_synced_at) VALUES (?, ?)";
+          const syncParams = [table, server_timestamp];
 
-        if (isTauri()) {
-          await execute(syncSql, syncParams);
-        } else if (rawDb) {
-          rawDb.run(syncSql, syncParams);
+          if (isTauri()) {
+            await execute(syncSql, syncParams);
+          } else if (rawDb) {
+            rawDb.run(syncSql, syncParams);
+          }
         }
       }
 

@@ -43,7 +43,12 @@ export async function pushChanges(
       const mapped: SyncChange[] = batch.map((item) => {
         const payload = JSON.parse(item.payload);
         delete payload._deleted;
-        delete payload._version;
+        // _version is intentionally kept — the server's conflict resolution
+        // compares it against its own copy to decide whether this update is
+        // stale (see SyncController::push). Stripping it here used to force
+        // every conflict check onto the weaker updated_at-timestamp fallback,
+        // which trusts each device's local clock instead of a monotonic
+        // per-record counter.
         delete payload._synced;
         delete payload._synced_at;
 

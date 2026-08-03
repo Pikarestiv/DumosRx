@@ -9,7 +9,7 @@ import type { ProductSuggestions } from "./product-form-fields";
 
 interface Props {
   formData: Product;
-  onInputChange: (field: keyof Product, value: any) => void;
+  onInputChange: (field: keyof Product, value: string | number | boolean | null) => void;
   isPharmacy: boolean;
   suggestions: ProductSuggestions;
   t: (key: string) => string;

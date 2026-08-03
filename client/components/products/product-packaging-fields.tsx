@@ -12,7 +12,7 @@ import type { Product } from "./types";
 
 interface Props {
   formData: Product;
-  onInputChange: (field: keyof Product, value: any) => void;
+  onInputChange: (field: keyof Product, value: string | number | boolean | null) => void;
   commonSuggestions: { units: string[] };
 }
 

@@ -18,7 +18,7 @@ export interface ProductSuggestions {
 
 interface ProductFormFieldsProps {
   formData: Product;
-  onInputChange: (field: keyof Product, value: any) => void;
+  onInputChange: (field: keyof Product, value: string | number | boolean | null) => void;
   isPharmacy: boolean;
   isQuickAdd?: boolean;
   suggestions: ProductSuggestions;

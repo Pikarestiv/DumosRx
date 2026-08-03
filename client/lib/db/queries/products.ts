@@ -1,5 +1,7 @@
 import { query } from "@/lib/db/local-database";
 import type { Product, ProductWithDetails } from "@/lib/types/product";
+import type { AuditLogRow } from "@/lib/types/audit-log";
+import type { StockMovementHistoryRow } from "@/lib/types/stock-movement";
 
 export async function getProductsWithDetails() {
   return query<ProductWithDetails>(
@@ -92,7 +94,7 @@ export async function getProductsWithStock() {
  * user (pass undefined for viewers allowed to see everyone's activity, i.e.
  * checkCanViewAllActivity(role) === true). */
 export async function getProductHistory(productId: string, viewerId?: string) {
-  const auditLogs = await query<any>(
+  const auditLogs = await query<AuditLogRow>(
     `SELECT al.*, TRIM(u.first_name || ' ' || u.last_name) as user_name
      FROM audit_logs al
      LEFT JOIN users u ON u.id = al.user_id
@@ -101,7 +103,7 @@ export async function getProductHistory(productId: string, viewerId?: string) {
     viewerId ? [productId, viewerId] : [productId]
   );
 
-  const stockMovements = await query<any>(
+  const stockMovements = await query<StockMovementHistoryRow>(
     `SELECT sm.*, TRIM(u.first_name || ' ' || u.last_name) as performed_by_name
      FROM stock_movements sm
      LEFT JOIN users u ON u.id = sm.performed_by

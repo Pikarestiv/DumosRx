@@ -10,7 +10,7 @@ import { devLog } from "@/lib/utils/dev-log";
 
 export type StoreType = "pharmacy" | "grocery" | "supermarket" | "retail";
 
-interface StoreProfile {
+export interface StoreProfile {
   id: string;
   name: string;
   store_type: StoreType;

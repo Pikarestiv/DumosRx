@@ -12,3 +12,9 @@ export interface StockMovementDbRow {
   created_at?: string;
   product_name?: string;
 }
+
+/** Row shape returned by getProductHistory()'s stockMovements query — a
+ * stock_movements row joined with the performing user's display name. */
+export interface StockMovementHistoryRow extends StockMovementDbRow {
+  performed_by_name?: string;
+}

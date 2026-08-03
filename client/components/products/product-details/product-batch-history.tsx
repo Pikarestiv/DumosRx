@@ -1,7 +1,8 @@
 import { Boxes } from "lucide-react";
+import type { StockBatch } from "@/lib/types/stock-batch";
 
 interface ProductBatchHistoryProps {
-  batches: any[];
+  batches: StockBatch[];
   loadingBatches: boolean;
   storeType: string;
 }
@@ -35,9 +36,9 @@ export function ProductBatchHistory({
 
   return (
     <div className="flex flex-col gap-3">
-      {batches.map((batch: any) => {
+      {batches.map((batch) => {
         const days = Math.ceil(
-          (new Date(batch.expiry_date).getTime() - new Date().getTime()) /
+          (new Date(batch.expiry_date || 0).getTime() - new Date().getTime()) /
             (1000 * 60 * 60 * 24),
         );
 

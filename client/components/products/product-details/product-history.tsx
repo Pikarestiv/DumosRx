@@ -21,23 +21,23 @@ interface HistoryItem {
   date: Date;
   action: string;
   user: string;
-  meta?: any;
+  meta?: { quantity: number; type: string };
 }
 
 async function loadProductHistory(productId: string, viewerId?: string): Promise<HistoryItem[]> {
   const { auditLogs, stockMovements } = await getProductHistory(productId, viewerId);
 
-  const normalizedLogs: HistoryItem[] = auditLogs.map((log: any) => ({
+  const normalizedLogs: HistoryItem[] = auditLogs.map((log) => ({
     id: `audit-${log.id}`,
     type: "audit",
     title: formatAuditTitle(log.action),
-    description: describeAuditDetails(log.action, log.details),
-    date: new Date(log.created_at),
+    description: describeAuditDetails(log.action, log.details || null),
+    date: new Date(log.created_at || 0),
     action: log.action,
     user: log.user_name || "System",
   }));
 
-  const normalizedMovements: HistoryItem[] = stockMovements.map((mov: any) => {
+  const normalizedMovements: HistoryItem[] = stockMovements.map((mov) => {
     const isAddition = ["in", "addition", "purchase"].includes(
       mov.movement_type.toLowerCase()
     );
@@ -48,7 +48,7 @@ async function loadProductHistory(productId: string, viewerId?: string): Promise
       description: `${isAddition ? "+" : "-"}${mov.quantity} units. ${
         mov.reason ? `Reason: ${mov.reason}` : ""
       }`,
-      date: new Date(mov.created_at || mov.movement_date),
+      date: new Date(mov.created_at || mov.movement_date || 0),
       action: mov.movement_type,
       user: mov.performed_by_name || "System",
       meta: { quantity: mov.quantity, type: mov.movement_type },

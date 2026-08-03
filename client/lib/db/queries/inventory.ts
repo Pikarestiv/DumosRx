@@ -1,5 +1,6 @@
 import { query, insert, update } from "@/lib/db/local-database";
 import type { FastMoverRow } from "@/lib/types/fast-mover";
+import type { StockBatch } from "@/lib/types/stock-batch";
 
 export async function getAvailableStockBatches() {
   return query<any>(
@@ -14,7 +15,7 @@ export async function getBatchTrackingData() {
 }
 
 export async function getStockBatchesForProductDetails(productId: string) {
-  return query<any>(
+  return query<StockBatch>(
     "SELECT * FROM stock_batches WHERE product_id = ? AND _deleted = 0 ORDER BY expiry_date ASC",
     [productId]
   );

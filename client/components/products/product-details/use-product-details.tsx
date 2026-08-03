@@ -5,13 +5,14 @@ import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { queryKeys } from "@/lib/query-keys";
+import type { StoreProfile } from "@/lib/context/store-context";
 
 import { Product } from "../types";
 export type { Product };
 
 export function useProductDetails(
   product: Product | null,
-  storeProfile: any,
+  storeProfile: StoreProfile | null,
 ) {
   const { data: batchesData, isLoading: loadingBatches } = useQuery({
     ...queryKeys.products.batches(product?.id),

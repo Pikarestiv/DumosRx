@@ -18,16 +18,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import type { BroadcastFormData } from "@/lib/types/admin";
 
 interface BroadcastDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  formData: any;
-  setFormData: (data: any) => void;
+  formData: BroadcastFormData;
+  setFormData: (data: BroadcastFormData) => void;
   onSubmit: (e: React.FormEvent) => void;
 }
 
-function BroadcastFormFields({ formData, setFormData }: { formData: any, setFormData: (data: any) => void }) {
+function BroadcastFormFields({ formData, setFormData }: { formData: BroadcastFormData, setFormData: (data: BroadcastFormData) => void }) {
   return (
     <>
       <div className="space-y-2">

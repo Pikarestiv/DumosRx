@@ -2,8 +2,9 @@
 
 import { ShieldAlert, Check } from "lucide-react";
 import { capitalizeFirstLetter } from "@/lib/utils";
+import type { SubscriptionStatus } from "@/lib/types/dashboard";
 
-export function SubscriptionStatusAlert({ subStatus }: { subStatus: any }) {
+export function SubscriptionStatusAlert({ subStatus }: { subStatus: SubscriptionStatus | undefined }) {
   if (!subStatus) return null;
 
   if (subStatus.status === "inactive") {

@@ -1,5 +1,7 @@
 "use client";
 
+import type { ActivityLog } from "@/lib/types/activity";
+
 export const ActivityDetails = ({
   details,
   tableName,
@@ -11,7 +13,7 @@ export const ActivityDetails = ({
 }) => {
   if (!details) return <span>-</span>;
 
-  let parsedContent: any = null;
+  let parsedContent: Record<string, unknown> | null = null;
   try {
     const parsed = JSON.parse(details);
     if (typeof parsed === "object" && parsed !== null) {
@@ -89,7 +91,7 @@ export const ActivityDetails = ({
   );
 };
 
-export const filterIndirectSaleLogs = (logs: any[], log: any) => {
+export const filterIndirectSaleLogs = (logs: ActivityLog[], log: ActivityLog) => {
   const tableNameStr = (
     log.table_name ||
     log.properties?.table_name ||
@@ -102,7 +104,7 @@ export const filterIndirectSaleLogs = (logs: any[], log: any) => {
 
   if (tableNameStr === "products" && log.action?.toLowerCase() === "update") {
     const logTime = new Date(log.created_at || new Date()).getTime();
-    const isPartOfSale = logs.some((otherLog: any) => {
+    const isPartOfSale = logs.some((otherLog) => {
       const otherTable = (
         otherLog.table_name ||
         otherLog.properties?.table_name ||

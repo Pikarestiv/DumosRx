@@ -21,7 +21,7 @@ import { webApiClient } from "@/lib/api/client";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { calculateDiscountPercent } from "@/lib/utils";
-import { getSubscriptionPlans } from "@/lib/constants/subscription-plans";
+import { getSubscriptionPlans, type SubscriptionPlan } from "@/lib/constants/subscription-plans";
 import { motion } from "framer-motion";
 import { SubscriptionPlanCard } from "./subscription-plan-card";
 import { CouponInput } from "./coupon-input";
@@ -90,8 +90,8 @@ export function SubscriptionPlans() {
         toast.error(response.message || "Invalid coupon code");
         setAppliedCoupon(null);
       }
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || "Failed to validate coupon");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to validate coupon");
       setAppliedCoupon(null);
     } finally {
       setValidatingCoupon(false);
@@ -135,8 +135,8 @@ export function SubscriptionPlans() {
         toast.error(response.message || "Failed to initiate payment");
         setLoading(null);
       }
-    } catch (error: any) {
-      toast.error(error.message || "Payment service unavailable");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Payment service unavailable");
       setLoading(null);
     }
   };
@@ -149,7 +149,7 @@ export function SubscriptionPlans() {
     }).format(price);
   };
 
-  const getDiscountedPrice = (plan: any) => {
+  const getDiscountedPrice = (plan: SubscriptionPlan) => {
     if (plan.numericPrice === 0) return 0;
 
     let price = plan.numericPrice;
@@ -180,7 +180,7 @@ export function SubscriptionPlans() {
     return Math.max(0, price);
   };
 
-  const isDiscounted = (plan: any) => {
+  const isDiscounted = (plan: SubscriptionPlan) => {
     if (plan.numericPrice === 0) return false;
 
     const hasCoupon =

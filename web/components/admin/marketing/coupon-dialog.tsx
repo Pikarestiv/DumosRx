@@ -16,6 +16,22 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
+import type { Coupon } from "@/lib/types/admin";
+import type {
+  useGenerateCouponMutation,
+  useUpdateCouponMutation,
+} from "@/lib/api/admin-hooks";
+
+interface CouponDialogProps {
+  isDialogOpen: boolean;
+  setIsDialogOpen: (open: boolean) => void;
+  editingId: string | null;
+  newCoupon: Partial<Coupon>;
+  setNewCoupon: (coupon: Partial<Coupon>) => void;
+  handleSave: () => void;
+  generateMutation: ReturnType<typeof useGenerateCouponMutation>;
+  updateMutation: ReturnType<typeof useUpdateCouponMutation>;
+}
 
 export function CouponDialog({
   isDialogOpen,
@@ -26,7 +42,7 @@ export function CouponDialog({
   handleSave,
   generateMutation,
   updateMutation,
-}: any) {
+}: CouponDialogProps) {
   return (
     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
       <DialogContent className="sm:max-w-[425px]">
@@ -52,7 +68,7 @@ export function CouponDialog({
             <Label>Type</Label>
             <Select
               value={newCoupon.type}
-              onValueChange={(v: any) =>
+              onValueChange={(v: Coupon["type"]) =>
                 setNewCoupon({ ...newCoupon, type: v })
               }
             >

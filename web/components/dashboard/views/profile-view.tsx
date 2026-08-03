@@ -30,7 +30,11 @@ import { SecuritySettings } from "@/components/dashboard/views/security-settings
 import { SessionsView } from "@/components/dashboard/views/sessions-view";
 import { DangerZoneCard } from "@/components/dashboard/views/danger-zone-card";
 
-export function ProfileView({ onReset }: { onReset?: (type: string) => Promise<any> }) {
+export function ProfileView({
+  onReset,
+}: {
+  onReset?: (type: string) => Promise<{ success: boolean; message?: string; error?: string }>;
+}) {
   const { user } = useDashboard();
   const queryClient = useQueryClient();
 
@@ -58,8 +62,8 @@ export function ProfileView({ onReset }: { onReset?: (type: string) => Promise<a
       queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
       setIsEditing(false);
     },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || "Failed to update profile");
+    onError: (error) => {
+      toast.error(error.message || "Failed to update profile");
     },
   });
 

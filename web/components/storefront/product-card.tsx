@@ -6,9 +6,10 @@ import { ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCartStore } from "@/lib/store/use-cart-store";
 import { toast } from "sonner";
+import type { StorefrontProduct } from "@/lib/types/storefront";
 
 interface ProductCardProps {
-  product: any;
+  product: StorefrontProduct;
 }
 
 export function ProductCard({ product }: ProductCardProps) {
@@ -18,7 +19,7 @@ export function ProductCard({ product }: ProductCardProps) {
     cart.addItem({
       id: product.id,
       name: product.name,
-      price: parseFloat(product.selling_price),
+      price: parseFloat(String(product.selling_price)),
       quantity: 1,
     });
     toast.success(`${product.name} added to cart`);
@@ -39,7 +40,7 @@ export function ProductCard({ product }: ProductCardProps) {
       </CardHeader>
       <CardContent className="flex-1">
         <p className="text-2xl font-bold text-emerald-600 mt-2">
-          ₦{parseFloat(product.selling_price).toLocaleString()}
+          ₦{parseFloat(String(product.selling_price)).toLocaleString()}
         </p>
         {product.category && (
           <Badge variant="outline" className="mt-4">{product.category.name}</Badge>

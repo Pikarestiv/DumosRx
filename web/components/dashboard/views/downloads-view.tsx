@@ -16,9 +16,10 @@ import { Badge } from "@/components/ui/badge";
 import { DOWNLOAD_URL } from "@/lib/constants";
 import { IosInstallDialog } from "./ios-install-dialog";
 import { useInstallPrompt } from "@/lib/hooks/use-install-prompt";
+import type { ReleaseLinks } from "@/lib/types/dashboard";
 
 interface DownloadsViewProps {
-  releaseLinks: any;
+  releaseLinks: ReleaseLinks;
   requiresVerification?: boolean;
 }
 

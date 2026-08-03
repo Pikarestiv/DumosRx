@@ -26,9 +26,10 @@ import {
   Store,
 } from "lucide-react";
 import { toast } from "sonner";
+import type { GlobalProductSummary } from "@/lib/types/admin";
 
 interface GlobalProductsTableProps {
-  productList: any[];
+  productList: GlobalProductSummary[];
   isLoading: boolean;
   error: unknown;
   refetch: () => void;
@@ -80,7 +81,7 @@ export function GlobalProductsTable({
         </TableRow>
       </TableHeader>
       <TableBody>
-        {productList.map((product: any) => (
+        {productList.map((product) => (
           <TableRow
             key={product.id}
             className="border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 group transition-colors"

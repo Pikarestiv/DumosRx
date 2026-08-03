@@ -30,14 +30,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import type { StaffMember, DashboardStore } from "@/lib/types/dashboard";
 
 interface StaffTableProps {
-  filteredStaff: any[];
+  filteredStaff: StaffMember[];
   hasStaff: boolean;
   selectedStore: string;
-  stores: any[];
+  stores: DashboardStore[];
   handleCreate: () => void;
-  handleEdit: (s: any) => void;
+  handleEdit: (s: StaffMember) => void;
   handleDelete: (id: string) => void;
   handleReactivate: (id: string) => void;
 }
@@ -97,7 +98,7 @@ export function StaffTable({
                   if (isAOwner && !isBOwner) return -1;
                   if (!isAOwner && isBOwner) return 1;
                   return 0;
-                }).map((s: any) => {
+                }).map((s) => {
                   const isMainAccount = !s.store_id || s.role === 'store_owner';
                   return (
                   <TableRow

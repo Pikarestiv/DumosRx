@@ -5,9 +5,10 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Separator } from "@/components/ui/separator";
 import { apiClient } from "@/lib/api/base-client";
+import type { SocialLinksConfig } from "@/lib/types/admin";
 
 export function FooterSection() {
-  const [socialLinks, setSocialLinks] = useState<any>(null);
+  const [socialLinks, setSocialLinks] = useState<Partial<SocialLinksConfig> | null>(null);
 
   useEffect(() => {
     apiClient

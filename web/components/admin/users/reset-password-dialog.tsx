@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { BaseDialogProps } from "./dialog-types";
+import type { useResetUserPasswordMutation } from "@/lib/api/admin-hooks";
 
 export function ResetPasswordDialog({
   isOpen,
@@ -17,18 +18,18 @@ export function ResetPasswordDialog({
   selectedUser,
   setSelectedUser,
   resetPasswordMutation,
-}: BaseDialogProps & { resetPasswordMutation: any }) {
+}: BaseDialogProps & { resetPasswordMutation: ReturnType<typeof useResetUserPasswordMutation> }) {
   const handlePasswordReset = async () => {
     if (!selectedUser) return;
     resetPasswordMutation.mutate(selectedUser.id, {
-      onSuccess: (res: any) => {
+      onSuccess: (res) => {
         toast.success("Password Reset Forced", {
           description: `Temporary password: ${res.temp_password}. Please communicate this to the user.`,
         });
         onOpenChange(false);
         setSelectedUser(null);
       },
-      onError: (err: any) => {
+      onError: (err) => {
         toast.error("Action Failed", {
           description: err.message || "Failed to force password reset",
         });

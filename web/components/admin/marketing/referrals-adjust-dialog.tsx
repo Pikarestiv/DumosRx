@@ -19,12 +19,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { UserListItem } from "./types";
+import type { AdminUser } from "@/lib/types/admin";
 
 interface ReferralsAdjustDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  users: UserListItem[];
+  users: AdminUser[];
   onAdjust: (
     userId: string,
     amount: number,
@@ -69,8 +69,8 @@ export function ReferralsAdjustDialog({
       setAdjustAmount("");
       setAdjustDescription("");
       setAdjustType("admin_adjustment");
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || "Failed to adjust credits");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to adjust credits");
     } finally {
       setAdjusting(false);
     }
@@ -106,7 +106,7 @@ export function ReferralsAdjustDialog({
             <Label htmlFor="type" className="font-bold text-xs text-slate-500">Adjustment Type</Label>
             <Select
               value={adjustType}
-              onValueChange={(v: any) => setAdjustType(v)}
+              onValueChange={(v: "earned" | "spent" | "admin_adjustment") => setAdjustType(v)}
             >
               <SelectTrigger
                 id="type"

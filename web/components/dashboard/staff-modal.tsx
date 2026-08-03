@@ -18,13 +18,14 @@ import {
   useCreateStaffMutation,
   useUpdateStaffMutation,
 } from "@/lib/api/hooks";
+import type { StaffMember, DashboardStore } from "@/lib/types/dashboard";
 
 interface StaffModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  stores: any[];
-  staffMember?: any; // If editing
+  stores: DashboardStore[];
+  staffMember?: StaffMember | null; // If editing
 }
 
 export function StaffModal({
@@ -71,28 +72,32 @@ export function StaffModal({
     e.preventDefault();
     setLoading(true);
 
-    const mutation = isEditing ? updateMutation : createMutation;
-    const mutationPayload = isEditing
-      ? { id: staffMember.id, payload: formData }
-      : formData;
+    const onSettled = () => setLoading(false);
+    const onMutationSuccess = () => {
+      toast.success(
+        isEditing
+          ? "Staff account updated successfully"
+          : "Staff account created successfully",
+      );
+      onSuccess();
+      onClose();
+    };
+    const onMutationError = (err: Error) => {
+      toast.error(err.message || "Failed to save staff account");
+    };
 
-    mutation.mutate(mutationPayload as any, {
-      onSuccess: () => {
-        toast.success(
-          isEditing
-            ? "Staff account updated successfully"
-            : "Staff account created successfully",
-        );
-        onSuccess();
-        onClose();
-      },
-      onError: (err: any) => {
-        toast.error(err.message || "Failed to save staff account");
-      },
-      onSettled: () => {
-        setLoading(false);
-      },
-    });
+    if (isEditing && staffMember) {
+      updateMutation.mutate(
+        { id: staffMember.id, payload: formData },
+        { onSuccess: onMutationSuccess, onError: onMutationError, onSettled },
+      );
+    } else {
+      createMutation.mutate(formData, {
+        onSuccess: onMutationSuccess,
+        onError: onMutationError,
+        onSettled,
+      });
+    }
   };
 
   return (

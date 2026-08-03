@@ -5,14 +5,15 @@ import { ActivitiesView } from "./activities-view";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useRouter } from "next/navigation";
 import { Users, Activity } from "lucide-react";
+import type { StaffMember, DashboardStore } from "@/lib/types/dashboard";
 
 export function StaffWrapperView({
   staff,
   stores,
   subView,
 }: {
-  staff?: any[];
-  stores?: any[];
+  staff?: StaffMember[];
+  stores?: DashboardStore[];
   subView?: string;
 }) {
   const router = useRouter();

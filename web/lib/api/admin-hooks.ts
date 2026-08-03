@@ -1,10 +1,27 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { webApiClient } from "./client";
+import type {
+  AdminSummary,
+  AdminHealth,
+  AdminUser,
+  AdminProductsResponse,
+  PaginatedResponse,
+  AdminStoreSummary,
+  Coupon,
+  EmailTemplatesResponse,
+  FeedbackItem,
+} from "@/lib/types/admin";
+import type {
+  ReferralSummary,
+  ReferralProgramSettings,
+  ReferralRelationship,
+  CreditTransaction,
+} from "@/components/admin/marketing/types";
 
 export const useAdminSummary = (options?: { enabled?: boolean }) => {
   return useQuery({
     queryKey: ["admin-summary"],
-    queryFn: () => webApiClient.request<any>("admin/summary"),
+    queryFn: () => webApiClient.request<AdminSummary>("admin/summary"),
     staleTime: 5 * 60 * 1000, // 5 minutes
     ...options,
   });
@@ -13,28 +30,28 @@ export const useAdminSummary = (options?: { enabled?: boolean }) => {
 export const useAdminStores = (page = 1, search = "", status = "", plan = "") => {
   return useQuery({
     queryKey: ["admin-stores", page, search, status, plan],
-    queryFn: () => webApiClient.request<any>(`admin/stores?page=${page}${search ? `&search=${search}` : ""}${status ? `&status=${status}` : ""}${plan ? `&plan=${plan}` : ""}`),
+    queryFn: () => webApiClient.request<PaginatedResponse<AdminStoreSummary>>(`admin/stores?page=${page}${search ? `&search=${search}` : ""}${status ? `&status=${status}` : ""}${plan ? `&plan=${plan}` : ""}`),
   });
 };
 
 export const useAdminProducts = (page = 1, search = "", category = "") => {
   return useQuery({
     queryKey: ["admin-products", page, search, category],
-    queryFn: () => webApiClient.request<any>(`admin/products?page=${page}${search ? `&search=${search}` : ""}${category ? `&category=${category}` : ""}`),
+    queryFn: () => webApiClient.request<AdminProductsResponse>(`admin/products?page=${page}${search ? `&search=${search}` : ""}${category ? `&category=${category}` : ""}`),
   });
 };
 
 export const useAdminUsers = (page = 1, search = "") => {
   return useQuery({
     queryKey: ["admin-users", page, search],
-    queryFn: () => webApiClient.request<any>(`admin/users?page=${page}${search ? `&search=${search}` : ""}`),
+    queryFn: () => webApiClient.request<PaginatedResponse<AdminUser>>(`admin/users?page=${page}${search ? `&search=${search}` : ""}`),
   });
 };
 
 export const useAdminHealth = () => {
   return useQuery({
     queryKey: ["admin-health"],
-    queryFn: () => webApiClient.request<any>("admin/health"),
+    queryFn: () => webApiClient.request<AdminHealth>("admin/health"),
     refetchInterval: 30000, // Every 30 seconds
   });
 };
@@ -42,7 +59,7 @@ export const useAdminHealth = () => {
 export const useStandardizeProductsMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => webApiClient.request<any>("admin/products/standardize", { method: "POST" }),
+    mutationFn: () => webApiClient.request<{ message: string }>("admin/products/standardize", { method: "POST" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-products"] });
       queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
@@ -54,7 +71,7 @@ export const useSuspendStoreMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) => 
-      webApiClient.request<any>(`admin/stores/${id}/suspend`, { 
+      webApiClient.request<unknown>(`admin/stores/${id}/suspend`, { 
         method: "POST", 
         body: { reason } 
       }),
@@ -69,7 +86,7 @@ export const useUnsuspendStoreMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => 
-      webApiClient.request<any>(`admin/stores/${id}/unsuspend`, { method: "POST" }),
+      webApiClient.request<unknown>(`admin/stores/${id}/unsuspend`, { method: "POST" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-stores"] });
       queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
@@ -81,7 +98,7 @@ export const useGrantTrialMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, plan, duration, endDate }: { id: string; plan: string; duration?: string; endDate?: string }) =>
-      webApiClient.request<any>(`admin/stores/${id}/grant-trial`, {
+      webApiClient.request<unknown>(`admin/stores/${id}/grant-trial`, {
         method: "POST",
         body: { plan, duration, end_date: endDate }
       }),
@@ -96,7 +113,7 @@ export const useGrantUserTrialMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, plan, duration, endDate }: { id: string; plan: string; duration?: string; endDate?: string }) =>
-      webApiClient.request<any>(`admin/users/${id}/grant-trial`, {
+      webApiClient.request<unknown>(`admin/users/${id}/grant-trial`, {
         method: "POST",
         body: { plan, duration, end_date: endDate }
       }),
@@ -110,7 +127,7 @@ export const useGrantUserTrialMutation = () => {
 export const useDeactivateUserMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => webApiClient.request<any>(`admin/users/${id}/deactivate`, { method: "POST" }),
+    mutationFn: (id: string) => webApiClient.request<unknown>(`admin/users/${id}/deactivate`, { method: "POST" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
       queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
@@ -121,7 +138,7 @@ export const useDeactivateUserMutation = () => {
 export const useReactivateUserMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => webApiClient.request<any>(`admin/users/${id}/reactivate`, { method: "POST" }),
+    mutationFn: (id: string) => webApiClient.request<unknown>(`admin/users/${id}/reactivate`, { method: "POST" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
       queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
@@ -132,7 +149,7 @@ export const useReactivateUserMutation = () => {
 export const useDeleteUserMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => webApiClient.request<any>(`admin/users/${id}`, { method: "DELETE" }),
+    mutationFn: (id: string) => webApiClient.request<unknown>(`admin/users/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
       queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
@@ -143,7 +160,7 @@ export const useDeleteUserMutation = () => {
 export const useCreatePlatformAdminMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: any) => webApiClient.request<any>("admin/users", { method: "POST", body: payload }),
+    mutationFn: (payload: Record<string, unknown>) => webApiClient.request<unknown>("admin/users", { method: "POST", body: payload }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
       queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
@@ -153,13 +170,13 @@ export const useCreatePlatformAdminMutation = () => {
 
 export const useResetUserPasswordMutation = () => {
   return useMutation({
-    mutationFn: (id: string) => webApiClient.request<any>(`admin/users/${id}/reset-password`, { method: "POST" }),
+    mutationFn: (id: string) => webApiClient.request<{ temp_password: string }>(`admin/users/${id}/reset-password`, { method: "POST" }),
   });
 };
 
 export const useNotifyUserMutation = () => {
   return useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: any }) => webApiClient.post(`/admin/users/${id}/notify`, payload),
+    mutationFn: ({ id, payload }: { id: string; payload: Record<string, unknown> }) => webApiClient.post(`/admin/users/${id}/notify`, payload),
   });
 };
 
@@ -178,7 +195,7 @@ export const useRestoreSessionMutation = () => {
 export const useAdminFeedback = (status: string = "all") => {
   return useQuery({
     queryKey: ["admin-feedback", status],
-    queryFn: () => webApiClient.getFeedback(status),
+    queryFn: () => webApiClient.getFeedback(status) as Promise<{ data: FeedbackItem[] }>,
   });
 };
 
@@ -197,36 +214,36 @@ export const useUpdateFeedbackStatusMutation = () => {
 export const useReferralsSummary = () => {
   return useQuery({
     queryKey: ["referrals-summary"],
-    queryFn: () => webApiClient.request<any>("admin/referrals/summary"),
+    queryFn: () => webApiClient.request<ReferralSummary>("admin/referrals/summary"),
   });
 };
 
 export const useReferralsSettings = () => {
   return useQuery({
     queryKey: ["referrals-settings"],
-    queryFn: () => webApiClient.request<any>("admin/referrals/settings"),
+    queryFn: () => webApiClient.request<ReferralProgramSettings>("admin/referrals/settings"),
   });
 };
 
 export const useReferralsRelationships = () => {
   return useQuery({
     queryKey: ["referrals-relationships"],
-    queryFn: () => webApiClient.request<any>("admin/referrals"),
+    queryFn: () => webApiClient.request<PaginatedResponse<ReferralRelationship>>("admin/referrals"),
   });
 };
 
 export const useReferralsTransactions = () => {
   return useQuery({
     queryKey: ["referrals-transactions"],
-    queryFn: () => webApiClient.request<any>("admin/referrals/transactions"),
+    queryFn: () => webApiClient.request<PaginatedResponse<CreditTransaction>>("admin/referrals/transactions"),
   });
 };
 
 export const useUpdateReferralsSettingsMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (settings: any) =>
-      webApiClient.request<any>("admin/referrals/settings", {
+    mutationFn: (settings: ReferralProgramSettings) =>
+      webApiClient.request<unknown>("admin/referrals/settings", {
         method: "PUT",
         body: settings,
       }),
@@ -245,7 +262,7 @@ export const useAdjustReferralsCreditsMutation = () => {
       type: string;
       description: string;
     }) =>
-      webApiClient.request<any>("admin/referrals/adjust-credits", {
+      webApiClient.request<unknown>("admin/referrals/adjust-credits", {
         method: "POST",
         body: payload,
       }),
@@ -261,15 +278,15 @@ export const useAdjustReferralsCreditsMutation = () => {
 export const useAdminCoupons = () => {
   return useQuery({
     queryKey: ["admin-coupons"],
-    queryFn: () => webApiClient.request<any>("admin/coupons"),
+    queryFn: () => webApiClient.request<Coupon[] | { data: Coupon[] }>("admin/coupons"),
   });
 };
 
 export const useGenerateCouponMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: any) =>
-      webApiClient.request<any>("admin/coupons", {
+    mutationFn: (payload: Record<string, unknown>) =>
+      webApiClient.request<unknown>("admin/coupons", {
         method: "POST",
         body: payload,
       }),
@@ -282,8 +299,8 @@ export const useGenerateCouponMutation = () => {
 export const useUpdateCouponMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: any }) =>
-      webApiClient.request<any>(`admin/coupons/${id}`, {
+    mutationFn: ({ id, payload }: { id: string; payload: Record<string, unknown> }) =>
+      webApiClient.request<unknown>(`admin/coupons/${id}`, {
         method: "PUT",
         body: payload,
       }),
@@ -297,7 +314,7 @@ export const useToggleCouponMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) =>
-      webApiClient.request<any>(`admin/coupons/${id}/toggle`, {
+      webApiClient.request<unknown>(`admin/coupons/${id}/toggle`, {
         method: "PUT",
       }),
     onSuccess: () => {
@@ -310,7 +327,7 @@ export const useDeleteCouponMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) =>
-      webApiClient.request<any>(`admin/coupons/${id}`, {
+      webApiClient.request<unknown>(`admin/coupons/${id}`, {
         method: "DELETE",
       }),
     onSuccess: () => {
@@ -323,7 +340,7 @@ export const useDeleteCouponMutation = () => {
 export const useAdminEmailTemplates = () => {
   return useQuery({
     queryKey: ["admin-email-templates"],
-    queryFn: () => webApiClient.request<any>("admin/email-templates"),
+    queryFn: () => webApiClient.request<EmailTemplatesResponse>("admin/email-templates"),
   });
 };
 
@@ -331,7 +348,7 @@ export const useUpdateAdminEmailTemplateMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ key, subject, body }: { key: string; subject: string; body: string }) =>
-      webApiClient.request<any>(`admin/email-templates/${key}`, {
+      webApiClient.request<unknown>(`admin/email-templates/${key}`, {
         method: "PUT",
         body: { subject, body },
       }),
@@ -345,8 +362,8 @@ export const useUpdateAdminEmailTemplateMutation = () => {
 export const useCreateStoreMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: any) =>
-      webApiClient.request<any>("admin/stores", {
+    mutationFn: (payload: Record<string, unknown>) =>
+      webApiClient.request<unknown>("admin/stores", {
         method: "POST",
         body: payload,
       }),

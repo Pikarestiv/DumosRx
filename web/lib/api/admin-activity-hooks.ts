@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { webApiClient } from "./client";
+import type { PaginatedResponse, ActivityLog } from "@/lib/types/admin";
 
 export const useAdminActivityLogs = (
   page = 1,
@@ -13,7 +14,7 @@ export const useAdminActivityLogs = (
   return useQuery({
     queryKey: ["admin-activity-logs", page, search, action, storeId, userId, dateFrom, dateTo],
     queryFn: () =>
-      webApiClient.request<any>(
+      webApiClient.request<PaginatedResponse<ActivityLog>>(
         `admin/activity-logs?page=${page}` +
           (search ? `&search=${search}` : "") +
           (action ? `&action=${action}` : "") +

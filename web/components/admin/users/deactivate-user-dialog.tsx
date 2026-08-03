@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { BaseDialogProps } from "./dialog-types";
+import type { useDeactivateUserMutation } from "@/lib/api/admin-hooks";
 
 export function DeactivateUserDialog({
   isOpen,
@@ -17,7 +18,7 @@ export function DeactivateUserDialog({
   selectedUser,
   setSelectedUser,
   deactivateMutation,
-}: BaseDialogProps & { deactivateMutation: any }) {
+}: BaseDialogProps & { deactivateMutation: ReturnType<typeof useDeactivateUserMutation> }) {
   const handleDeactivate = async () => {
     if (!selectedUser) return;
     deactivateMutation.mutate(selectedUser.id, {
@@ -28,7 +29,7 @@ export function DeactivateUserDialog({
         onOpenChange(false);
         setSelectedUser(null);
       },
-      onError: (err: any) => {
+      onError: (err) => {
         toast.error("Action Failed", {
           description: err.message || "Failed to deactivate user",
         });

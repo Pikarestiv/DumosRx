@@ -41,30 +41,35 @@ import { format } from "date-fns";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useDeleteBroadcastMutation } from "@/lib/api/admin-hooks";
+import type { AdminBroadcast, BroadcastFormData } from "@/lib/types/admin";
 
 export function BroadcastsTab() {
   const queryClient = useQueryClient();
   const { data: response, isLoading } = useQuery({
     queryKey: ["admin-broadcasts"],
-    queryFn: () => webApiClient.adminGetBroadcasts(),
+    queryFn: () => webApiClient.adminGetBroadcasts() as Promise<AdminBroadcast[] | { data: AdminBroadcast[] }>,
   });
-  const broadcasts = response?.data ? response.data : Array.isArray(response) ? response : [];
+  const broadcasts = response
+    ? Array.isArray(response)
+      ? response
+      : response.data
+    : [];
   const deleteMutation = useDeleteBroadcastMutation();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [_isDeleting, _setIsDeleting] = useState(false);
-  const [selectedBroadcast, setSelectedBroadcast] = useState<any>(null);
+  const [selectedBroadcast, setSelectedBroadcast] = useState<AdminBroadcast | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
-  
+
   // Form state
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<BroadcastFormData>({
     title: "",
     message: "",
     type: "info",
-    target_type: "all" as "all" | "specific",
-    user_ids: [] as any[],
+    target_type: "all",
+    user_ids: [],
     expires_at: "",
     is_active: true
   });
@@ -93,6 +98,7 @@ export function BroadcastsTab() {
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!selectedBroadcast) return;
     try {
       await webApiClient.updateBroadcast(selectedBroadcast.id, formData);
       toast.success("Broadcast updated successfully");
@@ -137,7 +143,7 @@ export function BroadcastsTab() {
     b.message.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const getStatusBadge = (broadcast: any) => {
+  const getStatusBadge = (broadcast: AdminBroadcast) => {
     const isExpired = broadcast.expires_at && new Date(broadcast.expires_at) < new Date();
     if (!broadcast.is_active) return <Badge variant="outline" className="bg-slate-100 text-slate-500 border-slate-200 font-bold">Inactive</Badge>;
     if (isExpired) return <Badge variant="outline" className="bg-amber-100 text-amber-600 border-amber-200 font-bold">Expired</Badge>;

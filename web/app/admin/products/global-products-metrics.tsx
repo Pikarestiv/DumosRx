@@ -1,8 +1,9 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { BarChart3, TrendingUp, AlertTriangle } from "lucide-react";
+import type { GlobalProductMetrics } from "@/lib/types/admin";
 
 interface GlobalProductsMetricsProps {
-  productMetrics: any;
+  productMetrics: GlobalProductMetrics | undefined;
 }
 
 export function GlobalProductsMetrics({

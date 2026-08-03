@@ -71,8 +71,8 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
       toast.success("Order placed successfully!");
       cart.clearCart();
       router.push(`/store/${storeSlug}`);
-    } catch (error: any) {
-      toast.error(error.message);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Checkout failed");
     } finally {
       setLoading(false);
     }

@@ -7,26 +7,25 @@ export interface ApiLogEntry {
   url?: string;
   status?: number;
   durationMs?: number;
-  payload?: any;
-  error?: any;
+  payload?: unknown;
+  error?: unknown;
 }
 
 // In-memory circular log buffer
 if (typeof window !== "undefined") {
-  (window as any).__DRX_API_LOGS__ = (window as any).__DRX_API_LOGS__ || [];
+  window.__DRX_API_LOGS__ = window.__DRX_API_LOGS__ || [];
 }
 
 export const addLogToBuffer = (entry: ApiLogEntry) => {
   if (typeof window === "undefined") return;
-  const win = window as any;
-  win.__DRX_API_LOGS__ = win.__DRX_API_LOGS__ || [];
-  win.__DRX_API_LOGS__.push(entry);
-  if (win.__DRX_API_LOGS__.length > 50) {
-    win.__DRX_API_LOGS__.shift();
+  window.__DRX_API_LOGS__ = window.__DRX_API_LOGS__ || [];
+  window.__DRX_API_LOGS__.push(entry);
+  if (window.__DRX_API_LOGS__.length > 50) {
+    window.__DRX_API_LOGS__.shift();
   }
 };
 
-export const sanitizePayload = (payload: any): any => {
+export const sanitizePayload = (payload: unknown): unknown => {
   if (!payload) return payload;
   
   try {
@@ -35,11 +34,10 @@ export const sanitizePayload = (payload: any): any => {
       parsed = JSON.parse(payload);
     }
     
-    if (typeof parsed === "object") {
-      const sanitized = Array.isArray(parsed) ? [...parsed] : { ...parsed };
-      
-      // Handle array truncation
-      if (Array.isArray(sanitized)) {
+    if (typeof parsed === "object" && parsed !== null) {
+      if (Array.isArray(parsed)) {
+        const sanitized = [...parsed];
+        // Handle array truncation
         if (sanitized.length > 10) {
           return [
             `Array(${sanitized.length})`,
@@ -49,7 +47,9 @@ export const sanitizePayload = (payload: any): any => {
         }
         return sanitized.map(item => sanitizePayload(item));
       }
-      
+
+      const sanitized: Record<string, unknown> = { ...(parsed as Record<string, unknown>) };
+
       // Mask sensitive keys
       const sensitiveKeys = ["password", "token", "pin", "newpassword", "oldpassword", "credentials"];
       for (const key of Object.keys(sanitized)) {
@@ -91,7 +91,7 @@ const shouldReportError = (method: string, url: string, status: number, message:
   return true;
 };
 
-export const reportClientError = (method: string, url: string, status: number | undefined, message: string, details: any) => {
+export const reportClientError = (method: string, url: string, status: number | undefined, message: string, details: unknown) => {
   if (url.includes("/logs/client-error")) return;
   if (!shouldReportError(method, url, status || 0, message)) return;
   

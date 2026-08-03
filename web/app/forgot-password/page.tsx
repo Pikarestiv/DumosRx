@@ -24,8 +24,8 @@ export default function ForgotPasswordPage() {
       await webApiClient.post("/forgot-password", { email });
       setSubmitted(true);
       toast.success("Reset link sent!");
-    } catch (error: any) {
-      toast.error(error.message || "Failed to send reset link");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to send reset link");
     } finally {
       setLoading(false);
     }

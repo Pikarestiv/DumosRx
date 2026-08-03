@@ -57,8 +57,8 @@ export function AdminLoginForm() {
       setToken(response.token);
       setUser(response.user);
       router.push("/admin");
-    } catch (err: any) {
-      setError(err.message || "Invalid administrative credentials.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Invalid administrative credentials.");
     } finally {
       setLoading(false);
     }

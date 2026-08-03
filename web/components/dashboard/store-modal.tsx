@@ -22,12 +22,13 @@ import {
 import { Loader2, Store, MapPin, Phone, Home } from "lucide-react";
 import { toast } from "sonner";
 import { useCreateStoreMutation, useUpdateStoreMutation } from "@/lib/api/hooks";
+import type { FleetStore } from "@/lib/types/dashboard";
 
 interface StoreModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  store?: any; // If editing
+  store?: FleetStore | null; // If editing
 }
 
 export function StoreModal({ isOpen, onClose, onSuccess, store }: StoreModalProps) {
@@ -62,22 +63,28 @@ export function StoreModal({ isOpen, onClose, onSuccess, store }: StoreModalProp
     e.preventDefault();
     setLoading(true);
 
-    const mutation = isEditing ? updateMutation : createMutation;
-    const mutationPayload = isEditing ? { id: store.id, payload: formData } : formData;
+    const onSettled = () => setLoading(false);
+    const onMutationSuccess = () => {
+      toast.success(isEditing ? "Store details updated successfully" : "New store registered successfully");
+      onSuccess();
+      onClose();
+    };
+    const onMutationError = (err: Error) => {
+      toast.error(err.message || "Failed to save store");
+    };
 
-    mutation.mutate(mutationPayload as any, {
-      onSuccess: () => {
-        toast.success(isEditing ? "Store details updated successfully" : "New store registered successfully");
-        onSuccess();
-        onClose();
-      },
-      onError: (err: any) => {
-        toast.error(err.message || "Failed to save store");
-      },
-      onSettled: () => {
-        setLoading(false);
-      }
-    });
+    if (isEditing && store) {
+      updateMutation.mutate(
+        { id: store.id, payload: formData },
+        { onSuccess: onMutationSuccess, onError: onMutationError, onSettled },
+      );
+    } else {
+      createMutation.mutate(formData, {
+        onSuccess: onMutationSuccess,
+        onError: onMutationError,
+        onSettled,
+      });
+    }
   };
 
   return (

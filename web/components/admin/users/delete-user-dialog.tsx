@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { BaseDialogProps } from "./dialog-types";
+import type { useDeleteUserMutation } from "@/lib/api/admin-hooks";
 
 export function DeleteUserDialog({
   isOpen,
@@ -17,7 +18,7 @@ export function DeleteUserDialog({
   selectedUser,
   setSelectedUser,
   deleteMutation,
-}: BaseDialogProps & { deleteMutation: any }) {
+}: BaseDialogProps & { deleteMutation: ReturnType<typeof useDeleteUserMutation> }) {
   const handleDelete = async () => {
     if (!selectedUser) return;
     deleteMutation.mutate(selectedUser.id, {
@@ -28,7 +29,7 @@ export function DeleteUserDialog({
         onOpenChange(false);
         setSelectedUser(null);
       },
-      onError: (err: any) => {
+      onError: (err) => {
         toast.error("Deletion Failed", {
           description: err.message || "Failed to delete user",
         });

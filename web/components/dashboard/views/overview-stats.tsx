@@ -3,9 +3,10 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, Store, Package, Users } from "lucide-react";
+import type { DashboardStats } from "@/lib/types/dashboard";
 
 interface OverviewStatsProps {
-  stats: any;
+  stats: DashboardStats | undefined;
 }
 
 export function OverviewStats({ stats }: OverviewStatsProps) {

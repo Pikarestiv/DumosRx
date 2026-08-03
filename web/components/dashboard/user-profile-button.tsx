@@ -1,8 +1,9 @@
 import { LogOut } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { DashboardUser } from "@/lib/types/dashboard";
 
 interface UserProfileButtonProps {
-  user: any;
+  user: DashboardUser | null;
   isLoading: boolean;
   onLogout: () => void;
 }

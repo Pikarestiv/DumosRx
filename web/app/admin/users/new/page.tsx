@@ -73,7 +73,7 @@ export default function AdminNewUserPage() {
       onSuccess: () => {
         router.push("/admin/users");
       },
-      onError: (err: any) => {
+      onError: (err) => {
         setError(err.message || "Failed to create platform admin.");
       },
     });

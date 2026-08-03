@@ -33,32 +33,11 @@ import {
 } from "@/components/ui/select";
 import { useLogs } from "@/lib/api/hooks";
 import { ActivityDetails, filterIndirectSaleLogs } from "./activities/activities-shared";
+import type { ActivityLog } from "@/lib/types/activity";
 
 interface StoreProp {
   id: string | number;
   name: string;
-}
-
-interface ActivityLog {
-  id: string | number;
-  created_at?: string | Date;
-  action: string;
-  table_name?: string;
-  details?: string;
-  description?: string;
-  properties?: {
-    table_name?: string;
-    details?: string;
-  };
-  user_id?: string | number;
-  user?: {
-    name?: string;
-    first_name?: string;
-    store_id?: string | number;
-    store?: {
-      name?: string;
-    };
-  };
 }
 
 
@@ -71,10 +50,10 @@ export function ActivitiesView({
   hideHeader?: boolean;
 }) {
   const { data: response, isLoading: loading } = useLogs();
-  const logs = response?.data
-    ? response.data
-    : Array.isArray(response)
-      ? response
+  const logs = Array.isArray(response)
+    ? response
+    : response?.data
+      ? response.data
       : [];
   const searchParams = useSearchParams();
   const defaultStoreId = searchParams?.get("storeId") || "all";

@@ -2,6 +2,16 @@
 
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
+import type { AppliedCoupon } from "@/lib/types/dashboard";
+
+interface CouponInputProps {
+  couponCode: string;
+  setCouponCode: (code: string) => void;
+  appliedCoupon: AppliedCoupon | null;
+  setAppliedCoupon: (coupon: AppliedCoupon | null) => void;
+  validatingCoupon: boolean;
+  handleValidateCoupon: () => void;
+}
 
 export function CouponInput({
   couponCode,
@@ -10,7 +20,7 @@ export function CouponInput({
   setAppliedCoupon,
   validatingCoupon,
   handleValidateCoupon,
-}: any) {
+}: CouponInputProps) {
   return (
     <div className="max-w-md mx-auto mb-8 bg-muted/30 p-4 rounded-lg flex items-center gap-3 border border-muted">
       <div className="flex-1 relative">

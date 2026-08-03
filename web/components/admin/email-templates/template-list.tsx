@@ -6,10 +6,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import type { EmailTemplateSummary, EmailTemplate } from "@/lib/types/admin";
 
 interface TemplateListProps {
-  templates: any[];
-  selectedTemplate: any;
+  templates: EmailTemplateSummary[];
+  selectedTemplate: EmailTemplate | null;
   loadTemplateDetails: (id: number) => void;
 }
 

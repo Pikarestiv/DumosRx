@@ -53,8 +53,8 @@ export function LoginForm({ redirectPath = "/dashboard" }: { redirectPath?: stri
       setToken(response.token);
       setUser(response.user);
       router.push(redirectPath);
-    } catch (err: any) {
-      setError(err.message || "Invalid credentials. Please try again.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Invalid credentials. Please try again.");
     } finally {
       setLoading(false);
     }

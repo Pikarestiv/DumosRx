@@ -2,10 +2,11 @@ import { Globe, Activity, ShieldAlert, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
+import type { LiveOperations, SecurityAlert } from "@/lib/types/admin";
 
 interface SystemHealthProps {
-  liveOperations: any;
-  securityAlerts: any[];
+  liveOperations: LiveOperations;
+  securityAlerts: SecurityAlert[];
 }
 
 export function SystemHealth({ liveOperations, securityAlerts }: SystemHealthProps) {
@@ -47,7 +48,7 @@ export function SystemHealth({ liveOperations, securityAlerts }: SystemHealthPro
             </Badge>
         </div>
         <div className="space-y-4">
-            {securityAlerts.map((alert: any, i: number) => (
+            {securityAlerts.map((alert, i: number) => (
                 <div key={i} className="flex items-start gap-3 group cursor-pointer">
                     <div className="mt-1 p-1.5 bg-rose-500/10 text-rose-500 rounded-lg group-hover:bg-rose-500 group-hover:text-white transition-colors">
                         <ShieldAlert className="h-3 w-3" />

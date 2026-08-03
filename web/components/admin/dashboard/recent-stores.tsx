@@ -8,10 +8,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import type { AdminStoreSummary } from "@/lib/types/admin";
 
 interface RecentStoresProps {
-  recentStores: any[];
-  setSelectedStore: (store: any) => void;
+  recentStores: AdminStoreSummary[];
+  setSelectedStore: (store: AdminStoreSummary) => void;
 }
 
 export function RecentStores({ recentStores, setSelectedStore }: RecentStoresProps) {
@@ -36,7 +37,7 @@ export function RecentStores({ recentStores, setSelectedStore }: RecentStoresPro
             </TableRow>
           </TableHeader>
           <TableBody>
-            {recentStores.map((store: any) => (
+            {recentStores.map((store) => (
               <TableRow 
                 key={store.id} 
                 className="border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 group cursor-pointer"

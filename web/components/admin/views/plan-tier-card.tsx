@@ -1,12 +1,13 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import type { SubscriptionConfig, TierConfig, TierLimits, TierFeatures } from "@/lib/types/admin";
 
 interface PlanTierCardProps {
   tierKey: "free" | "starter" | "pro" | "enterprise";
   title: string;
-  config: any;
-  setConfig: (config: any) => void;
+  config: SubscriptionConfig;
+  setConfig: (config: SubscriptionConfig) => void;
   isFeatured?: boolean;
 }
 
@@ -19,7 +20,7 @@ export function PlanTierCard({
 }: PlanTierCardProps) {
   const tier = config.tiers[tierKey];
 
-  const updateTier = (updates: any) => {
+  const updateTier = (updates: Partial<TierConfig>) => {
     setConfig({
       ...config,
       tiers: {
@@ -29,11 +30,11 @@ export function PlanTierCard({
     });
   };
 
-  const updateLimits = (updates: any) => {
+  const updateLimits = (updates: Partial<TierLimits>) => {
     updateTier({ limits: { ...tier.limits, ...updates } });
   };
 
-  const updateFeatures = (updates: any) => {
+  const updateFeatures = (updates: Partial<TierFeatures>) => {
     updateTier({ features: { ...tier.features, ...updates } });
   };
 
@@ -127,26 +128,28 @@ export function PlanTierCard({
         <div className={`col-span-2 space-y-3 pt-3 border-t ${dividerClass}`}>
           <Label className={`${labelClass} block mb-2 font-bold`}>Feature Gates</Label>
 
-          {[
-            { key: "cloud_sync", label: "Cloud Sync" },
-            { key: "web_dashboard", label: "Web Dashboard" },
-            { key: "mobile_app", label: "Mobile App" },
-            { key: "ecommerce", label: "E-commerce URL" },
-            { key: "smart_pos", label: "Smart POS" },
-            { key: "broadcast_create", label: "Email Broadcasting" },
-            { key: "custom_branding", label: "Custom Branding" },
-            { key: "auto_backup", label: "Auto Backups" },
-            { key: "multi_store", label: "Multi-Store Mgmt" },
-            { key: "procurement", label: "Procurement" },
-            { key: "prescriptions", label: "Prescriptions" },
-            { key: "expenses", label: "Expense Tracking" },
-            { key: "audit_mode", label: "Stock Audits" },
-            { key: "dark_mode", label: "Dark Mode" },
-            { key: "smart_suggestions", label: "Smart Suggestions" },
-            { key: "auto_lock", label: "Auto-Lock" },
-            { key: "barcode_generation", label: "Barcode Generation" },
-            { key: "loyalty_program", label: "Loyalty Program" },
-          ].map((feat) => (
+          {(
+            [
+              { key: "cloud_sync", label: "Cloud Sync" },
+              { key: "web_dashboard", label: "Web Dashboard" },
+              { key: "mobile_app", label: "Mobile App" },
+              { key: "ecommerce", label: "E-commerce URL" },
+              { key: "smart_pos", label: "Smart POS" },
+              { key: "broadcast_create", label: "Email Broadcasting" },
+              { key: "custom_branding", label: "Custom Branding" },
+              { key: "auto_backup", label: "Auto Backups" },
+              { key: "multi_store", label: "Multi-Store Mgmt" },
+              { key: "procurement", label: "Procurement" },
+              { key: "prescriptions", label: "Prescriptions" },
+              { key: "expenses", label: "Expense Tracking" },
+              { key: "audit_mode", label: "Stock Audits" },
+              { key: "dark_mode", label: "Dark Mode" },
+              { key: "smart_suggestions", label: "Smart Suggestions" },
+              { key: "auto_lock", label: "Auto-Lock" },
+              { key: "barcode_generation", label: "Barcode Generation" },
+              { key: "loyalty_program", label: "Loyalty Program" },
+            ] satisfies { key: keyof TierFeatures; label: string }[]
+          ).map((feat) => (
             <div key={feat.key} className="flex items-center justify-between">
               <Label className="text-xs text-muted-foreground">{feat.label}</Label>
               <Switch

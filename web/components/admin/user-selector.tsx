@@ -18,10 +18,11 @@ import {
 } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 import { useAdminUsers } from "@/lib/api/admin-hooks";
+import type { AdminUser } from "@/lib/types/admin";
 
 interface UserSelectorProps {
-  selectedUsers: any[];
-  onUsersChange: (users: any[]) => void;
+  selectedUsers: AdminUser[];
+  onUsersChange: (users: AdminUser[]) => void;
   targetType: "all" | "specific";
   onTargetTypeChange: (type: "all" | "specific") => void;
 }
@@ -44,7 +45,7 @@ export function UserSelector({
   const { data, isLoading } = useAdminUsers(1, debouncedSearch);
   const users = data?.data || [];
 
-  const handleSelect = (user: any) => {
+  const handleSelect = (user: AdminUser) => {
     const isSelected = selectedUsers.some((u) => u.id === user.id);
     if (isSelected) {
       onUsersChange(selectedUsers.filter((u) => u.id !== user.id));
@@ -53,7 +54,7 @@ export function UserSelector({
     }
   };
 
-  const removeUser = (id: number) => {
+  const removeUser = (id: string) => {
     onUsersChange(selectedUsers.filter((u) => u.id !== id));
   };
 
@@ -114,7 +115,7 @@ export function UserSelector({
                     {isLoading ? "Searching..." : "No users found."}
                   </CommandEmpty>
                   <CommandGroup>
-                    {users.map((user: any) => {
+                    {users.map((user) => {
                       const isSelected = selectedUsers.some((u) => u.id === user.id);
                       return (
                         <CommandItem

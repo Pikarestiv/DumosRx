@@ -3,16 +3,16 @@ import { persist } from "zustand/middleware";
 import { webApiClient } from "@/lib/api/client";
 
 interface AdminState {
-  summary: any | null;
-  stores: any[] | null;
-  storeMeta: any | null;
-  products: any[] | null;
-  productMeta: any | null;
-  productMetrics: any | null;
+  summary: unknown | null;
+  stores: unknown[] | null;
+  storeMeta: unknown | null;
+  products: unknown[] | null;
+  productMeta: unknown | null;
+  productMetrics: unknown | null;
   productCategories: string[] | null;
-  users: any[] | null;
-  userMeta: any | null;
-  systemHealth: any | null;
+  users: unknown[] | null;
+  userMeta: unknown | null;
+  systemHealth: unknown | null;
   loading: boolean;
   error: string | null;
   lastFetched: number | null;
@@ -21,7 +21,7 @@ interface AdminState {
   fetchSummary: (force?: boolean) => Promise<void>;
   fetchStores: (page?: number, search?: string) => Promise<void>;
   fetchProducts: (page?: number, search?: string, category?: string) => Promise<void>;
-  standardizeProducts: () => Promise<any>;
+  standardizeProducts: () => Promise<unknown>;
   fetchUsers: (page?: number, search?: string) => Promise<void>;
   fetchHealth: () => Promise<void>;
 }
@@ -58,7 +58,7 @@ export const useAdminStore = create<AdminState>()(
         const startTime = performance.now();
 
         try {
-          const response = await webApiClient.request<any>("admin/summary");
+          const response = await webApiClient.request<unknown>("admin/summary");
           const endTime = performance.now();
           set({
             summary: response,
@@ -67,9 +67,9 @@ export const useAdminStore = create<AdminState>()(
             latency: Math.round(endTime - startTime),
             error: null,
           });
-        } catch (err: any) {
+        } catch (err) {
           set({
-            error: err.message || "Failed to fetch admin summary",
+            error: err instanceof Error ? err.message : "Failed to fetch admin summary",
             loading: false,
           });
         }
@@ -80,16 +80,16 @@ export const useAdminStore = create<AdminState>()(
 
         try {
           const query = `admin/stores?page=${page}${search ? `&search=${search}` : ""}`;
-          const response = await webApiClient.request<any>(query);
+          const response = await webApiClient.request<{ data: unknown[]; meta: unknown }>(query);
           set({
             stores: response.data,
             storeMeta: response.meta,
             loading: false,
             error: null,
           });
-        } catch (err: any) {
+        } catch (err) {
           set({
-            error: err.message || "Failed to fetch stores",
+            error: err instanceof Error ? err.message : "Failed to fetch stores",
             loading: false,
           });
         }
@@ -100,7 +100,11 @@ export const useAdminStore = create<AdminState>()(
 
         try {
           const query = `admin/products?page=${page}${search ? `&search=${search}` : ""}${category ? `&category=${category}` : ""}`;
-          const response = await webApiClient.request<any>(query);
+          const response = await webApiClient.request<{
+            products: { data: unknown[]; meta: unknown };
+            metrics: unknown;
+            categories: string[];
+          }>(query);
           set({
             products: response.products.data,
             productMeta: response.products.meta,
@@ -109,9 +113,9 @@ export const useAdminStore = create<AdminState>()(
             loading: false,
             error: null,
           });
-        } catch (err: any) {
+        } catch (err) {
           set({
-            error: err.message || "Failed to fetch products",
+            error: err instanceof Error ? err.message : "Failed to fetch products",
             loading: false,
           });
         }
@@ -120,11 +124,14 @@ export const useAdminStore = create<AdminState>()(
       standardizeProducts: async () => {
         set({ loading: true, error: null });
         try {
-          const response = await webApiClient.request<any>("admin/products/standardize", { method: "POST" });
+          const response = await webApiClient.request<unknown>("admin/products/standardize", { method: "POST" });
           set({ loading: false });
           return response;
-        } catch (err: any) {
-          set({ error: err.message || "Failed to standardize products", loading: false });
+        } catch (err) {
+          set({
+            error: err instanceof Error ? err.message : "Failed to standardize products",
+            loading: false,
+          });
           throw err;
         }
       },
@@ -132,10 +139,13 @@ export const useAdminStore = create<AdminState>()(
       fetchHealth: async () => {
         set({ loading: true, error: null });
         try {
-          const response = await webApiClient.request<any>("admin/health");
+          const response = await webApiClient.request<unknown>("admin/health");
           set({ systemHealth: response, loading: false });
-        } catch (err: any) {
-          set({ error: err.message || "Failed to fetch system health", loading: false });
+        } catch (err) {
+          set({
+            error: err instanceof Error ? err.message : "Failed to fetch system health",
+            loading: false,
+          });
         }
       },
 
@@ -144,16 +154,16 @@ export const useAdminStore = create<AdminState>()(
 
         try {
           const query = `admin/users?page=${page}${search ? `&search=${search}` : ""}`;
-          const response = await webApiClient.request<any>(query);
+          const response = await webApiClient.request<{ data: unknown[]; meta: unknown }>(query);
           set({
             users: response.data,
             userMeta: response.meta,
             loading: false,
             error: null,
           });
-        } catch (err: any) {
+        } catch (err) {
           set({
-            error: err.message || "Failed to fetch users",
+            error: err instanceof Error ? err.message : "Failed to fetch users",
             loading: false,
           });
         }

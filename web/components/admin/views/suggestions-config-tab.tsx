@@ -9,18 +9,20 @@ import { Save, RefreshCw, Loader2, Sparkles, Plus, X, Search } from "lucide-reac
 import { toast } from "sonner";
 import { useSystemConfig, useUpdateSystemConfigMutation } from "@/lib/api/hooks";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import type { SuggestionsConfig } from "@/lib/types/admin";
 
 type SuggestionType = "store_names" | "store_generics" | "store_categories" | "store_manufacturers" | "retail_names" | "retail_categories" | "retail_manufacturers";
 
 export function SuggestionsConfigTab() {
-  const { data: serverConfig, isLoading, isError: _isError } = useSystemConfig("global_suggestions");
+  const { data: serverConfigData, isLoading, isError: _isError } = useSystemConfig("global_suggestions");
+  const serverConfig = serverConfigData as Partial<SuggestionsConfig> | undefined;
   const updateMutation = useUpdateSystemConfigMutation();
 
   const [activeList, setActiveList] = useState<SuggestionType>("store_names");
   const [searchQuery, setSearchQuery] = useState("");
   const [newItem, setNewItem] = useState("");
 
-  const [config, setConfig] = useState<any>({
+  const [config, setConfig] = useState<SuggestionsConfig>({
     store: {
       names: [],
       generics: [],
@@ -133,8 +135,8 @@ export function SuggestionsConfigTab() {
     try {
       await updateMutation.mutateAsync({ key: "global_suggestions", value: config });
       toast.success("Autocomplete suggestions saved successfully!");
-    } catch (error: any) {
-      toast.error(error.message || "Failed to save configuration");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to save configuration");
     }
   };
 

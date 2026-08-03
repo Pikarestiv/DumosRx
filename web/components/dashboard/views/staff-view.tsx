@@ -15,10 +15,11 @@ import {
 } from "@/lib/api/hooks";
 import { StaffStats } from "./staff-stats";
 import { StaffTable } from "./staff-table";
+import type { StaffMember, DashboardStore } from "@/lib/types/dashboard";
 
 interface StaffViewProps {
-  staff: any[];
-  stores: any[];
+  staff: StaffMember[];
+  stores: DashboardStore[];
   hideHeader?: boolean;
 }
 
@@ -28,7 +29,7 @@ export function StaffView({ staff, stores, hideHeader }: StaffViewProps) {
 
   const [selectedStore, setSelectedStore] = useState(storeIdParam || "all");
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingStaff, setEditingStaff] = useState<any>(null);
+  const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   // Sync with URL params if they change
@@ -50,7 +51,7 @@ export function StaffView({ staff, stores, hideHeader }: StaffViewProps) {
     setIsModalOpen(true);
   };
 
-  const handleEdit = (s: any) => {
+  const handleEdit = (s: StaffMember) => {
     setEditingStaff(s);
     setIsModalOpen(true);
   };
@@ -62,7 +63,7 @@ export function StaffView({ staff, stores, hideHeader }: StaffViewProps) {
   const confirmDelete = (id: string) => {
     deleteMutation.mutate(id, {
       onSuccess: () => toast.success("Staff account deactivated"),
-      onError: (err: any) =>
+      onError: (err) =>
         toast.error(err.message || "Failed to deactivate staff"),
     });
     setDeleteTargetId(null);
@@ -73,7 +74,7 @@ export function StaffView({ staff, stores, hideHeader }: StaffViewProps) {
       { id, payload: { is_active: true } },
       {
         onSuccess: () => toast.success("Staff account reactivated"),
-        onError: (err: any) =>
+        onError: (err) =>
           toast.error(err.message || "Failed to reactivate staff"),
       },
     );
@@ -84,10 +85,9 @@ export function StaffView({ staff, stores, hideHeader }: StaffViewProps) {
     selectedStore === "all"
       ? staffToDisplay
       : staffToDisplay.filter(
-          (s: any) =>
+          (s: StaffMember) =>
             s.store_id === selectedStore ||
-            s.store_name === selectedStore ||
-            s.store === selectedStore,
+            s.store_name === selectedStore,
         );
 
   const hasStaff = filteredStaff && filteredStaff.length > 0;

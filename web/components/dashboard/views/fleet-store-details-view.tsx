@@ -14,13 +14,14 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { StoreActivitiesTab } from "./fleet/store-activities-tab";
 import { StoreTransactionsTab } from "./fleet/store-transactions-tab";
 import { StoreStockBatchTab } from "./fleet/store-stock-batch-tab";
+import type { StoreDetail } from "@/lib/types/dashboard";
 
 export function FleetStoreDetailsView({
   storeId,
   stores,
 }: {
   storeId?: string;
-  stores?: any[];
+  stores?: StoreDetail[];
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -34,7 +35,7 @@ export function FleetStoreDetailsView({
   };
 
   if (!storeId || !stores) return null;
-  const store = stores.find((s: any) => s.id.toString() === storeId);
+  const store = stores.find((s) => s.id.toString() === storeId);
   if (!store) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
@@ -108,7 +109,7 @@ export function FleetStoreDetailsView({
             <CardTitle className="text-xl font-black text-red-600">
               {store.low_stock_alerts ?? 0} Low Stock
             </CardTitle>
-            {store.expiring_items > 0 && (
+            {(store.expiring_items || 0) > 0 && (
               <p className="text-xs text-red-600 font-bold mt-1">
                 {store.expiring_items} Expiring Soon
               </p>

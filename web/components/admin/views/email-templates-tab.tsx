@@ -10,15 +10,7 @@ import { Mail, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { TemplateList } from "@/components/admin/email-templates/template-list";
 import { TemplateEditor } from "@/components/admin/email-templates/template-editor";
-
-interface EmailTemplate {
-  id: number;
-  key: string;
-  name: string;
-  subject: string;
-  content: string;
-  variables: Array<{ name: string; description: string }>;
-}
+import type { EmailTemplate } from "@/lib/types/admin";
 
 export function EmailTemplatesTab() {
   const { data: response, isLoading: loading } = useAdminEmailTemplates();
@@ -34,9 +26,10 @@ export function EmailTemplatesTab() {
 
   async function loadTemplateDetails(id: number) {
     try {
-      const response = await webApiClient.request<any>(
-        `admin/email-templates/${id}`,
-      );
+      const response = await webApiClient.request<{
+        success: boolean;
+        template: EmailTemplate;
+      }>(`admin/email-templates/${id}`);
       if (response.success) {
         const fullTemplate = response.template;
         setSelectedTemplate(fullTemplate);

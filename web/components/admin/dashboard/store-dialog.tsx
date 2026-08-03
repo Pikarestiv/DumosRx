@@ -7,10 +7,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useRouter } from "next/navigation";
+import type { AdminStoreSummary } from "@/lib/types/admin";
 
 interface StoreDialogProps {
-  selectedStore: any;
-  setSelectedStore: (store: any) => void;
+  selectedStore: AdminStoreSummary | null;
+  setSelectedStore: (store: AdminStoreSummary | null) => void;
 }
 
 export function StoreDialog({ selectedStore, setSelectedStore }: StoreDialogProps) {

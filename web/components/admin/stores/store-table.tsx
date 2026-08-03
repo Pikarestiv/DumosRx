@@ -27,18 +27,20 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import type { AdminStoreSummary } from "@/lib/types/admin";
+import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 
 interface StoreTableProps {
-  storeList: any[];
+  storeList: AdminStoreSummary[];
   isLoading: boolean;
-  handleImpersonate: (store: any) => void;
-  handleViewBilling: (store: any) => void;
-  setSelectedStore: (store: any) => void;
+  handleImpersonate: (store: AdminStoreSummary) => void;
+  handleViewBilling: (store: AdminStoreSummary) => void;
+  setSelectedStore: (store: AdminStoreSummary) => void;
   setIsSuspendDialogOpen: (open: boolean) => void;
   setIsTrialDialogOpen: (open: boolean) => void;
   setIsViewDialogOpen: (open: boolean) => void;
-  handleUnsuspend: (store: any) => void;
-  router: any;
+  handleUnsuspend: (store: AdminStoreSummary) => void;
+  router: AppRouterInstance;
 }
 
 export function StoreTable({
@@ -79,7 +81,7 @@ export function StoreTable({
         </TableRow>
       </TableHeader>
       <TableBody>
-        {storeList.map((store: any) => (
+        {storeList.map((store) => (
           <TableRow
             key={store.id}
             className="border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 group transition-colors"

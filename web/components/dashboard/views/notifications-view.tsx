@@ -51,7 +51,7 @@ export function NotificationsView({ onBack }: NotificationsViewProps) {
         <Card className="border-none shadow-xl rounded-3xl overflow-hidden">
           <CardContent className="p-0">
             <div className="divide-y divide-border">
-              {notifs.map((notif: any) => (
+              {notifs.map((notif) => (
                 <div 
                   key={notif.id} 
                   className={`flex items-start gap-4 p-6 hover:bg-muted/30 transition-colors cursor-pointer group ${!notif.isRead ? 'bg-primary/5' : ''}`}

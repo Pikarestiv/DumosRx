@@ -34,8 +34,8 @@ export function SubscriptionCard() {
       } else {
         toast.error(response.message || "Failed to initiate payment");
       }
-    } catch (error: any) {
-      toast.error(error.message || "Payment service unavailable");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Payment service unavailable");
     }
   };
 
@@ -120,7 +120,7 @@ export function SubscriptionCard() {
           </Badge>
         </div>
         <CardDescription className="text-muted-foreground flex items-center gap-1.5 mt-1.5">
-          {isInactive ? "No Active Subscription" : `${capitalizeFirstLetter(subscription.plan || PRICING.FREE.NAME)} Plan`}
+          {isInactive ? "No Active Subscription" : `${capitalizeFirstLetter(subscription?.plan || PRICING.FREE.NAME)} Plan`}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

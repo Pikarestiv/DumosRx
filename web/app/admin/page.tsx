@@ -13,11 +13,12 @@ import { SystemHealth } from "@/components/admin/dashboard/system-health";
 import { StoreDialog } from "@/components/admin/dashboard/store-dialog";
 
 import { LiveClock } from "@/components/admin/dashboard/live-clock";
+import type { AdminStoreSummary } from "@/lib/types/admin";
 
 export default function AdminDashboard() {
   const { data: summary, isLoading, error, refetch } = useAdminSummary();
   const router = useRouter();
-  const [selectedStore, setSelectedStore] = useState<any>(null);
+  const [selectedStore, setSelectedStore] = useState<AdminStoreSummary | null>(null);
 
   if (isLoading && !summary) {
     return <AdminSkeleton />;

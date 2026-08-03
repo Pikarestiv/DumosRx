@@ -167,7 +167,7 @@ export default function AdminActivityLogPage() {
                     </TableCell>
                   </TableRow>
                 )}
-                {logs.map((log: any) => (
+                {logs.map((log) => (
                   <TableRow key={log.id}>
                     <TableCell>
                       <ActionBadge action={log.action} />

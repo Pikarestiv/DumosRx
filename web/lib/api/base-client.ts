@@ -1,5 +1,10 @@
-import axios from "axios";
+import axios, { type InternalAxiosRequestConfig, type AxiosResponse } from "axios";
 import { addLogToBuffer, sanitizePayload, reportClientError } from "./logger";
+
+interface RequestMetadata {
+  metadata?: { startTime: number };
+}
+type ConfigWithMetadata = InternalAxiosRequestConfig & RequestMetadata;
 
 let initialApiUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.dumosrx.com/api/v1";
 
@@ -39,8 +44,8 @@ export const getBaseURL = () => {
 };
 
 // Request interceptor for token fallback
-apiClient.interceptors.request.use((config) => {
-  (config as any).metadata = { startTime: Date.now() };
+apiClient.interceptors.request.use((config: ConfigWithMetadata) => {
+  config.metadata = { startTime: Date.now() };
 
   if (typeof window !== "undefined") {
     const isAdminPath = window.location.pathname.startsWith('/admin');
@@ -78,8 +83,8 @@ apiClient.interceptors.request.use((config) => {
 
 // Response interceptor for logging & 401 refresh
 apiClient.interceptors.response.use(
-  (response) => {
-    const startTime = (response.config as any).metadata?.startTime;
+  (response: AxiosResponse) => {
+    const startTime = (response.config as ConfigWithMetadata).metadata?.startTime;
     const duration = startTime ? Date.now() - startTime : undefined;
 
     // Add to buffer

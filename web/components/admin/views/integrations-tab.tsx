@@ -37,8 +37,8 @@ export function IntegrationsTab() {
     try {
       await updateMutation.mutateAsync({ key: "smartsupp_key", value: key.trim() });
       toast.success("Smartsupp key saved. The chat widget will appear on all public and dashboard pages.");
-    } catch (error: any) {
-      toast.error(error.message || "Failed to save Smartsupp key");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to save Smartsupp key");
     }
   };
 
@@ -47,8 +47,8 @@ export function IntegrationsTab() {
       await updateMutation.mutateAsync({ key: "smartsupp_key", value: "" });
       setKey("");
       toast.success("Smartsupp chat widget disabled.");
-    } catch (error: any) {
-      toast.error(error.message || "Failed to disable chat widget");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to disable chat widget");
     }
   };
 

@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { BaseDialogProps } from "./dialog-types";
+import type { useReactivateUserMutation } from "@/lib/api/admin-hooks";
 
 export function ReactivateUserDialog({
   isOpen,
@@ -17,7 +18,7 @@ export function ReactivateUserDialog({
   selectedUser,
   setSelectedUser,
   reactivateMutation,
-}: BaseDialogProps & { reactivateMutation: any }) {
+}: BaseDialogProps & { reactivateMutation: ReturnType<typeof useReactivateUserMutation> }) {
   const handleReactivate = async () => {
     if (!selectedUser) return;
     reactivateMutation.mutate(selectedUser.id, {
@@ -28,7 +29,7 @@ export function ReactivateUserDialog({
         onOpenChange(false);
         setSelectedUser(null);
       },
-      onError: (err: any) => {
+      onError: (err) => {
         toast.error("Action Failed", {
           description: err.message || "Failed to reactivate user",
         });

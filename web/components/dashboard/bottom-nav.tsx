@@ -19,11 +19,12 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import type { DashboardUser } from "@/lib/types/dashboard";
 
 interface BottomNavProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
-  user: any;
+  user: DashboardUser | null;
   onLogout: () => void;
 }
 

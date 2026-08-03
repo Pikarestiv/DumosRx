@@ -69,7 +69,7 @@ export function BillingView() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {transactions.map((bill: any) => (
+                    {transactions.map((bill) => (
                       <TableRow key={bill.id}>
                         <TableCell className="text-sm">{bill.date}</TableCell>
                         <TableCell className="font-medium text-sm">{bill.desc}</TableCell>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
+import type { StoreProfile } from "@/lib/context/store-context";
 
-export function useSettingsForm(storeProfile: any, minimumSyncIntervalMinutes: number) {
+export function useSettingsForm(storeProfile: StoreProfile | null, minimumSyncIntervalMinutes: number) {
   // Form States
   const [localName, setLocalName] = useState(storeProfile?.name || "");
   const [localAddress, setLocalAddress] = useState(storeProfile?.address || "");

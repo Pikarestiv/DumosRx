@@ -41,7 +41,9 @@ export function useSettingsSync(
       toast.error("Failed to export database");
       return;
     }
-    const blob = new Blob([binary as any], { type: "application/x-sqlite3" });
+    // TS's DOM lib expects ArrayBufferView<ArrayBuffer>, but sql.js's Uint8Array
+    // is typed against the wider ArrayBufferLike — functionally a valid BlobPart.
+    const blob = new Blob([binary as BlobPart], { type: "application/x-sqlite3" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;

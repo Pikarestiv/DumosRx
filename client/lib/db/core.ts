@@ -874,17 +874,27 @@ export async function transaction<T>(fn: () => Promise<T>): Promise<T> {
 }
 
 /**
- * Returns the raw database binary for export
+ * Returns the raw database binary for export — sql.js (web) only. `db` is a
+ * real Tauri SQL plugin connection on desktop/mobile, which has no
+ * `.export()` method; use backupDatabaseToFile() there instead.
  */
 export function getDatabaseBinary(): Uint8Array | null {
-  if (!db) return null;
+  if (!db || isTauri()) return null;
   return db.export();
 }
 
 /**
- * Overwrites the current database with provided binary data
+ * Overwrites the current database with provided binary data — sql.js (web)
+ * only. On desktop/mobile this would silently disconnect `db` from the real
+ * file Tauri's SQL plugin manages without ever writing the restored data to
+ * disk; use restoreDatabaseFromFile() there instead.
  */
 export async function restoreDatabase(binaryData: Uint8Array): Promise<void> {
+  if (isTauri()) {
+    throw new Error(
+      "restoreDatabase() is web-only — use restoreDatabaseFromFile() on desktop/mobile.",
+    );
+  }
   if (!SQL) {
     SQL = await initSqlJs({
       locateFile: (file: string) => `/${file}`,
@@ -893,6 +903,86 @@ export async function restoreDatabase(binaryData: Uint8Array): Promise<void> {
 
   db = new SQL.Database(binaryData);
   await saveDatabase();
+}
+
+/**
+ * Desktop/mobile-only backup: lets the user pick a destination via a native
+ * save dialog, then writes a consistent snapshot of the live database there
+ * with SQLite's VACUUM INTO. Preferred over copying the raw file directly,
+ * since VACUUM INTO produces a coherent copy even if writes are landing on
+ * the live database around the same time — a raw file copy could otherwise
+ * catch it mid-write.
+ */
+export async function backupDatabaseToFile(): Promise<{ success: boolean; path?: string }> {
+  if (!isTauri()) {
+    throw new Error("backupDatabaseToFile() is desktop/mobile-only — use getDatabaseBinary() on web.");
+  }
+  if (!db) {
+    await initDatabase();
+  }
+  if (!db) {
+    throw new Error("Database not initialized");
+  }
+
+  const { save } = await import("@tauri-apps/plugin-dialog");
+  const now = new Date();
+  const dateStr = now.toISOString().split("T")[0];
+  const timeStr = now.toISOString().split("T")[1].slice(0, 8).replace(/:/g, "-");
+
+  const destPath = await save({
+    defaultPath: `${APP_NAME.toLowerCase()}_backup_${dateStr}_${timeStr}.drx`,
+    filters: [{ name: "DumosRx Backup", extensions: ["drx"] }],
+  });
+  if (!destPath) {
+    return { success: false }; // user cancelled the dialog
+  }
+
+  // VACUUM INTO doesn't reliably accept a bound parameter for the filename
+  // across every SQLite driver combination, so the path is escaped and
+  // inlined directly instead. destPath comes from a native OS save dialog
+  // (not free-typed user input), but a single-quote in a folder name (e.g.
+  // "O'Brien's backups") would still break unescaped string interpolation.
+  const escapedPath = destPath.replace(/'/g, "''");
+  await db.execute(`VACUUM INTO '${escapedPath}'`);
+  return { success: true, path: destPath };
+}
+
+/**
+ * Desktop/mobile-only restore: lets the user pick a backup file via a native
+ * open dialog, closes the live SQL connection so the file isn't locked, then
+ * overwrites the real dumosrx.db file with it. The caller must reload the
+ * app afterward so initDatabase() re-establishes a fresh connection against
+ * the restored file.
+ */
+export async function restoreDatabaseFromFile(): Promise<{ success: boolean }> {
+  if (!isTauri()) {
+    throw new Error("restoreDatabaseFromFile() is desktop/mobile-only — use restoreDatabase() on web.");
+  }
+
+  const { open } = await import("@tauri-apps/plugin-dialog");
+  const sourcePath = await open({
+    multiple: false,
+    filters: [{ name: "DumosRx Backup", extensions: ["drx", "db", "sqlite", "sqlite3"] }],
+  });
+  if (!sourcePath || Array.isArray(sourcePath)) {
+    return { success: false }; // user cancelled, or somehow picked multiple
+  }
+
+  if (db) {
+    try {
+      await db.close();
+    } catch (err) {
+      console.error("[DB] Failed to close database connection before restore:", err);
+    }
+    db = null;
+  }
+
+  const { copyFile } = await import("@tauri-apps/plugin-fs");
+  const { appDataDir, join } = await import("@tauri-apps/api/path");
+  const liveDbPath = await join(await appDataDir(), "dumosrx.db");
+  await copyFile(sourcePath, liveDbPath);
+
+  return { success: true };
 }
 
 if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {

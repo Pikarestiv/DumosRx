@@ -95,7 +95,9 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
     handleSync,
     handleDownloadBackup,
     handleRestoreBackup,
+    handleRestoreBackupTauri,
     handleResetDatabase,
+    isTauri,
   } = useSettings();
   const router = useRouter();
 
@@ -232,6 +234,8 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
                   handleSync={handleSync}
                   handleDownloadBackup={handleDownloadBackup}
                   handleRestoreBackup={handleRestoreBackup}
+                  handleRestoreBackupTauri={handleRestoreBackupTauri}
+                  isTauri={isTauri}
                   handleResetDatabase={handleResetDatabase}
                   setIsCloudLinkOpen={setIsCloudLinkOpen}
                   setSyncAfterLink={setSyncAfterLink}

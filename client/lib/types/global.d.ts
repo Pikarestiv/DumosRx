@@ -1,7 +1,12 @@
+import type { ApiLogEntry } from "@/lib/api/logger";
+
 export {};
 
 declare global {
   interface Window {
+    /** In-memory circular buffer of recent API requests/responses/errors,
+     * populated by lib/api/logger.ts for console inspection. */
+    __DRX_API_LOGS__?: ApiLogEntry[];
     /** Tauri v1 injects this on the window; presence means we're in the desktop app. */
     __TAURI__?: unknown;
     /** Tauri v2 injects this instead of/alongside __TAURI__. */

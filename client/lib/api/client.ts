@@ -1,6 +1,9 @@
 import { BaseApiClient } from "./base-client";
 import type { CustomerFormPayload } from "@/lib/types/customer";
 import type { Broadcast } from "@/lib/types/broadcast";
+import type { NewProductPayload } from "@/lib/types/product";
+import type { SupplierPayload } from "@/lib/types/supplier";
+import type { SyncChange } from "@/lib/types/sync";
 
 class ApiClient extends BaseApiClient {
   // Auth endpoints
@@ -28,7 +31,7 @@ class ApiClient extends BaseApiClient {
     return this.request<any>(`/app/products?page=${page}&limit=${limit}`);
   }
 
-  async searchProducts(params: any) {
+  async searchProducts(params: Record<string, string>) {
     const searchParams = new URLSearchParams(params);
     return this.request<any>(`/app/products/search?${searchParams}`);
   }
@@ -37,7 +40,7 @@ class ApiClient extends BaseApiClient {
     return this.request<any>(`/app/products/${id}`);
   }
 
-  async createProduct(data: any) {
+  async createProduct(data: NewProductPayload) {
     return this.request<any>("/app/products", {
       method: "POST",
       body: JSON.stringify(data),
@@ -62,7 +65,7 @@ class ApiClient extends BaseApiClient {
   }
 
   // Sales endpoints
-  async createSale(data: any) {
+  async createSale(data: Record<string, unknown>) {
     return this.request<any>("/app/sales", {
       method: "POST",
       body: JSON.stringify(data),
@@ -129,7 +132,7 @@ class ApiClient extends BaseApiClient {
     return this.request<any>(`/app/suppliers?page=${page}&limit=${limit}`);
   }
 
-  async createSupplier(data: any) {
+  async createSupplier(data: SupplierPayload) {
     return this.request<any>("/app/suppliers", {
       method: "POST",
       body: JSON.stringify(data),
@@ -166,7 +169,7 @@ class ApiClient extends BaseApiClient {
 
   // Sync Endpoints
   async pushChanges(
-    payload: { changes: any[] },
+    payload: { changes: SyncChange[] },
     isManual: boolean = false,
     isSetup: boolean = false,
   ) {

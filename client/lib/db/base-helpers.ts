@@ -4,6 +4,7 @@
 
 import { execute, query, generateId, logAction } from "./core";
 import { queryClient } from "../query-client";
+import type { SyncQueueItem } from "@/lib/types/sync";
 
 // Invalidates exactly the queries that could be affected by a mutation on
 // `table` — matched via each query's `meta.tables` (see lib/query-keys.ts),
@@ -160,7 +161,7 @@ async function addToSyncQueue(
 
 export async function getPendingSyncItems() {
   const now = new Date().toISOString();
-  return await query<any>(
+  return await query<SyncQueueItem>(
     "SELECT * FROM _sync_queue WHERE next_retry_at IS NULL OR next_retry_at <= ? ORDER BY created_at ASC",
     [now],
   );

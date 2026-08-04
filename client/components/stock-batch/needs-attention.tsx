@@ -1,5 +1,6 @@
 "use client";
 
+import type React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, Calendar, TrendingDown } from "lucide-react";
 import { getExpiringBatches } from "@/lib/db/queries/inventory";
@@ -7,13 +8,25 @@ import { useStore } from "@/lib/context/store-context";
 import { useRouter } from "next/navigation";
 import { queryKeys } from "@/lib/query-keys";
 
+interface AttentionItem {
+  type: "expiring" | "critical" | "low";
+  id: string;
+  product_name: string;
+  description: string;
+  icon: React.ReactNode;
+  iconClass: string;
+  actionText: string;
+  actionClass: string;
+  onClick: () => void;
+}
+
 interface StockItem {
   id: string;
   product_id: string;
   product_name: string;
-  batch_number: string;
+  batch_number?: string;
   quantity: number;
-  reorder_level: number;
+  reorder_level?: number;
   status: "healthy" | "low" | "critical" | "overstock";
   expiry_date?: string;
 }
@@ -30,7 +43,7 @@ export function NeedsAttention({ stockData }: { stockData: StockItem[] }) {
 
   const expiringBatches = expiringBatchesData || [];
 
-  const items: any[] = [];
+  const items: AttentionItem[] = [];
 
   // Add expiring batches
   expiringBatches.forEach((batch) => {

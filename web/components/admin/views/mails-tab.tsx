@@ -18,15 +18,16 @@ import { toast } from "sonner";
 import { useMutation } from "@tanstack/react-query";
 import { webApiClient } from "@/lib/api/client";
 import { UserSelector } from "@/components/admin/user-selector";
+import type { AdminUser } from "@/lib/types/admin";
 
 export function MailsTab() {
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
   const [targetType, setTargetType] = useState<"all" | "specific">("all");
-  const [selectedUsers, setSelectedUsers] = useState<any[]>([]);
+  const [selectedUsers, setSelectedUsers] = useState<AdminUser[]>([]);
 
   const sendMailMutation = useMutation({
-    mutationFn: (data: any) =>
+    mutationFn: (data: Record<string, unknown>) =>
       webApiClient.request("admin/mail/send", { method: "POST", data }),
     onSuccess: () => {
       toast.success("Email(s) dispatched successfully!");
@@ -34,8 +35,8 @@ export function MailsTab() {
       setMessage("");
       setSelectedUsers([]);
     },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || "Failed to send emails");
+    onError: (error) => {
+      toast.error(error.message || "Failed to send emails");
     },
   });
 

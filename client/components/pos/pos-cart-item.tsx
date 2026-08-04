@@ -4,12 +4,13 @@ import { motion } from "framer-motion";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { getCategoryIcon } from "@/lib/constants/category-icons";
+import type { CartItem } from "@/lib/hooks/use-pos-cart";
 
 const SWIPE_DELETE_THRESHOLD = -70;
 const SWIPE_DELETE_VELOCITY = -500;
 
 interface Props {
-  item: any;
+  item: CartItem;
   currencyCode?: string;
   isLast: boolean;
   updateQuantity: (id: string, quantity: number) => void;

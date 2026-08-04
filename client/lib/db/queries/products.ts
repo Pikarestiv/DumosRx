@@ -1,7 +1,10 @@
 import { query } from "@/lib/db/local-database";
+import type { Product, ProductWithDetails, ProductWithStockRow, POSProduct } from "@/lib/types/product";
+import type { AuditLogRow } from "@/lib/types/audit-log";
+import type { StockMovementHistoryRow } from "@/lib/types/stock-movement";
 
 export async function getProductsWithDetails() {
-  return query<any>(
+  return query<ProductWithDetails>(
     `SELECT m.*, c.name as category_name,
        (SELECT SUM(quantity) FROM stock_batches WHERE product_id = m.id AND _deleted = 0 AND is_active = 1) as stock_quantity,
        (SELECT cost_price FROM stock_batches WHERE product_id = m.id AND _deleted = 0 ORDER BY created_at DESC LIMIT 1) as cost_price,
@@ -15,13 +18,13 @@ export async function getProductsWithDetails() {
 }
 
 export async function getCategoriesList() {
-  return query<any>(
+  return query<{ name: string }>(
     "SELECT name FROM categories WHERE _deleted = 0 ORDER BY name ASC"
   );
 }
 
 export async function getCategoryByName(name: string) {
-  const existing = await query<any>(
+  const existing = await query<{ id: string }>(
     "SELECT id FROM categories WHERE name = ? AND _deleted = 0",
     [name],
   );
@@ -32,8 +35,8 @@ export async function getCategoryByName(name: string) {
 }
 
 export async function getSupplierByName(name: string) {
-  const existing = await query<any>(
-    "SELECT id FROM suppliers WHERE name = ? AND _deleted = 0",
+  const existing = await query<{ id: string }>(
+    "SELECT id FROM suppliers WHERE name = ? COLLATE NOCASE AND _deleted = 0",
     [name],
   );
   if (existing && existing.length > 0) {
@@ -42,8 +45,25 @@ export async function getSupplierByName(name: string) {
   return null;
 }
 
+export async function getSupplierNames() {
+  const suppliers = await query<{ name: string }>(
+    "SELECT name FROM suppliers WHERE _deleted = 0",
+  );
+  return suppliers.map((s) => s.name);
+}
+
+/** Lightweight product lookup for contexts (e.g. stock movement detail) that
+ * only need the name/generic name/dosage form, not the full product record. */
+export async function getProductBasicInfo(productId: string) {
+  const rows = await query<{ name: string; generic_name?: string; dosage_form?: string }>(
+    "SELECT name, generic_name, dosage_form FROM products WHERE id = ?",
+    [productId],
+  );
+  return rows[0] || null;
+}
+
 export async function getProductByName(name: string) {
-  const med = await query<any>(
+  const med = await query<{ id: string }>(
     "SELECT id FROM products WHERE name = ? LIMIT 1",
     [name],
   );
@@ -51,7 +71,7 @@ export async function getProductByName(name: string) {
 }
 
 export async function getProductList() {
-  return query<any>(
+  return query<Product>(
     `SELECT p.id, p.name, p.generic_name, p.category_id, c.name as category_name, p.manufacturer, p.strength, p.dosage_form
      FROM products p
      LEFT JOIN categories c ON c.id = p.category_id AND c._deleted = 0
@@ -60,8 +80,8 @@ export async function getProductList() {
   );
 }
 
-export async function getProductsWithStock() {
-  const items = await query<any>(
+export async function getProductsWithStock(): Promise<POSProduct[]> {
+  const items = await query<ProductWithStockRow>(
     `SELECT p.*, c.name as category_name, COALESCE(SUM(sb.quantity), 0) as stock_quantity, GROUP_CONCAT(sb.batch_number, ', ') as batch_number, AVG(sb.cost_price) as avg_cost_price
      FROM products p
      LEFT JOIN categories c ON p.category_id = c.id AND c._deleted = 0
@@ -71,7 +91,7 @@ export async function getProductsWithStock() {
      ORDER BY p.name ASC`,
   );
 
-  return items.map((m: any) => ({
+  return items.map((m) => ({
     id: m.id,
     name: m.name,
     generic_name: m.generic_name || "",
@@ -91,7 +111,7 @@ export async function getProductsWithStock() {
  * user (pass undefined for viewers allowed to see everyone's activity, i.e.
  * checkCanViewAllActivity(role) === true). */
 export async function getProductHistory(productId: string, viewerId?: string) {
-  const auditLogs = await query<any>(
+  const auditLogs = await query<AuditLogRow>(
     `SELECT al.*, TRIM(u.first_name || ' ' || u.last_name) as user_name
      FROM audit_logs al
      LEFT JOIN users u ON u.id = al.user_id
@@ -100,7 +120,7 @@ export async function getProductHistory(productId: string, viewerId?: string) {
     viewerId ? [productId, viewerId] : [productId]
   );
 
-  const stockMovements = await query<any>(
+  const stockMovements = await query<StockMovementHistoryRow>(
     `SELECT sm.*, TRIM(u.first_name || ' ' || u.last_name) as performed_by_name
      FROM stock_movements sm
      LEFT JOIN users u ON u.id = sm.performed_by

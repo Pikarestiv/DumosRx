@@ -18,11 +18,12 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { UserProfileButton } from "@/components/dashboard/user-profile-button";
+import type { DashboardUser } from "@/lib/types/dashboard";
 
 interface SidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
-  user: any;
+  user: DashboardUser | null;
   isLoading?: boolean;
   onLogout: () => void;
 }

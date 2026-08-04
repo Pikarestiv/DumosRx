@@ -1,6 +1,7 @@
 import { UseFormReturn } from "react-hook-form";
+import type { RegisterFormValues } from "../hooks/use-register-form";
 import { Mail, Phone } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, type Variants } from "framer-motion";
 import {
   FormControl,
   FormField,
@@ -11,8 +12,8 @@ import {
 import { Input } from "@/components/ui/input";
 
 interface PersonalDetailsProps {
-  form: UseFormReturn<any>;
-  itemVariant: any;
+  form: UseFormReturn<RegisterFormValues>;
+  itemVariant: Variants;
 }
 
 export function PersonalDetails({ form, itemVariant }: PersonalDetailsProps) {

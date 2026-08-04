@@ -2,11 +2,14 @@
  * Procurement Database Helpers
  */
 
-import { query, logAction, generateId } from "./core";
+import { query, logAction, generateId, transaction } from "./core";
 import { insert, update, softDelete } from "./base-helpers";
+import type { SupplierPayload, SupplierDbRow } from "@/lib/types/supplier";
 
 export interface PurchaseOrder {
   id: string;
+  order_number?: string;
+  order_date?: string;
   supplier_id: string;
   status: string;
   total_amount: number;
@@ -36,6 +39,53 @@ export interface PurchaseOrderItem {
   bulk_unit: string;
   /** Live conversion factor from the product record — always used for receiving math, since units_per_bulk above is a point-in-time snapshot that can go stale if the product's packaging is edited later. */
   product_units_per_bulk: number;
+}
+
+/** Per-line-item receiving overrides submitted from the "Receive Order" form —
+ * only po_item_id is required, the rest default to the ordered quantity/PO id. */
+export interface ReceivedItem {
+  po_item_id: string;
+  quantity?: number | string;
+  lot_number?: string;
+  expiry_date?: string;
+}
+
+/** A line item as it exists in the create/edit PO form before submission —
+ * not yet persisted, so it has no `id`/`po_id` (those are assigned by
+ * createPurchaseOrder()/updatePurchaseOrder()). */
+export interface DraftPOLineItem {
+  product_id: string;
+  product_name: string;
+  bulk_unit: string;
+  bulk_quantity: number;
+  units_per_bulk: number;
+  unit_cost: number;
+  subtotal: number;
+}
+
+export interface PODetailItem {
+  id: string;
+  product_name?: string;
+  quantity: number;
+  unit_price: number;
+  total_price: number;
+}
+
+/** Line items for the purchase order detail view — aliased to the display
+ * field names the dialog renders directly. */
+export async function getPurchaseOrderItemsForDetail(poId: string) {
+  return query<PODetailItem>(
+    `SELECT
+      poi.*,
+      p.name as product_name,
+      poi.bulk_quantity as quantity,
+      poi.unit_cost as unit_price,
+      poi.subtotal as total_price
+     FROM purchase_order_items poi
+     LEFT JOIN products p ON poi.product_id = p.id
+     WHERE poi.po_id = ? AND poi._deleted = 0`,
+    [poId],
+  );
 }
 
 /**
@@ -99,9 +149,9 @@ export async function getPurchaseOrderById(id: string) {
 }
 
 export async function createPurchaseOrder(
-  supplierId: string, 
-  notes: string, 
-  items: any[],
+  supplierId: string,
+  notes: string,
+  items: DraftPOLineItem[],
   paymentStatus: string = 'unpaid',
   amountPaid: number = 0,
   dueDate: string | null = null
@@ -114,39 +164,41 @@ export async function createPurchaseOrder(
     totalAmount += item.subtotal;
   }
 
-  await insert("purchase_orders", {
-    id: poId,
-    supplier_id: supplierId,
-    status: "pending",
-    payment_status: paymentStatus,
-    amount_paid: amountPaid,
-    due_date: dueDate,
-    total_amount: totalAmount,
-    notes,
-    created_at: now
-  });
-
-  for (const item of items) {
-    await insert("purchase_order_items", {
-      id: generateId(),
-      po_id: poId,
-      product_id: item.product_id,
-      bulk_quantity: item.bulk_quantity,
-      units_per_bulk: item.units_per_bulk,
-      unit_cost: item.unit_cost,
-      subtotal: item.subtotal,
+  return transaction(async () => {
+    await insert("purchase_orders", {
+      id: poId,
+      supplier_id: supplierId,
+      status: "pending",
+      payment_status: paymentStatus,
+      amount_paid: amountPaid,
+      due_date: dueDate,
+      total_amount: totalAmount,
+      notes,
       created_at: now
     });
-  }
 
-  return poId;
+    for (const item of items) {
+      await insert("purchase_order_items", {
+        id: generateId(),
+        po_id: poId,
+        product_id: item.product_id,
+        bulk_quantity: item.bulk_quantity,
+        units_per_bulk: item.units_per_bulk,
+        unit_cost: item.unit_cost,
+        subtotal: item.subtotal,
+        created_at: now
+      });
+    }
+
+    return poId;
+  });
 }
 
 export async function updatePurchaseOrder(
   poId: string,
-  supplierId: string, 
-  notes: string, 
-  items: any[],
+  supplierId: string,
+  notes: string,
+  items: DraftPOLineItem[],
   paymentStatus: string = 'unpaid',
   amountPaid: number = 0,
   dueDate: string | null = null
@@ -158,113 +210,117 @@ export async function updatePurchaseOrder(
     totalAmount += item.subtotal;
   }
 
-  // Soft delete existing items
-  const existingItems = await query<any>(
-    "SELECT id FROM purchase_order_items WHERE po_id = ? AND _deleted = 0",
-    [poId]
-  );
-  
-  for (const item of existingItems) {
-    await softDelete("purchase_order_items", item.id);
-  }
+  return transaction(async () => {
+    // Soft delete existing items
+    const existingItems = await query<{ id: string }>(
+      "SELECT id FROM purchase_order_items WHERE po_id = ? AND _deleted = 0",
+      [poId]
+    );
 
-  // Update PO details
-  await update("purchase_orders", poId, {
-    supplier_id: supplierId,
-    payment_status: paymentStatus,
-    amount_paid: amountPaid,
-    due_date: dueDate,
-    total_amount: totalAmount,
-    notes,
-    updated_at: now
-  });
+    for (const item of existingItems) {
+      await softDelete("purchase_order_items", item.id);
+    }
 
-  // Insert new items
-  for (const item of items) {
-    await insert("purchase_order_items", {
-      id: generateId(),
-      po_id: poId,
-      product_id: item.product_id,
-      bulk_quantity: item.bulk_quantity,
-      units_per_bulk: item.units_per_bulk,
-      unit_cost: item.unit_cost,
-      subtotal: item.subtotal,
-      created_at: now
+    // Update PO details
+    await update("purchase_orders", poId, {
+      supplier_id: supplierId,
+      payment_status: paymentStatus,
+      amount_paid: amountPaid,
+      due_date: dueDate,
+      total_amount: totalAmount,
+      notes,
+      updated_at: now
     });
-  }
 
-  return poId;
+    // Insert new items
+    for (const item of items) {
+      await insert("purchase_order_items", {
+        id: generateId(),
+        po_id: poId,
+        product_id: item.product_id,
+        bulk_quantity: item.bulk_quantity,
+        units_per_bulk: item.units_per_bulk,
+        unit_cost: item.unit_cost,
+        subtotal: item.subtotal,
+        created_at: now
+      });
+    }
+
+    return poId;
+  });
 }
 
 export async function updatePurchaseOrderStatus(id: string, status: string) {
-  const updateData: any = { status };
+  const updateData: { status: string; received_at?: string } = { status };
   if (status === "received") {
     updateData.received_at = new Date().toISOString().slice(0, 19).replace('T', ' ');
   }
   await update("purchase_orders", id, updateData);
 }
 
-export async function receivePurchaseOrder(id: string, receivedItems?: any[]) {
+export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedItem[]) {
   const poData = await getPurchaseOrderById(id);
   if (!poData || poData.status === "received") return;
 
   const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
 
-  for (const item of poData.items) {
-    const receivedItem = receivedItems?.find(ri => ri.po_item_id === item.id);
-    
-    // Default to the original ordered bulk quantity if not provided in payload
-    const bulkQty = receivedItem?.quantity !== undefined ? Number(receivedItem.quantity) : Number(item.bulk_quantity);
-    // Always use the product's current conversion factor, not the snapshot stored on the
-    // PO line item — the product's packaging may have been corrected since the order was placed.
-    const unitsPerBulk = Number(item.product_units_per_bulk) || Number(item.units_per_bulk) || 1;
-    const totalBaseUnits = bulkQty * unitsPerBulk;
-    
-    const batchNumber = receivedItem?.lot_number?.trim() || poData.id.split('-')[0].toUpperCase();
-    const expiryDate = receivedItem?.expiry_date ? new Date(receivedItem.expiry_date).toISOString().slice(0, 10) : null;
+  return transaction(async () => {
+    for (const item of poData.items) {
+      const receivedItem = receivedItems?.find(ri => ri.po_item_id === item.id);
 
-    const safeUnitsPerBulk = unitsPerBulk || 1;
-    const baseUnitCost = Number(item.unit_cost) / safeUnitsPerBulk;
+      // Default to the original ordered bulk quantity if not provided in payload
+      const bulkQty = receivedItem?.quantity !== undefined ? Number(receivedItem.quantity) : Number(item.bulk_quantity);
+      // Always use the product's current conversion factor, not the snapshot stored on the
+      // PO line item — the product's packaging may have been corrected since the order was placed.
+      const unitsPerBulk = Number(item.product_units_per_bulk) || Number(item.units_per_bulk) || 1;
+      const totalBaseUnits = bulkQty * unitsPerBulk;
 
-    const invId = await insert("stock_batches", {
-      product_id: item.product_id,
-      quantity: totalBaseUnits,
-      cost_price: baseUnitCost,
-      batch_number: batchNumber,
-      expiry_date: expiryDate,
-      created_at: now,
-      is_active: 1,
-      _version: 1,
-      _synced: 0,
-      _deleted: 0
-    });
+      const batchNumber = receivedItem?.lot_number?.trim() || poData.id.split('-')[0].toUpperCase();
+      const expiryDate = receivedItem?.expiry_date ? new Date(receivedItem.expiry_date).toISOString().slice(0, 10) : null;
 
-    // Log local stock movement
-    const dumosUser = JSON.parse(localStorage.getItem("dumos_user") || "{}");
-    await insert("stock_movements", {
-      id: crypto.randomUUID(),
-      product_id: item.product_id,
-      stock_batch_id: invId,
-      movement_type: "purchase",
-      quantity: totalBaseUnits,
-      unit_cost: baseUnitCost,
-      // Recalculated from what was actually received, not item.subtotal (the full
-      // ordered-line total) — those diverge whenever this is a partial receipt.
-      total_cost: baseUnitCost * totalBaseUnits,
-      reference_id: poData.id,
-      reference_type: "purchase_order",
-      reason: "Purchase order received",
-      performed_by: dumosUser?.id || null,
-      movement_date: now,
-      created_at: now,
-      _version: 1,
-      _synced: 0,
-      _deleted: 0
-    });
-  }
+      const safeUnitsPerBulk = unitsPerBulk || 1;
+      const baseUnitCost = Number(item.unit_cost) / safeUnitsPerBulk;
 
-  await updatePurchaseOrderStatus(id, "received");
-  await logAction("RECEIVE_PO", "purchase_orders", id, { total_items: poData.items.length });
+      const invId = await insert("stock_batches", {
+        product_id: item.product_id,
+        quantity: totalBaseUnits,
+        cost_price: baseUnitCost,
+        batch_number: batchNumber,
+        expiry_date: expiryDate,
+        created_at: now,
+        is_active: 1,
+        _version: 1,
+        _synced: 0,
+        _deleted: 0
+      });
+
+      // Log local stock movement
+      const dumosUser = JSON.parse(localStorage.getItem("dumos_user") || "{}");
+      await insert("stock_movements", {
+        id: crypto.randomUUID(),
+        product_id: item.product_id,
+        stock_batch_id: invId,
+        movement_type: "purchase",
+        quantity: totalBaseUnits,
+        unit_cost: baseUnitCost,
+        // Recalculated from what was actually received, not item.subtotal (the full
+        // ordered-line total) — those diverge whenever this is a partial receipt.
+        total_cost: baseUnitCost * totalBaseUnits,
+        reference_id: poData.id,
+        reference_type: "purchase_order",
+        reason: "Purchase order received",
+        performed_by: dumosUser?.id || null,
+        movement_date: now,
+        created_at: now,
+        _version: 1,
+        _synced: 0,
+        _deleted: 0
+      });
+    }
+
+    await updatePurchaseOrderStatus(id, "received");
+    await logAction("RECEIVE_PO", "purchase_orders", id, { total_items: poData.items.length });
+  });
 }
 
 /**
@@ -274,7 +330,7 @@ export async function receivePurchaseOrder(id: string, receivedItems?: any[]) {
  * matching the pattern used by getCustomers()/getPurchaseOrders() etc.
  */
 export async function getSuppliers() {
-  const results = await query<any>(
+  const results = await query<SupplierDbRow>(
     `SELECT s.*,
             COALESCE(SUM(po.total_amount - po.amount_paid), 0) as total_debt
      FROM suppliers s
@@ -286,7 +342,7 @@ export async function getSuppliers() {
   return { data: results };
 }
 
-export async function createSupplier(data: any) {
+export async function createSupplier(data: SupplierPayload) {
   return await insert("suppliers", data);
 }
 

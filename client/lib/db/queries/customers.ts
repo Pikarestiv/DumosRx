@@ -1,7 +1,8 @@
 import { query, insert, update } from "@/lib/db/local-database";
+import { Customer, CustomerDbRow, CustomerTransactionRow } from "@/lib/types/customer";
 
 export async function getCustomers() {
-  return query<any>(`
+  return query<CustomerDbRow>(`
     SELECT 
       c.*,
       COALESCE(SUM(s.total_amount), 0) as total_spent,
@@ -26,7 +27,7 @@ export async function getCustomerTransactions(options: { sinceDays?: number } = 
   const dateFilter = sinceDays
     ? `AND s.transaction_date >= datetime('now', '-${sinceDays} days')`
     : "";
-  return query<any>(
+  return query<CustomerTransactionRow>(
     `SELECT
       s.id,
       s.transaction_number,
@@ -46,7 +47,7 @@ export async function getCustomerTransactions(options: { sinceDays?: number } = 
 }
 
 export async function getDebtors() {
-  return query<any>(
+  return query<CustomerDbRow>(
     "SELECT * FROM customers WHERE outstanding_balance > 0 AND _deleted = 0 ORDER BY outstanding_balance DESC"
   );
 }
@@ -61,7 +62,7 @@ export async function getCustomerBalance(id: string) {
 /** Minimal customer shape for contexts (e.g. POS transaction detail) that only
  * need enough to open the Record Payment modal, not the full customer record. */
 export async function getCustomerById(id: string) {
-  const rows = await query<any>(
+  const rows = await query<{ id: string; first_name?: string; last_name?: string; outstanding_balance?: number }>(
     "SELECT id, first_name, last_name, outstanding_balance FROM customers WHERE id = ? AND _deleted = 0",
     [id],
   );
@@ -73,7 +74,7 @@ export async function getCustomerById(id: string) {
  * reaches its total, otherwise "partial". Doesn't touch the customer's
  * outstanding_balance; the caller (recordCustomerPayment) does that. */
 async function applyCreditPaymentFIFO(customerId: string, amount: number) {
-  const pendingSales = await query<any>(
+  const pendingSales = await query<{ id: string; total_amount: number; amount_paid?: number }>(
     `SELECT id, total_amount, amount_paid FROM sales
      WHERE customer_id = ? AND payment_status IN ('pending', 'partial')
        AND (_deleted = 0 OR _deleted IS NULL)
@@ -130,12 +131,12 @@ export async function recordCustomerPayment(
   return newBalance;
 }
 
-export async function getAllCustomers() {
-  const items = await query<any>(
+export async function getAllCustomers(): Promise<Customer[]> {
+  const items = await query<CustomerDbRow>(
     "SELECT * FROM customers WHERE _deleted = 0 ORDER BY first_name ASC"
   );
-  
-  return items.map((c: any) => ({
+
+  return items.map((c) => ({
     id: c.id,
     first_name: c.first_name || "",
     last_name: c.last_name || "",
@@ -150,8 +151,13 @@ export async function getCustomerRetentionMetrics() {
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
   const dateFilter = thirtyDaysAgo.toISOString();
 
-  const data = await query<any>(`
-    SELECT 
+  const data = await query<{
+    total_customers_purchased?: number;
+    returning_customers?: number;
+    total_visits?: number;
+    total_revenue?: number;
+  }>(`
+    SELECT
       COUNT(DISTINCT customer_id) as total_customers_purchased,
       COUNT(DISTINCT CASE WHEN cnt > 1 THEN customer_id END) as returning_customers,
       SUM(cnt) as total_visits,

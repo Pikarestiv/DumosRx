@@ -7,6 +7,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * @mixin IdeHelperSaleReturn
+ */
 class SaleReturn extends Model
 {
     use HasFactory, HasUuids, SoftDeletes;

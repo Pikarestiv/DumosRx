@@ -167,7 +167,13 @@ export function ProductCombobox({
       : FORM_SUGGESTIONS.retail;
 
     if (source && source.products) {
-      source.products.forEach((prod: any) => {
+      (source.products as {
+        name: string;
+        genericName?: string;
+        manufacturer?: string;
+        strength?: string;
+        dosageForm?: string;
+      }[]).forEach((prod) => {
         list.push({
           name: prod.name,
           source: "global",
@@ -183,7 +189,7 @@ export function ProductCombobox({
 
   // Map local products
   const localSuggestions = React.useMemo(() => {
-    return localProducts.map((p: any) => ({
+    return localProducts.map((p) => ({
       name: p.name,
       source: "local" as ProductSource,
       localId: p.id,

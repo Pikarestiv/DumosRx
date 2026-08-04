@@ -13,9 +13,10 @@ import {
 } from "@/components/ui/card";
 import { UserPlus, CloudDownload, FileUp } from "lucide-react";
 import { APP_NAME } from "@/lib/constants";
+import type { OnboardingStep } from "@/app/setup/use-onboarding";
 
 interface WelcomeStepProps {
-  onSetStep: (step: any) => void;
+  onSetStep: (step: OnboardingStep) => void;
 }
 
 export function WelcomeStep({ onSetStep }: WelcomeStepProps) {

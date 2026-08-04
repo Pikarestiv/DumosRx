@@ -251,7 +251,7 @@ export function SystemHealthTab() {
           </CardHeader>
           <CardContent className="p-0">
             <div className="divide-y divide-slate-100 dark:divide-slate-800">
-              {(systemHealth?.nodes || []).map((node: any, i: number) => (
+              {(systemHealth?.nodes || []).map((node, i: number) => (
                 <div
                   key={i}
                   className="px-6 py-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"

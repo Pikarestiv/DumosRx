@@ -13,9 +13,10 @@ import { useStore } from "@/lib/context/store-context";
 import { SearchableInput } from "@/components/ui/searchable-input";
 import { FORM_SUGGESTIONS } from "@/lib/constants/suggestions";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { query } from "@/lib/db/core";
+import { getSupplierByName } from "@/lib/db/queries/products";
+import type { SupplierPayload, SupplierViewModel } from "@/lib/types/supplier";
 
-interface Supplier {
+interface SupplierFormState {
   name: string;
   contactPerson: string;
   email: string;
@@ -29,8 +30,8 @@ interface Supplier {
 interface AddSupplierDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAddSupplier: (supplier: any) => void;
-  initialSupplier?: any;
+  onAddSupplier: (supplier: SupplierPayload) => void;
+  initialSupplier?: SupplierViewModel;
 }
 
 export function AddSupplierDialog({
@@ -41,7 +42,7 @@ export function AddSupplierDialog({
 }: AddSupplierDialogProps) {
   const { storeType } = useStore();
   const isPharmacy = storeType === "pharmacy";
-  const [formData, setFormData] = useState<Supplier>({
+  const [formData, setFormData] = useState<SupplierFormState>({
     name: "",
     contactPerson: "",
     email: "",
@@ -78,11 +79,8 @@ export function AddSupplierDialog({
     }
 
     try {
-      const existing = await query<any[]>(
-        "SELECT id FROM suppliers WHERE LOWER(name) = LOWER(?) LIMIT 1",
-        [formData.name],
-      );
-      if (existing && existing.length > 0) {
+      const existingId = await getSupplierByName(formData.name);
+      if (existingId) {
         setAlertMessage(
           `A supplier with the name "${formData.name}" already exists.`,
         );
@@ -120,7 +118,7 @@ export function AddSupplierDialog({
   };
 
   const handleInputChange = (
-    field: keyof Supplier,
+    field: keyof SupplierFormState,
     value: string | boolean,
   ) => {
     setFormData((prev) => ({ ...prev, [field]: value }));

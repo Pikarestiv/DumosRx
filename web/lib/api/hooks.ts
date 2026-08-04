@@ -1,5 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { webApiClient } from "./client";
+import type { ActivityLog } from "@/lib/types/activity";
+import type { UserSession, AppNotification, BillingTransaction, SubscriptionStatus } from "@/lib/types/dashboard";
 
 export const useStores = () => {
   return useQuery({
@@ -25,9 +27,11 @@ export const useStaff = (storeId?: string) => {
 export const useNotifications = (options?: { refetchInterval?: number; hideLogs?: boolean }) => {
   return useQuery({
     queryKey: ["notifications", options?.hideLogs],
-    queryFn: () => webApiClient.getNotifications().then(data => {
-      if (!Array.isArray(data)) return data;
-      return options?.hideLogs ? data.filter((n: any) => n.category !== "log") : data;
+    queryFn: () => webApiClient.getNotifications().then((data): AppNotification[] => {
+      if (!Array.isArray(data)) return [];
+      return options?.hideLogs
+        ? data.filter((n: AppNotification) => n.category !== "log")
+        : data;
     }),
     refetchInterval: options?.refetchInterval,
   });
@@ -46,7 +50,7 @@ export const useReadNotificationMutation = () => {
 export const useLogs = () => {
   return useQuery({
     queryKey: ["logs"],
-    queryFn: () => webApiClient.request<any>("logs"),
+    queryFn: () => webApiClient.request<ActivityLog[] | { data: ActivityLog[] }>("logs"),
   });
 };
 
@@ -61,7 +65,7 @@ export const useBroadcasts = () => {
 export const useCreateStaffMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: any) => webApiClient.createStaff(payload),
+    mutationFn: (payload: Record<string, unknown>) => webApiClient.createStaff(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["staff"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
@@ -72,7 +76,7 @@ export const useCreateStaffMutation = () => {
 export const useUpdateStaffMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: any }) => webApiClient.updateStaff(id, payload),
+    mutationFn: ({ id, payload }: { id: string; payload: Record<string, unknown> }) => webApiClient.updateStaff(id, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["staff"] });
     },
@@ -92,7 +96,7 @@ export const useDeleteStaffMutation = () => {
 export const useCreateStoreMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: any) => webApiClient.createStore(payload),
+    mutationFn: (payload: Record<string, unknown>) => webApiClient.createStore(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["stores"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
@@ -103,7 +107,7 @@ export const useCreateStoreMutation = () => {
 export const useUpdateStoreMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: any }) => webApiClient.updateStore(id, payload),
+    mutationFn: ({ id, payload }: { id: string; payload: Record<string, unknown> }) => webApiClient.updateStore(id, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["stores"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
@@ -125,7 +129,7 @@ export const useDeleteStoreMutation = () => {
 export const useSubscriptionStatus = () => {
   return useQuery({
     queryKey: ["subscription-status"],
-    queryFn: () => webApiClient.getSubscriptionStatus(),
+    queryFn: () => webApiClient.getSubscriptionStatus() as Promise<SubscriptionStatus>,
   });
 };
 
@@ -156,7 +160,7 @@ export const useVerifyPaymentMutation = () => {
 export const useBillingHistory = () => {
   return useQuery({
     queryKey: ["billing-history"],
-    queryFn: () => webApiClient.getBillingHistory(),
+    queryFn: () => webApiClient.getBillingHistory() as Promise<{ transactions: BillingTransaction[] }>,
   });
 };
 
@@ -167,7 +171,7 @@ export const useBillingHistory = () => {
 export const useSessions = () => {
   return useQuery({
     queryKey: ["sessions"],
-    queryFn: () => webApiClient.getSessions(),
+    queryFn: () => webApiClient.getSessions() as Promise<UserSession[]>,
   });
 };
 
@@ -207,7 +211,7 @@ export const useSystemConfig = (key: string) => {
 export const useUpdateSystemConfigMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ key, value }: { key: string; value: any }) => webApiClient.updateSystemConfig(key, value),
+    mutationFn: ({ key, value }: { key: string; value: unknown }) => webApiClient.updateSystemConfig(key, value),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["system-config", variables.key] });
     },

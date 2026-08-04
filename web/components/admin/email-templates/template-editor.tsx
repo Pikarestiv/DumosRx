@@ -11,9 +11,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import type { RefObject } from "react";
+import type { EmailTemplate } from "@/lib/types/admin";
 
 interface TemplateEditorProps {
-  selectedTemplate: any;
+  selectedTemplate: EmailTemplate | null;
   subject: string;
   setSubject: (val: string) => void;
   content: string;
@@ -21,7 +23,7 @@ interface TemplateEditorProps {
   saving: boolean;
   handleSave: () => void;
   setActiveTab: (val: string) => void;
-  textareaRef: any;
+  textareaRef: RefObject<HTMLTextAreaElement | null>;
   insertVariable: (val: string) => void;
   getCompiledPreview: () => string;
 }
@@ -169,7 +171,7 @@ export function TemplateEditor({
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="p-4 space-y-3 max-h-[360px] overflow-y-auto">
-                  {selectedTemplate.variables.map((v: any, i: number) => (
+                  {selectedTemplate.variables.map((v, i: number) => (
                     <button
                       key={i}
                       onClick={() => insertVariable(`{{ ${v.name} }}`)}

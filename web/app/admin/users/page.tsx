@@ -44,6 +44,7 @@ import { DeleteUserDialog } from "@/components/admin/users/delete-user-dialog";
 import { UserTable } from "@/components/admin/users/user-table";
 import { SharedGrantTrialDialog } from "@/components/admin/shared-grant-trial-dialog";
 import { UserPagination } from "@/components/admin/users/user-pagination";
+import type { AdminUser } from "@/lib/types/admin";
 
 function GlobalUsersDirectoryContent() {
   const router = useRouter();
@@ -53,7 +54,7 @@ function GlobalUsersDirectoryContent() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState(initialSearch);
   const [roleFilter, setRoleFilter] = useState<string | null>(null);
-  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
 
   useEffect(() => {
     if (initialSearch && initialSearch !== search) {
@@ -97,7 +98,7 @@ function GlobalUsersDirectoryContent() {
   const handleExportCSV = () => {
     if (userList.length === 0) return;
     const headers = ["ID", "Name", "Email", "Role", "Store", "Status"];
-    const csvData = userList.map((u: any) =>
+    const csvData = userList.map((u: AdminUser) =>
       [u.id, u.name, u.email, u.role, u.store, u.status].join(","),
     );
     const blob = new Blob([[headers.join(","), ...csvData].join("\n")], {
@@ -124,7 +125,7 @@ function GlobalUsersDirectoryContent() {
         setSelectedUser(null);
         refetch();
       },
-      onError: (err: any) => {
+      onError: (err) => {
         toast.error("Action Failed", {
           description: err.message || "Failed to grant trial.",
         });

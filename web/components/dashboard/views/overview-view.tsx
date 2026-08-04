@@ -25,12 +25,13 @@ import { toast } from "sonner";
 import { useSubscriptionStatus } from "@/lib/api/hooks";
 import { webApiClient } from "@/lib/api/client";
 import { OverviewStats } from "./overview-stats";
+import type { DashboardStats, DashboardUser, FleetStore } from "@/lib/types/dashboard";
 
 interface OverviewViewProps {
-  stats: any;
-  user: any;
-  stores: any[];
-  onReset: (type: string) => Promise<any>;
+  stats: DashboardStats | undefined;
+  user: DashboardUser;
+  stores: FleetStore[];
+  onReset: (type: string) => Promise<unknown>;
   onNavigate?: (tab: string) => void;
 }
 
@@ -60,8 +61,8 @@ export function OverviewView({
       setIsSendingSummary(true);
       const res = await webApiClient.sendEndOfDaySummary();
       toast.success(res.message || "Summary sent successfully!");
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Failed to send summary");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to send summary");
     } finally {
       setIsSendingSummary(false);
     }
@@ -179,7 +180,7 @@ export function OverviewView({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {stores.map((store: any) => (
+                  {stores.map((store) => (
                     <TableRow
                       key={store.id}
                       className="border-muted hover:bg-muted/30 cursor-pointer"

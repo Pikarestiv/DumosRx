@@ -7,8 +7,12 @@ export interface Expense {
   description: string;
   date: string;
   payment_method: string;
+  vendor_name?: string;
+  reference_number?: string;
+  notes?: string;
   user_id?: string;
   recorded_by_name?: string;
+  created_at?: string;
 }
 
 export async function getCurrentMonthRevenue() {

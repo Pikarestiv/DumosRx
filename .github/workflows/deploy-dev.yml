@@ -79,6 +79,11 @@ jobs:
           cd laravel-server
           composer install --no-dev --optimize-autoloader
 
+      - name: Generate API docs
+        run: |
+          cd laravel-server
+          php artisan l5-swagger:generate
+
       - name: Sync Backend files to FTP
         uses: SamKirkland/FTP-Deploy-Action@8e83cea8672e3fbcbb9fdafff34debf6ae4c5f65 # v4.3.5
         with:

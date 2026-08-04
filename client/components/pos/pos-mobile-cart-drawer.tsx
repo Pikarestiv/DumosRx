@@ -9,6 +9,30 @@ import {
 import { ChevronUp, ShoppingCart } from "lucide-react";
 import { POSCart } from "./pos-cart";
 import { formatCurrency } from "@/lib/utils";
+import type { CartItem } from "@/lib/hooks/use-pos-cart";
+
+interface POSMobileCartDrawerProps {
+  cart: CartItem[];
+  subtotal: number;
+  tax: number;
+  total: number;
+  discount: number;
+  calculatedDiscount?: number;
+  discountType?: "fixed" | "percentage";
+  setDiscount?: (discount: number) => void;
+  setDiscountType?: (type: "fixed" | "percentage") => void;
+  vatPercentage: number;
+  currencyCode?: string;
+  updateQuantity: (id: string, quantity: number) => void;
+  removeFromCart: (id: string) => void;
+  clearCart: () => void;
+  onCheckout: () => void;
+  onHoldSale?: () => void;
+  heldSalesCount?: number;
+  onOpenHeldSales?: () => void;
+  isPrescriptionLocked?: boolean;
+  onEditPrescription?: () => void;
+}
 
 export function POSMobileCartDrawer({
   cart,
@@ -31,7 +55,7 @@ export function POSMobileCartDrawer({
   onOpenHeldSales,
   isPrescriptionLocked,
   onEditPrescription,
-}: any) {
+}: POSMobileCartDrawerProps) {
   const [open, setOpen] = useState(false);
 
   return (

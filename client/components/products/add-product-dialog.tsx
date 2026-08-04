@@ -11,13 +11,14 @@ import { useStore } from "@/lib/context/store-context";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { FORM_SUGGESTIONS } from "@/lib/constants/suggestions";
 import { Product } from "./types";
-import { ProductFormFields } from "./product-form-fields";
-import { query } from "@/lib/db/core";
+import { ProductFormFields, type ProductSuggestions } from "./product-form-fields";
+import { getSupplierNames } from "@/lib/db/queries/products";
+import type { NewProductPayload } from "@/lib/types/product";
 
 interface AddProductDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAddProduct: (product: any, keepOpen?: boolean) => void;
+  onAddProduct: (product: NewProductPayload, keepOpen?: boolean) => void;
   editingProduct?: Product | null;
   initialData?: Partial<Product>;
   /** Hide "Save & Add Another" — for flows (e.g. quick-adding a product from
@@ -123,8 +124,10 @@ export function AddProductDialog({
 
   const isPharmacy = storeType === "pharmacy";
 
-  const [suggestions, setSuggestions] = useState<any>(
-    isPharmacy ? FORM_SUGGESTIONS.store : FORM_SUGGESTIONS.retail,
+  const [suggestions, setSuggestions] = useState<ProductSuggestions>(
+    isPharmacy
+      ? { ...FORM_SUGGESTIONS.store, names: [], suppliers: [] }
+      : { ...FORM_SUGGESTIONS.retail, names: [], suppliers: [] },
   );
 
   useEffect(() => {
@@ -147,8 +150,8 @@ export function AddProductDialog({
         const mergeAndUnique = (arr1: string[] = [], arr2: string[] = []) => {
           return Array.from(new Set([...arr1, ...arr2]));
         };
-        const pharmNames = pharmList.products?.map((p: any) => p.name) || [];
-        const retailNames = retailList.products?.map((p: any) => p.name) || [];
+        const pharmNames = pharmList.products?.map((p) => p.name) || [];
+        const retailNames = retailList.products?.map((p) => p.name) || [];
         setSuggestions({
           names: mergeAndUnique(pharmNames, retailNames),
           generics: pharmList.generics || [],
@@ -165,22 +168,17 @@ export function AddProductDialog({
           suppliers: [],
         });
       } else {
-        const pharmNames = pharmList.products?.map((p: any) => p.name) || [];
+        const pharmNames = pharmList.products?.map((p) => p.name) || [];
         setSuggestions({ ...pharmList, names: pharmNames, suppliers: [] });
       }
     } else {
-      const retailNames = retailList.products?.map((p: any) => p.name) || [];
+      const retailNames = retailList.products?.map((p) => p.name) || [];
       setSuggestions({ ...retailList, names: retailNames, suppliers: [] });
     }
 
-    query("SELECT name FROM suppliers WHERE _deleted = 0")
-      .then((res: any[]) => {
-        if (res && Array.isArray(res)) {
-          setSuggestions((prev: any) => ({
-            ...prev,
-            suppliers: res.map((s) => s.name),
-          }));
-        }
+    getSupplierNames()
+      .then((names) => {
+        setSuggestions((prev) => ({ ...prev, suppliers: names }));
       })
       .catch(console.error);
   }, [isPharmacy, storeProfile?.show_retail_suggestions]);
@@ -233,7 +231,7 @@ export function AddProductDialog({
       is_controlled: formData.isControlled ? 1 : 0,
     };
 
-    onAddProduct(payload as any, keepOpen);
+    onAddProduct(payload, keepOpen);
 
     // Reset form
     setFormData({
@@ -262,7 +260,7 @@ export function AddProductDialog({
     });
   };
 
-  const handleInputChange = (field: keyof Product, value: any) => {
+  const handleInputChange = (field: keyof Product, value: string | number | boolean | null) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -301,7 +299,7 @@ export function AddProductDialog({
                   type="button"
                   variant="outline"
                   className="border-accent text-accent hover:bg-accent/10 hover:text-primary w-full sm:w-auto"
-                  onClick={withRestriction((e: any) => handleSubmit(e, true))}
+                  onClick={withRestriction((e: React.MouseEvent) => handleSubmit(e, true))}
                 >
                   {editingProduct
                     ? `Update & Add Another`
@@ -332,7 +330,7 @@ export function AddProductDialog({
               onInputChange={handleInputChange}
               isPharmacy={isPharmacy}
               isQuickAdd={!initialData && !editingProduct}
-              suggestions={suggestions as any}
+              suggestions={suggestions}
               commonSuggestions={commonSuggestions}
               t={t}
             />

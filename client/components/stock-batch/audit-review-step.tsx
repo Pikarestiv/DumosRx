@@ -1,8 +1,9 @@
 import React from "react";
+import type { AuditItem } from "./stock-audits";
 
 interface AuditReviewStepProps {
-  countedItems: any[];
-  adjustedItems: any[];
+  countedItems: AuditItem[];
+  adjustedItems: AuditItem[];
 }
 
 export function AuditReviewStep({

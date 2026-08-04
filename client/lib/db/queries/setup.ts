@@ -1,8 +1,11 @@
 import { query, execute, insert } from "@/lib/db/local-database";
 import { ParsedIIF } from "@/lib/utils/iif-parser";
+import type { PaymentAccount } from "@/lib/types/payment-account";
+import type { StoreOption } from "@/lib/types/store";
+import type { StoreProfile } from "@/lib/context/store-context";
 
 export async function checkIfTableExists(tableName: string) {
-  const tables = await query<any>(
+  const tables = await query<{ name: string }>(
     "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
     [tableName]
   );
@@ -10,7 +13,7 @@ export async function checkIfTableExists(tableName: string) {
 }
 
 export async function getExistingCustomers() {
-  const existingCustomers = await query<any>("SELECT first_name, last_name FROM customers");
+  const existingCustomers = await query<{ first_name?: string; last_name?: string }>("SELECT first_name, last_name FROM customers");
   return existingCustomers;
 }
 
@@ -27,49 +30,49 @@ export async function getTotalRecordCount() {
 }
 
 export async function getStoreById(id: string) {
-  const stores = await query<any>("SELECT * FROM stores WHERE id = ?", [id]);
+  const stores = await query<StoreProfile>("SELECT * FROM stores WHERE id = ?", [id]);
   return stores[0] || null;
 }
 
 export async function getFirstStore() {
-  const stores = await query<any>("SELECT * FROM stores LIMIT 1");
+  const stores = await query<StoreProfile>("SELECT * FROM stores LIMIT 1");
   return stores[0] || null;
 }
 
 export async function getAllStores() {
-  return query<any>("SELECT * FROM stores");
+  return query<StoreProfile>("SELECT * FROM stores");
 }
 
 export async function getPaymentAccounts(storeId?: string) {
   if (storeId) {
-    return query<any>(
+    return query<PaymentAccount>(
       "SELECT * FROM payment_accounts WHERE _deleted = 0 AND store_id = ? ORDER BY created_at DESC",
       [storeId]
     );
   }
-  return query<any>(
+  return query<PaymentAccount>(
     "SELECT * FROM payment_accounts WHERE _deleted = 0 ORDER BY created_at DESC"
   );
 }
 
 export async function getActiveUserCount() {
-  const result = await query<any>(
+  const result = await query<{ count: number }>(
     "SELECT COUNT(*) as count FROM users WHERE is_active = 1",
   );
   return Number(result[0]?.count || 0);
 }
 
 export async function getTotalUserCount() {
-  const users = await query<any>("SELECT COUNT(*) as count FROM users WHERE _deleted = 0");
+  const users = await query<{ count: number }>("SELECT COUNT(*) as count FROM users WHERE _deleted = 0");
   return Number(users[0]?.count || 0);
 }
 
 export async function getLocalStores() {
-  return query<any>("SELECT id, name FROM stores WHERE _deleted = 0");
+  return query<StoreOption>("SELECT id, name FROM stores WHERE _deleted = 0");
 }
 
 export async function getStoreProfile() {
-  const profiles = await query<any>("SELECT * FROM stores LIMIT 1");
+  const profiles = await query<StoreProfile>("SELECT * FROM stores LIMIT 1");
   return profiles[0] || null;
 }
 
@@ -87,15 +90,15 @@ export async function importQuickbooksData(
 
   // Import Products
   if (importProducts && parsedData.products.length > 0) {
-    const existingProducts = await query<any>("SELECT id, name FROM products");
-    const existingNames = new Set(existingProducts.map((m: any) => m.name.toLowerCase()));
+    const existingProducts = await query<{ id: string; name: string }>("SELECT id, name FROM products");
+    const existingNames = new Set(existingProducts.map((m) => m.name.toLowerCase()));
 
     for (const med of parsedData.products) {
       const isDuplicate = existingNames.has(med.name.toLowerCase());
 
       if (isDuplicate) {
         if (duplicateStrategy === "overwrite") {
-          const existingMed = existingProducts.find((p: any) => p.name.toLowerCase() === med.name.toLowerCase());
+          const existingMed = existingProducts.find((p) => p.name.toLowerCase() === med.name.toLowerCase());
           if (existingMed) {
             await execute(
               "UPDATE products SET selling_price = ?, updated_at = ? WHERE id = ?",
@@ -103,7 +106,7 @@ export async function importQuickbooksData(
             );
 
             // Update or insert QB_IMPORT batch
-            const existingBatch = await query<any>(
+            const existingBatch = await query<{ id: string }>(
               "SELECT id FROM stock_batches WHERE product_id = ? AND batch_number = ? AND _deleted = 0",
               [existingMed.id, "QB_IMPORT"]
             );
@@ -158,11 +161,11 @@ export async function importQuickbooksData(
 
   // Import Customers
   if (importCustomers && parsedData.customers.length > 0) {
-    const existingCustomers = await query<any>("SELECT first_name, last_name FROM customers");
+    const existingCustomers = await query<{ first_name?: string; last_name?: string }>("SELECT first_name, last_name FROM customers");
     // Must match the SQL-side comparison below exactly: SQLite's `||` returns NULL
     // if any operand is NULL, so a customer with no last_name would never match
     // here unless both sides treat a missing last_name as an empty string.
-    const getFullName = (c: any) => `${c.first_name || ""} ${c.last_name || ""}`.trim().toLowerCase();
+    const getFullName = (c: { first_name?: string; last_name?: string }) => `${c.first_name || ""} ${c.last_name || ""}`.trim().toLowerCase();
     const existingNames = new Set(existingCustomers.map(getFullName));
 
     for (const cust of parsedData.customers) {

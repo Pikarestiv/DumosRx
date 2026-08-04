@@ -1,6 +1,6 @@
 [package]
 name = "app"
-version = "0.0.31"
+version = "0.0.32"
 description = "A Tauri App"
 authors = ["you"]
 license = ""
@@ -29,6 +29,19 @@ tauri-plugin-shell = "2"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
 tauri-plugin-os = "2"
+tauri-plugin-fs = "2"
+tauri-plugin-dialog = "2"
 
 [target.'cfg(target_os = "android")'.dependencies]
 jni = "0.21" # must match the version wry links against for jni_handle() to type-check
+
+# Vendored, locally-patched tauri-plugin-sql (see vendor/tauri-plugin-sql):
+# caps the SQLite connection pool at 1 connection instead of sqlx's default
+# (up to 10), since the plugin's execute()/select() IPC commands each
+# independently acquire-and-release a pool connection with no way for JS
+# callers to pin a multi-statement transaction to one connection — the
+# stock upstream crate silently breaks BEGIN/.../COMMIT transactions issued
+# from JS. Also sets busy_timeout/WAL/synchronous via connect_with so they
+# apply to every connection the pool opens, not just a one-off PRAGMA call.
+[patch.crates-io]
+tauri-plugin-sql = { path = "vendor/tauri-plugin-sql" }

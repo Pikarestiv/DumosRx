@@ -11,11 +11,12 @@ import { Button } from "@/components/ui/button";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { Edit2, Trash2, Shield, Loader2, Users } from "lucide-react";
 import { toast } from "sonner";
+import type { StaffListItem } from "@/lib/types/user";
 
 interface StaffListProps {
-  users: any[];
+  users: StaffListItem[];
   isLoading: boolean;
-  onEdit: (user: any) => void;
+  onEdit: (user: StaffListItem) => void;
   onDelete: (id: string, name: string) => void;
 }
 
@@ -31,7 +32,7 @@ function NoStaffFoundRow() {
 }
 
 export function StaffList({ users, isLoading, onEdit, onDelete }: StaffListProps) {
-  const handleEditClick = (user: any) => {
+  const handleEditClick = (user: StaffListItem) => {
     if (user.id === "default-admin" || user.username === "admin") {
       toast.error("Default admin cannot be edited");
       return;
@@ -39,14 +40,12 @@ export function StaffList({ users, isLoading, onEdit, onDelete }: StaffListProps
     onEdit(user);
   };
 
-  const handleDeleteClick = (user: any) => {
+  const handleDeleteClick = (user: StaffListItem) => {
     if (user.id === "default-admin" || user.username === "admin") {
       toast.error("Default admin cannot be deleted");
       return;
     }
-    const name = user.first_name || user.last_name
-      ? `${user.first_name || ""} ${user.last_name || ""}`.trim()
-      : user.name;
+    const name = `${user.first_name || ""} ${user.last_name || ""}`.trim();
     onDelete(user.id, name);
   };
 
@@ -76,13 +75,10 @@ export function StaffList({ users, isLoading, onEdit, onDelete }: StaffListProps
                                           <TableCell>
                                             <div className="flex items-center gap-2">
                                               <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
-                                                {user.first_name?.charAt(0).toUpperCase() ||
-                                                  (user.name && user.name.charAt(0).toUpperCase()) ||
-                                                  "U"}
+                                                {user.first_name?.charAt(0).toUpperCase() || "U"}
                                               </div>
                                               <span className="font-medium">
-                                                {!!(user.first_name || user.last_name) && `${user.first_name || ""} ${user.last_name || ""}`.trim()}
-                                                          {!(user.first_name || user.last_name) && user.name}
+                                                {`${user.first_name || ""} ${user.last_name || ""}`.trim()}
                                               </span>
                                             </div>
                                           </TableCell>

@@ -150,7 +150,7 @@ export default function SystemPage() {
             Service Status
           </h3>
           <div className="space-y-4">
-            {nodes.map((service: any, i: number) => (
+            {nodes.map((service, i: number) => (
               <div
                 key={i}
                 className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl"

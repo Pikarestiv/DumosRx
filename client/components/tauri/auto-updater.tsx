@@ -7,12 +7,20 @@ import { toast } from "sonner";
 import { isTauri } from "@/lib/db/core";
 import { DOWNLOAD_URL, UPDATER_JSON_URL } from "@/lib/constants";
 import { logCrash } from "@/lib/utils/error-logger";
+import type { Update, DownloadEvent } from "@tauri-apps/plugin-updater";
 
 type UpdateStatus = "idle" | "checking" | "available" | "downloading" | "downloading-silent" | "ready-to-restart" | "error" | "up-to-date" | "mobile-available";
 
+/** Mobile update-check response shape from UPDATER_JSON_URL — not a real
+ * Tauri `Update`, just enough to prompt the user to update from the store. */
+interface MobileUpdateInfo {
+  version: string;
+  notes?: string;
+}
+
 export function AutoUpdater() {
   const [status, setStatus] = useState<UpdateStatus>("idle");
-  const [updateInfo, setUpdateInfo] = useState<any>(null);
+  const [updateInfo, setUpdateInfo] = useState<Update | MobileUpdateInfo | null>(null);
   const [progress, setProgress] = useState(0);
   const [isApp, setIsApp] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -101,15 +109,15 @@ export function AutoUpdater() {
     }
   };
 
-  const installUpdate = async (updateToInstall: any = updateInfo, silent = false) => {
-    if (!updateToInstall) return;
-    
+  const installUpdate = async (updateToInstall: Update | MobileUpdateInfo | null = updateInfo, silent = false) => {
+    if (!updateToInstall || !("downloadAndInstall" in updateToInstall)) return;
+
     try {
       if (!silent) setStatus("downloading");
       let downloaded = 0;
       let totalLength = 0;
-      
-      await updateToInstall.downloadAndInstall((event: any) => {
+
+      await updateToInstall.downloadAndInstall((event: DownloadEvent) => {
         switch (event.event) {
           case 'Started':
             totalLength = event.data.contentLength || 0;

@@ -1,39 +1,63 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+interface FakeBatch {
+  id: string;
+  product_id: string;
+  quantity: number;
+  expiry_date?: string;
+}
+
+interface FakeMovement {
+  id: string;
+  stock_batch_id?: string;
+  movement_type?: string;
+  quantity?: number;
+  [key: string]: unknown;
+}
+
+interface FakeAudit {
+  id: string;
+  expected_quantity?: number;
+  actual_quantity?: number;
+  difference?: number;
+  [key: string]: unknown;
+}
+
 /** In-memory fake for stock_batches / stock_movements / stock_audits so
  * submitStockAudit's real reconciliation logic (FEFO deduction, new-batch
  * creation, quantity math) runs against something stateful, instead of
  * asserting on mock call args alone — this is what would have caught the
  * double-delta bug in the old updateStockBatchQuantity. */
-let batches: Record<string, any>;
-let movements: any[];
-let audits: any[];
+let batches: Record<string, FakeBatch>;
+let movements: FakeMovement[];
+let audits: FakeAudit[];
 
 vi.mock('@/lib/db/local-database', () => ({
-  query: vi.fn(async (sql: string, params: any[] = []) => {
+  query: vi.fn(async (sql: string, params: unknown[] = []) => {
     if (sql.includes('SELECT quantity FROM stock_batches WHERE id = ?')) {
-      const b = batches[params[0]];
+      const b = batches[params[0] as string];
       return b ? [{ quantity: b.quantity }] : [];
     }
     if (sql.includes('FROM stock_batches WHERE product_id = ?')) {
       return Object.values(batches)
-        .filter((b: any) => b.product_id === params[0] && b.quantity > 0)
-        .sort((a: any, b: any) => (a.expiry_date || '').localeCompare(b.expiry_date || ''));
+        .filter((b) => b.product_id === params[0] && b.quantity > 0)
+        .sort((a, b) => (a.expiry_date || '').localeCompare(b.expiry_date || ''));
     }
     return [];
   }),
-  insert: vi.fn(async (table: string, data: any) => {
-    const id = data.id || `${table}-${Math.random()}`;
+  insert: vi.fn(async (table: string, data: Record<string, unknown>) => {
+    const id = (data.id as string) || `${table}-${Math.random()}`;
     const record = { id, ...data };
-    if (table === 'stock_batches') batches[id] = record;
-    if (table === 'stock_movements') movements.push(record);
-    if (table === 'stock_audits') audits.push(record);
+    if (table === 'stock_batches') batches[id] = record as unknown as FakeBatch;
+    if (table === 'stock_movements') movements.push(record as FakeMovement);
+    if (table === 'stock_audits') audits.push(record as FakeAudit);
     return id;
   }),
-  update: vi.fn(async (table: string, id: string, data: any) => {
+  update: vi.fn(async (table: string, id: string, data: Record<string, unknown>) => {
     if (table === 'stock_batches') batches[id] = { ...batches[id], ...data };
     return id;
   }),
+  transaction: vi.fn(async (fn: () => Promise<unknown>) => fn()),
 }));
 
 import { submitStockAudit } from '@/lib/db/queries/inventory';
@@ -75,8 +99,8 @@ describe('submitStockAudit (Cycle Count persistence)', () => {
       'user-1',
     );
 
-    const created = Object.values(batches).find((b: any) => b.product_id === 'p1') as any;
-    expect(created.quantity).toBe(12);
+    const created = Object.values(batches).find((b) => b.product_id === 'p1');
+    expect(created?.quantity).toBe(12);
     expect(movements[0]).toMatchObject({ movement_type: 'adjustment', quantity: 12 });
   });
 

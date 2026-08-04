@@ -29,13 +29,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import type { AdminUser } from "@/lib/types/admin";
 
 interface UserTableProps {
-  userList: any[];
+  userList: AdminUser[];
   isLoading: boolean;
-  error: any;
+  error: unknown;
   refetch: () => void;
-  setSelectedUser: (user: any) => void;
+  setSelectedUser: (user: AdminUser) => void;
   setIsProfileDialogOpen: (val: boolean) => void;
   setIsNotifyDialogOpen: (val: boolean) => void;
   setIsResetDialogOpen: (val: boolean) => void;
@@ -82,7 +83,7 @@ export function UserTable({
         </TableRow>
       </TableHeader>
       <TableBody>
-        {userList.map((user: any) => (
+        {userList.map((user) => (
           <TableRow key={user.id} className="border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 group transition-colors">
             <TableCell className="pl-6 py-5">
               <div className="flex items-center gap-4">

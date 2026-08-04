@@ -4,10 +4,11 @@ import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
 import { StoreType } from "@/lib/context/store-context";
 import { POLineItemsList } from "./po-line-items-list";
+import type { DraftPOLineItem } from "@/lib/db/procurement";
 
 interface POSummaryPaneProps {
   selectedSupplierName: string;
-  items: any[];
+  items: DraftPOLineItem[];
   onRemoveItem: (index: number) => void;
   storeType: StoreType;
   totalAmount: number;

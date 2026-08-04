@@ -40,8 +40,8 @@ export function SecuritySettings() {
       setPasswordData({ current_password: "", new_password: "", new_password_confirmation: "" });
       setIsEditingPassword(false);
     },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || "Failed to change password");
+    onError: (error) => {
+      toast.error(error.message || "Failed to change password");
     },
   });
 
@@ -52,8 +52,8 @@ export function SecuritySettings() {
       setPinData({ pin: "" });
       setIsEditingPin(false);
     },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || "Failed to update PIN");
+    onError: (error) => {
+      toast.error(error.message || "Failed to update PIN");
     },
   });
 

@@ -1,12 +1,14 @@
 import { useEffect } from "react";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 import { getSaleById } from "@/lib/db/queries/sales";
+import type { SaleWithDetails } from "@/lib/types/sale";
 
 interface UsePOSReturnDeepLinkProps {
   searchParams: URLSearchParams;
-  router: any;
+  router: ReturnType<typeof useRouter>;
   pathname: string;
-  setSaleToReturn: (sale: any) => void;
+  setSaleToReturn: (sale: SaleWithDetails) => void;
   setShowReturnDialog: (open: boolean) => void;
 }
 

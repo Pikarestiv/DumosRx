@@ -16,8 +16,8 @@ export function VerificationBanner({ email }: VerificationBannerProps) {
     try {
       await resendMutation.mutateAsync(email);
       toast.success("Verification email sent! Please check your inbox.");
-    } catch (error: any) {
-      toast.error(error.message || "Failed to resend verification email.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to resend verification email.");
     }
   };
 

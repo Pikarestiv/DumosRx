@@ -7,9 +7,30 @@ use App\Models\Notification;
 use App\Models\ActivityLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use OpenApi\Attributes as OA;
 
 class NotificationController extends Controller
 {
+    #[OA\Get(
+        path: '/alerts',
+        summary: 'Get merged in-app notifications + recent relevant activity for the caller',
+        description: 'For `super_admin`, activity entries are global security alerts (login failures, unauthorized access, deletions) across all users. For everyone else, it\'s their own non-technical activity log. Never errors to the client — failures degrade to an empty array.',
+        tags: ['Notifications'],
+        security: [['sanctum' => []]],
+        responses: [
+            new OA\Response(response: 200, description: 'Merged, unsorted-by-date list (up to 10 notifications + 10 activity entries)', content: new OA\JsonContent(type: 'array', items: new OA\Items(properties: [
+                new OA\Property(property: 'id', type: 'string'),
+                new OA\Property(property: 'title', type: 'string'),
+                new OA\Property(property: 'description', type: 'string'),
+                new OA\Property(property: 'time', type: 'string', description: 'Human-relative, e.g. "3 hours ago"'),
+                new OA\Property(property: 'type', type: 'string', enum: ['success', 'info', 'warning', 'error']),
+                new OA\Property(property: 'isRead', type: 'boolean'),
+                new OA\Property(property: 'category', type: 'string', enum: ['system', 'log']),
+                new OA\Property(property: 'link', type: 'string', nullable: true),
+            ]))),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+        ],
+    )]
     public function index(Request $request)
     {
         try {
@@ -123,6 +144,17 @@ class NotificationController extends Controller
         return 'info';
     }
 
+    #[OA\Post(
+        path: '/alerts/{id}/read',
+        summary: 'Mark a notification as read',
+        tags: ['Notifications'],
+        security: [['sanctum' => []]],
+        parameters: [new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
+        responses: [
+            new OA\Response(response: 200, description: 'Marked', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+        ],
+    )]
     public function markAsRead(Request $request, $id)
     {
         Notification::where('user_id', $request->user()->id)

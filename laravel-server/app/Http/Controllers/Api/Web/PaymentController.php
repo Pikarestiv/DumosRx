@@ -7,12 +7,21 @@ use App\Models\PaymentTransaction;
 use App\Models\Subscription;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use OpenApi\Attributes as OA;
 
 class PaymentController extends Controller
 {
-    /**
-     * Handle Paystack Webhook
-     */
+    #[OA\Post(
+        path: '/webhooks/paystack',
+        summary: 'Paystack payment webhook (not for manual use)',
+        description: 'Verifies the `x-paystack-signature` header (HMAC-SHA512 of the raw body using the Paystack secret key) before processing. On `charge.success`, activates the pending subscription tied to the transaction reference.',
+        tags: ['Webhooks'],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(type: 'object')),
+        responses: [
+            new OA\Response(response: 200, description: 'Acknowledged', content: new OA\JsonContent(properties: [new OA\Property(property: 'status', type: 'string', example: 'ok')])),
+            new OA\Response(response: 400, description: 'Invalid/missing signature', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
+        ],
+    )]
     public function handlePaystack(Request $request)
     {
         // Validate signature
@@ -31,9 +40,17 @@ class PaymentController extends Controller
         return response()->json(['status' => 'ok']);
     }
 
-    /**
-     * Handle Flutterwave Webhook
-     */
+    #[OA\Post(
+        path: '/webhooks/flutterwave',
+        summary: 'Flutterwave payment webhook (not for manual use)',
+        description: 'Verifies the `verif-hash` header against the configured encryption key before processing. On a `successful` status, activates the pending subscription tied to `tx_ref`.',
+        tags: ['Webhooks'],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(type: 'object')),
+        responses: [
+            new OA\Response(response: 200, description: 'Acknowledged', content: new OA\JsonContent(properties: [new OA\Property(property: 'status', type: 'string', example: 'ok')])),
+            new OA\Response(response: 400, description: 'Invalid/missing signature', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
+        ],
+    )]
     public function handleFlutterwave(Request $request)
     {
         // Validate signature/secret hash

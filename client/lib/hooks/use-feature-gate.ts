@@ -58,7 +58,13 @@ export function useFeatureGate() {
   };
 
 
-  // Universal restriction wrapper for actions
+  // Universal restriction wrapper for actions.
+  // `any[]`/`any` here (not `unknown`) is required: parameter types are
+  // checked contravariantly, so a constraint of `(...args: unknown[]) => unknown`
+  // would reject every concrete handler (e.g. `(e: React.MouseEvent) => void`),
+  // since `unknown` isn't assignable to a concrete parameter type. This is the
+  // standard TS idiom for wrapping arbitrary callbacks while preserving their
+  // real signature via `Parameters<T>`/`ReturnType<T>` below.
   const withRestriction = <T extends (...args: any[]) => any>(
     action: T,
     options: {
@@ -84,7 +90,7 @@ export function useFeatureGate() {
       // 2. Desktop/General feature restriction check
       if (featureAllowed === false && featureKey) {
         toast.error("Feature Locked", {
-          description: getUpgradeMessage(featureKey as any, "This feature requires a plan upgrade.")
+          description: getUpgradeMessage(featureKey, "This feature requires a plan upgrade.")
         });
         return;
       }

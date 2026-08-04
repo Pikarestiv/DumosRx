@@ -7,13 +7,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Receipt } from "lucide-react";
-import { ReceiptView } from "./receipt-view";
+import { ReceiptView, type ReceiptTransaction } from "./receipt-view";
 import { usePrintReceipt } from "./use-print-receipt";
 
 interface POSReceiptDialogProps {
   showReceiptDialog: boolean;
   setShowReceiptDialog: (show: boolean) => void;
-  completedTransaction: any;
+  completedTransaction: ReceiptTransaction | null;
 }
 
 export function POSReceiptDialog({

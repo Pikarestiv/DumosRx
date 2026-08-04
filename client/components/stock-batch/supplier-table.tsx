@@ -1,31 +1,15 @@
 "use client";
 
 import { Users } from "lucide-react";
-
-interface Supplier {
-  id: string;
-  name: string;
-  contactPerson: string;
-  email: string;
-  phone: string;
-  address: string;
-  status: "active" | "inactive";
-  totalOrders: number;
-  totalValue: number;
-  lastOrderDate: string;
-  paymentTerms: string;
-  rating: number;
-  hasDebt: boolean;
-  debtAmount: number;
-}
+import type { SupplierViewModel } from "@/lib/types/supplier";
 
 interface SupplierTableProps {
-  suppliers: Supplier[];
+  suppliers: SupplierViewModel[];
   formatCurrency: (amount: number) => string;
   getRatingStars: (rating: number) => string;
   isFuzzyFallback?: boolean;
   selectedSupplierId?: string;
-  onRowClick?: (supplier: Supplier) => void;
+  onRowClick?: (supplier: SupplierViewModel) => void;
 }
 
 const COLUMNS = [

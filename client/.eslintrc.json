@@ -29,5 +29,20 @@
         "skipComments": true
       }
     ]
-  }
+  },
+  "overrides": [
+    {
+      "files": ["lib/db/queries/**/*.ts"],
+      "rules": {
+        "max-lines": [
+          "warn",
+          {
+            "max": 600,
+            "skipBlankLines": true,
+            "skipComments": true
+          }
+        ]
+      }
+    }
+  ]
 }

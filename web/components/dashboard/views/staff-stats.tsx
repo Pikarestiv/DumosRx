@@ -1,9 +1,10 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import type { StaffMember } from "@/lib/types/dashboard";
 
 interface StaffStatsProps {
-  filteredStaff: any[];
-  subStatus: any;
+  filteredStaff: StaffMember[];
+  subStatus: { limits?: { staff?: string | number } } | undefined;
 }
 
 export function StaffStats({ filteredStaff, subStatus }: StaffStatsProps) {
@@ -39,7 +40,7 @@ export function StaffStats({ filteredStaff, subStatus }: StaffStatsProps) {
           </p>
           <h3 className="text-3xl font-black mt-2 text-green-600">
             {filteredStaff?.filter(
-              (s: any) => s.is_active || s.status === "online",
+              (s) => s.is_active || s.status === "online",
             ).length || 0}
           </h3>
         </CardContent>

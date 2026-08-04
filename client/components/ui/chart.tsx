@@ -22,6 +22,20 @@ type ChartContextProps = {
   config: ChartConfig;
 };
 
+/** A single recharts tooltip/legend payload entry — recharts' own `Payload`
+ * type (component/DefaultTooltipContent.d.ts) leaves `.payload` (the
+ * underlying chart datum) as `any` too, since it's genuinely whatever shape
+ * the chart's `data` prop was given; only the fields this file actually
+ * reads are typed here. */
+interface ChartPayloadItem {
+  name?: string | number;
+  dataKey?: string | number;
+  value?: number | string | Array<number | string>;
+  color?: string;
+  fill?: string;
+  payload?: Record<string, unknown>;
+}
+
 const ChartContext = React.createContext<ChartContextProps | null>(null);
 
 function useChart() {
@@ -125,8 +139,8 @@ function ChartTooltipContent({
     indicator?: "line" | "dot" | "dashed";
     nameKey?: string;
     labelKey?: string;
-    payload?: any[];
-    label?: any;
+    payload?: ChartPayloadItem[];
+    label?: React.ReactNode;
   }) {
   const { config } = useChart();
 
@@ -181,10 +195,10 @@ function ChartTooltipContent({
     >
       {!nestLabel ? tooltipLabel : null}
       <div className="grid gap-1.5">
-        {payload.map((item: any, index: number) => {
+        {payload.map((item, index) => {
           const key = `${nameKey || item.name || item.dataKey || "value"}`;
           const itemConfig = getPayloadConfigFromPayload(config, item, key);
-          const indicatorColor = color || item.payload.fill || item.color;
+          const indicatorColor = color || item.payload?.fill || item.color;
 
           return (
             <div
@@ -195,7 +209,11 @@ function ChartTooltipContent({
               )}
             >
               {!!(formatter && item?.value !== undefined && item.name) && (
-                formatter(item.value, item.name, item, index, item.payload)
+                // recharts' Formatter type expects the 5th arg to be the full
+                // payload array, but this wrapper (shadcn boilerplate) passes
+                // this single item's nested `.payload` instead — pre-existing
+                // behavior, not something introduced by typing this file.
+                formatter(item.value, item.name, item, index, item.payload as never)
               )}
               {!(formatter && item?.value !== undefined && item.name) && (
                 <>
@@ -259,7 +277,7 @@ function ChartLegendContent({
 }: React.ComponentProps<"div"> & {
   hideIcon?: boolean;
   nameKey?: string;
-  payload?: any[];
+  payload?: ChartPayloadItem[];
   verticalAlign?: RechartsPrimitive.LegendProps["verticalAlign"];
 }) {
   const { config } = useChart();
@@ -276,13 +294,13 @@ function ChartLegendContent({
         className,
       )}
     >
-      {payload.map((item: any) => {
+      {payload.map((item) => {
         const key = `${nameKey || item.dataKey || "value"}`;
         const itemConfig = getPayloadConfigFromPayload(config, item, key);
 
         return (
           <div
-            key={item.value}
+            key={String(item.value)}
             className={cn(
               "[&>svg]:text-muted-foreground flex items-center gap-1.5 [&>svg]:h-3 [&>svg]:w-3",
             )}

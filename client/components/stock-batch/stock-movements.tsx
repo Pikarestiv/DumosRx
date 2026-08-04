@@ -15,21 +15,22 @@ import { StockMovementDesktopRow } from "./stock-movement-desktop-row";
 import { StockMovementMobileGroup } from "./stock-movement-mobile-group";
 import { StockMovementDetailModal } from "./stock-movement-detail-modal";
 import { usePullToRefreshHandler } from "@/lib/context/pull-to-refresh-context";
+import type { StockMovementDbRow } from "@/lib/types/stock-movement";
 
 const RECENT_ACTIVITY_WINDOW_DAYS = 30;
 
-function mapMovement(m: any): StockMovement {
+function mapMovement(m: StockMovementDbRow): StockMovement {
   return {
     id: m.id,
-    date: m.created_at || m.date || m.movement_date,
-    product: m.product?.name || m.product_name || "Unknown",
-    type: m.type || m.movement_type || "adjustment",
+    date: m.created_at || m.movement_date || "",
+    product: m.product_name || "Unknown",
+    type: m.movement_type || "adjustment",
     quantity: m.quantity || 0,
     reason: m.reason || "",
-    reference: m.reference || m.reference_id || "",
-    user: m.user?.name || m.user_name || "System",
-    supplier: m.supplier?.name || m.supplier_name,
-    batchNumber: m.batch_number,
+    reference: m.reference_id || "",
+    user: m.performed_by_name?.trim() || "System",
+    supplier: m.supplier_name || undefined,
+    batchNumber: m.batch_number || undefined,
   };
 }
 

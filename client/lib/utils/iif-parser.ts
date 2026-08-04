@@ -1,13 +1,32 @@
+export interface ParsedIIFProduct {
+  id: string;
+  name: string;
+  generic_name: string;
+  strength: string;
+  unit_price: number;
+  stock: number;
+  barcode: string;
+}
+
+export interface ParsedIIFCustomer {
+  id: string;
+  first_name: string;
+  last_name: string;
+  phone: string;
+  loyalty_points: number;
+  outstanding_balance: number;
+}
+
 export interface ParsedIIF {
-  products: any[];
-  customers: any[];
+  products: ParsedIIFProduct[];
+  customers: ParsedIIFCustomer[];
 }
 
 export function parseIIF(fileContent: string): ParsedIIF {
   const lines = fileContent.split('\n').map(l => l.trim()).filter(Boolean);
-  
-  const products = [];
-  const customers = [];
+
+  const products: ParsedIIFProduct[] = [];
+  const customers: ParsedIIFCustomer[] = [];
 
   let currentMode = '';
   let headers: string[] = [];

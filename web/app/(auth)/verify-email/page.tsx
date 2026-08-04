@@ -26,21 +26,21 @@ function VerifyEmailContent() {
 
     const verify = async () => {
       try {
-        const res = await webApiClient.request("verify-email", {
+        const res = await webApiClient.request<{ message?: string }>("verify-email", {
           method: "POST",
           body: JSON.stringify({ token, email }),
         });
-        
+
         setStatus("success");
-        toast.success((res as any).message || "Email verified successfully!");
-        
+        toast.success(res.message || "Email verified successfully!");
+
         // Short delay before redirecting to dashboard
         setTimeout(() => {
           router.push("/dashboard");
         }, 3000);
-      } catch (err: any) {
+      } catch (err) {
         setStatus("error");
-        setErrorMessage(err.message || "Failed to verify email. The link may have expired.");
+        setErrorMessage(err instanceof Error ? err.message : "Failed to verify email. The link may have expired.");
       }
     };
 

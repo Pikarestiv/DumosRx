@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { toast } from "sonner";
 
-export function useSettingsSecurity(changePin: (current: string, newPin: string) => Promise<any>) {
+export function useSettingsSecurity(
+  changePin: (current: string, newPin: string) => Promise<{ success: boolean; message: string }>,
+) {
   const [currentPin, setCurrentPin] = useState("");
   const [newPin, setNewPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");

@@ -1,17 +1,24 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { APP_NAME } from "@/lib/constants";
-import { getDatabaseBinary, restoreDatabase, resetDatabase } from "@/lib/db/core";
+import {
+  getDatabaseBinary,
+  restoreDatabase,
+  resetDatabase,
+  isTauri,
+  backupDatabaseToFile,
+  restoreDatabaseFromFile,
+} from "@/lib/db/core";
 import { sync, syncSubscriptionStatus } from "@/lib/db/sync-engine";
 
 export function useSettingsSync(
   isCloudLinked: boolean,
-  refetchStore: () => Promise<void>
+  refetchStore: () => Promise<unknown>
 ) {
   const [isCloudLinkOpen, setIsCloudLinkOpen] = useState(false);
   const [syncAfterLink, setSyncAfterLink] = useState(false);
 
-  const handleSync = async (forceStart?: boolean | any) => {
+  const handleSync = async (forceStart?: boolean) => {
     if (!isCloudLinked && forceStart !== true) {
       setSyncAfterLink(true);
       setIsCloudLinkOpen(true);
@@ -35,13 +42,30 @@ export function useSettingsSync(
     });
   };
 
-  const handleDownloadBackup = () => {
+  const handleDownloadBackup = async () => {
+    if (isTauri()) {
+      try {
+        const result = await backupDatabaseToFile();
+        if (result.success) {
+          toast.success(`Backup saved to ${result.path}`);
+        }
+        // result.success === false with no error means the user just closed
+        // the save dialog without picking a destination — nothing to report.
+      } catch (err) {
+        console.error("Failed to back up database:", err);
+        toast.error("Failed to export database");
+      }
+      return;
+    }
+
     const binary = getDatabaseBinary();
     if (!binary) {
       toast.error("Failed to export database");
       return;
     }
-    const blob = new Blob([binary as any], { type: "application/x-sqlite3" });
+    // TS's DOM lib expects ArrayBufferView<ArrayBuffer>, but sql.js's Uint8Array
+    // is typed against the wider ArrayBufferLike — functionally a valid BlobPart.
+    const blob = new Blob([binary as BlobPart], { type: "application/x-sqlite3" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
@@ -54,6 +78,21 @@ export function useSettingsSync(
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
     toast.success("Backup downloaded successfully");
+  };
+
+  const handleRestoreBackupTauri = async () => {
+    try {
+      const result = await restoreDatabaseFromFile();
+      if (result.success) {
+        toast.success("Database restored successfully. Restarting app...");
+        setTimeout(() => window.location.reload(), 1500);
+      }
+      // result.success === false with no error means the user cancelled the
+      // open dialog — nothing to report.
+    } catch (err) {
+      console.error("Failed to restore database:", err);
+      toast.error("Failed to restore database. Invalid file?");
+    }
   };
 
   const handleRestoreBackup = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -87,6 +126,8 @@ export function useSettingsSync(
     handleSync,
     handleDownloadBackup,
     handleRestoreBackup,
+    handleRestoreBackupTauri,
     handleResetDatabase,
+    isTauri: isTauri(),
   };
 }

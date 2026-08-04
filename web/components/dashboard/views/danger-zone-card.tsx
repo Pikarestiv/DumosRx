@@ -31,7 +31,10 @@ import { ConfirmationModal } from "@/components/dashboard/confirmation-modal";
 export function DangerZoneCard({
   onReset,
 }: {
-  onReset?: (type: string, password?: string) => Promise<any>;
+  onReset?: (
+    type: string,
+    password?: string,
+  ) => Promise<{ success: boolean; message?: string; error?: string }>;
 }) {
   const { user, refetch } = useDashboard();
   const queryClient = useQueryClient();
@@ -116,10 +119,8 @@ export function DangerZoneCard({
       queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
       refetch();
     },
-    onError: (error: any) => {
-      toast.error(
-        error.response?.data?.message || "Failed to request deletion",
-      );
+    onError: (error) => {
+      toast.error(error.message || "Failed to request deletion");
     },
   });
 
@@ -132,10 +133,8 @@ export function DangerZoneCard({
       queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
       refetch();
     },
-    onError: (error: any) => {
-      toast.error(
-        error.response?.data?.message || "Failed to cancel deletion request",
-      );
+    onError: (error) => {
+      toast.error(error.message || "Failed to cancel deletion request");
     },
   });
 

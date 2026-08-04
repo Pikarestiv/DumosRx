@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { BaseDialogProps } from "./dialog-types";
+import type { useNotifyUserMutation } from "@/lib/api/admin-hooks";
 
 export function SendNotificationDialog({
   isOpen,
@@ -20,7 +21,7 @@ export function SendNotificationDialog({
   selectedUser,
   setSelectedUser,
   notifyMutation,
-}: BaseDialogProps & { notifyMutation: any }) {
+}: BaseDialogProps & { notifyMutation: ReturnType<typeof useNotifyUserMutation> }) {
   const [notifyTitle, setNotifyTitle] = useState("Administrative Message");
   const [notifyMessage, setNotifyMessage] = useState("");
 
@@ -44,7 +45,7 @@ export function SendNotificationDialog({
           onOpenChange(false);
           setSelectedUser(null);
         },
-        onError: (err: any) => {
+        onError: (err) => {
           toast.error("Failed to Send", { description: err.message });
         },
       },

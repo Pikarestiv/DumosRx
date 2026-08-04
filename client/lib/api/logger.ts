@@ -5,26 +5,25 @@ export interface ApiLogEntry {
   url?: string;
   status?: number;
   durationMs?: number;
-  payload?: any;
-  error?: any;
+  payload?: unknown;
+  error?: unknown;
 }
 
 // In-memory circular log buffer
 if (typeof window !== "undefined") {
-  (window as any).__DRX_API_LOGS__ = (window as any).__DRX_API_LOGS__ || [];
+  window.__DRX_API_LOGS__ = window.__DRX_API_LOGS__ || [];
 }
 
 export const addLogToBuffer = (entry: ApiLogEntry) => {
   if (typeof window === "undefined") return;
-  const win = window as any;
-  win.__DRX_API_LOGS__ = win.__DRX_API_LOGS__ || [];
-  win.__DRX_API_LOGS__.push(entry);
-  if (win.__DRX_API_LOGS__.length > 50) {
-    win.__DRX_API_LOGS__.shift();
+  window.__DRX_API_LOGS__ = window.__DRX_API_LOGS__ || [];
+  window.__DRX_API_LOGS__.push(entry);
+  if (window.__DRX_API_LOGS__.length > 50) {
+    window.__DRX_API_LOGS__.shift();
   }
 };
 
-export const sanitizePayload = (payload: any): any => {
+export const sanitizePayload = (payload: unknown): unknown => {
   if (!payload) return payload;
 
   try {
@@ -33,8 +32,10 @@ export const sanitizePayload = (payload: any): any => {
       parsed = JSON.parse(payload);
     }
 
-    if (typeof parsed === "object") {
-      const sanitized = Array.isArray(parsed) ? [...parsed] : { ...parsed };
+    if (typeof parsed === "object" && parsed !== null) {
+      const sanitized: unknown[] | Record<string, unknown> = Array.isArray(parsed)
+        ? [...parsed]
+        : { ...(parsed as Record<string, unknown>) };
 
       // Handle array truncation
       if (Array.isArray(sanitized)) {
@@ -106,7 +107,7 @@ export const reportClientError = (
   url: string,
   status: number | undefined,
   message: string,
-  details: any,
+  details: unknown,
   baseURL: string,
   token: string | null,
 ) => {

@@ -2,9 +2,10 @@
 
 import { Card } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
+import type { PurchaseOrder } from "@/lib/db/procurement";
 
 interface ProcurementStatsProps {
-  purchaseOrders: any[];
+  purchaseOrders: PurchaseOrder[];
 }
 
 export function ProcurementStats({ purchaseOrders }: ProcurementStatsProps) {

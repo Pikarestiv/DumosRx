@@ -1,16 +1,26 @@
 import { query, execute } from "@/lib/db/core";
+import type { UserDbRow } from "@/lib/types/user";
 
 export async function getUserByUsernameOrEmail(identifier: string) {
   const isEmail = identifier.includes("@");
   const field = isEmail ? "email" : "username";
-  const users = await query<any>(
-    `SELECT * FROM users WHERE LOWER(${field}) = LOWER(?) AND is_active = 1`, 
+  const users = await query<UserDbRow>(
+    `SELECT * FROM users WHERE LOWER(${field}) = LOWER(?) AND is_active = 1`,
     [identifier]
   );
   return users.length > 0 ? users[0] : null;
 }
 
-export async function createDefaultAdmin(adminInfo: any) {
+interface DefaultAdminInfo {
+  id: string;
+  first_name: string;
+  last_name: string;
+  username: string;
+  pin: string;
+  role: string;
+}
+
+export async function createDefaultAdmin(adminInfo: DefaultAdminInfo) {
   return query(
     "INSERT OR IGNORE INTO users (id, first_name, last_name, username, pin, role, is_active) VALUES (?, ?, ?, ?, ?, ?, ?)",
     [adminInfo.id, adminInfo.first_name, adminInfo.last_name, adminInfo.username, adminInfo.pin, adminInfo.role, 1]
@@ -18,7 +28,7 @@ export async function createDefaultAdmin(adminInfo: any) {
 }
 
 export async function getUserPin(userId: string) {
-  const users = await query<any>("SELECT pin FROM users WHERE id = ?", [userId]);
+  const users = await query<{ pin: string }>("SELECT pin FROM users WHERE id = ?", [userId]);
   return users.length > 0 ? users[0].pin : null;
 }
 

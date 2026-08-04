@@ -16,6 +16,9 @@ import { useStore } from "@/lib/context/store-context";
 import { useProcurementData } from "@/lib/hooks/use-procurement-data";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
+import type { DraftPOLineItem } from "@/lib/db/procurement";
+import type { NewProductPayload, ProductViewModel } from "@/lib/types/product";
+import type { SupplierPayload } from "@/lib/types/supplier";
 
 export default function CreateOrderPage() {
   const router = useRouter();
@@ -25,14 +28,15 @@ export default function CreateOrderPage() {
 
   const [selectedSupplierId, setSelectedSupplierId] = useState("");
   const [notes, setNotes] = useState("");
-  const [items, setItems] = useState<any[]>([]);
+  const [items, setItems] = useState<DraftPOLineItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState("unpaid");
   const [amountPaid, setAmountPaid] = useState("");
   const [dueDate, setDueDate] = useState("");
 
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
-  const [initialProductData, setInitialProductData] = useState<any>(null);
+  const [initialProductData, setInitialProductData] =
+    useState<Partial<ProductViewModel> | null>(null);
   const [newlyCreatedProductId, setNewlyCreatedProductId] = useState<
     string | null
   >(null);
@@ -54,16 +58,16 @@ export default function CreateOrderPage() {
     }
   }, [searchParams, suppliers]);
 
-  const handleAddLineItem = (newItem: any) => {
+  const handleAddLineItem = (newItem: DraftPOLineItem) => {
     setItems([...items, newItem]);
   };
 
-  const handleOpenAddProduct = (productData: any) => {
+  const handleOpenAddProduct = (productData: Partial<ProductViewModel>) => {
     setInitialProductData(productData);
     setIsAddProductOpen(true);
   };
 
-  const handleCreateProduct = async (productData: any, keepOpen?: boolean) => {
+  const handleCreateProduct = async (productData: NewProductPayload, keepOpen?: boolean) => {
     try {
       const newProductId = await createProduct(productData);
       toast.success(`${productData.name} added to catalog`);
@@ -82,7 +86,7 @@ export default function CreateOrderPage() {
     }
   };
 
-  const handleCreateSupplier = async (payload: any) => {
+  const handleCreateSupplier = async (payload: SupplierPayload) => {
     try {
       const newId = await createSupplier(payload);
       toast.success(`${payload.name} added to vendors`);
@@ -174,7 +178,7 @@ export default function CreateOrderPage() {
       />
 
       {/* Desktop: bordered panel within the dashboard shell, sidebar stays visible */}
-      <div className="hidden lg:flex flex-col min-h-0 bg-card border border-border rounded-2xl overflow-hidden h-[calc(100vh-120px)] shadow-sm">
+      <div className="hidden lg:flex flex-col min-h-0 bg-card border border-border rounded-2xl overflow-hidden h-[calc(100vh-148px)] shadow-sm">
         <div className="flex items-center gap-3 px-6 py-5 border-b border-border bg-card shrink-0">
           <div
             className="w-[38px] h-[38px] rounded-[10px] bg-muted flex items-center justify-center cursor-pointer text-muted-foreground shrink-0 hover:bg-muted/80 transition-colors"
@@ -218,7 +222,7 @@ export default function CreateOrderPage() {
         open={isAddProductOpen}
         onOpenChange={setIsAddProductOpen}
         onAddProduct={handleCreateProduct}
-        initialData={initialProductData}
+        initialData={initialProductData ?? undefined}
         hideAddAnother
       />
 

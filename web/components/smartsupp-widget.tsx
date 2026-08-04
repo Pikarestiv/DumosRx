@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useAuthStore } from "@/lib/store/use-auth-store";
 import { usePathname } from "next/navigation";
+import type { SmartsuppFn } from "@/lib/types/global";
 
 interface SmartSuppWidgetProps {
   chatKey: string;
@@ -36,12 +37,12 @@ export function SmartSuppWidget({ chatKey }: SmartSuppWidgetProps) {
     }
 
     // Bootstrap Smartsupp global
-    (window as any)._smartsupp = (window as any)._smartsupp || {};
-    (window as any)._smartsupp.key = chatKey;
-    const o = ((window as any).smartsupp = function (...args: any[]) {
-      (o as any)._.push(args);
-    });
-    (o as any)._ = [];
+    window._smartsupp = window._smartsupp || {};
+    window._smartsupp.key = chatKey;
+    const o = (window.smartsupp = function (...args: unknown[]) {
+      o._.push(args);
+    } as SmartsuppFn);
+    o._ = [];
 
     const script = document.createElement("script");
     script.id = "smartsupp-script";
@@ -55,20 +56,20 @@ export function SmartSuppWidget({ chatKey }: SmartSuppWidgetProps) {
 
   // Identify user once logged in (or clear identity on logout)
   useEffect(() => {
-    if (!(window as any).smartsupp) return;
+    if (!window.smartsupp) return;
 
     if (user) {
-      (window as any).smartsupp("name", `${user.first_name} ${user.last_name}`);
-      (window as any).smartsupp("email", user.email);
-      (window as any).smartsupp("variables", {
+      window.smartsupp("name", `${user.first_name} ${user.last_name}`);
+      window.smartsupp("email", user.email);
+      window.smartsupp("variables", {
         role: { label: "Role", value: user.role },
         userId: { label: "User ID", value: user.id },
       });
     } else {
       // Guest — reset identity so agents don't see stale data
       try {
-        (window as any).smartsupp("name", "");
-        (window as any).smartsupp("email", "");
+        window.smartsupp("name", "");
+        window.smartsupp("email", "");
       } catch (_) {}
     }
   }, [user]);

@@ -218,10 +218,11 @@ export class BaseApiClient {
       }
 
       return responseData;
-    } catch (error: any) {
+    } catch (error) {
       const duration = Date.now() - startTime;
+      const errorMessage = error instanceof Error ? error.message : "Network Error";
 
-      if (!error.message?.includes("HTTP error!")) {
+      if (!errorMessage.includes("HTTP error!")) {
         // Network or parse error (not handled by the response.ok block)
         addLogToBuffer({
           timestamp: new Date().toISOString(),
@@ -230,7 +231,7 @@ export class BaseApiClient {
           url: url,
           status: 0,
           durationMs: duration,
-          error: error.message || "Network Error",
+          error: errorMessage,
           payload: null,
         });
 
@@ -242,7 +243,7 @@ export class BaseApiClient {
             method,
             url,
             0,
-            error.message || "Network Error",
+            errorMessage,
             { durationMs: duration },
             this.baseURL,
             currentToken,

@@ -10,11 +10,17 @@ export * from "./base-helpers";
 export * from "./procurement";
 export * from "./schema";
 
-import { query, execute } from "./core";
+import { query, execute, transaction } from "./core";
 import { insert, update, softDelete } from "./base-helpers";
 import { queryClient } from "../query-client";
 import { AUDIT_ACTIONS } from "./audit-actions";
 import { queryKeys } from "../query-keys";
+import type { NewProductPayload } from "@/lib/types/product";
+import type { StockMovementDbRow } from "@/lib/types/stock-movement";
+import type { PrescriptionItemInsertPayload } from "@/lib/types/prescription";
+import type { StaffCreatePayload, StaffUpdatePayload, StaffListItem } from "@/lib/types/user";
+import type { Product } from "@/lib/types/product";
+import type { CustomerDbRow } from "@/lib/types/customer";
 
 const STOCK_MOVEMENT_AUDIT_ACTIONS: Record<string, string> = {
   adjustment: AUDIT_ACTIONS.STOCK_ADJUSTMENT,
@@ -45,7 +51,7 @@ export async function getProducts(page = 1, limit = 50, search = "") {
                GROUP BY product_id
              ) sb ON m.id = sb.product_id
              WHERE m._deleted = 0`;
-  const params: any[] = [];
+  const params: (string | number)[] = [];
 
   if (search) {
     sql += " AND (m.name LIKE ? OR m.generic_name LIKE ? OR m.barcode LIKE ?)";
@@ -56,12 +62,12 @@ export async function getProducts(page = 1, limit = 50, search = "") {
   sql += " ORDER BY m.name ASC LIMIT ? OFFSET ?";
   params.push(limit, offset);
 
-  const data = await query<any>(sql, params);
+  const data = await query<Product>(sql, params);
   return { data, page, limit };
 }
 
 export async function getProductById(id: string) {
-  const results = await query<any>(
+  const results = await query<Product>(
     `SELECT p.*, 
             COALESCE(sb.total_qty, 0) as stock_quantity,
             sb.earliest_expiry as expiry_date,
@@ -82,12 +88,12 @@ export async function getProductById(id: string) {
   return results[0] || null;
 }
 
-export async function createProduct(data: any) {
+export async function createProduct(data: NewProductPayload) {
   // Ensure we have a valid UUID for category, else wait for sync
   const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
   
   if (data.category_id && !UUID_REGEX.test(data.category_id)) {
-    const categories = await query<any>(
+    const categories = await query<{ id: string }>(
       "SELECT id FROM categories WHERE name = ? COLLATE NOCASE",
       [data.category_id]
     );
@@ -107,51 +113,61 @@ export async function createProduct(data: any) {
 /**
  * Sales & Transactions
  */
-export async function createSale(saleData: any, items: any[]) {
-  const saleId = await insert("sales", saleData);
+interface CreateSaleItem {
+  product_id: string;
+  stock_batch_id?: string;
+  quantity: number;
+  cost_price?: number;
+  [key: string]: unknown;
+}
 
-  for (const item of items) {
-    await insert("sale_items", {
-      ...item,
-      sale_id: saleId,
-    });
+export async function createSale(saleData: Record<string, unknown>, items: CreateSaleItem[]) {
+  return transaction(async () => {
+    const saleId = await insert("sales", saleData);
 
-    // Update stock batch quantity
-    if (item.stock_batch_id) {
-      await execute(
-        "UPDATE stock_batches SET quantity = quantity - ? WHERE id = ?",
-        [item.quantity, item.stock_batch_id],
-      );
+    for (const item of items) {
+      await insert("sale_items", {
+        ...item,
+        sale_id: saleId,
+      });
+
+      // Update stock batch quantity
+      if (item.stock_batch_id) {
+        await execute(
+          "UPDATE stock_batches SET quantity = quantity - ? WHERE id = ?",
+          [item.quantity, item.stock_batch_id],
+        );
+      }
+
+      // Log local stock movement
+      await insert("stock_movements", {
+        id: crypto.randomUUID(),
+        product_id: item.product_id,
+        stock_batch_id: item.stock_batch_id || null,
+        movement_type: "sale",
+        quantity: -Math.abs(item.quantity),
+        unit_cost: item.cost_price || 0,
+        total_cost: (item.cost_price || 0) * item.quantity,
+        reference_id: saleId,
+        reference_type: "sale",
+        reason: "Customer sale",
+        movement_date: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        _version: 1,
+        _synced: 0,
+        _deleted: 0,
+      });
     }
 
-    // Log local stock movement
-    await insert("stock_movements", {
-      id: crypto.randomUUID(),
-      product_id: item.product_id,
-      stock_batch_id: item.stock_batch_id || null,
-      movement_type: "sale",
-      quantity: -Math.abs(item.quantity),
-      unit_cost: item.cost_price || 0,
-      total_cost: (item.cost_price || 0) * item.quantity,
-      reference_id: saleId,
-      reference_type: "sale",
-      reason: "Customer sale",
-      movement_date: new Date().toISOString(),
-      created_at: new Date().toISOString(),
-      _version: 1,
-      _synced: 0,
-      _deleted: 0,
-    });
-  }
-
-  return saleId;
+    return saleId;
+  });
 }
 
 /**
  * Customers
  */
 export async function getCustomers() {
-  return await query<any>(
+  return await query<CustomerDbRow>(
     "SELECT * FROM customers WHERE _deleted = 0 ORDER BY first_name ASC",
   );
 }
@@ -159,7 +175,10 @@ export async function getCustomers() {
 /**
  * Prescriptions
  */
-export async function createPrescription(data: any, items: any[]) {
+export async function createPrescription(
+  data: Record<string, unknown>,
+  items: Omit<PrescriptionItemInsertPayload, "prescription_id">[],
+) {
   const prescriptionId = await insert("prescriptions", data);
 
   for (const item of items) {
@@ -183,19 +202,21 @@ export async function createPrescription(data: any, items: any[]) {
 /**
  * Staff & Users
  */
+const STAFF_LIST_COLUMNS = "id, first_name, last_name, username, email, role, store_id, is_active, created_at";
+
 export async function getUsers(storeId?: string | null) {
   if (storeId) {
-    return await query<any>(
-      "SELECT * FROM users WHERE _deleted = 0 AND (store_id = ? OR store_id IS NULL OR role = 'admin' OR role = 'store_owner') ORDER BY first_name ASC",
+    return await query<StaffListItem>(
+      `SELECT ${STAFF_LIST_COLUMNS} FROM users WHERE _deleted = 0 AND (store_id = ? OR store_id IS NULL OR role = 'admin' OR role = 'store_owner') ORDER BY first_name ASC`,
       [storeId],
     );
   }
-  return await query<any>(
-    "SELECT * FROM users WHERE _deleted = 0 ORDER BY first_name ASC",
+  return await query<StaffListItem>(
+    `SELECT ${STAFF_LIST_COLUMNS} FROM users WHERE _deleted = 0 ORDER BY first_name ASC`,
   );
 }
 
-export async function createUser(data: any) {
+export async function createUser(data: StaffCreatePayload) {
   return await insert("users", {
     ...data,
     id: data.id || crypto.randomUUID(),
@@ -206,7 +227,7 @@ export async function createUser(data: any) {
   });
 }
 
-export async function updateUser(id: string, data: any) {
+export async function updateUser(id: string, data: StaffUpdatePayload) {
   return await update("users", id, data);
 }
 
@@ -230,10 +251,15 @@ export async function getStockMovements(options: { sinceDays?: number } = {}) {
   const dateFilter = sinceDays
     ? `AND sm.created_at >= datetime('now', '-${sinceDays} days')`
     : "";
-  const results = await query<any>(
-    `SELECT sm.*, m.name as product_name
+  const results = await query<StockMovementDbRow>(
+    `SELECT sm.*, m.name as product_name,
+            TRIM(u.first_name || ' ' || COALESCE(u.last_name, '')) as performed_by_name,
+            sb.batch_number, sp.name as supplier_name
      FROM stock_movements sm
      LEFT JOIN products m ON sm.product_id = m.id
+     LEFT JOIN users u ON sm.performed_by = u.id
+     LEFT JOIN stock_batches sb ON sm.stock_batch_id = sb.id
+     LEFT JOIN suppliers sp ON sb.supplier_id = sp.id
      WHERE sm._deleted = 0 ${dateFilter}
      ORDER BY sm.created_at DESC`,
   );
@@ -242,17 +268,22 @@ export async function getStockMovements(options: { sinceDays?: number } = {}) {
 
 export async function getStockAdjustments(page = 1, limit = 50) {
   const offset = (page - 1) * limit;
-  const results = await query<any>(
-    `SELECT sm.*, m.name as product_name 
-     FROM stock_movements sm 
-     LEFT JOIN products m ON sm.product_id = m.id 
-     WHERE sm._deleted = 0 AND sm.movement_type IN ('adjustment', 'expired', 'damaged') 
-     ORDER BY sm.created_at DESC 
+  const results = await query<StockMovementDbRow>(
+    `SELECT sm.*, m.name as product_name,
+            TRIM(u.first_name || ' ' || COALESCE(u.last_name, '')) as performed_by_name,
+            sb.batch_number, sp.name as supplier_name
+     FROM stock_movements sm
+     LEFT JOIN products m ON sm.product_id = m.id
+     LEFT JOIN users u ON sm.performed_by = u.id
+     LEFT JOIN stock_batches sb ON sm.stock_batch_id = sb.id
+     LEFT JOIN suppliers sp ON sb.supplier_id = sp.id
+     WHERE sm._deleted = 0 AND sm.movement_type IN ('adjustment', 'expired', 'damaged')
+     ORDER BY sm.created_at DESC
      LIMIT ? OFFSET ?`,
     [limit, offset],
   );
   // Map fields to match what frontend expects
-  const mapped = results.map((r: any) => ({
+  const mapped = results.map((r) => ({
     ...r,
     adjustment_type: r.quantity > 0 ? "increase" : "decrease",
     approved: 1,
@@ -260,7 +291,7 @@ export async function getStockAdjustments(page = 1, limit = 50) {
   return { data: mapped, page, limit };
 }
 
-export async function createStockMovement(data: any) {
+export async function createStockMovement(data: Partial<StockMovementDbRow> & { id?: string }) {
   return await insert(
     "stock_movements",
     {
@@ -270,7 +301,7 @@ export async function createStockMovement(data: any) {
       _version: 1,
       _synced: 0,
     },
-    { action: STOCK_MOVEMENT_AUDIT_ACTIONS[data.movement_type] },
+    { action: STOCK_MOVEMENT_AUDIT_ACTIONS[data.movement_type as string] },
   );
 }
 
@@ -315,7 +346,7 @@ export async function forceSyncAllData() {
   for (const table of tables) {
     try {
       await execute(`UPDATE ${table} SET _synced = 0`);
-      const records = await query<any>(`SELECT * FROM ${table}`);
+      const records = await query<{ id: string; [key: string]: unknown }>(`SELECT * FROM ${table}`);
 
       for (const record of records) {
         await execute(
@@ -336,5 +367,5 @@ export async function forceSyncAllData() {
 }
 
 if (typeof window !== "undefined") {
-  (window as any).forceSyncAllData = forceSyncAllData;
+  window.forceSyncAllData = forceSyncAllData;
 }

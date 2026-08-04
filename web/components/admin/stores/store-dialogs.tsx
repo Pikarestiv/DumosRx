@@ -11,11 +11,12 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import type { AdminStoreSummary } from "@/lib/types/admin";
 
 interface SuspendStoreDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  selectedStore: any;
+  selectedStore: AdminStoreSummary | null;
   handleSuspend: (reason: string) => void;
   isPending: boolean;
 }
@@ -88,7 +89,7 @@ export function SuspendStoreDialog({
 interface ViewStoreDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  selectedStore: any;
+  selectedStore: AdminStoreSummary | null;
 }
 
 export function ViewStoreDialog({

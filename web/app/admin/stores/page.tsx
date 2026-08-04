@@ -18,6 +18,7 @@ import { SuspendStoreDialog, ViewStoreDialog } from "@/components/admin/stores/s
 import { SharedGrantTrialDialog } from "@/components/admin/shared-grant-trial-dialog";
 import { toast } from "sonner";
 import { AdminSkeleton } from "@/components/admin/admin-skeleton";
+import type { AdminStoreSummary } from "@/lib/types/admin";
 
 export default function StoresManagement() {
   const searchParams = useSearchParams();
@@ -28,7 +29,7 @@ export default function StoresManagement() {
   const [search, setSearch] = useState(initialSearch);
   const [statusFilter, setStatusFilter] = useState("all");
   const [planFilter, setPlanFilter] = useState("all");
-  const [selectedStore, setSelectedStore] = useState<any>(null);
+  const [selectedStore, setSelectedStore] = useState<AdminStoreSummary | null>(null);
   const [isSuspendDialogOpen, setIsSuspendDialogOpen] = useState(false);
   const [isTrialDialogOpen, setIsTrialDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
@@ -65,7 +66,7 @@ export default function StoresManagement() {
     if (storeList.length === 0) return;
 
     const headers = ["ID", "Name", "Owner", "Email", "Plan", "Status", "Date"];
-    const csvData = storeList.map((p: any) =>
+    const csvData = storeList.map((p: AdminStoreSummary) =>
       [p.id, p.name, p.owner, p.email, p.plan, p.status, p.date].join(","),
     );
 
@@ -91,7 +92,7 @@ export default function StoresManagement() {
         setSelectedStore(null);
         refetch();
       },
-      onError: (err: any) => {
+      onError: (err) => {
         toast.error("Action Failed", {
           description: err.message || "Failed to suspend store.",
         });
@@ -99,7 +100,7 @@ export default function StoresManagement() {
     });
   };
 
-  const handleUnsuspend = async (store: any) => {
+  const handleUnsuspend = async (store: AdminStoreSummary) => {
     unsuspendMutation.mutate(store.id, {
       onSuccess: () => {
         toast.success("Account Re-activated", {
@@ -107,7 +108,7 @@ export default function StoresManagement() {
         });
         refetch();
       },
-      onError: (err: any) => {
+      onError: (err) => {
         toast.error("Action Failed", {
           description: err.message || "Failed to unsuspend store.",
         });
@@ -128,7 +129,7 @@ export default function StoresManagement() {
         setSelectedStore(null);
         refetch();
       },
-      onError: (err: any) => {
+      onError: (err) => {
         toast.error("Action Failed", {
           description: err.message || "Failed to grant trial.",
         });
@@ -136,9 +137,9 @@ export default function StoresManagement() {
     });
   };
 
-  const handleImpersonate = (store: any) => {
+  const handleImpersonate = (store: AdminStoreSummary) => {
     impersonateMutation.mutate(store.id, {
-      onSuccess: (data: any) => {
+      onSuccess: (data) => {
         toast.success("Impersonation Successful", {
           description: `Logged in as ${data.user.name}. Redirecting...`,
         });
@@ -156,7 +157,7 @@ export default function StoresManagement() {
         // Redirect to dashboard
         router.push("/dashboard");
       },
-      onError: (err: any) => {
+      onError: (err) => {
         toast.error("Impersonation Failed", {
           description: err.message || "Failed to start impersonation session.",
         });
@@ -164,7 +165,7 @@ export default function StoresManagement() {
     });
   };
 
-  const handleViewBilling = (store: any) => {
+  const handleViewBilling = (store: AdminStoreSummary) => {
     toast.info("Billing History", {
       description: `Fetching billing records for ${store.name}...`,
     });

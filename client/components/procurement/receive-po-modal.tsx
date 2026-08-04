@@ -50,7 +50,7 @@ const ReceiveItemCard = React.memo(
     onFieldChange: (
       itemId: string,
       field: keyof ReceivedItemPayload,
-      value: any,
+      value: string | number,
     ) => void;
   }) => {
     return (
@@ -167,7 +167,7 @@ export function ReceivePOModal({
   }, [isOpen, po]);
 
   const handleFieldChange = React.useCallback(
-    (itemId: string, field: keyof ReceivedItemPayload, value: any) => {
+    (itemId: string, field: keyof ReceivedItemPayload, value: string | number) => {
       setReceivedItems((prev) => ({
         ...prev,
         [itemId]: {

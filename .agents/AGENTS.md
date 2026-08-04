@@ -13,6 +13,7 @@ Project documentation can quickly become outdated. **Always treat the current st
 Whenever you implement a new feature, change an architectural pattern, or modify the database schema, **you must update the relevant documentation files** (or this `AGENTS.md` file) to ensure future AI agents and human developers have accurate context.
 
 - **Roadmap Updates:** When a feature from `FEATURE_ROADMAP_SPEC.md` is completed, you must remove it from the roadmap and add its documentation to `SYSTEM_FEATURES_DOCUMENTATION.md`.
+- **Known Bugs:** If you spot a real bug or data gap while working on something else (e.g. during a refactor, type-safety pass, or code review) and are not fixing it as part of the current task, log it in `docs/KNOWN_BUGS.md` instead of letting it go unrecorded. Include where it is, what's wrong, and the fix if known.
 
 ## 3. 🏗️ Architecture & Separation of Concerns
 

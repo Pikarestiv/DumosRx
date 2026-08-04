@@ -15,6 +15,7 @@ import { Loader2, CheckCircle, PackageOpen } from "lucide-react";
 import { generateId } from "@/lib/db/core";
 import { insert, update } from "@/lib/db/base-helpers";
 import { getStockBatchesForProduct } from "@/lib/db/queries/sales";
+import type { OnlineOrder } from "@/lib/types/online-order";
 
 function NoOnlineOrdersFound() {
   return (
@@ -36,14 +37,14 @@ export function OnlineOrdersModal() {
     refetch: fetchOrders,
   } = useQuery({
     ...queryKeys.onlineOrders.all(),
-    queryFn: async (): Promise<any[]> => {
+    queryFn: async (): Promise<OnlineOrder[]> => {
       const data = await apiClient.getOnlineOrders();
       return data?.orders || [];
     },
     enabled: isOpen,
   });
 
-  const handleFulfill = async (order: any) => {
+  const handleFulfill = async (order: OnlineOrder) => {
     setFulfillingId(order.id);
     try {
       // 1. Mark as fulfilled on server
@@ -95,9 +96,9 @@ export function OnlineOrdersModal() {
 
       toast.success("Order fulfilled and recorded locally");
       await fetchOrders();
-    } catch (e: any) {
+    } catch (e) {
       console.error(e);
-      toast.error(e.message || "Failed to fulfill order");
+      toast.error(e instanceof Error ? e.message : "Failed to fulfill order");
     } finally {
       setFulfillingId(null);
     }
@@ -136,7 +137,7 @@ export function OnlineOrdersModal() {
                   <div className="bg-muted/50 rounded p-3">
                     <table className="w-full text-sm">
                       <tbody>
-                        {order.items.map((item: any) => (
+                        {order.items.map((item) => (
                           <tr key={item.id}>
                             <td className="py-1">{item.product?.name || 'Unknown Product'}</td>
                             <td className="py-1 text-right">x{item.quantity}</td>

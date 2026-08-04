@@ -120,14 +120,15 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
           setShowAuthModal(true);
         }
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error("Manual sync failed:", err);
       setStatus("error");
-      setErrorMessage(err.message?.includes("Unauthenticated")
+      const message = err instanceof Error ? err.message : "";
+      setErrorMessage(message.includes("Unauthenticated")
         ? "Cloud Account Unauthenticated. Please re-link in settings."
         : "Sync failed. Check your connection.");
 
-      if (err.message?.includes("Unauthenticated") || err.message?.includes("401")) {
+      if (message.includes("Unauthenticated") || message.includes("401")) {
         setShowAuthModal(true);
       }
     } finally {

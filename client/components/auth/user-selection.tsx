@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { RecentUser } from "@/lib/context/auth-context";
 import { getUserInitials, cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -65,6 +66,16 @@ export function UserSelection({
   onSelectUser,
   onLoginAsOther,
 }: UserSelectionProps) {
+  // Determined client-side only (defaults to the Windows/Linux label on
+  // first render) to avoid a hydration mismatch — navigator isn't available
+  // during SSR.
+  const [lockShortcutLabel, setLockShortcutLabel] = useState("Ctrl+L");
+  useEffect(() => {
+    if (navigator.userAgent.includes("Mac")) {
+      setLockShortcutLabel("⌘L");
+    }
+  }, []);
+
   const isSingle = recentUsers.length === 1;
   const avatarSize = isSingle
     ? "h-28 w-28 sm:h-32 sm:w-32"
@@ -91,6 +102,14 @@ export function UserSelection({
           {isSingle ? "Select your profile to continue" : "Who's clocking in?"}
         </p>
       </div>
+
+      <p className="text-center text-xs text-muted-foreground/60">
+        Tip: press{" "}
+        <kbd className="rounded border border-muted-foreground/30 bg-muted/50 px-1.5 py-0.5 font-mono">
+          {lockShortcutLabel}
+        </kbd>{" "}
+        anytime to lock the app instantly.
+      </p>
 
       <div className="flex-1 flex flex-col justify-center sm:block">
         <motion.div

@@ -24,6 +24,8 @@ interface DataSettingsProps {
   setIsCloudLinkOpen: (val: boolean) => void;
   handleDownloadBackup: () => void;
   handleRestoreBackup: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  handleRestoreBackupTauri: () => void;
+  isTauri: boolean;
   handleResetDatabase: () => void;
   autoSyncEnabled: boolean;
   setAutoSyncEnabled: (val: boolean) => void;
@@ -39,6 +41,8 @@ export function DataSettings({
   setIsCloudLinkOpen,
   handleDownloadBackup,
   handleRestoreBackup,
+  handleRestoreBackupTauri,
+  isTauri,
   handleResetDatabase,
   autoSyncEnabled,
   setAutoSyncEnabled,
@@ -171,25 +175,36 @@ export function DataSettings({
                 <Save className="w-4 h-4 mr-2" />
                 Download Local Backup
               </Button>
-              <div className="relative">
+              {isTauri ? (
                 <Button
                   variant="outline"
                   className="w-full justify-start cursor-pointer"
-                  asChild
+                  onClick={withRestriction(handleRestoreBackupTauri)}
                 >
-                  <label htmlFor="restore-db">
-                    <Upload className="w-4 h-4 mr-2" />
-                    Restore from File
-                  </label>
+                  <Upload className="w-4 h-4 mr-2" />
+                  Restore from File
                 </Button>
-                <input
-                  type="file"
-                  id="restore-db"
-                  className="hidden"
-                  accept=".drx"
-                  onChange={handleRestoreBackup}
-                />
-              </div>
+              ) : (
+                <div className="relative">
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start cursor-pointer"
+                    asChild
+                  >
+                    <label htmlFor="restore-db">
+                      <Upload className="w-4 h-4 mr-2" />
+                      Restore from File
+                    </label>
+                  </Button>
+                  <input
+                    type="file"
+                    id="restore-db"
+                    className="hidden"
+                    accept=".drx"
+                    onChange={handleRestoreBackup}
+                  />
+                </div>
+              )}
             </div>
           </div>
 

@@ -1,32 +1,53 @@
-import { query, insert, update } from "@/lib/db/local-database";
+import { query, insert, update, transaction } from "@/lib/db/local-database";
+import type { FastMoverRow } from "@/lib/types/fast-mover";
+import type { StockBatch, AvailableStockBatch } from "@/lib/types/stock-batch";
 
 export async function getAvailableStockBatches() {
-  return query<any>(
+  return query<AvailableStockBatch>(
     `SELECT i.*, m.name as product_name, m.strength as m_strength, m.selling_price FROM stock_batches i JOIN products m ON i.product_id = m.id WHERE i._deleted = 0 AND i.quantity > 0`
   );
 }
 
 export async function getBatchTrackingData() {
-  return query<any>(
+  return query<{
+    id: string;
+    product_name: string;
+    batch_number?: string;
+    expiry_date?: string;
+    quantity: number;
+    cost_price?: number;
+  }>(
     `SELECT sb.id, p.name as product_name, sb.batch_number, sb.expiry_date, sb.quantity, sb.cost_price FROM stock_batches sb JOIN products p ON sb.product_id = p.id WHERE sb._deleted = 0 AND p._deleted = 0 ORDER BY sb.expiry_date ASC`
   );
 }
 
 export async function getStockBatchesForProductDetails(productId: string) {
-  return query<any>(
+  return query<StockBatch>(
     "SELECT * FROM stock_batches WHERE product_id = ? AND _deleted = 0 ORDER BY expiry_date ASC",
     [productId]
   );
 }
 
 export async function getStockBatchById(id: string) {
-  const result = await query<any>("SELECT * FROM stock_batches WHERE id = ?", [id]);
+  const result = await query<StockBatch>("SELECT * FROM stock_batches WHERE id = ?", [id]);
   return result.length > 0 ? result[0] : null;
 }
 
+export interface StockOverviewRow {
+  id: string;
+  product_name: string;
+  reorder_level?: number;
+  selling_price?: number;
+  barcode?: string;
+  cost_price?: number;
+  quantity: number;
+  expiry_date?: string;
+  batch_number?: string;
+}
+
 export async function getStockOverviewData() {
-  return query<any>(
-    `SELECT 
+  return query<StockOverviewRow>(
+    `SELECT
       p.id, p.name as product_name, p.reorder_level, p.selling_price, p.barcode,
       sb.avg_cost as cost_price,
       COALESCE(sb.total_qty, 0) as quantity,
@@ -77,7 +98,7 @@ export async function getProductsForAudit() {
 }
 
 export async function getBatchesForProduct(productId: string) {
-  return query<any>(
+  return query<StockBatch>(
     "SELECT * FROM stock_batches WHERE product_id = ? AND _deleted = 0 AND quantity > 0 ORDER BY expiry_date ASC, created_at ASC",
     [productId],
   );
@@ -144,8 +165,20 @@ export async function getExpiryAlerts() {
   );
 }
 
+export interface StockBatchStatsRow {
+  total_products: number;
+  active_products: number;
+  low_stock_count: number;
+  critical_stock_count: number;
+  expiring_soon_count: number;
+  expired_count: number;
+  missing_expiry_count: number;
+  total_stock_batch_value: number;
+  active_categories: number;
+}
+
 export async function getStockBatchStats(expiryDays: number = 30) {
-  const result = await query<any>(
+  const result = await query<StockBatchStatsRow>(
     `SELECT
       COUNT(p.id) AS total_products,
       SUM(CASE WHEN p.is_active = 1 THEN 1 ELSE 0 END) AS active_products,
@@ -190,7 +223,7 @@ export async function updateStockBatchQuantity(
   batchId: string,
   quantityDelta: number,
 ) {
-  const batch = await query<any>(
+  const batch = await query<{ quantity: number }>(
     "SELECT quantity FROM stock_batches WHERE id = ?",
     [batchId],
   );
@@ -228,92 +261,94 @@ export async function submitStockAudit(
   items: StockAuditSubmission[],
   performedBy: string | null,
 ) {
-  for (const item of items) {
-    const diff = item.countedQty - item.systemQty;
-    if (diff === 0) continue;
+  return transaction(async () => {
+    for (const item of items) {
+      const diff = item.countedQty - item.systemQty;
+      if (diff === 0) continue;
 
-    const auditId = crypto.randomUUID();
-    await insert("stock_audits", {
-      id: auditId,
-      product_id: item.productId,
-      expected_quantity: item.systemQty,
-      actual_quantity: item.countedQty,
-      difference: diff,
-      notes: item.reason || null,
-      user_id: performedBy || "system",
-      status: "reconciled",
-      reconciled_at: new Date().toISOString(),
-    });
+      const auditId = crypto.randomUUID();
+      await insert("stock_audits", {
+        id: auditId,
+        product_id: item.productId,
+        expected_quantity: item.systemQty,
+        actual_quantity: item.countedQty,
+        difference: diff,
+        notes: item.reason || null,
+        user_id: performedBy || "system",
+        status: "reconciled",
+        reconciled_at: new Date().toISOString(),
+      });
 
-    let remaining = Math.abs(diff);
-    const batches = await getBatchesForProduct(item.productId);
+      let remaining = Math.abs(diff);
+      const batches = await getBatchesForProduct(item.productId);
 
-    if (diff > 0) {
-      // Found more stock than recorded — add it to the soonest-expiring
-      // active batch, or open a new one if the product has none.
-      if (batches.length > 0) {
-        await updateStockBatchQuantity(batches[0].id, remaining);
-        await insert("stock_movements", {
-          product_id: item.productId,
-          stock_batch_id: batches[0].id,
-          movement_type: "adjustment",
-          quantity: remaining,
-          reason: item.reason || "Cycle count adjustment",
-          reference_id: auditId,
-          reference_type: "stock_audit",
-          performed_by: performedBy || null,
-          movement_date: new Date().toISOString(),
-        });
+      if (diff > 0) {
+        // Found more stock than recorded — add it to the soonest-expiring
+        // active batch, or open a new one if the product has none.
+        if (batches.length > 0) {
+          await updateStockBatchQuantity(batches[0].id, remaining);
+          await insert("stock_movements", {
+            product_id: item.productId,
+            stock_batch_id: batches[0].id,
+            movement_type: "adjustment",
+            quantity: remaining,
+            reason: item.reason || "Cycle count adjustment",
+            reference_id: auditId,
+            reference_type: "stock_audit",
+            performed_by: performedBy || null,
+            movement_date: new Date().toISOString(),
+          });
+        } else {
+          const newBatchId = crypto.randomUUID();
+          await createStockBatch({
+            id: newBatchId,
+            product_id: item.productId,
+            batch_number: `AUDIT-${new Date().toISOString().slice(0, 10)}`,
+            quantity: remaining,
+          });
+          await insert("stock_movements", {
+            product_id: item.productId,
+            stock_batch_id: newBatchId,
+            movement_type: "adjustment",
+            quantity: remaining,
+            reason: item.reason || "Cycle count adjustment",
+            reference_id: auditId,
+            reference_type: "stock_audit",
+            performed_by: performedBy || null,
+            movement_date: new Date().toISOString(),
+          });
+        }
       } else {
-        const newBatchId = crypto.randomUUID();
-        await createStockBatch({
-          id: newBatchId,
-          product_id: item.productId,
-          batch_number: `AUDIT-${new Date().toISOString().slice(0, 10)}`,
-          quantity: remaining,
-        });
-        await insert("stock_movements", {
-          product_id: item.productId,
-          stock_batch_id: newBatchId,
-          movement_type: "adjustment",
-          quantity: remaining,
-          reason: item.reason || "Cycle count adjustment",
-          reference_id: auditId,
-          reference_type: "stock_audit",
-          performed_by: performedBy || null,
-          movement_date: new Date().toISOString(),
-        });
-      }
-    } else {
-      // Found less stock than recorded — deduct FEFO across batches until
-      // the shortfall is accounted for or stock runs out.
-      for (const batch of batches) {
-        if (remaining <= 0) break;
-        const deductQty = Math.min(batch.quantity, remaining);
-        if (deductQty <= 0) continue;
+        // Found less stock than recorded — deduct FEFO across batches until
+        // the shortfall is accounted for or stock runs out.
+        for (const batch of batches) {
+          if (remaining <= 0) break;
+          const deductQty = Math.min(batch.quantity, remaining);
+          if (deductQty <= 0) continue;
 
-        await updateStockBatchQuantity(batch.id, -deductQty);
-        await insert("stock_movements", {
-          product_id: item.productId,
-          stock_batch_id: batch.id,
-          movement_type: "adjustment",
-          quantity: -deductQty,
-          reason: item.reason || "Cycle count adjustment",
-          reference_id: auditId,
-          reference_type: "stock_audit",
-          performed_by: performedBy || null,
-          movement_date: new Date().toISOString(),
-        });
-        remaining -= deductQty;
+          await updateStockBatchQuantity(batch.id, -deductQty);
+          await insert("stock_movements", {
+            product_id: item.productId,
+            stock_batch_id: batch.id,
+            movement_type: "adjustment",
+            quantity: -deductQty,
+            reason: item.reason || "Cycle count adjustment",
+            reference_id: auditId,
+            reference_type: "stock_audit",
+            performed_by: performedBy || null,
+            movement_date: new Date().toISOString(),
+          });
+          remaining -= deductQty;
+        }
       }
     }
-  }
+  });
 }
 
 export async function getFastMovers(days: number = 7) {
   // Returned quantities/amounts are netted out of both periods below — a
   // sale that was largely returned shouldn't still count as a "fast mover".
-  const result = await query<any>(
+  const result = await query<FastMoverRow>(
     `WITH current_period AS (
       SELECT
         p.id,
@@ -374,7 +409,7 @@ export async function getFastMovers(days: number = 7) {
     [days.toString(), days.toString(), days.toString(), days.toString(), days.toString(), days.toString(), days.toString()]
   );
   
-  const items = result.map((row: any) => {
+  const items = result.map((row) => {
     let percentageChange = 0;
     if (row.prevQuantity > 0) {
       percentageChange = ((row.soldQuantity - row.prevQuantity) / row.prevQuantity) * 100;
@@ -393,27 +428,27 @@ export async function getStockMoM() {
   const dateFilter30 = thirtyDaysAgo.toISOString();
 
   // Value added in last 30 days
-  const added30 = await query<any>(`
+  const added30 = await query<{ total_added?: number }>(`
     SELECT SUM(ABS(quantity) * IFNULL(unit_cost, 0)) as total_added
     FROM stock_movements
     WHERE created_at >= ? AND movement_type IN ('addition', 'IN', 'purchase', 'return') AND (_deleted = 0 OR _deleted IS NULL)
   `, [dateFilter30]);
 
   // Value removed in last 30 days
-  const removed30 = await query<any>(`
+  const removed30 = await query<{ total_removed?: number }>(`
     SELECT SUM(ABS(quantity) * IFNULL(unit_cost, 0)) as total_removed
     FROM stock_movements
     WHERE created_at >= ? AND movement_type IN ('deduction', 'OUT', 'sale', 'damaged', 'adjustment') AND (_deleted = 0 OR _deleted IS NULL) AND quantity < 0
   `, [dateFilter30]);
-  
+
   // Adjusted additions from positive adjustments
-  const positiveAdjustments = await query<any>(`
+  const positiveAdjustments = await query<{ total_added?: number }>(`
     SELECT SUM(ABS(quantity) * IFNULL(unit_cost, 0)) as total_added
     FROM stock_movements
     WHERE created_at >= ? AND movement_type = 'adjustment' AND (_deleted = 0 OR _deleted IS NULL) AND quantity > 0
   `, [dateFilter30]);
 
-  const currentStock = await query<any>(`
+  const currentStock = await query<{ total_value?: number }>(`
     SELECT SUM(cost_price * quantity) as total_value
     FROM stock_batches
     WHERE is_active = 1 AND (_deleted = 0 OR _deleted IS NULL)

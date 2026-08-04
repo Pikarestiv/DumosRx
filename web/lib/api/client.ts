@@ -1,12 +1,13 @@
 import { apiClient } from "./base-client";
+import type { BroadcastFormData } from "@/lib/types/admin";
 
 class WebApiClient {
-  async register(payload: any) {
+  async register(payload: Record<string, unknown>) {
     const { data } = await apiClient.post("/register", { ...payload, device_name: "web" });
     return data;
   }
 
-  async login(payload: any) {
+  async login(payload: Record<string, unknown>) {
     const { data } = await apiClient.post("/login", { ...payload, device_name: "web" });
     return data;
   }
@@ -16,7 +17,7 @@ class WebApiClient {
     return data;
   }
 
-  async initiatePayment(payload: any) {
+  async initiatePayment(payload: Record<string, unknown>) {
     const { data } = await apiClient.post("/subscription/pay", payload);
     return data;
   }
@@ -57,12 +58,12 @@ class WebApiClient {
     return data;
   }
 
-  async createStaff(payload: any) {
+  async createStaff(payload: Record<string, unknown>) {
     const { data } = await apiClient.post("/staff", payload);
     return data;
   }
 
-  async updateStaff(id: string, payload: any) {
+  async updateStaff(id: string, payload: Record<string, unknown>) {
     const { data } = await apiClient.put(`/staff/${id}`, payload);
     return data;
   }
@@ -82,12 +83,12 @@ class WebApiClient {
     return data;
   }
 
-  async createStore(payload: any) {
+  async createStore(payload: Record<string, unknown>) {
     const { data } = await apiClient.post("/stores", payload);
     return data;
   }
 
-  async updateStore(id: string, payload: any) {
+  async updateStore(id: string, payload: Record<string, unknown>) {
     const { data } = await apiClient.put(`/stores/${id}`, payload);
     return data;
   }
@@ -97,7 +98,7 @@ class WebApiClient {
     return data;
   }
 
-  async updateProfile(payload: any) {
+  async updateProfile(payload: Record<string, unknown>) {
     const { data } = await apiClient.post("/profile/update", payload);
     return data;
   }
@@ -117,7 +118,7 @@ class WebApiClient {
     return data;
   }
 
-  async changePassword(payload: any) {
+  async changePassword(payload: Record<string, unknown>) {
     const { data } = await apiClient.post("/profile/change-password", payload);
     return data;
   }
@@ -127,22 +128,26 @@ class WebApiClient {
     return data;
   }
 
-  async resetPassword(payload: any) {
+  async resetPassword(payload: Record<string, unknown>) {
     const { data } = await apiClient.post("/reset-password", payload);
     return data;
   }
 
-  async post(url: string, payload: any) {
+  async post(url: string, payload: Record<string, unknown>) {
     const { data } = await apiClient.post(url, payload);
     return data;
   }
 
-  async request<T>(url: string, options: any = {}): Promise<T> {
+  async request<T>(
+    url: string,
+    options: { method?: string; body?: unknown; [key: string]: unknown } = {},
+  ): Promise<T> {
+    const { method, body, ...rest } = options;
     const response = await apiClient({
       url,
-      method: options.method || "GET",
-      data: options.body,
-      ...options,
+      method: method || "GET",
+      data: body,
+      ...rest,
     });
     return response.data;
   }
@@ -158,12 +163,12 @@ class WebApiClient {
     return data;
   }
 
-  async createBroadcast(payload: any) {
+  async createBroadcast(payload: BroadcastFormData) {
     const { data } = await apiClient.post("/admin/announcements", payload);
     return data;
   }
 
-  async updateBroadcast(id: string, payload: any) {
+  async updateBroadcast(id: string, payload: BroadcastFormData) {
     const { data } = await apiClient.put(`/admin/announcements/${id}`, payload);
     return data;
   }
@@ -179,7 +184,10 @@ class WebApiClient {
   }
 
   async impersonateStore(id: string) {
-    const { data } = await apiClient.post(`/admin/stores/${id}/impersonate`);
+    const { data } = await apiClient.post<{
+      token: string;
+      user: { name: string; [key: string]: unknown };
+    }>(`/admin/stores/${id}/impersonate`);
     return data;
   }
 
@@ -232,7 +240,7 @@ class WebApiClient {
     }
   }
 
-  async updateSystemConfig(key: string, value: any) {
+  async updateSystemConfig(key: string, value: unknown) {
     const { data } = await apiClient.put(`/admin/system-configs/${key}`, { value });
     return data;
   }

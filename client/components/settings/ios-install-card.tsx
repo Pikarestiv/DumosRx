@@ -15,7 +15,7 @@ import { isTauri } from "@/lib/db/core";
 
 function isIos() {
   if (typeof window === "undefined") return false;
-  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 }
 
 /**
@@ -36,7 +36,7 @@ function isStandalone() {
   if (typeof window === "undefined") return false;
   return (
     window.matchMedia("(display-mode: standalone)").matches ||
-    (window.navigator as any).standalone === true
+    window.navigator.standalone === true
   );
 }
 

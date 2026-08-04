@@ -12,9 +12,10 @@ import { ChevronUp, ShoppingCart } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { POLineItemsList } from "./po-line-items-list";
 import { StoreType } from "@/lib/context/store-context";
+import type { DraftPOLineItem } from "@/lib/db/procurement";
 
 interface POMobileSummaryDrawerProps {
-  items: any[];
+  items: DraftPOLineItem[];
   totalAmount: number;
   selectedSupplierName: string;
   storeType: StoreType;

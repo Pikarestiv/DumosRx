@@ -12,14 +12,17 @@ import { toast } from "sonner";
 import { useSystemConfig, useUpdateSystemConfigMutation } from "@/lib/api/hooks";
 import { useEffect } from "react";
 import { PlanTierCard } from "./plan-tier-card";
+import type { SubscriptionConfig, SocialLinksConfig } from "@/lib/types/admin";
 
 export function SubscriptionConfigTab() {
 
-  const { data: serverConfig, isLoading, isError } = useSystemConfig("subscription_plans");
-  const { data: socialConfig, isLoading: isSocialLoading } = useSystemConfig("social_links");
+  const { data: serverConfigData, isLoading, isError } = useSystemConfig("subscription_plans");
+  const serverConfig = serverConfigData as Partial<SubscriptionConfig> | undefined;
+  const { data: socialConfigData, isLoading: isSocialLoading } = useSystemConfig("social_links");
+  const socialConfig = socialConfigData as Partial<SocialLinksConfig> | undefined;
   const updateMutation = useUpdateSystemConfigMutation();
 
-  const [config, setConfig] = useState({
+  const [config, setConfig] = useState<SubscriptionConfig>({
     trial_days: 14,
     trial_plan: "pro",
     grace_period_days: 3,
@@ -37,7 +40,7 @@ export function SubscriptionConfigTab() {
     }
   });
 
-  const [socialLinks, setSocialLinks] = useState({
+  const [socialLinks, setSocialLinks] = useState<SocialLinksConfig>({
     twitter: "",
     facebook: "",
     linkedin: "",
@@ -56,6 +59,9 @@ export function SubscriptionConfigTab() {
     if (serverConfig) {
       setConfig({
         ...serverConfig,
+        trial_days: serverConfig.trial_days ?? 14,
+        grace_period_days: serverConfig.grace_period_days ?? 3,
+        enable_paystack: serverConfig.enable_paystack ?? true,
         enable_flutterwave: serverConfig.enable_flutterwave ?? true,
         enable_manual_payment: serverConfig.enable_manual_payment ?? true,
         manual_payment_bank: serverConfig.manual_payment_bank ?? "Moniepoint",
@@ -119,8 +125,8 @@ export function SubscriptionConfigTab() {
     try {
       await updateMutation.mutateAsync({ key: "subscription_plans", value: config });
       toast.success("Pricing configuration saved successfully!");
-    } catch (error: any) {
-      toast.error(error.message || "Failed to save configuration");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to save configuration");
     }
   };
 
@@ -128,8 +134,8 @@ export function SubscriptionConfigTab() {
     try {
       await updateMutation.mutateAsync({ key: "social_links", value: socialLinks });
       toast.success("Social links saved successfully!");
-    } catch (error: any) {
-      toast.error(error.message || "Failed to save social links");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to save social links");
     }
   };
 
@@ -304,16 +310,16 @@ export function SubscriptionConfigTab() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {["twitter", "facebook", "linkedin", "github", "instagram"].map((platform) => (
+          {(["twitter", "facebook", "linkedin", "github", "instagram"] as const).map((platform) => (
             <div key={platform} className="flex flex-col md:flex-row md:items-center gap-4 p-4 border rounded-xl bg-slate-50 dark:bg-slate-900/50">
               <div className="flex-1 space-y-1">
                 <Label className="capitalize font-bold text-sm">{platform} URL</Label>
                 <Input
                   type="text"
                   placeholder={`e.g. https://${platform}.com/dumosrx`}
-                  value={(socialLinks as any)[platform]}
+                  value={socialLinks[platform]}
                   onChange={(e) => setSocialLinks({ ...socialLinks, [platform]: e.target.value })}
-                  disabled={!(socialLinks.active_links as any)[platform]}
+                  disabled={!socialLinks.active_links[platform]}
                   className="bg-white dark:bg-slate-900 border-accent/20"
                 />
               </div>
@@ -321,7 +327,7 @@ export function SubscriptionConfigTab() {
                 <Label htmlFor={`toggle-${platform}`} className="text-xs text-muted-foreground">Active</Label>
                 <Switch
                   id={`toggle-${platform}`}
-                  checked={(socialLinks.active_links as any)[platform]}
+                  checked={socialLinks.active_links[platform]}
                   onCheckedChange={(c) => setSocialLinks({
                     ...socialLinks,
                     active_links: {

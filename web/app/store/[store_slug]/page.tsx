@@ -4,6 +4,7 @@ import { FooterSection } from "@/components/landing/footer-section";
 import { Badge } from "@/components/ui/badge";
 import { ProductCard } from "@/components/storefront/product-card";
 import { StorefrontCart } from "@/components/storefront/storefront-cart";
+import type { StorefrontProduct } from "@/lib/types/storefront";
 
 interface StorefrontProps {
   params: {
@@ -85,7 +86,7 @@ export default async function StorefrontPage({ params }: StorefrontProps) {
               later.
             </div>
           ) : (
-            products.map((product: any) => (
+            products.map((product: StorefrontProduct) => (
               <ProductCard key={product.id} product={product} />
             ))
           )}

@@ -10,7 +10,7 @@ import { devLog } from "@/lib/utils/dev-log";
 
 export type StoreType = "pharmacy" | "grocery" | "supermarket" | "retail";
 
-interface StoreProfile {
+export interface StoreProfile {
   id: string;
   name: string;
   store_type: StoreType;
@@ -42,6 +42,9 @@ interface StoreProfile {
   enabled_payment_methods?: string;
   store_slug?: string;
   updated_at?: string;
+  license_token?: string;
+  last_monotonic_time?: string;
+  device_id?: string;
 }
 
 interface StoreContextType {
@@ -57,7 +60,7 @@ interface StoreContextType {
   activeStoreId: string | null;
   availableStores: StoreProfile[];
   switchStore: (storeId: string) => void;
-  refetch: () => Promise<any>;
+  refetch: () => Promise<unknown>;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -274,7 +277,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   return (
     <StoreContext.Provider
       value={{
-        storeProfile,
+        storeProfile: storeProfile ?? null,
         loading,
         storeType,
         theme,

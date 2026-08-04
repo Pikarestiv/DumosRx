@@ -1,7 +1,13 @@
 import { query } from "@/lib/db/local-database";
+import type {
+  PrescriptionItem,
+  PrescriptionRow,
+  PrescriptionUpdatePayload,
+  PrescriptionItemInsertPayload,
+} from "@/lib/types/prescription";
 
 export async function getPrescriptionById(id: string) {
-  const pData = await query<any>(
+  const pData = await query<PrescriptionRow>(
     "SELECT * FROM prescriptions WHERE id = ? AND _deleted = 0",
     [id]
   );
@@ -9,27 +15,39 @@ export async function getPrescriptionById(id: string) {
 }
 
 export async function getPrescriptionItems(prescriptionId: string) {
-  return await query<any>(
+  return await query<PrescriptionItem>(
     "SELECT * FROM prescription_items WHERE prescription_id = ? AND _deleted = 0",
     [prescriptionId]
   );
 }
 
 export async function getQueueCount() {
-  const result = await query<any>(
+  const result = await query<{ count: number }>(
     "SELECT COUNT(*) as count FROM prescriptions WHERE _deleted = 0 AND status IN ('pending', 'processing')"
   );
   return result[0]?.count || 0;
 }
 
 
-export async function updatePrescriptionRecord(id: string, data: any) {
+export async function updatePrescriptionRecord(id: string, data: PrescriptionUpdatePayload) {
   const { patient_name, patient_phone, patient_age, doctor_name, doctor_license, priority, insurance, notes, total_cost, updated_at } = data;
   return query(
     `UPDATE prescriptions 
      SET patient_name = ?, patient_phone = ?, patient_age = ?, doctor_name = ?, doctor_license = ?, priority = ?, insurance = ?, notes = ?, total_cost = ?, updated_at = ?
      WHERE id = ?`,
-    [patient_name, patient_phone, patient_age, doctor_name, doctor_license, priority, insurance, notes, total_cost, updated_at, id]
+    [
+      patient_name ?? null,
+      patient_phone ?? null,
+      patient_age ?? null,
+      doctor_name ?? null,
+      doctor_license ?? null,
+      priority ?? null,
+      insurance ?? null,
+      notes ?? null,
+      total_cost ?? null,
+      updated_at,
+      id,
+    ]
   );
 }
 
@@ -40,16 +58,50 @@ export async function deletePrescriptionItems(prescriptionId: string) {
   );
 }
 
-export async function insertPrescriptionItem(data: any) {
+export async function insertPrescriptionItem(data: PrescriptionItemInsertPayload) {
   return await query(
     `INSERT INTO prescription_items (id, prescription_id, product_name, strength, dosage, quantity, instructions, cost, refills_authorized, refill_interval_days, next_refill_date, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [data.id, data.prescription_id, data.product_name, data.strength, data.dosage, data.quantity, data.instructions, data.cost, data.refills_authorized, data.refill_interval_days, data.next_refill_date, data.created_at, data.updated_at]
+    [
+      data.id,
+      data.prescription_id,
+      data.product_name,
+      data.strength ?? null,
+      data.dosage ?? null,
+      data.quantity ?? null,
+      data.instructions ?? null,
+      data.cost ?? null,
+      data.refills_authorized ?? null,
+      data.refill_interval_days ?? null,
+      data.next_refill_date ?? null,
+      data.created_at ?? null,
+      data.updated_at ?? null,
+    ]
   );
 }
+export interface RefillManagementRow {
+  id: string;
+  prescription_id: string;
+  prescription_number?: string;
+  patient_name?: string;
+  patient_phone?: string;
+  doctor_name?: string;
+  product_name: string;
+  strength?: string;
+  dosage?: string;
+  quantity?: number;
+  instructions?: string;
+  cost?: number;
+  refills_authorized?: number;
+  refills_used?: number;
+  refill_interval_days?: number;
+  next_refill_date?: string;
+  updated_at?: string;
+}
+
 export async function getRefillManagementData() {
-  return query<any>(
-    `SELECT 
+  return query<RefillManagementRow>(
+    `SELECT
       pi.id,
       p.id as prescription_id,
       p.prescription_number,
@@ -77,19 +129,19 @@ export async function getActivePrescriptions() {
   // Includes completed prescriptions too — the queue view filters by status
   // client-side (including the "History" chip), so excluding completed here
   // made that chip always render empty.
-  return query<any>(
+  return query<PrescriptionRow>(
     "SELECT * FROM prescriptions WHERE _deleted = 0 ORDER BY created_at DESC"
   );
 }
 
 export async function getHistoryPrescriptions() {
-  return query<any>(
+  return query<PrescriptionRow>(
     "SELECT * FROM prescriptions WHERE _deleted = 0 AND status = 'completed' ORDER BY created_at DESC"
   );
 }
 
 export async function getAllPrescriptionItems() {
-  return await query<any>(
+  return await query<PrescriptionItem>(
     "SELECT * FROM prescription_items WHERE _deleted = 0"
   );
 }
@@ -113,7 +165,7 @@ export async function dispensePrescriptionRefill(prescriptionId: string) {
   const { update } = await import("@/lib/db/local-database");
   const now = new Date();
 
-  const items = await query<any>(
+  const items = await query<PrescriptionItem>(
     "SELECT * FROM prescription_items WHERE prescription_id = ? AND _deleted = 0 AND refills_authorized > refills_used",
     [prescriptionId]
   );
@@ -134,7 +186,7 @@ export async function dispensePrescriptionRefill(prescriptionId: string) {
 
 /** Prescription items with at least one refill remaining and due today or earlier. */
 export async function getRefillsDue() {
-  return query<any>(
+  return query<PrescriptionItem & { prescription_number?: string; patient_name?: string; prescription_status?: string }>(
     `SELECT pi.*, p.prescription_number, p.patient_name, p.status as prescription_status
      FROM prescription_items pi
      JOIN prescriptions p ON pi.prescription_id = p.id

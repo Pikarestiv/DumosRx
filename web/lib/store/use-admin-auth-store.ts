@@ -39,7 +39,7 @@ export const useAdminAuthStore = create<AdminAuthState>()(
       fetchUser: async () => {
         set({ loading: true });
         try {
-          const user = await webApiClient.request<any>("user");
+          const user = await webApiClient.request<User>("user");
           set({ user, loading: false });
         } catch (_error) {
           set({ user: null, token: null, loading: false });

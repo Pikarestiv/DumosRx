@@ -6,15 +6,8 @@ import { getAllCustomers } from "@/lib/db/queries/customers";
 import { getPaymentAccounts } from "@/lib/db/queries/setup";
 import { queryKeys } from "@/lib/query-keys";
 export type { POSProduct as Product } from "@/lib/types/product";
-
-export interface Customer {
-  id: string;
-  first_name: string;
-  last_name: string;
-  phone: string;
-  loyalty_points: number;
-  outstanding_balance: number;
-}
+export type { Customer } from "@/lib/types/customer";
+export type { PaymentAccount } from "@/lib/types/payment-account";
 
 export function usePOSData() {
   const { user } = useAuth();

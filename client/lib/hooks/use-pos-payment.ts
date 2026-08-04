@@ -8,15 +8,10 @@ import { updatePrescriptionStatus, dispensePrescriptionRefill } from "@/lib/db/q
 import { CartItem } from "./use-pos-cart";
 import { calculateEarnedPoints } from "@/lib/utils/loyalty-calculator";
 import { calculateTaxPercentage } from "@/lib/utils/pos-calculations";
+import type { Customer } from "@/lib/types/customer";
+import type { ReceiptTransaction } from "@/components/pos/receipt-view";
 
-export interface Customer {
-  id: string;
-  first_name: string;
-  last_name: string;
-  phone: string;
-  loyalty_points: number;
-  outstanding_balance: number;
-}
+export type { Customer };
 
 interface UsePOSPaymentProps {
   cart: CartItem[];
@@ -64,7 +59,8 @@ export function usePOSPayment({
     { method: string; amount: number; accountId?: string }[]
   >([]);
   const [processingPayment, setProcessingPayment] = useState(false);
-  const [completedTransaction, setCompletedTransaction] = useState<any>(null);
+  const [completedTransaction, setCompletedTransaction] =
+    useState<ReceiptTransaction | null>(null);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [showReceiptDialog, setShowReceiptDialog] = useState(false);
 
@@ -259,10 +255,15 @@ export function usePOSPayment({
       refetchProducts();
       if (refetchSales) refetchSales();
 
-      const transaction = {
+      const transaction: ReceiptTransaction = {
         id: saleId,
         date: new Date().toISOString(),
-        customer: selectedCustomer,
+        customer: selectedCustomer
+          ? {
+              name: `${selectedCustomer.first_name} ${selectedCustomer.last_name || ""}`.trim(),
+              phone: selectedCustomer.phone,
+            }
+          : null,
         cashier: user?.first_name
           ? `${user.first_name} ${user.last_name || ""}`.trim()
           : user?.username || "Cashier",
@@ -272,7 +273,7 @@ export function usePOSPayment({
         discount,
         total,
         paymentMethod,
-        paymentSplits: paymentMethod === "mixed" ? paymentSplits : null,
+        paymentSplits: paymentMethod === "mixed" ? paymentSplits : undefined,
         amountPaid:
           paymentMethod === "cash"
             ? Number.parseFloat(amountPaid)

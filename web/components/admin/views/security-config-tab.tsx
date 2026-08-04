@@ -25,8 +25,8 @@ export function SecurityConfigTab() {
     try {
       await updateMutation.mutateAsync({ key: "require_email_verification", value: requireVerification });
       toast.success("Security configuration saved successfully!");
-    } catch (error: any) {
-      toast.error(error.message || "Failed to save configuration");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to save configuration");
     }
   };
 

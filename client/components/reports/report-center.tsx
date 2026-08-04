@@ -117,7 +117,7 @@ export function ReportCenter() {
     },
     {
       id: "stock_batches",
-      title: "Stock Batch Valuation",
+      title: "Inventory Valuation",
       description: "Current stock levels, cost value, and potential selling value.",
       icon: ClipboardList,
       category: "Operations",
@@ -243,13 +243,16 @@ export function ReportCenter() {
           </div>
         </Card>
 
-        {/* Recent Downloads */}
-        <Card className="border rounded-2xl p-5 shadow-sm">
-          <div>
+        {/* Recent Downloads — min-h-0 stops this card's own content from
+            growing the shared grid row taller than Report Center's natural
+            height; the list scrolls internally instead once it overflows
+            whatever height that row ends up being. */}
+        <Card className="border rounded-2xl p-5 shadow-sm flex flex-col min-h-0">
+          <div className="shrink-0">
             <div className="text-[14.5px] font-semibold mb-0.5">Recent Downloads</div>
             <div className="text-[12px] text-muted-foreground">Reports generated in this browser session</div>
           </div>
-          <div>
+          <div className="flex-1 min-h-0 overflow-y-auto">
             {recentDownloads.length === 0 ? (
               <RecentDownloadsEmptyState />
             ) : (

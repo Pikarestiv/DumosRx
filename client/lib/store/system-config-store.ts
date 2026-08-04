@@ -1,8 +1,9 @@
 import { create } from "zustand";
+import type { SubscriptionPlansConfig } from "@/lib/types/subscription-plans";
 
 interface SystemConfigState {
-  subscriptionPlans: any | null;
-  setSubscriptionPlans: (plans: any) => void;
+  subscriptionPlans: SubscriptionPlansConfig | null;
+  setSubscriptionPlans: (plans: SubscriptionPlansConfig) => void;
   isLoadedFromDB: boolean;
   setLoadedFromDB: (status: boolean) => void;
 }

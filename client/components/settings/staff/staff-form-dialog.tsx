@@ -19,6 +19,7 @@ import {
 import { Loader2, Info } from "lucide-react";
 import { toast } from "sonner";
 import { useMutateUser } from "@/lib/hooks/queries/use-users";
+import type { StaffUpdatePayload, StaffListItem } from "@/lib/types/user";
 import {
   Tooltip,
   TooltipContent,
@@ -29,7 +30,7 @@ import {
 interface StaffFormDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  userToEdit?: any | null; // null if creating
+  userToEdit?: StaffListItem | null; // null if creating
   activeStoreId: string | null;
   onSuccess: () => void;
 }
@@ -99,7 +100,7 @@ export function StaffFormDialog({
     setIsSubmitting(true);
     try {
       if (isEditing) {
-        const updateData: any = {
+        const updateData: StaffUpdatePayload = {
           first_name: formData.first_name.trim(),
           last_name: formData.last_name.trim(),
           username: formData.username,
@@ -128,9 +129,10 @@ export function StaffFormDialog({
       }
       onOpenChange(false);
       onSuccess();
-    } catch (error: any) {
+    } catch (error) {
       console.error("Failed to save user:", error);
-      if (error.message?.includes("UNIQUE")) {
+      const message = error instanceof Error ? error.message : "";
+      if (message.includes("UNIQUE")) {
         toast.error("Username already exists");
       } else {
         toast.error(

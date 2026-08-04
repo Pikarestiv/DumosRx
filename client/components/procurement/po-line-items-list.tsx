@@ -3,9 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/utils";
 import { StoreType } from "@/lib/context/store-context";
+import type { DraftPOLineItem } from "@/lib/db/procurement";
 
 interface POLineItemsListProps {
-  items: any[];
+  items: DraftPOLineItem[];
   onRemoveItem: (index: number) => void;
   storeType: StoreType;
 }

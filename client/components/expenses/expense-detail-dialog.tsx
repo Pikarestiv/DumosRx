@@ -18,9 +18,10 @@ import { toast } from "sonner";
 import { useState } from "react";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useStore } from "@/lib/context/store-context";
+import type { Expense } from "@/lib/db/queries/finance";
 
 interface ExpenseDetailDialogProps {
-  expense: any;
+  expense: Expense | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onDeleted: () => void;

@@ -1,8 +1,9 @@
 import React from "react";
 import { Minus, Plus } from "lucide-react";
+import type { AuditItem } from "./stock-audits";
 
 interface AuditCountStepProps {
-  activeItem: any;
+  activeItem: AuditItem | null;
   currentCount: number | "";
   setCurrentCount: (count: number | "") => void;
   reason: string;

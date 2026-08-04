@@ -13,12 +13,13 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { RefreshCcw, AlertTriangle, Clock, Package } from "lucide-react";
+import type { StoreDetail, StockBatchItem } from "@/lib/types/dashboard";
 
-export function StoreStockBatchTab({ store }: { store: any }) {
+export function StoreStockBatchTab({ store }: { store: StoreDetail }) {
   const [loading, setLoading] = useState(true);
-  const [stock_batch, setStockBatch] = useState<any[]>([]);
-  const [lowStock, setLowStock] = useState<any[]>([]);
-  const [expiring, setExpiring] = useState<any[]>([]);
+  const [stock_batch, setStockBatch] = useState<StockBatchItem[]>([]);
+  const [lowStock, setLowStock] = useState<StockBatchItem[]>([]);
+  const [expiring, setExpiring] = useState<StockBatchItem[]>([]);
   const [totalValue, setTotalValue] = useState(0);
   const [subTab, setSubTab] = useState<"all" | "low_stock" | "expiring">("all");
 
@@ -176,7 +177,7 @@ export function StoreStockBatchTab({ store }: { store: any }) {
                   <TableCell className="text-right">
                     <span
                       className={
-                        item.quantity <= item.reorder_level
+                        item.quantity <= (item.reorder_level ?? 0)
                           ? "text-destructive font-medium"
                           : ""
                       }

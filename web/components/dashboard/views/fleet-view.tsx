@@ -41,15 +41,16 @@ import { toast } from "sonner";
 import { useDeleteStoreMutation } from "@/lib/api/hooks";
 import { StoreModal } from "../store-modal";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import type { FleetStore } from "@/lib/types/dashboard";
 
 interface FleetViewProps {
-  stores: any[];
+  stores: FleetStore[];
 }
 
 export function FleetView({ stores: initialStores }: FleetViewProps) {
   const router = useRouter();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingStore, setEditingStore] = useState<any>(null);
+  const [editingStore, setEditingStore] = useState<FleetStore | null>(null);
   const deleteMutation = useDeleteStoreMutation();
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
@@ -64,12 +65,12 @@ export function FleetView({ stores: initialStores }: FleetViewProps) {
     setIsModalOpen(true);
   };
 
-  const handleEdit = (store: any) => {
+  const handleEdit = (store: FleetStore) => {
     setEditingStore(store);
     setIsModalOpen(true);
   };
 
-  const handleView = (store: any) => {
+  const handleView = (store: FleetStore) => {
     router.push(`/dashboard/store-details?id=${store.id}`);
   };
 
@@ -80,7 +81,7 @@ export function FleetView({ stores: initialStores }: FleetViewProps) {
   const confirmDeleteStore = (storeId: string) => {
     deleteMutation.mutate(storeId, {
       onSuccess: () => toast.success("Store removed successfully"),
-      onError: (err: any) =>
+      onError: (err) =>
         toast.error(err.message || "Failed to remove store"),
     });
     setDeleteTargetId(null);
@@ -148,7 +149,7 @@ export function FleetView({ stores: initialStores }: FleetViewProps) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {storesToDisplay.map((store: any) => (
+                {storesToDisplay.map((store) => (
                   <TableRow
                     key={store.id}
                     className="border-muted hover:bg-muted/30"
@@ -182,13 +183,13 @@ export function FleetView({ stores: initialStores }: FleetViewProps) {
                       </div>
                     </TableCell>
                     <TableCell className="text-center">
-                      {store.low_stock_alerts > 0 ||
-                      store.expiring_items > 0 ? (
+                      {(store.low_stock_alerts || 0) > 0 ||
+                      (store.expiring_items || 0) > 0 ? (
                         <Badge
                           variant="destructive"
                           className="font-bold text-[10px]"
                         >
-                          {store.low_stock_alerts + store.expiring_items} Alerts
+                          {(store.low_stock_alerts || 0) + (store.expiring_items || 0)} Alerts
                         </Badge>
                       ) : (
                         <span className="text-muted-foreground text-xs">

@@ -21,13 +21,25 @@ import {
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
-import { ADMIN_SEARCH_ACTIONS } from "@/lib/constants/admin-search-actions";
+import { ADMIN_SEARCH_ACTIONS, type AdminSearchAction } from "@/lib/constants/admin-search-actions";
 import { webApiClient } from "@/lib/api/client";
+
+interface SearchResultItem {
+  id: string;
+  title: string;
+  href: string;
+  type: string;
+  icon?: string;
+}
+
+type SearchResults = Record<string, SearchResultItem[]> & {
+  actions?: AdminSearchAction[];
+};
 
 export function AdminHeaderSearch() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<any>(null);
+  const [searchResults, setSearchResults] = useState<SearchResults | null>(null);
   const [_isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
 
@@ -36,7 +48,7 @@ export function AdminHeaderSearch() {
       if (searchQuery.length >= 2) {
         setIsSearching(true);
         try {
-          const results = await webApiClient.request<any>(
+          const results = await webApiClient.request<Record<string, SearchResultItem[]>>(
             `admin/search?query=${encodeURIComponent(searchQuery)}`,
           );
 
@@ -108,7 +120,7 @@ export function AdminHeaderSearch() {
           />
           <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 p-2 z-50 max-h-[480px] overflow-y-auto animate-in fade-in slide-in-from-top-2 duration-200">
             {Object.entries(searchResults).map(
-              ([type, items]: [string, any]) =>
+              ([type, items]) =>
                 items.length > 0 && (
                   <div key={type} className="mb-4 last:mb-0">
                     <div className="px-3 py-1.5 flex items-center justify-between">
@@ -123,7 +135,7 @@ export function AdminHeaderSearch() {
                       </Badge>
                     </div>
                     <div className="space-y-0.5">
-                      {items.map((item: any) => (
+                      {items.map((item) => (
                         <button
                           key={item.id}
                           onClick={() => {
@@ -225,7 +237,7 @@ export function AdminHeaderSearch() {
                   </div>
                 ),
             )}
-            {!Object.values(searchResults).some((items: any) => items.length > 0) && (
+            {!Object.values(searchResults).some((items) => items.length > 0) && (
               <div className="p-8 text-center">
                 <p className="text-sm font-bold text-slate-500 italic">
                   No results found for "{searchQuery}"

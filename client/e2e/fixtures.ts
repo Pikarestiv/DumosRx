@@ -34,14 +34,14 @@ export const test = base.extend({
       await page.evaluate(async (data) => {
         // Wait for window.restoreDatabase to be available
         let attempts = 0;
-        while (typeof (window as any).restoreDatabase !== 'function' && attempts < 50) {
+        while (typeof window.restoreDatabase !== 'function' && attempts < 50) {
           await new Promise(r => setTimeout(r, 100));
           attempts++;
         }
-        
-        if (typeof (window as any).restoreDatabase === 'function') {
+
+        if (typeof window.restoreDatabase === 'function') {
           const uint8 = new Uint8Array(data);
-          await (window as any).restoreDatabase(uint8);
+          await window.restoreDatabase(uint8);
         } else {
           console.error("restoreDatabase not found on window");
         }

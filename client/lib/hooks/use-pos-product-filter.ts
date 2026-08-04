@@ -1,8 +1,9 @@
 import { useMemo } from "react";
 import { searchProducts } from "@/lib/utils/search";
+import type { POSProduct } from "@/lib/types/product";
 
 /** Category-then-search filtering for the POS product grid, plus the distinct category list used by the filter chips. */
-export function usePOSProductFilter(products: any[], searchTerm: string, categoryFilter: string) {
+export function usePOSProductFilter(products: POSProduct[], searchTerm: string, categoryFilter: string) {
   const categories = useMemo(() => {
     const names = new Set<string>();
     for (const product of products) {
@@ -13,7 +14,7 @@ export function usePOSProductFilter(products: any[], searchTerm: string, categor
 
   const categoryFilteredProducts = useMemo(() => {
     if (categoryFilter === "all") return products;
-    return products.filter((p: any) => p.category_name === categoryFilter);
+    return products.filter((p) => p.category_name === categoryFilter);
   }, [products, categoryFilter]);
 
   const { results: filteredProducts, isFuzzyFallback } = useMemo(() => {

@@ -104,7 +104,7 @@ export function FeedbackTab() {
             <p className="text-sm text-slate-500">There is no feedback matching your filter.</p>
           </div>
         ) : (
-          data?.data?.map((item: any) => (
+          data?.data?.map((item) => (
             <Card key={item.id} className="rounded-3xl border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
               <CardHeader className="bg-slate-50/50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800 pb-4">
                 <div className="flex justify-between items-start">

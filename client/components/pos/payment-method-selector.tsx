@@ -3,12 +3,13 @@
 import { Button } from "@/components/ui/button";
 import { Banknote, CreditCard, Smartphone, Wallet } from "lucide-react";
 import { toast } from "sonner";
+import type { Customer } from "@/lib/types/customer";
 
 interface PaymentMethodSelectorProps {
   paymentMethod: string;
   setPaymentMethod: (method: "cash" | "card" | "transfer" | "credit" | "mixed") => void;
   enabledPaymentMethods: string[];
-  selectedCustomer: any;
+  selectedCustomer: Customer | null;
 }
 
 export function PaymentMethodSelector({

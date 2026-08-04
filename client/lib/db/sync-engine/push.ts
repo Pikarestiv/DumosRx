@@ -1,6 +1,7 @@
 import { getPendingSyncItems, markSynced, recordSyncFailure } from "../local-database";
 import { apiClient } from "@/lib/api/client";
 import { PushResponse } from "./types";
+import type { SyncChange } from "@/lib/types/sync";
 
 const SYNC_BATCH_SIZE = 50;
 
@@ -39,10 +40,15 @@ export async function pushChanges(
     try {
       const rejected: { id: number; reason: string }[] = [];
 
-      const mapped = batch.map((item) => {
+      const mapped: SyncChange[] = batch.map((item) => {
         const payload = JSON.parse(item.payload);
         delete payload._deleted;
-        delete payload._version;
+        // _version is intentionally kept — the server's conflict resolution
+        // compares it against its own copy to decide whether this update is
+        // stale (see SyncController::push). Stripping it here used to force
+        // every conflict check onto the weaker updated_at-timestamp fallback,
+        // which trusts each device's local clock instead of a monotonic
+        // per-record counter.
         delete payload._synced;
         delete payload._synced_at;
 
@@ -60,14 +66,14 @@ export async function pushChanges(
           // Prevent bad payloads from blocking the entire sync queue
           if (
             item.payload.category_id &&
-            !UUID_REGEX.test(item.payload.category_id)
+            !UUID_REGEX.test(item.payload.category_id as string)
           ) {
             rejected.push({ id: item.id, reason: "Invalid category_id (not a UUID)" });
             return false;
           }
           if (
             item.payload.supplier_id &&
-            !UUID_REGEX.test(item.payload.supplier_id)
+            !UUID_REGEX.test(item.payload.supplier_id as string)
           ) {
             rejected.push({ id: item.id, reason: "Invalid supplier_id (not a UUID)" });
             return false;

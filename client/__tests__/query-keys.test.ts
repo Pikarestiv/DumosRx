@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { Query } from '@tanstack/react-query';
 import { queryKeys } from '../lib/query-keys';
 
 vi.mock('../lib/query-client', () => ({
@@ -6,9 +7,9 @@ vi.mock('../lib/query-client', () => ({
 }));
 
 vi.mock('../lib/db/core', async () => {
-  const actual = await vi.importActual('../lib/db/core');
+  const actual = await vi.importActual<typeof import('../lib/db/core')>('../lib/db/core');
   return {
-    ...(actual as any),
+    ...actual,
     execute: vi.fn(),
     query: vi.fn(),
     logAction: vi.fn(),
@@ -62,8 +63,8 @@ describe('queryKeys factory', () => {
 // real QueryClient's cache here, so instead we capture the predicate that
 // was passed and exercise it directly against fake `Query`-shaped objects,
 // the same way the real QueryClient would when walking its cache.
-function fakeQuery(tables?: string[]) {
-  return { meta: tables ? { tables } : undefined } as any;
+function fakeQuery(tables?: string[]): Query {
+  return { meta: tables ? { tables } : undefined } as Query;
 }
 
 describe('base-helpers invalidateQueriesForTable predicate', () => {
@@ -75,15 +76,15 @@ describe('base-helpers invalidateQueriesForTable predicate', () => {
   async function getCapturedPredicate(table: string) {
     const { queryClient } = await import('../lib/query-client');
     const { execute, query, logAction } = await import('../lib/db/core');
-    vi.mocked(execute as any).mockResolvedValue(true);
-    vi.mocked(query as any).mockResolvedValue([]);
-    vi.mocked(logAction as any).mockResolvedValue(true);
+    vi.mocked(execute).mockResolvedValue(undefined);
+    vi.mocked(query).mockResolvedValue([]);
+    vi.mocked(logAction).mockResolvedValue(undefined);
 
     const { insert } = await import('../lib/db/base-helpers');
     await insert(table, { id: 'rec-1' });
 
-    const call = vi.mocked(queryClient.invalidateQueries).mock.calls[0][0] as any;
-    return call.predicate as (q: any) => boolean;
+    const call = vi.mocked(queryClient.invalidateQueries).mock.calls[0][0];
+    return call?.predicate as (q: Query) => boolean;
   }
 
   it('invalidates a query tagged with the mutated table', async () => {

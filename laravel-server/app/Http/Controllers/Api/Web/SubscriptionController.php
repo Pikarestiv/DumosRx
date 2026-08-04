@@ -15,9 +15,35 @@ use App\Services\Payment\PaymentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Exception;
+use OpenApi\Attributes as OA;
 
 class SubscriptionController extends Controller
 {
+    #[OA\Get(
+        path: '/subscription/status',
+        summary: "Get the caller's current subscription status",
+        tags: ['Subscription'],
+        security: [['sanctum' => []]],
+        responses: [
+            new OA\Response(response: 200, description: 'Status', content: new OA\JsonContent(oneOf: [
+                new OA\Schema(properties: [
+                    new OA\Property(property: 'status', type: 'string', example: 'inactive'),
+                    new OA\Property(property: 'message', type: 'string'),
+                ]),
+                new OA\Schema(properties: [
+                    new OA\Property(property: 'status', type: 'string', example: 'active'),
+                    new OA\Property(property: 'plan', type: 'string'),
+                    new OA\Property(property: 'expires_at', type: 'string', format: 'date-time'),
+                    new OA\Property(property: 'days_remaining', type: 'integer'),
+                    new OA\Property(property: 'is_trial', type: 'boolean'),
+                    new OA\Property(property: 'license_key', type: 'string'),
+                    new OA\Property(property: 'limits', type: 'object', nullable: true),
+                    new OA\Property(property: 'features', type: 'object', nullable: true),
+                ]),
+            ])),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+        ],
+    )]
     public function status()
     {
         /** @var User $user */
@@ -48,6 +74,37 @@ class SubscriptionController extends Controller
         ]);
     }
 
+    #[OA\Post(
+        path: '/subscription/verify-license',
+        summary: 'Verify a license key for offline/desktop activation and register the device',
+        description: 'First call for a given `machine_id` registers it (device-level licensing); subsequent calls just check in.',
+        tags: ['Subscription'],
+        security: [['sanctum' => []]],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            required: ['license_key', 'machine_id'],
+            properties: [
+                new OA\Property(property: 'license_key', type: 'string'),
+                new OA\Property(property: 'machine_id', type: 'string'),
+                new OA\Property(property: 'machine_name', type: 'string', nullable: true),
+            ],
+        )),
+        responses: [
+            new OA\Response(response: 200, description: 'Valid', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'valid', type: 'boolean'),
+                new OA\Property(property: 'expires_at', type: 'string', format: 'date-time'),
+                new OA\Property(property: 'plan', type: 'string'),
+            ])),
+            new OA\Response(response: 403, description: 'Subscription expired, or device deactivated', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'valid', type: 'boolean', example: false),
+                new OA\Property(property: 'message', type: 'string'),
+            ])),
+            new OA\Response(response: 404, description: 'Unknown license key', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'valid', type: 'boolean', example: false),
+                new OA\Property(property: 'message', type: 'string'),
+            ])),
+            new OA\Response(response: 422, ref: '#/components/responses/ValidationError'),
+        ],
+    )]
     public function verifyLicense(Request $request)
     {
         $request->validate([
@@ -89,6 +146,26 @@ class SubscriptionController extends Controller
         ]);
     }
 
+    #[OA\Get(
+        path: '/subscription/billing-history',
+        summary: "List the caller's payment transaction history",
+        tags: ['Subscription'],
+        security: [['sanctum' => []]],
+        responses: [
+            new OA\Response(response: 200, description: 'Formatted transaction list', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'transactions', type: 'array', items: new OA\Items(properties: [
+                    new OA\Property(property: 'id', type: 'string'),
+                    new OA\Property(property: 'date', type: 'string', example: 'Jan 5, 2026'),
+                    new OA\Property(property: 'desc', type: 'string'),
+                    new OA\Property(property: 'amount', type: 'string', example: '₦15,000'),
+                    new OA\Property(property: 'status', type: 'string'),
+                    new OA\Property(property: 'reference', type: 'string'),
+                    new OA\Property(property: 'receipt_url', type: 'string', nullable: true),
+                ])),
+            ])),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+        ],
+    )]
     public function billingHistory(Request $request)
     {
         $userId = Auth::id();
@@ -115,6 +192,37 @@ class SubscriptionController extends Controller
         return response()->json(['transactions' => $transactions]);
     }
 
+    #[OA\Post(
+        path: '/subscription/validate-coupon',
+        summary: 'Validate a coupon code before checkout',
+        tags: ['Subscription'],
+        security: [['sanctum' => []]],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            required: ['code'],
+            properties: [
+                new OA\Property(property: 'code', type: 'string'),
+                new OA\Property(property: 'plan_name', type: 'string', nullable: true),
+                new OA\Property(property: 'interval', type: 'string', enum: ['monthly', 'yearly'], nullable: true),
+            ],
+        )),
+        responses: [
+            new OA\Response(response: 200, description: 'Valid', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'valid', type: 'boolean', example: true),
+                new OA\Property(property: 'coupon', type: 'object', properties: [
+                    new OA\Property(property: 'code', type: 'string'),
+                    new OA\Property(property: 'type', type: 'string'),
+                    new OA\Property(property: 'value', type: 'integer'),
+                    new OA\Property(property: 'target_plan', type: 'string', nullable: true),
+                    new OA\Property(property: 'target_interval', type: 'string', nullable: true),
+                ]),
+            ])),
+            new OA\Response(response: 400, description: 'Invalid/expired/inapplicable coupon', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'valid', type: 'boolean', example: false),
+                new OA\Property(property: 'message', type: 'string'),
+            ])),
+            new OA\Response(response: 422, ref: '#/components/responses/ValidationError'),
+        ],
+    )]
     public function validateCoupon(Request $request, SubscriptionService $subscriptionService)
     {
         $request->validate([
@@ -149,6 +257,35 @@ class SubscriptionController extends Controller
         ]);
     }
 
+    #[OA\Post(
+        path: '/subscription/pay',
+        summary: 'Start a subscription checkout, or activate directly if fully covered by credits/coupon',
+        description: 'If `amount` minus applied referral credits (and any 100%-off coupon) resolves to <= 0, the subscription is activated immediately with no payment provider involved and `payment_url` is null. Otherwise a payment session is created and `payment_url` is where to redirect the user.',
+        tags: ['Subscription'],
+        security: [['sanctum' => []]],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            required: ['amount', 'plan_name'],
+            properties: [
+                new OA\Property(property: 'amount', type: 'number'),
+                new OA\Property(property: 'plan_name', type: 'string'),
+                new OA\Property(property: 'coupon_code', type: 'string', nullable: true),
+                new OA\Property(property: 'interval', type: 'string', enum: ['monthly', 'yearly'], nullable: true),
+                new OA\Property(property: 'use_credits', type: 'boolean', nullable: true, description: 'Apply available referral credits toward this payment'),
+            ],
+        )),
+        responses: [
+            new OA\Response(response: 200, description: 'Activated directly, or payment session created', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'success', type: 'boolean'),
+                new OA\Property(property: 'message', type: 'string'),
+                new OA\Property(property: 'subscription', type: 'object', nullable: true, description: 'Present only when activated directly (no payment needed)'),
+                new OA\Property(property: 'payment_url', type: 'string', nullable: true),
+                new OA\Property(property: 'transaction_reference', type: 'string', nullable: true),
+            ])),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+            new OA\Response(response: 422, ref: '#/components/responses/ValidationError'),
+            new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
+        ],
+    )]
     public function initiatePayment(Request $request, PaymentService $paymentService, SubscriptionService $subscriptionService)
     {
         $request->validate([
@@ -262,6 +399,32 @@ class SubscriptionController extends Controller
         }
     }
 
+    #[OA\Post(
+        path: '/subscription/verify',
+        summary: 'Verify a payment provider transaction reference and activate the subscription',
+        description: 'Called after redirect back from Paystack/Flutterwave checkout. Idempotent — calling again after success just returns "already verified". On success, also awards referral credit to the referrer if applicable and records coupon usage.',
+        tags: ['Subscription'],
+        security: [['sanctum' => []]],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            required: ['reference'],
+            properties: [new OA\Property(property: 'reference', type: 'string')],
+        )),
+        responses: [
+            new OA\Response(response: 200, description: 'Verified and subscription activated', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'success', type: 'boolean'),
+                new OA\Property(property: 'message', type: 'string'),
+                new OA\Property(property: 'subscription', type: 'object', nullable: true),
+            ])),
+            new OA\Response(response: 400, description: 'Verification failed at the payment provider', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'success', type: 'boolean', example: false),
+                new OA\Property(property: 'message', type: 'string'),
+            ])),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+            new OA\Response(response: 404, description: 'No transaction found for that reference'),
+            new OA\Response(response: 422, ref: '#/components/responses/ValidationError'),
+            new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
+        ],
+    )]
     public function verifyPayment(Request $request, PaymentService $paymentService)
     {
         $request->validate([
@@ -352,6 +515,28 @@ class SubscriptionController extends Controller
         }
     }
 
+    #[OA\Get(
+        path: '/subscription/referral-stats',
+        summary: "Get the caller's referral code, credit balance, referred users, and credit transaction history",
+        description: 'Backfills a `referral_code` for the user if they don\'t have one yet (accounts created before auto-generation was added).',
+        tags: ['Subscription'],
+        security: [['sanctum' => []]],
+        responses: [
+            new OA\Response(response: 200, description: 'Referral stats', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'referral_code', type: 'string'),
+                new OA\Property(property: 'referral_credits', type: 'number'),
+                new OA\Property(property: 'referrals', type: 'array', items: new OA\Items(properties: [
+                    new OA\Property(property: 'id', type: 'string'),
+                    new OA\Property(property: 'name', type: 'string'),
+                    new OA\Property(property: 'store_name', type: 'string'),
+                    new OA\Property(property: 'created_at', type: 'string', format: 'date-time'),
+                    new OA\Property(property: 'status', type: 'string', enum: ['active', 'pending']),
+                ])),
+                new OA\Property(property: 'transactions', type: 'array', items: new OA\Items(type: 'object')),
+            ])),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+        ],
+    )]
     public function getReferralStats(Request $request)
     {
         /** @var User $user */

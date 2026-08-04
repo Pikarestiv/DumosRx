@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { Plus, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,7 +14,8 @@ import {
 } from "@/components/ui/select";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { POAddItemForm } from "./po-add-item-form";
-import type { Product } from "@/lib/types/product";
+import type { Product, ProductViewModel } from "@/lib/types/product";
+import type { DraftPOLineItem } from "@/lib/db/procurement";
 
 interface Supplier {
   id: string;
@@ -35,8 +36,8 @@ interface POOrderFormFieldsProps {
   setAmountPaid: (amount: string) => void;
   totalAmount: number;
   products: Product[];
-  onAddLineItem: (item: any) => void;
-  onOpenAddProduct: (productData: any) => void;
+  onAddLineItem: (item: DraftPOLineItem) => void;
+  onOpenAddProduct: (productData: Partial<ProductViewModel>) => void;
   newlyCreatedProductId: string | null;
   onNewlyCreatedProductConsumed: () => void;
   onOpenAddSupplier: () => void;
@@ -64,7 +65,12 @@ export function POOrderFormFields({
   onNewlyCreatedProductConsumed,
   onOpenAddSupplier,
 }: POOrderFormFieldsProps) {
-  const router = useRouter();
+  // Controlled so the empty-state "Add a supplier first" link can force this
+  // closed before opening the add-supplier dialog — stopPropagation() on
+  // that click (needed to stop it from also selecting a SelectItem) also
+  // blocks Radix Select's own outside-click-close detection, so left
+  // uncontrolled the popover stayed open behind the dialog and ate its clicks.
+  const [isSelectOpen, setIsSelectOpen] = useState(false);
 
   return (
     <>
@@ -77,6 +83,8 @@ export function POOrderFormFields({
             <Select
               value={selectedSupplierId}
               onValueChange={setSelectedSupplierId}
+              open={isSelectOpen}
+              onOpenChange={setIsSelectOpen}
             >
               <SelectTrigger className="w-full border border-border rounded-[10px] px-3.5 h-11 data-[size=default]:h-11 text-[13px] bg-card shadow-sm">
                 <SelectValue placeholder="Choose a supplier..." />
@@ -90,7 +98,8 @@ export function POOrderFormFields({
                       className="h-auto p-0 text-[11px]"
                       onClick={(e) => {
                         e.stopPropagation();
-                        router.push("/procurement/vendors?action=add");
+                        setIsSelectOpen(false);
+                        onOpenAddSupplier();
                       }}
                     >
                       Add a supplier first

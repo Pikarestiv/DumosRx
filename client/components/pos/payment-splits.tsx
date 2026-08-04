@@ -4,17 +4,23 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
+import type { Customer } from "@/lib/types/customer";
+import type { PaymentAccount } from "@/lib/types/payment-account";
+
+export interface PaymentSplit {
+  method: string;
+  amount: number;
+  accountId?: string;
+}
 
 interface PaymentSplitsProps {
   total: number;
   currencyCode?: string;
-  paymentSplits?: { method: string; amount: number; accountId?: string }[];
-  setPaymentSplits?: (
-    splits: { method: string; amount: number; accountId?: string }[],
-  ) => void;
+  paymentSplits?: PaymentSplit[];
+  setPaymentSplits?: (splits: PaymentSplit[]) => void;
   requirePaymentAccount?: boolean;
-  paymentAccounts?: any[];
-  selectedCustomer: any;
+  paymentAccounts?: PaymentAccount[];
+  selectedCustomer: Customer | null;
   defaults: Record<string, string>;
   storeProfileId?: string;
   isValidAccount: (method: string, accountId: string) => boolean | undefined;
@@ -53,15 +59,20 @@ export function PaymentSplits({
     ]);
   };
 
-  const updateSplit = (index: number, field: string, value: any) => {
+  const updateSplit = <K extends keyof PaymentSplit>(
+    index: number,
+    field: K,
+    value: PaymentSplit[K],
+  ) => {
     if (!setPaymentSplits || !paymentSplits) return;
     const newSplits = [...paymentSplits];
     newSplits[index] = { ...newSplits[index], [field]: value };
 
     if (field === "method") {
-      if ((value === "card" || value === "transfer") && storeProfileId) {
-        const defaultId = defaults[`${storeProfileId}_${value}`];
-        if (defaultId && isValidAccount(value, defaultId)) {
+      const method = value as string;
+      if ((method === "card" || method === "transfer") && storeProfileId) {
+        const defaultId = defaults[`${storeProfileId}_${method}`];
+        if (defaultId && isValidAccount(method, defaultId)) {
           newSplits[index].accountId = defaultId;
         } else {
           delete newSplits[index].accountId;

@@ -1,16 +1,17 @@
-import { Users, Store, Package, TrendingUp, ArrowUpRight, ArrowDownRight, Activity } from "lucide-react";
+import { Users, Store, Package, TrendingUp, ArrowUpRight, ArrowDownRight, Activity, type LucideIcon } from "lucide-react";
+import type { AdminStat } from "@/lib/types/admin";
 
-const ICON_MAP: any = {
+const ICON_MAP: Record<string, LucideIcon> = {
   Store: Store,
   Users: Users,
   TrendingUp: TrendingUp,
   Package: Package
 };
 
-export function StatsGrid({ globalStats }: { globalStats: any[] }) {
+export function StatsGrid({ globalStats }: { globalStats: AdminStat[] }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      {globalStats.map((stat: any, i: number) => {
+      {globalStats.map((stat, i: number) => {
         const Icon = ICON_MAP[stat.icon] || Activity;
         return (
           <div key={i} className="bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-sm border border-slate-200 dark:border-slate-800 group hover:border-indigo-500/50 transition-all duration-300">

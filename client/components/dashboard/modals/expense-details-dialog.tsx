@@ -4,9 +4,10 @@ import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 import { Receipt } from "lucide-react";
 import { DetailRow } from "./detail-row";
+import type { Expense } from "@/lib/db/queries/finance";
 
 interface ExpenseDetailsDialogProps {
-  expense: any;
+  expense: Expense | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   currencyCode?: string;

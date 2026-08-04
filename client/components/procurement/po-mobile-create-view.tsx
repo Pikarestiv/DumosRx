@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { StoreType } from "@/lib/context/store-context";
 import { POOrderFormFields } from "./po-order-form-fields";
 import { POMobileSummaryDrawer } from "./po-mobile-summary-drawer";
-import type { Product } from "@/lib/types/product";
+import type { Product, ProductViewModel } from "@/lib/types/product";
+import type { DraftPOLineItem } from "@/lib/db/procurement";
 
 interface Supplier {
   id: string;
@@ -28,12 +29,12 @@ interface POMobileCreateViewProps {
   setAmountPaid: (amount: string) => void;
   totalAmount: number;
   products: Product[];
-  onAddLineItem: (item: any) => void;
-  onOpenAddProduct: (productData: any) => void;
+  onAddLineItem: (item: DraftPOLineItem) => void;
+  onOpenAddProduct: (productData: Partial<ProductViewModel>) => void;
   newlyCreatedProductId: string | null;
   onNewlyCreatedProductConsumed: () => void;
   onOpenAddSupplier: () => void;
-  items: any[];
+  items: DraftPOLineItem[];
   removeLineItem: (index: number) => void;
   storeType: StoreType;
   isSubmitting: boolean;

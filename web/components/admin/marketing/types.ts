@@ -44,10 +44,3 @@ export interface CreditTransaction {
     last_name: string;
   } | null;
 }
-
-export interface UserListItem {
-  id: string;
-  first_name: string;
-  last_name: string;
-  email: string;
-}

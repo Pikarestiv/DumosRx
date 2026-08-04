@@ -20,9 +20,39 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
 use Exception;
+use OpenApi\Attributes as OA;
 
 class AuthController extends Controller
 {
+    #[OA\Post(
+        path: '/register',
+        summary: 'Register a new user (optionally creating a store)',
+        description: 'If `store_name` is provided, creates the user as a `store_owner` with a new store and a trial subscription. Otherwise creates a bare user account (e.g. a staff/specialist added later to a store). Returns a Sanctum token immediately unless email verification is required platform-wide.',
+        tags: ['Auth'],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            required: ['first_name', 'last_name', 'email', 'password'],
+            properties: [
+                new OA\Property(property: 'first_name', type: 'string'),
+                new OA\Property(property: 'last_name', type: 'string'),
+                new OA\Property(property: 'email', type: 'string', format: 'email'),
+                new OA\Property(property: 'username', type: 'string', nullable: true),
+                new OA\Property(property: 'pin', type: 'string', nullable: true, description: '4-digit POS unlock PIN'),
+                new OA\Property(property: 'password', type: 'string', format: 'password', minLength: 8),
+                new OA\Property(property: 'store_name', type: 'string', nullable: true, description: 'If set, a Store + trial subscription is created for this user'),
+                new OA\Property(property: 'store_type', type: 'string', nullable: true, enum: ['pharmacy', 'supermarket', 'grocery', 'general']),
+                new OA\Property(property: 'phone', type: 'string', nullable: true),
+                new OA\Property(property: 'ref', type: 'string', nullable: true, description: 'Referral code'),
+            ],
+        )),
+        responses: [
+            new OA\Response(response: 201, description: 'Registered', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'message', type: 'string'),
+                new OA\Property(property: 'user', type: 'object'),
+                new OA\Property(property: 'token', type: 'string'),
+            ])),
+            new OA\Response(response: 422, ref: '#/components/responses/ValidationError'),
+        ],
+    )]
     public function register(Request $request)
     {
         $request->validate([
@@ -134,6 +164,30 @@ class AuthController extends Controller
         ], 201);
     }
 
+    #[OA\Post(
+        path: '/login',
+        summary: 'Log in and obtain a Sanctum bearer token',
+        description: 'Also sets an HttpOnly `drx_admin_session` cookie when `device_name` is `"web"` or the user is `super_admin`. Sends a "new device" security email if this IP/user-agent combination hasn\'t been seen before for the account.',
+        tags: ['Auth'],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            required: ['email', 'password', 'device_name'],
+            properties: [
+                new OA\Property(property: 'email', type: 'string', format: 'email'),
+                new OA\Property(property: 'password', type: 'string', format: 'password'),
+                new OA\Property(property: 'device_name', type: 'string', description: 'Free-text device label; use "web" to also get the admin session cookie'),
+            ],
+        )),
+        responses: [
+            new OA\Response(response: 200, description: 'Logged in', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'message', type: 'string'),
+                new OA\Property(property: 'user', type: 'object'),
+                new OA\Property(property: 'token', type: 'string'),
+                new OA\Property(property: 'role', type: 'string'),
+                new OA\Property(property: 'require_email_verification', type: 'boolean'),
+            ])),
+            new OA\Response(response: 422, ref: '#/components/responses/ValidationError', description: 'Invalid credentials or deactivated account (raised as a validation error on the `email` field).'),
+        ],
+    )]
     public function login(Request $request)
     {
         $request->validate([
@@ -224,6 +278,16 @@ class AuthController extends Controller
         return $response;
     }
 
+    #[OA\Post(
+        path: '/logout',
+        summary: 'Revoke the current access token',
+        tags: ['Auth'],
+        security: [['sanctum' => []]],
+        responses: [
+            new OA\Response(response: 200, description: 'Logged out', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+        ],
+    )]
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();
@@ -233,6 +297,24 @@ class AuthController extends Controller
         ]);
     }
 
+    #[OA\Post(
+        path: '/verify-email',
+        summary: 'Verify an account email address via token',
+        description: 'Token is emailed to the user as part of `EmailVerificationMail`. Works whether or not the caller is authenticated (falls back to looking up the user by email).',
+        tags: ['Auth'],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            required: ['token', 'email'],
+            properties: [
+                new OA\Property(property: 'token', type: 'string'),
+                new OA\Property(property: 'email', type: 'string', format: 'email'),
+            ],
+        )),
+        responses: [
+            new OA\Response(response: 200, description: 'Verified', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
+            new OA\Response(response: 400, description: 'Invalid or expired link', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
+            new OA\Response(response: 404, ref: '#/components/responses/NotFound'),
+        ],
+    )]
     public function verifyEmail(Request $request)
     {
         $request->validate([
@@ -270,6 +352,20 @@ class AuthController extends Controller
         return response()->json(['message' => 'User not found.'], 404);
     }
 
+    #[OA\Post(
+        path: '/resend-verification',
+        summary: 'Resend the email verification link',
+        description: 'Uses the authenticated user if present, otherwise requires `email` in the body.',
+        tags: ['Auth'],
+        requestBody: new OA\RequestBody(content: new OA\JsonContent(properties: [
+            new OA\Property(property: 'email', type: 'string', format: 'email', nullable: true),
+        ])),
+        responses: [
+            new OA\Response(response: 200, description: 'Sent', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
+            new OA\Response(response: 400, description: 'Already verified', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
+            new OA\Response(response: 404, ref: '#/components/responses/NotFound'),
+        ],
+    )]
     public function resendVerification(Request $request)
     {
         $user = $request->user();
@@ -300,6 +396,20 @@ class AuthController extends Controller
             return response()->json(['message' => 'Failed to send verification email.'], 500);
         }
     }
+    #[OA\Post(
+        path: '/refresh',
+        summary: 'Rotate the current access token',
+        description: 'Deletes the current token and issues a new one (also refreshes the `drx_admin_session` cookie).',
+        tags: ['Auth'],
+        security: [['sanctum' => []]],
+        responses: [
+            new OA\Response(response: 200, description: 'New token issued', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'token', type: 'string'),
+                new OA\Property(property: 'user', type: 'object'),
+            ])),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+        ],
+    )]
     public function refresh(Request $request)
     {
         $user = $request->user();
@@ -322,11 +432,43 @@ class AuthController extends Controller
                 ));
     }
 
+    #[OA\Get(
+        path: '/user',
+        summary: 'Get the currently authenticated user',
+        tags: ['Auth'],
+        security: [['sanctum' => []]],
+        responses: [
+            new OA\Response(response: 200, description: 'The user', content: new OA\JsonContent(type: 'object')),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+        ],
+    )]
     public function user(Request $request)
     {
         return $request->user();
     }
 
+    #[OA\Post(
+        path: '/profile/update',
+        summary: "Update the authenticated user's name/phone",
+        tags: ['Auth'],
+        security: [['sanctum' => []]],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            required: ['first_name', 'last_name'],
+            properties: [
+                new OA\Property(property: 'first_name', type: 'string'),
+                new OA\Property(property: 'last_name', type: 'string'),
+                new OA\Property(property: 'phone', type: 'string', nullable: true),
+            ],
+        )),
+        responses: [
+            new OA\Response(response: 200, description: 'Updated', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'message', type: 'string'),
+                new OA\Property(property: 'user', type: 'object'),
+            ])),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+            new OA\Response(response: 422, ref: '#/components/responses/ValidationError'),
+        ],
+    )]
     public function updateProfile(Request $request)
     {
         $user = $request->user();
@@ -344,6 +486,21 @@ class AuthController extends Controller
         ]);
     }
 
+    #[OA\Post(
+        path: '/profile/set-pin',
+        summary: "Set/update the authenticated user's 4-digit POS unlock PIN",
+        tags: ['Auth'],
+        security: [['sanctum' => []]],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            required: ['pin'],
+            properties: [new OA\Property(property: 'pin', type: 'string', minLength: 4, maxLength: 4)],
+        )),
+        responses: [
+            new OA\Response(response: 200, description: 'Updated', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+            new OA\Response(response: 422, ref: '#/components/responses/ValidationError'),
+        ],
+    )]
     public function updatePin(Request $request)
     {
         $user = $request->user();
@@ -359,6 +516,25 @@ class AuthController extends Controller
         ]);
     }
 
+    #[OA\Post(
+        path: '/profile/change-password',
+        summary: "Change the authenticated user's password",
+        tags: ['Auth'],
+        security: [['sanctum' => []]],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            required: ['current_password', 'new_password', 'new_password_confirmation'],
+            properties: [
+                new OA\Property(property: 'current_password', type: 'string', format: 'password'),
+                new OA\Property(property: 'new_password', type: 'string', format: 'password', minLength: 8),
+                new OA\Property(property: 'new_password_confirmation', type: 'string', format: 'password'),
+            ],
+        )),
+        responses: [
+            new OA\Response(response: 200, description: 'Updated', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+            new OA\Response(response: 422, ref: '#/components/responses/ValidationError', description: 'Current password mismatch, or new password fails rules.'),
+        ],
+    )]
     public function changePassword(Request $request)
     {
         $user = $request->user();
@@ -381,6 +557,21 @@ class AuthController extends Controller
         ]);
     }
 
+    #[OA\Post(
+        path: '/forgot-password',
+        summary: 'Request a password reset email',
+        description: 'Always returns 200 with a generic message, even if the email is unknown, to prevent user enumeration.',
+        tags: ['Auth'],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            required: ['email'],
+            properties: [new OA\Property(property: 'email', type: 'string', format: 'email')],
+        )),
+        responses: [
+            new OA\Response(response: 200, description: 'Reset link sent (or silently ignored if unknown)', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
+            new OA\Response(response: 422, ref: '#/components/responses/ValidationError'),
+            new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
+        ],
+    )]
     public function forgotPassword(Request $request)
     {
         $request->validate(['email' => 'required|email']);
@@ -416,6 +607,27 @@ class AuthController extends Controller
         return response()->json(['message' => 'If your email is in our system, you will receive a reset link shortly.']);
     }
 
+    #[OA\Post(
+        path: '/reset-password',
+        summary: 'Reset a password using a forgot-password token',
+        description: 'Token expires 60 minutes after it was issued.',
+        tags: ['Auth'],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            required: ['token', 'email', 'password', 'password_confirmation'],
+            properties: [
+                new OA\Property(property: 'token', type: 'string'),
+                new OA\Property(property: 'email', type: 'string', format: 'email'),
+                new OA\Property(property: 'password', type: 'string', format: 'password', minLength: 8),
+                new OA\Property(property: 'password_confirmation', type: 'string', format: 'password'),
+            ],
+        )),
+        responses: [
+            new OA\Response(response: 200, description: 'Reset', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
+            new OA\Response(response: 400, description: 'Invalid/expired token', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
+            new OA\Response(response: 404, ref: '#/components/responses/NotFound'),
+            new OA\Response(response: 422, ref: '#/components/responses/ValidationError'),
+        ],
+    )]
     public function resetPassword(Request $request)
     {
         $request->validate([
@@ -453,6 +665,22 @@ class AuthController extends Controller
         return response()->json(['message' => 'Password has been reset successfully.']);
     }
 
+    #[OA\Post(
+        path: '/profile/request-deletion',
+        summary: 'Request account deletion',
+        description: 'Flags the account for deletion and notifies platform super admins; does not delete anything immediately.',
+        tags: ['Auth'],
+        security: [['sanctum' => []]],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            required: ['reason'],
+            properties: [new OA\Property(property: 'reason', type: 'string', maxLength: 1000)],
+        )),
+        responses: [
+            new OA\Response(response: 200, description: 'Requested', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+            new OA\Response(response: 422, ref: '#/components/responses/ValidationError'),
+        ],
+    )]
     public function requestDeletion(Request $request)
     {
         $request->validate([
@@ -490,6 +718,17 @@ class AuthController extends Controller
         ]);
     }
 
+    #[OA\Post(
+        path: '/profile/cancel-deletion',
+        summary: 'Cancel a pending account deletion request',
+        tags: ['Auth'],
+        security: [['sanctum' => []]],
+        responses: [
+            new OA\Response(response: 200, description: 'Cancelled', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
+            new OA\Response(response: 400, description: 'No active deletion request', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+        ],
+    )]
     public function cancelDeletion(Request $request)
     {
         $user = $request->user();

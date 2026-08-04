@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { formatCurrency } from "@/lib/utils";
-import { query } from "@/lib/db";
+import { getProductBasicInfo } from "@/lib/db/queries/products";
 import {
   getTypeColor,
   getTypeIcon,
@@ -12,9 +12,12 @@ import {
   formatMovementTime,
 } from "@/components/stock-batch/stock-movement-utils";
 import { DetailRow } from "./detail-row";
+import type { StockMovementHistoryRow } from "@/lib/types/stock-movement";
+
+type ProductInfo = Awaited<ReturnType<typeof getProductBasicInfo>>;
 
 interface StockMovementDetailsDialogProps {
-  movement: any;
+  movement: StockMovementHistoryRow | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   currencyCode?: string;
@@ -26,15 +29,12 @@ export function StockMovementDetailsDialog({
   onOpenChange,
   currencyCode = "NGN",
 }: StockMovementDetailsDialogProps) {
-  const [productInfo, setProductInfo] = useState<any>(null);
+  const [productInfo, setProductInfo] = useState<ProductInfo | null>(null);
 
   useEffect(() => {
     if (movement?.product_id && open) {
-      query<any>(
-        "SELECT name, generic_name, dosage_form FROM products WHERE id = ?",
-        [movement.product_id],
-      ).then((res) => {
-        if (res && res[0]) setProductInfo(res[0]);
+      getProductBasicInfo(movement.product_id).then((res) => {
+        if (res) setProductInfo(res);
       });
     } else if (!open) {
       setProductInfo(null);
@@ -43,7 +43,7 @@ export function StockMovementDetailsDialog({
 
   if (!movement) return null;
 
-  const date = movement.created_at || movement.date;
+  const date = movement.created_at || movement.movement_date;
   const isPositive = movement.quantity > 0;
 
   return (
@@ -89,10 +89,10 @@ export function StockMovementDetailsDialog({
         </div>
 
         <div className="border-t border-border pt-3.5 flex flex-col gap-3">
-          {movement.total_cost > 0 && (
+          {(movement.total_cost || 0) > 0 && (
             <DetailRow
               label="Total value"
-              value={formatCurrency(movement.total_cost, currencyCode)}
+              value={formatCurrency(movement.total_cost || 0, currencyCode)}
             />
           )}
           {movement.reference_id && (

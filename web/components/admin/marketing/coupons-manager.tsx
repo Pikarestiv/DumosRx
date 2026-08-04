@@ -26,24 +26,15 @@ import {
 } from "@/lib/api/admin-hooks";
 import { toast } from "sonner";
 import { CouponDialog } from "./coupon-dialog";
-
-interface Coupon {
-  id: string;
-  code: string;
-  type: "discount_percent" | "discount_amount" | "trial_extension";
-  value: number;
-  max_uses: number | null;
-  max_uses_per_user: number;
-  target_plan: string | null;
-  target_interval: string | null;
-  expires_at: string | null;
-  is_active: boolean;
-  usages_count: number;
-}
+import type { Coupon } from "@/lib/types/admin";
 
 export function CouponsManager() {
   const { data: couponsData, isLoading: loading } = useAdminCoupons();
-  const coupons: Coupon[] = couponsData?.data || couponsData || [];
+  const coupons: Coupon[] = couponsData
+    ? Array.isArray(couponsData)
+      ? couponsData
+      : couponsData.data
+    : [];
 
   const generateMutation = useGenerateCouponMutation();
   const toggleMutation = useToggleCouponMutation();
@@ -103,8 +94,12 @@ export function CouponsManager() {
         is_active: true,
       });
       setEditingId(null);
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || `Failed to ${editingId ? 'update' : 'generate'} coupon`);
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : `Failed to ${editingId ? 'update' : 'generate'} coupon`,
+      );
     }
   };
 

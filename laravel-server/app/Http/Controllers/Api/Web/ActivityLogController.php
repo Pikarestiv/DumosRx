@@ -8,9 +8,20 @@ use App\Models\Store;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use OpenApi\Attributes as OA;
 
 class ActivityLogController extends Controller
 {
+    #[OA\Get(
+        path: '/logs',
+        summary: "List the caller's store activity log (owner + all staff)",
+        tags: ['Activity Logs'],
+        security: [['sanctum' => []]],
+        responses: [
+            new OA\Response(response: 200, description: 'Paginated logs, with user eager-loaded, excluding client-error entries', content: new OA\JsonContent(type: 'object')),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+        ],
+    )]
     public function index(Request $request)
     {
         $admin = $request->user();
@@ -34,6 +45,26 @@ class ActivityLogController extends Controller
         return response()->json($logs);
     }
 
+    #[OA\Post(
+        path: '/logs/client-error',
+        summary: 'Log a client-side API/fetch failure',
+        description: 'Public — deliberately unauthenticated so it can capture failures that happen before login (e.g. the system-config fetch on app boot). Logs to `laravel.log` always; also writes an `ActivityLog` row if a valid Sanctum token happens to be present.',
+        tags: ['Activity Logs'],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            required: ['method', 'url', 'message'],
+            properties: [
+                new OA\Property(property: 'method', type: 'string'),
+                new OA\Property(property: 'url', type: 'string'),
+                new OA\Property(property: 'status', nullable: true),
+                new OA\Property(property: 'message', type: 'string'),
+                new OA\Property(property: 'details', type: 'object', nullable: true),
+            ],
+        )),
+        responses: [
+            new OA\Response(response: 200, description: 'Logged', content: new OA\JsonContent(properties: [new OA\Property(property: 'status', type: 'string', example: 'logged')])),
+            new OA\Response(response: 422, ref: '#/components/responses/ValidationError'),
+        ],
+    )]
     public function logClientError(Request $request)
     {
         $request->validate([

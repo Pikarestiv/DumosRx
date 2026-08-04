@@ -6,11 +6,14 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @mixin IdeHelperCategory
+ */
 class Category extends Model
 {
     use HasFactory, HasUuids;
 
-    protected $fillable = ['name', 'description', 'parent_id', 'is_active'];
+    protected $fillable = ['name', 'description', 'parent_id', 'is_active', 'user_id'];
 
     public function parent()
     {

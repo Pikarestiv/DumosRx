@@ -4,13 +4,14 @@ import { Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { ActivityDetails, filterIndirectSaleLogs } from "../activities/activities-shared";
+import type { StoreDetail } from "@/lib/types/dashboard";
 
-export function StoreActivitiesTab({ store, storeId }: { store: any; storeId: string }) {
+export function StoreActivitiesTab({ store, storeId }: { store: StoreDetail; storeId: string }) {
   const router = useRouter();
 
   const filteredActivities = store.recent_activities
-    ? store.recent_activities.filter((act: any) =>
-        filterIndirectSaleLogs(store.recent_activities, act),
+    ? store.recent_activities.filter((act) =>
+        filterIndirectSaleLogs(store.recent_activities!, act),
       )
     : [];
   const previewActivities = filteredActivities.slice(0, 10);
@@ -28,7 +29,7 @@ export function StoreActivitiesTab({ store, storeId }: { store: any; storeId: st
 
   return (
     <div className="space-y-3">
-      {previewActivities.map((act: any) => (
+      {previewActivities.map((act) => (
         <div
           key={act.id}
           className="p-4 border rounded-xl flex items-start gap-4"
@@ -64,7 +65,7 @@ export function StoreActivitiesTab({ store, storeId }: { store: any; storeId: st
               {act.user?.name || act.user?.first_name || "System"}
             </p>
             <p className="text-[10px] text-muted-foreground mt-0.5">
-              {new Date(act.created_at).toLocaleString()}
+              {act.created_at ? new Date(act.created_at).toLocaleString() : ""}
             </p>
           </div>
         </div>

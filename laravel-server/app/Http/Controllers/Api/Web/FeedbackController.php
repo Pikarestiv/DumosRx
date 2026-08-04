@@ -6,12 +6,32 @@ use App\Http\Controllers\Controller;
 use App\Models\Feedback;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use OpenApi\Attributes as OA;
 
 class FeedbackController extends Controller
 {
-    /**
-     * Store a public support request.
-     */
+    #[OA\Post(
+        path: '/support',
+        summary: 'Submit a public support request',
+        description: 'Public, unauthenticated. Notifies platform admins.',
+        tags: ['Feedback'],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            required: ['name', 'email', 'subject', 'message'],
+            properties: [
+                new OA\Property(property: 'name', type: 'string', maxLength: 255),
+                new OA\Property(property: 'email', type: 'string', format: 'email'),
+                new OA\Property(property: 'subject', type: 'string', maxLength: 255),
+                new OA\Property(property: 'message', type: 'string'),
+            ],
+        )),
+        responses: [
+            new OA\Response(response: 200, description: 'Submitted', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'message', type: 'string'),
+                new OA\Property(property: 'success', type: 'boolean'),
+            ])),
+            new OA\Response(response: 422, ref: '#/components/responses/ValidationError'),
+        ],
+    )]
     public function store(Request $request): JsonResponse
     {
         $request->validate([
@@ -54,9 +74,17 @@ class FeedbackController extends Controller
         ]);
     }
 
-    /**
-     * Display a listing of the feedback.
-     */
+    #[OA\Get(
+        path: '/admin/feedback',
+        summary: 'List support/feedback tickets',
+        tags: ['Feedback'],
+        security: [['sanctum' => []]],
+        parameters: [new OA\Parameter(name: 'status', in: 'query', schema: new OA\Schema(type: 'string', enum: ['all', 'pending', 'resolved', 'dismissed']))],
+        responses: [
+            new OA\Response(response: 200, description: 'Paginated tickets', content: new OA\JsonContent(type: 'object')),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+        ],
+    )]
     public function index(Request $request): JsonResponse
     {
         $status = $request->query('status');
@@ -72,9 +100,26 @@ class FeedbackController extends Controller
         return response()->json($feedback);
     }
 
-    /**
-     * Update the specified feedback status.
-     */
+    #[OA\Post(
+        path: '/admin/feedback/{id}/status',
+        summary: 'Update a feedback ticket status',
+        tags: ['Feedback'],
+        security: [['sanctum' => []]],
+        parameters: [new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            required: ['status'],
+            properties: [new OA\Property(property: 'status', type: 'string', enum: ['pending', 'resolved', 'dismissed'])],
+        )),
+        responses: [
+            new OA\Response(response: 200, description: 'Updated', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'message', type: 'string'),
+                new OA\Property(property: 'data', type: 'object'),
+            ])),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+            new OA\Response(response: 404, ref: '#/components/responses/NotFound'),
+            new OA\Response(response: 422, ref: '#/components/responses/ValidationError'),
+        ],
+    )]
     public function updateStatus(Request $request, string $id): JsonResponse
     {
         $request->validate([

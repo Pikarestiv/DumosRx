@@ -14,11 +14,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
+import type { CustomerFormPayload } from "@/lib/types/customer";
 
 interface AddCustomerModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: any) => Promise<void>;
+  onSubmit: (data: CustomerFormPayload) => Promise<void>;
 }
 
 export function AddCustomerModal({

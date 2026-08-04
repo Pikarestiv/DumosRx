@@ -1,14 +1,16 @@
 import { useEffect, useState } from "react";
 import { getPrescriptionItems } from "@/lib/db/queries/prescriptions";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 import type { POSProduct as Product } from "@/lib/types/product";
+import type { CartItem } from "./use-pos-cart";
 
 interface UsePOSPrescriptionProps {
   searchParams: URLSearchParams;
   products: Product[];
   cartLength: number;
-  restoreCart: (items: any[]) => void;
-  router: any;
+  restoreCart: (items: CartItem[]) => void;
+  router: ReturnType<typeof useRouter>;
   pathname: string;
 }
 
@@ -35,7 +37,7 @@ export function usePOSPrescription({
           // update prescription status to in_progress or dispensed
           // The POS handles final sale, but let's just load the cart for now.
           const restoredItems = itemsData
-            .map((item: any) => {
+            .map((item) => {
               const product = products.find(
                 (m) =>
                   m.name === item.product_name && m.strength === item.strength,
@@ -43,13 +45,13 @@ export function usePOSPrescription({
               if (product) {
                 return {
                   ...product,
-                  quantity: item.quantity,
-                  subtotal: product.unit_price * item.quantity,
+                  quantity: item.quantity || 1,
+                  subtotal: product.unit_price * (item.quantity || 1),
                 };
               }
               return null;
             })
-            .filter((item: any) => item !== null) as any;
+            .filter((item): item is CartItem => item !== null);
 
           if (restoredItems.length > 0) {
             restoreCart(restoredItems);

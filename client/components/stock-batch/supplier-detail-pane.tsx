@@ -3,9 +3,10 @@ import { ChevronLeft, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
+import type { SupplierViewModel } from "@/lib/types/supplier";
 
 interface SupplierDetailPaneProps {
-  selectedSupplier: any;
+  selectedSupplier: SupplierViewModel | null;
   formatCurrency: (amount: number) => string;
   formatDate: (dateString: string) => string;
   getRatingStars: (rating: number) => React.ReactNode;

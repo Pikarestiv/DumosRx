@@ -7,12 +7,27 @@ use App\Models\PurchaseOrder;
 use App\Models\Store;
 use App\Models\User;
 use Illuminate\Http\Request;
+use OpenApi\Attributes as OA;
 
 class PurchaseOrderController extends Controller
 {
-    /**
-     * Get list of purchase orders
-     */
+    #[OA\Get(
+        path: '/purchase-orders',
+        summary: 'List purchase orders for the store (across all staff)',
+        tags: ['Purchase Orders'],
+        security: [['sanctum' => []]],
+        parameters: [new OA\Parameter(name: 'limit', in: 'query', schema: new OA\Schema(type: 'integer', default: 50))],
+        responses: [
+            new OA\Response(response: 200, description: 'Paginated purchase orders', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'success', type: 'boolean'),
+                new OA\Property(property: 'data', type: 'array', items: new OA\Items(type: 'object')),
+                new OA\Property(property: 'current_page', type: 'integer'),
+                new OA\Property(property: 'last_page', type: 'integer'),
+                new OA\Property(property: 'total', type: 'integer'),
+            ])),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+        ],
+    )]
     public function index(Request $request)
     {
         $user = $request->user();

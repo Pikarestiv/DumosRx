@@ -16,9 +16,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import type { StoreDetail, Transaction } from "@/lib/types/dashboard";
 
-export function StoreTransactionsTab({ store }: { store: any }) {
-  const [viewingTransaction, setViewingTransaction] = useState<any>(null);
+export function StoreTransactionsTab({ store }: { store: StoreDetail }) {
+  const [viewingTransaction, setViewingTransaction] = useState<Transaction | null>(null);
 
   if (!store.recent_transactions || store.recent_transactions.length === 0) {
     return (
@@ -44,7 +45,7 @@ export function StoreTransactionsTab({ store }: { store: any }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {store.recent_transactions.map((trx: any) => (
+            {store.recent_transactions.map((trx) => (
               <TableRow
                 key={trx.id}
                 className="cursor-pointer hover:bg-muted/50"
@@ -56,7 +57,7 @@ export function StoreTransactionsTab({ store }: { store: any }) {
                 <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">
                   {trx.items
                     ?.map(
-                      (item: any) =>
+                      (item) =>
                         `${item.quantity}x ${item.product_name || "Item"}`,
                     )
                     .join(", ") || "No items"}
@@ -100,7 +101,7 @@ export function StoreTransactionsTab({ store }: { store: any }) {
               </div>
 
               <div className="border rounded-md divide-y">
-                {viewingTransaction?.items?.map((item: any) => (
+                {viewingTransaction?.items?.map((item) => (
                   <div
                     key={item.id}
                     className="p-3 flex justify-between items-center"

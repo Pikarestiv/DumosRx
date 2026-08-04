@@ -3,7 +3,7 @@ import { persist } from "zustand/middleware";
 import { webApiClient } from "@/lib/api/client";
 
 interface DashboardState {
-  data: any;
+  data: unknown;
   loading: boolean;
   error: string | null;
   lastFetched: number | null;
@@ -47,11 +47,11 @@ export const useDashboardStore = create<DashboardState>()(
             lastFetched: Date.now(),
             error: null 
           });
-        } catch (err: any) {
+        } catch (err) {
           console.error("Dashboard store fetch error:", err);
-          set({ 
-            loading: false, 
-            error: err.message || "Failed to fetch dashboard data" 
+          set({
+            loading: false,
+            error: err instanceof Error ? err.message : "Failed to fetch dashboard data"
           });
         }
       },

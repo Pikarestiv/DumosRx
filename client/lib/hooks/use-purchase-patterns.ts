@@ -14,7 +14,7 @@ export function usePurchasePatterns(dateFilter: string) {
 
   const purchasePatterns = useMemo(() => {
     return timeSlotData.map((slot) => {
-      const topCat = slotCategoryData.find((c: any) => c.slot === slot.slot);
+      const topCat = slotCategoryData.find((c) => c.slot === slot.slot);
       return {
         slot: slot.slot.split(" ")[0], // "Morning", "Afternoon", etc.
         transactions: slot.transactions,

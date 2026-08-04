@@ -3,7 +3,26 @@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Check, CreditCard, Loader2, Sparkles } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, type Variants } from "framer-motion";
+import type { SubscriptionPlan } from "@/lib/constants/subscription-plans";
+import type { AppliedCoupon, DowngradePlan, SubscriptionStatus } from "@/lib/types/dashboard";
+import type { SubscriptionConfig } from "@/lib/types/admin";
+
+interface SubscriptionPlanCardProps {
+  plan: SubscriptionPlan;
+  isDiscounted: boolean;
+  formatPrice: (price: number) => string;
+  getDiscountedPrice: number;
+  appliedCoupon: AppliedCoupon | null;
+  billingPeriod: "monthly" | "yearly";
+  config: Partial<SubscriptionConfig> | undefined;
+  subStatus: SubscriptionStatus | undefined;
+  getPlanWeight: (planName: string) => number;
+  handleSubscribe: (tier: string, baseAmount: number, planName: string) => void;
+  setDowngradePlan: (plan: DowngradePlan | null) => void;
+  loading: string | null;
+  cardVariants: Variants;
+}
 
 export function SubscriptionPlanCard({
   plan,
@@ -19,7 +38,7 @@ export function SubscriptionPlanCard({
   setDowngradePlan,
   loading,
   cardVariants,
-}: any) {
+}: SubscriptionPlanCardProps) {
   return (
     <motion.div variants={cardVariants} className="h-full">
       <Card

@@ -7,6 +7,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * @mixin IdeHelperOnlineOrderItem
+ */
 class OnlineOrderItem extends Model
 {
     use HasFactory, HasUuids, SoftDeletes;

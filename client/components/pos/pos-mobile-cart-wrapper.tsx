@@ -1,30 +1,26 @@
 import React from "react";
 import { POSMobileCartDrawer } from "./pos-mobile-cart-drawer";
-import { Customer } from "@/lib/hooks/use-pos-data";
+import type { CartItem } from "@/lib/hooks/use-pos-cart";
 
 interface POSMobileCartWrapperProps {
-  cart: any[];
+  cart: CartItem[];
   subtotal: number;
   tax: number;
   total: number;
   discount: number;
-  calculatedDiscount: number;
-  discountType: "percentage" | "fixed";
-  setDiscount: (discount: number) => void;
-  setDiscountType: (type: "percentage" | "fixed") => void;
+  calculatedDiscount?: number;
+  discountType?: "percentage" | "fixed";
+  setDiscount?: (discount: number) => void;
+  setDiscountType?: (type: "percentage" | "fixed") => void;
   vatPercentage: number;
   currencyCode?: string;
   updateQuantity: (id: string, qty: number) => void;
   removeFromCart: (id: string) => void;
   clearCart: () => void;
   onCheckout: () => void;
-  onHoldSale: () => void;
+  onHoldSale?: () => void;
   heldSalesCount?: number;
   onOpenHeldSales?: () => void;
-  selectedCustomer: Customer | null;
-  customers: Customer[];
-  loadingCustomers: boolean;
-  onSelectCustomer: (customer: Customer | null) => void;
   isPrescriptionLocked?: boolean;
   onEditPrescription?: () => void;
 }
@@ -48,10 +44,6 @@ export function POSMobileCartWrapper({
   onHoldSale,
   heldSalesCount,
   onOpenHeldSales,
-  selectedCustomer,
-  customers,
-  loadingCustomers,
-  onSelectCustomer,
   isPrescriptionLocked,
   onEditPrescription,
 }: POSMobileCartWrapperProps) {
@@ -79,10 +71,6 @@ export function POSMobileCartWrapper({
           onHoldSale={onHoldSale}
           heldSalesCount={heldSalesCount}
           onOpenHeldSales={onOpenHeldSales}
-          selectedCustomer={selectedCustomer}
-          customers={customers}
-          loadingCustomers={loadingCustomers}
-          onSelectCustomer={onSelectCustomer}
           isPrescriptionLocked={isPrescriptionLocked}
           onEditPrescription={onEditPrescription}
         />

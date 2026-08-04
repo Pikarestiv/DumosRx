@@ -9,6 +9,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
+import type { MonthlySalesDataPoint, TopSellingProduct, CategoryDistributionItem } from "@/lib/types/analytics";
 
 function NoPeriodSalesData({ icon: Icon }: { icon: LucideIcon }) {
   return (
@@ -20,12 +21,12 @@ function NoPeriodSalesData({ icon: Icon }: { icon: LucideIcon }) {
 }
 
 interface SalesAnalyticsTabProps {
-  monthlySalesData: any[];
+  monthlySalesData: MonthlySalesDataPoint[];
   topSellingProducts: {
-    revenue: any[];
-    quantity: any[];
+    revenue: TopSellingProduct[];
+    quantity: TopSellingProduct[];
   };
-  formattedCategoryData: any[];
+  formattedCategoryData: CategoryDistributionItem[];
 }
 
 export function SalesAnalyticsTab({

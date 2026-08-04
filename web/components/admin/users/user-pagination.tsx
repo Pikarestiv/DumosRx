@@ -1,12 +1,9 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import type { PaginationMeta } from "@/lib/types/admin";
 
 interface UserPaginationProps {
-  userMeta: {
-    current_page: number;
-    last_page: number;
-    total: number;
-  };
+  userMeta: PaginationMeta | undefined;
   handlePageChange: (newPage: number) => void;
 }
 

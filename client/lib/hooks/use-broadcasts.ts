@@ -13,15 +13,7 @@ export function useBroadcasts(storeId?: string) {
     ...queryKeys.broadcasts.all(storeId),
     queryFn: async () => {
       const response = await apiClient.getBroadcasts(storeId);
-      if (
-        response &&
-        (response as any).success &&
-        Array.isArray((response as any).data)
-      ) {
-        return (response as any).data;
-      }
-      if (Array.isArray(response)) return response;
-      return [];
+      return response?.success && Array.isArray(response.data) ? response.data : [];
     },
     refetchInterval: 2 * 60 * 1000,
   });

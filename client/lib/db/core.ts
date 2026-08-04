@@ -8,7 +8,12 @@ import { get, set } from "idb-keyval";
 /* eslint-disable max-lines */
 import { SCHEMA_SQL } from "./schema";
 
+// Dual-backend handle: sql.js's Database in the browser, @tauri-apps/plugin-sql's
+// Database (a different, incompatible shape — .execute()/.select() vs sql.js's
+// .exec()/.run()) when running inside Tauri. Deliberately untyped rather than a
+// misleading union, since callers already branch on isTauri() before touching it.
 let SQL: SqlJsStatic | null = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let db: any = null;
 let currentUser: {
   id: string;
@@ -28,11 +33,21 @@ export function setCurrentUser(
   currentUser = user;
 }
 
+/** Test-only: injects a bare database instance directly, bypassing
+ * initDatabase()'s IndexedDB persistence and schema-migration machinery, so
+ * unit tests can exercise query()/execute()/transaction() against a real
+ * SQLite engine (e.g. a throwaway sql.js instance) instead of mocks. Never
+ * called from production code paths. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function __setDatabaseForTesting(instance: any): void {
+  db = instance;
+}
+
 export function isTauri(): boolean {
   return (
     typeof window !== "undefined" &&
-    ((window as any).__TAURI__ !== undefined ||
-      (window as any).__TAURI_INTERNALS__ !== undefined)
+    (window.__TAURI__ !== undefined ||
+      window.__TAURI_INTERNALS__ !== undefined)
   );
 }
 
@@ -358,6 +373,22 @@ export async function initDatabase(): Promise<any> {
 
       db = await Database.load("sqlite:dumosrx.db");
 
+      // The Tauri SQL plugin hands out a pooled sqlx connection, and SQLite's
+      // default (rollback-journal) mode only allows one writer at a time —
+      // two pooled connections writing close together can lock each other
+      // out for multiple seconds, or fail outright with "database is
+      // locked", with no PRAGMA tuning applied by default. WAL lets readers
+      // and a writer proceed concurrently instead of blocking each other,
+      // and busy_timeout makes SQLite retry internally for up to 5s instead
+      // of erroring immediately when a write does have to wait its turn.
+      try {
+        await db.execute("PRAGMA journal_mode = WAL;");
+        await db.execute("PRAGMA busy_timeout = 5000;");
+        await db.execute("PRAGMA synchronous = NORMAL;");
+      } catch (e) {
+        console.error("Failed to set SQLite concurrency PRAGMAs", e);
+      }
+
       const statements = SCHEMA_SQL.split(";").filter((s) => s.trim());
       for (const statement of statements) {
         await db.execute(statement);
@@ -390,6 +421,22 @@ export async function initDatabase(): Promise<any> {
         } catch (_e) { }
       }
 
+      // sale_items.inventory_id was renamed to stock_batch_id, but unlike the
+      // medicine_id->product_id rename above this one was never migrated —
+      // createSale() has written to stock_batch_id for a while now, so any
+      // database that predates the rename still has the old inventory_id
+      // column and no stock_batch_id at all, breaking every sale with "no
+      // column named stock_batch_id". Try the rename first (databases that
+      // still have inventory_id); fall back to adding stock_batch_id fresh
+      // (databases old enough to have neither) — whichever doesn't apply
+      // just throws and is ignored, same pattern as the other migrations here.
+      try {
+        await db.execute("ALTER TABLE sale_items RENAME COLUMN inventory_id TO stock_batch_id");
+      } catch (_e) { }
+      try {
+        await db.execute("ALTER TABLE sale_items ADD COLUMN stock_batch_id TEXT");
+      } catch (_e) { }
+
       try {
         await db.execute("ALTER TABLE vendors RENAME TO suppliers");
       } catch (_e) { }
@@ -402,7 +449,49 @@ export async function initDatabase(): Promise<any> {
         await db.execute("ALTER TABLE store_profile RENAME TO stores");
       } catch (_e) { }
 
-      
+      // Drop the legacy purchase_orders.vendor_id NOT NULL column left over
+      // from the vendors->suppliers rename above. That rename only renamed
+      // the *table*; any database created before it still carries the old
+      // vendor_id NOT NULL column forever (CREATE TABLE IF NOT EXISTS is a
+      // no-op on an existing table), and current code only ever writes
+      // supplier_id — so every PO insert on such a device would otherwise
+      // fail the NOT NULL constraint permanently.
+      try {
+        const poColumns = await db.select("SELECT name FROM pragma_table_info('purchase_orders')");
+        if (poColumns.some((c: { name: string }) => c.name === "vendor_id")) {
+          await db.execute(`
+            CREATE TABLE purchase_orders_new (
+              id TEXT PRIMARY KEY,
+              order_number TEXT,
+              supplier_id TEXT NOT NULL,
+              ordered_by TEXT,
+              order_date TEXT,
+              status TEXT DEFAULT 'pending',
+              payment_status TEXT DEFAULT 'unpaid',
+              amount_paid REAL DEFAULT 0,
+              due_date TEXT,
+              total_amount REAL DEFAULT 0,
+              notes TEXT,
+              created_at TEXT,
+              received_at TEXT,
+              updated_at TEXT,
+              _version INTEGER DEFAULT 1,
+              _synced INTEGER DEFAULT 0,
+              _synced_at TEXT,
+              _deleted INTEGER DEFAULT 0
+            )
+          `);
+          await db.execute(`
+            INSERT INTO purchase_orders_new (id, order_number, supplier_id, ordered_by, order_date, status, payment_status, amount_paid, due_date, total_amount, notes, created_at, received_at, updated_at, _version, _synced, _synced_at, _deleted)
+            SELECT id, order_number, COALESCE(supplier_id, vendor_id), ordered_by, order_date, status, payment_status, amount_paid, due_date, total_amount, notes, created_at, received_at, updated_at, _version, _synced, _synced_at, _deleted FROM purchase_orders
+          `);
+          await db.execute("DROP TABLE purchase_orders");
+          await db.execute("ALTER TABLE purchase_orders_new RENAME TO purchase_orders");
+        }
+      } catch (e) {
+        console.error("Failed to drop legacy purchase_orders.vendor_id column", e);
+      }
+
       // --- Data migration: stock_quantity to stock_batches ---
       try {
         const hasProductsStock = await db.select("SELECT 1 FROM pragma_table_info('products') WHERE name='stock_quantity'");
@@ -564,6 +653,16 @@ export async function initDatabase(): Promise<any> {
           } catch (_e) { }
         }
 
+        // See the matching Tauri-path comment above: sale_items.inventory_id
+        // was renamed to stock_batch_id but never migrated for existing
+        // databases.
+        try {
+          db.run("ALTER TABLE sale_items RENAME COLUMN inventory_id TO stock_batch_id");
+        } catch (_e) { }
+        try {
+          db.run("ALTER TABLE sale_items ADD COLUMN stock_batch_id TEXT");
+        } catch (_e) { }
+
         try {
           db.run("ALTER TABLE vendors RENAME TO suppliers");
         } catch (_e) { }
@@ -578,6 +677,46 @@ export async function initDatabase(): Promise<any> {
 
         // Ensure new tables from schema updates are created
         db.run(SCHEMA_SQL);
+
+        // See the matching Tauri-path comment above: drop the legacy
+        // purchase_orders.vendor_id NOT NULL column on databases that
+        // predate the vendors->suppliers rename.
+        try {
+          const poColumnsRes = db.exec("SELECT name FROM pragma_table_info('purchase_orders')");
+          const poColumnNames: string[] = poColumnsRes?.[0]?.values?.map((row: unknown[]) => row[0]) || [];
+          if (poColumnNames.includes("vendor_id")) {
+            db.run(`
+              CREATE TABLE purchase_orders_new (
+                id TEXT PRIMARY KEY,
+                order_number TEXT,
+                supplier_id TEXT NOT NULL,
+                ordered_by TEXT,
+                order_date TEXT,
+                status TEXT DEFAULT 'pending',
+                payment_status TEXT DEFAULT 'unpaid',
+                amount_paid REAL DEFAULT 0,
+                due_date TEXT,
+                total_amount REAL DEFAULT 0,
+                notes TEXT,
+                created_at TEXT,
+                received_at TEXT,
+                updated_at TEXT,
+                _version INTEGER DEFAULT 1,
+                _synced INTEGER DEFAULT 0,
+                _synced_at TEXT,
+                _deleted INTEGER DEFAULT 0
+              )
+            `);
+            db.run(`
+              INSERT INTO purchase_orders_new (id, order_number, supplier_id, ordered_by, order_date, status, payment_status, amount_paid, due_date, total_amount, notes, created_at, received_at, updated_at, _version, _synced, _synced_at, _deleted)
+              SELECT id, order_number, COALESCE(supplier_id, vendor_id), ordered_by, order_date, status, payment_status, amount_paid, due_date, total_amount, notes, created_at, received_at, updated_at, _version, _synced, _synced_at, _deleted FROM purchase_orders
+            `);
+            db.run("DROP TABLE purchase_orders");
+            db.run("ALTER TABLE purchase_orders_new RENAME TO purchase_orders");
+          }
+        } catch (e) {
+          console.error("Failed to drop legacy purchase_orders.vendor_id column", e);
+        }
       } catch (_e) {
         console.error("[DB] Failed to load saved data, starting fresh", _e);
         db = new SQL.Database();
@@ -748,6 +887,11 @@ export async function query<T = Record<string, unknown>>(
   return results;
 }
 
+// Set while a transaction() block is running so execute() can defer the
+// (expensive, whole-database) sql.js saveDatabase() to a single call at
+// commit time instead of after every individual statement in the block.
+let inTransaction = false;
+
 export async function execute(
   sql: string,
   params: (string | number | null | Uint8Array)[] = [],
@@ -769,21 +913,112 @@ export async function execute(
   }
 
   db.run(sql, params);
-  saveDatabase();
+  if (!inTransaction) {
+    saveDatabase();
+  }
 }
 
 /**
- * Returns the raw database binary for export
+ * Runs `fn` inside a real SQL transaction so a multi-statement operation
+ * (e.g. recording a sale and deducting stock for every line item) either
+ * fully applies or fully rolls back — a crash, thrown error, or early return
+ * partway through can never leave the database with only some of the writes
+ * applied. Every write inside `fn` must go through query()/execute() (and by
+ * extension insert()/update()/etc. in base-helpers.ts) against the same `db`
+ * handle used here so it participates in the transaction.
+ *
+ * Nested calls (a transaction() started from inside another) just run `fn`
+ * inline against the already-open outer transaction — SQLite doesn't support
+ * real nested transactions without savepoints, and callers that compose
+ * smaller transactional helpers into a bigger operation don't need them.
+ *
+ * If BEGIN itself fails (e.g. the Tauri SQL plugin's pooled connection
+ * doesn't hand back the same connection for the follow-up statements — a
+ * real risk with sqlx pooling that can't be verified from static analysis
+ * alone), this falls back to running `fn` without transaction semantics
+ * rather than blocking the operation entirely: no worse than the previous
+ * behavior, just not improved for that run.
+ */
+export async function transaction<T>(fn: () => Promise<T>): Promise<T> {
+  if (!db) {
+    await initDatabase();
+  }
+  if (!db) {
+    // Database unavailable — let fn() surface whatever error it hits.
+    return fn();
+  }
+
+  if (inTransaction) {
+    return fn();
+  }
+
+  let began = false;
+  try {
+    if (isTauri()) {
+      await db.execute("BEGIN");
+    } else {
+      db.exec("BEGIN");
+    }
+    began = true;
+  } catch (err) {
+    console.error("[DB] Failed to start transaction, running without atomicity:", err);
+  }
+
+  if (!began) {
+    return fn();
+  }
+
+  inTransaction = true;
+  try {
+    const result = await fn();
+    if (isTauri()) {
+      await db.execute("COMMIT");
+    } else {
+      db.exec("COMMIT");
+    }
+    return result;
+  } catch (err) {
+    try {
+      if (isTauri()) {
+        await db.execute("ROLLBACK");
+      } else {
+        db.exec("ROLLBACK");
+      }
+    } catch (rollbackErr) {
+      console.error("[DB] Rollback failed after transaction error:", rollbackErr);
+    }
+    throw err;
+  } finally {
+    inTransaction = false;
+    if (!isTauri()) {
+      // sql.js: persist once for the whole block instead of per-statement.
+      await saveDatabase();
+    }
+  }
+}
+
+/**
+ * Returns the raw database binary for export — sql.js (web) only. `db` is a
+ * real Tauri SQL plugin connection on desktop/mobile, which has no
+ * `.export()` method; use backupDatabaseToFile() there instead.
  */
 export function getDatabaseBinary(): Uint8Array | null {
-  if (!db) return null;
+  if (!db || isTauri()) return null;
   return db.export();
 }
 
 /**
- * Overwrites the current database with provided binary data
+ * Overwrites the current database with provided binary data — sql.js (web)
+ * only. On desktop/mobile this would silently disconnect `db` from the real
+ * file Tauri's SQL plugin manages without ever writing the restored data to
+ * disk; use restoreDatabaseFromFile() there instead.
  */
 export async function restoreDatabase(binaryData: Uint8Array): Promise<void> {
+  if (isTauri()) {
+    throw new Error(
+      "restoreDatabase() is web-only — use restoreDatabaseFromFile() on desktop/mobile.",
+    );
+  }
   if (!SQL) {
     SQL = await initSqlJs({
       locateFile: (file: string) => `/${file}`,
@@ -794,9 +1029,89 @@ export async function restoreDatabase(binaryData: Uint8Array): Promise<void> {
   await saveDatabase();
 }
 
+/**
+ * Desktop/mobile-only backup: lets the user pick a destination via a native
+ * save dialog, then writes a consistent snapshot of the live database there
+ * with SQLite's VACUUM INTO. Preferred over copying the raw file directly,
+ * since VACUUM INTO produces a coherent copy even if writes are landing on
+ * the live database around the same time — a raw file copy could otherwise
+ * catch it mid-write.
+ */
+export async function backupDatabaseToFile(): Promise<{ success: boolean; path?: string }> {
+  if (!isTauri()) {
+    throw new Error("backupDatabaseToFile() is desktop/mobile-only — use getDatabaseBinary() on web.");
+  }
+  if (!db) {
+    await initDatabase();
+  }
+  if (!db) {
+    throw new Error("Database not initialized");
+  }
+
+  const { save } = await import("@tauri-apps/plugin-dialog");
+  const now = new Date();
+  const dateStr = now.toISOString().split("T")[0];
+  const timeStr = now.toISOString().split("T")[1].slice(0, 8).replace(/:/g, "-");
+
+  const destPath = await save({
+    defaultPath: `${APP_NAME.toLowerCase()}_backup_${dateStr}_${timeStr}.drx`,
+    filters: [{ name: "DumosRx Backup", extensions: ["drx"] }],
+  });
+  if (!destPath) {
+    return { success: false }; // user cancelled the dialog
+  }
+
+  // VACUUM INTO doesn't reliably accept a bound parameter for the filename
+  // across every SQLite driver combination, so the path is escaped and
+  // inlined directly instead. destPath comes from a native OS save dialog
+  // (not free-typed user input), but a single-quote in a folder name (e.g.
+  // "O'Brien's backups") would still break unescaped string interpolation.
+  const escapedPath = destPath.replace(/'/g, "''");
+  await db.execute(`VACUUM INTO '${escapedPath}'`);
+  return { success: true, path: destPath };
+}
+
+/**
+ * Desktop/mobile-only restore: lets the user pick a backup file via a native
+ * open dialog, closes the live SQL connection so the file isn't locked, then
+ * overwrites the real dumosrx.db file with it. The caller must reload the
+ * app afterward so initDatabase() re-establishes a fresh connection against
+ * the restored file.
+ */
+export async function restoreDatabaseFromFile(): Promise<{ success: boolean }> {
+  if (!isTauri()) {
+    throw new Error("restoreDatabaseFromFile() is desktop/mobile-only — use restoreDatabase() on web.");
+  }
+
+  const { open } = await import("@tauri-apps/plugin-dialog");
+  const sourcePath = await open({
+    multiple: false,
+    filters: [{ name: "DumosRx Backup", extensions: ["drx", "db", "sqlite", "sqlite3"] }],
+  });
+  if (!sourcePath || Array.isArray(sourcePath)) {
+    return { success: false }; // user cancelled, or somehow picked multiple
+  }
+
+  if (db) {
+    try {
+      await db.close();
+    } catch (err) {
+      console.error("[DB] Failed to close database connection before restore:", err);
+    }
+    db = null;
+  }
+
+  const { copyFile } = await import("@tauri-apps/plugin-fs");
+  const { appDataDir, join } = await import("@tauri-apps/api/path");
+  const liveDbPath = await join(await appDataDir(), "dumosrx.db");
+  await copyFile(sourcePath, liveDbPath);
+
+  return { success: true };
+}
+
 if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
-  (window as any).getDatabaseBinary = getDatabaseBinary;
-  (window as any).restoreDatabase = restoreDatabase;
+  window.getDatabaseBinary = getDatabaseBinary;
+  window.restoreDatabase = restoreDatabase;
 }
 
 /**
@@ -919,7 +1234,7 @@ export async function logAction(
   action: string,
   table: string,
   recordId: string,
-  details?: any,
+  details?: Record<string, unknown>,
 ) {
   if (!db) return;
   const id = generateId();
@@ -962,7 +1277,7 @@ export function getDatabase(): Database | null {
   return db;
 }
 
-export async function getSystemConfig(key: string): Promise<any | null> {
+export async function getSystemConfig<T = unknown>(key: string): Promise<T | null> {
   const result = await query<{ value: string }>(
     "SELECT value FROM system_configs WHERE key = ?",
     [key],
@@ -977,7 +1292,7 @@ export async function getSystemConfig(key: string): Promise<any | null> {
   return null;
 }
 
-export async function setSystemConfig(key: string, value: any): Promise<void> {
+export async function setSystemConfig(key: string, value: unknown): Promise<void> {
   const now = new Date().toISOString();
   const valueStr = JSON.stringify(value);
 

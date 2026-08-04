@@ -9,8 +9,17 @@ import {
 } from '../db/queries/finance';
 import { useAuth, checkCanViewAllActivity } from '../context/auth-context';
 
+export interface PnLReportData {
+  period: string;
+  revenue: number;
+  cogs: number;
+  expenses: number;
+  netProfit: number;
+  expenseBreakdown: { category: string; amount: number }[];
+}
+
 export function usePnLReport() {
-  const [reportData, setReportData] = useState<any>(null);
+  const [reportData, setReportData] = useState<PnLReportData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 

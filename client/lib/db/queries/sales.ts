@@ -1,7 +1,9 @@
 import { query } from "@/lib/db/local-database";
+import type { Sale, SaleWithDetails, SaleItemDetail, ReturnRecord, ReturnItemDetail } from "@/lib/types/sale";
+import type { StockBatch } from "@/lib/types/stock-batch";
 
 export async function getSaleItems(saleId: string) {
-  return query<any>(
+  return query<SaleItemDetail>(
     "SELECT si.*, m.name as product_name FROM sale_items si JOIN products m ON si.product_id = m.id WHERE si.sale_id = ?",
     [saleId]
   );
@@ -9,8 +11,8 @@ export async function getSaleItems(saleId: string) {
 
 export async function getTransactionDetails(saleId: string) {
   try {
-    const items = await query<any>(
-      `SELECT 
+    const items = await query<SaleItemDetail>(
+      `SELECT
         si.*, 
         m.name as product_name, 
         si.cost_price as med_cost_price,
@@ -26,7 +28,7 @@ export async function getTransactionDetails(saleId: string) {
       [saleId]
     );
 
-    const returnsData = await query<any>(
+    const returnsData = await query<{ total_refunded?: number }>(
       `SELECT SUM(total_refunded) as total_refunded FROM returns WHERE sale_id = ? AND (_deleted = 0 OR _deleted IS NULL)`,
       [saleId]
     );
@@ -37,8 +39,8 @@ export async function getTransactionDetails(saleId: string) {
     
     // Fallback simple query just in case the complex one fails due to schema issues
     try {
-      const fallbackItems = await query<any>(
-        `SELECT si.*, m.name as product_name, si.cost_price as med_cost_price, 0 as returned_quantity 
+      const fallbackItems = await query<SaleItemDetail>(
+        `SELECT si.*, m.name as product_name, si.cost_price as med_cost_price, 0 as returned_quantity
          FROM sale_items si 
          LEFT JOIN products m ON si.product_id = m.id 
          WHERE si.sale_id = ? AND (si._deleted = 0 OR si._deleted IS NULL)`,
@@ -54,6 +56,7 @@ export async function getTransactionDetails(saleId: string) {
 
 export interface HeldTransaction {
   id: string;
+  customer_id?: string | null;
   customer_name: string;
   items_json: string;
   total_amount: number;
@@ -88,7 +91,7 @@ export async function getSaleItemBatches(saleItemId: string) {
 }
 
 export async function getStockBatchById(batchId: string) {
-  const invs = await query<any>(
+  const invs = await query<StockBatch>(
     "SELECT * FROM stock_batches WHERE id = ?",
     [batchId],
   );
@@ -141,7 +144,7 @@ export async function getTopStaffByDate(dateStr: string) {
 }
 
 export async function getSaleById(saleId: string) {
-  const rows = await query<any>(
+  const rows = await query<SaleWithDetails>(
     `SELECT
       s.*,
       TRIM(c.first_name || ' ' || COALESCE(c.last_name, '')) as customer_name,
@@ -156,7 +159,7 @@ export async function getSaleById(saleId: string) {
 
 /** Most recent (non-deleted) sale a prescription was dispensed through, if any. */
 export async function getSaleForPrescription(prescriptionId: string) {
-  const rows = await query<any>(
+  const rows = await query<Sale>(
     `SELECT * FROM sales WHERE prescription_id = ? AND _deleted = 0 ORDER BY created_at DESC LIMIT 1`,
     [prescriptionId]
   );
@@ -165,7 +168,7 @@ export async function getSaleForPrescription(prescriptionId: string) {
 
 export async function getRecentSales(userId?: string) {
   const userFilter = userId ? ` AND s.user_id = ?` : "";
-  return query<any>(
+  return query<SaleWithDetails>(
     `SELECT
       s.*,
       TRIM(c.first_name || ' ' || COALESCE(c.last_name, '')) as customer_name,
@@ -183,17 +186,17 @@ export async function getRecentSales(userId?: string) {
 }
 
 export async function getRecentlySoldProductIds() {
-  const data = await query<any>(
+  const data = await query<{ product_id: string }>(
     "SELECT DISTINCT product_id FROM sale_items ORDER BY created_at DESC LIMIT 8"
   );
-  return data.map((d: any) => d.product_id);
+  return data.map((d) => d.product_id);
 }
 
 export async function getCommonlySoldProductIds() {
-  const data = await query<any>(
+  const data = await query<{ product_id: string; total_qty: number }>(
     "SELECT product_id, SUM(quantity) as total_qty FROM sale_items GROUP BY product_id ORDER BY total_qty DESC LIMIT 8"
   );
-  return data.map((d: any) => d.product_id);
+  return data.map((d) => d.product_id);
 }
 
 export async function getDailyCloseData(reportDate: string) {
@@ -201,22 +204,22 @@ export async function getDailyCloseData(reportDate: string) {
   const startIso = new Date(year, month - 1, day, 0, 0, 0, 0).toISOString();
   const endIso = new Date(year, month - 1, day, 23, 59, 59, 999).toISOString();
 
-  const salesToday = await query<any>(
+  const salesToday = await query<Sale>(
     `SELECT * FROM sales WHERE transaction_date >= ? AND transaction_date <= ? AND _deleted = 0`,
     [startIso, endIso]
   );
 
-  const itemsToday = await query<any>(
+  const itemsToday = await query<SaleItemDetail>(
     `SELECT si.*, m.name as product_name, si.cost_price as med_cost_price FROM sale_items si JOIN sales s ON si.sale_id = s.id LEFT JOIN products m ON si.product_id = m.id WHERE s.transaction_date >= ? AND s.transaction_date <= ? AND (si._deleted = 0 OR si._deleted IS NULL) AND (s._deleted = 0 OR s._deleted IS NULL)`,
     [startIso, endIso]
   );
 
-  const returnsToday = await query<any>(
+  const returnsToday = await query<ReturnRecord>(
     `SELECT r.*, s.payment_method, s.payment_details FROM returns r JOIN sales s ON r.sale_id = s.id WHERE r.created_at >= ? AND r.created_at <= ? AND (r._deleted = 0 OR r._deleted IS NULL)`,
     [startIso, endIso]
   );
 
-  const returnItemsToday = await query<any>(
+  const returnItemsToday = await query<ReturnItemDetail & { med_cost_price?: number }>(
     `SELECT ri.*, IFNULL((SELECT AVG(cost_price) FROM stock_batches WHERE product_id = ri.product_id AND is_active = 1), 0) as med_cost_price FROM return_items ri JOIN returns r ON ri.return_id = r.id LEFT JOIN products m ON ri.product_id = m.id WHERE r.created_at >= ? AND r.created_at <= ? AND (ri._deleted = 0 OR ri._deleted IS NULL) AND (r._deleted = 0 OR r._deleted IS NULL)`,
     [startIso, endIso]
   );

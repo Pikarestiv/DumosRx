@@ -8,6 +8,7 @@ import {
   BarChart3,
   Barcode,
   PackagePlus,
+  LucideIcon,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useState } from "react";
@@ -46,7 +47,14 @@ const getQuickActionsConfig = (setIsReportOpen: (val: boolean) => void) => [
   },
 ];
 
-function QuickActionCard({ action }: { action: any }) {
+interface QuickAction {
+  label: string;
+  icon: LucideIcon;
+  href?: string;
+  onClick?: () => void;
+}
+
+function QuickActionCard({ action }: { action: QuickAction }) {
   const content = (
     <>
       <div className="p-3 rounded-2xl sm:rounded-xl w-16 h-16 sm:w-auto sm:h-auto border border-primary/20 sm:border-none bg-background sm:bg-primary/10 shadow-sm sm:shadow-none text-primary group-hover:bg-primary/15 transition-transform flex items-center justify-center">

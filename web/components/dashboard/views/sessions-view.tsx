@@ -105,16 +105,16 @@ export function SessionsView() {
             ) : (
               <div className="space-y-4">
                 <div className="rounded-xl border border-border/50 divide-y divide-border/50 overflow-hidden bg-background/50">
-                  {visibleSessions.map((session: any) => (
+                  {visibleSessions.map((session) => (
                     <div key={session.id} className="p-4 flex items-center justify-between gap-4 hover:bg-muted/30 transition-colors">
                       <div className="flex items-center gap-4">
                         <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                          {getDeviceIcon(session.user_agent)}
+                          {getDeviceIcon(session.user_agent || "")}
                         </div>
                         <div>
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="font-medium text-sm text-foreground">
-                              {parseDeviceName(session.user_agent)}
+                              {parseDeviceName(session.user_agent || "")}
                             </p>
                             {session.is_current && (
                               <span className="inline-flex items-center whitespace-nowrap rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] sm:text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
@@ -123,7 +123,7 @@ export function SessionsView() {
                             )}
                           </div>
                           <p className="text-xs text-muted-foreground mt-0.5">
-                            {session.ip_address || "Unknown IP"} • Last active: {new Date(session.last_used_at || session.created_at).toLocaleString()}
+                            {session.ip_address || "Unknown IP"} • Last active: {session.last_used_at || session.created_at ? new Date(session.last_used_at || session.created_at || "").toLocaleString() : "Unknown"}
                           </p>
                         </div>
                       </div>

@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { AuditSetupStep } from "./audit-setup-step";
+import { AuditListStep } from "./audit-list-step";
 import { AuditCountStep } from "./audit-count-step";
 import { AuditReviewStep } from "./audit-review-step";
-import { ChevronLeft, Search, CheckCircle2, PackageSearch, Loader2 } from "lucide-react";
+import { ChevronLeft, CheckCircle2, Loader2 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getProductsWithDetails } from "@/lib/db/queries/products";
 import { submitStockAudit } from "@/lib/db/queries/inventory";
@@ -11,10 +13,11 @@ import { genericFuzzySearch } from "@/lib/utils/search";
 import { queryKeys } from "@/lib/query-keys";
 import { useAuth } from "@/lib/context/auth-context";
 import { toast } from "sonner";
+import type { ProductWithDetails } from "@/lib/types/product";
 
 type AuditStep = "setup" | "list" | "count" | "review" | "done";
 
-interface AuditItem {
+export interface AuditItem {
   id: string;
   name: string;
   sku: string;
@@ -22,15 +25,6 @@ interface AuditItem {
   systemQty: number;
   countedQty?: number;
   reason?: string;
-}
-
-function NoAuditItemsFound() {
-  return (
-    <div className="flex flex-col items-center gap-2 text-muted-foreground text-[13px] py-4">
-      <PackageSearch className="w-6 h-6 opacity-30" />
-      No items found.
-    </div>
-  );
 }
 
 export function StockAudits({ onClose }: { onClose: () => void }) {
@@ -55,7 +49,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     if (rawProducts) {
-      const formatted: AuditItem[] = rawProducts.map((p: any) => ({
+      const formatted: AuditItem[] = rawProducts.map((p: ProductWithDetails) => ({
         id: p.id,
         name: p.name,
         sku: p.barcode || `SKU-${p.id.substring(0, 6)}`,
@@ -185,125 +179,25 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
         <div className="w-full max-w-[560px]">
           {/* SETUP */}
           {step === "setup" && (
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
-              <div className="text-[17px] font-semibold mb-1.5">
-                What are you counting?
-              </div>
-              <div className="text-[13px] text-muted-foreground mb-5">
-                Pick a category, then search and count items in any order.
-              </div>
-              {!!isLoading && (
-                <div className="text-center p-8 text-muted-foreground">
-                  Loading categories...
-                </div>
-              )}
-              {!isLoading && (
-                <div className="flex flex-col gap-2.5 mb-2">
-                  {categories.length === 0 && <NoAuditItemsFound />}
-
-                  {items.length > 0 && (
-                    <div
-                      onClick={() => setSelectedCategory("__all__")}
-                      className={`flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-colors ${
-                        selectedCategory === "__all__"
-                          ? "border-primary bg-primary/10"
-                          : "border-border bg-card hover:bg-accent/50"
-                      }`}
-                    >
-                      <div className="font-semibold text-[14px] text-foreground">
-                        All Categories
-                      </div>
-                      <div className="text-[13px] text-muted-foreground">
-                        {items.length} items
-                      </div>
-                    </div>
-                  )}
-
-                  {categories.map((cat) => (
-                    <div
-                      key={cat.id}
-                      onClick={() => setSelectedCategory(cat.id)}
-                      className={`flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-colors ${
-                        selectedCategory === cat.id
-                          ? "border-primary bg-primary/10"
-                          : "border-border bg-card hover:bg-accent/50"
-                      }`}
-                    >
-                      <div className="font-semibold text-[14px] text-foreground">
-                        {cat.label}
-                      </div>
-                      <div className="text-[13px] text-muted-foreground">
-                        {cat.count} items
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            <AuditSetupStep
+              isLoading={isLoading}
+              items={items}
+              categories={categories}
+              selectedCategory={selectedCategory}
+              setSelectedCategory={setSelectedCategory}
+            />
           )}
 
           {/* LIST */}
           {step === "list" && (
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
-              <div className="flex items-center justify-between mb-3.5">
-                <div className="text-[17px] font-semibold">Count items</div>
-                <div className="text-[12.5px] text-muted-foreground font-medium">
-                  {countedItems.length} of {categoryItems.length} counted
-                </div>
-              </div>
-              <div className="flex items-center gap-2 bg-card border border-border rounded-[10px] px-3.5 py-2.5 mb-4 sticky top-0 z-10">
-                <Search className="w-4 h-4 text-muted-foreground/70 shrink-0" />
-                <input
-                  type="text"
-                  placeholder="Search by name or SKU"
-                  className="border-0 outline-none text-[13px] w-full bg-transparent"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-              </div>
-              <div className="flex flex-col gap-2.5 mb-2">
-                {filteredList.map((item) => {
-                  const isCounted = item.countedQty !== undefined;
-                  const isDelta =
-                    isCounted && item.countedQty !== item.systemQty;
-                  return (
-                    <div
-                      key={item.id}
-                      onClick={() => openCount(item)}
-                      className="bg-card border border-border p-4 rounded-xl cursor-pointer hover:border-border transition-colors flex items-center justify-between"
-                    >
-                      <div>
-                        <div className="text-[14px] font-semibold text-foreground">
-                          {item.name}
-                        </div>
-                        <div className="text-[12px] text-muted-foreground/70">
-                          {item.sku}
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        {!!isCounted && (
-                          <div
-                            className={`text-[15px] font-bold ${isDelta ? "text-destructive" : "text-emerald-700"}`}
-                          >
-                            {item.countedQty}
-                          </div>
-                        )}
-                        {!isCounted && (
-                          <div className="text-[13px] text-muted-foreground/70 font-medium">
-                            uncounted
-                          </div>
-                        )}
-                        {isCounted && (
-                          <div className="text-[11px] text-muted-foreground">
-                            was {item.systemQty}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            <AuditListStep
+              countedCount={countedItems.length}
+              totalCount={categoryItems.length}
+              search={search}
+              setSearch={setSearch}
+              filteredList={filteredList}
+              openCount={openCount}
+            />
           )}
 
           {/* COUNT */}

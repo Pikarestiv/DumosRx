@@ -1,4 +1,23 @@
-export const getSubscriptionPlans = (config: any, isYearly: boolean, formatPrice: (price: number) => string) => {
+import type { SubscriptionConfig } from "@/lib/types/admin";
+
+export interface SubscriptionPlan {
+  id: string;
+  name: string;
+  price: string;
+  period: string;
+  description: string;
+  features: string[];
+  missing: string[];
+  numericPrice: number;
+  active: boolean;
+  popular: boolean;
+}
+
+export const getSubscriptionPlans = (
+  config: Partial<SubscriptionConfig> | undefined,
+  isYearly: boolean,
+  formatPrice: (price: number) => string,
+): SubscriptionPlan[] => {
   return [
     {
       id: "free",

@@ -12,13 +12,15 @@ import {
   getPurchaseOrderById,
   updatePurchaseOrder,
 } from "@/lib/db/local-database";
-import { createSupplier } from "@/lib/db/procurement";
+import { createSupplier, type DraftPOLineItem } from "@/lib/db/procurement";
 import { toast } from "sonner";
 
 import { useStore } from "@/lib/context/store-context";
 import { useProcurementData } from "@/lib/hooks/use-procurement-data";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
+import type { NewProductPayload, ProductViewModel } from "@/lib/types/product";
+import type { SupplierPayload } from "@/lib/types/supplier";
 
 function EditOrderContent() {
   const router = useRouter();
@@ -29,7 +31,7 @@ function EditOrderContent() {
 
   const [selectedSupplierId, setSelectedSupplierId] = useState("");
   const [notes, setNotes] = useState("");
-  const [items, setItems] = useState<any[]>([]);
+  const [items, setItems] = useState<DraftPOLineItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [paymentStatus, setPaymentStatus] = useState("unpaid");
@@ -37,7 +39,8 @@ function EditOrderContent() {
   const [dueDate, setDueDate] = useState("");
 
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
-  const [initialProductData, setInitialProductData] = useState<any>(null);
+  const [initialProductData, setInitialProductData] =
+    useState<Partial<ProductViewModel> | null>(null);
   const [newlyCreatedProductId, setNewlyCreatedProductId] = useState<
     string | null
   >(null);
@@ -76,16 +79,16 @@ function EditOrderContent() {
     loadPO();
   }, [id, router]);
 
-  const handleAddLineItem = (newItem: any) => {
+  const handleAddLineItem = (newItem: DraftPOLineItem) => {
     setItems([...items, newItem]);
   };
 
-  const handleOpenAddProduct = (productData: any) => {
+  const handleOpenAddProduct = (productData: Partial<ProductViewModel>) => {
     setInitialProductData(productData);
     setIsAddProductOpen(true);
   };
 
-  const handleCreateSupplier = async (payload: any) => {
+  const handleCreateSupplier = async (payload: SupplierPayload) => {
     try {
       const newId = await createSupplier(payload);
       toast.success(`${payload.name} added to vendors`);
@@ -98,7 +101,7 @@ function EditOrderContent() {
     }
   };
 
-  const handleCreateProduct = async (productData: any, keepOpen?: boolean) => {
+  const handleCreateProduct = async (productData: NewProductPayload, keepOpen?: boolean) => {
     try {
       const newProductId = await createProduct(productData);
       toast.success(`${productData.name} added to catalog`);
@@ -169,7 +172,7 @@ function EditOrderContent() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center h-[calc(100vh-120px)] bg-card border border-border rounded-2xl">
+      <div className="flex flex-col items-center justify-center h-[calc(100vh-148px)] bg-card border border-border rounded-2xl">
         <Clock className="w-8 h-8 animate-spin text-muted-foreground mb-4" />
         <p className="text-muted-foreground font-medium text-sm">
           Loading order...
@@ -179,7 +182,7 @@ function EditOrderContent() {
   }
 
   return (
-    <div className="flex flex-col min-h-0 bg-card border border-border rounded-2xl overflow-hidden h-[calc(100vh-120px)] shadow-sm">
+    <div className="flex flex-col min-h-0 bg-card border border-border rounded-2xl overflow-hidden h-[calc(100vh-148px)] shadow-sm">
       <div className="flex items-center gap-3 px-6 py-5 border-b border-border bg-card shrink-0">
         <div
           className="w-[38px] h-[38px] rounded-[10px] bg-muted flex items-center justify-center cursor-pointer text-muted-foreground shrink-0 hover:bg-muted/80 transition-colors"
@@ -241,7 +244,7 @@ function EditOrderContent() {
         open={isAddProductOpen}
         onOpenChange={setIsAddProductOpen}
         onAddProduct={handleCreateProduct}
-        initialData={initialProductData}
+        initialData={initialProductData ?? undefined}
         hideAddAnother
       />
 

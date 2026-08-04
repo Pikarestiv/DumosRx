@@ -68,7 +68,7 @@ interface ReportPdfDocumentProps {
   title: string;
   subtitle?: string;
   headers: string[];
-  rows: Record<string, any>[];
+  rows: Record<string, unknown>[];
   generatedAt: string;
 }
 

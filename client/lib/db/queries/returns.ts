@@ -5,7 +5,7 @@ import { getStockBatchById } from "@/lib/db/queries/inventory";
 interface RestoreParams {
   saleItemId: string;
   productId: string;
-  unitPrice: number;
+  costPrice: number;
   legacyStockBatchId?: string | null;
   returnQuantity: number;
   returnId: string;
@@ -15,7 +15,7 @@ interface RestoreParams {
 async function restoreBatchQuantity(
   stockBatchId: string,
   quantity: number,
-  { productId, unitPrice, returnId, performedBy }: Omit<RestoreParams, "saleItemId" | "legacyStockBatchId" | "returnQuantity">,
+  { productId, costPrice, returnId, performedBy }: Omit<RestoreParams, "saleItemId" | "legacyStockBatchId" | "returnQuantity">,
 ) {
   const currentInv = await getStockBatchById(stockBatchId);
   if (currentInv) {
@@ -24,13 +24,18 @@ async function restoreBatchQuantity(
     });
   }
 
+  // unit_cost/total_cost record the stock's cost basis, matching how sale
+  // and purchase-order movements populate these fields — using the sale's
+  // selling price here (as this used to) mixed cost and revenue figures
+  // under the same field, showing e.g. a refund's revenue value right next
+  // to a sale's cost-of-goods value on the dashboard activity feed.
   await insert("stock_movements", {
     product_id: productId,
     stock_batch_id: stockBatchId,
     movement_type: "return",
     quantity: Math.abs(quantity),
-    unit_cost: unitPrice,
-    total_cost: unitPrice * quantity,
+    unit_cost: costPrice,
+    total_cost: costPrice * quantity,
     reference_id: returnId,
     reference_type: "return",
     reason: "Customer return",
@@ -46,7 +51,7 @@ async function restoreBatchQuantity(
  * before sale_item_batches existed.
  */
 export async function restoreReturnedStock(params: RestoreParams) {
-  const { saleItemId, legacyStockBatchId, returnQuantity, productId, unitPrice, returnId, performedBy } = params;
+  const { saleItemId, legacyStockBatchId, returnQuantity, productId, costPrice, returnId, performedBy } = params;
   const consumedBatches = await getSaleItemBatches(saleItemId);
   let remaining = returnQuantity;
 
@@ -55,21 +60,21 @@ export async function restoreReturnedStock(params: RestoreParams) {
     const restoreQty = Math.min(consumed.quantity, remaining);
     if (restoreQty <= 0) continue;
 
-    await restoreBatchQuantity(consumed.stock_batch_id, restoreQty, { productId, unitPrice, returnId, performedBy });
+    await restoreBatchQuantity(consumed.stock_batch_id, restoreQty, { productId, costPrice, returnId, performedBy });
     remaining -= restoreQty;
   }
 
   if (remaining > 0) {
     if (legacyStockBatchId) {
-      await restoreBatchQuantity(legacyStockBatchId, remaining, { productId, unitPrice, returnId, performedBy });
+      await restoreBatchQuantity(legacyStockBatchId, remaining, { productId, costPrice, returnId, performedBy });
     } else {
       await insert("stock_movements", {
         product_id: productId,
         stock_batch_id: null,
         movement_type: "return",
         quantity: Math.abs(remaining),
-        unit_cost: unitPrice,
-        total_cost: unitPrice * remaining,
+        unit_cost: costPrice,
+        total_cost: costPrice * remaining,
         reference_id: returnId,
         reference_type: "return",
         reason: "Customer return",

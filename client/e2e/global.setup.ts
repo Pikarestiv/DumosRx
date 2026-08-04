@@ -28,9 +28,9 @@ setup('create mock store and extract database', async ({ page }) => {
 
   // Extract the database binary
   const dbBinary = await page.evaluate(() => {
-    if (typeof (window as any).getDatabaseBinary === 'function') {
-      const bin = (window as any).getDatabaseBinary();
-      return Array.from(bin); // Convert Uint8Array to normal array for JSON transfer
+    if (typeof window.getDatabaseBinary === 'function') {
+      const bin = window.getDatabaseBinary();
+      return bin ? Array.from(bin) : null; // Convert Uint8Array to normal array for JSON transfer
     }
     return null;
   });

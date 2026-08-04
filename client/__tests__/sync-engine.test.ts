@@ -1,15 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { Query } from '@tanstack/react-query';
 import { insert } from '../lib/db/base-helpers';
 import { query, execute } from '../lib/db/core';
 
 // Mock the core DB functions
 vi.mock('../lib/db/core', async () => {
-  const actual = await vi.importActual('../lib/db/core');
+  const actual = await vi.importActual<typeof import('../lib/db/core')>('../lib/db/core');
   return {
-    ...actual as any,
-    execute: vi.fn().mockResolvedValue(true),
+    ...actual,
+    execute: vi.fn().mockResolvedValue(undefined),
     query: vi.fn(),
-    logAction: vi.fn().mockResolvedValue(true),
+    logAction: vi.fn().mockResolvedValue(undefined),
   };
 });
 
@@ -21,9 +22,9 @@ import { queryClient } from '../lib/query-client';
 
 // Mock local-database to force isTauri to true so it uses the execute() wrapper
 vi.mock('../lib/db/local-database', async () => {
-  const actual = await vi.importActual('../lib/db/local-database');
+  const actual = await vi.importActual<typeof import('../lib/db/local-database')>('../lib/db/local-database');
   return {
-    ...actual as any,
+    ...actual,
     isTauri: vi.fn().mockReturnValue(true),
   };
 });
@@ -86,7 +87,7 @@ describe('Sync Engine & Local Database', () => {
         }
       ]);
 
-      vi.mocked(apiClient.pushChanges).mockResolvedValueOnce({ success: true } as any);
+      vi.mocked(apiClient.pushChanges).mockResolvedValueOnce({ success: true });
       
       const result = await pushChanges();
       
@@ -120,7 +121,7 @@ describe('Sync Engine & Local Database', () => {
           ]
         },
         server_timestamp: '2026-07-21T00:00:00Z'
-      } as any);
+      });
 
       // We need to mock query calls inside pull.ts
       vi.mocked(query).mockImplementation(async (sql: string) => {
@@ -142,12 +143,60 @@ describe('Sync Engine & Local Database', () => {
       
       expect(wasUpsertExecuted).toBe(true);
     });
+
+    it('does not overwrite a local row with a pending unsynced edit, and does not advance the sync cursor for that table', async () => {
+      vi.mocked(apiClient.pullChanges).mockResolvedValueOnce({
+        success: true,
+        changes: {
+          products: [
+            { id: 'rec-conflict', name: 'Server Name', _version: 5, deleted_at: null },
+          ],
+        },
+        server_timestamp: '2026-07-21T00:00:00Z',
+      });
+
+      vi.mocked(query).mockImplementation(async (sql: string) => {
+        if (sql.includes('PRAGMA table_info')) {
+          return [{ name: 'id' }, { name: 'name' }, { name: '_version' }];
+        }
+        // A pending local edit exists for this exact record...
+        if (sql.includes('FROM _sync_queue')) return [{ 1: 1 }];
+        // ...and the record already exists locally.
+        if (sql.includes('SELECT 1 FROM products')) return [{ 1: 1 }];
+        return [];
+      });
+
+      const result = await pullChanges();
+
+      // The conflicted record was deliberately skipped, not applied.
+      expect(result.pulled).toBe(0);
+
+      const executeMock = vi.mocked(execute);
+
+      // No UPDATE/INSERT was issued for the conflicted record — the user's
+      // own unsynced edit must survive until the next push resolves it.
+      const touchedProducts = executeMock.mock.calls.some(
+        (call) =>
+          typeof call[0] === 'string' &&
+          call[0].includes('products') &&
+          (call[0].includes('UPDATE') || call[0].includes('INSERT')),
+      );
+      expect(touchedProducts).toBe(false);
+
+      // The per-table sync cursor must not advance either, or the server's
+      // copy of this record would never be re-offered once the local edit
+      // is pushed and resolved.
+      const cursorAdvanced = executeMock.mock.calls.some(
+        (call) => typeof call[0] === 'string' && call[0].includes('_sync_state'),
+      );
+      expect(cursorAdvanced).toBe(false);
+    });
   });
 
   describe('sync() cache invalidation', () => {
     beforeEach(() => {
       localStorage.setItem('auth_token', 'test-token');
-      vi.mocked(apiClient.pushChanges).mockResolvedValue({ success: true } as any);
+      vi.mocked(apiClient.pushChanges).mockResolvedValue({ success: true });
     });
 
     it('invalidates via a table-matching predicate when tables changed', async () => {
@@ -164,22 +213,22 @@ describe('Sync Engine & Local Database', () => {
           products: [{ id: 'rec3', name: 'Ibuprofen', _version: 1, deleted_at: null }],
         },
         server_timestamp: '2026-07-28T00:00:00Z',
-      } as any);
+      });
 
       await sync();
 
       const call = vi.mocked(queryClient.invalidateQueries).mock.calls.find(
-        (c) => (c[0] as any)?.predicate,
+        (c) => (c[0] as { predicate?: unknown })?.predicate,
       );
       expect(call).toBeDefined();
-      const predicate = (call![0] as any).predicate as (q: any) => boolean;
+      const predicate = (call![0] as { predicate: (q: Query) => boolean }).predicate;
 
       // A query tagged for the table that changed gets invalidated.
-      expect(predicate({ meta: { tables: ['products'] } })).toBe(true);
+      expect(predicate({ meta: { tables: ['products'] } } as unknown as Query)).toBe(true);
       // A query tagged only for unrelated tables is left alone.
-      expect(predicate({ meta: { tables: ['customers'] } })).toBe(false);
+      expect(predicate({ meta: { tables: ['customers'] } } as unknown as Query)).toBe(false);
       // Untagged (not-yet-migrated) queries still fall back to invalidating.
-      expect(predicate({ meta: undefined })).toBe(true);
+      expect(predicate({ meta: undefined } as unknown as Query)).toBe(true);
     });
 
     it('does not invalidate anything when no tables changed', async () => {
@@ -188,12 +237,12 @@ describe('Sync Engine & Local Database', () => {
         success: true,
         changes: {},
         server_timestamp: '2026-07-28T00:00:00Z',
-      } as any);
+      });
 
       await sync();
 
       const predicateCall = vi.mocked(queryClient.invalidateQueries).mock.calls.find(
-        (c) => (c[0] as any)?.predicate,
+        (c) => (c[0] as { predicate?: unknown })?.predicate,
       );
       expect(predicateCall).toBeUndefined();
     });

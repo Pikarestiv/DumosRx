@@ -92,7 +92,7 @@ export default function AdminNewStorePage() {
         fetchSummary(true);
         router.push("/admin/stores");
       },
-      onError: (err: any) => {
+      onError: (err) => {
         setError(err.message || "Registration failed. Please try again.");
       },
     });

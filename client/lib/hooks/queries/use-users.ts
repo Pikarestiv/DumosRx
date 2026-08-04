@@ -6,6 +6,7 @@ import {
   updateUser,
   deleteUser,
 } from "@/lib/db/local-database";
+import type { StaffCreatePayload, StaffUpdatePayload } from "@/lib/types/user";
 
 export function useUsers(storeId?: string | null) {
   return useQuery({
@@ -23,14 +24,14 @@ export function useMutateUser() {
   const queryClient = useQueryClient();
 
   const create = useMutation({
-    mutationFn: (data: any) => createUser(data),
+    mutationFn: (data: StaffCreatePayload) => createUser(data),
     onSuccess: () => {
       queryClient.invalidateQueries(queryKeys.staff.users());
     },
   });
 
   const update = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: any }) =>
+    mutationFn: ({ id, data }: { id: string; data: StaffUpdatePayload }) =>
       updateUser(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries(queryKeys.staff.users());

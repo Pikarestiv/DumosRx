@@ -1,5 +1,4 @@
 "use client";
-import { toast } from "sonner";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { usePOSSystem } from "@/lib/hooks/use-pos-system";
 import { POSLayoutHeader } from "./pos-layout-header";
@@ -122,7 +121,6 @@ export function POSSystem() {
     saleToReturn,
     refetchProducts,
     refetchSales,
-    toast,
     showHeldDialog,
     setShowHeldDialog,
     handleRecallTransaction,
@@ -179,7 +177,7 @@ export function POSSystem() {
                   selectedCustomer={selectedCustomer}
                   customers={customers}
                   loadingCustomers={loadingCustomers}
-                  onSelectCustomer={setSelectedCustomer as any}
+                  onSelectCustomer={setSelectedCustomer}
                   cartLength={cart.length}
                   searchTerm={searchTerm}
                   setSearchTerm={setSearchTerm}
@@ -255,7 +253,7 @@ export function POSSystem() {
         selectedCustomer={selectedCustomer}
         customers={customers}
         loadingCustomers={loadingCustomers}
-        onSelectCustomer={setSelectedCustomer as any}
+        onSelectCustomer={setSelectedCustomer}
       />
       <POSDialogs {...posDialogProps} />
     </div>

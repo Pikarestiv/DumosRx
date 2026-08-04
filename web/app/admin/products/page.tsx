@@ -69,12 +69,12 @@ export default function GlobalProductsManagement() {
       description: "Scanning catalog for inconsistencies...",
     });
     standardizeMutation.mutate(undefined, {
-      onSuccess: (res: any) => {
+      onSuccess: (res) => {
         toast.success("Standardization Complete", {
           description: res.message,
         });
       },
-      onError: (err: any) => {
+      onError: (err) => {
         toast.error("Standardization Failed", {
           description: err.message,
         });

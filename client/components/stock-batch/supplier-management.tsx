@@ -20,36 +20,21 @@ import { genericFuzzySearch } from "@/lib/utils/search";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { toast } from "sonner";
 import { usePullToRefreshHandler } from "@/lib/context/pull-to-refresh-context";
+import type { SupplierViewModel, SupplierDbRow, SupplierPayload } from "@/lib/types/supplier";
 
-interface Supplier {
-  id: string;
-  name: string;
-  contactPerson: string;
-  email: string;
-  phone: string;
-  address: string;
-  status: "active" | "inactive";
-  totalOrders: number;
-  totalValue: number;
-  lastOrderDate: string;
-  paymentTerms: string;
-  rating: number;
-  hasDebt: boolean;
-  debtAmount: number;
-}
-
-const transformSupplier = (apiData: any): Supplier => ({
+const transformSupplier = (apiData: SupplierDbRow): SupplierViewModel => ({
   id: apiData.id,
   name: apiData.name,
   contactPerson: apiData.contact_person || "",
   email: apiData.email || "",
   phone: apiData.phone || "",
   address: apiData.address || "",
+  taxId: apiData.tax_id || "",
   status: apiData.is_active ? "active" : "inactive",
   totalOrders: 0,
   totalValue: 0,
   lastOrderDate: new Date().toISOString(),
-  paymentTerms: apiData.payment_terms || "30 days",
+  paymentTerms: String(apiData.payment_terms || "30 days"),
   rating: isNaN(Number(apiData.rating)) ? 5.0 : Number(apiData.rating),
   hasDebt: (apiData.total_debt || 0) > 0,
   debtAmount: apiData.total_debt || 0,
@@ -105,7 +90,7 @@ export function SupplierManagement() {
     await fetchSuppliers();
   });
 
-  const handleAddSupplier = async (payload: any) => {
+  const handleAddSupplier = async (payload: SupplierPayload) => {
     try {
       // insert()'s global cache invalidation refreshes the `suppliers`
       // query automatically — no need to hand-splice the new row into

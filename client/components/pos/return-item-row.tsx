@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/utils";
+import type { SaleItemDetail } from "@/lib/types/sale";
 
 interface Props {
-  item: any;
+  item: SaleItemDetail;
   quantity: number;
   selected: boolean;
   currencyCode?: string;

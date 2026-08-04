@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/utils";
 import { calculateProportionalRefund } from "@/lib/utils/pos-calculations";
-import { insert, update } from "@/lib/db/local-database";
+import { insert, update, transaction } from "@/lib/db/local-database";
 import { AUDIT_ACTIONS } from "@/lib/db/audit-actions";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -28,14 +28,20 @@ import { Loader2, RotateCcw } from "lucide-react";
 import { useAuth } from "@/lib/context/auth-context";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ReturnItemRow } from "./return-item-row";
+import type { SaleWithDetails, SaleItemDetail } from "@/lib/types/sale";
 
 interface ReturnDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  sale: any;
+  sale: SaleWithDetails | null;
   onSuccess: () => void;
   currencyCode?: string;
 }
+
+type ReturnableItem = SaleItemDetail & {
+  returnQuantity: number;
+  stock_batch_id?: string;
+};
 
 export function ReturnDialog({
   open,
@@ -59,6 +65,8 @@ export function ReturnDialog({
     enabled: !!sale,
   });
   const saleItems = saleItemsData || [];
+
+  if (!sale) return null;
 
   const handleToggleItem = (itemId: string, maxQty: number) => {
     setSelectedItems((prev) => {
@@ -86,10 +94,10 @@ export function ReturnDialog({
     });
   };
 
-  const itemsToReturn = Array.from(selectedItems.entries())
+  const itemsToReturn: ReturnableItem[] = Array.from(selectedItems.entries())
     .filter(([_, val]) => val.selected)
     .map(([id, val]) => ({
-      ...(saleItems?.find((si: any) => si.id === id) || {}),
+      ...(saleItems?.find((si) => si.id === id) as SaleItemDetail),
       returnQuantity: val.quantity,
     }));
 
@@ -122,93 +130,96 @@ export function ReturnDialog({
   const handleSubmit = async () => {
     setProcessing(true);
     try {
-      // 1. Create return record
-      const returnId = await insert(
-        "returns",
-        {
-          sale_id: sale.id,
-          user_id: user?.id || "system",
-          reason: reason,
-          total_refunded: totalRefund,
-          created_at: new Date().toISOString(),
-        },
-        { action: AUDIT_ACTIONS.SALE_RETURN },
-      );
+      await transaction(async () => {
+        // 1. Create return record
+        const returnId = await insert(
+          "returns",
+          {
+            sale_id: sale.id,
+            user_id: user?.id || "system",
+            reason: reason,
+            total_refunded: totalRefund,
+            created_at: new Date().toISOString(),
+          },
+          { action: AUDIT_ACTIONS.SALE_RETURN },
+        );
 
-      // 2. Create return items and restore stock
-      const dumosUser = JSON.parse(localStorage.getItem("dumos_user") || "{}");
-      for (const item of itemsToReturn) {
-        await insert("return_items", {
-          return_id: returnId,
-          product_id: item.product_id,
-          quantity: item.returnQuantity,
-          unit_price: item.unit_price,
-          subtotal: item.unit_price * item.returnQuantity,
-        });
+        // 2. Create return items and restore stock
+        const dumosUser = JSON.parse(localStorage.getItem("dumos_user") || "{}");
+        for (const item of itemsToReturn) {
+          await insert("return_items", {
+            return_id: returnId,
+            product_id: item.product_id,
+            quantity: item.returnQuantity,
+            unit_price: item.unit_price,
+            subtotal: item.unit_price * item.returnQuantity,
+          });
 
-        await restoreReturnedStock({
-          saleItemId: item.id,
-          productId: item.product_id,
-          unitPrice: item.unit_price,
-          legacyStockBatchId: item.stock_batch_id,
-          returnQuantity: item.returnQuantity,
-          returnId,
-          performedBy: dumosUser?.id,
-        });
-      }
-
-      // 3. Mark sale as returned
-      const allItemsReturned =
-        itemsToReturn.length === saleItems.length &&
-        itemsToReturn.every((i) => i.returnQuantity === i.quantity);
-      await update("sales", sale.id, {
-        payment_status: allItemsReturned ? "refunded" : "partially_refunded",
-      });
-
-      // A full return of a prescription-linked sale undoes the dispense —
-      // send it back to "ready" so it re-enters the dispense queue instead
-      // of staying "completed" with no sale to show for it. Partial returns
-      // (e.g. one med out of several) leave the prescription's status alone.
-      if (sale.prescription_id && allItemsReturned) {
-        await updatePrescriptionStatus(sale.prescription_id, "ready");
-      }
-
-      // If any part of this sale was paid on credit, returning goods must also
-      // reduce what the customer owes — otherwise they're still on the hook
-      // for items they gave back. Prorate by the credit share of the original
-      // sale for mixed-payment sales; a plain "credit" sale is 100% credit.
-      if (sale.customer_id) {
-        let creditFraction = 0;
-        if (sale.payment_method === "credit") {
-          creditFraction = 1;
-        } else if (sale.payment_method === "mixed" && sale.payment_details) {
-          try {
-            const details =
-              typeof sale.payment_details === "string"
-                ? JSON.parse(sale.payment_details)
-                : sale.payment_details;
-            const splits = Array.isArray(details) ? details : details?.splits;
-            const creditAmount =
-              splits?.find((s: any) => s.method === "credit")?.amount || 0;
-            creditFraction =
-              sale.total_amount > 0 ? creditAmount / sale.total_amount : 0;
-          } catch {
-            // payment_details wasn't valid JSON — no credit portion to reduce
-          }
-        }
-
-        if (creditFraction > 0) {
-          const creditPortionOfRefund = totalRefund * creditFraction;
-          const balanceRows = await getCustomerBalance(sale.customer_id);
-          const currentBalance = balanceRows[0]?.balance || 0;
-          await update("customers", sale.customer_id, {
-            outstanding_balance: Math.max(
-              0,
-              currentBalance - creditPortionOfRefund,
-            ),
+          await restoreReturnedStock({
+            saleItemId: item.id,
+            productId: item.product_id,
+            costPrice: item.cost_price || 0,
+            legacyStockBatchId: item.stock_batch_id,
+            returnQuantity: item.returnQuantity,
+            returnId,
+            performedBy: dumosUser?.id,
           });
         }
-      }
+
+        // 3. Mark sale as returned
+        const allItemsReturned =
+          itemsToReturn.length === saleItems.length &&
+          itemsToReturn.every((i) => i.returnQuantity === i.quantity);
+        await update("sales", sale.id, {
+          payment_status: allItemsReturned ? "refunded" : "partially_refunded",
+        });
+
+        // A full return of a prescription-linked sale undoes the dispense —
+        // send it back to "ready" so it re-enters the dispense queue instead
+        // of staying "completed" with no sale to show for it. Partial returns
+        // (e.g. one med out of several) leave the prescription's status alone.
+        if (sale.prescription_id && allItemsReturned) {
+          await updatePrescriptionStatus(sale.prescription_id, "ready");
+        }
+
+        // If any part of this sale was paid on credit, returning goods must also
+        // reduce what the customer owes — otherwise they're still on the hook
+        // for items they gave back. Prorate by the credit share of the original
+        // sale for mixed-payment sales; a plain "credit" sale is 100% credit.
+        if (sale.customer_id) {
+          let creditFraction = 0;
+          if (sale.payment_method === "credit") {
+            creditFraction = 1;
+          } else if (sale.payment_method === "mixed" && sale.payment_details) {
+            try {
+              const details =
+                typeof sale.payment_details === "string"
+                  ? JSON.parse(sale.payment_details)
+                  : sale.payment_details;
+              const splits = Array.isArray(details) ? details : details?.splits;
+              const creditAmount =
+                splits?.find((s: { method: string; amount: number }) => s.method === "credit")
+                  ?.amount || 0;
+              creditFraction =
+                sale.total_amount > 0 ? creditAmount / sale.total_amount : 0;
+            } catch {
+              // payment_details wasn't valid JSON — no credit portion to reduce
+            }
+          }
+
+          if (creditFraction > 0) {
+            const creditPortionOfRefund = totalRefund * creditFraction;
+            const balanceRows = await getCustomerBalance(sale.customer_id);
+            const currentBalance = balanceRows[0]?.balance || 0;
+            await update("customers", sale.customer_id, {
+              outstanding_balance: Math.max(
+                0,
+                currentBalance - creditPortionOfRefund,
+              ),
+            });
+          }
+        }
+      });
 
       toast.success(
         `Return processed. Refund amount: ${formatCurrency(totalRefund, currencyCode)}`,
@@ -222,8 +233,6 @@ export function ReturnDialog({
       setProcessing(false);
     }
   };
-
-  if (!sale) return null;
 
   return (
     <>
@@ -271,7 +280,7 @@ export function ReturnDialog({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {saleItems?.map((item: any) => (
+                {saleItems?.map((item) => (
                   <ReturnItemRow
                     key={item.id}
                     item={item}
@@ -290,7 +299,7 @@ export function ReturnDialog({
             </Table>
           </div>
 
-          <div className="grid gap-2">
+          <div className="grid gap-2 mt-4">
             <Label htmlFor="reason">Reason for Return</Label>
             <Textarea
               id="reason"
@@ -313,7 +322,7 @@ export function ReturnDialog({
               You are about to process a return for the following item(s):
             </p>
             <ul className="list-disc pl-5 text-sm space-y-1">
-              {itemsToReturn.map((item: any) => (
+              {itemsToReturn.map((item) => (
                 <li key={item.id}>
                   <span className="font-medium">{item.returnQuantity}x</span>{" "}
                   {item.product_name}

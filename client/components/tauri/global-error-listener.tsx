@@ -11,7 +11,7 @@ import { devLog } from "@/lib/utils/dev-log";
 const IGNORED_ERROR_PATTERNS = [/^ResizeObserver loop/i];
 
 function isIgnorableError(message: unknown): boolean {
-  const text = typeof message === "string" ? message : (message as any)?.message;
+  const text = typeof message === "string" ? message : message instanceof Error ? message.message : undefined;
   return typeof text === "string" && IGNORED_ERROR_PATTERNS.some((re) => re.test(text));
 }
 

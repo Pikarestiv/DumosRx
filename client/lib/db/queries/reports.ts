@@ -173,9 +173,17 @@ export async function fetchSalesReportData(dateFrom?: string, dateTo?: string) {
       s.tax_amount as "Tax",
       s.discount_total as "Discount",
       s.total_amount as "Total",
+      COALESCE(r.refunded, 0) as "Refunded",
+      s.total_amount - COALESCE(r.refunded, 0) as "Net Total",
       s.payment_status as "Status"
      FROM sales s
      LEFT JOIN customers c ON s.customer_id = c.id
+     LEFT JOIN (
+       SELECT sale_id, SUM(total_refunded) as refunded
+       FROM returns
+       WHERE _deleted = 0
+       GROUP BY sale_id
+     ) r ON r.sale_id = s.id
      WHERE ${where}
      ORDER BY s.transaction_date DESC`,
     params

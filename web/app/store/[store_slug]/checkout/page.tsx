@@ -10,6 +10,8 @@ interface CheckoutPageProps {
 }
 
 export async function generateStaticParams() {
+  // See the matching comment on the parent storefront page — output:
+  // "export" requires at least one entry here.
   return [
     { store_slug: 'demo' },
   ];

@@ -19,13 +19,23 @@ async function getStorefrontData(store_slug: string) {
     next: { revalidate: 60 }, // Cache for 60 seconds
   });
 
-  if (!res.ok) {
+  // A misbehaving/misconfigured API (wrong URL, an outage, a proxy's error
+  // page) can return an HTML error page with a 200/OK status — res.json()
+  // would throw on that, and at build time that throw takes down the
+  // entire production build, not just this one page.
+  if (!res.ok || !res.headers.get("content-type")?.includes("application/json")) {
     return null;
   }
   return res.json();
 }
 
 export async function generateStaticParams() {
+  // output: "export" (static export) requires at least one entry for every
+  // dynamic route — an empty array isn't valid here, unlike a normal
+  // server-rendered Next.js deploy. The real fix for a stale/missing "demo"
+  // store taking down the whole build is the content-type guard in
+  // getStorefrontData() above: it now degrades to notFound() instead of
+  // throwing on a non-JSON API response, regardless of which slug this is.
   return [
     { store_slug: "demo" },
     // { store_slug: 'another-store' },

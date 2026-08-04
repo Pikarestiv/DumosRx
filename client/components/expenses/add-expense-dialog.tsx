@@ -152,7 +152,7 @@ export function AddExpenseDialog({
                 disableFuture
                 fromYear={new Date().getFullYear() - 5}
                 toYear={new Date().getFullYear()}
-                className="w-full bg-background [&_input]:border-border [&_input]:rounded-[10px] [&_input]:px-3.5 [&_input]:py-2.5 [&_input]:text-[13px] [&_input]:h-auto focus-within:border-primary"
+                className="w-full bg-background [&_input]:border-border [&_input]:rounded-[10px] [&_input]:px-3.5 [&_input]:h-11 [&_input]:text-[13px] focus-within:border-primary"
               />
             </div>
             <div>
@@ -160,7 +160,7 @@ export function AddExpenseDialog({
                 Category
               </label>
               <select
-                className="w-full border border-border rounded-[10px] px-3.5 py-2.5 text-[13px] outline-none focus:border-primary bg-background text-foreground"
+                className="w-full h-11 border border-border rounded-[10px] px-3.5 text-[13px] outline-none focus:border-primary bg-background text-foreground"
                 value={formData.category}
                 onChange={(e) =>
                   setFormData((prev) => ({ ...prev, category: e.target.value }))
@@ -204,7 +204,7 @@ export function AddExpenseDialog({
                 step="0.01"
                 required
                 placeholder="0.00"
-                className="w-full border border-border rounded-[10px] px-3.5 py-2.5 text-[13px] outline-none focus:border-primary bg-background text-foreground placeholder:text-muted-foreground"
+                className="w-full h-11 border border-border rounded-[10px] px-3.5 text-[13px] outline-none focus:border-primary bg-background text-foreground placeholder:text-muted-foreground"
                 value={formData.amount}
                 onChange={(e) =>
                   setFormData((prev) => ({ ...prev, amount: e.target.value }))
@@ -216,7 +216,7 @@ export function AddExpenseDialog({
                 Method
               </label>
               <select
-                className="w-full border border-border rounded-[10px] px-3.5 py-2.5 text-[13px] outline-none focus:border-primary bg-background text-foreground"
+                className="w-full h-11 border border-border rounded-[10px] px-3.5 text-[13px] outline-none focus:border-primary bg-background text-foreground"
                 value={formData.payment_method}
                 onChange={(e) =>
                   setFormData((prev) => ({

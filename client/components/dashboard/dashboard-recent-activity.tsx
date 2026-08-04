@@ -10,6 +10,7 @@ import {
   Banknote,
   Truck,
   Pill,
+  RotateCcw,
 } from "lucide-react";
 import type { ActivityFeedItem as ActivityItem } from "@/lib/types/dashboard-activity";
 
@@ -39,6 +40,8 @@ export function DashboardRecentActivity({
         return Banknote;
       case "purchase_order":
         return Truck;
+      case "return":
+        return RotateCcw;
       default:
         return Activity;
     }

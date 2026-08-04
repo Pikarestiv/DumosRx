@@ -158,7 +158,7 @@ export function ReturnDialog({
           await restoreReturnedStock({
             saleItemId: item.id,
             productId: item.product_id,
-            unitPrice: item.unit_price,
+            costPrice: item.cost_price || 0,
             legacyStockBatchId: item.stock_batch_id,
             returnQuantity: item.returnQuantity,
             returnId,
@@ -299,7 +299,7 @@ export function ReturnDialog({
             </Table>
           </div>
 
-          <div className="grid gap-2">
+          <div className="grid gap-2 mt-4">
             <Label htmlFor="reason">Reason for Return</Label>
             <Textarea
               id="reason"

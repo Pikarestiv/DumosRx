@@ -60,12 +60,37 @@ export async function getDashboardOverviewData(viewerId?: string) {
     viewerId ? [viewerId] : []
   );
 
+  // Excludes movements already represented by their own richer feed entry
+  // below (a sale's stock deduction, a PO's receipt, a return's restock) —
+  // otherwise every one of those events produced two feed rows for the same
+  // action, one showing revenue/refund and one showing cost basis, with
+  // nothing distinguishing them. Movements with no reference_type (manual
+  // adjustments, stock audit reconciliation) have no other feed
+  // representation, so they still show up here.
   const recentMovements = await query<StockMovementHistoryRow>(
     `SELECT sm.*, TRIM(u.first_name || ' ' || u.last_name) as performed_by_name
      FROM stock_movements sm
      LEFT JOIN users u ON u.id = sm.performed_by
-     WHERE sm._deleted = 0${viewerId ? " AND sm.performed_by = ?" : ""}
+     WHERE sm._deleted = 0
+       AND (sm.reference_type IS NULL OR sm.reference_type NOT IN ('sale', 'purchase_order', 'return'))
+       ${viewerId ? " AND sm.performed_by = ?" : ""}
      ORDER BY sm.created_at DESC LIMIT 5`,
+    viewerId ? [viewerId] : []
+  );
+
+  const recentReturns = await query<{
+    id: string;
+    sale_id: string;
+    reason?: string;
+    total_refunded: number;
+    created_at: string;
+    transaction_number?: string;
+  }>(
+    `SELECT r.*, s.transaction_number
+     FROM returns r
+     LEFT JOIN sales s ON s.id = r.sale_id
+     WHERE r._deleted = 0${viewerId ? " AND r.user_id = ?" : ""}
+     ORDER BY r.created_at DESC LIMIT 5`,
     viewerId ? [viewerId] : []
   );
 
@@ -99,6 +124,7 @@ export async function getDashboardOverviewData(viewerId?: string) {
   const allActivities: DashboardActivity[] = [
     ...(recentSales || []).map((s): DashboardActivity => ({ ...s, activity_type: 'sale' })),
     ...(recentMovements || []).map((m): DashboardActivity => ({ ...m, activity_type: 'stock_movement' })),
+    ...(recentReturns || []).map((r): DashboardActivity => ({ ...r, activity_type: 'return' })),
     ...(recentPurchaseOrders || []).map((po): DashboardActivity => ({ ...po, activity_type: 'purchase_order' })),
     ...(recentExpenses || []).map((e): DashboardActivity => ({ ...e, activity_type: 'expense' })),
     ...(recentPrescriptions || []).map((p): DashboardActivity => ({ ...p, activity_type: 'prescription' }))

@@ -4,7 +4,7 @@
  * beyond `id`/`activity_type` only applies to some activity types. */
 export interface DashboardActivity {
   id: string;
-  activity_type: "sale" | "stock_movement" | "purchase_order" | "expense" | "prescription";
+  activity_type: "sale" | "stock_movement" | "purchase_order" | "expense" | "prescription" | "return";
   created_at?: string;
   date?: string;
   transaction_date?: string;
@@ -24,6 +24,8 @@ export interface DashboardActivity {
   amount?: number;
   // purchase_order
   po_number?: string;
+  // return
+  total_refunded?: number;
   // Actor display name joined in per activity type — differs by source table.
   cashier_name?: string;
   performed_by_name?: string;

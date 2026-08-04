@@ -3,6 +3,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Clock, CheckCircle2, Edit2, Download } from "lucide-react";
 import { pdf } from "@react-pdf/renderer";
 import { format } from "date-fns";
+import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { downloadBlob } from "@/lib/utils/report-pdf";
@@ -47,28 +48,34 @@ export function PurchaseOrderDetails({
 
   const handleDownloadPdf = async () => {
     if (!selectedPO) return;
-    const blob = await pdf(
-      <PurchaseOrderPdf
-        storeName={storeProfile?.name || "Store"}
-        poNumber={`PO-${selectedPO.id.split("-")[0].toUpperCase()}`}
-        vendorName={selectedPO.vendor_name || "Unknown Vendor"}
-        createdAt={formatDateToDDMMYYYY(selectedPO.created_at)}
-        status={selectedPO.status}
-        notes={selectedPO.notes}
-        items={(selectedPO.items || []).map((item) => ({
-          product_name: item.product_name || "Unknown Product",
-          bulk_quantity: item.bulk_quantity || 0,
-          unit_cost: item.unit_cost || 0,
-          subtotal: item.subtotal || 0,
-        }))}
-        totalAmount={selectedPO.total_amount || 0}
-        generatedAt={format(new Date(), "d MMM yyyy, h:mm a")}
-      />,
-    ).toBlob();
-    downloadBlob(
-      blob,
-      `PO-${selectedPO.id.split("-")[0].toUpperCase()}.pdf`,
-    );
+    try {
+      const blob = await pdf(
+        <PurchaseOrderPdf
+          storeName={storeProfile?.name || "Store"}
+          poNumber={`PO-${selectedPO.id.split("-")[0].toUpperCase()}`}
+          vendorName={selectedPO.vendor_name || "Unknown Vendor"}
+          createdAt={formatDateToDDMMYYYY(selectedPO.created_at)}
+          status={selectedPO.status}
+          notes={selectedPO.notes}
+          items={(selectedPO.items || []).map((item) => ({
+            product_name: item.product_name || "Unknown Product",
+            bulk_quantity: item.bulk_quantity || 0,
+            unit_cost: item.unit_cost || 0,
+            subtotal: item.subtotal || 0,
+          }))}
+          totalAmount={selectedPO.total_amount || 0}
+          generatedAt={format(new Date(), "d MMM yyyy, h:mm a")}
+        />,
+      ).toBlob();
+      downloadBlob(
+        blob,
+        `PO-${selectedPO.id.split("-")[0].toUpperCase()}.pdf`,
+      );
+      toast.success("PO downloaded successfully");
+    } catch (error) {
+      console.error("Failed to generate PO PDF:", error);
+      toast.error("Failed to download PO");
+    }
   };
 
   if (!selectedPO) {

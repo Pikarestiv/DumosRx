@@ -172,7 +172,7 @@ function EditOrderContent() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center h-[calc(100vh-120px)] bg-card border border-border rounded-2xl">
+      <div className="flex flex-col items-center justify-center h-[calc(100vh-148px)] bg-card border border-border rounded-2xl">
         <Clock className="w-8 h-8 animate-spin text-muted-foreground mb-4" />
         <p className="text-muted-foreground font-medium text-sm">
           Loading order...
@@ -182,7 +182,7 @@ function EditOrderContent() {
   }
 
   return (
-    <div className="flex flex-col min-h-0 bg-card border border-border rounded-2xl overflow-hidden h-[calc(100vh-120px)] shadow-sm">
+    <div className="flex flex-col min-h-0 bg-card border border-border rounded-2xl overflow-hidden h-[calc(100vh-148px)] shadow-sm">
       <div className="flex items-center gap-3 px-6 py-5 border-b border-border bg-card shrink-0">
         <div
           className="w-[38px] h-[38px] rounded-[10px] bg-muted flex items-center justify-center cursor-pointer text-muted-foreground shrink-0 hover:bg-muted/80 transition-colors"

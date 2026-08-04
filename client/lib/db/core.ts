@@ -373,6 +373,22 @@ export async function initDatabase(): Promise<any> {
 
       db = await Database.load("sqlite:dumosrx.db");
 
+      // The Tauri SQL plugin hands out a pooled sqlx connection, and SQLite's
+      // default (rollback-journal) mode only allows one writer at a time —
+      // two pooled connections writing close together can lock each other
+      // out for multiple seconds, or fail outright with "database is
+      // locked", with no PRAGMA tuning applied by default. WAL lets readers
+      // and a writer proceed concurrently instead of blocking each other,
+      // and busy_timeout makes SQLite retry internally for up to 5s instead
+      // of erroring immediately when a write does have to wait its turn.
+      try {
+        await db.execute("PRAGMA journal_mode = WAL;");
+        await db.execute("PRAGMA busy_timeout = 5000;");
+        await db.execute("PRAGMA synchronous = NORMAL;");
+      } catch (e) {
+        console.error("Failed to set SQLite concurrency PRAGMAs", e);
+      }
+
       const statements = SCHEMA_SQL.split(";").filter((s) => s.trim());
       for (const statement of statements) {
         await db.execute(statement);
@@ -405,6 +421,22 @@ export async function initDatabase(): Promise<any> {
         } catch (_e) { }
       }
 
+      // sale_items.inventory_id was renamed to stock_batch_id, but unlike the
+      // medicine_id->product_id rename above this one was never migrated —
+      // createSale() has written to stock_batch_id for a while now, so any
+      // database that predates the rename still has the old inventory_id
+      // column and no stock_batch_id at all, breaking every sale with "no
+      // column named stock_batch_id". Try the rename first (databases that
+      // still have inventory_id); fall back to adding stock_batch_id fresh
+      // (databases old enough to have neither) — whichever doesn't apply
+      // just throws and is ignored, same pattern as the other migrations here.
+      try {
+        await db.execute("ALTER TABLE sale_items RENAME COLUMN inventory_id TO stock_batch_id");
+      } catch (_e) { }
+      try {
+        await db.execute("ALTER TABLE sale_items ADD COLUMN stock_batch_id TEXT");
+      } catch (_e) { }
+
       try {
         await db.execute("ALTER TABLE vendors RENAME TO suppliers");
       } catch (_e) { }
@@ -417,7 +449,49 @@ export async function initDatabase(): Promise<any> {
         await db.execute("ALTER TABLE store_profile RENAME TO stores");
       } catch (_e) { }
 
-      
+      // Drop the legacy purchase_orders.vendor_id NOT NULL column left over
+      // from the vendors->suppliers rename above. That rename only renamed
+      // the *table*; any database created before it still carries the old
+      // vendor_id NOT NULL column forever (CREATE TABLE IF NOT EXISTS is a
+      // no-op on an existing table), and current code only ever writes
+      // supplier_id — so every PO insert on such a device would otherwise
+      // fail the NOT NULL constraint permanently.
+      try {
+        const poColumns = await db.select("SELECT name FROM pragma_table_info('purchase_orders')");
+        if (poColumns.some((c: { name: string }) => c.name === "vendor_id")) {
+          await db.execute(`
+            CREATE TABLE purchase_orders_new (
+              id TEXT PRIMARY KEY,
+              order_number TEXT,
+              supplier_id TEXT NOT NULL,
+              ordered_by TEXT,
+              order_date TEXT,
+              status TEXT DEFAULT 'pending',
+              payment_status TEXT DEFAULT 'unpaid',
+              amount_paid REAL DEFAULT 0,
+              due_date TEXT,
+              total_amount REAL DEFAULT 0,
+              notes TEXT,
+              created_at TEXT,
+              received_at TEXT,
+              updated_at TEXT,
+              _version INTEGER DEFAULT 1,
+              _synced INTEGER DEFAULT 0,
+              _synced_at TEXT,
+              _deleted INTEGER DEFAULT 0
+            )
+          `);
+          await db.execute(`
+            INSERT INTO purchase_orders_new (id, order_number, supplier_id, ordered_by, order_date, status, payment_status, amount_paid, due_date, total_amount, notes, created_at, received_at, updated_at, _version, _synced, _synced_at, _deleted)
+            SELECT id, order_number, COALESCE(supplier_id, vendor_id), ordered_by, order_date, status, payment_status, amount_paid, due_date, total_amount, notes, created_at, received_at, updated_at, _version, _synced, _synced_at, _deleted FROM purchase_orders
+          `);
+          await db.execute("DROP TABLE purchase_orders");
+          await db.execute("ALTER TABLE purchase_orders_new RENAME TO purchase_orders");
+        }
+      } catch (e) {
+        console.error("Failed to drop legacy purchase_orders.vendor_id column", e);
+      }
+
       // --- Data migration: stock_quantity to stock_batches ---
       try {
         const hasProductsStock = await db.select("SELECT 1 FROM pragma_table_info('products') WHERE name='stock_quantity'");
@@ -579,6 +653,16 @@ export async function initDatabase(): Promise<any> {
           } catch (_e) { }
         }
 
+        // See the matching Tauri-path comment above: sale_items.inventory_id
+        // was renamed to stock_batch_id but never migrated for existing
+        // databases.
+        try {
+          db.run("ALTER TABLE sale_items RENAME COLUMN inventory_id TO stock_batch_id");
+        } catch (_e) { }
+        try {
+          db.run("ALTER TABLE sale_items ADD COLUMN stock_batch_id TEXT");
+        } catch (_e) { }
+
         try {
           db.run("ALTER TABLE vendors RENAME TO suppliers");
         } catch (_e) { }
@@ -593,6 +677,46 @@ export async function initDatabase(): Promise<any> {
 
         // Ensure new tables from schema updates are created
         db.run(SCHEMA_SQL);
+
+        // See the matching Tauri-path comment above: drop the legacy
+        // purchase_orders.vendor_id NOT NULL column on databases that
+        // predate the vendors->suppliers rename.
+        try {
+          const poColumnsRes = db.exec("SELECT name FROM pragma_table_info('purchase_orders')");
+          const poColumnNames: string[] = poColumnsRes?.[0]?.values?.map((row: unknown[]) => row[0]) || [];
+          if (poColumnNames.includes("vendor_id")) {
+            db.run(`
+              CREATE TABLE purchase_orders_new (
+                id TEXT PRIMARY KEY,
+                order_number TEXT,
+                supplier_id TEXT NOT NULL,
+                ordered_by TEXT,
+                order_date TEXT,
+                status TEXT DEFAULT 'pending',
+                payment_status TEXT DEFAULT 'unpaid',
+                amount_paid REAL DEFAULT 0,
+                due_date TEXT,
+                total_amount REAL DEFAULT 0,
+                notes TEXT,
+                created_at TEXT,
+                received_at TEXT,
+                updated_at TEXT,
+                _version INTEGER DEFAULT 1,
+                _synced INTEGER DEFAULT 0,
+                _synced_at TEXT,
+                _deleted INTEGER DEFAULT 0
+              )
+            `);
+            db.run(`
+              INSERT INTO purchase_orders_new (id, order_number, supplier_id, ordered_by, order_date, status, payment_status, amount_paid, due_date, total_amount, notes, created_at, received_at, updated_at, _version, _synced, _synced_at, _deleted)
+              SELECT id, order_number, COALESCE(supplier_id, vendor_id), ordered_by, order_date, status, payment_status, amount_paid, due_date, total_amount, notes, created_at, received_at, updated_at, _version, _synced, _synced_at, _deleted FROM purchase_orders
+            `);
+            db.run("DROP TABLE purchase_orders");
+            db.run("ALTER TABLE purchase_orders_new RENAME TO purchase_orders");
+          }
+        } catch (e) {
+          console.error("Failed to drop legacy purchase_orders.vendor_id column", e);
+        }
       } catch (_e) {
         console.error("[DB] Failed to load saved data, starting fresh", _e);
         db = new SQL.Database();

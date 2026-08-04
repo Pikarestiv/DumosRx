@@ -164,32 +164,34 @@ export async function createPurchaseOrder(
     totalAmount += item.subtotal;
   }
 
-  await insert("purchase_orders", {
-    id: poId,
-    supplier_id: supplierId,
-    status: "pending",
-    payment_status: paymentStatus,
-    amount_paid: amountPaid,
-    due_date: dueDate,
-    total_amount: totalAmount,
-    notes,
-    created_at: now
-  });
-
-  for (const item of items) {
-    await insert("purchase_order_items", {
-      id: generateId(),
-      po_id: poId,
-      product_id: item.product_id,
-      bulk_quantity: item.bulk_quantity,
-      units_per_bulk: item.units_per_bulk,
-      unit_cost: item.unit_cost,
-      subtotal: item.subtotal,
+  return transaction(async () => {
+    await insert("purchase_orders", {
+      id: poId,
+      supplier_id: supplierId,
+      status: "pending",
+      payment_status: paymentStatus,
+      amount_paid: amountPaid,
+      due_date: dueDate,
+      total_amount: totalAmount,
+      notes,
       created_at: now
     });
-  }
 
-  return poId;
+    for (const item of items) {
+      await insert("purchase_order_items", {
+        id: generateId(),
+        po_id: poId,
+        product_id: item.product_id,
+        bulk_quantity: item.bulk_quantity,
+        units_per_bulk: item.units_per_bulk,
+        unit_cost: item.unit_cost,
+        subtotal: item.subtotal,
+        created_at: now
+      });
+    }
+
+    return poId;
+  });
 }
 
 export async function updatePurchaseOrder(
@@ -208,42 +210,44 @@ export async function updatePurchaseOrder(
     totalAmount += item.subtotal;
   }
 
-  // Soft delete existing items
-  const existingItems = await query<{ id: string }>(
-    "SELECT id FROM purchase_order_items WHERE po_id = ? AND _deleted = 0",
-    [poId]
-  );
-  
-  for (const item of existingItems) {
-    await softDelete("purchase_order_items", item.id);
-  }
+  return transaction(async () => {
+    // Soft delete existing items
+    const existingItems = await query<{ id: string }>(
+      "SELECT id FROM purchase_order_items WHERE po_id = ? AND _deleted = 0",
+      [poId]
+    );
 
-  // Update PO details
-  await update("purchase_orders", poId, {
-    supplier_id: supplierId,
-    payment_status: paymentStatus,
-    amount_paid: amountPaid,
-    due_date: dueDate,
-    total_amount: totalAmount,
-    notes,
-    updated_at: now
-  });
+    for (const item of existingItems) {
+      await softDelete("purchase_order_items", item.id);
+    }
 
-  // Insert new items
-  for (const item of items) {
-    await insert("purchase_order_items", {
-      id: generateId(),
-      po_id: poId,
-      product_id: item.product_id,
-      bulk_quantity: item.bulk_quantity,
-      units_per_bulk: item.units_per_bulk,
-      unit_cost: item.unit_cost,
-      subtotal: item.subtotal,
-      created_at: now
+    // Update PO details
+    await update("purchase_orders", poId, {
+      supplier_id: supplierId,
+      payment_status: paymentStatus,
+      amount_paid: amountPaid,
+      due_date: dueDate,
+      total_amount: totalAmount,
+      notes,
+      updated_at: now
     });
-  }
 
-  return poId;
+    // Insert new items
+    for (const item of items) {
+      await insert("purchase_order_items", {
+        id: generateId(),
+        po_id: poId,
+        product_id: item.product_id,
+        bulk_quantity: item.bulk_quantity,
+        units_per_bulk: item.units_per_bulk,
+        unit_cost: item.unit_cost,
+        subtotal: item.subtotal,
+        created_at: now
+      });
+    }
+
+    return poId;
+  });
 }
 
 export async function updatePurchaseOrderStatus(id: string, status: string) {

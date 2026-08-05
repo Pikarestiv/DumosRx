@@ -195,7 +195,11 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
     <div className="min-h-screen bg-background relative">
       {isLocked && (
         <div
-          className="fixed inset-0 z-[99999] bg-background flex flex-col items-center justify-center p-0 sm:p-4 overflow-y-auto"
+          // z-[9000], not higher than TauriTitleBar's z-[9999] — otherwise
+          // this full-viewport background paints over the title bar (and
+          // its close/minimize/maximize controls) instead of just sitting
+          // below it the way the paddingTop below already visually implies.
+          className="fixed inset-0 z-[9000] bg-background flex flex-col items-center justify-center p-0 sm:p-4 overflow-y-auto"
           style={{
             paddingTop:
               "calc(var(--tauri-top, env(safe-area-inset-top, 0px)) + 1rem)",

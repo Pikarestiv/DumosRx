@@ -46,6 +46,9 @@ export const DEFAULT_CATEGORIES = [
   "Cosmetics",
   "Perfumes",
   "Wines & Spirits",
+  "Provisions",
+  "Biscuits",
+  "Tea",
   "Groceries",
   "Baby Care",
 ];

@@ -1,5 +1,6 @@
 import React from "react";
 import type { AuditItem } from "./stock-audits";
+import { formatCurrency } from "@/lib/utils";
 
 interface AuditReviewStepProps {
   countedItems: AuditItem[];
@@ -28,19 +29,38 @@ export function AuditReviewStep({
 
       {adjustedItems.length > 0 && (
         <div className="bg-card border border-border rounded-2xl divide-y divide-border mb-2">
-          {adjustedItems.map(item => (
-            <div key={item.id} className="p-4 flex items-center justify-between">
-              <div>
-                <div className="text-[14px] font-semibold text-foreground">{item.name}</div>
-                <div className="text-[12px] text-muted-foreground/70">{item.sku}</div>
-              </div>
-              <div className="text-right">
-                <div className="text-[14px] font-bold text-destructive">
-                  {item.systemQty} → {item.countedQty}
+          {adjustedItems.map(item => {
+            const qtyChanged = item.countedQty !== item.systemQty;
+            const costChanged =
+              item.countedCostPrice !== undefined && item.countedCostPrice !== item.costPrice;
+            const sellingChanged =
+              item.countedSellingPrice !== undefined && item.countedSellingPrice !== item.sellingPrice;
+            return (
+              <div key={item.id} className="p-4 flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-[14px] font-semibold text-foreground">{item.name}</div>
+                  <div className="text-[12px] text-muted-foreground/70">{item.sku}</div>
+                </div>
+                <div className="text-right space-y-0.5">
+                  {qtyChanged && (
+                    <div className="text-[13px] font-bold text-destructive">
+                      Qty: {item.systemQty} → {item.countedQty}
+                    </div>
+                  )}
+                  {costChanged && (
+                    <div className="text-[12px] font-semibold text-amber-600">
+                      Cost: {formatCurrency(item.costPrice ?? 0)} → {formatCurrency(item.countedCostPrice ?? 0)}
+                    </div>
+                  )}
+                  {sellingChanged && (
+                    <div className="text-[12px] font-semibold text-amber-600">
+                      Sell: {formatCurrency(item.sellingPrice ?? 0)} → {formatCurrency(item.countedSellingPrice ?? 0)}
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
       {!(adjustedItems.length > 0) && (

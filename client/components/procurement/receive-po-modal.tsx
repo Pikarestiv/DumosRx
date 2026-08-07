@@ -149,12 +149,15 @@ export function ReceivePOModal({
     Record<string, ReceivedItemPayload>
   >({});
   const [showWarningModal, setShowWarningModal] = useState(false);
+  // Ledger mode needs room for a dense multi-column table — default to it
+  // on desktop, and to the one-item-at-a-time Standard flow on mobile,
+  // where that table would be cramped. Either can still be switched at will.
   const [mode, setMode] = useState<"standard" | "ledger">("standard");
 
   // Initialize payload state when modal opens or PO changes
   useEffect(() => {
     if (isOpen && po) {
-      setMode("standard");
+      setMode(typeof window !== "undefined" && window.innerWidth >= 1024 ? "ledger" : "standard");
       const initial: Record<string, ReceivedItemPayload> = {};
       po.items?.forEach((item: PurchaseOrderItem) => {
         initial[item.id] = {
@@ -234,21 +237,21 @@ export function ReceivePOModal({
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={() => setMode("standard")}
-              className={`flex-1 text-center px-3 py-2 rounded-lg border text-[12.5px] font-semibold transition-colors ${
-                mode === "standard" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:bg-accent/50"
-              }`}
-            >
-              Standard
-            </button>
-            <button
-              type="button"
               onClick={() => setMode("ledger")}
               className={`flex-1 text-center px-3 py-2 rounded-lg border text-[12.5px] font-semibold transition-colors ${
                 mode === "ledger" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:bg-accent/50"
               }`}
             >
               Ledger
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("standard")}
+              className={`flex-1 text-center px-3 py-2 rounded-lg border text-[12.5px] font-semibold transition-colors ${
+                mode === "standard" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:bg-accent/50"
+              }`}
+            >
+              Standard
             </button>
           </div>
 

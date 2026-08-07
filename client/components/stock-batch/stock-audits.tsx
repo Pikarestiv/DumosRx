@@ -38,7 +38,12 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [step, setStep] = useState<AuditStep>("setup");
-  const [mode, setMode] = useState<AuditMode>("standard");
+  // Ledger mode needs room for a dense multi-column table — default to it
+  // on desktop, and to the one-item-at-a-time Standard flow on mobile,
+  // where that table would be cramped. Either can still be switched at will.
+  const [mode, setMode] = useState<AuditMode>(() =>
+    typeof window !== "undefined" && window.innerWidth >= 1024 ? "ledger" : "standard",
+  );
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);

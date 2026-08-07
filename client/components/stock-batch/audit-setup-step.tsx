@@ -41,16 +41,6 @@ export function AuditSetupStep({
         <div className="grid grid-cols-2 gap-2.5">
           <button
             type="button"
-            onClick={() => setMode("standard")}
-            className={`text-left p-3.5 rounded-xl border transition-colors ${
-              mode === "standard" ? "border-primary bg-primary/10" : "border-border bg-card hover:bg-accent/50"
-            }`}
-          >
-            <div className="font-semibold text-[13.5px] text-foreground">Standard</div>
-            <div className="text-[11.5px] text-muted-foreground mt-0.5">One item at a time — best for touch/mobile.</div>
-          </button>
-          <button
-            type="button"
             onClick={() => setMode("ledger")}
             className={`text-left p-3.5 rounded-xl border transition-colors ${
               mode === "ledger" ? "border-primary bg-primary/10" : "border-border bg-card hover:bg-accent/50"
@@ -58,6 +48,16 @@ export function AuditSetupStep({
           >
             <div className="font-semibold text-[13.5px] text-foreground">Ledger</div>
             <div className="text-[11.5px] text-muted-foreground mt-0.5">Dense table, everything on one screen.</div>
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("standard")}
+            className={`text-left p-3.5 rounded-xl border transition-colors ${
+              mode === "standard" ? "border-primary bg-primary/10" : "border-border bg-card hover:bg-accent/50"
+            }`}
+          >
+            <div className="font-semibold text-[13.5px] text-foreground">Standard</div>
+            <div className="text-[11.5px] text-muted-foreground mt-0.5">One item at a time — best for touch/mobile.</div>
           </button>
         </div>
       </div>

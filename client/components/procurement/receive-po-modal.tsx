@@ -11,6 +11,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
+import { ReceiveLedgerTable } from "./receive-ledger-table";
 import type { PurchaseOrder, PurchaseOrderItem } from "@/lib/db/local-database";
 import {
   AlertDialog,
@@ -30,6 +31,8 @@ export interface ReceivedItemPayload {
   quantity: number;
   lot_number?: string;
   expiry_date?: string;
+  cost_price?: string | number;
+  selling_price?: string | number;
 }
 
 interface ReceivePOModalProps {
@@ -146,10 +149,12 @@ export function ReceivePOModal({
     Record<string, ReceivedItemPayload>
   >({});
   const [showWarningModal, setShowWarningModal] = useState(false);
+  const [mode, setMode] = useState<"standard" | "ledger">("standard");
 
   // Initialize payload state when modal opens or PO changes
   useEffect(() => {
     if (isOpen && po) {
+      setMode("standard");
       const initial: Record<string, ReceivedItemPayload> = {};
       po.items?.forEach((item: PurchaseOrderItem) => {
         initial[item.id] = {
@@ -211,7 +216,11 @@ export function ReceivePOModal({
         onOpenChange={(open) => !open && onClose()}
         title={`Receive Goods: ${po.id}`}
         description="Please confirm the quantities received and provide the batch/lot numbers and expiry dates for each item."
-        className="max-w-xl max-h-[90vh] overflow-hidden flex flex-col"
+        className={
+          mode === "ledger"
+            ? "max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
+            : "max-w-xl max-h-[90vh] overflow-hidden flex flex-col"
+        }
         footer={
           <div className="flex justify-end gap-3 pt-4 border-t">
             <Button variant="outline" onClick={onClose}>
@@ -221,20 +230,51 @@ export function ReceivePOModal({
           </div>
         }
       >
-        <div className="space-y-6 flex-1 overflow-y-auto px-4 sm:px-0">
-          <div className="border rounded-lg divide-y">
-            {po.items?.map((item: PurchaseOrderItem) => {
-              const state = receivedItems[item.id] || {};
-              return (
-                <ReceiveItemCard
-                  key={item.id}
-                  item={item}
-                  state={state}
-                  onFieldChange={handleFieldChange}
-                />
-              );
-            })}
+        <div className="space-y-4 flex-1 overflow-y-auto px-4 sm:px-0">
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setMode("standard")}
+              className={`flex-1 text-center px-3 py-2 rounded-lg border text-[12.5px] font-semibold transition-colors ${
+                mode === "standard" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:bg-accent/50"
+              }`}
+            >
+              Standard
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("ledger")}
+              className={`flex-1 text-center px-3 py-2 rounded-lg border text-[12.5px] font-semibold transition-colors ${
+                mode === "ledger" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:bg-accent/50"
+              }`}
+            >
+              Ledger
+            </button>
           </div>
+
+          {mode === "standard" && (
+            <div className="border rounded-lg divide-y">
+              {po.items?.map((item: PurchaseOrderItem) => {
+                const state = receivedItems[item.id] || {};
+                return (
+                  <ReceiveItemCard
+                    key={item.id}
+                    item={item}
+                    state={state}
+                    onFieldChange={handleFieldChange}
+                  />
+                );
+              })}
+            </div>
+          )}
+
+          {mode === "ledger" && (
+            <ReceiveLedgerTable
+              items={po.items || []}
+              receivedItems={receivedItems}
+              onFieldChange={handleFieldChange}
+            />
+          )}
         </div>
 
         <AlertDialog open={showWarningModal} onOpenChange={setShowWarningModal}>

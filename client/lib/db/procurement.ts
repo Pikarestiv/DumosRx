@@ -48,6 +48,13 @@ export interface ReceivedItem {
   quantity?: number | string;
   lot_number?: string;
   expiry_date?: string;
+  /** Overrides the PO line's unit cost for this receipt, if the actual
+   * invoiced cost differs from what was ordered. */
+  cost_price?: number | string;
+  /** When set, updates the product's global selling price — lets a price
+   * change discovered while receiving stock be applied immediately instead
+   * of requiring a separate trip to the product's edit screen. */
+  selling_price?: number | string;
 }
 
 /** A line item as it exists in the create/edit PO form before submission —
@@ -279,7 +286,10 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
       const expiryDate = receivedItem?.expiry_date ? new Date(receivedItem.expiry_date).toISOString().slice(0, 10) : null;
 
       const safeUnitsPerBulk = unitsPerBulk || 1;
-      const baseUnitCost = Number(item.unit_cost) / safeUnitsPerBulk;
+      const baseUnitCost =
+        receivedItem?.cost_price !== undefined && receivedItem.cost_price !== ""
+          ? Number(receivedItem.cost_price)
+          : Number(item.unit_cost) / safeUnitsPerBulk;
 
       const invId = await insert("stock_batches", {
         product_id: item.product_id,
@@ -316,6 +326,12 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
         _synced: 0,
         _deleted: 0
       });
+
+      if (receivedItem?.selling_price !== undefined && receivedItem.selling_price !== "") {
+        await update("products", item.product_id, {
+          selling_price: Number(receivedItem.selling_price),
+        });
+      }
     }
 
     await updatePurchaseOrderStatus(id, "received");

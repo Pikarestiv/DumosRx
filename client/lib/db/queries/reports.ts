@@ -211,6 +211,37 @@ export async function fetchStockBatchReportData() {
   );
 }
 
+/** Ranked by revenue, not quantity — a product that sells a lot of cheap
+ * units and one that sells fewer expensive units both matter to the
+ * business, and revenue is the one number that makes them comparable.
+ * Unlike getFastMovers() (inventory.ts — a fixed rolling-N-days window with
+ * a week-over-week trend, capped at 5, for a small dashboard widget), this
+ * takes an arbitrary date range for a full report. */
+export async function fetchTopSellersReportData(dateFrom?: string, dateTo?: string) {
+  const params: string[] = [];
+  let where = "s._deleted = 0 AND (si._deleted = 0 OR si._deleted IS NULL)";
+  if (dateFrom) { where += " AND s.transaction_date >= ?"; params.push(dateFrom); }
+  if (dateTo) { where += " AND s.transaction_date <= ?"; params.push(dateTo); }
+
+  return query<Record<string, unknown>>(
+    `SELECT
+      p.name as "Product",
+      c.name as "Category",
+      SUM(si.quantity) as "Qty Sold",
+      SUM(si.total_price) as "Revenue",
+      ROUND(SUM(si.total_price) * 1.0 / NULLIF(SUM(si.quantity), 0), 2) as "Avg Price"
+     FROM sale_items si
+     JOIN sales s ON si.sale_id = s.id
+     JOIN products p ON si.product_id = p.id
+     LEFT JOIN categories c ON p.category_id = c.id
+     WHERE ${where}
+     GROUP BY p.id
+     ORDER BY "Revenue" DESC
+     LIMIT 50`,
+    params
+  );
+}
+
 export async function getBIMetrics(dateFilter: string, prevDateFilter: string) {
   // Current Period
   const revenueData = await query<{ total: number }>(`SELECT SUM(total_amount) as total FROM sales WHERE transaction_date >= ? AND (_deleted = 0 OR _deleted IS NULL)`, [dateFilter]);

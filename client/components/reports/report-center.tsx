@@ -15,6 +15,7 @@ import {
   Users,
   Loader2,
   CheckCircle2,
+  TrendingUp,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -125,6 +126,13 @@ export function ReportCenter() {
       description: "Breakdown of operating costs by category.",
       icon: Wallet,
       category: "Financial",
+    },
+    {
+      id: "top_sellers",
+      title: "Top Sellers",
+      description: "Best-performing products by revenue for the selected period.",
+      icon: TrendingUp,
+      category: "Operations",
     },
   ];
 

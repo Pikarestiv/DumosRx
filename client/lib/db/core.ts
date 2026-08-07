@@ -100,6 +100,7 @@ export async function initDatabase(): Promise<any> {
         "_synced_at TEXT",
         "_deleted INTEGER DEFAULT 0",
         "is_active INTEGER DEFAULT 1",
+        "parent_id TEXT",
       ],
     },
     {

@@ -17,6 +17,7 @@ import { CatalogList } from "./catalog-list";
 import { CatalogDetailPanel } from "./catalog-detail-panel";
 import { ProductSearchBar } from "./product-search-bar";
 import { ProductCategoryChips } from "./product-category-chips";
+import { ManageCategoriesDialog } from "./manage-categories-dialog";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -26,6 +27,7 @@ export function ProductDatabase() {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showManageCategories, setShowManageCategories] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
   const searchParams = useSearchParams();
@@ -181,6 +183,7 @@ export function ProductDatabase() {
               setStatusFilter={setStatusFilter}
               categories={categories}
               statuses={statuses}
+              onManageCategories={() => setShowManageCategories(true)}
             />
             <CatalogList
               filteredProducts={filteredProducts}
@@ -232,6 +235,10 @@ export function ProductDatabase() {
         onOpenChange={setShowAddDialog}
         onAddProduct={handleAddProduct}
         editingProduct={selectedProduct}
+      />
+      <ManageCategoriesDialog
+        open={showManageCategories}
+        onOpenChange={setShowManageCategories}
       />
     </div>
   );

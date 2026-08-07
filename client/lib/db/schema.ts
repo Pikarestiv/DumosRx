@@ -63,6 +63,7 @@ CREATE TABLE IF NOT EXISTS categories (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   description TEXT,
+  parent_id TEXT,
   created_at TEXT,
   updated_at TEXT,
   _version INTEGER DEFAULT 1,

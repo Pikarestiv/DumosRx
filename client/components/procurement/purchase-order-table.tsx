@@ -238,21 +238,21 @@ export function PurchaseOrderTable({
                     className={`border-b border-border/50 cursor-pointer transition-colors ${selectedOrderId === po.id ? "bg-primary/5 hover:bg-primary/5" : "hover:bg-accent/50"}`}
                     onClick={() => setSelectedOrderId(po.id)}
                   >
-                    <TableCell className="font-mono pl-4 text-xs font-semibold text-foreground py-[14px]">
+                    <TableCell className="font-mono pl-4 text-xs font-semibold text-foreground py-2.5">
                       PO-{po.id.split("-")[0].toUpperCase()}
                     </TableCell>
-                    <TableCell className="py-[14px]">
+                    <TableCell className="py-2.5">
                       <span className="text-[13px] font-medium text-foreground">
                         {po.vendor_name || "Unknown Vendor"}
                       </span>
                     </TableCell>
-                    <TableCell className="text-muted-foreground text-[12px] font-medium py-[14px]">
+                    <TableCell className="text-muted-foreground text-[12px] font-medium py-2.5">
                       {formatDateToDDMMYYYY(po.created_at)}
                     </TableCell>
-                    <TableCell className="font-bold text-[13px] text-foreground py-[14px]">
+                    <TableCell className="font-bold text-[13px] text-foreground py-2.5">
                       {formatCurrency(po.total_amount)}
                     </TableCell>
-                    <TableCell className="py-[14px]">
+                    <TableCell className="py-2.5">
                       {getStatusBadge(po.status)}
                     </TableCell>
                   </TableRow>

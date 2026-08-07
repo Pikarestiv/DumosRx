@@ -29,6 +29,7 @@ import {
   PackagePlus,
   ClipboardPlus,
   Package,
+  History,
 } from "lucide-react";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { useStockBatchStats } from "@/lib/hooks/use-stock-batch-stats";
@@ -89,6 +90,7 @@ export function DashboardSidebar({
           },
           { name: "Expenses", href: "/expenses", icon: Wallet },
           { name: "Reports", href: "/reports", icon: BarChart3 },
+          { name: "Activity Log", href: "/activity-log", icon: History },
         ]
       : [
           {

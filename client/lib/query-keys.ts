@@ -183,4 +183,9 @@ export const queryKeys = {
         "return_items",
       ]),
   },
+  activityLog: {
+    list: (filtersKey: string) =>
+      resource(["activityLog", filtersKey] as const, ["audit_logs"]),
+    actions: () => resource(["activityLogActions"] as const, ["audit_logs"]),
+  },
 } as const;

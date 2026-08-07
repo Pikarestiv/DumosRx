@@ -38,7 +38,7 @@ export const queryKeys = {
   },
   categories: {
     all: () => resource(["categoriesList"] as const, ["categories"]),
-    tree: () => resource(["categoryTree"] as const, ["categories"]),
+    list: () => resource(["categoryList"] as const, ["categories"]),
   },
   stockBatches: {
     expiring: (expiryDays: number) =>

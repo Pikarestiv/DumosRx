@@ -11,7 +11,6 @@ import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { getSuppliers, createSupplier } from "@/lib/db/local-database";
 import { AddSupplierDialog } from "@/components/suppliers/add-supplier-dialog";
 import { useStore } from "@/lib/context/store-context";
-import { SupplierStats } from "./supplier-stats";
 import { SupplierDetailPane } from "./supplier-detail-pane";
 import { SupplierTable } from "./supplier-table";
 import { SupplierStatusFilter } from "./supplier-status-filter";
@@ -124,17 +123,6 @@ export function SupplierManagement() {
     );
   };
 
-  const activeSuppliers = suppliers.filter((s) => s.status === "active").length;
-  const totalSupplierValue = suppliers.reduce(
-    (sum, supplier) => sum + supplier.totalValue,
-    0,
-  );
-
-  const avgRating =
-    suppliers.length > 0
-      ? suppliers.reduce((sum, s) => sum + s.rating, 0) / suppliers.length
-      : 0;
-
   // Use real debt data for the summary badge
   const debtSuppliersCount = suppliers.filter((s) => s.hasDebt).length;
   const totalDebtAmount = suppliers.reduce((sum, s) => sum + s.debtAmount, 0);
@@ -147,15 +135,6 @@ export function SupplierManagement() {
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
-      <SupplierStats
-        totalSuppliers={suppliers.length}
-        activeSuppliers={activeSuppliers}
-        totalValue={totalSupplierValue}
-        avgRating={avgRating}
-        ratingStars={getRatingStars(avgRating)}
-        formatCurrency={formatCurrency}
-      />
-
       <div className="flex flex-col gap-5 flex-1 min-h-0">
         {/* Supplier Directory */}
         <div className="border-0 md:border md:border-border bg-transparent md:bg-card rounded-none md:rounded-2xl shadow-none md:shadow-sm flex flex-col min-h-0 flex-1">

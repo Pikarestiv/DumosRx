@@ -5,13 +5,12 @@ import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { ResponsiveDetailPanel } from "@/components/ui/responsive-detail-panel";
 
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { getSuppliers, createSupplier } from "@/lib/db/local-database";
 import { AddSupplierDialog } from "@/components/suppliers/add-supplier-dialog";
 import { useStore } from "@/lib/context/store-context";
-import { useMediaQuery } from "@/hooks/use-media-query";
 import { SupplierStats } from "./supplier-stats";
 import { SupplierDetailPane } from "./supplier-detail-pane";
 import { SupplierTable } from "./supplier-table";
@@ -42,7 +41,6 @@ const transformSupplier = (apiData: SupplierDbRow): SupplierViewModel => ({
 
 export function SupplierManagement() {
   const { t: _t } = useStore();
-  const isDesktop = useMediaQuery("(min-width: 768px)");
   const [searchTerm, setSearchTerm] = useState("");
   const [filter, setFilter] = useState("all");
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -75,16 +73,6 @@ export function SupplierManagement() {
 
   const selectedSupplier =
     suppliers.find((s) => s.id === selectedSupplierId) || null;
-
-  // Ensure selectedSupplier defaults to the first supplier when data loads
-  // (desktop only — on mobile a selection opens a full-screen takeover, so
-  // it shouldn't be forced open on load).
-  useEffect(() => {
-    if (!isDesktop) return;
-    if (suppliers.length > 0 && !selectedSupplierId) {
-      setSelectedSupplierId(suppliers[0].id);
-    }
-  }, [suppliers, selectedSupplierId, isDesktop]);
 
   usePullToRefreshHandler(async () => {
     await fetchSuppliers();
@@ -168,9 +156,9 @@ export function SupplierManagement() {
         formatCurrency={formatCurrency}
       />
 
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-5 flex-1 min-h-0">
-        {/* Left Pane: Supplier Directory */}
-        <div className="border-0 md:border md:border-border bg-transparent md:bg-card rounded-none md:rounded-2xl shadow-none md:shadow-sm flex flex-col min-h-0">
+      <div className="flex flex-col gap-5 flex-1 min-h-0">
+        {/* Supplier Directory */}
+        <div className="border-0 md:border md:border-border bg-transparent md:bg-card rounded-none md:rounded-2xl shadow-none md:shadow-sm flex flex-col min-h-0 flex-1">
           <div className="p-0 md:p-4 md:pb-3 border-b-0 md:border-b border-border">
             <div className="flex items-center justify-between mb-3">
               <div className="text-[14.5px] font-semibold text-foreground">
@@ -215,43 +203,25 @@ export function SupplierManagement() {
             />
           </div>
         </div>
+      </div>
 
-        {/* Right Pane: Supplier Detail */}
-        <div className="hidden xl:block bg-card border border-border rounded-2xl shadow-sm min-h-0 overflow-hidden">
+      <ResponsiveDetailPanel
+        open={!!selectedSupplier}
+        onOpenChange={(open) => {
+          if (!open) setSelectedSupplierId(null);
+        }}
+      >
+        {selectedSupplier && (
           <SupplierDetailPane
             selectedSupplier={selectedSupplier}
             formatCurrency={formatCurrency}
             formatDate={formatDate}
             getRatingStars={getRatingStars}
             setIsEditDialogOpen={setIsEditDialogOpen}
+            onBack={() => setSelectedSupplierId(null)}
           />
-        </div>
-      </div>
-
-      {/* Mobile Detail Panel (Sheet, full-screen push) */}
-      <Sheet
-        open={!!selectedSupplier && !isDesktop}
-        onOpenChange={(open) => {
-          if (!open) setSelectedSupplierId(null);
-        }}
-      >
-        <SheetContent
-          side="right"
-          hideClose
-          className="w-full sm:w-[400px] p-0 flex flex-col bg-card"
-        >
-          {selectedSupplier && (
-            <SupplierDetailPane
-              selectedSupplier={selectedSupplier}
-              formatCurrency={formatCurrency}
-              formatDate={formatDate}
-              getRatingStars={getRatingStars}
-              setIsEditDialogOpen={setIsEditDialogOpen}
-              onBack={() => setSelectedSupplierId(null)}
-            />
-          )}
-        </SheetContent>
-      </Sheet>
+        )}
+      </ResponsiveDetailPanel>
 
       <AddSupplierDialog
         open={showAddDialog}

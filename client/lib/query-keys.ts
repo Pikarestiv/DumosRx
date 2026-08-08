@@ -35,6 +35,7 @@ export const queryKeys = {
     history: (id: string, viewerId?: string) =>
       resource(["productHistory", id, viewerId] as const, ["audit_logs", "stock_movements"]),
     batches: (id?: string) => resource(["productBatches", id] as const, ["stock_batches"]),
+    creator: (id?: string) => resource(["productCreator", id] as const, ["audit_logs"]),
   },
   categories: {
     all: () => resource(["categoriesList"] as const, ["categories"]),

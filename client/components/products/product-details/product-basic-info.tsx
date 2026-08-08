@@ -1,11 +1,14 @@
 import { Separator } from "@/components/ui/separator";
 import type { Product } from "./use-product-details";
+import type { ProductCreator } from "@/lib/db/queries/products";
 
 interface ProductBasicInfoProps {
   product: Product;
+  creator?: ProductCreator | null;
+  formatDate: (dateString: string) => string;
 }
 
-export function ProductBasicInfo({ product }: ProductBasicInfoProps) {
+export function ProductBasicInfo({ product, creator, formatDate }: ProductBasicInfoProps) {
   return (
     <div className="space-y-4">
       <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground mb-2">
@@ -27,6 +30,21 @@ export function ProductBasicInfo({ product }: ProductBasicInfoProps) {
         <div>
           <p className="text-sm text-muted-foreground">Dosage Form</p>
           <p className="font-medium">{product.dosageForm}</p>
+        </div>
+        <div>
+          <p className="text-sm text-muted-foreground">Barcode</p>
+          <p className="font-mono font-medium">{product.barcode || "Not set"}</p>
+        </div>
+        <div>
+          <p className="text-sm text-muted-foreground">Created By</p>
+          <p className="font-medium">
+            {creator?.user_name?.trim() || "—"}
+            {creator?.created_at && (
+              <span className="block text-xs text-muted-foreground font-normal mt-0.5">
+                {formatDate(creator.created_at)}
+              </span>
+            )}
+          </p>
         </div>
       </div>
       <Separator />

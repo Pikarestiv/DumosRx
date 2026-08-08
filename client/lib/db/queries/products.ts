@@ -107,6 +107,29 @@ export async function getProductsWithStock(): Promise<POSProduct[]> {
   }));
 }
 
+export interface ProductCreator {
+  created_at: string;
+  user_name: string | null;
+}
+
+/** Earliest audit_logs entry for this product, for the Details tab's
+ * "Created by / Date created" line — the fuller trail lives in the
+ * History tab via getProductHistory() below. */
+export async function getProductCreator(
+  productId: string,
+): Promise<ProductCreator | null> {
+  const rows = await query<ProductCreator>(
+    `SELECT al.created_at, TRIM(u.first_name || ' ' || u.last_name) as user_name
+     FROM audit_logs al
+     LEFT JOIN users u ON u.id = al.user_id
+     WHERE al.table_name = 'products' AND al.record_id = ? AND UPPER(al.action) = 'INSERT'
+     ORDER BY al.created_at ASC
+     LIMIT 1`,
+    [productId],
+  );
+  return rows[0] || null;
+}
+
 /** @param viewerId - when provided, restricts results to entries performed by this
  * user (pass undefined for viewers allowed to see everyone's activity, i.e.
  * checkCanViewAllActivity(role) === true). */

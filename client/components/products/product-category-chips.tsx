@@ -15,7 +15,7 @@ export function ProductCategoryChips({
   triggerClassName = "",
 }: ProductCategoryChipsProps) {
   return (
-    <Tabs value={categoryFilter} onValueChange={setCategoryFilter} variant="chips">
+    <Tabs value={categoryFilter} onValueChange={setCategoryFilter} variant="chips" className="min-w-0">
       <TabsList>
         <TabsTrigger value="all" className={triggerClassName}>
           All

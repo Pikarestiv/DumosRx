@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { usePurchaseOrders } from "@/lib/hooks/use-purchase-orders";
-import { ProcurementStats } from "./procurement-stats";
 import { PurchaseOrderTable } from "./purchase-order-table";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { SupplierManagement } from "@/components/stock-batch/supplier-management";
@@ -25,7 +24,6 @@ interface ProcurementManagementProps {
 export function ProcurementManagement({ initialTab = "orders" }: ProcurementManagementProps) {
   const router = useRouter();
   const {
-    purchaseOrders,
     loading,
     searchQuery,
     setSearchQuery,
@@ -59,7 +57,6 @@ export function ProcurementManagement({ initialTab = "orders" }: ProcurementMana
           className="flex flex-col flex-1 min-h-0 mt-0 border-0 p-0"
         >
           <OrdersPullToRefresh onRefresh={fetchPurchaseOrders} />
-          <ProcurementStats purchaseOrders={purchaseOrders} />
 
           <PurchaseOrderTable
             orders={filteredOrders}

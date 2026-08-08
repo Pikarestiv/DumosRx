@@ -23,7 +23,6 @@ import { Search, PackageSearch } from "lucide-react";
 import { genericFuzzySearch } from "@/lib/utils/search";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { RequestItemDialog } from "@/components/pos/request-item-dialog";
-import { RequestedProductsStats } from "./requested-products-stats";
 import { RequestedProductMobileCard } from "./requested-product-mobile-card";
 import { RequestedProductRow } from "./requested-product-row";
 import { RequestedProductsStatusFilter } from "./requested-products-status-filter";
@@ -129,8 +128,6 @@ export function RequestedProductsTab() {
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
-      <RequestedProductsStats requests={requests} />
-
       <Card className="rounded-none md:rounded-[14px] gap-0 border-0 md:border md:border-border bg-transparent md:bg-card shadow-none md:shadow-[0_1px_2px_rgba(16,24,40,0.04)] flex flex-col flex-1 overflow-hidden">
         <div className="px-0 md:px-4 pb-4 md:pb-[18px] border-b-0 md:border-b border-border flex flex-col gap-4">
           <div className="relative w-full">

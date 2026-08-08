@@ -56,10 +56,6 @@ export function ProductBasicInfo({ product, creator, formatDate }: ProductBasicI
           {product.nafdacNumber}
         </p>
       </div>
-      <div>
-        <p className="text-sm text-muted-foreground">Batch Number</p>
-        <p className="font-mono font-medium">{product.batchNumber}</p>
-      </div>
     </div>
   );
 }

@@ -117,7 +117,7 @@ export function CatalogDetailPanel({
                   {product.name}
                 </h2>
                 <p className="text-[12px] text-muted-foreground mt-0.5 uppercase tracking-wide">
-                  SKU: {product.barcode || product.id.slice(0, 8)}
+                  SKU: {product.id.slice(0, 8).toUpperCase()}
                 </p>
               </div>
 

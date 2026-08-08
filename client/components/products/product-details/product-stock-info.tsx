@@ -61,10 +61,15 @@ export function ProductStockInfo({
         <div>
           <p className="text-sm text-muted-foreground flex items-center gap-2">
             <Calendar className="h-4 w-4" />
-            Expiry Date
+            Next Batch to Expire
           </p>
           {product.expiryDate ? (
             <>
+              {product.batchNumber && (
+                <p className="text-xs font-mono text-muted-foreground mt-1">
+                  Batch #{product.batchNumber}
+                </p>
+              )}
               <p
                 className={`font-medium ${daysToExpiry < 30 ? "text-destructive" : daysToExpiry < expiryWarningDays ? "text-orange-600" : "text-primary"}`}
               >
@@ -74,6 +79,7 @@ export function ProductStockInfo({
                 {daysToExpiry > 0
                   ? `${daysToExpiry} days remaining`
                   : `Expired ${Math.abs(daysToExpiry)} days ago`}
+                {" · see Batches tab for the full list"}
               </p>
             </>
           ) : (

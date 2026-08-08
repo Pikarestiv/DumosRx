@@ -47,11 +47,11 @@ export function ProductStockInfo({
             <div>
               <p className="text-sm text-muted-foreground">Unit Conversion</p>
               <p className="font-medium">
-                1 {product.bulkUnit} = {product.unitsPerBulk}{" "}
-                {product.baseUnit}(s)
+                1 {product.bulkUnit} = {product.unitsPerBulk} {product.baseUnit}
+                (s)
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                Total Stock in {product.bulkUnit}:{" "}
+                Total Stock (in {product.bulkUnit}):{" "}
                 {(product.stockQuantity / product.unitsPerBulk).toFixed(2)}
               </p>
             </div>

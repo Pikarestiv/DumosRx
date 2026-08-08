@@ -140,11 +140,10 @@ export function PrescriptionDetailPanel({
   const statusMeta = PRESCRIPTION_STATUS_META[prescription.status];
 
   return (
-    <Card className="fixed inset-0 z-50 lg:static lg:z-auto bg-background lg:bg-card lg:rounded-xl lg:border lg:border-border flex flex-col h-full shadow-sm p-0 pb-4 gap-0 overflow-hidden">
-      {/* Header — top padding on mobile/tablet clears the status bar / Tauri title bar */}
-      <div className="flex items-center gap-3 px-4 pb-4 pt-[calc(var(--tauri-top,0px)+1rem)] lg:pt-4 border-b border-border">
+    <Card className="flex flex-col h-full bg-card p-0 pb-4 gap-0 overflow-hidden border-none rounded-none shadow-none">
+      <div className="flex items-center gap-3 px-4 pb-4 pt-4 border-b border-border">
         <div
-          className="lg:hidden w-[38px] h-[38px] rounded-[10px] bg-muted flex items-center justify-center cursor-pointer text-muted-foreground shrink-0 hover:bg-muted/80 transition-colors"
+          className="w-[38px] h-[38px] rounded-[10px] bg-muted flex items-center justify-center cursor-pointer text-muted-foreground shrink-0 hover:bg-muted/80 transition-colors"
           onClick={onClose}
         >
           <ArrowLeft className="w-[17px] h-[17px]" />

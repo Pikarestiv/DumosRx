@@ -22,7 +22,7 @@ import { ReceivePOModal, type ReceivedItemPayload } from "./receive-po-modal";
 import { PurchaseOrderDetails } from "./purchase-order-details";
 import { PurchaseOrderStatusFilter } from "./purchase-order-status-filter";
 import { getPurchaseOrderById, type PurchaseOrder } from "@/lib/db/procurement";
-import { useMediaQuery } from "@/hooks/use-media-query";
+import { ResponsiveDetailPanel } from "@/components/ui/responsive-detail-panel";
 
 interface PurchaseOrderTableProps {
   orders: PurchaseOrder[];
@@ -62,7 +62,6 @@ export function PurchaseOrderTable({
 }: PurchaseOrderTableProps) {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [isReceiveModalOpen, setIsReceiveModalOpen] = useState(false);
-  const isDesktop = useMediaQuery("(min-width: 1024px)");
 
   const { data: fullSelectedPO, isLoading: isLoadingDetails } = useQuery({
     ...queryKeys.purchaseOrders.detail(selectedOrderId),
@@ -71,23 +70,16 @@ export function PurchaseOrderTable({
   });
 
   useEffect(() => {
-    // Auto-selecting an order keeps the desktop details panel from sitting
-    // empty, but on mobile a selection now opens a full-screen takeover —
-    // don't force that open on load.
-    if (!isDesktop) return;
-    if (!selectedOrderId && orders.length > 0) {
-      setSelectedOrderId(orders[0].id);
-    } else if (
+    // Close the panel if the selected order is removed from the list from
+    // under it (e.g. deleted) rather than leaving it showing stale data.
+    if (
       selectedOrderId &&
+      orders.length > 0 &&
       !orders.find((o) => o.id === selectedOrderId)
     ) {
-      if (orders.length > 0) {
-        setSelectedOrderId(orders[0].id);
-      } else {
-        setSelectedOrderId(null);
-      }
+      setSelectedOrderId(null);
     }
-  }, [orders, selectedOrderId, isDesktop]);
+  }, [orders, selectedOrderId]);
 
   // Merge full details with the latest row data from the list (so status updates reflect immediately)
   const listOrder = orders.find((o) => o.id === selectedOrderId);
@@ -126,9 +118,8 @@ export function PurchaseOrderTable({
   };
 
   return (
-    <div className="flex flex-col lg:flex-row gap-5 flex-1 min-h-0 overflow-hidden">
-      {/* Left Column - List */}
-      <Card className="py-0 flex-[2] flex flex-col gap-0 md:rounded-[14px] border-0 md:border md:border-border bg-transparent md:bg-card shadow-none md:shadow-[0_1px_2px_rgba(16,24,40,0.04)] overflow-hidden">
+    <div className="flex flex-col gap-5 flex-1 min-h-0 overflow-hidden">
+      <Card className="py-0 flex-1 flex flex-col gap-0 md:rounded-[14px] border-0 md:border md:border-border bg-transparent md:bg-card shadow-none md:shadow-[0_1px_2px_rgba(16,24,40,0.04)] overflow-hidden">
         <div className="p-0 md:p-4 flex flex-col gap-4 border-b-0 md:border-b border-border">
           <div className="relative w-full">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 pointer-events-none" />
@@ -238,21 +229,21 @@ export function PurchaseOrderTable({
                     className={`border-b border-border/50 cursor-pointer transition-colors ${selectedOrderId === po.id ? "bg-primary/5 hover:bg-primary/5" : "hover:bg-accent/50"}`}
                     onClick={() => setSelectedOrderId(po.id)}
                   >
-                    <TableCell className="font-mono pl-4 text-xs font-semibold text-foreground py-[14px]">
+                    <TableCell className="font-mono pl-4 text-xs font-semibold text-foreground py-2.5">
                       PO-{po.id.split("-")[0].toUpperCase()}
                     </TableCell>
-                    <TableCell className="py-[14px]">
+                    <TableCell className="py-2.5">
                       <span className="text-[13px] font-medium text-foreground">
                         {po.vendor_name || "Unknown Vendor"}
                       </span>
                     </TableCell>
-                    <TableCell className="text-muted-foreground text-[12px] font-medium py-[14px]">
+                    <TableCell className="text-muted-foreground text-[12px] font-medium py-2.5">
                       {formatDateToDDMMYYYY(po.created_at)}
                     </TableCell>
-                    <TableCell className="font-bold text-[13px] text-foreground py-[14px]">
+                    <TableCell className="font-bold text-[13px] text-foreground py-2.5">
                       {formatCurrency(po.total_amount)}
                     </TableCell>
-                    <TableCell className="py-[14px]">
+                    <TableCell className="py-2.5">
                       {getStatusBadge(po.status)}
                     </TableCell>
                   </TableRow>
@@ -262,16 +253,22 @@ export function PurchaseOrderTable({
         </div>
       </Card>
 
-      {/* Right Column - Details */}
-      <PurchaseOrderDetails
-        selectedPO={selectedPO}
-        isLoadingDetails={isLoadingDetails}
-        getStatusBadge={getStatusBadge}
-        onSendPO={onSendPO}
-        onDeletePO={onDeletePO}
-        setIsReceiveModalOpen={setIsReceiveModalOpen}
-        onClose={() => setSelectedOrderId(null)}
-      />
+      <ResponsiveDetailPanel
+        open={!!selectedOrderId}
+        onOpenChange={(open) => {
+          if (!open) setSelectedOrderId(null);
+        }}
+      >
+        <PurchaseOrderDetails
+          selectedPO={selectedPO}
+          isLoadingDetails={isLoadingDetails}
+          getStatusBadge={getStatusBadge}
+          onSendPO={onSendPO}
+          onDeletePO={onDeletePO}
+          setIsReceiveModalOpen={setIsReceiveModalOpen}
+          onClose={() => setSelectedOrderId(null)}
+        />
+      </ResponsiveDetailPanel>
 
       <ReceivePOModal
         isOpen={isReceiveModalOpen}

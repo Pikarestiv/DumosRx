@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { getStockBatchesForProductDetails } from "@/lib/db/queries/inventory";
+import { getProductCreator } from "@/lib/db/queries/products";
 import { formatCurrency } from "@/lib/utils";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import type { ReactNode } from "react";
@@ -20,6 +21,12 @@ export function useProductDetails(
     enabled: !!product?.id
   });
   const batches = batchesData || [];
+
+  const { data: creator } = useQuery({
+    ...queryKeys.products.creator(product?.id),
+    queryFn: () => product?.id ? getProductCreator(product.id) : Promise.resolve(null),
+    enabled: !!product?.id,
+  });
 
   const formatPrice = (amount: number) => {
     return formatCurrency(amount, storeProfile?.currency);
@@ -73,6 +80,7 @@ export function useProductDetails(
   return {
     batches,
     loadingBatches,
+    creator,
     formatPrice,
     formatDate,
     getStatusBadge,

@@ -42,7 +42,7 @@ export function CustomerDetailPanel({
     <div className="flex flex-col h-full overflow-hidden">
       <div className="p-4 md:p-5 border-b flex items-center gap-3">
         <button
-          className="md:hidden p-2 -ml-2 text-muted-foreground hover:text-foreground shrink-0"
+          className="p-2 -ml-2 text-muted-foreground hover:text-foreground shrink-0"
           onClick={onBack}
         >
           <ChevronLeft className="w-5 h-5" />

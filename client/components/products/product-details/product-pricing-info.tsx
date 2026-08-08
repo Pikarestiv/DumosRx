@@ -14,6 +14,8 @@ export function ProductPricingInfo({
   formatPrice,
   profitMargin,
 }: ProductPricingInfoProps) {
+  const unit = product.baseUnit || "unit";
+
   return (
     <Card>
       <CardHeader>
@@ -21,13 +23,19 @@ export function ProductPricingInfo({
           <DollarSign className="h-5 w-5" />
           Pricing Information
         </CardTitle>
+        <p className="text-xs text-muted-foreground">
+          All prices are per {unit}
+        </p>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <p className="text-sm text-muted-foreground">Cost Price</p>
+            <p className="text-sm text-muted-foreground">Avg. Cost Price</p>
             <p className="font-bold text-lg">
               {formatPrice(product.costPrice)}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Averaged across current batches
             </p>
           </div>
           <div>
@@ -43,9 +51,10 @@ export function ProductPricingInfo({
           <p className="font-bold text-lg text-primary">
             {profitMargin !== null ? `${profitMargin}%` : "—"}
           </p>
+          <p className="text-xs text-muted-foreground">Based on avg. cost</p>
         </div>
         <div>
-          <p className="text-sm text-muted-foreground">Profit per Unit</p>
+          <p className="text-sm text-muted-foreground">Profit per {unit}</p>
           <p className="font-bold text-lg text-primary">
             {product.costPrice > 0
               ? formatPrice(product.sellingPrice - product.costPrice)

@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Search, Users } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Customer } from "@/lib/hooks/use-customer-data";
 import { Card } from "@/components/ui/card";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { ResponsiveDetailPanel } from "@/components/ui/responsive-detail-panel";
 import { formatCurrency } from "@/lib/utils";
 import { CustomerDetailPanel } from "./customer-detail-panel";
 import { CustomerMobileRow, CustomerDesktopRow } from "./customer-list-rows";
@@ -52,14 +52,6 @@ export function DirectoryTab({
   const [filter, setFilter] = useState<CustFilter>("all");
 
   const desktopScrollRef = useRef<HTMLDivElement>(null);
-
-  const [isMobile, setIsMobile] = useState(false);
-  useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 768);
-    handleResize();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
 
   const filteredCustomers = useMemo(() => {
     if (filter === "debt") return customers.filter((c) => c.outstanding_balance > 0);
@@ -119,7 +111,7 @@ export function DirectoryTab({
         placeholder="Search customers by name, email, or phone"
         value={searchTerm}
         onChange={(e) => onSearchChange(e.target.value)}
-        className="w-full bg-card border border-border md:bg-muted md:border-none rounded-[10px] pl-9 pr-4 py-2 text-[13px] focus:ring-1 focus:ring-primary outline-none"
+        className="w-full bg-card border border-border lg:bg-muted lg:border-none rounded-[10px] pl-9 pr-4 py-2 text-[13px] focus:ring-1 focus:ring-primary outline-none"
       />
     </div>
   );
@@ -137,9 +129,9 @@ export function DirectoryTab({
   );
 
   return (
-    <div className="flex flex-col md:flex-row h-full gap-4 relative">
+    <div className="flex flex-col h-full gap-4 relative">
       {/* Mobile List — flat, no wrapping card */}
-      <div className="flex md:hidden flex-col w-full gap-4">
+      <div className="flex lg:hidden flex-col w-full gap-4">
         {SearchInput}
         <div className="flex items-center justify-between gap-2 flex-wrap">
           {FilterChips}
@@ -161,7 +153,7 @@ export function DirectoryTab({
       </div>
 
       {/* Desktop List Panel */}
-      <Card className="hidden md:flex flex-col gap-0 py-0 border rounded-[14px] shadow-sm w-full flex-1 min-h-0 h-full overflow-hidden">
+      <Card className="hidden lg:flex flex-col gap-0 py-0 border rounded-[14px] shadow-sm w-full flex-1 min-h-0 h-full overflow-hidden">
         <div className="p-4 border-b space-y-3">
           {SearchInput}
           <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -171,7 +163,7 @@ export function DirectoryTab({
         </div>
 
         {/* Desktop table header */}
-        <div className="hidden md:grid grid-cols-[1.6fr_1.1fr_80px_70px_100px_110px] gap-2 px-4 py-2 text-[10.5px] font-bold text-muted-foreground uppercase tracking-wide border-b">
+        <div className="hidden lg:grid grid-cols-[1.6fr_1.1fr_80px_70px_100px_110px] gap-2 px-4 py-2 text-[10.5px] font-bold text-muted-foreground uppercase tracking-wide border-b">
           <div>Customer</div>
           <div>Contact</div>
           <div>Tier</div>
@@ -209,47 +201,14 @@ export function DirectoryTab({
         </div>
       </Card>
 
-      {/* Desktop Detail Panel */}
-      <Card
-        className={`hidden md:flex flex-col gap-0 py-0 border rounded-[14px] shadow-sm w-full md:w-[380px] md:flex-shrink-0 ${!selectedCustomer ? "items-center justify-center py-5" : ""}`}
-      >
-        {!selectedCustomer ? (
-          <div className="text-center text-muted-foreground">
-            <svg
-              className="w-12 h-12 mx-auto mb-3 opacity-20"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1}
-                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-              />
-            </svg>
-            <p className="text-[14px]">Select a customer to view details</p>
-          </div>
-        ) : (
-          renderDetailBody(selectedCustomer)
-        )}
-      </Card>
-
-      {/* Mobile Detail Panel (Sheet, full-screen push) */}
-      <Sheet
-        open={!!selectedCustomer && isMobile}
+      <ResponsiveDetailPanel
+        open={!!selectedCustomer}
         onOpenChange={(open) => {
           if (!open) setSelectedCustomer(null);
         }}
       >
-        <SheetContent
-          side="right"
-          hideClose
-          className="w-full sm:w-[400px] p-0 flex flex-col bg-card"
-        >
-          {selectedCustomer && renderDetailBody(selectedCustomer)}
-        </SheetContent>
-      </Sheet>
+        {selectedCustomer && renderDetailBody(selectedCustomer)}
+      </ResponsiveDetailPanel>
     </div>
   );
 }

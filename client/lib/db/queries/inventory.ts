@@ -249,14 +249,23 @@ export interface StockAuditSubmission {
   productId: string;
   systemQty: number;
   countedQty: number;
+  systemCostPrice?: number;
+  countedCostPrice?: number;
+  systemSellingPrice?: number;
+  countedSellingPrice?: number;
   reason?: string;
 }
 
 /** Persists a completed cycle count: for each product whose counted quantity
- * differs from the system quantity, records a reconciled stock_audits entry,
- * applies the difference to stock_batches (FEFO — soonest-expiring batch
- * first, same convention as sale consumption/returns), and logs a
- * stock_movements("adjustment") entry so it shows up on the stock ledger. */
+ * and/or counted cost/selling price differs from what's on record, records a
+ * reconciled stock_audits entry capturing every deviation. Quantity
+ * differences are applied to stock_batches (FEFO — soonest-expiring batch
+ * first, same convention as sale consumption/returns) with a matching
+ * stock_movements("adjustment") entry; a corrected cost price is applied to
+ * the product's active batches (cost is a per-batch acquisition cost, but an
+ * audit-time correction is a master-data fix, not a new purchase); a
+ * corrected selling price is applied to products.selling_price (the single
+ * source of truth for selling price, unlike cost). */
 export async function submitStockAudit(
   items: StockAuditSubmission[],
   performedBy: string | null,
@@ -264,7 +273,16 @@ export async function submitStockAudit(
   return transaction(async () => {
     for (const item of items) {
       const diff = item.countedQty - item.systemQty;
-      if (diff === 0) continue;
+      const costDiff =
+        item.countedCostPrice !== undefined && item.systemCostPrice !== undefined
+          ? item.countedCostPrice - item.systemCostPrice
+          : 0;
+      const sellingDiff =
+        item.countedSellingPrice !== undefined && item.systemSellingPrice !== undefined
+          ? item.countedSellingPrice - item.systemSellingPrice
+          : 0;
+
+      if (diff === 0 && costDiff === 0 && sellingDiff === 0) continue;
 
       const auditId = crypto.randomUUID();
       await insert("stock_audits", {
@@ -273,11 +291,37 @@ export async function submitStockAudit(
         expected_quantity: item.systemQty,
         actual_quantity: item.countedQty,
         difference: diff,
+        expected_cost_price: item.systemCostPrice ?? null,
+        actual_cost_price: item.countedCostPrice ?? null,
+        cost_price_difference: costDiff || null,
+        expected_selling_price: item.systemSellingPrice ?? null,
+        actual_selling_price: item.countedSellingPrice ?? null,
+        selling_price_difference: sellingDiff || null,
         notes: item.reason || null,
         user_id: performedBy || "system",
         status: "reconciled",
         reconciled_at: new Date().toISOString(),
       });
+
+      if (costDiff !== 0 && item.countedCostPrice !== undefined) {
+        // A cost-price audit correction is a master-data fix, not a new
+        // purchase at a new cost — apply it to every active batch of this
+        // product rather than trying to attribute it to one batch.
+        const activeBatches = await getBatchesForProduct(item.productId);
+        for (const batch of activeBatches) {
+          await update("stock_batches", batch.id, {
+            cost_price: item.countedCostPrice,
+          });
+        }
+      }
+
+      if (sellingDiff !== 0 && item.countedSellingPrice !== undefined) {
+        await update("products", item.productId, {
+          selling_price: item.countedSellingPrice,
+        });
+      }
+
+      if (diff === 0) continue;
 
       let remaining = Math.abs(diff);
       const batches = await getBatchesForProduct(item.productId);

@@ -7,7 +7,7 @@ export async function getProductsWithDetails() {
   return query<ProductWithDetails>(
     `SELECT m.*, c.name as category_name,
        (SELECT SUM(quantity) FROM stock_batches WHERE product_id = m.id AND _deleted = 0 AND is_active = 1) as stock_quantity,
-       (SELECT cost_price FROM stock_batches WHERE product_id = m.id AND _deleted = 0 ORDER BY created_at DESC LIMIT 1) as cost_price,
+       (SELECT AVG(cost_price) FROM stock_batches WHERE product_id = m.id AND _deleted = 0 AND is_active = 1 AND quantity > 0) as cost_price,
        (SELECT expiry_date FROM stock_batches WHERE product_id = m.id AND _deleted = 0 AND quantity > 0 ORDER BY expiry_date ASC LIMIT 1) as expiry_date,
        (SELECT batch_number FROM stock_batches WHERE product_id = m.id AND _deleted = 0 AND quantity > 0 ORDER BY expiry_date ASC LIMIT 1) as batch_number
      FROM products m
@@ -105,6 +105,29 @@ export async function getProductsWithStock(): Promise<POSProduct[]> {
     category_id: m.category_id || "",
     category_name: m.category_name || "",
   }));
+}
+
+export interface ProductCreator {
+  created_at: string;
+  user_name: string | null;
+}
+
+/** Earliest audit_logs entry for this product, for the Details tab's
+ * "Created by / Date created" line — the fuller trail lives in the
+ * History tab via getProductHistory() below. */
+export async function getProductCreator(
+  productId: string,
+): Promise<ProductCreator | null> {
+  const rows = await query<ProductCreator>(
+    `SELECT al.created_at, TRIM(u.first_name || ' ' || u.last_name) as user_name
+     FROM audit_logs al
+     LEFT JOIN users u ON u.id = al.user_id
+     WHERE al.table_name = 'products' AND al.record_id = ? AND UPPER(al.action) = 'INSERT'
+     ORDER BY al.created_at ASC
+     LIMIT 1`,
+    [productId],
+  );
+  return rows[0] || null;
 }
 
 /** @param viewerId - when provided, restricts results to entries performed by this

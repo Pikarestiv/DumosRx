@@ -40,8 +40,8 @@ export function MetricCard({
       )}
       onClick={onClick}
     >
-      <CardContent className="!p-3 sm:!p-[18px] !px-3.5 sm:!px-5 hover-scale flex flex-col h-full">
-        <div className="flex items-center justify-between mb-2 sm:mb-3.5">
+      <CardContent className="!p-2.5 sm:!p-3.5 !px-3.5 sm:!px-4.5 hover-scale flex flex-col h-full">
+        <div className="flex items-center justify-between mb-1.5 sm:mb-2.5">
           <div className="text-[12.5px] text-muted-foreground font-medium">
             {title}
           </div>
@@ -51,7 +51,7 @@ export function MetricCard({
             </div>
           )}
         </div>
-        <div className={cn("text-2xl font-semibold tracking-tight mb-1", valueClassName)}>
+        <div className={cn("text-2xl font-semibold tracking-tight mb-0.5", valueClassName)}>
           {value}
         </div>
         {description && (

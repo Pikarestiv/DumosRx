@@ -100,6 +100,7 @@ export async function initDatabase(): Promise<any> {
         "_synced_at TEXT",
         "_deleted INTEGER DEFAULT 0",
         "is_active INTEGER DEFAULT 1",
+        "parent_id TEXT",
       ],
     },
     {
@@ -275,6 +276,12 @@ export async function initDatabase(): Promise<any> {
         "_synced INTEGER DEFAULT 0",
         "_synced_at TEXT",
         "_deleted INTEGER DEFAULT 0",
+        "expected_cost_price REAL",
+        "actual_cost_price REAL",
+        "cost_price_difference REAL",
+        "expected_selling_price REAL",
+        "actual_selling_price REAL",
+        "selling_price_difference REAL",
       ],
     },
     {

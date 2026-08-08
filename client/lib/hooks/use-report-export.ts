@@ -7,6 +7,7 @@ import {
   fetchProfitLossReportData,
   fetchCustomerReportData,
   fetchExpensesReportData,
+  fetchTopSellersReportData,
 } from "@/lib/db/queries/reports";
 import { useStore } from "@/lib/context/store-context";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
@@ -65,6 +66,14 @@ const REPORT_CONFIG = {
     fetch: fetchExpensesReportData,
     headers: ["Date", "Category", "Description", "Vendor", "Amount", "Payment Method", "Reference"],
     dateColumns: ["Date"],
+    takesDateRange: true,
+  },
+  top_sellers: {
+    label: "Top Sellers Report",
+    filenamePrefix: "Top_Sellers",
+    fetch: fetchTopSellersReportData,
+    headers: ["Product", "Category", "Qty Sold", "Revenue", "Avg Price"],
+    dateColumns: [],
     takesDateRange: true,
   },
 } as const;

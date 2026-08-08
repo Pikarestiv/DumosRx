@@ -1,4 +1,4 @@
-import type { AuditItem } from "./stock-audits";
+import type { AuditItem, AuditMode } from "./stock-audits";
 
 function NoAuditItemsFound() {
   return (
@@ -14,6 +14,8 @@ interface AuditSetupStepProps {
   categories: { id: string; label: string; count: number }[];
   selectedCategory: string | null;
   setSelectedCategory: (category: string) => void;
+  mode: AuditMode;
+  setMode: (mode: AuditMode) => void;
 }
 
 export function AuditSetupStep({
@@ -22,6 +24,8 @@ export function AuditSetupStep({
   categories,
   selectedCategory,
   setSelectedCategory,
+  mode,
+  setMode,
 }: AuditSetupStepProps) {
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
@@ -31,6 +35,33 @@ export function AuditSetupStep({
       <div className="text-[13px] text-muted-foreground mb-5">
         Pick a category, then search and count items in any order.
       </div>
+
+      <div className="mb-5">
+        <div className="text-[12.5px] font-semibold text-foreground mb-2">How do you want to count?</div>
+        <div className="grid grid-cols-2 gap-2.5">
+          <button
+            type="button"
+            onClick={() => setMode("ledger")}
+            className={`text-left p-3.5 rounded-xl border transition-colors ${
+              mode === "ledger" ? "border-primary bg-primary/10" : "border-border bg-card hover:bg-accent/50"
+            }`}
+          >
+            <div className="font-semibold text-[13.5px] text-foreground">Ledger</div>
+            <div className="text-[11.5px] text-muted-foreground mt-0.5">Dense table, everything on one screen.</div>
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("standard")}
+            className={`text-left p-3.5 rounded-xl border transition-colors ${
+              mode === "standard" ? "border-primary bg-primary/10" : "border-border bg-card hover:bg-accent/50"
+            }`}
+          >
+            <div className="font-semibold text-[13.5px] text-foreground">Standard</div>
+            <div className="text-[11.5px] text-muted-foreground mt-0.5">One item at a time — best for touch/mobile.</div>
+          </button>
+        </div>
+      </div>
+
       {!!isLoading && (
         <div className="text-center p-8 text-muted-foreground">
           Loading categories...

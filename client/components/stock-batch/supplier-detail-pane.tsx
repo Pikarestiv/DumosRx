@@ -47,7 +47,7 @@ export function SupplierDetailPane({
           <div className="flex items-center gap-3">
             {onBack && (
               <button
-                className="md:hidden p-2 -ml-2 -my-2 text-muted-foreground hover:text-foreground shrink-0"
+                className="p-2 -ml-2 -my-2 text-muted-foreground hover:text-foreground shrink-0"
                 onClick={onBack}
               >
                 <ChevronLeft className="w-5 h-5" />

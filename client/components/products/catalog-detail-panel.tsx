@@ -38,6 +38,7 @@ export function CatalogDetailPanel({
   const {
     batches,
     loadingBatches,
+    creator,
     formatPrice,
     formatDate,
     // getStatusBadge,
@@ -116,7 +117,7 @@ export function CatalogDetailPanel({
                   {product.name}
                 </h2>
                 <p className="text-[12px] text-muted-foreground mt-0.5 uppercase tracking-wide">
-                  SKU: {product.barcode || product.id.slice(0, 8)}
+                  SKU: {product.id.slice(0, 8).toUpperCase()}
                 </p>
               </div>
 
@@ -169,7 +170,7 @@ export function CatalogDetailPanel({
         <div className="flex-1 overflow-y-auto p-4 hide-scrollbar">
           <TabsContent value="details" className="mt-0">
             <div className="flex flex-col gap-4 pb-4">
-              <ProductBasicInfo product={product} />
+              <ProductBasicInfo product={product} creator={creator} formatDate={formatDate} />
               <ProductSupplierInfo product={product} />
               <ProductPricingInfo
                 product={product}

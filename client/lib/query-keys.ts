@@ -35,9 +35,11 @@ export const queryKeys = {
     history: (id: string, viewerId?: string) =>
       resource(["productHistory", id, viewerId] as const, ["audit_logs", "stock_movements"]),
     batches: (id?: string) => resource(["productBatches", id] as const, ["stock_batches"]),
+    creator: (id?: string) => resource(["productCreator", id] as const, ["audit_logs"]),
   },
   categories: {
     all: () => resource(["categoriesList"] as const, ["categories"]),
+    list: () => resource(["categoryList"] as const, ["categories"]),
   },
   stockBatches: {
     expiring: (expiryDays: number) =>
@@ -181,5 +183,10 @@ export const queryKeys = {
         "returns",
         "return_items",
       ]),
+  },
+  activityLog: {
+    list: (filtersKey: string) =>
+      resource(["activityLog", filtersKey] as const, ["audit_logs"]),
+    actions: () => resource(["activityLogActions"] as const, ["audit_logs"]),
   },
 } as const;

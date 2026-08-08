@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { format, subDays, subMonths } from "date-fns";
+import { format, subDays } from "date-fns";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,24 +13,18 @@ import {
   ClipboardList,
   Wallet,
   Users,
-  Calendar as CalendarIcon,
   Loader2,
   CheckCircle2,
+  TrendingUp,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { DateRangePicker, type DateRangeValue } from "@/components/ui/date-range-picker";
 import {
   useReportExport,
   RecentDownload,
@@ -38,28 +32,18 @@ import {
 } from "@/lib/hooks/use-report-export";
 import { toast } from "sonner";
 
-const DATE_PRESETS = [
-  { label: "Today", value: "today" },
-  { label: "Last 7 Days", value: "7d" },
-  { label: "Last 30 Days", value: "30d" },
-  { label: "Last 3 Months", value: "90d" },
-  { label: "Last Year", value: "1y" },
-  { label: "All Time", value: "all" },
-];
-
-function getDateRange(preset: string): { from?: string; to?: string } {
-  const now = new Date();
-  const to = now.toISOString();
-  if (preset === "today") return { from: new Date(now.setHours(0, 0, 0, 0)).toISOString(), to };
-  if (preset === "7d") return { from: subDays(now, 7).toISOString(), to };
-  if (preset === "30d") return { from: subDays(now, 30).toISOString(), to };
-  if (preset === "90d") return { from: subMonths(now, 3).toISOString(), to };
-  if (preset === "1y") return { from: subMonths(now, 12).toISOString(), to };
-  return {};
+function toQueryRange(range: DateRangeValue): { from?: string; to?: string } {
+  return {
+    from: range.from ? `${range.from}T00:00:00.000Z` : undefined,
+    to: range.to ? `${range.to}T23:59:59.999Z` : undefined,
+  };
 }
 
 export function ReportCenter() {
-  const [datePreset, setDatePreset] = useState("30d");
+  const [dateRange, setDateRange] = useState<DateRangeValue>({
+    from: format(subDays(new Date(), 30), "yyyy-MM-dd"),
+    to: format(new Date(), "yyyy-MM-dd"),
+  });
   const [loadingReport, setLoadingReport] = useState<string | null>(null);
   const [recentDownloads, setRecentDownloads] = useState<RecentDownload[]>([]);
 
@@ -78,7 +62,7 @@ export function ReportCenter() {
     reportId: ReportId,
     action: "csv" | "pdf" | "print",
   ) => {
-    const { from, to } = getDateRange(datePreset);
+    const { from, to } = toQueryRange(dateRange);
     setLoadingReport(reportId);
     try {
       if (action === "csv") {
@@ -143,27 +127,20 @@ export function ReportCenter() {
       icon: Wallet,
       category: "Financial",
     },
+    {
+      id: "top_sellers",
+      title: "Top Sellers",
+      description: "Best-performing products by revenue for the selected period.",
+      icon: TrendingUp,
+      category: "Operations",
+    },
   ];
 
   return (
     <div className="space-y-5">
       {/* Date filter */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-2.5">
-        <div className="flex items-center gap-2 bg-background border rounded-[10px] px-3.5 py-1.5 w-full sm:w-[220px]">
-          <CalendarIcon className="h-4 w-4 text-muted-foreground shrink-0" />
-          <Select value={datePreset} onValueChange={setDatePreset}>
-            <SelectTrigger className="border-0 shadow-none focus:ring-0 p-0 h-auto text-[13px] w-full bg-transparent outline-none">
-              <SelectValue placeholder="Select period" />
-            </SelectTrigger>
-            <SelectContent>
-              {DATE_PRESETS.map((p) => (
-                <SelectItem key={p.value} value={p.value} className="text-[13px]">
-                  {p.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <DateRangePicker value={dateRange} onChange={setDateRange} className="w-full sm:w-auto" />
         <span className="text-[12.5px] text-muted-foreground">
           Reports will be generated for this time range
         </span>

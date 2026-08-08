@@ -42,8 +42,6 @@ export function CustomerManagement() {
 
   return (
     <div className="flex flex-col h-full min-h-0 space-y-4 md:space-y-6">
-      <InsightsStrip metrics={metrics} />
-
       <Tabs
         value={activeTab}
         onValueChange={handleTabChange}
@@ -53,8 +51,9 @@ export function CustomerManagement() {
 
         <TabsContent
           value="overview"
-          className="flex-1 min-h-0 mt-0 border-none p-0"
+          className="flex-1 min-h-0 mt-0 border-none p-0 flex flex-col gap-4 md:gap-6"
         >
+          <InsightsStrip metrics={metrics} />
           <OverviewTab metrics={metrics} />
         </TabsContent>
 

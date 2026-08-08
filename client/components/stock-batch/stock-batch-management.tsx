@@ -21,14 +21,6 @@ export function StockBatchManagement({
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-6 relative">
       {isAuditing && <StockAudits onClose={() => setIsAuditing(false)} />}
-      <StockBatchMetrics
-        stock_batchValue={stats.totalStockBatchValue}
-        totalProducts={stats.totalProducts}
-        lowStockCount={stats.lowStockCount}
-        expiringCount={stats.expiringSoonCount}
-        activeCategories={stats.activeCategories}
-        formatCurrency={formatCurrency}
-      />
 
       <Tabs
         value={currentTab}
@@ -51,7 +43,15 @@ export function StockBatchManagement({
           <ProductDatabase />
         </TabsContent>
 
-        <TabsContent value="overview" className="flex flex-col flex-1 min-h-0 mt-0">
+        <TabsContent value="overview" className="flex flex-col flex-1 min-h-0 mt-0 gap-6">
+          <StockBatchMetrics
+            stock_batchValue={stats.totalStockBatchValue}
+            totalProducts={stats.totalProducts}
+            lowStockCount={stats.lowStockCount}
+            expiringCount={stats.expiringSoonCount}
+            activeCategories={stats.activeCategories}
+            formatCurrency={formatCurrency}
+          />
           <StockOverview />
         </TabsContent>
 

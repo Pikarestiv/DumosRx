@@ -258,7 +258,6 @@ export function PurchaseOrderTable({
         onOpenChange={(open) => {
           if (!open) setSelectedOrderId(null);
         }}
-        widthClassName="w-full sm:w-[600px]"
       >
         <PurchaseOrderDetails
           selectedPO={selectedPO}

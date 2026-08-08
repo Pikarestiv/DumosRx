@@ -14,7 +14,7 @@ interface ResponsiveDetailPanelProps {
   title?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
-  /** Desktop Sheet width override, e.g. "w-full sm:w-[600px]". Defaults to 560px. */
+  /** Desktop Sheet width override, e.g. "w-full sm:w-[600px]". Defaults to ~half the viewport. */
   widthClassName?: string;
 }
 
@@ -35,7 +35,7 @@ export function ResponsiveDetailPanel({
           side="right"
           hideClose
           className={cn(
-            "w-full sm:w-[560px] p-0 flex flex-col bg-card",
+            "w-full sm:w-1/2 sm:min-w-[560px] sm:max-w-[900px] p-0 flex flex-col bg-card",
             widthClassName ?? className,
           )}
         >

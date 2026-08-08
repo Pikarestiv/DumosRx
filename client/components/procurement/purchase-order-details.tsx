@@ -87,13 +87,11 @@ export function PurchaseOrderDetails({
   }
 
   return (
-    // Full-screen takeover on mobile (matches the prescription detail panel
-    // pattern), a normal panel alongside the list on desktop.
-    <Card className="fixed inset-0 z-50 lg:static lg:z-auto lg:flex-[1] flex flex-col h-full bg-background lg:bg-card lg:rounded-[14px] lg:border lg:border-border shadow-none lg:shadow-[0_1px_2px_rgba(16,24,40,0.04)] overflow-hidden p-0 gap-0">
+    <Card className="flex flex-col h-full bg-card overflow-hidden p-0 gap-0 border-none rounded-none shadow-none">
       <div className="flex flex-col h-full overflow-hidden">
-          <div className="flex items-center gap-3 p-5 pt-[calc(var(--tauri-top,0px)+1.25rem)] lg:pt-5 border-b border-border">
+          <div className="flex items-center gap-3 p-5 border-b border-border">
             <div
-              className="lg:hidden w-[38px] h-[38px] rounded-[10px] bg-muted flex items-center justify-center cursor-pointer text-muted-foreground shrink-0 hover:bg-muted/80 transition-colors"
+              className="w-[38px] h-[38px] rounded-[10px] bg-muted flex items-center justify-center cursor-pointer text-muted-foreground shrink-0 hover:bg-muted/80 transition-colors"
               onClick={onClose}
             >
               <ArrowLeft className="w-[17px] h-[17px]" />
@@ -217,7 +215,7 @@ export function PurchaseOrderDetails({
             </div>
           </div>
 
-          <div className="p-5 pb-[calc(var(--tauri-bottom,env(safe-area-inset-bottom,0px))+1.25rem)] lg:pb-5 border-t border-border bg-card mt-auto flex flex-col gap-3">
+          <div className="p-5 border-t border-border bg-card mt-auto flex flex-col gap-3">
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"

@@ -18,7 +18,7 @@ import { CatalogDetailPanel } from "./catalog-detail-panel";
 import { ProductSearchBar } from "./product-search-bar";
 import { ProductCategoryChips } from "./product-category-chips";
 import { ManageCategoriesDialog } from "./manage-categories-dialog";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { ResponsiveDetailPanel } from "@/components/ui/responsive-detail-panel";
 import { queryKeys } from "@/lib/query-keys";
 
 export function ProductDatabase() {
@@ -141,93 +141,64 @@ export function ProductDatabase() {
     }).format(amount);
   };
 
-  const [isMobile, setIsMobile] = useState(false);
-  useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 1024);
-    handleResize(); // Set initial value
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
   return (
     <div className="flex flex-col lg:flex-1 lg:min-h-0 lg:h-full gap-4">
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(320px,400px)] xl:grid-cols-[minmax(0,1fr)_minmax(380px,450px)] lg:grid-rows-1 gap-5 flex-1 min-h-0">
-        {/* Left List */}
-        <div className="flex flex-col min-h-0 gap-3 lg:gap-0 lg:h-full">
-          {/* Mobile: search bar + category chips stand alone above the card, contrasting with the page background */}
-          <div className="lg:hidden space-y-3">
-            <ProductSearchBar
-              searchTerm={searchTerm}
-              setSearchTerm={setSearchTerm}
-              statusFilter={statusFilter}
-              setStatusFilter={setStatusFilter}
-              statuses={statuses}
-              inputClassName="bg-card border-border"
-              buttonClassName="bg-card border-border"
-            />
-            <ProductCategoryChips
-              categoryFilter={categoryFilter}
-              setCategoryFilter={setCategoryFilter}
-              categories={categories}
-              triggerClassName="data-[state=inactive]:bg-card data-[state=inactive]:border-border"
-            />
-          </div>
-
-          <div className="border-0 sm:border sm:border-border bg-transparent sm:bg-card rounded-none sm:rounded-2xl flex flex-col min-h-0 lg:flex-1">
-            <ProductDatabaseFilters
-              searchTerm={searchTerm}
-              setSearchTerm={setSearchTerm}
-              categoryFilter={categoryFilter}
-              setCategoryFilter={setCategoryFilter}
-              statusFilter={statusFilter}
-              setStatusFilter={setStatusFilter}
-              categories={categories}
-              statuses={statuses}
-              onManageCategories={() => setShowManageCategories(true)}
-            />
-            <CatalogList
-              filteredProducts={filteredProducts}
-              totalCount={products.length}
-              isFuzzyFallback={isFuzzyFallback}
-              formatCurrency={formatCurrency}
-              onSelectProduct={setSelectedProduct}
-              selectedProductId={selectedProduct?.id}
-            />
-          </div>
+      <div className="flex flex-col min-h-0 gap-3 lg:gap-0 lg:h-full flex-1">
+        {/* Mobile: search bar + category chips stand alone above the card, contrasting with the page background */}
+        <div className="lg:hidden space-y-3">
+          <ProductSearchBar
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            statusFilter={statusFilter}
+            setStatusFilter={setStatusFilter}
+            statuses={statuses}
+            inputClassName="bg-card border-border"
+            buttonClassName="bg-card border-border"
+          />
+          <ProductCategoryChips
+            categoryFilter={categoryFilter}
+            setCategoryFilter={setCategoryFilter}
+            categories={categories}
+            triggerClassName="data-[state=inactive]:bg-card data-[state=inactive]:border-border"
+          />
         </div>
 
-        {/* Desktop Detail Panel */}
-        <div className="hidden lg:flex flex-col min-h-0">
-          <CatalogDetailPanel
-            product={selectedProduct}
-            onEditProduct={handleEditProduct}
-            onClose={() => setSelectedProduct(null)}
+        <div className="border-0 sm:border sm:border-border bg-transparent sm:bg-card rounded-none sm:rounded-2xl flex flex-col min-h-0 lg:flex-1">
+          <ProductDatabaseFilters
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            categoryFilter={categoryFilter}
+            setCategoryFilter={setCategoryFilter}
+            statusFilter={statusFilter}
+            setStatusFilter={setStatusFilter}
+            categories={categories}
+            statuses={statuses}
+            onManageCategories={() => setShowManageCategories(true)}
+          />
+          <CatalogList
+            filteredProducts={filteredProducts}
+            totalCount={products.length}
+            isFuzzyFallback={isFuzzyFallback}
+            formatCurrency={formatCurrency}
+            onSelectProduct={setSelectedProduct}
+            selectedProductId={selectedProduct?.id}
           />
         </div>
       </div>
 
-      {/* Mobile Detail Panel (Sheet) */}
-      <Sheet
-        open={!!selectedProduct && isMobile}
+      <ResponsiveDetailPanel
+        open={!!selectedProduct}
         onOpenChange={(open) => {
           if (!open) setSelectedProduct(null);
         }}
       >
-        <SheetContent
-          side="right"
-          hideClose
-          className="w-full sm:w-[400px] p-0 flex flex-col bg-card"
-        >
-          <CatalogDetailPanel
-            product={selectedProduct}
-            className="border-none rounded-none"
-            onEditProduct={(p) => {
-              handleEditProduct(p);
-            }}
-            onClose={() => setSelectedProduct(null)}
-          />
-        </SheetContent>
-      </Sheet>
+        <CatalogDetailPanel
+          product={selectedProduct}
+          className="border-none rounded-none"
+          onEditProduct={handleEditProduct}
+          onClose={() => setSelectedProduct(null)}
+        />
+      </ResponsiveDetailPanel>
 
       {/* Dialogs */}
       <AddProductDialog

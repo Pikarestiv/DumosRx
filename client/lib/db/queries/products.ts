@@ -9,7 +9,8 @@ export async function getProductsWithDetails() {
        (SELECT SUM(quantity) FROM stock_batches WHERE product_id = m.id AND _deleted = 0 AND is_active = 1) as stock_quantity,
        (SELECT AVG(cost_price) FROM stock_batches WHERE product_id = m.id AND _deleted = 0 AND is_active = 1 AND quantity > 0) as cost_price,
        (SELECT expiry_date FROM stock_batches WHERE product_id = m.id AND _deleted = 0 AND quantity > 0 ORDER BY expiry_date ASC LIMIT 1) as expiry_date,
-       (SELECT batch_number FROM stock_batches WHERE product_id = m.id AND _deleted = 0 AND quantity > 0 ORDER BY expiry_date ASC LIMIT 1) as batch_number
+       (SELECT batch_number FROM stock_batches WHERE product_id = m.id AND _deleted = 0 AND quantity > 0 ORDER BY expiry_date ASC LIMIT 1) as batch_number,
+       (SELECT MAX(reconciled_at) FROM stock_audits WHERE product_id = m.id AND _deleted = 0 AND status = 'reconciled') as last_audited_at
      FROM products m
      LEFT JOIN categories c ON m.category_id = c.id
      WHERE m._deleted = 0

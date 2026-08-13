@@ -24,6 +24,7 @@ export const transformProduct = (apiData: ProductWithDetails): Product => ({
   baseUnit: apiData.base_unit || "Unit",
   bulkUnit: apiData.bulk_unit || "",
   unitsPerBulk: Number(apiData.units_per_bulk) || 1,
+  lastAuditedAt: apiData.last_audited_at || null,
   showOnline: apiData.show_online === 1,
   requiresPrescription: apiData.requires_prescription === 1,
   isControlled: apiData.is_controlled === 1,

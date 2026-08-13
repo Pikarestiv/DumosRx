@@ -42,7 +42,7 @@
   --destructive: oklch(0.577 0.245 27.325); /* #ea580c - error/alert color */
   --destructive-foreground: oklch(1 0 0); /* #ffffff - error text */
   --border: oklch(0.922 0 0); /* #e5e7eb - borders */
-  --input: oklch(1 0 0); /* #ffffff - input backgrounds */
+  --input: oklch(0.922 0 0); /* #e5e7eb - input borders (was white, making borders invisible against white/light cards and leaving only the bottom-side shadow visible) */
   --ring: oklch(0.646 0.222 264.376 / 0.5); /* accent purple focus ring */
   --chart-1: oklch(0.646 0.222 264.376); /* #8b5cf6 - chart color 1 */
   --chart-2: oklch(0.577 0.245 27.325); /* #ea580c - chart color 2 */

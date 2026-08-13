@@ -28,7 +28,7 @@ export function TablePagination({
   pageSize,
   onPageChange,
   onPageSizeChange,
-  pageSizeOptions = [25, 50, 100],
+  pageSizeOptions = [10, 25, 50, 100, 500],
 }: TablePaginationProps) {
   const rangeStart = totalItems === 0 ? 0 : (page - 1) * pageSize + 1;
   const rangeEnd = Math.min(page * pageSize, totalItems);
@@ -36,7 +36,9 @@ export function TablePagination({
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-border shrink-0">
       <div className="flex items-center gap-2">
-        <span className="text-[12px] text-muted-foreground shrink-0">Rows per page</span>
+        <span className="text-[12px] text-muted-foreground shrink-0">
+          Rows per page
+        </span>
         <Select
           value={String(pageSize)}
           onValueChange={(v) => onPageSizeChange(Number(v))}

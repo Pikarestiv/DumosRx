@@ -20,16 +20,13 @@ import {
 } from "@/lib/db/queries/activity-log";
 import { useAuth, checkCanViewAllActivity } from "@/lib/context/auth-context";
 import { queryKeys } from "@/lib/query-keys";
+import { STAFF_ROLES } from "@/lib/constants/roles";
+import { ResponsiveDetailPanel } from "@/components/ui/responsive-detail-panel";
+import { ActivityLogDetailPanel } from "./activity-log-detail-panel";
+import { formatActionLabel } from "./format-action-label";
+import type { AuditLogRow } from "@/lib/types/audit-log";
 
 const PAGE_SIZE = 50;
-
-function formatActionLabel(action: string) {
-  return action
-    .toLowerCase()
-    .split("_")
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
-}
 
 export function ActivityLogPage() {
   const { user } = useAuth();
@@ -38,10 +35,13 @@ export function ActivityLogPage() {
   const [page, setPage] = useState(1);
   const [actionFilter, setActionFilter] = useState<string>("all");
   const [userFilter, setUserFilter] = useState<string>("all");
+  const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [selectedEntry, setSelectedEntry] = useState<AuditLogRow | null>(null);
 
   const filters = {
     action: actionFilter === "all" ? undefined : actionFilter,
     userId: !canViewAll ? user?.id : userFilter === "all" ? undefined : userFilter,
+    role: canViewAll && roleFilter !== "all" ? roleFilter : undefined,
     page,
     pageSize: PAGE_SIZE,
   };
@@ -103,6 +103,28 @@ export function ActivityLogPage() {
 
         {canViewAll && (
           <Select
+            value={roleFilter}
+            onValueChange={(v) => {
+              setRoleFilter(v);
+              setPage(1);
+            }}
+          >
+            <SelectTrigger className="w-[180px] h-9 text-[12.5px]">
+              <SelectValue placeholder="Role" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All roles</SelectItem>
+              {STAFF_ROLES.map((r) => (
+                <SelectItem key={r.value} value={r.value}>
+                  {r.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
+        {canViewAll && (
+          <Select
             value={userFilter}
             onValueChange={(v) => {
               setUserFilter(v);
@@ -151,7 +173,11 @@ export function ActivityLogPage() {
                 </tr>
               )}
               {rows.map((row) => (
-                <tr key={row.id} className="hover:bg-accent/30">
+                <tr
+                  key={row.id}
+                  className="hover:bg-accent/30 cursor-pointer"
+                  onClick={() => setSelectedEntry(row)}
+                >
                   <td className="px-4 py-2.5 font-semibold text-foreground">
                     {formatActionLabel(row.action)}
                   </td>
@@ -196,6 +222,18 @@ export function ActivityLogPage() {
           </div>
         </div>
       </Card>
+
+      <ResponsiveDetailPanel
+        open={!!selectedEntry}
+        onOpenChange={(open) => {
+          if (!open) setSelectedEntry(null);
+        }}
+      >
+        <ActivityLogDetailPanel
+          entry={selectedEntry}
+          onClose={() => setSelectedEntry(null)}
+        />
+      </ResponsiveDetailPanel>
     </div>
   );
 }

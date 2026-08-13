@@ -6,6 +6,7 @@ export interface ActivityLogFilters {
   to?: string;
   action?: string;
   userId?: string;
+  role?: string;
   page?: number;
   pageSize?: number;
 }
@@ -23,7 +24,7 @@ export interface ActivityLogResult {
 export async function getActivityLog(
   filters: ActivityLogFilters = {},
 ): Promise<ActivityLogResult> {
-  const { from, to, action, userId, page = 1, pageSize = 50 } = filters;
+  const { from, to, action, userId, role, page = 1, pageSize = 50 } = filters;
 
   const conditions: string[] = ["(al._deleted = 0 OR al._deleted IS NULL)"];
   const params: (string | number)[] = [];
@@ -44,11 +45,18 @@ export async function getActivityLog(
     conditions.push("al.user_id = ?");
     params.push(userId);
   }
+  if (role) {
+    conditions.push("u.role = ?");
+    params.push(role);
+  }
 
   const where = conditions.join(" AND ");
 
   const countResult = await query<{ count: number }>(
-    `SELECT COUNT(*) as count FROM audit_logs al WHERE ${where}`,
+    `SELECT COUNT(*) as count
+     FROM audit_logs al
+     LEFT JOIN users u ON u.id = al.user_id
+     WHERE ${where}`,
     params,
   );
   const total = countResult[0]?.count || 0;

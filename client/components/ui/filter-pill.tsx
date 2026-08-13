@@ -13,7 +13,7 @@ export interface FilterPillOption {
   label: string;
 }
 
-interface ProductFilterPillProps {
+interface FilterPillProps {
   label: string;
   value: string;
   onValueChange: (val: string) => void;
@@ -25,14 +25,14 @@ interface ProductFilterPillProps {
 /** Bunched-up "Label: value" dropdown filter — replaces a row of one-per-value
  * quick-filter chips with a single pill that opens a picker, so a long list
  * (categories, inventory conditions, etc.) doesn't have to be laid out flat. */
-export function ProductFilterPill({
+export function FilterPill({
   label,
   value,
   onValueChange,
   options,
   allValue = "all",
   className,
-}: ProductFilterPillProps) {
+}: FilterPillProps) {
   const selected = options.find((o) => o.value === value);
   const isActive = value !== allValue;
 

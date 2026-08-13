@@ -1,6 +1,6 @@
 import { Settings2 } from "lucide-react";
 import { ProductSearchBar } from "./product-search-bar";
-import { ProductFilterPill, formatFilterLabel } from "./product-filter-pill";
+import { FilterPill, formatFilterLabel } from "@/components/ui/filter-pill";
 import { Button } from "@/components/ui/button";
 
 interface ProductDatabaseFiltersProps {
@@ -44,7 +44,7 @@ export function ProductDatabaseFilters({
         </Button>
       </div>
       <div className="flex items-center gap-2 flex-wrap">
-        <ProductFilterPill
+        <FilterPill
           label="Category"
           value={categoryFilter}
           onValueChange={setCategoryFilter}
@@ -53,7 +53,7 @@ export function ProductDatabaseFilters({
             label: c === "all" ? "All" : c,
           }))}
         />
-        <ProductFilterPill
+        <FilterPill
           label="Inventory"
           value={statusFilter}
           onValueChange={setStatusFilter}

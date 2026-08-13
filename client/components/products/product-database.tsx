@@ -17,7 +17,7 @@ import { Product, transformProduct } from "./types";
 import { CatalogList } from "./catalog-list";
 import { CatalogDetailPanel } from "./catalog-detail-panel";
 import { ProductSearchBar } from "./product-search-bar";
-import { ProductFilterPill, formatFilterLabel } from "./product-filter-pill";
+import { FilterPill, formatFilterLabel } from "@/components/ui/filter-pill";
 import { ManageCategoriesDialog } from "./manage-categories-dialog";
 import { ResponsiveDetailPanel } from "@/components/ui/responsive-detail-panel";
 import { queryKeys } from "@/lib/query-keys";
@@ -161,7 +161,7 @@ export function ProductDatabase() {
             inputClassName="bg-card border-border"
           />
           <div className="flex items-center gap-2 flex-wrap">
-            <ProductFilterPill
+            <FilterPill
               label="Category"
               value={categoryFilter}
               onValueChange={setCategoryFilter}
@@ -171,7 +171,7 @@ export function ProductDatabase() {
               }))}
               className="bg-card"
             />
-            <ProductFilterPill
+            <FilterPill
               label="Inventory"
               value={statusFilter}
               onValueChange={setStatusFilter}

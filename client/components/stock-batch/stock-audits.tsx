@@ -1,9 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { AuditSetupStep } from "./audit-setup-step";
-import { AuditListStep } from "./audit-list-step";
-import { AuditCountStep } from "./audit-count-step";
 import { AuditLedgerStep } from "./audit-ledger-step";
 import { AuditReviewStep } from "./audit-review-step";
 import { ChevronLeft, CheckCircle2, Loader2 } from "lucide-react";
@@ -17,8 +14,8 @@ import { useAuth } from "@/lib/context/auth-context";
 import { toast } from "sonner";
 import type { ProductWithDetails } from "@/lib/types/product";
 
-type AuditStep = "setup" | "list" | "count" | "ledger" | "review" | "done";
-export type AuditMode = "standard" | "ledger";
+type AuditStep = "ledger" | "review" | "done";
+const ALL_CATEGORIES = "__all__";
 
 export interface AuditItem {
   id: string;
@@ -37,17 +34,11 @@ export interface AuditItem {
 export function StockAudits({ onClose }: { onClose: () => void }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [step, setStep] = useState<AuditStep>("setup");
-  // Ledger mode needs room for a dense multi-column table — default to it
-  // on desktop, and to the one-item-at-a-time Standard flow on mobile,
-  // where that table would be cramped. Either can still be switched at will.
-  const [mode, setMode] = useState<AuditMode>(() =>
-    typeof window !== "undefined" && window.innerWidth >= 1024 ? "ledger" : "standard",
-  );
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [step, setStep] = useState<AuditStep>("ledger");
+  const [selectedCategory, setSelectedCategory] = useState<string>(ALL_CATEGORIES);
   const [search, setSearch] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSyncingBeforeStart, setIsSyncingBeforeStart] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [submittedSummary, setSubmittedSummary] = useState<{ counted: number; adjusted: number } | null>(null);
 
   // Data fetching
@@ -57,12 +48,37 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
   });
 
   const [items, setItems] = useState<AuditItem[]>([]);
-  const [activeItem, setActiveItem] = useState<AuditItem | null>(null);
-  const [currentCount, setCurrentCount] = useState<number | "">(0);
-  const [reason, setReason] = useState<string>("");
 
+  // Reconcile against the latest server state as soon as the count screen
+  // opens — otherwise a stale local snapshot could make an already-corrected
+  // discrepancy look like a fresh one, or hide a real one that happened
+  // elsewhere since this device last synced.
   useEffect(() => {
-    if (rawProducts) {
+    (async () => {
+      setIsSyncing(true);
+      try {
+        await sync(true);
+        queryClient.invalidateQueries({ queryKey: queryKeys.products.withDetails().queryKey });
+      } catch (error) {
+        console.error("Pre-audit sync failed:", error);
+        toast.warning(
+          "Couldn't sync before starting — continuing with the data already on this device.",
+        );
+      } finally {
+        setIsSyncing(false);
+      }
+    })();
+    // Only ever run once, on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Every row is editable from the moment it loads, pre-filled with the
+  // system's current values, so counted/adjusted stats only reflect rows
+  // someone actually changed. Only runs on the first load — a later
+  // background refetch (e.g. after the sync above) must not clobber counts
+  // already in progress.
+  useEffect(() => {
+    if (rawProducts && items.length === 0) {
       const formatted: AuditItem[] = rawProducts.map((p: ProductWithDetails) => ({
         id: p.id,
         name: p.name,
@@ -71,9 +87,13 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
         systemQty: p.stock_quantity || 0,
         costPrice: p.cost_price ?? undefined,
         sellingPrice: p.selling_price ?? undefined,
+        countedQty: p.stock_quantity || 0,
+        countedCostPrice: p.cost_price ?? undefined,
+        countedSellingPrice: p.selling_price ?? undefined,
       }));
       setItems(formatted);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rawProducts]);
 
   const categories = Array.from(new Set(items.map((i) => i.category)))
@@ -85,7 +105,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
     .sort((a, b) => b.count - a.count);
 
   const categoryItems =
-    selectedCategory === "__all__"
+    selectedCategory === ALL_CATEGORIES
       ? items
       : items.filter((i) => i.category === selectedCategory);
 
@@ -101,73 +121,6 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
       (i.countedCostPrice !== undefined && i.countedCostPrice !== i.costPrice) ||
       (i.countedSellingPrice !== undefined && i.countedSellingPrice !== i.sellingPrice),
   );
-
-  const handleStart = async () => {
-    if (!selectedCategory) return;
-    // Reconcile against the latest server state before counting — otherwise
-    // a stale local snapshot could make an already-corrected discrepancy
-    // look like a fresh one, or hide a real one that happened elsewhere
-    // since this device last synced.
-    setIsSyncingBeforeStart(true);
-    try {
-      await sync(true);
-    } catch (error) {
-      console.error("Pre-audit sync failed:", error);
-      toast.warning(
-        "Couldn't sync before starting — continuing with the data already on this device.",
-      );
-    } finally {
-      setIsSyncingBeforeStart(false);
-    }
-
-    if (mode === "ledger") {
-      // Ledger mode shows every in-scope row at once, pre-filled with the
-      // system's current values — the review step's "counted" stats are
-      // only meaningful for ledger mode if every visible row counts as
-      // "counted" from the start, with only genuinely edited rows later
-      // showing up as adjustments.
-      const inScopeIds = new Set(
-        (selectedCategory === "__all__"
-          ? items
-          : items.filter((i) => i.category === selectedCategory)
-        ).map((i) => i.id),
-      );
-      setItems((prev) =>
-        prev.map((i) =>
-          inScopeIds.has(i.id)
-            ? {
-                ...i,
-                countedQty: i.countedQty ?? i.systemQty,
-                countedCostPrice: i.countedCostPrice ?? i.costPrice,
-                countedSellingPrice: i.countedSellingPrice ?? i.sellingPrice,
-              }
-            : i,
-        ),
-      );
-    }
-
-    setStep(mode === "ledger" ? "ledger" : "list");
-  };
-
-  const openCount = (item: AuditItem) => {
-    setActiveItem(item);
-    setCurrentCount(item.countedQty ?? item.systemQty);
-    setReason("");
-    setStep("count");
-  };
-
-  const saveCount = () => {
-    if (!activeItem) return;
-    const finalCount = typeof currentCount === "number" ? currentCount : 0;
-    setItems((prev) =>
-      prev.map((i) =>
-        i.id === activeItem.id
-          ? { ...i, countedQty: finalCount, reason: finalCount === i.systemQty ? undefined : reason }
-          : i,
-      ),
-    );
-    setStep("list");
-  };
 
   const updateLedgerItem = (id: string, patch: Partial<AuditItem>) => {
     setItems((prev) =>
@@ -213,10 +166,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
         <div
           className="w-8 h-8 md:w-[38px] md:h-[38px] rounded-[10px] bg-muted/30 flex items-center justify-center cursor-pointer text-muted-foreground shrink-0 hover:bg-muted hover:border hover:border-border transition-colors"
           onClick={() => {
-            if (step === "count") setStep("list");
-            else if (step === "review") setStep(mode === "ledger" ? "ledger" : "list");
-            else if (step === "list") setStep("setup");
-            else if (step === "ledger") setStep("setup");
+            if (step === "review") setStep("ledger");
             else onClose();
           }}
         >
@@ -227,10 +177,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
             Cycle Count
           </div>
           <div className="text-[11px] md:text-[11.5px] text-muted-foreground">
-            {step === "setup" && "Choose what to count"}
-            {step === "list" && "Count items"}
-            {step === "count" && "Adjust stock level"}
-            {step === "ledger" && "Count items — ledger mode"}
+            {step === "ledger" && "Count items"}
             {step === "review" && "Review"}
             {step === "done" && "Finished"}
           </div>
@@ -251,47 +198,19 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
         }}
       >
         <div className={step === "ledger" ? "w-full max-w-[960px]" : "w-full max-w-[560px]"}>
-          {/* SETUP */}
-          {step === "setup" && (
-            <AuditSetupStep
-              isLoading={isLoading}
-              items={items}
-              categories={categories}
-              selectedCategory={selectedCategory}
-              setSelectedCategory={setSelectedCategory}
-              mode={mode}
-              setMode={setMode}
-            />
-          )}
-
-          {/* LIST */}
-          {step === "list" && (
-            <AuditListStep
-              countedCount={countedItems.length}
-              totalCount={categoryItems.length}
-              search={search}
-              setSearch={setSearch}
-              filteredList={filteredList}
-              openCount={openCount}
-            />
-          )}
-
-          {/* COUNT */}
-          {step === "count" && activeItem && (
-            <AuditCountStep
-              activeItem={activeItem}
-              currentCount={currentCount}
-              setCurrentCount={setCurrentCount}
-              reason={reason}
-              setReason={setReason}
-            />
-          )}
-
           {/* LEDGER */}
           {step === "ledger" && (
             <AuditLedgerStep
-              items={categoryItems}
+              items={filteredList}
+              totalItems={items.length}
+              isLoading={isLoading}
+              isSyncing={isSyncing}
               onUpdateItem={updateLedgerItem}
+              categories={categories}
+              selectedCategory={selectedCategory}
+              setSelectedCategory={setSelectedCategory}
+              search={search}
+              setSearch={setSearch}
             />
           )}
 
@@ -324,42 +243,12 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
       {/* FIXED FOOTER */}
       <div className="border-t border-border bg-background p-4 md:px-8 md:py-5 flex justify-center shrink-0">
         <div className={step === "ledger" ? "w-full max-w-[960px]" : "w-full max-w-[560px]"}>
-          {step === "setup" && (
-            <button
-              className="w-full bg-primary text-white border-0 py-3.5 rounded-xl text-[14px] font-bold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
-              disabled={!selectedCategory || isSyncingBeforeStart}
-              onClick={handleStart}
-            >
-              {isSyncingBeforeStart && <Loader2 className="w-4 h-4 animate-spin" />}
-              {isSyncingBeforeStart ? "Syncing..." : "Start count"}
-            </button>
-          )}
-
-          {step === "list" && (
-            <button
-              className="w-full bg-primary text-white border-0 py-3.5 rounded-xl text-[14px] font-bold cursor-pointer hover:bg-primary/90 transition-colors"
-              onClick={() => setStep("review")}
-            >
-              Review &amp; submit
-            </button>
-          )}
-
           {step === "ledger" && (
             <button
               className="w-full bg-primary text-white border-0 py-3.5 rounded-xl text-[14px] font-bold cursor-pointer hover:bg-primary/90 transition-colors"
               onClick={() => setStep("review")}
             >
               Review &amp; submit
-            </button>
-          )}
-
-          {step === "count" && (
-            <button
-              className="w-full bg-primary text-white border-0 py-3.5 rounded-xl text-[14px] font-bold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary/90 transition-colors"
-              disabled={currentCount !== activeItem?.systemQty && !reason}
-              onClick={saveCount}
-            >
-              Save count
             </button>
           )}
 

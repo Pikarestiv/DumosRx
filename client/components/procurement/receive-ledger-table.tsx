@@ -1,5 +1,6 @@
 import { Input } from "@/components/ui/input";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
+import { ResponsiveTabLabel } from "@/components/ui/responsive-tab-label";
 import type { PurchaseOrderItem } from "@/lib/db/local-database";
 import type { ReceivedItemPayload } from "./receive-po-panel";
 import { formatCurrency } from "@/lib/utils";
@@ -32,9 +33,15 @@ export function ReceiveLedgerTable({
               Item
             </th>
             <th className="text-right px-3 py-2">Ordered</th>
-            <th className="text-right px-3 py-2">Received Qty</th>
-            <th className="text-right px-3 py-2">Cost Price</th>
-            <th className="text-right px-3 py-2">New Selling Price</th>
+            <th className="text-right px-3 py-2">
+              <ResponsiveTabLabel short="Recv." long="Received Qty" />
+            </th>
+            <th className="text-right px-3 py-2">
+              <ResponsiveTabLabel short="Cost" long="Cost Price" />
+            </th>
+            <th className="text-right px-3 py-2">
+              <ResponsiveTabLabel short="Sell Price" long="New Selling Price" />
+            </th>
             <th className="text-left px-3 py-2">Batch #</th>
             <th className="text-left px-3 py-2">Expiry</th>
           </tr>
@@ -55,11 +62,11 @@ export function ReceiveLedgerTable({
                 <td className="px-3 py-2 text-right text-muted-foreground">
                   {item.bulk_quantity}
                 </td>
-                <td className="px-2 py-1.5 text-right">
+                <td className="px-3 py-2 text-right">
                   <Input
                     type="number"
                     min="0"
-                    className="w-20 text-right"
+                    className="w-full min-w-16 text-right"
                     value={state.quantity ?? item.bulk_quantity}
                     onChange={(e) =>
                       onFieldChange(
@@ -70,12 +77,12 @@ export function ReceiveLedgerTable({
                     }
                   />
                 </td>
-                <td className="px-2 py-1.5 text-right">
+                <td className="px-3 py-2 text-right">
                   <Input
                     type="number"
                     min="0"
                     step="0.01"
-                    className="w-24 text-right"
+                    className="w-full min-w-20 text-right"
                     placeholder={formatCurrency(item.unit_cost)}
                     value={state.cost_price ?? ""}
                     onChange={(e) =>
@@ -83,12 +90,12 @@ export function ReceiveLedgerTable({
                     }
                   />
                 </td>
-                <td className="px-2 py-1.5 text-right">
+                <td className="px-3 py-2 text-right">
                   <Input
                     type="number"
                     min="0"
                     step="0.01"
-                    className="w-24 text-right"
+                    className="w-full min-w-20 text-right"
                     placeholder="Unchanged"
                     value={state.selling_price ?? ""}
                     onChange={(e) =>
@@ -96,9 +103,9 @@ export function ReceiveLedgerTable({
                     }
                   />
                 </td>
-                <td className="px-2 py-1.5">
+                <td className="px-3 py-2">
                   <Input
-                    className="w-28"
+                    className="w-full min-w-24"
                     placeholder="e.g. BATCH-123"
                     value={state.lot_number || ""}
                     onChange={(e) =>
@@ -106,7 +113,7 @@ export function ReceiveLedgerTable({
                     }
                   />
                 </td>
-                <td className="px-2 py-1.5">
+                <td className="px-3 py-2">
                   <DatePickerInput
                     value={state.expiry_date}
                     onChange={(val) =>

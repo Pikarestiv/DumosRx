@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import { Search, CheckCircle2, Clock, ArrowRight, ClipboardList } from "lucide-react";
@@ -35,6 +35,7 @@ interface PurchaseOrderTableProps {
   onSendPO: (id: string) => void;
   onDeletePO?: (id: string) => void;
   isFuzzyFallback?: boolean;
+  initialSelectedId?: string | null;
 }
 
 function NoPurchaseOrdersRow() {
@@ -59,9 +60,18 @@ export function PurchaseOrderTable({
   onSendPO,
   onDeletePO,
   isFuzzyFallback,
+  initialSelectedId,
 }: PurchaseOrderTableProps) {
-  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(
+    initialSelectedId ?? null
+  );
   const [isReceiveModalOpen, setIsReceiveModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (initialSelectedId) {
+      setSelectedOrderId(initialSelectedId);
+    }
+  }, [initialSelectedId]);
 
   const { data: fullSelectedPO, isLoading: isLoadingDetails } = useQuery({
     ...queryKeys.purchaseOrders.detail(selectedOrderId),
@@ -69,13 +79,22 @@ export function PurchaseOrderTable({
     enabled: !!selectedOrderId,
   });
 
+  // Orders confirmed present in the list at some point, so a later
+  // disappearance can be trusted as a real deletion rather than the list
+  // just not having caught up yet (e.g. right after creating a new PO).
+  const seenOrderIdsRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    for (const o of orders) seenOrderIdsRef.current.add(o.id);
+  }, [orders]);
+
   useEffect(() => {
     // Close the panel if the selected order is removed from the list from
     // under it (e.g. deleted) rather than leaving it showing stale data.
     if (
       selectedOrderId &&
       orders.length > 0 &&
-      !orders.find((o) => o.id === selectedOrderId)
+      !orders.find((o) => o.id === selectedOrderId) &&
+      seenOrderIdsRef.current.has(selectedOrderId)
     ) {
       setSelectedOrderId(null);
     }

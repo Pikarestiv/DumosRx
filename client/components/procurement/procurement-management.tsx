@@ -1,6 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { usePurchaseOrders } from "@/lib/hooks/use-purchase-orders";
 import { PurchaseOrderTable } from "./purchase-order-table";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
@@ -23,6 +24,21 @@ interface ProcurementManagementProps {
 
 export function ProcurementManagement({ initialTab = "orders" }: ProcurementManagementProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const selectedId = searchParams.get("selected");
+
+  useEffect(() => {
+    if (selectedId) {
+      const newParams = new URLSearchParams(searchParams.toString());
+      newParams.delete("selected");
+      const newUrl =
+        window.location.pathname +
+        (newParams.toString() ? `?${newParams.toString()}` : "");
+      router.replace(newUrl);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId]);
+
   const {
     loading,
     searchQuery,
@@ -69,6 +85,7 @@ export function ProcurementManagement({ initialTab = "orders" }: ProcurementMana
             onSendPO={handleSendPO}
             onDeletePO={handleDeletePO}
             isFuzzyFallback={isFuzzyFallback}
+            initialSelectedId={selectedId}
           />
         </TabsContent>
 

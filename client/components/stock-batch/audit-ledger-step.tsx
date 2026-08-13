@@ -6,6 +6,15 @@ import { formatCurrency } from "@/lib/utils";
 
 const ALL_CATEGORIES = "__all__";
 
+function formatDiffCurrency(amount: number) {
+  return amount > 0 ? `+${formatCurrency(amount)}` : formatCurrency(amount);
+}
+
+function diffClassName(amount: number) {
+  if (amount === 0) return "text-muted-foreground";
+  return amount > 0 ? "text-emerald-600" : "text-destructive";
+}
+
 interface AuditLedgerStepProps {
   items: AuditItem[];
   totalItems: number;
@@ -88,14 +97,24 @@ export function AuditLedgerStep({
                 <th className="text-right px-3 py-2">Diff Qty</th>
                 <th className="text-right px-3 py-2">Cost Price</th>
                 <th className="text-right px-3 py-2">Counted Cost</th>
+                <th className="text-right px-3 py-2">Diff Cost</th>
                 <th className="text-right px-3 py-2">Selling Price</th>
                 <th className="text-right px-3 py-2">Counted Selling</th>
+                <th className="text-right px-3 py-2">Diff Selling</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {items.map((item) => {
                 const countedQty = item.countedQty ?? item.systemQty;
                 const diffQty = countedQty - item.systemQty;
+                const diffCost =
+                  item.costPrice !== undefined
+                    ? (item.countedCostPrice ?? item.costPrice) - item.costPrice
+                    : 0;
+                const diffSelling =
+                  item.sellingPrice !== undefined
+                    ? (item.countedSellingPrice ?? item.sellingPrice) - item.sellingPrice
+                    : 0;
                 const costChanged =
                   item.countedCostPrice !== undefined && item.countedCostPrice !== item.costPrice;
                 const sellingChanged =
@@ -128,15 +147,7 @@ export function AuditLedgerStep({
                     <td className="px-3 py-2 text-right text-muted-foreground">
                       {item.systemQty}
                     </td>
-                    <td
-                      className={`px-3 py-2 text-right font-semibold ${
-                        diffQty === 0
-                          ? "text-muted-foreground"
-                          : diffQty > 0
-                            ? "text-emerald-600"
-                            : "text-destructive"
-                      }`}
-                    >
+                    <td className={`px-3 py-2 text-right font-semibold ${diffClassName(diffQty)}`}>
                       {diffQty > 0 ? `+${diffQty}` : diffQty}
                     </td>
                     <td className="px-3 py-2 text-right text-muted-foreground">
@@ -158,6 +169,9 @@ export function AuditLedgerStep({
                         onFocus={(e) => e.target.select()}
                       />
                     </td>
+                    <td className={`px-3 py-2 text-right font-semibold ${diffClassName(diffCost)}`}>
+                      {item.costPrice !== undefined ? formatDiffCurrency(diffCost) : "—"}
+                    </td>
                     <td className="px-3 py-2 text-right text-muted-foreground">
                       {item.sellingPrice !== undefined ? formatCurrency(item.sellingPrice) : "—"}
                     </td>
@@ -177,12 +191,15 @@ export function AuditLedgerStep({
                         onFocus={(e) => e.target.select()}
                       />
                     </td>
+                    <td className={`px-3 py-2 text-right font-semibold ${diffClassName(diffSelling)}`}>
+                      {item.sellingPrice !== undefined ? formatDiffCurrency(diffSelling) : "—"}
+                    </td>
                   </tr>
                 );
               })}
               {items.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-3 py-8 text-center text-muted-foreground">
+                  <td colSpan={10} className="px-3 py-8 text-center text-muted-foreground">
                     No items match.
                   </td>
                 </tr>

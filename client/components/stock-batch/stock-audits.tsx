@@ -197,7 +197,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
             "calc(var(--tauri-bottom, env(safe-area-inset-bottom, 0px)) + 1rem)",
         }}
       >
-        <div className={step === "ledger" ? "w-full max-w-[960px]" : "w-full max-w-[560px]"}>
+        <div className={step === "ledger" ? "w-full max-w-[1280px]" : "w-full max-w-[560px]"}>
           {/* LEDGER */}
           {step === "ledger" && (
             <AuditLedgerStep
@@ -242,7 +242,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
 
       {/* FIXED FOOTER */}
       <div className="border-t border-border bg-background p-4 md:px-8 md:py-5 flex justify-center shrink-0">
-        <div className={step === "ledger" ? "w-full max-w-[960px]" : "w-full max-w-[560px]"}>
+        <div className={step === "ledger" ? "w-full max-w-[1280px]" : "w-full max-w-[560px]"}>
           {step === "ledger" && (
             <button
               className="w-full bg-primary text-white border-0 py-3.5 rounded-xl text-[14px] font-bold cursor-pointer hover:bg-primary/90 transition-colors"

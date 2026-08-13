@@ -77,28 +77,29 @@ export function CustomerBehaviorTab({
           </div>
         ) : (
           <div className="w-full overflow-x-auto border rounded-xl">
-            <table className="w-full text-[13px] text-left">
-              <thead className="bg-primary/5 border-b text-primary font-semibold text-[11.5px] uppercase">
-                <tr>
-                  <th className="px-5 py-3">Time Period</th>
-                  <th className="px-5 py-3">Transactions</th>
-                  <th className="px-5 py-3">Avg. Value</th>
-                  <th className="px-5 py-3">Top Category</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
+            {/* Div-based table — ARIA roles stand in for real <table> semantics */}
+            <div role="table" aria-label="Customer purchase patterns" className="w-full text-[13px] text-left">
+              <div role="rowgroup">
+                <div role="row" className="grid grid-cols-4 bg-primary/5 border-b text-primary font-semibold text-[11.5px] uppercase">
+                  <div role="columnheader" className="px-5 py-3">Time Period</div>
+                  <div role="columnheader" className="px-5 py-3">Transactions</div>
+                  <div role="columnheader" className="px-5 py-3">Avg. Value</div>
+                  <div role="columnheader" className="px-5 py-3">Top Category</div>
+                </div>
+              </div>
+              <div role="rowgroup" className="divide-y divide-border">
                 {purchasePatterns.map((row) => (
-                  <tr key={row.slot} className="hover:bg-primary/5">
-                    <td className="px-5 py-3.5 font-medium">{row.slot}</td>
-                    <td className="px-5 py-3.5">{row.transactions.toLocaleString()}</td>
-                    <td className="px-5 py-3.5">
+                  <div key={row.slot} role="row" className="grid grid-cols-4 hover:bg-primary/5">
+                    <div role="cell" className="px-5 py-3.5 font-medium">{row.slot}</div>
+                    <div role="cell" className="px-5 py-3.5">{row.transactions.toLocaleString()}</div>
+                    <div role="cell" className="px-5 py-3.5">
                       {symbol}{Math.round(row.avgValue).toLocaleString()}
-                    </td>
-                    <td className="px-5 py-3.5">{row.topCategory}</td>
-                  </tr>
+                    </div>
+                    <div role="cell" className="px-5 py-3.5">{row.topCategory}</div>
+                  </div>
                 ))}
-              </tbody>
-            </table>
+              </div>
+            </div>
           </div>
         )}
       </Card>

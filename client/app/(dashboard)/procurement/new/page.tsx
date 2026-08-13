@@ -118,7 +118,7 @@ export default function CreateOrderPage() {
 
     setIsSubmitting(true);
     try {
-      await createPurchaseOrder(
+      const poId = await createPurchaseOrder(
         selectedSupplierId,
         notes,
         items,
@@ -126,8 +126,10 @@ export default function CreateOrderPage() {
         paymentStatus !== "unpaid" ? Number(amountPaid) || 0 : 0,
         dueDate || null,
       );
-      toast.success("Purchase Order created successfully");
-      router.push("/procurement");
+      toast.success("Purchase order saved as draft", {
+        description: "Remember to mark it as sent once it's on its way to the vendor.",
+      });
+      router.push(`/procurement?selected=${poId}`);
     } catch (error) {
       console.error("Failed to create PO:", error);
       toast.error("Error creating purchase order");

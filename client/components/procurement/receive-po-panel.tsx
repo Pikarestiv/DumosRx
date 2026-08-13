@@ -1,6 +1,7 @@
+"use client";
+
 import React, { useState, useEffect } from "react";
-import { Info } from "lucide-react";
-import { ResponsiveModal } from "@/components/ui/responsive-modal";
+import { ArrowLeft, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,6 +25,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { formatCurrency } from "@/lib/utils";
+import { useMediaQuery } from "@/hooks/use-media-query";
 
 export interface ReceivedItemPayload {
   po_item_id: string;
@@ -35,13 +37,14 @@ export interface ReceivedItemPayload {
   selling_price?: string | number;
 }
 
-interface ReceivePOModalProps {
+interface ReceivePOPanelProps {
   po: PurchaseOrder | null;
-  isOpen: boolean;
-  onClose: () => void;
+  onBack: () => void;
   onConfirm: (poId: string, receivedItems: ReceivedItemPayload[]) => void;
 }
 
+/** One-item-at-a-time cards — used on phones, where the ledger table's
+ * columns would be too cramped to use even with horizontal scroll. */
 const ReceiveItemCard = React.memo(
   ({
     item,
@@ -139,40 +142,39 @@ const ReceiveItemCard = React.memo(
 );
 ReceiveItemCard.displayName = "ReceiveItemCard";
 
-export function ReceivePOModal({
-  po,
-  isOpen,
-  onClose,
-  onConfirm,
-}: ReceivePOModalProps) {
+/** Embedded, full-height replacement for the old Receive Goods modal — it
+ * takes over the same side panel used for PO details so the ledger table
+ * gets the panel's full width/height instead of being cramped inside a
+ * centered dialog. */
+export function ReceivePOPanel({ po, onBack, onConfirm }: ReceivePOPanelProps) {
   const [receivedItems, setReceivedItems] = useState<
     Record<string, ReceivedItemPayload>
   >({});
   const [showWarningModal, setShowWarningModal] = useState(false);
-  // Ledger mode needs room for a dense multi-column table — default to it
-  // on desktop, and to the one-item-at-a-time Standard flow on mobile,
-  // where that table would be cramped. Either can still be switched at will.
-  const [mode, setMode] = useState<"standard" | "ledger">("standard");
+  // Ledger needs room for a dense multi-column table — tablet and up have
+  // it, phones get the one-item-at-a-time card flow instead.
+  const isTabletUp = useMediaQuery("(min-width: 640px)");
+  const mode = isTabletUp ? "ledger" : "standard";
 
-  // Initialize payload state when modal opens or PO changes
   useEffect(() => {
-    if (isOpen && po) {
-      setMode(typeof window !== "undefined" && window.innerWidth >= 1024 ? "ledger" : "standard");
-      const initial: Record<string, ReceivedItemPayload> = {};
-      po.items?.forEach((item: PurchaseOrderItem) => {
-        initial[item.id] = {
-          po_item_id: item.id,
-          product_id: item.product_id,
-          // Prefill with expected bulk_quantity.
-          quantity: item.bulk_quantity,
-          lot_number: "",
-          // Null by default since we don't know it
-          expiry_date: "",
-        };
-      });
-      setReceivedItems(initial);
-    }
-  }, [isOpen, po]);
+    if (!po) return;
+    const initial: Record<string, ReceivedItemPayload> = {};
+    po.items?.forEach((item: PurchaseOrderItem) => {
+      initial[item.id] = {
+        po_item_id: item.id,
+        product_id: item.product_id,
+        // Prefill with expected bulk_quantity.
+        quantity: item.bulk_quantity,
+        lot_number: "",
+        // Null by default since we don't know it
+        expiry_date: "",
+      };
+    });
+    setReceivedItems(initial);
+    // po object identity changes on every refetch — key off the id instead
+    // so we don't wipe in-progress edits while the underlying query revalidates.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [po?.id]);
 
   const handleFieldChange = React.useCallback(
     (itemId: string, field: keyof ReceivedItemPayload, value: string | number) => {
@@ -202,105 +204,91 @@ export function ReceivePOModal({
     }
 
     onConfirm(po.id, payload);
-    onClose();
   };
 
   const handleProceedWarning = () => {
     const payload = Object.values(receivedItems);
     setShowWarningModal(false);
     onConfirm(po.id, payload);
-    onClose();
   };
 
   return (
-    <>
-      <ResponsiveModal
-        open={isOpen}
-        onOpenChange={(open) => !open && onClose()}
-        title={`Receive Goods: ${po.id}`}
-        description="Please confirm the quantities received and provide the batch/lot numbers and expiry dates for each item."
-        className={
-          mode === "ledger"
-            ? "max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
-            : "max-w-xl max-h-[90vh] overflow-hidden flex flex-col"
-        }
-        footer={
-          <div className="flex justify-end gap-3 pt-4 border-t">
-            <Button variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button onClick={handleConfirmClick}>Confirm & Receive</Button>
-          </div>
-        }
-      >
-        <div className="space-y-4 flex-1 overflow-y-auto px-4 sm:px-0">
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setMode("ledger")}
-              className={`flex-1 text-center px-3 py-2 rounded-lg border text-[12.5px] font-semibold transition-colors ${
-                mode === "ledger" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:bg-accent/50"
-              }`}
-            >
-              Ledger
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode("standard")}
-              className={`flex-1 text-center px-3 py-2 rounded-lg border text-[12.5px] font-semibold transition-colors ${
-                mode === "standard" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:bg-accent/50"
-              }`}
-            >
-              Standard
-            </button>
-          </div>
-
-          {mode === "standard" && (
-            <div className="border rounded-lg divide-y">
-              {po.items?.map((item: PurchaseOrderItem) => {
-                const state = receivedItems[item.id] || {};
-                return (
-                  <ReceiveItemCard
-                    key={item.id}
-                    item={item}
-                    state={state}
-                    onFieldChange={handleFieldChange}
-                  />
-                );
-              })}
-            </div>
-          )}
-
-          {mode === "ledger" && (
-            <ReceiveLedgerTable
-              items={po.items || []}
-              receivedItems={receivedItems}
-              onFieldChange={handleFieldChange}
-            />
-          )}
+    <div className="flex flex-col h-full overflow-hidden">
+      <div className="flex items-center gap-3 p-5 border-b border-border">
+        <div
+          className="w-[38px] h-[38px] rounded-[10px] bg-muted flex items-center justify-center cursor-pointer text-muted-foreground shrink-0 hover:bg-muted/80 transition-colors"
+          onClick={onBack}
+        >
+          <ArrowLeft className="w-[17px] h-[17px]" />
         </div>
+        <div className="min-w-0 flex-1">
+          <h3 className="text-[17px] font-bold text-foreground truncate">
+            Receive Goods
+          </h3>
+          <p className="text-[13px] text-muted-foreground font-medium truncate">
+            PO-{po.id.split("-")[0].toUpperCase()} · {po.vendor_name}
+          </p>
+        </div>
+      </div>
 
-        <AlertDialog open={showWarningModal} onOpenChange={setShowWarningModal}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Missing Expiry Date</AlertDialogTitle>
-              <AlertDialogDescription>
-                Some items are missing an expiry date. They will be marked with
-                a warning badge. Are you sure you want to proceed?
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Go Back</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleProceedWarning}
-                className="!bg-destructive !text-destructive-foreground !hover:bg-destructive/90"
-              >
-                Proceed Anyway
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </ResponsiveModal>
-    </>
+      <div className="flex-1 overflow-auto p-5 space-y-4">
+        <p className="text-[13px] text-muted-foreground">
+          Confirm the quantities received and provide the batch/lot numbers
+          and expiry dates for each item.
+        </p>
+
+        {mode === "standard" && (
+          <div className="border rounded-lg divide-y">
+            {po.items?.map((item: PurchaseOrderItem) => {
+              const state = receivedItems[item.id] || {};
+              return (
+                <ReceiveItemCard
+                  key={item.id}
+                  item={item}
+                  state={state}
+                  onFieldChange={handleFieldChange}
+                />
+              );
+            })}
+          </div>
+        )}
+
+        {mode === "ledger" && (
+          <ReceiveLedgerTable
+            items={po.items || []}
+            receivedItems={receivedItems}
+            onFieldChange={handleFieldChange}
+          />
+        )}
+      </div>
+
+      <div className="p-5 border-t border-border bg-card mt-auto flex justify-end gap-3">
+        <Button variant="outline" onClick={onBack}>
+          Cancel
+        </Button>
+        <Button onClick={handleConfirmClick}>Confirm & Receive</Button>
+      </div>
+
+      <AlertDialog open={showWarningModal} onOpenChange={setShowWarningModal}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Missing Expiry Date</AlertDialogTitle>
+            <AlertDialogDescription>
+              Some items are missing an expiry date. They will be marked with
+              a warning badge. Are you sure you want to proceed?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Go Back</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleProceedWarning}
+              className="!bg-destructive !text-destructive-foreground !hover:bg-destructive/90"
+            >
+              Proceed Anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
   );
 }

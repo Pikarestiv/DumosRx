@@ -1,7 +1,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { AlertTriangle, Calendar } from "lucide-react";
+import { AlertTriangle, Calendar, ClipboardCheck } from "lucide-react";
 import type { Product } from "./use-product-details";
+
+// Cycle counts older than this are treated as stale — flagged so staff know
+// to prioritize this product next time they run a count.
+const STALE_AUDIT_DAYS = 90;
 
 interface ProductStockInfoProps {
   product: Product;
@@ -16,6 +20,14 @@ export function ProductStockInfo({
   daysToExpiry,
   expiryWarningDays,
 }: ProductStockInfoProps) {
+  const daysSinceAudit = product.lastAuditedAt
+    ? Math.floor(
+        (new Date().getTime() - new Date(product.lastAuditedAt).getTime()) /
+          (1000 * 60 * 60 * 24),
+      )
+    : null;
+  const auditOverdue = daysSinceAudit === null || daysSinceAudit > STALE_AUDIT_DAYS;
+
   return (
     <Card>
       <CardHeader>
@@ -87,6 +99,28 @@ export function ProductStockInfo({
           )}
         </div>
 
+        <Separator />
+        <div>
+          <p className="text-sm text-muted-foreground flex items-center gap-2">
+            <ClipboardCheck className="h-4 w-4" />
+            Last Audited
+          </p>
+          {product.lastAuditedAt ? (
+            <>
+              <p
+                className={`font-medium ${daysSinceAudit !== null && daysSinceAudit > STALE_AUDIT_DAYS ? "text-orange-600" : "text-primary"}`}
+              >
+                {formatDate(product.lastAuditedAt)}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {daysSinceAudit} day{daysSinceAudit === 1 ? "" : "s"} ago
+              </p>
+            </>
+          ) : (
+            <p className="font-medium text-muted-foreground">Never audited</p>
+          )}
+        </div>
+
         {product.stockQuantity <= product.reorderLevel && (
           <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
             <p className="text-sm font-medium text-destructive">
@@ -116,6 +150,19 @@ export function ProductStockInfo({
             </p>
             <p className="text-xs text-destructive/80">
               This product has expired and should not be sold
+            </p>
+          </div>
+        )}
+
+        {auditOverdue && (
+          <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
+            <p className="text-sm font-medium text-orange-800">
+              {product.lastAuditedAt ? "Audit Overdue" : "Never Audited"}
+            </p>
+            <p className="text-xs text-orange-600">
+              {product.lastAuditedAt
+                ? `Last physically counted ${daysSinceAudit} days ago — consider a cycle count.`
+                : "This product has never been through a cycle count."}
             </p>
           </div>
         )}

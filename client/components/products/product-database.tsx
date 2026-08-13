@@ -12,11 +12,12 @@ import {
 } from "@/lib/db/queries/products";
 import { useStore } from "@/lib/context/store-context";
 import { genericFuzzySearch } from "@/lib/utils/search";
+import { getExpiryStatus } from "@/lib/utils/date-utils";
 import { Product, transformProduct } from "./types";
 import { CatalogList } from "./catalog-list";
 import { CatalogDetailPanel } from "./catalog-detail-panel";
-import { ProductSearchBar } from "./product-search-bar";
-import { ProductCategoryChips } from "./product-category-chips";
+import { SearchInput } from "@/components/ui/search-input";
+import { FilterPill, formatFilterLabel } from "@/components/ui/filter-pill";
 import { ManageCategoriesDialog } from "./manage-categories-dialog";
 import { ResponsiveDetailPanel } from "@/components/ui/responsive-detail-panel";
 import { queryKeys } from "@/lib/query-keys";
@@ -87,6 +88,7 @@ export function ProductDatabase() {
     "all",
     "active",
     "inactive",
+    "expiring_soon",
     "expired",
     "low_stock",
     "out_of_stock",
@@ -123,6 +125,13 @@ export function ProductDatabase() {
     ) {
       matchesStatus = true;
     }
+    if (
+      statusFilter === "expiring_soon" &&
+      product.expiryDate &&
+      getExpiryStatus(product.expiryDate) === "expiring_soon"
+    ) {
+      matchesStatus = true;
+    }
 
     return matchesCategory && matchesStatus;
   });
@@ -144,23 +153,36 @@ export function ProductDatabase() {
   return (
     <div className="flex flex-col lg:flex-1 lg:min-h-0 lg:h-full gap-4">
       <div className="flex flex-col min-h-0 gap-3 lg:gap-0 lg:h-full flex-1">
-        {/* Mobile: search bar + category chips stand alone above the card, contrasting with the page background */}
+        {/* Mobile: search bar + filter pills stand alone above the card, contrasting with the page background */}
         <div className="lg:hidden space-y-3">
-          <ProductSearchBar
-            searchTerm={searchTerm}
-            setSearchTerm={setSearchTerm}
-            statusFilter={statusFilter}
-            setStatusFilter={setStatusFilter}
-            statuses={statuses}
+          <SearchInput
+            value={searchTerm}
+            onChange={setSearchTerm}
+            placeholder="Search by name or SKU"
             inputClassName="bg-card border-border"
-            buttonClassName="bg-card border-border"
           />
-          <ProductCategoryChips
-            categoryFilter={categoryFilter}
-            setCategoryFilter={setCategoryFilter}
-            categories={categories}
-            triggerClassName="data-[state=inactive]:bg-card data-[state=inactive]:border-border"
-          />
+          <div className="flex items-center gap-2 flex-wrap">
+            <FilterPill
+              label="Category"
+              value={categoryFilter}
+              onValueChange={setCategoryFilter}
+              options={categories.map((c) => ({
+                value: c,
+                label: c === "all" ? "All" : c,
+              }))}
+              className="bg-card"
+            />
+            <FilterPill
+              label="Inventory"
+              value={statusFilter}
+              onValueChange={setStatusFilter}
+              options={statuses.map((s) => ({
+                value: s,
+                label: formatFilterLabel(s),
+              }))}
+              className="bg-card"
+            />
+          </div>
         </div>
 
         <div className="border-0 sm:border sm:border-border bg-transparent sm:bg-card rounded-none sm:rounded-2xl flex flex-col min-h-0 lg:flex-1">

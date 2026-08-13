@@ -1,9 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
-import { Search, CheckCircle2, Clock, ArrowRight, ClipboardList } from "lucide-react";
+import {
+  Search,
+  CheckCircle2,
+  Clock,
+  ArrowRight,
+  ClipboardList,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +24,7 @@ import {
 
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { formatCurrency } from "@/lib/utils";
-import { ReceivePOModal, type ReceivedItemPayload } from "./receive-po-modal";
+import { ReceivePOPanel, type ReceivedItemPayload } from "./receive-po-panel";
 import { PurchaseOrderDetails } from "./purchase-order-details";
 import { PurchaseOrderStatusFilter } from "./purchase-order-status-filter";
 import { getPurchaseOrderById, type PurchaseOrder } from "@/lib/db/procurement";
@@ -35,6 +41,109 @@ interface PurchaseOrderTableProps {
   onSendPO: (id: string) => void;
   onDeletePO?: (id: string) => void;
   isFuzzyFallback?: boolean;
+  initialSelectedId?: string | null;
+}
+
+function formatPONumber(id: string) {
+  return `PO-${id.split("-")[0].toUpperCase()}`;
+}
+
+function getStatusBadge(status: string) {
+  switch (status) {
+    case "received":
+      return (
+        <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 hover:bg-emerald-500/20">
+          <CheckCircle2 className="w-3 h-3 mr-1" /> Received
+        </Badge>
+      );
+    case "sent":
+      return (
+        <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/20 hover:bg-blue-500/20">
+          <ArrowRight className="w-3 h-3 mr-1" /> Sent
+        </Badge>
+      );
+    case "pending":
+    case "draft":
+      return (
+        <Badge
+          variant="outline"
+          className="bg-gray-500/10 text-gray-500 border-gray-500/20"
+        >
+          <Clock className="w-3 h-3 mr-1" /> Draft
+        </Badge>
+      );
+    default:
+      return <Badge variant="secondary">{status}</Badge>;
+  }
+}
+
+// Manages which order is selected, keeps its full details in sync with the
+// latest row data, and closes the panel if the selected order disappears
+// from underneath it (e.g. deleted elsewhere).
+function useSelectedOrder(
+  orders: PurchaseOrder[],
+  initialSelectedId: string | null | undefined,
+) {
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(
+    initialSelectedId ?? null,
+  );
+  const [panelView, setPanelView] = useState<"details" | "receive">(
+    "details",
+  );
+
+  useEffect(() => {
+    if (initialSelectedId) {
+      setSelectedOrderId(initialSelectedId);
+    }
+  }, [initialSelectedId]);
+
+  // Always land back on the details view when switching to a different order.
+  useEffect(() => {
+    setPanelView("details");
+  }, [selectedOrderId]);
+
+  const { data: fullSelectedPO, isLoading: isLoadingDetails } = useQuery({
+    ...queryKeys.purchaseOrders.detail(selectedOrderId),
+    queryFn: () => getPurchaseOrderById(selectedOrderId as string),
+    enabled: !!selectedOrderId,
+  });
+
+  // Orders confirmed present in the list at some point, so a later
+  // disappearance can be trusted as a real deletion rather than the list
+  // just not having caught up yet (e.g. right after creating a new PO).
+  const seenOrderIdsRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    for (const o of orders) seenOrderIdsRef.current.add(o.id);
+  }, [orders]);
+
+  useEffect(() => {
+    // Close the panel if the selected order is removed from the list from
+    // under it (e.g. deleted) rather than leaving it showing stale data.
+    if (
+      selectedOrderId &&
+      orders.length > 0 &&
+      !orders.find((o) => o.id === selectedOrderId) &&
+      seenOrderIdsRef.current.has(selectedOrderId)
+    ) {
+      setSelectedOrderId(null);
+    }
+  }, [orders, selectedOrderId]);
+
+  // Merge full details with the latest row data from the list (so status updates reflect immediately)
+  const listOrder = orders.find((o) => o.id === selectedOrderId);
+  const selectedPO =
+    fullSelectedPO && listOrder
+      ? { ...fullSelectedPO, ...listOrder }
+      : fullSelectedPO || listOrder || null;
+
+  return {
+    selectedOrderId,
+    setSelectedOrderId,
+    panelView,
+    setPanelView,
+    selectedPO,
+    isLoadingDetails,
+  };
 }
 
 function NoPurchaseOrdersRow() {
@@ -44,6 +153,75 @@ function NoPurchaseOrdersRow() {
         <ClipboardList className="w-6 h-6 mx-auto mb-2 opacity-30" />
         No purchase orders found
       </TableCell>
+    </TableRow>
+  );
+}
+
+function PurchaseOrderMobileRow({
+  order,
+  isSelected,
+  onSelect,
+}: {
+  order: PurchaseOrder;
+  isSelected: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <div
+      onClick={onSelect}
+      className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${isSelected ? "bg-primary/10 border-primary/30" : "bg-card hover:bg-primary/5"}`}
+    >
+      <div className="w-10 h-10 shrink-0 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-[11px]">
+        PO
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="text-[13.5px] font-semibold truncate">
+          {order.vendor_name || "Unknown Vendor"}
+        </div>
+        <div className="text-[11.5px] text-muted-foreground truncate">
+          {formatPONumber(order.id)} &middot;{" "}
+          {formatDateToDDMMYYYY(order.created_at)}
+        </div>
+      </div>
+      <div className="flex flex-col items-end gap-1 shrink-0">
+        <span className="text-[13.5px] font-bold text-foreground whitespace-nowrap">
+          {formatCurrency(order.total_amount)}
+        </span>
+        {getStatusBadge(order.status)}
+      </div>
+    </div>
+  );
+}
+
+function PurchaseOrderRow({
+  order,
+  isSelected,
+  onSelect,
+}: {
+  order: PurchaseOrder;
+  isSelected: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <TableRow
+      className={`border-b border-border/50 cursor-pointer transition-colors ${isSelected ? "bg-primary/5 hover:bg-primary/5" : "hover:bg-accent/50"}`}
+      onClick={onSelect}
+    >
+      <TableCell className="font-mono pl-4 text-xs font-semibold text-foreground py-2.5">
+        {formatPONumber(order.id)}
+      </TableCell>
+      <TableCell className="py-2.5">
+        <span className="text-[13px] font-medium text-foreground">
+          {order.vendor_name || "Unknown Vendor"}
+        </span>
+      </TableCell>
+      <TableCell className="text-muted-foreground text-[12px] font-medium py-2.5">
+        {formatDateToDDMMYYYY(order.created_at)}
+      </TableCell>
+      <TableCell className="font-bold text-[13px] text-foreground py-2.5">
+        {formatCurrency(order.total_amount)}
+      </TableCell>
+      <TableCell className="py-2.5">{getStatusBadge(order.status)}</TableCell>
     </TableRow>
   );
 }
@@ -59,63 +237,16 @@ export function PurchaseOrderTable({
   onSendPO,
   onDeletePO,
   isFuzzyFallback,
+  initialSelectedId,
 }: PurchaseOrderTableProps) {
-  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
-  const [isReceiveModalOpen, setIsReceiveModalOpen] = useState(false);
-
-  const { data: fullSelectedPO, isLoading: isLoadingDetails } = useQuery({
-    ...queryKeys.purchaseOrders.detail(selectedOrderId),
-    queryFn: () => getPurchaseOrderById(selectedOrderId as string),
-    enabled: !!selectedOrderId,
-  });
-
-  useEffect(() => {
-    // Close the panel if the selected order is removed from the list from
-    // under it (e.g. deleted) rather than leaving it showing stale data.
-    if (
-      selectedOrderId &&
-      orders.length > 0 &&
-      !orders.find((o) => o.id === selectedOrderId)
-    ) {
-      setSelectedOrderId(null);
-    }
-  }, [orders, selectedOrderId]);
-
-  // Merge full details with the latest row data from the list (so status updates reflect immediately)
-  const listOrder = orders.find((o) => o.id === selectedOrderId);
-  const selectedPO =
-    fullSelectedPO && listOrder
-      ? { ...fullSelectedPO, ...listOrder }
-      : fullSelectedPO || listOrder || null;
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "received":
-        return (
-          <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 hover:bg-emerald-500/20">
-            <CheckCircle2 className="w-3 h-3 mr-1" /> Received
-          </Badge>
-        );
-      case "sent":
-        return (
-          <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/20 hover:bg-blue-500/20">
-            <ArrowRight className="w-3 h-3 mr-1" /> Sent
-          </Badge>
-        );
-      case "pending":
-      case "draft":
-        return (
-          <Badge
-            variant="outline"
-            className="bg-gray-500/10 text-gray-500 border-gray-500/20"
-          >
-            <Clock className="w-3 h-3 mr-1" /> Draft
-          </Badge>
-        );
-      default:
-        return <Badge variant="secondary">{status}</Badge>;
-    }
-  };
+  const {
+    selectedOrderId,
+    setSelectedOrderId,
+    panelView,
+    setPanelView,
+    selectedPO,
+    isLoadingDetails,
+  } = useSelectedOrder(orders, initialSelectedId);
 
   return (
     <div className="flex flex-col gap-5 flex-1 min-h-0 overflow-hidden">
@@ -160,30 +291,12 @@ export function PurchaseOrderTable({
             {!loading &&
               orders.length > 0 &&
               orders.map((po) => (
-                <div
+                <PurchaseOrderMobileRow
                   key={po.id}
-                  onClick={() => setSelectedOrderId(po.id)}
-                  className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${selectedOrderId === po.id ? "bg-primary/10 border-primary/30" : "bg-card hover:bg-primary/5"}`}
-                >
-                  <div className="w-10 h-10 shrink-0 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-[11px]">
-                    PO
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-[13.5px] font-semibold truncate">
-                      {po.vendor_name || "Unknown Vendor"}
-                    </div>
-                    <div className="text-[11.5px] text-muted-foreground truncate">
-                      PO-{po.id.split("-")[0].toUpperCase()} &middot;{" "}
-                      {formatDateToDDMMYYYY(po.created_at)}
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-end gap-1 shrink-0">
-                    <span className="text-[13.5px] font-bold text-foreground whitespace-nowrap">
-                      {formatCurrency(po.total_amount)}
-                    </span>
-                    {getStatusBadge(po.status)}
-                  </div>
-                </div>
+                  order={po}
+                  isSelected={selectedOrderId === po.id}
+                  onSelect={() => setSelectedOrderId(po.id)}
+                />
               ))}
           </div>
 
@@ -224,29 +337,12 @@ export function PurchaseOrderTable({
               {!loading &&
                 orders.length > 0 &&
                 orders.map((po) => (
-                  <TableRow
+                  <PurchaseOrderRow
                     key={po.id}
-                    className={`border-b border-border/50 cursor-pointer transition-colors ${selectedOrderId === po.id ? "bg-primary/5 hover:bg-primary/5" : "hover:bg-accent/50"}`}
-                    onClick={() => setSelectedOrderId(po.id)}
-                  >
-                    <TableCell className="font-mono pl-4 text-xs font-semibold text-foreground py-2.5">
-                      PO-{po.id.split("-")[0].toUpperCase()}
-                    </TableCell>
-                    <TableCell className="py-2.5">
-                      <span className="text-[13px] font-medium text-foreground">
-                        {po.vendor_name || "Unknown Vendor"}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-[12px] font-medium py-2.5">
-                      {formatDateToDDMMYYYY(po.created_at)}
-                    </TableCell>
-                    <TableCell className="font-bold text-[13px] text-foreground py-2.5">
-                      {formatCurrency(po.total_amount)}
-                    </TableCell>
-                    <TableCell className="py-2.5">
-                      {getStatusBadge(po.status)}
-                    </TableCell>
-                  </TableRow>
+                    order={po}
+                    isSelected={selectedOrderId === po.id}
+                    onSelect={() => setSelectedOrderId(po.id)}
+                  />
                 ))}
             </TableBody>
           </Table>
@@ -258,24 +354,33 @@ export function PurchaseOrderTable({
         onOpenChange={(open) => {
           if (!open) setSelectedOrderId(null);
         }}
+        widthClassName={
+          panelView === "receive"
+            ? "w-full sm:w-[90vw] sm:min-w-[560px] sm:max-w-[1500px]"
+            : undefined
+        }
       >
-        <PurchaseOrderDetails
-          selectedPO={selectedPO}
-          isLoadingDetails={isLoadingDetails}
-          getStatusBadge={getStatusBadge}
-          onSendPO={onSendPO}
-          onDeletePO={onDeletePO}
-          setIsReceiveModalOpen={setIsReceiveModalOpen}
-          onClose={() => setSelectedOrderId(null)}
-        />
+        {panelView === "receive" ? (
+          <ReceivePOPanel
+            po={selectedPO}
+            onBack={() => setPanelView("details")}
+            onConfirm={(id, receivedItems) => {
+              onReceivePO(id, receivedItems);
+              setPanelView("details");
+            }}
+          />
+        ) : (
+          <PurchaseOrderDetails
+            selectedPO={selectedPO}
+            isLoadingDetails={isLoadingDetails}
+            getStatusBadge={getStatusBadge}
+            onSendPO={onSendPO}
+            onDeletePO={onDeletePO}
+            onReceiveGoods={() => setPanelView("receive")}
+            onClose={() => setSelectedOrderId(null)}
+          />
+        )}
       </ResponsiveDetailPanel>
-
-      <ReceivePOModal
-        isOpen={isReceiveModalOpen}
-        onClose={() => setIsReceiveModalOpen(false)}
-        po={selectedPO}
-        onConfirm={onReceivePO}
-      />
     </div>
   );
 }

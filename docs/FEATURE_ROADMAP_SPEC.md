@@ -176,6 +176,16 @@ Surfaced during demo prep: a store logged a full year's rent (₦270,000) as one
 
 ---
 
+## 📅 Date Range Filters for Recent-Window Lists (Deferred 2026-08-13)
+
+Surfaced while discussing navigation in virtualized lists: virtualization keeps scrolling smooth on a long list, but doesn't help you *reach* an arbitrary point in it — you still have to scroll past everything in between. The current escape hatch for that is text search, which only helps if you know what you're looking for, not "show me last March."
+
+- **Current state:** Several list views default to a rolling window (`RECENT_ACTIVITY_WINDOW_DAYS = 30`) and only load full history once the user searches or filters to a specific entity — e.g. `components/customers/activity-tab.tsx` (customer transaction activity) and `components/stock-batch/stock-movements.tsx` (stock movement ledger). Neither has a way to jump straight to an arbitrary date range; the only escape hatch is text search. Reports already solved this properly for its own use case (`components/reports/*` has a real dual-month date-range picker), so there's a working component/pattern to reuse rather than invent.
+- **Action:** Add a date-range filter (reusing the existing date-picker pattern from Reports) to these recent-window list views, replacing or supplementing the "search to look further back" note with a direct way to select a period.
+- **Effort:** Small — ~half a day per list, mostly wiring an existing date-picker component to each view's query (`getStockMovements`, customer transactions fetch), not new infrastructure.
+
+---
+
 ## 🛑 FUTURE ROADMAP — v2.0+
 
 These change the core business model. Hold until core ERP/POS is dominant.

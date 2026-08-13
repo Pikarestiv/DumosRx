@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/input-otp";
 import { Loader2, Info } from "lucide-react";
 import { toast } from "sonner";
+import { STAFF_ROLES } from "@/lib/constants/roles";
 import { useMutateUser } from "@/lib/hooks/queries/use-users";
 import type { StaffUpdatePayload, StaffListItem } from "@/lib/types/user";
 import {
@@ -311,13 +312,11 @@ export function StaffFormDialog({
               <SelectValue placeholder="Select role" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="admin">Admin (Local Master)</SelectItem>
-              <SelectItem value="manager">Manager (Admin)</SelectItem>
-              <SelectItem value="specialist">
-                Specialist (Sub-account)
-              </SelectItem>
-              <SelectItem value="sales_staff">Sales Staff / Cashier</SelectItem>
-              <SelectItem value="auditor">Auditor (Read-only)</SelectItem>
+              {STAFF_ROLES.map((r) => (
+                <SelectItem key={r.value} value={r.value}>
+                  {r.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>

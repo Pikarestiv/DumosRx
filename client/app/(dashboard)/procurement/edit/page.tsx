@@ -154,7 +154,7 @@ function EditOrderContent() {
         dueDate || null,
       );
       toast.success("Purchase Order updated successfully");
-      router.push("/procurement");
+      router.push(`/procurement?selected=${id}`);
     } catch (error) {
       console.error("Failed to create PO:", error);
       toast.error("Error creating purchase order");

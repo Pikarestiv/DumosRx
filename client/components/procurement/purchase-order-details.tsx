@@ -30,7 +30,7 @@ interface PurchaseOrderDetailsProps {
   getStatusBadge: (status: string) => React.ReactNode;
   onSendPO: (id: string) => void;
   onDeletePO?: (id: string) => void;
-  setIsReceiveModalOpen: (isOpen: boolean) => void;
+  onReceiveGoods: () => void;
   onClose: () => void;
 }
 
@@ -40,7 +40,7 @@ export function PurchaseOrderDetails({
   getStatusBadge,
   onSendPO,
   onDeletePO,
-  setIsReceiveModalOpen,
+  onReceiveGoods,
   onClose,
 }: PurchaseOrderDetailsProps) {
   const router = useRouter();
@@ -284,7 +284,7 @@ export function PurchaseOrderDetails({
               {selectedPO.status === "sent" && (
                 <Button
                   className="flex-1 h-10 text-[13.5px] font-bold"
-                  onClick={() => setIsReceiveModalOpen(true)}
+                  onClick={onReceiveGoods}
                 >
                   Receive Goods
                 </Button>

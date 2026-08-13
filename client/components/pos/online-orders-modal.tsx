@@ -135,23 +135,24 @@ export function OnlineOrdersModal() {
                   </div>
 
                   <div className="bg-muted/50 rounded p-3">
-                    <table className="w-full text-sm">
-                      <tbody>
+                    {/* Div-based table — ARIA roles stand in for real <table> semantics */}
+                    <div role="table" aria-label="Order items" className="w-full text-sm">
+                      <div role="rowgroup">
                         {order.items.map((item) => (
-                          <tr key={item.id}>
-                            <td className="py-1">{item.product?.name || 'Unknown Product'}</td>
-                            <td className="py-1 text-right">x{item.quantity}</td>
-                            <td className="py-1 text-right">₦{Number(item.subtotal).toLocaleString()}</td>
-                          </tr>
+                          <div key={item.id} role="row" className="flex items-center gap-2">
+                            <div role="cell" className="py-1 flex-1">{item.product?.name || 'Unknown Product'}</div>
+                            <div role="cell" className="py-1 text-right w-[60px] shrink-0">x{item.quantity}</div>
+                            <div role="cell" className="py-1 text-right w-[100px] shrink-0">₦{Number(item.subtotal).toLocaleString()}</div>
+                          </div>
                         ))}
-                      </tbody>
-                      <tfoot>
-                        <tr className="border-t font-semibold">
-                          <td colSpan={2} className="py-2">Total</td>
-                          <td className="py-2 text-right text-emerald-600">₦{Number(order.total_amount).toLocaleString()}</td>
-                        </tr>
-                      </tfoot>
-                    </table>
+                      </div>
+                      <div role="rowgroup">
+                        <div role="row" className="flex items-center gap-2 border-t font-semibold">
+                          <div role="cell" className="py-2 flex-1">Total</div>
+                          <div role="cell" className="py-2 text-right w-[100px] shrink-0 text-emerald-600">₦{Number(order.total_amount).toLocaleString()}</div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
                   {order.order_status === 'pending' && (

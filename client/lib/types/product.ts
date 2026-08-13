@@ -28,6 +28,7 @@ export interface ProductWithDetails extends Product {
   stock_quantity?: number;
   expiry_date?: string | null;
   batch_number?: string;
+  last_audited_at?: string | null;
 }
 
 /** Row shape returned by getProductsWithStock()'s raw query — `products`
@@ -102,4 +103,5 @@ export interface ProductViewModel {
   showOnline: boolean;
   requiresPrescription: boolean;
   isControlled: boolean;
+  lastAuditedAt?: string | null;
 }

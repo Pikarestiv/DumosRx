@@ -4,6 +4,7 @@ import { StoreType } from "@/lib/context/store-context";
 
 import { BusinessVerticalCard } from "./store/business-vertical-card";
 import { StoreInformationCard } from "./store/store-information-card";
+import { CategoriesCard } from "./store/categories-card";
 import { ReceiptCustomizationCard } from "./store/receipt-customization-card";
 import { PaymentSettingsCard } from "./store/payment-settings-card";
 import { PaymentAccountsCard } from "./store/payment-accounts-card";
@@ -109,6 +110,8 @@ export function StoreSettings({
         setShowRetailSuggestions={setShowRetailSuggestions}
         handleSaveProfile={handleSaveProfile}
       />
+
+      <CategoriesCard />
 
       <ReceiptCustomizationCard
         localName={localName}

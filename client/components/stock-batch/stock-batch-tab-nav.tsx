@@ -6,7 +6,7 @@ export function StockBatchTabNav() {
     <TabsList className="w-full md:w-max">
       <TabsTrigger value="overview">Overview</TabsTrigger>
       <TabsTrigger value="catalog">Catalog</TabsTrigger>
-      <TabsTrigger value="ledger">Ledger</TabsTrigger>
+      <TabsTrigger value="ledger">Movements</TabsTrigger>
     </TabsList>
   );
 }

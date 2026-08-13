@@ -10,7 +10,7 @@ import type { FastMover } from "@/lib/types/fast-mover";
 function NoFastMoversData() {
   return (
     <div className="flex flex-col items-center gap-2 text-sm text-muted-foreground py-4 text-center">
-      <TrendingUp className="w-6 h-6 opacity-30" />
+      <TrendingUp className="w-15 h-15 opacity-30" />
       No sales data found for the last 7 days.
     </div>
   );
@@ -19,7 +19,7 @@ function NoFastMoversData() {
 export function FastMovers() {
   const { data: fastMoversData, isLoading } = useQuery({
     ...queryKeys.sales.fastMovers(),
-    queryFn: () => getFastMovers()
+    queryFn: () => getFastMovers(),
   });
 
   const fastMovers = fastMoversData?.items || [];
@@ -41,31 +41,45 @@ export function FastMovers() {
         <div className="hidden lg:block mb-4 shrink-0">{header}</div>
 
         <div className="flex flex-col gap-2 md:gap-0 py-3 md:py-0 lg:flex-1 lg:min-h-0 lg:overflow-y-auto">
-        {!!(isLoading) && (
-                        <div className="text-sm text-muted-foreground py-4 text-center">Loading...</div>
-                      )}
-              {(!(isLoading) && fastMovers.length === 0) && <NoFastMoversData />}
-              {!(!(isLoading) && fastMovers.length === 0) && (
-                                      fastMovers.map((item: FastMover, idx: number) => {
-                                        const isPositive = item.percentageChange >= 0;
-                                        return (
-                                          <div key={item.id} className={`flex items-center gap-3 p-3 md:py-3 md:px-0 rounded-xl md:rounded-none border md:border-0 border-border bg-card md:bg-transparent ${idx !== fastMovers.length - 1 ? 'md:border-b md:border-border' : ''}`}>
-                                            <div className="w-6 text-[12.5px] font-bold text-muted-foreground">
-                                              {(idx + 1).toString().padStart(2, '0')}
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                              <div className="text-[13px] font-semibold truncate">{item.name}</div>
-                                              <div className="text-[11.5px] text-muted-foreground">{item.soldQuantity} units sold</div>
-                                            </div>
-                                            <div className={`px-2 py-0.5 rounded flex items-center text-[11.5px] font-medium ${isPositive ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400'}`}>
-                                              {!!(isPositive) && <TrendingUp className="h-3 w-3 mr-1" />}
-                                                    {!(isPositive) && <TrendingDown className="h-3 w-3 mr-1" />}
-                                              {Math.abs(item.percentageChange).toFixed(0)}%
-                                            </div>
-                                          </div>
-                                        );
-                                      })
-                                    )}
+          {!!isLoading && (
+            <div className="text-sm text-muted-foreground py-4 text-center">
+              Loading...
+            </div>
+          )}
+          {!isLoading && fastMovers.length === 0 && (
+            <div className="flex flex-1 items-center justify-center">
+              <NoFastMoversData />
+            </div>
+          )}
+          {!(!isLoading && fastMovers.length === 0) &&
+            fastMovers.map((item: FastMover, idx: number) => {
+              const isPositive = item.percentageChange >= 0;
+              return (
+                <div
+                  key={item.id}
+                  className={`flex items-center gap-3 p-3 md:py-3 md:px-0 rounded-xl md:rounded-none border md:border-0 border-border bg-card md:bg-transparent ${idx !== fastMovers.length - 1 ? "md:border-b md:border-border" : ""}`}
+                >
+                  <div className="w-6 text-[12.5px] font-bold text-muted-foreground">
+                    {(idx + 1).toString().padStart(2, "0")}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[13px] font-semibold truncate">
+                      {item.name}
+                    </div>
+                    <div className="text-[11.5px] text-muted-foreground">
+                      {item.soldQuantity} units sold
+                    </div>
+                  </div>
+                  <div
+                    className={`px-2 py-0.5 rounded flex items-center text-[11.5px] font-medium ${isPositive ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400" : "bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400"}`}
+                  >
+                    {!!isPositive && <TrendingUp className="h-3 w-3 mr-1" />}
+                    {!isPositive && <TrendingDown className="h-3 w-3 mr-1" />}
+                    {Math.abs(item.percentageChange).toFixed(0)}%
+                  </div>
+                </div>
+              );
+            })}
         </div>
       </div>
     </div>

@@ -49,7 +49,7 @@ const PAGE_ROUTES = [
   },
   {
     path: "/inventory/ledger",
-    title: "Stock Ledger",
+    title: "Stock Movements",
     desc: "Full audit trail of every stock movement — sales, receipts, and adjustments.",
     action: { label: "Add Product", path: "/inventory/catalog?action=add" },
   },
@@ -159,7 +159,7 @@ export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
             <span className="hidden sm:inline-block text-border">•</span>
             <span className="hidden sm:inline-block">
               {new Date().toLocaleDateString("en-US", {
-                weekday: "long",
+                weekday: "short",
                 month: "short",
                 day: "numeric",
               })}

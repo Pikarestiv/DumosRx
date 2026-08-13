@@ -5,6 +5,8 @@ import type { AuditItem } from "./stock-audits";
 import { formatCurrency } from "@/lib/utils";
 
 const ALL_CATEGORIES = "__all__";
+const GRID_COLS =
+  "grid-cols-[220px_100px_100px_90px_100px_110px_100px_110px_120px_110px]";
 
 function formatDiffCurrency(amount: number) {
   return amount > 0 ? `+${formatCurrency(amount)}` : formatCurrency(amount);
@@ -33,7 +35,9 @@ interface AuditLedgerStepProps {
  * Moniebook physical-inventory style Cynthia asked for. The category picker
  * is just a lens on this one continuous session, not a scope gate — every
  * item is pre-filled and counted from the moment the screen opens, so
- * switching categories mid-count never loses anything already entered. */
+ * switching categories mid-count never loses anything already entered.
+ * Div-based, ARIA roles standing in for real <table> semantics — see
+ * stock-batch/supplier-table.tsx. */
 export function AuditLedgerStep({
   items,
   totalItems,
@@ -88,22 +92,23 @@ export function AuditLedgerStep({
 
       {!isLoading && (
         <div className="border border-border rounded-xl overflow-x-auto">
-          <table className="w-full text-[12.5px] border-collapse">
-            <thead>
-              <tr className="bg-muted/40 text-muted-foreground text-[11px] uppercase font-semibold">
-                <th className="text-left px-3 py-2 sticky left-0 bg-muted/40">Item</th>
-                <th className="text-right px-3 py-2">Counted Qty</th>
-                <th className="text-right px-3 py-2">System Qty</th>
-                <th className="text-right px-3 py-2">Diff Qty</th>
-                <th className="text-right px-3 py-2">Cost Price</th>
-                <th className="text-right px-3 py-2">Counted Cost</th>
-                <th className="text-right px-3 py-2">Diff Cost</th>
-                <th className="text-right px-3 py-2">Selling Price</th>
-                <th className="text-right px-3 py-2">Counted Selling</th>
-                <th className="text-right px-3 py-2">Diff Selling</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
+          <div role="table" aria-label="Physical inventory count" className="w-full text-[12.5px]">
+            <div role="rowgroup">
+              <div role="row" className={`grid ${GRID_COLS} bg-muted/40 text-muted-foreground text-[11px] uppercase font-semibold`}>
+                <div role="columnheader" className="text-left px-3 py-2 sticky left-0 bg-muted/40">Item</div>
+                <div role="columnheader" className="text-right px-3 py-2">Counted Qty</div>
+                <div role="columnheader" className="text-right px-3 py-2">System Qty</div>
+                <div role="columnheader" className="text-right px-3 py-2">Diff Qty</div>
+                <div role="columnheader" className="text-right px-3 py-2">Cost Price</div>
+                <div role="columnheader" className="text-right px-3 py-2">Counted Cost</div>
+                <div role="columnheader" className="text-right px-3 py-2">Diff Cost</div>
+                <div role="columnheader" className="text-right px-3 py-2">Selling Price</div>
+                <div role="columnheader" className="text-right px-3 py-2">Counted Selling</div>
+                <div role="columnheader" className="text-right px-3 py-2">Diff Selling</div>
+              </div>
+            </div>
+
+            <div role="rowgroup" className="divide-y divide-border">
               {items.map((item) => {
                 const countedQty = item.countedQty ?? item.systemQty;
                 const diffQty = countedQty - item.systemQty;
@@ -122,14 +127,14 @@ export function AuditLedgerStep({
                   item.countedSellingPrice !== item.sellingPrice;
 
                 return (
-                  <tr key={item.id} className="hover:bg-accent/30">
-                    <td className="px-3 py-2 sticky left-0 bg-card">
+                  <div key={item.id} role="row" className={`grid ${GRID_COLS} hover:bg-accent/30`}>
+                    <div role="cell" className="px-3 py-2 sticky left-0 bg-card">
                       <div className="font-semibold text-foreground truncate max-w-[220px]">
                         {item.name}
                       </div>
                       <div className="text-[11px] text-muted-foreground/70">{item.sku}</div>
-                    </td>
-                    <td className="px-2 py-1.5 text-right">
+                    </div>
+                    <div role="cell" className="px-2 py-1.5 text-right flex items-center justify-end">
                       <input
                         type="number"
                         min="0"
@@ -143,17 +148,17 @@ export function AuditLedgerStep({
                         }}
                         onFocus={(e) => e.target.select()}
                       />
-                    </td>
-                    <td className="px-3 py-2 text-right text-muted-foreground">
+                    </div>
+                    <div role="cell" className="px-3 py-2 text-right text-muted-foreground flex items-center justify-end">
                       {item.systemQty}
-                    </td>
-                    <td className={`px-3 py-2 text-right font-semibold ${diffClassName(diffQty)}`}>
+                    </div>
+                    <div role="cell" className={`px-3 py-2 text-right font-semibold flex items-center justify-end ${diffClassName(diffQty)}`}>
                       {diffQty > 0 ? `+${diffQty}` : diffQty}
-                    </td>
-                    <td className="px-3 py-2 text-right text-muted-foreground">
+                    </div>
+                    <div role="cell" className="px-3 py-2 text-right text-muted-foreground flex items-center justify-end">
                       {item.costPrice !== undefined ? formatCurrency(item.costPrice) : "—"}
-                    </td>
-                    <td className="px-2 py-1.5 text-right">
+                    </div>
+                    <div role="cell" className="px-2 py-1.5 text-right flex items-center">
                       <input
                         type="number"
                         min="0"
@@ -168,14 +173,14 @@ export function AuditLedgerStep({
                         }}
                         onFocus={(e) => e.target.select()}
                       />
-                    </td>
-                    <td className={`px-3 py-2 text-right font-semibold ${diffClassName(diffCost)}`}>
+                    </div>
+                    <div role="cell" className={`px-3 py-2 text-right font-semibold flex items-center justify-end ${diffClassName(diffCost)}`}>
                       {item.costPrice !== undefined ? formatDiffCurrency(diffCost) : "—"}
-                    </td>
-                    <td className="px-3 py-2 text-right text-muted-foreground">
+                    </div>
+                    <div role="cell" className="px-3 py-2 text-right text-muted-foreground flex items-center justify-end">
                       {item.sellingPrice !== undefined ? formatCurrency(item.sellingPrice) : "—"}
-                    </td>
-                    <td className="px-2 py-1.5 text-right">
+                    </div>
+                    <div role="cell" className="px-2 py-1.5 text-right flex items-center">
                       <input
                         type="number"
                         min="0"
@@ -190,22 +195,22 @@ export function AuditLedgerStep({
                         }}
                         onFocus={(e) => e.target.select()}
                       />
-                    </td>
-                    <td className={`px-3 py-2 text-right font-semibold ${diffClassName(diffSelling)}`}>
+                    </div>
+                    <div role="cell" className={`px-3 py-2 text-right font-semibold flex items-center justify-end ${diffClassName(diffSelling)}`}>
                       {item.sellingPrice !== undefined ? formatDiffCurrency(diffSelling) : "—"}
-                    </td>
-                  </tr>
+                    </div>
+                  </div>
                 );
               })}
               {items.length === 0 && (
-                <tr>
-                  <td colSpan={10} className="px-3 py-8 text-center text-muted-foreground">
+                <div role="row" className={`grid ${GRID_COLS}`}>
+                  <div role="cell" className="col-span-10 px-3 py-8 text-center text-muted-foreground">
                     No items match.
-                  </td>
-                </tr>
+                  </div>
+                </div>
               )}
-            </tbody>
-          </table>
+            </div>
+          </div>
         </div>
       )}
     </div>

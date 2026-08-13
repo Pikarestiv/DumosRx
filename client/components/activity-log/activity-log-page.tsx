@@ -3,11 +3,11 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { ChevronLeft, ChevronRight, History } from "lucide-react";
+import { History } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/search-input";
 import { FilterPill } from "@/components/ui/filter-pill";
+import { TablePagination } from "@/components/ui/table-pagination";
 import {
   getActivityLog,
   getDistinctActivityActions,
@@ -22,18 +22,33 @@ import { ActivityLogDetailPanel } from "./activity-log-detail-panel";
 import { describeActivity, describeActionVerb } from "./describe-activity";
 import type { AuditLogRow } from "@/lib/types/audit-log";
 
-const PAGE_SIZE = 50;
+const GRID_COLS = "grid-cols-[1fr_180px_190px]";
+
 // When searching, fetch a large unpaginated batch matching the other filters
 // so fuzzy search has the full set to search across, not just the current
 // page — capped rather than truly unbounded so a very old/busy store can't
 // pull its entire history into memory at once.
 const SEARCH_FETCH_CAP = 2000;
 
+function EmptyState({ message }: { message: string }) {
+  return (
+    <div role="row" className={`grid ${GRID_COLS}`}>
+      <div
+        role="cell"
+        className="col-span-3 px-4 py-8 text-center text-muted-foreground"
+      >
+        {message}
+      </div>
+    </div>
+  );
+}
+
 export function ActivityLogPage() {
   const { user } = useAuth();
   const canViewAll = checkCanViewAllActivity(user?.role);
 
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
   const [search, setSearch] = useState("");
   const [actionFilter, setActionFilter] = useState<string>("all");
   const [userFilter, setUserFilter] = useState<string>("all");
@@ -52,7 +67,7 @@ export function ActivityLogPage() {
     role: canViewAll && roleFilter !== "all" ? roleFilter : undefined,
   };
 
-  const pagedFilters = { ...baseFilters, page, pageSize: PAGE_SIZE };
+  const pagedFilters = { ...baseFilters, page, pageSize };
   const { data: pagedData, isLoading: isPagedLoading } = useQuery({
     ...queryKeys.activityLog.list(JSON.stringify(pagedFilters)),
     queryFn: () => getActivityLog(pagedFilters),
@@ -93,10 +108,10 @@ export function ActivityLogPage() {
 
   const isLoading = isSearching ? isSearchLoading : isPagedLoading;
   const rows = isSearching
-    ? fuzzyResults.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+    ? fuzzyResults.slice((page - 1) * pageSize, page * pageSize)
     : pagedData?.rows || [];
   const total = isSearching ? fuzzyResults.length : pagedData?.total || 0;
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
     <div className="flex flex-col gap-4 h-full">
@@ -112,7 +127,7 @@ export function ActivityLogPage() {
         </div>
       </div>
 
-      <Card className="border rounded-2xl overflow-hidden flex-1 min-h-0 flex flex-col gap-0 pt-0">
+      <Card className="border rounded-2xl overflow-hidden flex-1 min-h-0 flex flex-col gap-0 py-0">
         <div className="p-4 border-b border-border space-y-3 shrink-0">
           <SearchInput
             value={search}
@@ -179,43 +194,53 @@ export function ActivityLogPage() {
           </div>
         </div>
 
-        <div className="overflow-x-auto flex-1">
-          <table className="w-full text-[12.5px] border-collapse">
-            <thead className="border-b border-border">
-              <tr className=" text-muted-foreground text-[11px] uppercase font-semibold sticky top-0">
-                <th className="text-left px-4 py-2.5">Activity</th>
-                <th className="text-left px-4 py-2.5">By</th>
-                <th className="text-left px-4 py-2.5">When</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {isLoading && (
-                <tr>
-                  <td
-                    colSpan={3}
-                    className="px-4 py-8 text-center text-muted-foreground"
-                  >
-                    Loading...
-                  </td>
-                </tr>
-              )}
-              {!isLoading && rows.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={3}
-                    className="px-4 py-8 text-center text-muted-foreground"
-                  >
-                    No activity found for this filter.
-                  </td>
-                </tr>
-              )}
-              {rows.map((row) => (
-                <tr
+        {/* Div-based table — ARIA roles stand in for real <table> semantics */}
+        <div
+          role="table"
+          aria-label="Activity log"
+          className="overflow-x-auto flex-1"
+        >
+          <div
+            role="rowgroup"
+            className="sticky top-0 z-10 bg-muted/40 border-b border-border"
+          >
+            <div
+              role="row"
+              className={`grid ${GRID_COLS} text-muted-foreground text-[11px] uppercase font-semibold`}
+            >
+              <div role="columnheader" className="px-4 py-2.5">
+                Activity
+              </div>
+              <div role="columnheader" className="px-4 py-2.5">
+                By
+              </div>
+              <div role="columnheader" className="px-4 py-2.5">
+                When
+              </div>
+            </div>
+          </div>
+
+          <div role="rowgroup" className="divide-y divide-border">
+            {isLoading && <EmptyState message="Loading..." />}
+            {!isLoading && rows.length === 0 && (
+              <EmptyState message="No activity found for this filter." />
+            )}
+            {!isLoading &&
+              rows.map((row) => (
+                <div
                   key={row.id}
-                  className="hover:bg-accent/30 cursor-pointer"
+                  role="row"
+                  tabIndex={0}
                   onClick={() => setSelectedEntry(row)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setSelectedEntry(row);
+                    }
+                  }}
+                  className={`grid ${GRID_COLS} items-center hover:bg-accent/30 cursor-pointer text-[12.5px]`}
                 >
-                  <td className="px-4 py-2.5">
+                  <div role="cell" className="px-4 py-2.5">
                     <div className="font-semibold text-foreground">
                       {describeActivity(row)}
                     </div>
@@ -224,44 +249,37 @@ export function ActivityLogPage() {
                         {row.table_name}
                       </div>
                     )}
-                  </td>
-                  <td className="px-4 py-2.5 text-muted-foreground">
+                  </div>
+                  <div
+                    role="cell"
+                    className="px-4 py-2.5 text-muted-foreground"
+                  >
                     {row.user_name?.trim() || "System"}
-                  </td>
-                  <td className="px-4 py-2.5 text-muted-foreground">
+                  </div>
+                  <div
+                    role="cell"
+                    className="px-4 py-2.5 text-muted-foreground"
+                  >
                     {row.created_at
                       ? format(new Date(row.created_at), "d MMM yyyy, h:mm a")
                       : "—"}
-                  </td>
-                </tr>
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="flex items-center justify-between px-4 py-3 border-t border-border shrink-0">
-          <span className="text-[12px] text-muted-foreground">
-            Page {page} of {totalPages}
-          </span>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page <= 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-            >
-              <ChevronLeft className="h-3.5 w-3.5" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page >= totalPages}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            >
-              <ChevronRight className="h-3.5 w-3.5" />
-            </Button>
           </div>
         </div>
+
+        <TablePagination
+          page={page}
+          totalPages={totalPages}
+          totalItems={total}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setPage(1);
+          }}
+        />
       </Card>
 
       <ResponsiveDetailPanel

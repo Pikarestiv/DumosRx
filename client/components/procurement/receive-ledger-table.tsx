@@ -15,10 +15,13 @@ interface ReceiveLedgerTableProps {
   ) => void;
 }
 
+const GRID_COLS = "grid-cols-[220px_90px_110px_120px_140px_150px_150px]";
+
 /** Dense, single-screen alternative to the per-item receiving cards — every
  * line is visible and editable at once (qty, cost price, an optional new
  * selling price, batch #, expiry), matching the QuickBooks POS / Moniebook
- * receiving-ledger style Cynthia asked for. */
+ * receiving-ledger style Cynthia asked for. Div-based, ARIA roles standing
+ * in for real <table> semantics — see stock-batch/supplier-table.tsx. */
 export function ReceiveLedgerTable({
   items,
   receivedItems,
@@ -26,43 +29,44 @@ export function ReceiveLedgerTable({
 }: ReceiveLedgerTableProps) {
   return (
     <div className="border border-border rounded-xl overflow-x-auto">
-      <table className="w-full text-[12.5px] border-collapse">
-        <thead>
-          <tr className="bg-muted/40 text-muted-foreground text-[11px] uppercase font-semibold">
-            <th className="text-left px-3 py-2 sticky left-0 bg-muted/40">
+      <div role="table" aria-label="Items to receive" className="w-full text-[12.5px]">
+        <div role="rowgroup">
+          <div role="row" className={`grid ${GRID_COLS} bg-muted/40 text-muted-foreground text-[11px] uppercase font-semibold`}>
+            <div role="columnheader" className="text-left px-3 py-2 sticky left-0 bg-muted/40">
               Item
-            </th>
-            <th className="text-right px-3 py-2">Ordered</th>
-            <th className="text-right px-3 py-2">
+            </div>
+            <div role="columnheader" className="text-right px-3 py-2">Ordered</div>
+            <div role="columnheader" className="text-right px-3 py-2">
               <ResponsiveTabLabel short="Recv." long="Received Qty" />
-            </th>
-            <th className="text-right px-3 py-2">
+            </div>
+            <div role="columnheader" className="text-right px-3 py-2">
               <ResponsiveTabLabel short="Cost" long="Cost Price" />
-            </th>
-            <th className="text-right px-3 py-2">
+            </div>
+            <div role="columnheader" className="text-right px-3 py-2">
               <ResponsiveTabLabel short="Sell Price" long="New Selling Price" />
-            </th>
-            <th className="text-left px-3 py-2">Batch #</th>
-            <th className="text-left px-3 py-2">Expiry</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-border">
+            </div>
+            <div role="columnheader" className="text-left px-3 py-2">Batch #</div>
+            <div role="columnheader" className="text-left px-3 py-2">Expiry</div>
+          </div>
+        </div>
+
+        <div role="rowgroup" className="divide-y divide-border">
           {items.map((item) => {
             const state = receivedItems[item.id] || ({} as ReceivedItemPayload);
             return (
-              <tr key={item.id}>
-                <td className="px-3 py-2 sticky left-0 bg-card">
+              <div key={item.id} role="row" className={`grid ${GRID_COLS}`}>
+                <div role="cell" className="px-3 py-2 sticky left-0 bg-card">
                   <div className="font-semibold text-foreground truncate max-w-[200px]">
                     {item.product_name}
                   </div>
                   <div className="text-[11px] text-muted-foreground/70">
                     {item.bulk_unit}(s)
                   </div>
-                </td>
-                <td className="px-3 py-2 text-right text-muted-foreground">
+                </div>
+                <div role="cell" className="px-3 py-2 text-right text-muted-foreground flex items-center justify-end">
                   {item.bulk_quantity}
-                </td>
-                <td className="px-3 py-2 text-right">
+                </div>
+                <div role="cell" className="px-3 py-2 text-right flex items-center">
                   <Input
                     type="number"
                     min="0"
@@ -76,8 +80,8 @@ export function ReceiveLedgerTable({
                       )
                     }
                   />
-                </td>
-                <td className="px-3 py-2 text-right">
+                </div>
+                <div role="cell" className="px-3 py-2 text-right flex items-center">
                   <Input
                     type="number"
                     min="0"
@@ -89,8 +93,8 @@ export function ReceiveLedgerTable({
                       onFieldChange(item.id, "cost_price", e.target.value)
                     }
                   />
-                </td>
-                <td className="px-3 py-2 text-right">
+                </div>
+                <div role="cell" className="px-3 py-2 text-right flex items-center">
                   <Input
                     type="number"
                     min="0"
@@ -102,8 +106,8 @@ export function ReceiveLedgerTable({
                       onFieldChange(item.id, "selling_price", e.target.value)
                     }
                   />
-                </td>
-                <td className="px-3 py-2">
+                </div>
+                <div role="cell" className="px-3 py-2 flex items-center">
                   <Input
                     className="w-full min-w-24"
                     placeholder="e.g. BATCH-123"
@@ -112,8 +116,8 @@ export function ReceiveLedgerTable({
                       onFieldChange(item.id, "lot_number", e.target.value)
                     }
                   />
-                </td>
-                <td className="px-3 py-2">
+                </div>
+                <div role="cell" className="px-3 py-2 flex items-center">
                   <DatePickerInput
                     value={state.expiry_date}
                     onChange={(val) =>
@@ -124,22 +128,19 @@ export function ReceiveLedgerTable({
                     fromYear={new Date().getFullYear()}
                     toYear={new Date().getFullYear() + 15}
                   />
-                </td>
-              </tr>
+                </div>
+              </div>
             );
           })}
           {items.length === 0 && (
-            <tr>
-              <td
-                colSpan={7}
-                className="px-3 py-8 text-center text-muted-foreground"
-              >
+            <div role="row" className={`grid ${GRID_COLS}`}>
+              <div role="cell" className="col-span-7 px-3 py-8 text-center text-muted-foreground">
                 No items on this order.
-              </td>
-            </tr>
+              </div>
+            </div>
           )}
-        </tbody>
-      </table>
+        </div>
+      </div>
     </div>
   );
 }

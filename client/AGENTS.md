@@ -227,13 +227,27 @@ e2e/                       Playwright end-to-end specs
   md:inline">{long}</span>` — the house pattern for abbreviating table
   headers/labels on small screens instead of letting them force horizontal
   scroll.
-- **Dense "ledger" tables** (receive-goods, stock audit): a bordered,
-  rounded table with a `sticky left-0` item-name column and
-  `overflow-x-auto` on the wrapper — this is the agreed pattern for
-  "QuickBooks/Moniebook-style" dense editable grids. Match header and body
-  cell padding exactly (`px-3 py-2` convention) — a mismatch here is an
-  easy, easy-to-miss bug that makes columns look misaligned under their
-  headers.
+- **No raw `<table>` elements — ever.** Every data table in the app is
+  div-based with ARIA roles standing in for real `<table>` semantics
+  (`role="table"` / `"rowgroup"` / `"row"` / `"columnheader"` / `"cell"`),
+  laid out with CSS Grid (a single `grid-cols-[...]` template string shared
+  between the header row and every body row — never repeat per-column
+  widths in each row separately, that's exactly how header/body columns
+  drift out of alignment). See `components/stock-batch/supplier-table.tsx`
+  for the reference implementation, or `components/activity-log/activity-log-page.tsx`
+  for one with a sticky first column and row click/keyboard handling.
+  `components/ui/table.tsx` (the shadcn `<table>`-based primitive) exists
+  but is intentionally unused — don't reach for it.
+- **Dense "ledger" tables** (receive-goods, stock audit): same div/grid/ARIA
+  pattern, with a `sticky left-0` item-name column and `overflow-x-auto` on
+  the wrapper — the agreed pattern for "QuickBooks/Moniebook-style" dense
+  editable grids. Match header and body cell padding exactly (`px-3 py-2`
+  convention) — a mismatch here is an easy-to-miss bug that makes columns
+  look misaligned under their headers.
+- **Paginated tables** get a standard footer via `components/ui/table-pagination.tsx`:
+  a rows-per-page selector, "Showing X–Y of Z", and "Page A of B" with
+  prev/next. Use it for any new paginated table instead of hand-rolling
+  pagination controls.
 - **`hover:` variant is redefined project-wide** in `app/globals.css` to
   only apply under `(hover: hover) and (pointer: fine)` — this fixes an iOS
   Safari/WebKit double-tap-to-hover bug. Every existing `hover:` utility
@@ -311,6 +325,16 @@ Most recent work (see `git log` for full detail) has been on the
 - Renamed the "Ledger" inventory tab to "Movements" (it shows stock
   movement history — a different concept from the new audit "Ledger" mode,
   and the rename removes the resulting ambiguity).
+- Activity Log rebuilt to match the Catalog page's look: search + `FilterPill`
+  filters live inside the table's card, search is fuzzy (against action/table/staff),
+  and raw rows (`INSERT`/`purchase_orders`) are humanized into sentences
+  ("Created a purchase order") via `components/activity-log/describe-activity.ts`.
+  Rows are clickable, opening a slide-in detail panel with the parsed audit payload.
+- Migrated every remaining raw `<table>` in the app to the div/grid/ARIA
+  pattern (`receive-ledger-table.tsx`, `audit-ledger-step.tsx`,
+  `activity-log-page.tsx`, `online-orders-modal.tsx`, `customer-behavior-tab.tsx`)
+  and added the shared `TablePagination` footer — see the UI conventions
+  section above, which used to (incorrectly) describe `<table>` as fine to use.
 
 **Known open threads / natural next steps** (not started, just discussed):
 - "Last Received" per product (from `stock_movements` where

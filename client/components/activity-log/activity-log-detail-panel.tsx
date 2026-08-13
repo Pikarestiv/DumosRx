@@ -1,7 +1,7 @@
 import { X } from "lucide-react";
 import { format } from "date-fns";
 import type { AuditLogRow } from "@/lib/types/audit-log";
-import { formatActionLabel } from "./format-action-label";
+import { describeActivity } from "./describe-activity";
 
 interface ActivityLogDetailPanelProps {
   entry: AuditLogRow | null;
@@ -64,7 +64,7 @@ export function ActivityLogDetailPanel({ entry, onClose }: ActivityLogDetailPane
       <div className="flex items-center gap-3 p-5 border-b border-border">
         <div className="min-w-0 flex-1">
           <h3 className="text-[17px] font-bold text-foreground truncate">
-            {formatActionLabel(entry.action)}
+            {describeActivity(entry)}
           </h3>
           <p className="text-[13px] text-muted-foreground font-medium truncate">
             {entry.table_name || "—"}

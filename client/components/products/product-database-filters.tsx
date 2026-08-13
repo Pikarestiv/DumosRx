@@ -1,5 +1,5 @@
 import { Settings2 } from "lucide-react";
-import { ProductSearchBar } from "./product-search-bar";
+import { SearchInput } from "@/components/ui/search-input";
 import { FilterPill, formatFilterLabel } from "@/components/ui/filter-pill";
 import { Button } from "@/components/ui/button";
 
@@ -31,7 +31,11 @@ export function ProductDatabaseFilters({
   return (
     <div className="hidden lg:block p-4 border-b border-border space-y-3">
       <div className="flex items-center gap-2">
-        <ProductSearchBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
+        <SearchInput
+          value={searchTerm}
+          onChange={setSearchTerm}
+          placeholder="Search by name or SKU"
+        />
         <Button
           type="button"
           variant="outline"

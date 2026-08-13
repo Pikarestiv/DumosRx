@@ -16,7 +16,7 @@ import { getExpiryStatus } from "@/lib/utils/date-utils";
 import { Product, transformProduct } from "./types";
 import { CatalogList } from "./catalog-list";
 import { CatalogDetailPanel } from "./catalog-detail-panel";
-import { ProductSearchBar } from "./product-search-bar";
+import { SearchInput } from "@/components/ui/search-input";
 import { FilterPill, formatFilterLabel } from "@/components/ui/filter-pill";
 import { ManageCategoriesDialog } from "./manage-categories-dialog";
 import { ResponsiveDetailPanel } from "@/components/ui/responsive-detail-panel";
@@ -155,9 +155,10 @@ export function ProductDatabase() {
       <div className="flex flex-col min-h-0 gap-3 lg:gap-0 lg:h-full flex-1">
         {/* Mobile: search bar + filter pills stand alone above the card, contrasting with the page background */}
         <div className="lg:hidden space-y-3">
-          <ProductSearchBar
-            searchTerm={searchTerm}
-            setSearchTerm={setSearchTerm}
+          <SearchInput
+            value={searchTerm}
+            onChange={setSearchTerm}
+            placeholder="Search by name or SKU"
             inputClassName="bg-card border-border"
           />
           <div className="flex items-center gap-2 flex-wrap">

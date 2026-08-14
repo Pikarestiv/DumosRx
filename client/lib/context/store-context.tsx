@@ -5,6 +5,7 @@ import * as Sentry from "@sentry/nextjs";
 import { update, insert } from "@/lib/db/local-database";
 import { setActiveStoreId as setResolvedStoreId } from "@/lib/db/core";
 import { useQuery } from "@tanstack/react-query";
+import { queryClient } from "@/lib/query-client";
 import { getStoreById, getFirstStore, getAllStores } from "@/lib/db/queries/setup";
 import { useAuth } from "@/lib/context/auth-context";
 import { queryKeys } from "@/lib/query-keys";
@@ -165,6 +166,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (typeof window !== "undefined") {
       localStorage.setItem("dumos_active_store_id", storeId);
     }
+
+    // Every store-scoped query reads the active store from lib/db/core.ts's
+    // module-scope resolver at call time, not from its React Query key — so
+    // without this, screens would keep showing the previous store's cached
+    // results until something else happened to invalidate them. Broad
+    // invalidation (not a table-filtered one) because switching stores is a
+    // deliberate, infrequent action, not a hot path — correctness here is
+    // worth more than avoiding a refetch.
+    queryClient.invalidateQueries();
+
+    // Pulls this store's data down if this device has never synced it
+    // before (X-Store-Id now points at the newly-selected store — see
+    // lib/api/client.ts). Best-effort: offline/unauthenticated devices still
+    // work from whatever's already local.
+    import("@/lib/db/sync-engine").then(({ sync }) => sync()).catch(() => {});
   };
   const storeType = storeProfile?.store_type || "pharmacy";
   const theme = storeProfile?.theme || "default";

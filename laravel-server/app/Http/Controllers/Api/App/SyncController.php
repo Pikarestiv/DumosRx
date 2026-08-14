@@ -255,8 +255,22 @@ class SyncController extends Controller
 
                 // Handle audit_logs specific mappings
                 if ($change['table_name'] === 'audit_logs') {
-                    if (empty($payload['user_id']) && $currentUser) {
-                        $payload['user_id'] = $currentUser->id;
+                    // The client always sends a user_id (whoever was locally
+                    // logged in when the action happened), but that id might
+                    // not exist server-side — a local-only/offline-created
+                    // account, or one since deleted. activity_logs.user_id
+                    // has an ON DELETE CASCADE foreign key, so an unknown id
+                    // isn't just wrong, it fails the insert entirely and (since
+                    // the whole push runs in one transaction) rolls back every
+                    // other change in the same batch along with it. Fall back
+                    // to the authenticated user making this sync request
+                    // whenever the client's id doesn't actually exist, not
+                    // only when it's missing.
+                    if (
+                        empty($payload['user_id']) ||
+                        !User::where('id', $payload['user_id'])->exists()
+                    ) {
+                        $payload['user_id'] = $currentUser->id ?? null;
                     }
                     $payload['description'] = "Action: " . ($payload['action'] ?? 'Unknown') . " on " . ($payload['table_name'] ?? 'unknown');
                     $payload['properties'] = [

@@ -80,7 +80,7 @@ export function PrescriptionDoctorInfo({
             </Select>
           </div>
         </div>
-        <div className="mt-4">
+        <div className="mt-4 space-y-2">
           <Label htmlFor="insurance">Insurance (Optional)</Label>
           <Input
             id="insurance"

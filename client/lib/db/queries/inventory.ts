@@ -43,12 +43,13 @@ export interface StockOverviewRow {
   quantity: number;
   expiry_date?: string;
   batch_number?: string;
+  base_unit?: string;
 }
 
 export async function getStockOverviewData() {
   return query<StockOverviewRow>(
     `SELECT
-      p.id, p.name as product_name, p.reorder_level, p.selling_price, p.barcode,
+      p.id, p.name as product_name, p.reorder_level, p.selling_price, p.barcode, p.base_unit,
       sb.avg_cost as cost_price,
       COALESCE(sb.total_qty, 0) as quantity,
       sb.earliest_expiry as expiry_date,
@@ -85,6 +86,7 @@ export interface ExpiringItem {
   batch_number: string;
   expiry_date: string;
   stock_quantity: number;
+  base_unit?: string;
 }
 
 export async function getProductsForAudit() {
@@ -107,7 +109,7 @@ export async function getBatchesForProduct(productId: string) {
 export async function getExpiringBatches(days: number) {
   return query<ExpiringItem>(
     `
-    SELECT sb.id, p.name, sb.batch_number, sb.expiry_date, sb.quantity as stock_quantity 
+    SELECT sb.id, p.name, sb.batch_number, sb.expiry_date, sb.quantity as stock_quantity, p.base_unit
     FROM stock_batches sb
     JOIN products p ON sb.product_id = p.id
     WHERE sb.expiry_date IS NOT NULL 

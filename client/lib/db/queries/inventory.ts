@@ -1,14 +1,18 @@
 import { query, insert, update, transaction } from "@/lib/db/local-database";
+import { getActiveStoreId } from "@/lib/db/core";
 import type { FastMoverRow } from "@/lib/types/fast-mover";
 import type { StockBatch, AvailableStockBatch } from "@/lib/types/stock-batch";
 
 export async function getAvailableStockBatches() {
+  const storeId = getActiveStoreId();
   return query<AvailableStockBatch>(
-    `SELECT i.*, m.name as product_name, m.strength as m_strength, m.selling_price FROM stock_batches i JOIN products m ON i.product_id = m.id WHERE i._deleted = 0 AND i.quantity > 0`
+    `SELECT i.*, m.name as product_name, m.strength as m_strength, m.selling_price FROM stock_batches i JOIN products m ON i.product_id = m.id WHERE i._deleted = 0 AND i.quantity > 0${storeId ? " AND m.store_id = ?" : ""}`,
+    storeId ? [storeId] : [],
   );
 }
 
 export async function getBatchTrackingData() {
+  const storeId = getActiveStoreId();
   return query<{
     id: string;
     product_name: string;
@@ -17,7 +21,8 @@ export async function getBatchTrackingData() {
     quantity: number;
     cost_price?: number;
   }>(
-    `SELECT sb.id, p.name as product_name, sb.batch_number, sb.expiry_date, sb.quantity, sb.cost_price FROM stock_batches sb JOIN products p ON sb.product_id = p.id WHERE sb._deleted = 0 AND p._deleted = 0 ORDER BY sb.expiry_date ASC`
+    `SELECT sb.id, p.name as product_name, sb.batch_number, sb.expiry_date, sb.quantity, sb.cost_price FROM stock_batches sb JOIN products p ON sb.product_id = p.id WHERE sb._deleted = 0 AND p._deleted = 0${storeId ? " AND p.store_id = ?" : ""} ORDER BY sb.expiry_date ASC`,
+    storeId ? [storeId] : [],
   );
 }
 
@@ -47,6 +52,7 @@ export interface StockOverviewRow {
 }
 
 export async function getStockOverviewData() {
+  const storeId = getActiveStoreId();
   return query<StockOverviewRow>(
     `SELECT
       p.id, p.name as product_name, p.reorder_level, p.selling_price, p.barcode, p.base_unit,
@@ -56,18 +62,19 @@ export async function getStockOverviewData() {
       sb.batches as batch_number
      FROM products p
      LEFT JOIN (
-       SELECT product_id, 
+       SELECT product_id,
               SUM(quantity) as total_qty,
               AVG(cost_price) as avg_cost,
               MIN(expiry_date) as earliest_expiry,
               GROUP_CONCAT(batch_number, ', ') as batches
-       FROM stock_batches 
-       WHERE _deleted = 0 AND is_active = 1 
+       FROM stock_batches
+       WHERE _deleted = 0 AND is_active = 1
        GROUP BY product_id
      ) sb ON p.id = sb.product_id
-     WHERE p._deleted = 0
+     WHERE p._deleted = 0${storeId ? " AND p.store_id = ?" : ""}
      ORDER BY quantity ASC
-     LIMIT 50`
+     LIMIT 50`,
+    storeId ? [storeId] : [],
   );
 }
 
@@ -90,13 +97,15 @@ export interface ExpiringItem {
 }
 
 export async function getProductsForAudit() {
-  return query<AuditProduct>(`
-    SELECT p.id, p.name, p.base_unit, AVG(sb.cost_price) as cost_price, p.selling_price, COALESCE(SUM(sb.quantity), 0) as stock_quantity 
-    FROM products p 
-    LEFT JOIN stock_batches sb ON p.id = sb.product_id AND sb._deleted = 0 AND sb.is_active = 1 
-    WHERE p.is_active = 1 AND p._deleted = 0
-    GROUP BY p.id
-  `);
+  const storeId = getActiveStoreId();
+  return query<AuditProduct>(
+    `SELECT p.id, p.name, p.base_unit, AVG(sb.cost_price) as cost_price, p.selling_price, COALESCE(SUM(sb.quantity), 0) as stock_quantity
+    FROM products p
+    LEFT JOIN stock_batches sb ON p.id = sb.product_id AND sb._deleted = 0 AND sb.is_active = 1
+    WHERE p.is_active = 1 AND p._deleted = 0${storeId ? " AND p.store_id = ?" : ""}
+    GROUP BY p.id`,
+    storeId ? [storeId] : [],
+  );
 }
 
 export async function getBatchesForProduct(productId: string) {
@@ -107,23 +116,25 @@ export async function getBatchesForProduct(productId: string) {
 }
 
 export async function getExpiringBatches(days: number) {
+  const storeId = getActiveStoreId();
   return query<ExpiringItem>(
     `
     SELECT sb.id, p.name, sb.batch_number, sb.expiry_date, sb.quantity as stock_quantity, p.base_unit
     FROM stock_batches sb
     JOIN products p ON sb.product_id = p.id
-    WHERE sb.expiry_date IS NOT NULL 
+    WHERE sb.expiry_date IS NOT NULL
     AND sb.quantity > 0
     AND sb._deleted = 0
     AND p._deleted = 0
-    AND date(sb.expiry_date) <= date('now', '+' || ? || ' days')
+    AND date(sb.expiry_date) <= date('now', '+' || ? || ' days')${storeId ? " AND p.store_id = ?" : ""}
     ORDER BY sb.expiry_date ASC
   `,
-    [days.toString()],
+    storeId ? [days.toString(), storeId] : [days.toString()],
   );
 }
 
 export async function getLowStockAlerts() {
+  const storeId = getActiveStoreId();
   return query<{
     product: string;
     quantity: number;
@@ -137,15 +148,17 @@ export async function getLowStockAlerts() {
       m.base_unit as baseUnit
      FROM stock_batches inv
      JOIN products m ON inv.product_id = m.id
-     WHERE (inv._deleted = 0 OR inv._deleted IS NULL) AND (m._deleted = 0 OR m._deleted IS NULL)
+     WHERE (inv._deleted = 0 OR inv._deleted IS NULL) AND (m._deleted = 0 OR m._deleted IS NULL)${storeId ? " AND m.store_id = ?" : ""}
      GROUP BY m.id
      HAVING quantity <= m.reorder_level AND m.reorder_level > 0
      ORDER BY quantity ASC
      LIMIT 5`,
+    storeId ? [storeId] : [],
   );
 }
 
 export async function getExpiryAlerts() {
+  const storeId = getActiveStoreId();
   return query<{
     product: string;
     expiryDate: string;
@@ -161,9 +174,10 @@ export async function getExpiryAlerts() {
        AND inv.expiry_date IS NOT NULL
        AND inv.expiry_date != ''
        AND julianday(inv.expiry_date) <= julianday('now', '+30 days')
-       AND julianday(inv.expiry_date) >= julianday('now')
+       AND julianday(inv.expiry_date) >= julianday('now')${storeId ? " AND m.store_id = ?" : ""}
      ORDER BY inv.expiry_date ASC
      LIMIT 5`,
+    storeId ? [storeId] : [],
   );
 }
 
@@ -180,6 +194,7 @@ export interface StockBatchStatsRow {
 }
 
 export async function getStockBatchStats(expiryDays: number = 30) {
+  const storeId = getActiveStoreId();
   const result = await query<StockBatchStatsRow>(
     `SELECT
       COUNT(p.id) AS total_products,
@@ -203,8 +218,8 @@ export async function getStockBatchStats(expiryDays: number = 30) {
       WHERE _deleted = 0 OR _deleted IS NULL
       GROUP BY product_id
     ) sb ON p.id = sb.product_id
-    WHERE p._deleted = 0 OR p._deleted IS NULL`,
-    [expiryDays.toString()],
+    WHERE (p._deleted = 0 OR p._deleted IS NULL)${storeId ? " AND p.store_id = ?" : ""}`,
+    storeId ? [expiryDays.toString(), storeId] : [expiryDays.toString()],
   );
   return result[0];
 }
@@ -394,6 +409,7 @@ export async function submitStockAudit(
 export async function getFastMovers(days: number = 7) {
   // Returned quantities/amounts are netted out of both periods below — a
   // sale that was largely returned shouldn't still count as a "fast mover".
+  const storeId = getActiveStoreId();
   const result = await query<FastMoverRow>(
     `WITH current_period AS (
       SELECT
@@ -421,7 +437,7 @@ export async function getFastMovers(days: number = 7) {
       JOIN sale_items si ON s.id = si.sale_id AND (si._deleted = 0 OR si._deleted IS NULL)
       JOIN products p ON si.product_id = p.id
       WHERE s.created_at >= date('now', '-' || ? || ' days')
-        AND (s._deleted = 0 OR s._deleted IS NULL)
+        AND (s._deleted = 0 OR s._deleted IS NULL)${storeId ? " AND p.store_id = ?" : ""}
       GROUP BY p.id
     ),
     previous_period AS (
@@ -452,7 +468,9 @@ export async function getFastMovers(days: number = 7) {
     LEFT JOIN previous_period p ON c.id = p.product_id
     ORDER BY soldQuantity DESC
     LIMIT 5`,
-    [days.toString(), days.toString(), days.toString(), days.toString(), days.toString(), days.toString(), days.toString()]
+    storeId
+      ? [days.toString(), days.toString(), days.toString(), storeId, days.toString(), days.toString(), days.toString(), days.toString()]
+      : [days.toString(), days.toString(), days.toString(), days.toString(), days.toString(), days.toString(), days.toString()]
   );
   
   const items = result.map((row) => {
@@ -472,33 +490,35 @@ export async function getStockMoM() {
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
   const dateFilter30 = thirtyDaysAgo.toISOString();
+  const storeId = getActiveStoreId();
+  const movementParams = storeId ? [dateFilter30, storeId] : [dateFilter30];
 
   // Value added in last 30 days
   const added30 = await query<{ total_added?: number }>(`
     SELECT SUM(ABS(quantity) * IFNULL(unit_cost, 0)) as total_added
     FROM stock_movements
-    WHERE created_at >= ? AND movement_type IN ('addition', 'IN', 'purchase', 'return') AND (_deleted = 0 OR _deleted IS NULL)
-  `, [dateFilter30]);
+    WHERE created_at >= ? AND movement_type IN ('addition', 'IN', 'purchase', 'return') AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}
+  `, movementParams);
 
   // Value removed in last 30 days
   const removed30 = await query<{ total_removed?: number }>(`
     SELECT SUM(ABS(quantity) * IFNULL(unit_cost, 0)) as total_removed
     FROM stock_movements
-    WHERE created_at >= ? AND movement_type IN ('deduction', 'OUT', 'sale', 'damaged', 'adjustment') AND (_deleted = 0 OR _deleted IS NULL) AND quantity < 0
-  `, [dateFilter30]);
+    WHERE created_at >= ? AND movement_type IN ('deduction', 'OUT', 'sale', 'damaged', 'adjustment') AND (_deleted = 0 OR _deleted IS NULL) AND quantity < 0${storeId ? " AND store_id = ?" : ""}
+  `, movementParams);
 
   // Adjusted additions from positive adjustments
   const positiveAdjustments = await query<{ total_added?: number }>(`
     SELECT SUM(ABS(quantity) * IFNULL(unit_cost, 0)) as total_added
     FROM stock_movements
-    WHERE created_at >= ? AND movement_type = 'adjustment' AND (_deleted = 0 OR _deleted IS NULL) AND quantity > 0
-  `, [dateFilter30]);
+    WHERE created_at >= ? AND movement_type = 'adjustment' AND (_deleted = 0 OR _deleted IS NULL) AND quantity > 0${storeId ? " AND store_id = ?" : ""}
+  `, movementParams);
 
   const currentStock = await query<{ total_value?: number }>(`
     SELECT SUM(cost_price * quantity) as total_value
     FROM stock_batches
-    WHERE is_active = 1 AND (_deleted = 0 OR _deleted IS NULL)
-  `);
+    WHERE is_active = 1 AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}
+  `, storeId ? [storeId] : []);
 
   const currentVal = currentStock[0]?.total_value || 0;
   const addedVal = (added30[0]?.total_added || 0) + (positiveAdjustments[0]?.total_added || 0);

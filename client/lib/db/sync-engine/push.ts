@@ -99,14 +99,6 @@ export async function pushChanges(
             return false;
           }
         }
-        if (item.table_name === "stock_batches") {
-          // notes/received_date were never real server-side columns —
-          // strip them the same way brand_name/supplier_id are stripped
-          // for products above, rather than let the whole batch fail.
-          delete item.payload.notes;
-          delete item.payload.received_date;
-        }
-
         if (item.table_name === "stock_movements") {
           // Laravel backend requires stock_batch_id for stock_movements. Drop if null.
           if (!item.payload.stock_batch_id) {

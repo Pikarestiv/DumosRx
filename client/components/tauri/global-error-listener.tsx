@@ -3,7 +3,6 @@
 import { useEffect, ReactNode } from "react";
 import { logCrash } from "@/lib/utils/error-logger";
 import { devLog } from "@/lib/utils/dev-log";
-import { initSentry } from "@/lib/sentry";
 
 // Benign browser-internal notices that show up as window "error" events but
 // don't indicate anything actually broke — e.g. ResizeObserver's loop-limit
@@ -19,8 +18,6 @@ function isIgnorableError(message: unknown): boolean {
 export function GlobalErrorListener({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (typeof window === "undefined") return;
-
-    initSentry();
 
     const handleError = (event: ErrorEvent) => {
       if (isIgnorableError(event.error || event.message)) return;

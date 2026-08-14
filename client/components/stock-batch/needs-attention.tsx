@@ -111,9 +111,18 @@ export function NeedsAttention({ stockData }: { stockData: StockItem[] }) {
     }
   });
 
+  const shownCount = Math.min(items.length, 10);
+
   const header = (
     <div className="flex items-center justify-between">
-      <div className="text-[15px] font-semibold">Needs attention</div>
+      <div className="flex items-center gap-1.5">
+        <div className="text-[15px] font-semibold">Needs attention</div>
+        {items.length > 10 && (
+          <div className="text-[12.5px] text-muted-foreground">
+            ({shownCount} of {items.length})
+          </div>
+        )}
+      </div>
       <div
         className="text-[12.5px] text-primary font-semibold cursor-pointer hover:underline"
         onClick={() => router.push("/inventory/products")}

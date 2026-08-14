@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { DOWNLOAD_URL } from "@/lib/constants";
+import { DOWNLOAD_URL, WEB_APP_DASHBOARD_URL } from "@/lib/constants";
 import { IosInstallDialog } from "./ios-install-dialog";
 import { useInstallPrompt } from "@/lib/hooks/use-install-prompt";
 import type { ReleaseLinks } from "@/lib/types/dashboard";
@@ -103,6 +103,18 @@ export function DownloadsView({
         <p className="text-lg text-muted-foreground">
           Download the ultra-fast offline client for your store devices. Enjoy
           seamless background sync and unmatched performance.
+        </p>
+        <p className="text-sm text-muted-foreground">
+          Just want to try it out first?{" "}
+          <a
+            href={WEB_APP_DASHBOARD_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary font-semibold hover:underline"
+          >
+            Use DumosRx in your browser.
+          </a>{" "}
+          No install needed.
         </p>
       </div>
 
@@ -272,11 +284,7 @@ export function DownloadsView({
           {requiresVerification ? (
             <span>Verify Email to Browse</span>
           ) : (
-            <a
-              href={DOWNLOAD_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
+            <a href={DOWNLOAD_URL} target="_blank" rel="noopener noreferrer">
               Browse All Releases
             </a>
           )}

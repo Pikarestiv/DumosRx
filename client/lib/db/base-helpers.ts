@@ -107,13 +107,15 @@ export async function softDelete(table: string, id: string): Promise<void> {
   const now = new Date().toISOString();
 
   let updateQuery = `UPDATE ${table} SET _deleted = 1, updated_at = ?, _synced = 0 WHERE id = ?`;
-  
+  let params: (string | number | null)[] = [now, id];
+
   if (table === "users") {
     const suffix = `_del_${Date.now()}`;
-    updateQuery = `UPDATE ${table} SET _deleted = 1, updated_at = ?, _synced = 0, email = email || '${suffix}', username = username || '${suffix}' WHERE id = ?`;
+    updateQuery = `UPDATE ${table} SET _deleted = 1, updated_at = ?, _synced = 0, email = email || ?, username = username || ? WHERE id = ?`;
+    params = [now, suffix, suffix, id];
   }
 
-  await execute(updateQuery, [now, id]);
+  await execute(updateQuery, params);
 
   await addToSyncQueue(table, id, "DELETE", { id });
   await logAction("DELETE", table, id, { id });

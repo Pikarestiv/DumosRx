@@ -57,7 +57,12 @@ export async function insert(
   );
 
   await addToSyncQueue(table, id, "INSERT", record);
-  await logAction(options?.action || "INSERT", table, id, record);
+  // "feedback" holds background crash/error telemetry (see error-logger.ts),
+  // not a user action — logging it here would surface every silent crash
+  // report as a "Created feedback" entry in the Activity Log.
+  if (table !== "feedback") {
+    await logAction(options?.action || "INSERT", table, id, record);
+  }
 
   invalidateQueriesForTable(table);
 

@@ -31,6 +31,17 @@ export async function pushChanges(
 
   if (pending.length === 0) return { pushed: 0 };
 
+  // Categories are batched by created_at like everything else, so a product
+  // whose category was (re)created after it chronologically can land in a
+  // *later* request than the category referencing it — by which point the
+  // category's server-side id-remap (from SyncController::push's duplicate-
+  // name handling) no longer applies, since it only lives in that earlier
+  // request's in-memory $idMap. Move every category change to the front of
+  // the whole queue, not just within one batch, so categories are always
+  // resolved (created or remapped) before anything in a later batch can
+  // reference them.
+  pending.sort((a, b) => (a.table_name === "categories" ? -1 : b.table_name === "categories" ? 1 : 0));
+
   // Process in batches
   let pushedCount = 0;
 
@@ -60,8 +71,51 @@ export async function pushChanges(
         };
       });
 
+      // Records with real, pre-existing legacy data problems (not caused by
+      // tonight's multi-store/identity fix) that would otherwise permanently
+      // block every other queued change sharing a batch with them, since
+      // push runs a whole batch as one all-or-nothing transaction server-
+      // side. Each has a root cause that needs its own dedicated fix later:
+      //  - 5c5d33b4 (product "Panadol Extra"): category_id points at a
+      //    local category whose server-side insert was silently skipped as
+      //    a duplicate name — the id-remap from that skip only applies
+      //    within the same push request, so a retry in a later request can
+      //    never resolve it.
+      //  - a0f26026 (product "Emzor Vitamin C") and 7545bc6a (supplier
+      //    "Kingsize Pharmaceuticals"): both insert cleanly on their own
+      //    (no error ever logged for either one's own INSERT) but never
+      //    actually persist, because something else sharing their batch
+      //    keeps failing and rolling back the whole transaction — needs
+      //    proper batch-partitioning (isolate a bad row to its own retry
+      //    instead of taking its whole batch down) to fix generally.
+      // Rejecting them here (their own row, and anything elsewhere in this
+      // payload referencing their id) is a stopgap, not a real fix.
+      const KNOWN_BAD_IDS = new Set([
+        "5c5d33b4-13e0-4826-a69b-7745fa5ffed6",
+        "a0f26026-b19f-40ec-972d-533d3554e30e",
+        "7545bc6a-edd3-4e57-8bcf-24268b4b4758",
+      ]);
+
       const changes = mapped.filter((item) => {
+        if (
+          Object.values(item.payload).some(
+            (v) => typeof v === "string" && KNOWN_BAD_IDS.has(v),
+          )
+        ) {
+          rejected.push({ id: item.id, reason: "References a known-bad legacy record" });
+          return false;
+        }
+
         if (item.table_name === "products") {
+          // Any product row created/updated before the server dropped these
+          // two columns (2026_07_23_182355_remove_brand_and_supplier_from_
+          // products.php) still carries them in its queued payload snapshot,
+          // since a snapshot taken at write time never picks up later schema
+          // changes. Strip rather than reject — the row itself is otherwise
+          // fine, only these two fields are stale.
+          delete item.payload.brand_name;
+          delete item.payload.supplier_id;
+
           const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
           // Prevent bad payloads from blocking the entire sync queue
           if (

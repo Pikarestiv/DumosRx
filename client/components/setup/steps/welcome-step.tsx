@@ -54,10 +54,10 @@ export function WelcomeStep({ onSetStep }: WelcomeStepProps) {
           >
             <div className="flex items-center gap-2 font-bold text-foreground">
               <UserPlus className="h-4 w-4 text-primary" />
-              Create New Store
+              Set Up New Business
             </div>
             <p className="text-xs text-muted-foreground text-wrap">
-              Setup a fresh local database for a new business.
+              Create your DumosRx cloud account and store. Requires internet.
             </p>
           </Button>
 
@@ -68,10 +68,10 @@ export function WelcomeStep({ onSetStep }: WelcomeStepProps) {
           >
             <div className="flex items-center gap-2 font-bold text-foreground">
               <CloudDownload className="h-4 w-4 text-primary" />
-              Sync from Cloud
+              Sign In to Existing Account
             </div>
             <p className="text-xs text-muted-foreground text-wrap">
-              Existing account? Pull your data from the DumosRx cloud.
+              Already have a DumosRx account? Pull your data from the cloud.
             </p>
           </Button>
 

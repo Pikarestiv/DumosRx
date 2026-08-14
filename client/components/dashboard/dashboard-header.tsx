@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { Plus, Store as StoreIcon } from "lucide-react";
+import { Plus, Store as StoreIcon, ChevronDown, Check } from "lucide-react";
 import { useAuth } from "@/lib/context/auth-context";
 import { useStore } from "@/lib/context/store-context";
 import { APP_NAME } from "@/lib/constants";
@@ -17,6 +17,12 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface DashboardHeaderProps {
   onOpenFeedback?: () => void;
@@ -137,7 +143,7 @@ export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { user } = useAuth();
-  const { storeProfile } = useStore();
+  const { storeProfile, availableStores, activeStoreId, switchStore } = useStore();
 
   const pageInfo = getPageInfo(pathname || "/");
   // Greeting pages (dashboard home) don't use pageInfo for title/desc, but
@@ -150,12 +156,40 @@ export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
         {/* Left side (Desktop & Mobile) */}
         <div className="flex flex-col gap-0.5">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <div className="flex items-center gap-1 font-medium text-foreground">
-              <StoreIcon className="h-3 w-3" />
-              <span className="truncate max-w-[40vw] sm:max-w-[200px]">
-                {storeProfile?.name || APP_NAME}
-              </span>
-            </div>
+            {availableStores.length > 1 ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center gap-1 font-medium text-foreground hover:text-primary transition-colors outline-none">
+                    <StoreIcon className="h-3 w-3" />
+                    <span className="truncate max-w-[40vw] sm:max-w-[200px]">
+                      {storeProfile?.name || APP_NAME}
+                    </span>
+                    <ChevronDown className="h-3 w-3 shrink-0" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-56">
+                  {availableStores.map((store) => (
+                    <DropdownMenuItem
+                      key={store.id}
+                      onClick={() => switchStore(store.id)}
+                      className="flex items-center justify-between gap-2"
+                    >
+                      <span className="truncate">{store.name}</span>
+                      {(activeStoreId ?? storeProfile?.id) === store.id && (
+                        <Check className="h-3.5 w-3.5 text-primary shrink-0" />
+                      )}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <div className="flex items-center gap-1 font-medium text-foreground">
+                <StoreIcon className="h-3 w-3" />
+                <span className="truncate max-w-[40vw] sm:max-w-[200px]">
+                  {storeProfile?.name || APP_NAME}
+                </span>
+              </div>
+            )}
             <span className="hidden sm:inline-block text-border">•</span>
             <span className="hidden sm:inline-block">
               {(() => {

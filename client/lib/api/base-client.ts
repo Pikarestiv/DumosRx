@@ -54,6 +54,7 @@ export class BaseApiClient {
   protected async request<T>(
     endpoint: string,
     options: RequestInit = {},
+    isRetry: boolean = false,
   ): Promise<T> {
     // Intercept to silently refresh token if it's older than 7 days
     if (
@@ -158,6 +159,29 @@ export class BaseApiClient {
         }
 
         if (response.status === 401) {
+          const isAuthEndpoint =
+            endpoint.includes("/login") || endpoint.includes("/refresh");
+
+          // A 401 doesn't necessarily mean the session is truly dead — most
+          // of the time it just means the access token expired sooner than
+          // the proactive 7-day age check above expected. Try one silent
+          // refresh-and-retry before forcing the user to re-link; clearing
+          // unconditionally on every 401 logged store owners out far more
+          // often than the token was actually invalid.
+          if (
+            !isAuthEndpoint &&
+            !isRetry &&
+            typeof window !== "undefined" &&
+            navigator.onLine
+          ) {
+            const tokenBeforeRefresh = getToken();
+            await refreshTokenSilently(this.baseURL);
+            const tokenAfterRefresh = getToken();
+            if (tokenAfterRefresh && tokenAfterRefresh !== tokenBeforeRefresh) {
+              return this.request<T>(endpoint, options, true);
+            }
+          }
+
           clearToken();
         }
 

@@ -2,7 +2,7 @@
  * Procurement Database Helpers
  */
 
-import { query, logAction, generateId, transaction } from "./core";
+import { query, logAction, generateId, transaction, getActiveStoreId } from "./core";
 import { insert, update, softDelete } from "./base-helpers";
 import type { SupplierPayload, SupplierDbRow } from "@/lib/types/supplier";
 
@@ -106,6 +106,8 @@ export async function getPurchaseOrderItemsForDetail(poId: string) {
  * checkCanViewAllActivity(role) === true).
  */
 export async function getPurchaseOrders(viewerId?: string) {
+  const storeId = getActiveStoreId();
+  const params = [...(viewerId ? [viewerId] : []), ...(storeId ? [storeId] : [])];
   const results = await query<PurchaseOrder>(
     `SELECT po.*, v.name as vendor_name,
        TRIM(u.first_name || ' ' || u.last_name) as ordered_by_name,
@@ -118,9 +120,9 @@ export async function getPurchaseOrders(viewerId?: string) {
      FROM purchase_orders po
      LEFT JOIN suppliers v ON po.supplier_id = v.id
      LEFT JOIN users u ON u.id = po.ordered_by
-     WHERE po._deleted = 0${viewerId ? " AND po.ordered_by = ?" : ""}
+     WHERE po._deleted = 0${viewerId ? " AND po.ordered_by = ?" : ""}${storeId ? " AND po.store_id = ?" : ""}
      ORDER BY po.created_at DESC`,
-    viewerId ? [viewerId] : []
+    params,
   );
   return { data: results };
 }
@@ -346,6 +348,7 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
  * matching the pattern used by getCustomers()/getPurchaseOrders() etc.
  */
 export async function getSuppliers() {
+  const storeId = getActiveStoreId();
   const results = await query<SupplierDbRow>(
     `SELECT s.*,
             COALESCE(SUM(po.total_amount - po.amount_paid), 0) as total_debt,
@@ -360,9 +363,10 @@ export async function getSuppliers() {
        WHERE _deleted = 0
        GROUP BY supplier_id
      ) po_stats ON po_stats.supplier_id = s.id
-     WHERE s._deleted = 0
+     WHERE s._deleted = 0${storeId ? " AND s.store_id = ?" : ""}
      GROUP BY s.id
      ORDER BY s.created_at DESC`,
+    storeId ? [storeId] : [],
   );
   return { data: results };
 }

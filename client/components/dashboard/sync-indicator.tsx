@@ -196,8 +196,8 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
     },
     unlinked: {
       label: "Not Linked",
-      icon: <Cloud className={cn(iconClass, "text-emerald-500")} {...fillProp} />,
-      border: "border-emerald-500/50",
+      icon: <CloudOff className={cn(iconClass, "text-muted-foreground")} />,
+      border: "border-muted-foreground/30",
       desktopBg: "bg-sidebar-accent/5 hover:bg-sidebar-accent/10",
       mobileBg: "bg-muted/50",
       tooltip: "Connect your cloud account to enable backups.",

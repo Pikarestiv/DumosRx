@@ -18,7 +18,7 @@ import { useState } from "react";
 import type { StoreOption } from "@/lib/types/store";
 
 interface RegisterStepProps {
-  onRegister: (firstName: string, lastName: string, username: string, pin: string, storeName: string, existingStoreId?: string) => Promise<void>;
+  onRegister: (firstName: string, lastName: string, username: string, pin: string, storeName: string, existingStoreId?: string, email?: string, password?: string) => Promise<void>;
   isLoading: boolean;
   isCloudLinked?: boolean;
   existingStores?: StoreOption[];
@@ -31,6 +31,8 @@ export function RegisterStep({ onRegister, isLoading, isCloudLinked, existingSto
   const [pin, setPin] = useState("");
   const [storeName, setStoreName] = useState("");
   const [selectedStoreId, setSelectedStoreId] = useState<string>("new");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,7 +42,9 @@ export function RegisterStep({ onRegister, isLoading, isCloudLinked, existingSto
       username.trim().toLowerCase(),
       pin,
       storeName.trim(),
-      selectedStoreId === "new" ? undefined : selectedStoreId
+      selectedStoreId === "new" ? undefined : selectedStoreId,
+      isCloudLinked ? undefined : email.trim().toLowerCase(),
+      isCloudLinked ? undefined : password,
     );
   };
 
@@ -59,11 +63,11 @@ export function RegisterStep({ onRegister, isLoading, isCloudLinked, existingSto
           </div>
           <CardTitle className="text-xl font-bold">
             {!!(isCloudLinked) && "Cloud Setup"}
-                      {!(isCloudLinked) && "New Administrator"}
+                      {!(isCloudLinked) && "Create Your Business"}
           </CardTitle>
           <CardDescription className="text-muted-foreground text-xs">
             {!!(isCloudLinked) && "Account linked! Now create your local master login."}
-                      {!(isCloudLinked) && "Create your master local account"}
+                      {!(isCloudLinked) && "Requires internet — creates your DumosRx cloud account and store"}
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
@@ -108,6 +112,36 @@ export function RegisterStep({ onRegister, isLoading, isCloudLinked, existingSto
                 disabled={selectedStoreId !== "new"}
               />
             </div>
+
+            {!isCloudLinked && (
+              <>
+                <div className="space-y-1">
+                  <Label htmlFor="reg-email" className="text-xs">Email Address</Label>
+                  <Input
+                    id="reg-email"
+                    type="email"
+                    placeholder="your@email.com"
+                    className="bg-background/50 h-10 lowercase"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value.toLowerCase())}
+                    required
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="reg-password" className="text-xs">Password</Label>
+                  <Input
+                    id="reg-password"
+                    type="password"
+                    placeholder="••••••••"
+                    className="bg-background/50 h-10"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    minLength={8}
+                  />
+                </div>
+              </>
+            )}
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">

@@ -1,4 +1,4 @@
-import { query } from "./core";
+import { query, getActiveStoreId } from "./core";
 import { insert, update, softDelete } from "./base-helpers";
 
 export interface RequestedProduct {
@@ -16,9 +16,10 @@ export interface RequestedProduct {
 export async function logRequestedProduct(product_name: string, requested_by_customer?: string, quantity: number = 1, note?: string): Promise<string> {
   
   // Check if a pending request for this product already exists
+  const storeId = getActiveStoreId();
   const existing = await query<RequestedProduct>(
-    `SELECT * FROM requested_products WHERE lower(product_name) = lower(?) AND status = 'pending' AND _deleted = 0`,
-    [product_name]
+    `SELECT * FROM requested_products WHERE lower(product_name) = lower(?) AND status = 'pending' AND _deleted = 0${storeId ? " AND store_id = ?" : ""}`,
+    storeId ? [product_name, storeId] : [product_name],
   );
 
   if (existing.length > 0) {
@@ -75,6 +76,12 @@ export async function getRequestedProducts(status: 'pending' | 'ordered' | 'all'
   if (status !== 'all') {
     sql += ` AND status = ?`;
     params.push(status);
+  }
+
+  const storeId = getActiveStoreId();
+  if (storeId) {
+    sql += ` AND store_id = ?`;
+    params.push(storeId);
   }
 
   sql += ` ORDER BY request_count DESC, created_at DESC`;

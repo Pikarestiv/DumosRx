@@ -77,14 +77,82 @@ export function useOnboarding() {
     router.push(`?${params.toString()}`);
   };
 
-  const handleRegister = async (firstName: string, lastName: string, username: string, pin: string, storeName: string, existingStoreId?: string) => {
+  const handleRegister = async (
+    firstName: string,
+    lastName: string,
+    username: string,
+    pin: string,
+    storeName: string,
+    existingStoreId?: string,
+    email?: string,
+    password?: string,
+  ) => {
     setIsLoading(true);
     try {
-      const userId = generateId();
-      const storeId = existingStoreId || generateId();
       const now = new Date().toISOString();
 
-      // 1. Create or update the store profile
+      // Brand-new setup (no cloud account linked yet): always create the
+      // account + store in the cloud first, then seed local SQLite with the
+      // server's real ids. A local-only id generated before a cloud identity
+      // exists can never be reconciled later — every row that references it
+      // as a foreign key (sales.cashier_id, stock_movements.performed_by,
+      // etc.) becomes permanently unsyncable. See reconcile-identity.ts for
+      // the one-time recovery this exact failure mode required.
+      if (!isCloudLinked) {
+        if (!email || !password) {
+          toast.error("Email and password are required to create your account");
+          setIsLoading(false);
+          return;
+        }
+
+        const response = await apiClient.register({
+          first_name: firstName,
+          last_name: lastName,
+          email,
+          username,
+          pin,
+          password,
+          store_name: storeName,
+        });
+
+        apiClient.setToken(response.token);
+
+        const stores = await apiClient.getStores();
+        const store = stores[0];
+        if (!store) {
+          toast.error("Account created, but no store was returned. Please contact support.");
+          setIsLoading(false);
+          return;
+        }
+
+        await execute(
+          "INSERT INTO stores (id, name, is_initialized, created_at, updated_at, _synced, auto_sync_enabled, auto_sync_interval) VALUES (?, ?, ?, ?, ?, ?, 1, 30)",
+          [store.id, store.name, 1, now, now, 1],
+        );
+
+        await execute(
+          "INSERT INTO users (id, first_name, last_name, username, pin, role, store_id, is_active, created_at, updated_at, _synced) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+          [response.user.id, firstName, lastName, username, pin, "admin", store.id, 1, now, now, 1],
+        );
+
+        localStorage.setItem("dumos_active_store_id", store.id);
+        toast.success(`${storeName} created and linked to your cloud account!`);
+
+        const success = await login(username, pin);
+        if (success) {
+          sync(false, true).catch(console.error);
+          router.push("/dashboard");
+        }
+        return;
+      }
+
+      // Already cloud-linked — reached via the "sync completed but found no
+      // local accounts" fallback (see startSyncProcess below). Generating a
+      // fresh local id here is safe: the cloud identity already exists, and
+      // the subsequent sync() push adopts this same id server-side.
+      const userId = generateId();
+      const storeId = existingStoreId || generateId();
+
       if (!existingStoreId) {
         await execute(
           "INSERT INTO stores (id, name, is_initialized, created_at, updated_at, _synced, auto_sync_enabled, auto_sync_interval) VALUES (?, ?, ?, ?, ?, ?, 1, 30)",
@@ -97,23 +165,17 @@ export function useOnboarding() {
         );
       }
 
-      // 2. Create the administrator account
       await execute(
         "INSERT INTO users (id, first_name, last_name, username, pin, role, store_id, is_active, created_at, updated_at, _synced) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         [userId, firstName, lastName, username, pin, "admin", storeId, 1, now, now, 0],
       );
 
       toast.success(`${storeName} configured and administrator created!`);
-      
-      // 3. Login locally
+
       const success = await login(username, pin);
-      
       if (success) {
-        // 4. If cloud is linked, trigger an initial sync to push the new administrator
-        if (isCloudLinked) {
-            toast.info("Pushing your account to cloud...");
-            sync(false, true).catch(console.error);
-        }
+        toast.info("Pushing your account to cloud...");
+        sync(false, true).catch(console.error);
         router.push("/dashboard");
       }
     } catch (_err) {

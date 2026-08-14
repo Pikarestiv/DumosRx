@@ -191,6 +191,62 @@ describe('Sync Engine & Local Database', () => {
       );
       expect(cursorAdvanced).toBe(false);
     });
+
+    it('prunes a local store not present in a stores pull response', async () => {
+      vi.mocked(apiClient.pullChanges).mockResolvedValueOnce({
+        success: true,
+        changes: {
+          stores: [
+            { id: 'store-a', name: 'Store A', _version: 1, deleted_at: null },
+            { id: 'store-b', name: 'Store B', _version: 1, deleted_at: null },
+          ],
+        },
+        server_timestamp: '2026-07-21T00:00:00Z',
+      });
+
+      vi.mocked(query).mockImplementation(async (sql: string) => {
+        if (sql.includes('_sync_state')) return [];
+        if (sql.includes('PRAGMA table_info')) return [{ name: 'id' }, { name: 'name' }, { name: '_version' }];
+        if (sql.includes('SELECT 1 FROM')) return []; // both records are new inserts
+        return [];
+      });
+
+      await pullChanges();
+
+      const executeMock = vi.mocked(execute);
+      const pruneCall = executeMock.mock.calls.find(
+        (call) => typeof call[0] === 'string' && call[0].includes('UPDATE stores SET _deleted = 1'),
+      );
+
+      expect(pruneCall).toBeDefined();
+      // Every id the server actually returned must be excluded from the prune.
+      expect(pruneCall?.[1]).toEqual(['store-a', 'store-b']);
+    });
+
+    it('does not touch stores at all when the pull response has no stores key', async () => {
+      vi.mocked(apiClient.pullChanges).mockResolvedValueOnce({
+        success: true,
+        changes: {
+          products: [{ id: 'rec1', name: 'Ibuprofen', _version: 1, deleted_at: null }],
+        },
+        server_timestamp: '2026-07-21T00:00:00Z',
+      });
+
+      vi.mocked(query).mockImplementation(async (sql: string) => {
+        if (sql.includes('_sync_state')) return [];
+        if (sql.includes('PRAGMA table_info')) return [{ name: 'id' }, { name: 'name' }, { name: '_version' }];
+        if (sql.includes('SELECT 1 FROM')) return [];
+        return [];
+      });
+
+      await pullChanges();
+
+      const executeMock = vi.mocked(execute);
+      const touchedStores = executeMock.mock.calls.some(
+        (call) => typeof call[0] === 'string' && call[0].toLowerCase().includes('stores'),
+      );
+      expect(touchedStores).toBe(false);
+    });
   });
 
   describe('sync() cache invalidation', () => {

@@ -81,7 +81,7 @@ const NavTrigger = ({
           {user.first_name} {user.last_name}
         </span>
         <span className="text-xs text-muted-foreground capitalize truncate w-full text-left">
-          {user.role.replace(/_/g, " ")}
+          {(user.role || "").replace(/_/g, " ")}
         </span>
       </div>
     )}
@@ -150,7 +150,31 @@ export function UserNav({
   });
   const pendingCount = pendingCountData || 0;
 
-  if (!user) return null;
+  // A broken/incomplete auth state (e.g. a corrupted localStorage write from
+  // a connection drop mid-save) shouldn't leave this spot blank with no way
+  // out — that traps the user on a dashboard shell they can't act on. Give
+  // them a direct way to get back to a clean login instead of vanishing.
+  if (!user) {
+    return (
+      <Button
+        variant="ghost"
+        className={cn(
+          "rounded-xl hover:bg-destructive/10 text-destructive transition-colors",
+          showDetails
+            ? "h-auto w-full flex items-center justify-start gap-3 p-2"
+            : "h-8 w-8 rounded-full p-0",
+        )}
+        onClick={() => {
+          localStorage.removeItem("dumos_user");
+          localStorage.removeItem("dumos_recent_users");
+          router.push("/login");
+        }}
+      >
+        <LogOut className={cn(showDetails ? "h-4 w-4 shrink-0" : "h-4 w-4")} />
+        {showDetails && <span className="text-sm font-semibold">Log in again</span>}
+      </Button>
+    );
+  }
 
   const initials = getUserInitials(user.first_name, user.last_name);
 
@@ -239,7 +263,7 @@ export function UserNav({
                 {user.first_name} {user.last_name}
               </p>
               <p className="text-xs leading-none text-muted-foreground capitalize truncate">
-                {user.role.replace(/_/g, " ")}
+                {(user.role || "").replace(/_/g, " ")}
               </p>
             </div>
           </DropdownMenuLabel>
@@ -310,7 +334,7 @@ export function UserNav({
               {user.first_name} {user.last_name}
             </DrawerTitle>
             <p className="text-xs text-muted-foreground capitalize truncate">
-              {user.role.replace(/_/g, " ")}
+              {(user.role || "").replace(/_/g, " ")}
             </p>
           </div>
           <SettingsIconButton size="lg" onClick={goToSettings} />

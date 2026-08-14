@@ -31,6 +31,17 @@ export async function pushChanges(
 
   if (pending.length === 0) return { pushed: 0 };
 
+  // Categories are batched by created_at like everything else, so a product
+  // whose category was (re)created after it chronologically can land in a
+  // *later* request than the category referencing it — by which point the
+  // category's server-side id-remap (from SyncController::push's duplicate-
+  // name handling) no longer applies, since it only lives in that earlier
+  // request's in-memory $idMap. Move every category change to the front of
+  // the whole queue, not just within one batch, so categories are always
+  // resolved (created or remapped) before anything in a later batch can
+  // reference them.
+  pending.sort((a, b) => (a.table_name === "categories" ? -1 : b.table_name === "categories" ? 1 : 0));
+
   // Process in batches
   let pushedCount = 0;
 
@@ -62,6 +73,15 @@ export async function pushChanges(
 
       const changes = mapped.filter((item) => {
         if (item.table_name === "products") {
+          // Any product row created/updated before the server dropped these
+          // two columns (2026_07_23_182355_remove_brand_and_supplier_from_
+          // products.php) still carries them in its queued payload snapshot,
+          // since a snapshot taken at write time never picks up later schema
+          // changes. Strip rather than reject — the row itself is otherwise
+          // fine, only these two fields are stale.
+          delete item.payload.brand_name;
+          delete item.payload.supplier_id;
+
           const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
           // Prevent bad payloads from blocking the entire sync queue
           if (
@@ -76,20 +96,6 @@ export async function pushChanges(
             !UUID_REGEX.test(item.payload.supplier_id as string)
           ) {
             rejected.push({ id: item.id, reason: "Invalid supplier_id (not a UUID)" });
-            return false;
-          }
-        }
-        if (
-          item.table_name === "purchase_order_items" ||
-          item.table_name === "stock_batches" ||
-          item.table_name === "stock_movements" ||
-          item.table_name === "sale_items"
-        ) {
-          // Hotfix for bad product_id that was dropped from sync queue earlier
-          if (
-            item.payload.product_id === "5c5d33b4-13e0-4826-a69b-7745fa5ffed6"
-          ) {
-            rejected.push({ id: item.id, reason: "Known-bad product_id" });
             return false;
           }
         }
@@ -127,14 +133,24 @@ export async function pushChanges(
         isSetup
       )) as PushResponse;
 
-      // If successful, mark as synced. Only the items actually included in
-      // `changes` were sent — items filtered out above (e.g. malformed
-      // payloads) must NOT be marked synced here, or they'd be silently
-      // dropped from the queue without ever reaching the server.
+      // The server isolates each change to its own savepoint (see
+      // SyncController::push), so `response.success` reflects the batch
+      // request succeeding, not every change within it — `response.failed`
+      // lists which specific changes were rolled back individually. Only
+      // mark the ones NOT in that list as synced; items filtered out above
+      // (e.g. malformed payloads) were never sent and must NOT be marked
+      // synced here either, or they'd be silently dropped from the queue.
       if (response.success) {
-        const ids = changes.map((c) => c.id);
-        await markSynced(ids);
-        pushedCount += ids.length;
+        const failedIds = new Set((response.failed ?? []).map((f) => f.id));
+        const succeededIds = changes.map((c) => c.id).filter((id) => !failedIds.has(id));
+        await markSynced(succeededIds);
+        pushedCount += succeededIds.length;
+
+        for (const f of response.failed ?? []) {
+          if (f.id != null) {
+            await recordSyncFailure(f.id, f.reason);
+          }
+        }
       }
     } catch (error) {
       // Don't abort the whole push run over one bad batch — record backoff

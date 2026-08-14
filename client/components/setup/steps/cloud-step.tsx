@@ -14,14 +14,14 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { CloudDownload, Loader2 } from "lucide-react";
-import { WEB_APP_URL } from "@/lib/constants";
 
 interface CloudStepProps {
   onCloudRestore: (email: string, pass: string) => Promise<void>;
   isLoading: boolean;
+  onGoToRegister?: () => void;
 }
 
-export function CloudStep({ onCloudRestore, isLoading }: CloudStepProps) {
+export function CloudStep({ onCloudRestore, isLoading, onGoToRegister }: CloudStepProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -87,14 +87,13 @@ export function CloudStep({ onCloudRestore, isLoading }: CloudStepProps) {
             <div className="text-center pt-2">
               <p className="text-sm text-muted-foreground">
                 Don't have a cloud account?{" "}
-                <a
-                  href={`${WEB_APP_URL}/register`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary hover:underline font-semibold animate-pulse hover:animate-none"
+                <button
+                  type="button"
+                  onClick={onGoToRegister}
+                  className="text-primary hover:underline font-semibold animate-pulse hover:animate-none bg-transparent border-0 p-0 cursor-pointer"
                 >
                   Create one here
-                </a>
+                </button>
               </p>
             </div>
           </CardFooter>

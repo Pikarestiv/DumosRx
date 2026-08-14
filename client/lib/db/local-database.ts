@@ -10,7 +10,7 @@ export * from "./base-helpers";
 export * from "./procurement";
 export * from "./schema";
 
-import { query, execute, transaction } from "./core";
+import { query, execute, transaction, getActiveStoreId } from "./core";
 import { insert, update, softDelete } from "./base-helpers";
 import { queryClient } from "../query-client";
 import { AUDIT_ACTIONS } from "./audit-actions";
@@ -35,23 +35,29 @@ const STOCK_MOVEMENT_AUDIT_ACTIONS: Record<string, string> = {
  */
 export async function getProducts(page = 1, limit = 50, search = "") {
   const offset = (page - 1) * limit;
-  let sql = `SELECT m.*, c.name as category_name, 
+  const storeId = getActiveStoreId();
+  let sql = `SELECT m.*, c.name as category_name,
                     COALESCE(sb.total_qty, 0) as stock_quantity,
                     sb.earliest_expiry as expiry_date,
                     sb.batches as batch_number
-             FROM products m 
-             LEFT JOIN categories c ON m.category_id = c.id 
+             FROM products m
+             LEFT JOIN categories c ON m.category_id = c.id
              LEFT JOIN (
-               SELECT product_id, 
+               SELECT product_id,
                       SUM(quantity) as total_qty,
                       MIN(expiry_date) as earliest_expiry,
                       GROUP_CONCAT(batch_number, ', ') as batches
-               FROM stock_batches 
-               WHERE _deleted = 0 AND is_active = 1 
+               FROM stock_batches
+               WHERE _deleted = 0 AND is_active = 1
                GROUP BY product_id
              ) sb ON m.id = sb.product_id
              WHERE m._deleted = 0`;
   const params: (string | number)[] = [];
+
+  if (storeId) {
+    sql += " AND m.store_id = ?";
+    params.push(storeId);
+  }
 
   if (search) {
     sql += " AND (m.name LIKE ? OR m.generic_name LIKE ? OR m.barcode LIKE ?)";
@@ -93,9 +99,10 @@ export async function createProduct(data: NewProductPayload) {
   const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
   
   if (data.category_id && !UUID_REGEX.test(data.category_id)) {
+    const storeId = getActiveStoreId();
     const categories = await query<{ id: string }>(
-      "SELECT id FROM categories WHERE name = ? COLLATE NOCASE",
-      [data.category_id]
+      `SELECT id FROM categories WHERE name = ? COLLATE NOCASE${storeId ? " AND store_id = ?" : ""}`,
+      storeId ? [data.category_id, storeId] : [data.category_id],
     );
     if (categories.length > 0) {
       data.category_id = categories[0].id;
@@ -205,6 +212,10 @@ export async function createPrescription(
 const STAFF_LIST_COLUMNS = "id, first_name, last_name, username, email, role, store_id, is_active, created_at";
 
 export async function getUsers(storeId?: string | null) {
+  // Fall back to the module-scope resolver (same one every other query file
+  // uses) when the caller doesn't pass an explicit id — keeps this in step
+  // with the rest of the app's store-scoping instead of being its own thing.
+  storeId = storeId ?? getActiveStoreId();
   if (storeId) {
     return await query<StaffListItem>(
       `SELECT ${STAFF_LIST_COLUMNS} FROM users WHERE _deleted = 0 AND (store_id = ? OR store_id IS NULL OR role = 'admin' OR role = 'store_owner') ORDER BY first_name ASC`,
@@ -248,6 +259,7 @@ export async function deleteUser(id: string) {
  */
 export async function getStockMovements(options: { sinceDays?: number } = {}) {
   const { sinceDays } = options;
+  const storeId = getActiveStoreId();
   const dateFilter = sinceDays
     ? `AND sm.created_at >= datetime('now', '-${sinceDays} days')`
     : "";
@@ -260,14 +272,16 @@ export async function getStockMovements(options: { sinceDays?: number } = {}) {
      LEFT JOIN users u ON sm.performed_by = u.id
      LEFT JOIN stock_batches sb ON sm.stock_batch_id = sb.id
      LEFT JOIN suppliers sp ON sb.supplier_id = sp.id
-     WHERE sm._deleted = 0 ${dateFilter}
+     WHERE sm._deleted = 0 ${dateFilter}${storeId ? " AND sm.store_id = ?" : ""}
      ORDER BY sm.created_at DESC`,
+    storeId ? [storeId] : [],
   );
   return { data: results };
 }
 
 export async function getStockAdjustments(page = 1, limit = 50) {
   const offset = (page - 1) * limit;
+  const storeId = getActiveStoreId();
   const results = await query<StockMovementDbRow>(
     `SELECT sm.*, m.name as product_name,
             TRIM(u.first_name || ' ' || COALESCE(u.last_name, '')) as performed_by_name,
@@ -277,10 +291,10 @@ export async function getStockAdjustments(page = 1, limit = 50) {
      LEFT JOIN users u ON sm.performed_by = u.id
      LEFT JOIN stock_batches sb ON sm.stock_batch_id = sb.id
      LEFT JOIN suppliers sp ON sb.supplier_id = sp.id
-     WHERE sm._deleted = 0 AND sm.movement_type IN ('adjustment', 'expired', 'damaged')
+     WHERE sm._deleted = 0 AND sm.movement_type IN ('adjustment', 'expired', 'damaged')${storeId ? " AND sm.store_id = ?" : ""}
      ORDER BY sm.created_at DESC
      LIMIT ? OFFSET ?`,
-    [limit, offset],
+    storeId ? [storeId, limit, offset] : [limit, offset],
   );
   // Map fields to match what frontend expects
   const mapped = results.map((r) => ({

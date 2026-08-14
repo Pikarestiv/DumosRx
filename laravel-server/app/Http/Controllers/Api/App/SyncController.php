@@ -51,6 +51,12 @@ class SyncController extends Controller
             new OA\Response(response: 200, description: 'Changes applied', content: new OA\JsonContent(properties: [
                 new OA\Property(property: 'success', type: 'boolean'),
                 new OA\Property(property: 'processed', type: 'integer'),
+                new OA\Property(property: 'failed', type: 'array', description: 'Changes that failed and were skipped individually (each one isolated to its own savepoint, so it never blocks the rest of the batch) — the client should call recordSyncFailure for each rather than treating the whole push as failed.', items: new OA\Items(properties: [
+                    new OA\Property(property: 'id', type: 'integer', description: 'The client-side _sync_queue id'),
+                    new OA\Property(property: 'table_name', type: 'string'),
+                    new OA\Property(property: 'record_id', type: 'string'),
+                    new OA\Property(property: 'reason', type: 'string'),
+                ])),
             ])),
             new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
             new OA\Response(response: 403, description: 'Cloud sync disabled on current plan, or store count exceeds plan limit'),
@@ -127,6 +133,7 @@ class SyncController extends Controller
             // happened to be processed later in the same payload (clients
             // are not guaranteed to order changes batch-before-movement).
             $stockBatchDeltas = [];
+            $failed = [];
 
             foreach ($changes as $change) {
                 $modelClass = $this->getModelForTable($change['table_name']);
@@ -135,6 +142,18 @@ class SyncController extends Controller
                     Log::warning("Sync push ignored unknown table: " . $change['table_name']);
                     continue;
                 }
+
+                // Each change gets its own SAVEPOINT (Laravel nests
+                // automatically inside the outer transaction) so one bad row
+                // — a legacy schema mismatch, a dangling FK from an earlier
+                // partial sync, anything data-quality-related rather than a
+                // real conflict — only loses its own change instead of
+                // rolling back every other change sharing this batch. Before
+                // this, a single unresolvable row could permanently block an
+                // entire device's backlog, since every retry hit the exact
+                // same row again in the same position.
+                DB::beginTransaction();
+                try {
 
                 $payload = is_array($change['payload']) ? $change['payload'] : json_decode($change['payload'], true);
                 
@@ -229,7 +248,12 @@ class SyncController extends Controller
                 }
 
                 // Inject store_id if missing and table supports it
-                $tablesWithStoreId = ['requested_products', 'payment_accounts'];
+                $tablesWithStoreId = [
+                    'requested_products', 'payment_accounts',
+                    'products', 'sales', 'customers', 'categories', 'suppliers',
+                    'expenses', 'purchase_orders', 'prescriptions', 'returns',
+                    'stock_movements', 'supplier_payments',
+                ];
                 if (in_array($change['table_name'], $tablesWithStoreId) && $currentStoreId) {
                     if (empty($payload['store_id'])) {
                         $payload['store_id'] = $currentStoreId;
@@ -255,8 +279,22 @@ class SyncController extends Controller
 
                 // Handle audit_logs specific mappings
                 if ($change['table_name'] === 'audit_logs') {
-                    if (empty($payload['user_id']) && $currentUser) {
-                        $payload['user_id'] = $currentUser->id;
+                    // The client always sends a user_id (whoever was locally
+                    // logged in when the action happened), but that id might
+                    // not exist server-side — a local-only/offline-created
+                    // account, or one since deleted. activity_logs.user_id
+                    // has an ON DELETE CASCADE foreign key, so an unknown id
+                    // isn't just wrong, it fails the insert entirely and (since
+                    // the whole push runs in one transaction) rolls back every
+                    // other change in the same batch along with it. Fall back
+                    // to the authenticated user making this sync request
+                    // whenever the client's id doesn't actually exist, not
+                    // only when it's missing.
+                    if (
+                        empty($payload['user_id']) ||
+                        !User::where('id', $payload['user_id'])->exists()
+                    ) {
+                        $payload['user_id'] = $currentUser->id ?? null;
                     }
                     $payload['description'] = "Action: " . ($payload['action'] ?? 'Unknown') . " on " . ($payload['table_name'] ?? 'unknown');
                     $payload['properties'] = [
@@ -524,6 +562,17 @@ class SyncController extends Controller
                 }
 
                 $processed++;
+                DB::commit();
+                } catch (\Exception $e) {
+                    DB::rollBack();
+                    Log::warning("Sync push: skipped {$change['table_name']} " . ($change['record_id'] ?? '?') . " — " . $e->getMessage());
+                    $failed[] = [
+                        'id' => $change['id'] ?? null,
+                        'table_name' => $change['table_name'],
+                        'record_id' => $change['record_id'] ?? null,
+                        'reason' => $e->getMessage(),
+                    ];
+                }
             }
 
             // Apply every accumulated stock_movements delta in one atomic pass,
@@ -575,7 +624,7 @@ class SyncController extends Controller
             }
 
             DB::commit();
-            return response()->json(['success' => true, 'processed' => $processed]);
+            return response()->json(['success' => true, 'processed' => $processed, 'failed' => $failed]);
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -662,22 +711,46 @@ class SyncController extends Controller
 
                 match ($table) {
                     'users' => $query->whereIn('id', $userIds),
-                    'stores' => $query->whereIn('id', $storeIds)->with(['user.subscriptions']),
-                    'sales' => $query->whereIn('cashier_id', $userIds),
-                    'sale_items' => $query->whereIn('sale_id', Sale::whereIn('cashier_id', $userIds)->pluck('id')),
-                    'returns' => $query->whereIn('user_id', $userIds),
-                    'return_items' => $query->whereIn('return_id', \App\Models\SaleReturn::whereIn('user_id', $userIds)->pluck('id')),
-                    'prescriptions' => $query->whereIn('customer_id', Customer::where('user_id', $ownerId)->pluck('id')),
-                    'prescription_items' => $query->whereIn('prescription_id', \App\Models\Prescription::whereIn('customer_id', Customer::where('user_id', $ownerId)->pluck('id'))->pluck('id')),
-                    'purchase_orders' => $query->whereIn('ordered_by', $userIds),
-                    'purchase_order_items' => $query->whereIn('purchase_order_id', PurchaseOrder::whereIn('ordered_by', $userIds)->pluck('id')),
-                    'stock_movements' => $query->whereIn('performed_by', $userIds),
-                    'stock_batches' => $query->whereIn('product_id', Product::where('user_id', $ownerId)->pluck('id')),
-                    'supplier_payments' => $query->whereIn('supplier_id', Supplier::where('user_id', $ownerId)->pluck('id')),
+                    // Unlike every other table, 'stores' isn't scoped to the
+                    // X-Store-Id-narrowed $storeIds — it IS the "which stores
+                    // do I own" discovery list the store switcher is built
+                    // from, so narrowing it to whichever single store happens
+                    // to be active meant a newly created store (or any store
+                    // metadata change on a non-active store, e.g. a plan
+                    // granted by an admin) could never be pulled down at all.
+                    // Staff (fixed store_id) still only ever see their own
+                    // store, same as before.
+                    'stores' => $query->whereIn(
+                        'id',
+                        $user->store_id ? $storeIds : Store::where('user_id', $ownerId)->pluck('id')->toArray()
+                    )->with(['user.subscriptions']),
+                    // These 11 tables now carry a real store_id column (see
+                    // add_store_id_to_domain_tables migration) — scope directly
+                    // by store rather than by an owner/cashier user-id chain, so
+                    // a multi-store owner's stores actually stay separated
+                    // instead of merging under "anything this owner touched."
+                    'products' => $query->whereIn('store_id', $storeIds),
+                    'sales' => $query->whereIn('store_id', $storeIds),
+                    'customers' => $query->whereIn('store_id', $storeIds),
+                    'categories' => $query->whereIn('store_id', $storeIds),
+                    'suppliers' => $query->whereIn('store_id', $storeIds),
+                    'expenses' => $query->whereIn('store_id', $storeIds),
+                    'purchase_orders' => $query->whereIn('store_id', $storeIds),
+                    'prescriptions' => $query->whereIn('store_id', $storeIds),
+                    'returns' => $query->whereIn('store_id', $storeIds),
+                    'stock_movements' => $query->whereIn('store_id', $storeIds),
+                    'supplier_payments' => $query->whereIn('store_id', $storeIds),
+                    // Child tables still derive scoping through their now
+                    // correctly store-scoped parent — no store_id of their own.
+                    'sale_items' => $query->whereIn('sale_id', Sale::whereIn('store_id', $storeIds)->pluck('id')),
+                    'return_items' => $query->whereIn('return_id', \App\Models\SaleReturn::whereIn('store_id', $storeIds)->pluck('id')),
+                    'prescription_items' => $query->whereIn('prescription_id', \App\Models\Prescription::whereIn('store_id', $storeIds)->pluck('id')),
+                    'purchase_order_items' => $query->whereIn('purchase_order_id', PurchaseOrder::whereIn('store_id', $storeIds)->pluck('id')),
+                    'stock_batches' => $query->whereIn('product_id', Product::whereIn('store_id', $storeIds)->pluck('id')),
+                    'sale_item_batches' => $query->whereIn('sale_item_id', SaleItem::whereIn('sale_id', Sale::whereIn('store_id', $storeIds)->pluck('id'))->pluck('id')),
                     'requested_products' => $query->whereIn('store_id', $storeIds),
                     'loyalty_tiers' => $query->where('user_id', $ownerId),
                     'loyalty_redemption_options' => $query->where('user_id', $ownerId),
-                    'sale_item_batches' => $query->whereIn('sale_item_id', SaleItem::whereIn('sale_id', Sale::whereIn('cashier_id', $userIds)->pluck('id'))->pluck('id')),
                     default => $query->where('user_id', $ownerId),
                 };
             }

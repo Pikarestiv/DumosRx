@@ -1,18 +1,21 @@
 import { query, insert, update } from "@/lib/db/local-database";
+import { getActiveStoreId } from "@/lib/db/core";
 import { Customer, CustomerDbRow, CustomerTransactionRow } from "@/lib/types/customer";
 
 export async function getCustomers() {
-  return query<CustomerDbRow>(`
-    SELECT 
+  const storeId = getActiveStoreId();
+  return query<CustomerDbRow>(
+    `SELECT
       c.*,
       COALESCE(SUM(s.total_amount), 0) as total_spent,
       MAX(s.transaction_date) as last_visit
     FROM customers c
     LEFT JOIN sales s ON c.id = s.customer_id AND s._deleted = 0
-    WHERE c._deleted = 0
+    WHERE c._deleted = 0${storeId ? " AND c.store_id = ?" : ""}
     GROUP BY c.id
-    ORDER BY c.first_name ASC
-  `);
+    ORDER BY c.first_name ASC`,
+    storeId ? [storeId] : [],
+  );
 }
 
 /**
@@ -24,6 +27,7 @@ export async function getCustomers() {
  */
 export async function getCustomerTransactions(options: { sinceDays?: number } = {}) {
   const { sinceDays } = options;
+  const storeId = getActiveStoreId();
   const dateFilter = sinceDays
     ? `AND s.transaction_date >= datetime('now', '-${sinceDays} days')`
     : "";
@@ -41,14 +45,17 @@ export async function getCustomerTransactions(options: { sinceDays?: number } = 
       (SELECT GROUP_CONCAT(pr.name, '||') FROM sale_items si JOIN products pr ON si.product_id = pr.id WHERE si.sale_id = s.id AND (si._deleted = 0 OR si._deleted IS NULL)) as item_names
     FROM sales s
     JOIN customers c ON s.customer_id = c.id
-    WHERE s.customer_id IS NOT NULL AND (s._deleted = 0 OR s._deleted IS NULL) ${dateFilter}
+    WHERE s.customer_id IS NOT NULL AND (s._deleted = 0 OR s._deleted IS NULL) ${dateFilter}${storeId ? " AND s.store_id = ?" : ""}
     ORDER BY s.transaction_date DESC`,
+    storeId ? [storeId] : [],
   );
 }
 
 export async function getDebtors() {
+  const storeId = getActiveStoreId();
   return query<CustomerDbRow>(
-    "SELECT * FROM customers WHERE outstanding_balance > 0 AND _deleted = 0 ORDER BY outstanding_balance DESC"
+    `SELECT * FROM customers WHERE outstanding_balance > 0 AND _deleted = 0${storeId ? " AND store_id = ?" : ""} ORDER BY outstanding_balance DESC`,
+    storeId ? [storeId] : [],
   );
 }
 
@@ -132,8 +139,10 @@ export async function recordCustomerPayment(
 }
 
 export async function getAllCustomers(): Promise<Customer[]> {
+  const storeId = getActiveStoreId();
   const items = await query<CustomerDbRow>(
-    "SELECT * FROM customers WHERE _deleted = 0 ORDER BY first_name ASC"
+    `SELECT * FROM customers WHERE _deleted = 0${storeId ? " AND store_id = ?" : ""} ORDER BY first_name ASC`,
+    storeId ? [storeId] : [],
   );
 
   return items.map((c) => ({
@@ -150,6 +159,7 @@ export async function getCustomerRetentionMetrics() {
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
   const dateFilter = thirtyDaysAgo.toISOString();
+  const storeId = getActiveStoreId();
 
   const data = await query<{
     total_customers_purchased?: number;
@@ -164,11 +174,11 @@ export async function getCustomerRetentionMetrics() {
       SUM(total_spent) as total_revenue
     FROM (
       SELECT customer_id, COUNT(*) as cnt, SUM(total_amount) as total_spent
-      FROM sales 
-      WHERE transaction_date >= ? AND (_deleted = 0 OR _deleted IS NULL) AND customer_id IS NOT NULL 
+      FROM sales
+      WHERE transaction_date >= ? AND (_deleted = 0 OR _deleted IS NULL) AND customer_id IS NOT NULL${storeId ? " AND store_id = ?" : ""}
       GROUP BY customer_id
     )
-  `, [dateFilter]);
+  `, storeId ? [dateFilter, storeId] : [dateFilter]);
 
   if (!data || data.length === 0) return { retentionRate: 0, avgVisits: 0, avgTransactionValue: 0 };
 

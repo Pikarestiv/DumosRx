@@ -1,8 +1,11 @@
 "use client";
 
 import React, { createContext, useContext, ReactNode } from "react";
+import * as Sentry from "@sentry/nextjs";
 import { update, insert } from "@/lib/db/local-database";
+import { setActiveStoreId as setResolvedStoreId } from "@/lib/db/core";
 import { useQuery } from "@tanstack/react-query";
+import { queryClient } from "@/lib/query-client";
 import { getStoreById, getFirstStore, getAllStores } from "@/lib/db/queries/setup";
 import { useAuth } from "@/lib/context/auth-context";
 import { queryKeys } from "@/lib/query-keys";
@@ -112,15 +115,46 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // Otherwise, use activeStoreId if set, else fallback to LIMIT 1
   const targetId = user?.store_id || activeStoreId;
 
+  // Mirror this same precedence into the query layer's module-scope resolver
+  // (lib/db/core.ts) — plain async query functions have no React context, so
+  // this is how they learn which store to filter by. Must stay in lockstep
+  // with `targetId` above: a staff member's fixed store_id always wins.
+  React.useEffect(() => {
+    setResolvedStoreId(targetId);
+  }, [targetId]);
+
   const { data: storeProfile, isLoading: loading, refetch } = useQuery({
     ...queryKeys.stores.profile(targetId),
     queryFn: async () => {
       if (targetId) {
-        return getStoreById(targetId);
+        const profile = await getStoreById(targetId);
+        if (profile) return profile;
+
+        // The active/fixed store no longer exists locally — most likely
+        // pruned by the sync-engine's reconciliation step because the
+        // server no longer recognizes it (a stale local-only store, or one
+        // this account lost access to). For an owner/admin (no fixed
+        // store_id), fall back to whatever store IS still known rather than
+        // getting stuck showing nothing. A staff member's fixed store_id
+        // genuinely disappearing is a deeper problem worth surfacing, not
+        // papering over the same way.
+        if (!user?.store_id) {
+          if (typeof window !== "undefined") {
+            localStorage.removeItem("dumos_active_store_id");
+          }
+          setActiveStoreId(null);
+          return getFirstStore();
+        }
+        return null;
       }
       return getFirstStore();
     }
   });
+
+  React.useEffect(() => {
+    Sentry.setTag("store_id", storeProfile?.id);
+    Sentry.setTag("store_type", storeProfile?.store_type);
+  }, [storeProfile]);
 
   const { data: allStores } = useQuery({
     ...queryKeys.stores.all(user?.store_id),
@@ -150,6 +184,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (typeof window !== "undefined") {
       localStorage.setItem("dumos_active_store_id", storeId);
     }
+
+    // Every store-scoped query reads the active store from lib/db/core.ts's
+    // module-scope resolver at call time, not from its React Query key — so
+    // without this, screens would keep showing the previous store's cached
+    // results until something else happened to invalidate them. Broad
+    // invalidation (not a table-filtered one) because switching stores is a
+    // deliberate, infrequent action, not a hot path — correctness here is
+    // worth more than avoiding a refetch.
+    queryClient.invalidateQueries();
+
+    // Pulls this store's data down if this device has never synced it
+    // before (X-Store-Id now points at the newly-selected store — see
+    // lib/api/client.ts). Best-effort: offline/unauthenticated devices still
+    // work from whatever's already local.
+    import("@/lib/db/sync-engine").then(({ sync }) => sync()).catch(() => {});
   };
   const storeType = storeProfile?.store_type || "pharmacy";
   const theme = storeProfile?.theme || "default";

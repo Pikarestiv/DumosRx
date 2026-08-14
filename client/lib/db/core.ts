@@ -33,6 +33,22 @@ export function setCurrentUser(
   currentUser = user;
 }
 
+// The store every domain query should be scoped to. Set from
+// store-context.tsx's effect mirroring `user?.store_id || activeStoreId` —
+// a staff member's fixed store_id always wins over any switcher state, same
+// precedence the UI already uses. Module-scope (not threaded as a function
+// param) because the query layer is plain async functions with no React
+// context available, called from ~40+ hook sites across the app.
+let activeStoreId: string | null = null;
+
+export function setActiveStoreId(id: string | null) {
+  activeStoreId = id;
+}
+
+export function getActiveStoreId(): string | null {
+  return activeStoreId;
+}
+
 /** Test-only: injects a bare database instance directly, bypassing
  * initDatabase()'s IndexedDB persistence and schema-migration machinery, so
  * unit tests can exercise query()/execute()/transaction() against a real
@@ -59,6 +75,35 @@ export function generateId(): string {
   });
 }
 
+// Tables that just gained a `store_id` column (see syncColumns below) and
+// need every pre-existing local row backfilled to the device's one
+// pre-migration store — today's local DB is single-store-per-device by
+// construction, so there's exactly one store to backfill to.
+export const STORE_SCOPED_TABLES = [
+  "products",
+  "stock_batches",
+  "categories",
+  "customers",
+  "suppliers",
+  "sales",
+  "sale_items",
+  "sale_item_batches",
+  "prescriptions",
+  "prescription_items",
+  "expenses",
+  "returns",
+  "return_items",
+  "purchase_orders",
+  "purchase_order_items",
+  "stock_audits",
+  "held_transactions",
+  "loyalty_transactions",
+  "customer_payments",
+  "stock_movements",
+  "requested_products",
+  "supplier_payments",
+];
+
 export async function initDatabase(): Promise<any> {
   if (db) return db;
 
@@ -72,6 +117,7 @@ export async function initDatabase(): Promise<any> {
         "_synced_at TEXT",
         "_deleted INTEGER DEFAULT 0",
         "is_active INTEGER DEFAULT 1",
+        "store_id TEXT",
       ],
     },
     {
@@ -90,6 +136,7 @@ export async function initDatabase(): Promise<any> {
         "expiry_date TEXT",
         "received_date TEXT",
         "notes TEXT",
+        "store_id TEXT",
       ],
     },
     {
@@ -101,6 +148,7 @@ export async function initDatabase(): Promise<any> {
         "_deleted INTEGER DEFAULT 0",
         "is_active INTEGER DEFAULT 1",
         "parent_id TEXT",
+        "store_id TEXT",
       ],
     },
     {
@@ -110,6 +158,7 @@ export async function initDatabase(): Promise<any> {
         "_synced INTEGER DEFAULT 0",
         "_synced_at TEXT",
         "_deleted INTEGER DEFAULT 0",
+        "store_id TEXT",
       ],
     },
     {
@@ -128,6 +177,7 @@ export async function initDatabase(): Promise<any> {
         "rating REAL DEFAULT 0",
         "is_active INTEGER DEFAULT 1",
         "deleted_at TEXT",
+        "store_id TEXT",
       ],
     },
     {
@@ -148,6 +198,7 @@ export async function initDatabase(): Promise<any> {
         "cashier_id TEXT",
         "payment_details TEXT",
         "prescription_id TEXT",
+        "store_id TEXT",
       ],
     },
     {
@@ -157,7 +208,12 @@ export async function initDatabase(): Promise<any> {
         "_synced INTEGER DEFAULT 0",
         "_synced_at TEXT",
         "_deleted INTEGER DEFAULT 0",
+        "store_id TEXT",
       ],
+    },
+    {
+      table: "sale_item_batches",
+      columns: ["store_id TEXT"],
     },
     {
       table: "prescriptions",
@@ -168,6 +224,7 @@ export async function initDatabase(): Promise<any> {
         "_deleted INTEGER DEFAULT 0",
         "user_id TEXT",
         "dispensed_at TEXT",
+        "store_id TEXT",
       ],
     },
     {
@@ -187,6 +244,7 @@ export async function initDatabase(): Promise<any> {
         "quantity INTEGER DEFAULT 0",
         "instructions TEXT",
         "cost REAL DEFAULT 0",
+        "store_id TEXT",
       ],
     },
     {
@@ -197,6 +255,7 @@ export async function initDatabase(): Promise<any> {
         "_synced_at TEXT",
         "_deleted INTEGER DEFAULT 0",
         "user_id TEXT",
+        "store_id TEXT",
       ],
     },
     {
@@ -227,7 +286,12 @@ export async function initDatabase(): Promise<any> {
         "_synced INTEGER DEFAULT 0",
         "_synced_at TEXT",
         "_deleted INTEGER DEFAULT 0",
+        "store_id TEXT",
       ],
+    },
+    {
+      table: "return_items",
+      columns: ["store_id TEXT"],
     },
     {
       table: "purchase_orders",
@@ -243,6 +307,7 @@ export async function initDatabase(): Promise<any> {
         "payment_status TEXT DEFAULT 'unpaid'",
         "amount_paid REAL DEFAULT 0",
         "due_date TEXT",
+        "store_id TEXT",
       ],
     },
     {
@@ -252,6 +317,7 @@ export async function initDatabase(): Promise<any> {
         "_synced INTEGER DEFAULT 0",
         "_synced_at TEXT",
         "_deleted INTEGER DEFAULT 0",
+        "store_id TEXT",
       ],
     },
     {
@@ -282,6 +348,7 @@ export async function initDatabase(): Promise<any> {
         "expected_selling_price REAL",
         "actual_selling_price REAL",
         "selling_price_difference REAL",
+        "store_id TEXT",
       ],
     },
     {
@@ -291,6 +358,7 @@ export async function initDatabase(): Promise<any> {
         "_synced INTEGER DEFAULT 0",
         "_synced_at TEXT",
         "_deleted INTEGER DEFAULT 0",
+        "store_id TEXT",
       ],
     },
     {
@@ -300,7 +368,12 @@ export async function initDatabase(): Promise<any> {
         "_synced INTEGER DEFAULT 0",
         "_synced_at TEXT",
         "_deleted INTEGER DEFAULT 0",
+        "store_id TEXT",
       ],
+    },
+    {
+      table: "customer_payments",
+      columns: ["store_id TEXT"],
     },
     {
       table: "stores",
@@ -347,6 +420,7 @@ export async function initDatabase(): Promise<any> {
         "_synced_at TEXT",
         "_deleted INTEGER DEFAULT 0",
         "stock_batch_id TEXT",
+        "store_id TEXT",
       ],
     },
     { table: "payment_accounts", columns: ["user_id TEXT", "store_id TEXT"] },
@@ -359,6 +433,7 @@ export async function initDatabase(): Promise<any> {
         "_deleted INTEGER DEFAULT 0",
         "quantity INTEGER DEFAULT 1",
         "notes TEXT",
+        "store_id TEXT",
       ],
     },
     {
@@ -368,6 +443,7 @@ export async function initDatabase(): Promise<any> {
         "_synced INTEGER DEFAULT 0",
         "_synced_at TEXT",
         "_deleted INTEGER DEFAULT 0",
+        "store_id TEXT",
       ],
     },
     { table: "_sync_queue", columns: ["next_retry_at TEXT"] },
@@ -525,6 +601,23 @@ export async function initDatabase(): Promise<any> {
             // Column likely already exists; ignore
           }
         }
+      }
+
+      // Backfill store_id on every pre-existing row of newly store-scoped
+      // tables to this device's one pre-migration store. WHERE store_id IS
+      // NULL makes this naturally idempotent on subsequent launches.
+      try {
+        for (const table of STORE_SCOPED_TABLES) {
+          try {
+            await db.execute(
+              `UPDATE ${table} SET store_id = (SELECT id FROM stores LIMIT 1) WHERE store_id IS NULL`,
+            );
+          } catch (_e) {
+            // Table may not exist yet on a fresh install; ignore
+          }
+        }
+      } catch (e) {
+        console.error("Failed to backfill store_id on legacy rows", e);
       }
 
       // Rebuild users table to scope the username uniqueness constraint to store_id
@@ -772,6 +865,23 @@ export async function initDatabase(): Promise<any> {
           // Column likely already exists; ignore
         }
       }
+    }
+
+    // Backfill store_id on every pre-existing row of newly store-scoped
+    // tables to this device's one pre-migration store. WHERE store_id IS
+    // NULL makes this naturally idempotent on subsequent launches.
+    try {
+      for (const table of STORE_SCOPED_TABLES) {
+        try {
+          db.run(
+            `UPDATE ${table} SET store_id = (SELECT id FROM stores LIMIT 1) WHERE store_id IS NULL`,
+          );
+        } catch (_e) {
+          // Table may not exist yet on a fresh install; ignore
+        }
+      }
+    } catch (e) {
+      console.error("Failed to backfill store_id on legacy rows", e);
     }
 
     // Rebuild users table to scope the username uniqueness constraint to store_id

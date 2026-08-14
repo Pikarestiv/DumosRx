@@ -25,6 +25,7 @@ interface SidebarProps {
   setActiveTab: (tab: string) => void;
   user: DashboardUser | null;
   isLoading?: boolean;
+  isError?: boolean;
   onLogout: () => void;
 }
 
@@ -33,6 +34,7 @@ export function Sidebar({
   setActiveTab,
   user,
   isLoading,
+  isError,
   onLogout,
 }: SidebarProps) {
   const sidebarItems = [
@@ -108,7 +110,8 @@ export function Sidebar({
 
       <UserProfileButton
         user={user}
-        isLoading={isLoading || !user || !user.name || user.name === "User" || user.name.trim() === ""}
+        isLoading={!!isLoading}
+        isError={!!isError}
         onLogout={onLogout}
       />
     </>

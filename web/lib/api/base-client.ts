@@ -169,7 +169,19 @@ apiClient.interceptors.response.use(
         );
       }
     }
-    
+
+    // Rewrite the message actually surfaced to UI code (login form, toasts,
+    // etc.) once logging/telemetry above has already captured the real
+    // technical detail — axios's own "Network Error"/"timeout of Xms
+    // exceeded" wording is accurate but meaningless to a non-technical user,
+    // and doesn't tell them what to actually do about it.
+    if (!error.response && !serverMessage) {
+      error.message =
+        typeof navigator !== "undefined" && navigator.onLine === false
+          ? "You appear to be offline. Check your internet connection and try again."
+          : "Unable to reach the server. Please check your connection and try again.";
+    }
+
     if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url.includes('/login') && !originalRequest.url.includes('/refresh')) {
       originalRequest._retry = true;
       

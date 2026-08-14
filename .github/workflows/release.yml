@@ -77,6 +77,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          NEXT_PUBLIC_SENTRY_DSN: https://8be353a77abf446cb9f6a52e08fb89b3@o4511910923796480.ingest.us.sentry.io/4511910931464192
+          NEXT_PUBLIC_SENTRY_ENVIRONMENT: production
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
         with:
           projectPath: client
           tagName: ${{ github.ref_name }}

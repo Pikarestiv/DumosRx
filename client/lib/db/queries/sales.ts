@@ -187,7 +187,7 @@ export async function getRecentSales(userId?: string) {
 
 export async function getRecentlySoldProductIds() {
   const data = await query<{ product_id: string }>(
-    "SELECT DISTINCT product_id FROM sale_items ORDER BY created_at DESC LIMIT 8"
+    "SELECT DISTINCT product_id FROM sale_items ORDER BY created_at DESC LIMIT 5"
   );
   return data.map((d) => d.product_id);
 }

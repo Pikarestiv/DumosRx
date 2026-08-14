@@ -35,11 +35,15 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [step, setStep] = useState<AuditStep>("ledger");
-  const [selectedCategory, setSelectedCategory] = useState<string>(ALL_CATEGORIES);
+  const [selectedCategory, setSelectedCategory] =
+    useState<string>(ALL_CATEGORIES);
   const [search, setSearch] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [submittedSummary, setSubmittedSummary] = useState<{ counted: number; adjusted: number } | null>(null);
+  const [submittedSummary, setSubmittedSummary] = useState<{
+    counted: number;
+    adjusted: number;
+  } | null>(null);
 
   // Data fetching
   const { data: rawProducts, isLoading } = useQuery({
@@ -58,7 +62,9 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
       setIsSyncing(true);
       try {
         await sync(true);
-        queryClient.invalidateQueries({ queryKey: queryKeys.products.withDetails().queryKey });
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.products.withDetails().queryKey,
+        });
       } catch (error) {
         console.error("Pre-audit sync failed:", error);
         toast.warning(
@@ -79,18 +85,20 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
   // already in progress.
   useEffect(() => {
     if (rawProducts && items.length === 0) {
-      const formatted: AuditItem[] = rawProducts.map((p: ProductWithDetails) => ({
-        id: p.id,
-        name: p.name,
-        sku: p.barcode || `SKU-${p.id.substring(0, 6)}`,
-        category: p.category_name || "Uncategorized",
-        systemQty: p.stock_quantity || 0,
-        costPrice: p.cost_price ?? undefined,
-        sellingPrice: p.selling_price ?? undefined,
-        countedQty: p.stock_quantity || 0,
-        countedCostPrice: p.cost_price ?? undefined,
-        countedSellingPrice: p.selling_price ?? undefined,
-      }));
+      const formatted: AuditItem[] = rawProducts.map(
+        (p: ProductWithDetails) => ({
+          id: p.id,
+          name: p.name,
+          sku: p.barcode || `SKU-${p.id.substring(0, 6)}`,
+          category: p.category_name || "Uncategorized",
+          systemQty: p.stock_quantity || 0,
+          costPrice: p.cost_price ?? undefined,
+          sellingPrice: p.selling_price ?? undefined,
+          countedQty: p.stock_quantity || 0,
+          countedCostPrice: p.cost_price ?? undefined,
+          countedSellingPrice: p.selling_price ?? undefined,
+        }),
+      );
       setItems(formatted);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -118,14 +126,14 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
   const adjustedItems = countedItems.filter(
     (i) =>
       i.countedQty !== i.systemQty ||
-      (i.countedCostPrice !== undefined && i.countedCostPrice !== i.costPrice) ||
-      (i.countedSellingPrice !== undefined && i.countedSellingPrice !== i.sellingPrice),
+      (i.countedCostPrice !== undefined &&
+        i.countedCostPrice !== i.costPrice) ||
+      (i.countedSellingPrice !== undefined &&
+        i.countedSellingPrice !== i.sellingPrice),
   );
 
   const updateLedgerItem = (id: string, patch: Partial<AuditItem>) => {
-    setItems((prev) =>
-      prev.map((i) => (i.id === id ? { ...i, ...patch } : i)),
-    );
+    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, ...patch } : i)));
   };
 
   const submitAudit = async () => {
@@ -144,9 +152,16 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
         })),
         user?.id || null,
       );
-      setSubmittedSummary({ counted: countedItems.length, adjusted: adjustedItems.length });
-      queryClient.invalidateQueries({ queryKey: queryKeys.products.withDetails().queryKey });
-      queryClient.invalidateQueries({ queryKey: queryKeys.stockAudits.all().queryKey });
+      setSubmittedSummary({
+        counted: countedItems.length,
+        adjusted: adjustedItems.length,
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.products.withDetails().queryKey,
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.stockAudits.all().queryKey,
+      });
       setStep("done");
     } catch (error) {
       console.error("Failed to submit stock audit:", error);
@@ -191,13 +206,17 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
       </div>
 
       <div
-        className="flex-1 overflow-y-auto p-4 md:p-8 flex justify-center"
+        className="flex-1 overflow-y-auto p-4 md:p-8 md:pt-4 flex justify-center"
         style={{
           paddingBottom:
             "calc(var(--tauri-bottom, env(safe-area-inset-bottom, 0px)) + 1rem)",
         }}
       >
-        <div className={step === "ledger" ? "w-full max-w-[1280px]" : "w-full max-w-[560px]"}>
+        <div
+          className={
+            step === "ledger" ? "w-full max-w-[1280px]" : "w-full max-w-[560px]"
+          }
+        >
           {/* LEDGER */}
           {step === "ledger" && (
             <AuditLedgerStep
@@ -232,8 +251,8 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
                 Audit submitted
               </div>
               <div className="text-[13px] text-muted-foreground mb-6">
-                {submittedSummary?.counted ?? countedItems.length} items counted ·{" "}
-                {submittedSummary?.adjusted ?? adjustedItems.length} adjusted
+                {submittedSummary?.counted ?? countedItems.length} items counted
+                · {submittedSummary?.adjusted ?? adjustedItems.length} adjusted
               </div>
             </div>
           )}
@@ -242,7 +261,11 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
 
       {/* FIXED FOOTER */}
       <div className="border-t border-border bg-background p-4 md:px-8 md:py-5 flex justify-center shrink-0">
-        <div className={step === "ledger" ? "w-full max-w-[1280px]" : "w-full max-w-[560px]"}>
+        <div
+          className={
+            step === "ledger" ? "w-full max-w-[1280px]" : "w-full max-w-[560px]"
+          }
+        >
           {step === "ledger" && (
             <button
               className="w-full bg-primary text-white border-0 py-3.5 rounded-xl text-[14px] font-bold cursor-pointer hover:bg-primary/90 transition-colors"

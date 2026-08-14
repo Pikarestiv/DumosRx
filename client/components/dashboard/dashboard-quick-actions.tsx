@@ -4,17 +4,15 @@ import Link from "next/link";
 import {
   ShoppingCart,
   ClipboardCheck,
-  FileBarChart,
   BarChart3,
   Barcode,
   PackagePlus,
+  AlertTriangle,
   LucideIcon,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useState } from "react";
-import { PandLReportDialog } from "./p-and-l-report-dialog";
 
-const getQuickActionsConfig = (setIsReportOpen: (val: boolean) => void) => [
+const quickActionsConfig = [
   {
     label: "New Sale",
     icon: ShoppingCart,
@@ -41,9 +39,9 @@ const getQuickActionsConfig = (setIsReportOpen: (val: boolean) => void) => [
     href: "/reports",
   },
   {
-    label: "Generate P&L",
-    icon: FileBarChart,
-    onClick: () => setIsReportOpen(true),
+    label: "Reorder Stock",
+    icon: AlertTriangle,
+    href: "/procurement",
   },
 ];
 
@@ -85,8 +83,6 @@ function QuickActionCard({ action }: { action: QuickAction }) {
 }
 
 export function DashboardQuickActions() {
-  const [isReportOpen, setIsReportOpen] = useState(false);
-
   return (
     <Card className="h-full p-0 sm:p-5 gap-1 sm:gap-5 flex flex-col border-none shadow-none bg-transparent sm:border-solid sm:border-border sm:shadow-sm sm:bg-card ">
       <CardHeader className="p-0">
@@ -96,15 +92,10 @@ export function DashboardQuickActions() {
       </CardHeader>
       <CardContent className="p-0 px-2.5 sm:px-0">
         <div className="flex overflow-x-auto sm:grid sm:grid-cols-2 gap-1 sm:gap-4 pb-0 hide-scrollbar snap-x snap-mandatory -mx-4 sm:mx-0 px-4 sm:px-0">
-          {getQuickActionsConfig(setIsReportOpen).map((action, i) => (
+          {quickActionsConfig.map((action, i) => (
             <QuickActionCard key={i} action={action} />
           ))}
         </div>
-
-        <PandLReportDialog
-          isOpen={isReportOpen}
-          onClose={() => setIsReportOpen(false)}
-        />
       </CardContent>
     </Card>
   );

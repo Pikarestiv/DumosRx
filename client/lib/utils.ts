@@ -3,6 +3,7 @@
  */
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
+import { formatDateLong } from "@/lib/utils/date-utils"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -24,13 +25,7 @@ export function formatDateTime(dateStr: string | Date | undefined | null): strin
   try {
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return String(dateStr);
-    return new Intl.DateTimeFormat("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit"
-    }).format(d);
+    return formatDateLong(d, { withTime: true }) || String(dateStr);
   } catch (_e) {
     return String(dateStr);
   }

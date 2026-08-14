@@ -37,7 +37,10 @@ export function usePrescriptionManagement() {
   const queue = usePrescriptionQueue();
 
   const handleEdit = (prescription: Prescription) => {
-    // Navigate to edit form, could just show new prescription with ID
+    // Navigate to edit form, could just show new prescription with ID.
+    // Close the detail side panel first — otherwise it stays open on top of
+    // (and blocks interaction with) the full-screen edit overlay underneath.
+    queue.setSelectedPrescription(null);
     router.push(`/prescriptions?action=add&edit_rx=${prescription.id}`);
   };
 

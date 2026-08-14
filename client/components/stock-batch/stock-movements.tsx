@@ -162,7 +162,8 @@ export function StockMovements() {
         />
         {!hasFullHistory && (
           <p className="text-[11.5px] text-muted-foreground/70 px-0.5">
-            Showing last {RECENT_ACTIVITY_WINDOW_DAYS} days — search to look further back.
+            Showing last {RECENT_ACTIVITY_WINDOW_DAYS} days. Search to look
+            further back.
           </p>
         )}
       </div>
@@ -193,7 +194,8 @@ export function StockMovements() {
           />
           {!hasFullHistory && (
             <p className="text-[11.5px] text-muted-foreground/70 mt-2">
-              Showing last {RECENT_ACTIVITY_WINDOW_DAYS} days — search to look further back.
+              Showing last {RECENT_ACTIVITY_WINDOW_DAYS} days. Search to look
+              further back.
             </p>
           )}
         </div>

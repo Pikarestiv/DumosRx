@@ -131,7 +131,7 @@ export function ActivityTab({
 
   const RecentWindowNote = !hasFullHistory && (
     <p className="text-[11.5px] text-muted-foreground/70">
-      Showing last {RECENT_ACTIVITY_WINDOW_DAYS} days — search or select a
+      Showing last {RECENT_ACTIVITY_WINDOW_DAYS} days. Search or select a
       customer to look further back.
     </p>
   );
@@ -237,16 +237,25 @@ export function ActivityTab({
                       transform: `translateY(${virtualRow.start}px)`,
                     }}
                   >
-                    <div role="cell" className="w-[130px] font-medium text-[12px] truncate">
+                    <div
+                      role="cell"
+                      className="w-[130px] font-medium text-[12px] truncate"
+                    >
                       {txn.transactionNumber}
                     </div>
                     <div role="cell" className="flex-1 text-[13px] truncate">
                       {txn.customerName}
                     </div>
-                    <div role="cell" className="w-[110px] text-[13px] font-medium">
+                    <div
+                      role="cell"
+                      className="w-[110px] text-[13px] font-medium"
+                    >
                       {formatCurrency(txn.amount, currencyCode)}
                     </div>
-                    <div role="cell" className="w-[90px] text-[13px] text-amber-600">
+                    <div
+                      role="cell"
+                      className="w-[90px] text-[13px] text-amber-600"
+                    >
                       {txn.pointsEarned > 0 ? (
                         <span className="inline-flex items-center gap-1">
                           <Star className="w-3.5 h-3.5 fill-amber-600" />
@@ -256,10 +265,16 @@ export function ActivityTab({
                         "-"
                       )}
                     </div>
-                    <div role="cell" className="w-[150px] text-[12px] text-muted-foreground">
+                    <div
+                      role="cell"
+                      className="w-[150px] text-[12px] text-muted-foreground"
+                    >
                       {formatDateTime(txn.date)}
                     </div>
-                    <div role="cell" className="w-[220px] text-[12.5px] truncate">
+                    <div
+                      role="cell"
+                      className="w-[220px] text-[12.5px] truncate"
+                    >
                       <ItemsCell txn={txn} />
                     </div>
                   </div>

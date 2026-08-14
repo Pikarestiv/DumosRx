@@ -25,6 +25,7 @@ interface StockItem {
   expiry_date?: string;
   status: "healthy" | "low" | "critical" | "overstock";
   barcode?: string;
+  base_unit?: string;
 }
 
 export function StockOverview() {

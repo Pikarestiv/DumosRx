@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Check, Trash2 } from "lucide-react";
 import type { RequestedProduct } from "@/lib/db/requested-products-queries";
+import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 
 interface RequestedProductMobileCardProps {
   req: RequestedProduct;
@@ -34,7 +35,7 @@ export function RequestedProductMobileCard({
           {req.request_count === 1 ? "request" : "requests"}
         </div>
         <div className="text-[11px] text-muted-foreground mt-0.5">
-          {new Date(req.created_at).toLocaleDateString()}
+          {formatDateToDDMMYYYY(req.created_at)}
         </div>
       </div>
       <div className="flex flex-col items-end gap-2 shrink-0">

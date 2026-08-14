@@ -34,7 +34,8 @@ export interface SupplierViewModel {
 }
 
 /** Row shape returned by getSuppliers() — the raw `suppliers` table joined
- * with each supplier's total outstanding debt across unpaid purchase orders. */
+ * with each supplier's total outstanding debt across unpaid purchase orders,
+ * plus its overall order count/value across all (non-deleted) purchase orders. */
 export interface SupplierDbRow {
   id: string;
   name: string;
@@ -48,4 +49,7 @@ export interface SupplierDbRow {
   is_active?: number | boolean;
   created_at?: string;
   total_debt?: number;
+  total_orders?: number;
+  total_value?: number;
+  last_order_date?: string;
 }

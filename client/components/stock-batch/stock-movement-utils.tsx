@@ -6,6 +6,7 @@ import {
   Shield,
   Undo2,
 } from "lucide-react";
+import { formatDateLong } from "@/lib/utils/date-utils";
 
 export interface StockMovement {
   id: string;
@@ -104,9 +105,5 @@ export const formatMovementDate = (dateString: string) => {
   if (d.toDateString() === today.toDateString()) {
     return "Today";
   }
-  return d.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  return formatDateLong(d);
 };

@@ -111,7 +111,7 @@ export function useLockShortcut() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key.toLowerCase() === "l" && (e.metaKey || e.ctrlKey)) {
+      if (e.key?.toLowerCase() === "l" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         lock();
       }

@@ -29,6 +29,12 @@ interface StockItem {
   reorder_level?: number;
   status: "healthy" | "low" | "critical" | "overstock";
   expiry_date?: string;
+  base_unit?: string;
+}
+
+function formatUnit(quantity: number, baseUnit?: string) {
+  const unit = baseUnit || "unit";
+  return quantity === 1 ? unit : `${unit}s`;
 }
 
 export function NeedsAttention({ stockData }: { stockData: StockItem[] }) {
@@ -67,7 +73,7 @@ export function NeedsAttention({ stockData }: { stockData: StockItem[] }) {
       type: "expiring",
       id: batch.id,
       product_name: batch.name,
-      description: `Batch ${batch.batch_number} · ${expiryText} · ${batch.stock_quantity} units`,
+      description: `Batch ${batch.batch_number} · ${expiryText} · ${batch.stock_quantity} ${formatUnit(batch.stock_quantity, batch.base_unit)}`,
       icon: <Calendar className="w-4 h-4" />,
       iconClass: "bg-destructive/10 text-destructive",
       actionText: "View batch",
@@ -87,7 +93,7 @@ export function NeedsAttention({ stockData }: { stockData: StockItem[] }) {
         description:
           item.quantity === 0
             ? `Out of stock · Missing out on sales`
-            : `${item.quantity} units left · Reorder at ${item.reorder_level}`,
+            : `${item.quantity} ${formatUnit(item.quantity, item.base_unit)} left · Reorder at ${item.reorder_level} ${formatUnit(item.reorder_level ?? 0, item.base_unit)}`,
         icon: isCritical ? (
           <AlertCircle className="w-4 h-4" />
         ) : (
@@ -105,9 +111,18 @@ export function NeedsAttention({ stockData }: { stockData: StockItem[] }) {
     }
   });
 
+  const shownCount = Math.min(items.length, 10);
+
   const header = (
     <div className="flex items-center justify-between">
-      <div className="text-[15px] font-semibold">Needs attention</div>
+      <div className="flex items-center gap-1.5">
+        <div className="text-[15px] font-semibold">Needs attention</div>
+        {items.length > 10 && (
+          <div className="text-[12.5px] text-muted-foreground">
+            ({shownCount} of {items.length})
+          </div>
+        )}
+      </div>
       <div
         className="text-[12.5px] text-primary font-semibold cursor-pointer hover:underline"
         onClick={() => router.push("/inventory/products")}

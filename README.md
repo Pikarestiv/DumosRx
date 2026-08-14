@@ -1,188 +1,143 @@
-# DumosRx - retail management system
+# DumosRx
 
-*A comprehensive store management solution for Nigerian retail stores*
+*Offline-first retail & pharmacy management for Nigerian stores*
 
-[![Built with Next.js](https://img.shields.io/badge/Built%20with-Next.js-black?style=for-the-badge&logo=next.js)](https://nextjs.org)
-[![Powered by Laravel](https://img.shields.io/badge/Powered%20by-Laravel-FF2D20?style=for-the-badge&logo=laravel)](https://laravel.com)
-[![Database](https://img.shields.io/badge/Database-MySQL-4479A1?style=for-the-badge&logo=mysql)](https://mysql.com)
+[![Next.js](https://img.shields.io/badge/Next.js-black?style=for-the-badge&logo=next.js)](https://nextjs.org)
+[![Laravel](https://img.shields.io/badge/Laravel_11-FF2D20?style=for-the-badge&logo=laravel)](https://laravel.com)
+[![Tauri](https://img.shields.io/badge/Tauri_2-24C8DB?style=for-the-badge&logo=tauri)](https://tauri.app)
+[![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&logo=mysql)](https://mysql.com)
 
-## 🏥 Overview
+## Overview
 
-DumosRx is a modern, comprehensive retail management system specifically designed for Nigerian retail stores. It provides a robust solution that handles medicine inventory, sales transactions, prescription management, and business analytics, tailored for the local market.
+DumosRx is a retail and pharmacy management system for Nigerian stores, covering inventory, point-of-sale, prescriptions, procurement, and multi-store business analytics — with NAFDAC-aware medicine data, Naira formatting, and 7.5% VAT built in.
 
-> [!TIP]
-> **For AI Assistants & Developers**: See [PROJECT_KNOWLEDGE.md](PROJECT_KNOWLEDGE.md) for a deep dive into the project's architecture, sync engine, and design philosophy.
+The defining architectural choice is that the store-floor app (`client/`) is **offline-first**: it runs against a local SQLite database and keeps working with no internet connection, syncing to the cloud in the background whenever one's available. It ships as a native desktop/mobile app via Tauri, and — from the exact same codebase — as a static web build.
 
-### 🎯 Key Features
+## Applications
 
-- **🔐 Role-Based Authentication** - Super Admin, Manager, Retailer, Sales Staff, Auditor roles
-- **💊 Medicine Database** - Management of Nigerian medicines with NAFDAC compliance support
-- **📦 Inventory Management** - Real-time stock tracking, batch management, expiry alerts
-- **🛒 Point of Sale (POS)** - Complete transaction processing with Nigerian payment methods and split-payment support
-- **📋 Prescription Management** - Digital prescription handling and dispensing tracking
-- **👥 Customer & Loyalty** - Customer profiles, loyalty points, membership tiers
-- **📊 Business Intelligence** - Comprehensive analytics and reporting dashboards
-- **🏢 Supplier Management** - Vendor relationships and purchase order tracking
-- **📱 PWA & Tauri Mobile** - Progressive Web App support for Android/iOS, and native Android packaging with GitHub Actions release flows
-- **💡 Smart Suggestions Engine** - Zero-latency, client-side clinical and commercial upsell recommendations at POS checkout
-
-### 🇳🇬 Nigerian-Specific Features
-
-- **NAFDAC Compliance** - Medicine registration and regulatory compliance
-- **Naira Currency** - Proper ₦ formatting and 7.5% VAT calculations
-- **Local Suppliers** - Nigerian pharmaceutical distributors and manufacturers
-- **Payment Integration** - Support for local payment methods (planned)
-
-## 🏗️ Architecture
-
-This repository contains two independently deployable applications:
+This is a monorepo with three independently deployable apps:
 
 ```
-dumosrx/
-├── client/                 # Next.js Frontend
-│   ├── app/               # Next.js App Router
-│   ├── components/        # Shadcn/ui React Components
-│   ├── lib/              # Client utilities & API client
-│   ├── hooks/            # Custom React hooks
-│   ├── public/           # Static assets
-│   ├── package.json      # Frontend dependencies
-│   └── next.config.mjs   # Next.js configuration
-├── laravel-server/         # Laravel Backend
-│   ├── app/              # Core Application Logic (Models, Controllers)
-│   ├── routes/           # API Routes
-│   ├── database/         # Migrations & Seeders
-│   ├── bootstrap/        # App Bootstrap & Middleware
-│   ├── tests/            # Feature & Unit Tests
-│   └── composer.json     # Backend dependencies
-└── .github/              # CI/CD Workflows
+DumosRx/
+├── client/            # Offline-first POS & inventory app (Next.js + Tauri)
+│   ├── app/            # Next.js App Router pages
+│   ├── components/     # UI components (shadcn/ui)
+│   ├── lib/db/          # Local SQLite layer + sync engine (push.ts/pull.ts)
+│   ├── src-tauri/       # Tauri native shell (desktop + Android/iOS)
+│   └── next.config.mjs  # output: "export" — static build, no server
+├── web/                # Account, subscription & admin dashboard (Next.js)
+└── laravel-server/     # API backend (Laravel)
+    ├── app/              # Models, controllers, services
+    ├── database/         # Migrations & seeders
+    └── routes/           # API routes
 ```
 
-## 🚀 Quick Start
+- **`client/`** — the actual point-of-sale/inventory app used in-store. A local SQLite database (via `sql.js` in the browser, the native Tauri SQL plugin in packaged builds) is the source of truth at runtime; a sync engine reconciles it against the backend whenever online. Ships three ways from one codebase: Tauri desktop app, Tauri Android/iOS, and a static web build deployed to `app.dumosrx.com`.
+- **`web/`** — the cloud-side dashboard for account owners: subscriptions, cross-store oversight, staff management. Deployed to `dumosrx.com`.
+- **`laravel-server/`** — the API every store's data syncs through: auth, multi-store/multi-tenant scoping, subscriptions, and sync push/pull endpoints. Deployed to `api.dumosrx.com`.
+
+## Quick Start
 
 ### Prerequisites
 
-- Node.js 18+ and npm 8+
-- PHP 8.2+ and Composer (for local backend)
+- Node.js 20+ and npm
+- PHP 8.2+ and Composer
 - MySQL 5.7+ or 8.0+
-- Git
+- Rust (only if building the Tauri desktop/mobile app — not needed for `next dev`)
 
-### 1. Clone Repository
+### 1. Clone & install
 
 ```bash
 git clone <repository-url>
-cd dumosrx
+cd DumosRx
 ```
 
-### 2. Setup Frontend (Client)
+### 2. Backend (`laravel-server/`)
+
+```bash
+cd laravel-server
+composer install
+cp .env.example .env
+php artisan key:generate
+```
+
+Set your local DB in `.env` (matches `.env.example`'s defaults):
+```env
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=dumosrx_db
+DB_USERNAME=root
+DB_PASSWORD=
+```
+
+```bash
+php artisan migrate --seed
+php artisan serve
+```
+Runs on `http://127.0.0.1:8000`.
+
+### 3. Client (`client/`) — the POS app
 
 ```bash
 cd client
 npm install
 ```
 
-Create `.env.local` in the client folder (optional, defaults to remote API if not set, or local if configured):
+Create `client/.env.local` to point at your local backend:
 ```env
-NEXT_PUBLIC_API_URL=http://127.0.0.1:8000/api/v1
+NEXT_PUBLIC_API_URL_LOCAL_NODE=http://localhost:8000/api/v1
 ```
-
-### 3. Setup Backend (Laravel Server)
 
 ```bash
-cd ../laravel-server
-composer install
-cp .env.example .env
-php artisan key:generate
-```
-
-Configure your `.env` file with your local database credentials:
-```env
-DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_DATABASE=dumosrx
-DB_USERNAME=root
-DB_PASSWORD=
-```
-
-### 4. Database Setup
-
-Run the migrations and seeders:
-```bash
-php artisan migrate --seed
-```
-
-### 5. Run Applications
-
-**Start Backend (Terminal 1):**
-```bash
-cd laravel-server
-php artisan serve
-```
-Backend runs on: http://127.0.0.1:8000
-
-**Start Frontend (Terminal 2):**
-```bash
-cd client
 npm run dev
 ```
-Frontend runs on: http://localhost:3000
+Runs on `http://localhost:3000`. To build/run the native Tauri app instead: `npm run tauri dev`.
 
-## 🚀 Deployment
+### 4. Web dashboard (`web/`)
 
-### 1. Backend Deployment
-The backend is deployed to a shared hosting environment via FTP/Git.
-- **Push to Main**: Commits pushed to `main` branch trigger the deployment workflow.
-- **Environment**: The production `.env` is securely managed on the server.
-- **Migrations**: Access `/migrate-db?key=<secret>` to run pending migrations if shell access is restricted.
+```bash
+cd web
+npm install
+npm run dev
+```
 
-### 2. Frontend Deployment
-The frontend can be deployed to Vercel, Netlify, or any Node.js hosting.
-
-## 🔑 Default Login Credentials
-
-After running the database seeders, use these default credentials:
+### Default login (after seeding)
 
 ```
-Super Admin:
 Email: admin@dumosrx.com
-Password: password
+Password: Admin123#
 ```
 
-## 🛠️ Technology Stack
+## Deployment
 
-### Frontend (Client)
-- **Next.js 14** - React framework with App Router
-- **TypeScript** - Type-safe development
-- **Tailwind CSS** - Utility-first styling
-- **Shadcn/ui** - Reusable component library
-- **Lucide React** - Iconography
-- **Zustand** - State management
-- **TanStack Query** - Server state management
+All deployment is via GitHub Actions (`.github/workflows/`), FTP-syncing static builds:
 
-### Backend (Server)
-- **Laravel 11** - Modern PHP Framework
-- **MySQL** - Relational Database
-- **Sanctum** - API Token Authentication
-- **Eloquent ORM** - Active Record implementation
-- **Pest/PHPUnit** - Testing
+| App | Trigger | Target |
+|---|---|---|
+| `client/` (web build) | push to `main` | `app.dumosrx.com` |
+| `web/` | push to `main` | `dumosrx.com` |
+| `laravel-server/` | push to `main` | `api.dumosrx.com` |
+| `web/` + `laravel-server/` | push to `dev` | `dev.dumosrx.com` / `api.dev.dumosrx.com` |
+| `client/` (Tauri desktop/Android) | git tag `v*` | GitHub Releases + in-app updater |
 
-## � Documentation
+Branch convention: feature work merges into `dev`; a `dev → main` PR is raised when a batch is ready to release.
 
-- **[API Documentation](docs/API.md)** - (Coming Soon)
-- **[Database Schema](docs/DATABASE.md)** - (Coming Soon)
+## Tech Stack
 
-## 🤝 Contributing
+**`client/`** — Next.js 15 (static export), TypeScript, Tailwind CSS, shadcn/ui, Zustand, TanStack Query, Tauri 2 (Rust), sql.js / `@tauri-apps/plugin-sql`, Sentry.
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+**`web/`** — Next.js 16, TypeScript, Tailwind CSS, shadcn/ui, TanStack Query.
 
-## 📄 License
+**`laravel-server/`** — Laravel 11, PHP 8.2, MySQL, Sanctum (API auth), Eloquent, PHPUnit/Pest.
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+## Contributing
 
----
+1. Branch off `dev` (not `main`)
+2. Commit your changes
+3. Push and open a PR against `dev`
+4. `dev → main` PRs are raised separately as a release batch
 
-**DumosRx** - Modernizing Nigerian store operations, one prescription at a time. 🇳🇬
+## License
+
+Proprietary — All rights reserved.

@@ -1,10 +1,11 @@
-import { LogOut } from "lucide-react";
+import { LogOut, AlertCircle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { DashboardUser } from "@/lib/types/dashboard";
 
 interface UserProfileButtonProps {
   user: DashboardUser | null;
   isLoading: boolean;
+  isError?: boolean;
   onLogout: () => void;
 }
 
@@ -28,13 +29,51 @@ function UserProfileSkeleton() {
   );
 }
 
+function UserProfileError({ onLogout }: { onLogout: () => void }) {
+  return (
+    <div className="p-4 border-t">
+      <div
+        id="tour-profile"
+        className="bg-destructive/10 rounded-2xl p-4 flex items-center gap-3"
+      >
+        <div className="h-10 w-10 rounded-full bg-destructive/15 flex items-center justify-center shrink-0">
+          <AlertCircle className="h-5 w-5 text-destructive" />
+        </div>
+        <div className="flex-1 overflow-hidden">
+          <p className="text-sm font-bold text-destructive truncate">
+            Couldn&apos;t load your profile
+          </p>
+          <p className="text-xs text-muted-foreground truncate">
+            Log in again to continue
+          </p>
+        </div>
+        <button
+          onClick={onLogout}
+          className="p-2 hover:bg-destructive/10 rounded-lg transition-colors group shrink-0"
+        >
+          <LogOut className="h-4 w-4 text-destructive" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function UserProfileButton({
   user,
   isLoading,
+  isError,
   onLogout,
 }: UserProfileButtonProps) {
   if (isLoading) {
     return <UserProfileSkeleton />;
+  }
+
+  // Distinct from the normal profile view — a failed fetch shouldn't be
+  // indistinguishable from "you're logged in as a generic account with no
+  // email" (the fallback data used to render as exactly that). Tell the
+  // user their session might be stale instead of guessing.
+  if (isError) {
+    return <UserProfileError onLogout={onLogout} />;
   }
 
   return (

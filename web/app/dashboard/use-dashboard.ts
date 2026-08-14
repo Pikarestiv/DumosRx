@@ -9,7 +9,7 @@ export function useDashboard() {
   const params = useParams();
   const viewParam = (params?.view as string) || "overview";
 
-  const { data, isLoading, refetch } = useDashboardSummary();
+  const { data, isLoading, isError, refetch } = useDashboardSummary();
   const { data: releaseData } = useLatestRelease();
   
   const [activeTab, setActiveTabState] = useState(viewParam);
@@ -47,6 +47,7 @@ export function useDashboard() {
     activeTab,
     setActiveTab,
     loading: isLoading,
+    loadError: isError,
     data,
     releaseLinks: releaseData || defaultReleaseLinks,
     logout,

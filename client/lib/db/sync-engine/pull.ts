@@ -196,6 +196,28 @@ export async function pullChanges(
           pulledCount++;
         }
 
+        // 'stores' is always a full, unfiltered snapshot of every store this
+        // account owns (see SyncController::pull, which deliberately exempts
+        // it from the last-synced cursor other tables use) — so, unlike
+        // every other table, a local store row NOT in this response isn't
+        // just "not updated yet," it's confirmed stale: created on this
+        // device before it was ever cloud-linked, or left over from a
+        // previously-linked account. Every other table only ever gets
+        // additive inserts/updates from pull with no equivalent reconcile
+        // step, since a partial/delta response there can't be safely
+        // treated as authoritative the way this always-full snapshot can.
+        if (table === "stores" && records.length > 0) {
+          const serverStoreIds = records.map((r) => r.id as string);
+          const placeholders = serverStoreIds.map(() => "?").join(", ");
+          const pruneSql = `UPDATE stores SET _deleted = 1 WHERE _deleted = 0 AND id NOT IN (${placeholders})`;
+
+          if (isTauri()) {
+            await execute(pruneSql, serverStoreIds);
+          } else if (rawDb) {
+            rawDb.run(pruneSql, serverStoreIds);
+          }
+        }
+
         if (!anySkipped) {
           const syncSql =
             "INSERT OR REPLACE INTO _sync_state (table_name, last_synced_at) VALUES (?, ?)";

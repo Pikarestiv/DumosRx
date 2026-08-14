@@ -30,17 +30,17 @@ export async function getTotalRecordCount() {
 }
 
 export async function getStoreById(id: string) {
-  const stores = await query<StoreProfile>("SELECT * FROM stores WHERE id = ?", [id]);
+  const stores = await query<StoreProfile>("SELECT * FROM stores WHERE id = ? AND (_deleted = 0 OR _deleted IS NULL)", [id]);
   return stores[0] || null;
 }
 
 export async function getFirstStore() {
-  const stores = await query<StoreProfile>("SELECT * FROM stores LIMIT 1");
+  const stores = await query<StoreProfile>("SELECT * FROM stores WHERE (_deleted = 0 OR _deleted IS NULL) LIMIT 1");
   return stores[0] || null;
 }
 
 export async function getAllStores() {
-  return query<StoreProfile>("SELECT * FROM stores");
+  return query<StoreProfile>("SELECT * FROM stores WHERE (_deleted = 0 OR _deleted IS NULL)");
 }
 
 export async function getPaymentAccounts(storeId?: string) {
@@ -72,7 +72,7 @@ export async function getLocalStores() {
 }
 
 export async function getStoreProfile() {
-  const profiles = await query<StoreProfile>("SELECT * FROM stores LIMIT 1");
+  const profiles = await query<StoreProfile>("SELECT * FROM stores WHERE (_deleted = 0 OR _deleted IS NULL) LIMIT 1");
   return profiles[0] || null;
 }
 

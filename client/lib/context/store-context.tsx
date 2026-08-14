@@ -116,7 +116,25 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     ...queryKeys.stores.profile(targetId),
     queryFn: async () => {
       if (targetId) {
-        return getStoreById(targetId);
+        const profile = await getStoreById(targetId);
+        if (profile) return profile;
+
+        // The active/fixed store no longer exists locally — most likely
+        // pruned by the sync-engine's reconciliation step because the
+        // server no longer recognizes it (a stale local-only store, or one
+        // this account lost access to). For an owner/admin (no fixed
+        // store_id), fall back to whatever store IS still known rather than
+        // getting stuck showing nothing. A staff member's fixed store_id
+        // genuinely disappearing is a deeper problem worth surfacing, not
+        // papering over the same way.
+        if (!user?.store_id) {
+          if (typeof window !== "undefined") {
+            localStorage.removeItem("dumos_active_store_id");
+          }
+          setActiveStoreId(null);
+          return getFirstStore();
+        }
+        return null;
       }
       return getFirstStore();
     }

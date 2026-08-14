@@ -1,4 +1,5 @@
 import { query } from "@/lib/db";
+import { getActiveStoreId } from "@/lib/db/core";
 import { getLocalTodayDate } from "@/lib/utils";
 import type { DashboardActivity } from "@/lib/types/dashboard-activity";
 import type { SaleWithDetails } from "@/lib/types/sale";
@@ -15,6 +16,7 @@ import type { PrescriptionRow } from "@/lib/types/prescription";
  * role, since cashiers need accurate shift/till totals for reconciliation. */
 export async function getDashboardOverviewData(viewerId?: string) {
   const today = getLocalTodayDate();
+  const storeId = getActiveStoreId();
 
   const salesToday = await query<{
     total: number;
@@ -30,8 +32,8 @@ export async function getDashboardOverviewData(viewerId?: string) {
       SUM(CASE WHEN payment_method = 'card' THEN total_amount ELSE 0 END) as card,
       SUM(CASE WHEN payment_method = 'credit' THEN total_amount ELSE 0 END) as debt
      FROM sales
-     WHERE date(transaction_date) = ? AND (_deleted = 0 OR _deleted IS NULL)`,
-    [today]
+     WHERE date(transaction_date) = ? AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}`,
+    storeId ? [today, storeId] : [today],
   );
 
   const refundsToday = await query<{
@@ -47,17 +49,17 @@ export async function getDashboardOverviewData(viewerId?: string) {
       SUM(CASE WHEN s.payment_method = 'credit' THEN r.total_refunded ELSE 0 END) as debt
      FROM returns r
      JOIN sales s ON r.sale_id = s.id
-     WHERE date(r.created_at) = ? AND (r._deleted = 0 OR r._deleted IS NULL)`,
-    [today]
+     WHERE date(r.created_at) = ? AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND r.store_id = ?" : ""}`,
+    storeId ? [today, storeId] : [today],
   );
 
   const recentSales = await query<SaleWithDetails>(
     `SELECT s.*, TRIM(u.first_name || ' ' || u.last_name) as cashier_name
      FROM sales s
      LEFT JOIN users u ON u.id = s.user_id
-     WHERE s._deleted = 0${viewerId ? " AND s.user_id = ?" : ""}
+     WHERE s._deleted = 0${viewerId ? " AND s.user_id = ?" : ""}${storeId ? " AND s.store_id = ?" : ""}
      ORDER BY s.created_at DESC LIMIT 5`,
-    viewerId ? [viewerId] : []
+    [...(viewerId ? [viewerId] : []), ...(storeId ? [storeId] : [])],
   );
 
   // Excludes movements already represented by their own richer feed entry
@@ -73,9 +75,9 @@ export async function getDashboardOverviewData(viewerId?: string) {
      LEFT JOIN users u ON u.id = sm.performed_by
      WHERE sm._deleted = 0
        AND (sm.reference_type IS NULL OR sm.reference_type NOT IN ('sale', 'purchase_order', 'return'))
-       ${viewerId ? " AND sm.performed_by = ?" : ""}
+       ${viewerId ? " AND sm.performed_by = ?" : ""}${storeId ? " AND sm.store_id = ?" : ""}
      ORDER BY sm.created_at DESC LIMIT 5`,
-    viewerId ? [viewerId] : []
+    [...(viewerId ? [viewerId] : []), ...(storeId ? [storeId] : [])],
   );
 
   const recentReturns = await query<{
@@ -89,36 +91,36 @@ export async function getDashboardOverviewData(viewerId?: string) {
     `SELECT r.*, s.transaction_number
      FROM returns r
      LEFT JOIN sales s ON s.id = r.sale_id
-     WHERE r._deleted = 0${viewerId ? " AND r.user_id = ?" : ""}
+     WHERE r._deleted = 0${viewerId ? " AND r.user_id = ?" : ""}${storeId ? " AND r.store_id = ?" : ""}
      ORDER BY r.created_at DESC LIMIT 5`,
-    viewerId ? [viewerId] : []
+    [...(viewerId ? [viewerId] : []), ...(storeId ? [storeId] : [])],
   );
 
   const recentPurchaseOrders = await query<PurchaseOrder>(
     `SELECT po.*, TRIM(u.first_name || ' ' || u.last_name) as ordered_by_name
      FROM purchase_orders po
      LEFT JOIN users u ON u.id = po.ordered_by
-     WHERE po._deleted = 0${viewerId ? " AND po.ordered_by = ?" : ""}
+     WHERE po._deleted = 0${viewerId ? " AND po.ordered_by = ?" : ""}${storeId ? " AND po.store_id = ?" : ""}
      ORDER BY po.created_at DESC LIMIT 5`,
-    viewerId ? [viewerId] : []
+    [...(viewerId ? [viewerId] : []), ...(storeId ? [storeId] : [])],
   );
 
   const recentExpenses = await query<Expense>(
     `SELECT e.*, TRIM(u.first_name || ' ' || u.last_name) as recorded_by_name
      FROM expenses e
      LEFT JOIN users u ON u.id = e.user_id
-     WHERE e._deleted = 0${viewerId ? " AND e.user_id = ?" : ""}
+     WHERE e._deleted = 0${viewerId ? " AND e.user_id = ?" : ""}${storeId ? " AND e.store_id = ?" : ""}
      ORDER BY e.created_at DESC LIMIT 5`,
-    viewerId ? [viewerId] : []
+    [...(viewerId ? [viewerId] : []), ...(storeId ? [storeId] : [])],
   );
 
   const recentPrescriptions = await query<PrescriptionRow>(
     `SELECT p.*, TRIM(u.first_name || ' ' || u.last_name) as created_by_name
      FROM prescriptions p
      LEFT JOIN users u ON u.id = p.user_id
-     WHERE p._deleted = 0${viewerId ? " AND p.user_id = ?" : ""}
+     WHERE p._deleted = 0${viewerId ? " AND p.user_id = ?" : ""}${storeId ? " AND p.store_id = ?" : ""}
      ORDER BY p.created_at DESC LIMIT 5`,
-    viewerId ? [viewerId] : []
+    [...(viewerId ? [viewerId] : []), ...(storeId ? [storeId] : [])],
   );
 
   const allActivities: DashboardActivity[] = [
@@ -139,12 +141,13 @@ export async function getDashboardOverviewData(viewerId?: string) {
   const yesterday = `${dateYesterday.getFullYear()}-${String(dateYesterday.getMonth() + 1).padStart(2, '0')}-${String(dateYesterday.getDate()).padStart(2, '0')}`;
 
   const salesYesterday = await query<{ total?: number }>(
-    `SELECT SUM(total_amount) as total FROM sales WHERE date(transaction_date) = ? AND (_deleted = 0 OR _deleted IS NULL)`,
-    [yesterday]
+    `SELECT SUM(total_amount) as total FROM sales WHERE date(transaction_date) = ? AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}`,
+    storeId ? [yesterday, storeId] : [yesterday],
   );
 
   const activeCategories = await query<{ count?: number }>(
-    `SELECT COUNT(DISTINCT category_id) as count FROM products WHERE _deleted = 0`
+    `SELECT COUNT(DISTINCT category_id) as count FROM products WHERE _deleted = 0${storeId ? " AND store_id = ?" : ""}`,
+    storeId ? [storeId] : [],
   );
 
   return {
@@ -162,6 +165,8 @@ export async function fetchSalesReportData(dateFrom?: string, dateTo?: string) {
   let where = "s._deleted = 0";
   if (dateFrom) { where += " AND s.transaction_date >= ?"; params.push(dateFrom); }
   if (dateTo) { where += " AND s.transaction_date <= ?"; params.push(dateTo); }
+  const storeId = getActiveStoreId();
+  if (storeId) { where += " AND s.store_id = ?"; params.push(storeId); }
 
   return query<Record<string, unknown>>(
     `SELECT
@@ -191,6 +196,7 @@ export async function fetchSalesReportData(dateFrom?: string, dateTo?: string) {
 }
 
 export async function fetchStockBatchReportData() {
+  const storeId = getActiveStoreId();
   return query<Record<string, unknown>>(
     `SELECT
       m.name as "Product",
@@ -205,9 +211,10 @@ export async function fetchStockBatchReportData() {
       MIN(date(inv.expiry_date)) as "Nearest Expiry"
      FROM stock_batches inv
      JOIN products m ON inv.product_id = m.id
-     WHERE inv._deleted = 0 AND m._deleted = 0
+     WHERE inv._deleted = 0 AND m._deleted = 0${storeId ? " AND m.store_id = ?" : ""}
      GROUP BY m.id
-     ORDER BY m.name ASC`
+     ORDER BY m.name ASC`,
+    storeId ? [storeId] : [],
   );
 }
 
@@ -222,6 +229,8 @@ export async function fetchTopSellersReportData(dateFrom?: string, dateTo?: stri
   let where = "s._deleted = 0 AND (si._deleted = 0 OR si._deleted IS NULL)";
   if (dateFrom) { where += " AND s.transaction_date >= ?"; params.push(dateFrom); }
   if (dateTo) { where += " AND s.transaction_date <= ?"; params.push(dateTo); }
+  const storeId = getActiveStoreId();
+  if (storeId) { where += " AND s.store_id = ?"; params.push(storeId); }
 
   return query<Record<string, unknown>>(
     `SELECT
@@ -243,27 +252,32 @@ export async function fetchTopSellersReportData(dateFrom?: string, dateTo?: stri
 }
 
 export async function getBIMetrics(dateFilter: string, prevDateFilter: string) {
+  const storeId = getActiveStoreId();
+  const s1 = storeId ? [dateFilter, storeId] : [dateFilter];
+  const sPrev = storeId ? [prevDateFilter, dateFilter, storeId] : [prevDateFilter, dateFilter];
+  const storeOnly = storeId ? [storeId] : [];
+
   // Current Period
-  const revenueData = await query<{ total: number }>(`SELECT SUM(total_amount) as total FROM sales WHERE transaction_date >= ? AND (_deleted = 0 OR _deleted IS NULL)`, [dateFilter]);
-  const totalRefundsData = await query<{ total: number }>(`SELECT SUM(total_refunded) as total FROM returns WHERE created_at >= ? AND (_deleted = 0 OR _deleted IS NULL)`, [dateFilter]);
-  const cogsData = await query<{ total: number }>(`SELECT SUM(si.cost_price * si.quantity) as total FROM sale_items si JOIN sales s ON si.sale_id = s.id WHERE s.transaction_date >= ? AND (s._deleted = 0 OR s._deleted IS NULL)`, [dateFilter]);
-  const returnedCogsData = await query<{ total: number }>(`SELECT SUM(ri.quantity * IFNULL((SELECT AVG(cost_price) FROM stock_batches WHERE product_id = m.id AND is_active = 1), 0)) as total FROM return_items ri JOIN returns r ON ri.return_id = r.id LEFT JOIN products m ON ri.product_id = m.id WHERE r.created_at >= ? AND (r._deleted = 0 OR r._deleted IS NULL)`, [dateFilter]);
-  const expensesData = await query<{ total: number }>(`SELECT SUM(amount) as total FROM expenses WHERE date >= ? AND _deleted = 0`, [dateFilter]);
-  const transactionData = await query<{ count: number }>(`SELECT COUNT(*) as count FROM sales WHERE transaction_date >= ? AND _deleted = 0`, [dateFilter]);
-  const stock_batchValueData = await query<{ value: number }>(`SELECT SUM(inv.cost_price * inv.quantity) as value FROM stock_batches inv WHERE inv._deleted = 0 OR inv._deleted IS NULL`);
-  const customerData = await query<{ count: number }>(`SELECT COUNT(*) as count FROM customers WHERE _deleted = 0`);
-  const loyaltyData = await query<{ count: number }>(`SELECT COUNT(*) as count FROM customers WHERE loyalty_points > 0 AND _deleted = 0`);
-  const retentionData = await query<{ returning_count: number; total: number }>(`SELECT COUNT(DISTINCT CASE WHEN cnt > 1 THEN customer_id END) as returning_count, COUNT(DISTINCT customer_id) as total FROM (SELECT customer_id, COUNT(*) as cnt FROM sales WHERE transaction_date >= ? AND _deleted = 0 AND customer_id IS NOT NULL GROUP BY customer_id)`, [dateFilter]);
+  const revenueData = await query<{ total: number }>(`SELECT SUM(total_amount) as total FROM sales WHERE transaction_date >= ? AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}`, s1);
+  const totalRefundsData = await query<{ total: number }>(`SELECT SUM(total_refunded) as total FROM returns WHERE created_at >= ? AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}`, s1);
+  const cogsData = await query<{ total: number }>(`SELECT SUM(si.cost_price * si.quantity) as total FROM sale_items si JOIN sales s ON si.sale_id = s.id WHERE s.transaction_date >= ? AND (s._deleted = 0 OR s._deleted IS NULL)${storeId ? " AND s.store_id = ?" : ""}`, s1);
+  const returnedCogsData = await query<{ total: number }>(`SELECT SUM(ri.quantity * IFNULL((SELECT AVG(cost_price) FROM stock_batches WHERE product_id = m.id AND is_active = 1), 0)) as total FROM return_items ri JOIN returns r ON ri.return_id = r.id LEFT JOIN products m ON ri.product_id = m.id WHERE r.created_at >= ? AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND r.store_id = ?" : ""}`, s1);
+  const expensesData = await query<{ total: number }>(`SELECT SUM(amount) as total FROM expenses WHERE date >= ? AND _deleted = 0${storeId ? " AND store_id = ?" : ""}`, s1);
+  const transactionData = await query<{ count: number }>(`SELECT COUNT(*) as count FROM sales WHERE transaction_date >= ? AND _deleted = 0${storeId ? " AND store_id = ?" : ""}`, s1);
+  const stock_batchValueData = await query<{ value: number }>(`SELECT SUM(inv.cost_price * inv.quantity) as value FROM stock_batches inv WHERE (inv._deleted = 0 OR inv._deleted IS NULL)${storeId ? " AND inv.store_id = ?" : ""}`, storeOnly);
+  const customerData = await query<{ count: number }>(`SELECT COUNT(*) as count FROM customers WHERE _deleted = 0${storeId ? " AND store_id = ?" : ""}`, storeOnly);
+  const loyaltyData = await query<{ count: number }>(`SELECT COUNT(*) as count FROM customers WHERE loyalty_points > 0 AND _deleted = 0${storeId ? " AND store_id = ?" : ""}`, storeOnly);
+  const retentionData = await query<{ returning_count: number; total: number }>(`SELECT COUNT(DISTINCT CASE WHEN cnt > 1 THEN customer_id END) as returning_count, COUNT(DISTINCT customer_id) as total FROM (SELECT customer_id, COUNT(*) as cnt FROM sales WHERE transaction_date >= ? AND _deleted = 0 AND customer_id IS NOT NULL${storeId ? " AND store_id = ?" : ""} GROUP BY customer_id)`, s1);
 
   // Previous Period
-  const prevRevenueData = await query<{ total: number }>(`SELECT SUM(total_amount) as total FROM sales WHERE transaction_date >= ? AND transaction_date < ? AND _deleted = 0`, [prevDateFilter, dateFilter]);
-  const prevTransactionData = await query<{ count: number }>(`SELECT COUNT(*) as count FROM sales WHERE transaction_date >= ? AND transaction_date < ? AND _deleted = 0`, [prevDateFilter, dateFilter]);
-  const prevCustomerData = await query<{ count: number }>(`SELECT COUNT(*) as count FROM customers WHERE created_at >= ? AND created_at < ? AND _deleted = 0`, [prevDateFilter, dateFilter]);
+  const prevRevenueData = await query<{ total: number }>(`SELECT SUM(total_amount) as total FROM sales WHERE transaction_date >= ? AND transaction_date < ? AND _deleted = 0${storeId ? " AND store_id = ?" : ""}`, sPrev);
+  const prevTransactionData = await query<{ count: number }>(`SELECT COUNT(*) as count FROM sales WHERE transaction_date >= ? AND transaction_date < ? AND _deleted = 0${storeId ? " AND store_id = ?" : ""}`, sPrev);
+  const prevCustomerData = await query<{ count: number }>(`SELECT COUNT(*) as count FROM customers WHERE created_at >= ? AND created_at < ? AND _deleted = 0${storeId ? " AND store_id = ?" : ""}`, sPrev);
 
   // Top Selling Products & Categories
-  const topSellingByRevenue = await query<{ name: string; sales: number; units: number; category: string; }>(`SELECT m.name, SUM(si.total_price) as sales, SUM(si.quantity) as units, COALESCE(c.name, 'Uncategorized') as category FROM sale_items si JOIN products m ON si.product_id = m.id LEFT JOIN categories c ON m.category_id = c.id JOIN sales s ON si.sale_id = s.id WHERE s.transaction_date >= ? AND s._deleted = 0 GROUP BY m.id ORDER BY sales DESC LIMIT 5`, [dateFilter]);
-  const topSellingByQuantity = await query<{ name: string; sales: number; units: number; category: string; }>(`SELECT m.name, SUM(si.total_price) as sales, SUM(si.quantity) as units, COALESCE(c.name, 'Uncategorized') as category FROM sale_items si JOIN products m ON si.product_id = m.id LEFT JOIN categories c ON m.category_id = c.id JOIN sales s ON si.sale_id = s.id WHERE s.transaction_date >= ? AND s._deleted = 0 GROUP BY m.id ORDER BY units DESC LIMIT 5`, [dateFilter]);
-  const categoryDistribution = await query<{ name: string; value: number; }>(`SELECT COALESCE(c.name, 'Uncategorized') as name, SUM(si.total_price) as value FROM sale_items si JOIN products m ON si.product_id = m.id LEFT JOIN categories c ON m.category_id = c.id JOIN sales s ON si.sale_id = s.id WHERE s.transaction_date >= ? AND s._deleted = 0 GROUP BY COALESCE(c.name, 'Uncategorized')`, [dateFilter]);
+  const topSellingByRevenue = await query<{ name: string; sales: number; units: number; category: string; }>(`SELECT m.name, SUM(si.total_price) as sales, SUM(si.quantity) as units, COALESCE(c.name, 'Uncategorized') as category FROM sale_items si JOIN products m ON si.product_id = m.id LEFT JOIN categories c ON m.category_id = c.id JOIN sales s ON si.sale_id = s.id WHERE s.transaction_date >= ? AND s._deleted = 0${storeId ? " AND s.store_id = ?" : ""} GROUP BY m.id ORDER BY sales DESC LIMIT 5`, s1);
+  const topSellingByQuantity = await query<{ name: string; sales: number; units: number; category: string; }>(`SELECT m.name, SUM(si.total_price) as sales, SUM(si.quantity) as units, COALESCE(c.name, 'Uncategorized') as category FROM sale_items si JOIN products m ON si.product_id = m.id LEFT JOIN categories c ON m.category_id = c.id JOIN sales s ON si.sale_id = s.id WHERE s.transaction_date >= ? AND s._deleted = 0${storeId ? " AND s.store_id = ?" : ""} GROUP BY m.id ORDER BY units DESC LIMIT 5`, s1);
+  const categoryDistribution = await query<{ name: string; value: number; }>(`SELECT COALESCE(c.name, 'Uncategorized') as name, SUM(si.total_price) as value FROM sale_items si JOIN products m ON si.product_id = m.id LEFT JOIN categories c ON m.category_id = c.id JOIN sales s ON si.sale_id = s.id WHERE s.transaction_date >= ? AND s._deleted = 0${storeId ? " AND s.store_id = ?" : ""} GROUP BY COALESCE(c.name, 'Uncategorized')`, s1);
 
   return {
     revenueData, totalRefundsData, cogsData, returnedCogsData, expensesData,
@@ -274,28 +288,34 @@ export async function getBIMetrics(dateFilter: string, prevDateFilter: string) {
 }
 
 export async function getAdvancedMonthlySalesData(dateFilter: string) {
+  const storeId = getActiveStoreId();
+  const p1 = storeId ? [dateFilter, storeId] : [dateFilter];
+
   const rawMonthlyData = await query<{ month: string; revenue: number; cogs: number; transactions: number; }>(
-    `SELECT strftime('%Y-%m', s.transaction_date) as month, SUM(s.total_amount) as revenue, SUM(si.cost_price * si.quantity) as cogs, COUNT(DISTINCT s.id) as transactions FROM sales s LEFT JOIN sale_items si ON s.id = si.sale_id WHERE s.transaction_date >= ? AND (s._deleted = 0 OR s._deleted IS NULL) GROUP BY strftime('%Y-%m', s.transaction_date) ORDER BY strftime('%Y-%m', s.transaction_date) ASC`, [dateFilter]
+    `SELECT strftime('%Y-%m', s.transaction_date) as month, SUM(s.total_amount) as revenue, SUM(si.cost_price * si.quantity) as cogs, COUNT(DISTINCT s.id) as transactions FROM sales s LEFT JOIN sale_items si ON s.id = si.sale_id WHERE s.transaction_date >= ? AND (s._deleted = 0 OR s._deleted IS NULL)${storeId ? " AND s.store_id = ?" : ""} GROUP BY strftime('%Y-%m', s.transaction_date) ORDER BY strftime('%Y-%m', s.transaction_date) ASC`, p1
   );
 
   const rawMonthlyReturns = await query<{ month: string; refunds: number; returned_cogs: number; }>(
-    `SELECT strftime('%Y-%m', r.created_at) as month, SUM(r.total_refunded) as refunds, SUM(ri.quantity * IFNULL((SELECT AVG(cost_price) FROM stock_batches WHERE product_id = m.id AND is_active = 1), 0)) as returned_cogs FROM returns r LEFT JOIN return_items ri ON ri.return_id = r.id LEFT JOIN products m ON ri.product_id = m.id WHERE r.created_at >= ? AND (r._deleted = 0 OR r._deleted IS NULL) GROUP BY strftime('%Y-%m', r.created_at) ORDER BY strftime('%Y-%m', r.created_at) ASC`, [dateFilter]
+    `SELECT strftime('%Y-%m', r.created_at) as month, SUM(r.total_refunded) as refunds, SUM(ri.quantity * IFNULL((SELECT AVG(cost_price) FROM stock_batches WHERE product_id = m.id AND is_active = 1), 0)) as returned_cogs FROM returns r LEFT JOIN return_items ri ON ri.return_id = r.id LEFT JOIN products m ON ri.product_id = m.id WHERE r.created_at >= ? AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND r.store_id = ?" : ""} GROUP BY strftime('%Y-%m', r.created_at) ORDER BY strftime('%Y-%m', r.created_at) ASC`, p1
   );
 
   const rawExpenseData = await query<{ month: string; expenses: number; }>(
-    `SELECT strftime('%Y-%m', date) as month, SUM(amount) as expenses FROM expenses WHERE date >= ? AND _deleted = 0 GROUP BY strftime('%Y-%m', date)`, [dateFilter]
+    `SELECT strftime('%Y-%m', date) as month, SUM(amount) as expenses FROM expenses WHERE date >= ? AND _deleted = 0${storeId ? " AND store_id = ?" : ""} GROUP BY strftime('%Y-%m', date)`, p1
   );
 
   return { rawMonthlyData, rawMonthlyReturns, rawExpenseData };
 }
 
 export async function getPurchasePatterns(dateFilter: string) {
+  const storeId = getActiveStoreId();
+  const p1 = storeId ? [dateFilter, storeId] : [dateFilter];
+
   const timeSlotData = await query<{ slot: string; transactions: number; avg_value: number; }>(
-    `SELECT CASE WHEN CAST(strftime('%H', transaction_date) AS INTEGER) BETWEEN 6 AND 11 THEN 'Morning (6am-12pm)' WHEN CAST(strftime('%H', transaction_date) AS INTEGER) BETWEEN 12 AND 16 THEN 'Afternoon (12pm-5pm)' WHEN CAST(strftime('%H', transaction_date) AS INTEGER) BETWEEN 17 AND 21 THEN 'Evening (5pm-10pm)' ELSE 'Night (10pm-6am)' END as slot, COUNT(*) as transactions, AVG(total_amount) as avg_value FROM sales WHERE transaction_date >= ? AND _deleted = 0 GROUP BY slot ORDER BY MIN(strftime('%H', transaction_date)) ASC`, [dateFilter]
+    `SELECT CASE WHEN CAST(strftime('%H', transaction_date) AS INTEGER) BETWEEN 6 AND 11 THEN 'Morning (6am-12pm)' WHEN CAST(strftime('%H', transaction_date) AS INTEGER) BETWEEN 12 AND 16 THEN 'Afternoon (12pm-5pm)' WHEN CAST(strftime('%H', transaction_date) AS INTEGER) BETWEEN 17 AND 21 THEN 'Evening (5pm-10pm)' ELSE 'Night (10pm-6am)' END as slot, COUNT(*) as transactions, AVG(total_amount) as avg_value FROM sales WHERE transaction_date >= ? AND _deleted = 0${storeId ? " AND store_id = ?" : ""} GROUP BY slot ORDER BY MIN(strftime('%H', transaction_date)) ASC`, p1
   );
-  
+
   const slotCategoryData = await query<{ slot: string; category: string; }>(
-    `SELECT slot, category FROM (SELECT CASE WHEN CAST(strftime('%H', s.transaction_date) AS INTEGER) BETWEEN 6 AND 11 THEN 'Morning (6am-12pm)' WHEN CAST(strftime('%H', s.transaction_date) AS INTEGER) BETWEEN 12 AND 16 THEN 'Afternoon (12pm-5pm)' WHEN CAST(strftime('%H', s.transaction_date) AS INTEGER) BETWEEN 17 AND 21 THEN 'Evening (5pm-10pm)' ELSE 'Night (10pm-6am)' END as slot, COALESCE(c.name, 'General') as category, COUNT(*) as cnt, ROW_NUMBER() OVER (PARTITION BY CASE WHEN CAST(strftime('%H', s.transaction_date) AS INTEGER) BETWEEN 6 AND 11 THEN 'Morning (6am-12pm)' WHEN CAST(strftime('%H', s.transaction_date) AS INTEGER) BETWEEN 12 AND 16 THEN 'Afternoon (12pm-5pm)' WHEN CAST(strftime('%H', s.transaction_date) AS INTEGER) BETWEEN 17 AND 21 THEN 'Evening (5pm-10pm)' ELSE 'Night (10pm-6am)' END ORDER BY COUNT(*) DESC) as rn FROM sale_items si JOIN products m ON si.product_id = m.id LEFT JOIN categories c ON m.category_id = c.id JOIN sales s ON si.sale_id = s.id WHERE s.transaction_date >= ? AND s._deleted = 0 GROUP BY slot, c.name) WHERE rn = 1`, [dateFilter]
+    `SELECT slot, category FROM (SELECT CASE WHEN CAST(strftime('%H', s.transaction_date) AS INTEGER) BETWEEN 6 AND 11 THEN 'Morning (6am-12pm)' WHEN CAST(strftime('%H', s.transaction_date) AS INTEGER) BETWEEN 12 AND 16 THEN 'Afternoon (12pm-5pm)' WHEN CAST(strftime('%H', s.transaction_date) AS INTEGER) BETWEEN 17 AND 21 THEN 'Evening (5pm-10pm)' ELSE 'Night (10pm-6am)' END as slot, COALESCE(c.name, 'General') as category, COUNT(*) as cnt, ROW_NUMBER() OVER (PARTITION BY CASE WHEN CAST(strftime('%H', s.transaction_date) AS INTEGER) BETWEEN 6 AND 11 THEN 'Morning (6am-12pm)' WHEN CAST(strftime('%H', s.transaction_date) AS INTEGER) BETWEEN 12 AND 16 THEN 'Afternoon (12pm-5pm)' WHEN CAST(strftime('%H', s.transaction_date) AS INTEGER) BETWEEN 17 AND 21 THEN 'Evening (5pm-10pm)' ELSE 'Night (10pm-6am)' END ORDER BY COUNT(*) DESC) as rn FROM sale_items si JOIN products m ON si.product_id = m.id LEFT JOIN categories c ON m.category_id = c.id JOIN sales s ON si.sale_id = s.id WHERE s.transaction_date >= ? AND s._deleted = 0${storeId ? " AND s.store_id = ?" : ""} GROUP BY slot, c.name) WHERE rn = 1`, p1
   );
 
   return { timeSlotData, slotCategoryData };
@@ -306,6 +326,8 @@ export async function fetchProfitLossReportData(dateFrom?: string, dateTo?: stri
   let where = "s._deleted = 0";
   if (dateFrom) { where += " AND s.transaction_date >= ?"; params.push(dateFrom); }
   if (dateTo) { where += " AND s.transaction_date <= ?"; params.push(dateTo); }
+  const storeId = getActiveStoreId();
+  if (storeId) { where += " AND s.store_id = ?"; params.push(storeId); }
 
   const salesRows = await query<Record<string, unknown>>(
     `SELECT
@@ -324,6 +346,7 @@ export async function fetchProfitLossReportData(dateFrom?: string, dateTo?: stri
   let expWhere = "_deleted = 0";
   if (dateFrom) { expWhere += " AND date >= ?"; expParams.push(dateFrom); }
   if (dateTo) { expWhere += " AND date <= ?"; expParams.push(dateTo); }
+  if (storeId) { expWhere += " AND store_id = ?"; expParams.push(storeId); }
 
   const expRows = await query<{ month: string; expenses?: number }>(
     `SELECT strftime('%Y-%m', date) as month, SUM(amount) as expenses
@@ -351,6 +374,7 @@ export async function fetchProfitLossReportData(dateFrom?: string, dateTo?: stri
 }
 
 export async function fetchCustomerReportData() {
+  const storeId = getActiveStoreId();
   return query<Record<string, unknown>>(
     `SELECT
       c.first_name || ' ' || COALESCE(c.last_name, '') as "Name",
@@ -364,9 +388,10 @@ export async function fetchCustomerReportData() {
       MAX(date(s.transaction_date)) as "Last Purchase"
      FROM customers c
      LEFT JOIN sales s ON s.customer_id = c.id AND s._deleted = 0
-     WHERE c._deleted = 0
+     WHERE c._deleted = 0${storeId ? " AND c.store_id = ?" : ""}
      GROUP BY c.id
-     ORDER BY SUM(s.total_amount) DESC NULLS LAST`
+     ORDER BY SUM(s.total_amount) DESC NULLS LAST`,
+    storeId ? [storeId] : [],
   );
 }
 
@@ -375,6 +400,8 @@ export async function fetchExpensesReportData(dateFrom?: string, dateTo?: string
   let where = "_deleted = 0";
   if (dateFrom) { where += " AND date >= ?"; params.push(dateFrom); }
   if (dateTo) { where += " AND date <= ?"; params.push(dateTo); }
+  const storeId = getActiveStoreId();
+  if (storeId) { where += " AND store_id = ?"; params.push(storeId); }
 
   return query<Record<string, unknown>>(
     `SELECT

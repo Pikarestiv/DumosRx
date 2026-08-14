@@ -51,6 +51,12 @@ class SyncController extends Controller
             new OA\Response(response: 200, description: 'Changes applied', content: new OA\JsonContent(properties: [
                 new OA\Property(property: 'success', type: 'boolean'),
                 new OA\Property(property: 'processed', type: 'integer'),
+                new OA\Property(property: 'failed', type: 'array', description: 'Changes that failed and were skipped individually (each one isolated to its own savepoint, so it never blocks the rest of the batch) — the client should call recordSyncFailure for each rather than treating the whole push as failed.', items: new OA\Items(properties: [
+                    new OA\Property(property: 'id', type: 'integer', description: 'The client-side _sync_queue id'),
+                    new OA\Property(property: 'table_name', type: 'string'),
+                    new OA\Property(property: 'record_id', type: 'string'),
+                    new OA\Property(property: 'reason', type: 'string'),
+                ])),
             ])),
             new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
             new OA\Response(response: 403, description: 'Cloud sync disabled on current plan, or store count exceeds plan limit'),
@@ -127,6 +133,7 @@ class SyncController extends Controller
             // happened to be processed later in the same payload (clients
             // are not guaranteed to order changes batch-before-movement).
             $stockBatchDeltas = [];
+            $failed = [];
 
             foreach ($changes as $change) {
                 $modelClass = $this->getModelForTable($change['table_name']);
@@ -135,6 +142,18 @@ class SyncController extends Controller
                     Log::warning("Sync push ignored unknown table: " . $change['table_name']);
                     continue;
                 }
+
+                // Each change gets its own SAVEPOINT (Laravel nests
+                // automatically inside the outer transaction) so one bad row
+                // — a legacy schema mismatch, a dangling FK from an earlier
+                // partial sync, anything data-quality-related rather than a
+                // real conflict — only loses its own change instead of
+                // rolling back every other change sharing this batch. Before
+                // this, a single unresolvable row could permanently block an
+                // entire device's backlog, since every retry hit the exact
+                // same row again in the same position.
+                DB::beginTransaction();
+                try {
 
                 $payload = is_array($change['payload']) ? $change['payload'] : json_decode($change['payload'], true);
                 
@@ -543,6 +562,17 @@ class SyncController extends Controller
                 }
 
                 $processed++;
+                DB::commit();
+                } catch (\Exception $e) {
+                    DB::rollBack();
+                    Log::warning("Sync push: skipped {$change['table_name']} " . ($change['record_id'] ?? '?') . " — " . $e->getMessage());
+                    $failed[] = [
+                        'id' => $change['id'] ?? null,
+                        'table_name' => $change['table_name'],
+                        'record_id' => $change['record_id'] ?? null,
+                        'reason' => $e->getMessage(),
+                    ];
+                }
             }
 
             // Apply every accumulated stock_movements delta in one atomic pass,
@@ -594,7 +624,7 @@ class SyncController extends Controller
             }
 
             DB::commit();
-            return response()->json(['success' => true, 'processed' => $processed]);
+            return response()->json(['success' => true, 'processed' => $processed, 'failed' => $failed]);
 
         } catch (\Exception $e) {
             DB::rollBack();

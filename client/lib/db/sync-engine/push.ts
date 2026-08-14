@@ -71,41 +71,7 @@ export async function pushChanges(
         };
       });
 
-      // Records with real, pre-existing legacy data problems (not caused by
-      // tonight's multi-store/identity fix) that would otherwise permanently
-      // block every other queued change sharing a batch with them, since
-      // push runs a whole batch as one all-or-nothing transaction server-
-      // side. Each has a root cause that needs its own dedicated fix later:
-      //  - 5c5d33b4 (product "Panadol Extra"): category_id points at a
-      //    local category whose server-side insert was silently skipped as
-      //    a duplicate name — the id-remap from that skip only applies
-      //    within the same push request, so a retry in a later request can
-      //    never resolve it.
-      //  - a0f26026 (product "Emzor Vitamin C") and 7545bc6a (supplier
-      //    "Kingsize Pharmaceuticals"): both insert cleanly on their own
-      //    (no error ever logged for either one's own INSERT) but never
-      //    actually persist, because something else sharing their batch
-      //    keeps failing and rolling back the whole transaction — needs
-      //    proper batch-partitioning (isolate a bad row to its own retry
-      //    instead of taking its whole batch down) to fix generally.
-      // Rejecting them here (their own row, and anything elsewhere in this
-      // payload referencing their id) is a stopgap, not a real fix.
-      const KNOWN_BAD_IDS = new Set([
-        "5c5d33b4-13e0-4826-a69b-7745fa5ffed6",
-        "a0f26026-b19f-40ec-972d-533d3554e30e",
-        "7545bc6a-edd3-4e57-8bcf-24268b4b4758",
-      ]);
-
       const changes = mapped.filter((item) => {
-        if (
-          Object.values(item.payload).some(
-            (v) => typeof v === "string" && KNOWN_BAD_IDS.has(v),
-          )
-        ) {
-          rejected.push({ id: item.id, reason: "References a known-bad legacy record" });
-          return false;
-        }
-
         if (item.table_name === "products") {
           // Any product row created/updated before the server dropped these
           // two columns (2026_07_23_182355_remove_brand_and_supplier_from_
@@ -133,20 +99,14 @@ export async function pushChanges(
             return false;
           }
         }
-        if (
-          item.table_name === "purchase_order_items" ||
-          item.table_name === "stock_batches" ||
-          item.table_name === "stock_movements" ||
-          item.table_name === "sale_items"
-        ) {
-          // Hotfix for bad product_id that was dropped from sync queue earlier
-          if (
-            item.payload.product_id === "5c5d33b4-13e0-4826-a69b-7745fa5ffed6"
-          ) {
-            rejected.push({ id: item.id, reason: "Known-bad product_id" });
-            return false;
-          }
+        if (item.table_name === "stock_batches") {
+          // notes/received_date were never real server-side columns —
+          // strip them the same way brand_name/supplier_id are stripped
+          // for products above, rather than let the whole batch fail.
+          delete item.payload.notes;
+          delete item.payload.received_date;
         }
+
         if (item.table_name === "stock_movements") {
           // Laravel backend requires stock_batch_id for stock_movements. Drop if null.
           if (!item.payload.stock_batch_id) {
@@ -181,14 +141,24 @@ export async function pushChanges(
         isSetup
       )) as PushResponse;
 
-      // If successful, mark as synced. Only the items actually included in
-      // `changes` were sent — items filtered out above (e.g. malformed
-      // payloads) must NOT be marked synced here, or they'd be silently
-      // dropped from the queue without ever reaching the server.
+      // The server isolates each change to its own savepoint (see
+      // SyncController::push), so `response.success` reflects the batch
+      // request succeeding, not every change within it — `response.failed`
+      // lists which specific changes were rolled back individually. Only
+      // mark the ones NOT in that list as synced; items filtered out above
+      // (e.g. malformed payloads) were never sent and must NOT be marked
+      // synced here either, or they'd be silently dropped from the queue.
       if (response.success) {
-        const ids = changes.map((c) => c.id);
-        await markSynced(ids);
-        pushedCount += ids.length;
+        const failedIds = new Set((response.failed ?? []).map((f) => f.id));
+        const succeededIds = changes.map((c) => c.id).filter((id) => !failedIds.has(id));
+        await markSynced(succeededIds);
+        pushedCount += succeededIds.length;
+
+        for (const f of response.failed ?? []) {
+          if (f.id != null) {
+            await recordSyncFailure(f.id, f.reason);
+          }
+        }
       }
     } catch (error) {
       // Don't abort the whole push run over one bad batch — record backoff

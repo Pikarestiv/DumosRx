@@ -84,9 +84,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsCloudLinked(!!token);
 
     if (savedUser) {
-      const parsedUser = JSON.parse(savedUser);
-      setUser(parsedUser);
-      setDbUser(parsedUser);
+      try {
+        const parsedUser = JSON.parse(savedUser);
+        setUser(parsedUser);
+        setDbUser(parsedUser);
+      } catch (err) {
+        // Corrupted/partial write (e.g. interrupted by a connection drop
+        // mid-save) — without this, the throw aborts the rest of this
+        // effect silently, leaving `user` stuck null forever and the
+        // token-event listeners below never attached. Clear the bad value
+        // so the next reload doesn't repeat the same failure, and let the
+        // caller's own !user handling (redirect to /login) take it from here.
+        console.error("Failed to parse saved user, clearing corrupted session", err);
+        localStorage.removeItem("dumos_user");
+      }
     }
 
     const handleTokenSet = () => setIsCloudLinked(true);

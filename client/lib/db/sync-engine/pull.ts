@@ -209,7 +209,22 @@ export async function pullChanges(
         if (table === "stores" && records.length > 0) {
           const serverStoreIds = records.map((r) => r.id as string);
           const placeholders = serverStoreIds.map(() => "?").join(", ");
-          const pruneSql = `UPDATE stores SET _deleted = 1 WHERE _deleted = 0 AND id NOT IN (${placeholders})`;
+          // Never silently prune a store that has real accumulated business
+          // data attached — a store the server doesn't currently recognize
+          // is still not "safe to hide" if it's the one everything on this
+          // device's local history is actually attributed to (e.g. the
+          // original pre-cloud-link store on a device, before it was ever
+          // reconciled with a server-side account). Losing visibility into
+          // real products/sales is a far worse outcome than a stale entry
+          // lingering in the switcher, so this only prunes stores that are
+          // genuinely empty locally.
+          const pruneSql = `
+            UPDATE stores SET _deleted = 1
+            WHERE _deleted = 0
+              AND id NOT IN (${placeholders})
+              AND id NOT IN (SELECT DISTINCT store_id FROM products WHERE store_id IS NOT NULL)
+              AND id NOT IN (SELECT DISTINCT store_id FROM sales WHERE store_id IS NOT NULL)
+          `;
 
           if (isTauri()) {
             await execute(pruneSql, serverStoreIds);

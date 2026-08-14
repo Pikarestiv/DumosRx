@@ -22,7 +22,15 @@ This document tracks the proposed features for the DumosRx system, sorted by imp
 - **Source maps:** `withSentryConfig` wraps `next.config.mjs` for build-time source-map upload, gated on `SENTRY_AUTH_TOKEN` (CI secret).
 - **CI wiring:** DSN + environment env vars added to both `.github/workflows/deploy-client.yml` (web build → `app.dumosrx.com`) and `.github/workflows/release.yml` (Tauri desktop/mobile releases) — both deploy targets report.
 - **Tooling:** Project-scoped Sentry MCP configured for Claude Code (`.mcp.json`), Cursor (`.cursor/mcp.json`), and VS Code (`.vscode/mcp.json`).
-- **Remaining gap:** `laravel-server/` still has no Sentry (or equivalent) wired — see [Sentry on `laravel-server/`](#sentry-on-laravel-server) below. Errors also land in Sentry's own dashboard, not surfaced inside `web/app/admin`.
+- **Remaining gap:** Errors land in Sentry's own dashboard, not surfaced inside `web/app/admin` — "is anything broken right now" still means checking a second, separate dashboard.
+
+### Sentry on `laravel-server/` — DONE (2026-08-14)
+
+- **Status:** Shipped and verified live — `sentry/sentry-laravel` installed, wired into `bootstrap/app.php` via `Integration::handles($exceptions)` in the existing (previously empty) `withExceptions` hook. Confirmed capturing real events (`php artisan sentry:test`, two events landed in the dashboard).
+- **Separate project:** Uses its own Sentry project (`dumosrx-server`) rather than the client's, so PHP errors don't mix into the client's JS issue stream — but it's in the same org, so it shares the same free-tier event quota, not an additional one.
+- **Traces:** `SENTRY_TRACES_SAMPLE_RATE=0` — error capture only, no perf tracing, matching the client's config.
+- **`.env.example`** documents `SENTRY_LARAVEL_DSN` / `SENTRY_TRACES_SAMPLE_RATE`.
+- **Remaining step (infra, not code):** Neither backend deploy workflow (`deploy-backend.yml`, `deploy-dev.yml`) touches `.env` on the server — it's excluded from the FTP sync — so the DSN must be added directly to the persistent `.env` on `api.dumosrx.com` and `api.dev.dumosrx.com` by hand, not via CI secrets. Confirm this is done on both before treating server-side coverage as fully live.
 
 ### Impersonate feature — already built
 
@@ -32,12 +40,6 @@ This document tracks the proposed features for the DumosRx system, sorted by imp
 ---
 
 ## 🟢 Quick Wins (hours – ~1 day)
-
-### Sentry on `laravel-server/`
-
-- **Effort:** ~half a day.
-- **Current state:** `laravel-server/` has no Sentry (or equivalent) wired — a silent backend exception (job failure, unhandled 500) is only visible via server logs, not passively.
-- **Action:** Install the Sentry PHP/Laravel SDK, reuse the same Sentry org/project already set up for the client. Same pattern already proven client-side, so this is mostly config, not discovery.
 
 ### Impersonate feature — verification pass
 

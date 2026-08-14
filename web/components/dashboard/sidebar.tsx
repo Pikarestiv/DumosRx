@@ -108,7 +108,7 @@ export function Sidebar({
 
       <UserProfileButton
         user={user}
-        isLoading={isLoading || !user || !user.name || user.name === "User" || user.name.trim() === ""}
+        isLoading={!!isLoading}
         onLogout={onLogout}
       />
     </>

@@ -46,6 +46,7 @@ export function DashboardClient({
     activeTab: _activeTab,
     setActiveTab,
     loading,
+    loadError,
     data,
     releaseLinks,
     logout,
@@ -132,6 +133,7 @@ export function DashboardClient({
         setActiveTab={setActiveTab}
         user={user}
         isLoading={loading}
+        isError={loadError}
         onLogout={logout}
       />
       <div className="flex-1 flex flex-col min-w-0">

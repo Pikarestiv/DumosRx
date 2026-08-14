@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import { Inter, Montserrat } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
-import { AuthListener } from "@/components/auth-listener";
 import { Toaster } from "@/components/ui/sonner";
 import { DatabaseProvider } from "@/lib/db/DatabaseProvider";
 import { StoreProvider } from "@/lib/context/store-context";
@@ -97,7 +96,6 @@ export default function RootLayout({
                       <AuthProvider>
                         <StoreProvider>
                           <SystemConfigLoader />
-                          <AuthListener />
                           <QuickSetupWizard />
                           <LicenseGuard>{children}</LicenseGuard>
                           <Toaster />

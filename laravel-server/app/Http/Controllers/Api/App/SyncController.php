@@ -676,7 +676,19 @@ class SyncController extends Controller
 
                 match ($table) {
                     'users' => $query->whereIn('id', $userIds),
-                    'stores' => $query->whereIn('id', $storeIds)->with(['user.subscriptions']),
+                    // Unlike every other table, 'stores' isn't scoped to the
+                    // X-Store-Id-narrowed $storeIds — it IS the "which stores
+                    // do I own" discovery list the store switcher is built
+                    // from, so narrowing it to whichever single store happens
+                    // to be active meant a newly created store (or any store
+                    // metadata change on a non-active store, e.g. a plan
+                    // granted by an admin) could never be pulled down at all.
+                    // Staff (fixed store_id) still only ever see their own
+                    // store, same as before.
+                    'stores' => $query->whereIn(
+                        'id',
+                        $user->store_id ? $storeIds : Store::where('user_id', $ownerId)->pluck('id')->toArray()
+                    )->with(['user.subscriptions']),
                     'sales' => $query->whereIn('cashier_id', $userIds),
                     'sale_items' => $query->whereIn('sale_id', Sale::whereIn('cashier_id', $userIds)->pluck('id')),
                     'returns' => $query->whereIn('user_id', $userIds),

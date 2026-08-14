@@ -1,9 +1,11 @@
 import { query } from "@/lib/db/local-database";
+import { getActiveStoreId } from "@/lib/db/core";
 import type { Product, ProductWithDetails, ProductWithStockRow, POSProduct } from "@/lib/types/product";
 import type { AuditLogRow } from "@/lib/types/audit-log";
 import type { StockMovementHistoryRow } from "@/lib/types/stock-movement";
 
 export async function getProductsWithDetails() {
+  const storeId = getActiveStoreId();
   return query<ProductWithDetails>(
     `SELECT m.*, c.name as category_name,
        (SELECT SUM(quantity) FROM stock_batches WHERE product_id = m.id AND _deleted = 0 AND is_active = 1) as stock_quantity,
@@ -13,14 +15,17 @@ export async function getProductsWithDetails() {
        (SELECT MAX(reconciled_at) FROM stock_audits WHERE product_id = m.id AND _deleted = 0 AND status = 'reconciled') as last_audited_at
      FROM products m
      LEFT JOIN categories c ON m.category_id = c.id
-     WHERE m._deleted = 0
-     ORDER BY m.created_at DESC`
+     WHERE m._deleted = 0${storeId ? " AND m.store_id = ?" : ""}
+     ORDER BY m.created_at DESC`,
+    storeId ? [storeId] : [],
   );
 }
 
 export async function getCategoriesList() {
+  const storeId = getActiveStoreId();
   return query<{ name: string }>(
-    "SELECT name FROM categories WHERE _deleted = 0 ORDER BY name ASC"
+    `SELECT name FROM categories WHERE _deleted = 0${storeId ? " AND store_id = ?" : ""} ORDER BY name ASC`,
+    storeId ? [storeId] : [],
   );
 }
 
@@ -36,9 +41,10 @@ export async function getCategoryByName(name: string) {
 }
 
 export async function getSupplierByName(name: string) {
+  const storeId = getActiveStoreId();
   const existing = await query<{ id: string }>(
-    "SELECT id FROM suppliers WHERE name = ? COLLATE NOCASE AND _deleted = 0",
-    [name],
+    `SELECT id FROM suppliers WHERE name = ? COLLATE NOCASE AND _deleted = 0${storeId ? " AND store_id = ?" : ""}`,
+    storeId ? [name, storeId] : [name],
   );
   if (existing && existing.length > 0) {
     return existing[0].id;
@@ -47,8 +53,10 @@ export async function getSupplierByName(name: string) {
 }
 
 export async function getSupplierNames() {
+  const storeId = getActiveStoreId();
   const suppliers = await query<{ name: string }>(
-    "SELECT name FROM suppliers WHERE _deleted = 0",
+    `SELECT name FROM suppliers WHERE _deleted = 0${storeId ? " AND store_id = ?" : ""}`,
+    storeId ? [storeId] : [],
   );
   return suppliers.map((s) => s.name);
 }
@@ -64,32 +72,37 @@ export async function getProductBasicInfo(productId: string) {
 }
 
 export async function getProductByName(name: string) {
+  const storeId = getActiveStoreId();
   const med = await query<{ id: string }>(
-    "SELECT id FROM products WHERE name = ? LIMIT 1",
-    [name],
+    `SELECT id FROM products WHERE name = ?${storeId ? " AND store_id = ?" : ""} LIMIT 1`,
+    storeId ? [name, storeId] : [name],
   );
   return med && med.length > 0 ? med[0] : null;
 }
 
 export async function getProductList() {
+  const storeId = getActiveStoreId();
   return query<Product>(
     `SELECT p.id, p.name, p.generic_name, p.category_id, c.name as category_name, p.manufacturer, p.strength, p.dosage_form
      FROM products p
      LEFT JOIN categories c ON c.id = p.category_id AND c._deleted = 0
-     WHERE p._deleted = 0
+     WHERE p._deleted = 0${storeId ? " AND p.store_id = ?" : ""}
      ORDER BY p.name ASC`,
+    storeId ? [storeId] : [],
   );
 }
 
 export async function getProductsWithStock(): Promise<POSProduct[]> {
+  const storeId = getActiveStoreId();
   const items = await query<ProductWithStockRow>(
     `SELECT p.*, c.name as category_name, COALESCE(SUM(sb.quantity), 0) as stock_quantity, GROUP_CONCAT(sb.batch_number, ', ') as batch_number, AVG(sb.cost_price) as avg_cost_price
      FROM products p
      LEFT JOIN categories c ON p.category_id = c.id AND c._deleted = 0
      LEFT JOIN stock_batches sb ON p.id = sb.product_id AND sb._deleted = 0 AND sb.is_active = 1
-     WHERE p._deleted = 0
+     WHERE p._deleted = 0${storeId ? " AND p.store_id = ?" : ""}
      GROUP BY p.id
      ORDER BY p.name ASC`,
+    storeId ? [storeId] : [],
   );
 
   return items.map((m) => ({

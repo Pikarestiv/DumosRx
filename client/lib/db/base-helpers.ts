@@ -2,7 +2,7 @@
  * Base CRUD Helpers
  */
 
-import { execute, query, generateId, logAction } from "./core";
+import { execute, query, generateId, logAction, getActiveStoreId, STORE_SCOPED_TABLES } from "./core";
 import { queryClient } from "../query-client";
 import type { SyncQueueItem } from "@/lib/types/sync";
 
@@ -33,6 +33,7 @@ export async function insert(
   const id = (data.id as string) || generateId();
   const now = new Date().toISOString();
 
+  const storeId = getActiveStoreId();
   const record: Record<string, unknown> = {
     ...data,
     id,
@@ -40,6 +41,12 @@ export async function insert(
     updated_at: now,
     _version: 1,
     _synced: 0,
+    // Auto-scope to the active store unless the caller already set one
+    // explicitly (e.g. an owner creating a user/product for a store other
+    // than the one they're currently viewing).
+    ...(storeId && STORE_SCOPED_TABLES.includes(table) && data.store_id === undefined
+      ? { store_id: storeId }
+      : {}),
   };
 
   const columns = Object.keys(record);

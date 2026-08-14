@@ -3,6 +3,7 @@
 import React, { createContext, useContext, ReactNode } from "react";
 import * as Sentry from "@sentry/nextjs";
 import { update, insert } from "@/lib/db/local-database";
+import { setActiveStoreId as setResolvedStoreId } from "@/lib/db/core";
 import { useQuery } from "@tanstack/react-query";
 import { getStoreById, getFirstStore, getAllStores } from "@/lib/db/queries/setup";
 import { useAuth } from "@/lib/context/auth-context";
@@ -112,6 +113,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // If user has a specific store_id (like a cashier), fetch that store.
   // Otherwise, use activeStoreId if set, else fallback to LIMIT 1
   const targetId = user?.store_id || activeStoreId;
+
+  // Mirror this same precedence into the query layer's module-scope resolver
+  // (lib/db/core.ts) — plain async query functions have no React context, so
+  // this is how they learn which store to filter by. Must stay in lockstep
+  // with `targetId` above: a staff member's fixed store_id always wins.
+  React.useEffect(() => {
+    setResolvedStoreId(targetId);
+  }, [targetId]);
 
   const { data: storeProfile, isLoading: loading, refetch } = useQuery({
     ...queryKeys.stores.profile(targetId),

@@ -33,6 +33,22 @@ export function setCurrentUser(
   currentUser = user;
 }
 
+// The store every domain query should be scoped to. Set from
+// store-context.tsx's effect mirroring `user?.store_id || activeStoreId` —
+// a staff member's fixed store_id always wins over any switcher state, same
+// precedence the UI already uses. Module-scope (not threaded as a function
+// param) because the query layer is plain async functions with no React
+// context available, called from ~40+ hook sites across the app.
+let activeStoreId: string | null = null;
+
+export function setActiveStoreId(id: string | null) {
+  activeStoreId = id;
+}
+
+export function getActiveStoreId(): string | null {
+  return activeStoreId;
+}
+
 /** Test-only: injects a bare database instance directly, bypassing
  * initDatabase()'s IndexedDB persistence and schema-migration machinery, so
  * unit tests can exercise query()/execute()/transaction() against a real
@@ -63,7 +79,7 @@ export function generateId(): string {
 // need every pre-existing local row backfilled to the device's one
 // pre-migration store — today's local DB is single-store-per-device by
 // construction, so there's exactly one store to backfill to.
-const STORE_SCOPED_TABLES = [
+export const STORE_SCOPED_TABLES = [
   "products",
   "stock_batches",
   "categories",

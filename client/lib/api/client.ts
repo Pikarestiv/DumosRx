@@ -34,6 +34,33 @@ class ApiClient extends BaseApiClient {
     });
   }
 
+  async register(payload: {
+    first_name: string;
+    last_name: string;
+    email: string;
+    username?: string;
+    pin?: string;
+    password: string;
+    store_name: string;
+    store_type?: string;
+    phone?: string;
+  }) {
+    return this.request<{
+      message: string;
+      user: {
+        id: string;
+        email: string;
+        first_name: string;
+        last_name: string;
+        role: string;
+      };
+      token: string;
+    }>("/register", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
   async getProfile() {
     return this.request<unknown>("/user");
   }

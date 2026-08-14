@@ -143,6 +143,7 @@ export default function SetupPage() {
             <CloudStep
               onCloudRestore={handleCloudRestore}
               isLoading={isLoading}
+              onGoToRegister={() => setStep("register")}
             />
           )}
 

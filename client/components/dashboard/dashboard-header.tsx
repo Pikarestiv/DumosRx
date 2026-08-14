@@ -158,11 +158,12 @@ export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
             </div>
             <span className="hidden sm:inline-block text-border">•</span>
             <span className="hidden sm:inline-block">
-              {new Date().toLocaleDateString("en-US", {
-                weekday: "short",
-                month: "short",
-                day: "numeric",
-              })}
+              {(() => {
+                const now = new Date();
+                const weekday = now.toLocaleDateString("en-US", { weekday: "short" });
+                const month = now.toLocaleDateString("en-US", { month: "short" });
+                return `${weekday}, ${now.getDate()} ${month}`;
+              })()}
             </span>
             <LiveClock />
           </div>

@@ -165,7 +165,7 @@ export function useReportExport() {
       const rows = await getRows(reportId, dateFrom, dateTo);
       const subtitle =
         dateFrom && dateTo
-          ? `${new Date(dateFrom).toLocaleDateString()} – ${new Date(dateTo).toLocaleDateString()}`
+          ? `${formatDateToDDMMYYYY(dateFrom)} – ${formatDateToDDMMYYYY(dateTo)}`
           : undefined;
       return generateReportPdfBlob({
         storeName: storeProfile?.name || "Store",

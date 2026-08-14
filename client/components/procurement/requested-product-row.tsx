@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { Check, Copy, Trash2 } from "lucide-react";
 import type { RequestedProduct } from "@/lib/db/requested-products-queries";
+import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 
 interface RequestedProductRowProps {
   req: RequestedProduct;
@@ -73,7 +74,7 @@ export function RequestedProductRow({
         </Badge>
       </TableCell>
       <TableCell className="text-sm text-muted-foreground py-[14px]">
-        {new Date(req.created_at).toLocaleDateString()}
+        {formatDateToDDMMYYYY(req.created_at)}
       </TableCell>
       <TableCell className="text-right py-[14px]">
         <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">

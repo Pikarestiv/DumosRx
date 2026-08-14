@@ -3,6 +3,27 @@ import { isTauri } from "../local-database";
 import { apiClient } from "@/lib/api/client";
 import { PullResponse } from "./types";
 import { getValidColumns } from "./schema";
+import { remapForeignKey } from "../reconcile-identity";
+
+/**
+ * Tables whose server-side push handling silently skips an INSERT when the
+ * name collides with an existing row for the same owner (see
+ * SyncController::push's "duplicate name" handling for categories and
+ * suppliers) rather than creating a second row — but that skip's id-remap
+ * only lives in the memory of that single push request. A local row created
+ * before this reconciliation runs is otherwise permanently unresolvable:
+ * every later push retries the same insert, gets skipped again, and
+ * anything referencing it by the old local id keeps failing its foreign
+ * key check forever.
+ */
+const DUPLICATE_NAME_TABLES: Record<string, { table: string; column: string }[]> = {
+  categories: [{ table: "products", column: "category_id" }],
+  suppliers: [
+    { table: "stock_batches", column: "supplier_id" },
+    { table: "purchase_orders", column: "supplier_id" },
+    { table: "supplier_payments", column: "supplier_id" },
+  ],
+};
 
 /**
  * Pull changes from server
@@ -230,6 +251,43 @@ export async function pullChanges(
             await execute(pruneSql, serverStoreIds);
           } else if (rawDb) {
             rawDb.run(pruneSql, serverStoreIds);
+          }
+        }
+
+        if (DUPLICATE_NAME_TABLES[table] && records.length > 0) {
+          const serverIds = new Set(records.map((r) => r.id as string));
+          const serverIdByName = new Map<string, string>();
+          for (const r of records) {
+            const name = String(r.name ?? "").trim().toLowerCase();
+            if (name) serverIdByName.set(name, r.id as string);
+          }
+
+          const localRows = await query<{ id: string; name: string }>(
+            `SELECT id, name FROM ${table} WHERE (_deleted = 0 OR _deleted IS NULL)`,
+          );
+
+          for (const row of localRows) {
+            if (serverIds.has(row.id)) continue;
+            const matchedServerId = serverIdByName.get(String(row.name ?? "").trim().toLowerCase());
+            if (!matchedServerId || matchedServerId === row.id) continue;
+
+            await remapForeignKey(row.id, matchedServerId, DUPLICATE_NAME_TABLES[table], (sql, params) => {
+              if (isTauri()) {
+                return execute(sql, params);
+              } else if (rawDb) {
+                rawDb.run(sql, params);
+              }
+            });
+
+            // The local duplicate is now redundant — every reference points
+            // at the server's row instead. Soft-delete it rather than leave
+            // an orphaned, unreferenced duplicate in the local table.
+            const deleteSql = `UPDATE ${table} SET _deleted = 1 WHERE id = ?`;
+            if (isTauri()) {
+              await execute(deleteSql, [row.id]);
+            } else if (rawDb) {
+              rawDb.run(deleteSql, [row.id]);
+            }
           }
         }
 

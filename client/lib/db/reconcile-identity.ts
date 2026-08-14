@@ -97,7 +97,7 @@ export async function requeueOrphanedRows(
   return requeued;
 }
 
-async function tableExists(table: string): Promise<boolean> {
+export async function tableExists(table: string): Promise<boolean> {
   const rows = await query<{ name: string }>(
     "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
     [table],
@@ -105,9 +105,53 @@ async function tableExists(table: string): Promise<boolean> {
   return rows.length > 0;
 }
 
-async function columnExists(table: string, column: string): Promise<boolean> {
+export async function columnExists(table: string, column: string): Promise<boolean> {
   const rows = await query<{ name: string }>(`PRAGMA table_info(${table})`);
   return rows.some((r) => r.name === column);
+}
+
+/**
+ * Rewrites every reference to `oldId` (across the given table/column pairs)
+ * to `newId`, including any already-queued `_sync_queue` payload that still
+ * has the old id baked into its frozen JSON snapshot — marking a live row
+ * `_synced = 0` alone doesn't requeue it, since push only ever reads from
+ * `_sync_queue`, never re-scans the table. Shared by both the one-time
+ * device-identity repair below and pull.ts's ongoing duplicate-name
+ * reconciliation for categories/suppliers.
+ *
+ * `runSql` lets a caller that already manages its own raw transaction (e.g.
+ * pull.ts, which issues `rawDb.run("BEGIN")` directly rather than going
+ * through this module's `transaction()` wrapper) supply its own statement
+ * runner. Defaults to this module's `execute()` — safe there because every
+ * call site that omits `runSql` is already wrapped in `transaction()`,
+ * which sets the `inTransaction` flag `execute()` checks before triggering
+ * a `saveDatabase()` export. Calling `execute()` directly from *outside*
+ * that wrapper (as pull.ts's manual transaction does) would trigger an
+ * unwanted mid-transaction `saveDatabase()` — sql.js's `db.export()`
+ * implicitly closes the open transaction, so pull.ts's own later `COMMIT`
+ * would then fail with "cannot commit - no transaction is active".
+ */
+export async function remapForeignKey(
+  oldId: string,
+  newId: string,
+  refs: { table: string; column: string }[],
+  runSql: (sql: string, params: (string | number | null)[]) => void | Promise<void> = execute,
+): Promise<void> {
+  for (const { table, column } of refs) {
+    if (!(await tableExists(table)) || !(await columnExists(table, column))) continue;
+    await runSql(
+      `UPDATE ${table} SET ${column} = ?, _synced = 0 WHERE ${column} = ?`,
+      [newId, oldId],
+    );
+  }
+
+  // Plain string substitution is safe here since ids are unique,
+  // unambiguous tokens with no risk of colliding with other JSON content.
+  await runSql("UPDATE _sync_queue SET payload = REPLACE(payload, ?, ?) WHERE payload LIKE ?", [
+    oldId,
+    newId,
+    `%${oldId}%`,
+  ]);
 }
 
 /**

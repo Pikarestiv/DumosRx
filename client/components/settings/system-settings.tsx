@@ -9,7 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { APP_NAME, APP_VERSION } from "@/lib/constants";
+import { APP_NAME, APP_VERSION, SUPPORT_EMAIL } from "@/lib/constants";
 import { isTauri } from "@/lib/db/core";
 import { IosInstallCard } from "./ios-install-card";
 import { AndroidInstallCard } from "./android-install-card";
@@ -72,6 +72,15 @@ export function SystemSettings() {
             DumosRx is a professional retail and store management system
             designed to streamline operations, track inventory, and manage sales
             with ease.
+          </p>
+          <p className="mt-4">
+            Need help? Reach us at{" "}
+            <a
+              href={`mailto:${SUPPORT_EMAIL}`}
+              className="text-primary hover:underline"
+            >
+              {SUPPORT_EMAIL}
+            </a>
           </p>
           <p className="mt-4">
             © 2019 - {new Date().getFullYear()} {APP_NAME}. All rights reserved.

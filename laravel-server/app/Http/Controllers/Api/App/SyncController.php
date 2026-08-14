@@ -229,7 +229,12 @@ class SyncController extends Controller
                 }
 
                 // Inject store_id if missing and table supports it
-                $tablesWithStoreId = ['requested_products', 'payment_accounts'];
+                $tablesWithStoreId = [
+                    'requested_products', 'payment_accounts',
+                    'products', 'sales', 'customers', 'categories', 'suppliers',
+                    'expenses', 'purchase_orders', 'prescriptions', 'returns',
+                    'stock_movements', 'supplier_payments',
+                ];
                 if (in_array($change['table_name'], $tablesWithStoreId) && $currentStoreId) {
                     if (empty($payload['store_id'])) {
                         $payload['store_id'] = $currentStoreId;
@@ -689,21 +694,33 @@ class SyncController extends Controller
                         'id',
                         $user->store_id ? $storeIds : Store::where('user_id', $ownerId)->pluck('id')->toArray()
                     )->with(['user.subscriptions']),
-                    'sales' => $query->whereIn('cashier_id', $userIds),
-                    'sale_items' => $query->whereIn('sale_id', Sale::whereIn('cashier_id', $userIds)->pluck('id')),
-                    'returns' => $query->whereIn('user_id', $userIds),
-                    'return_items' => $query->whereIn('return_id', \App\Models\SaleReturn::whereIn('user_id', $userIds)->pluck('id')),
-                    'prescriptions' => $query->whereIn('customer_id', Customer::where('user_id', $ownerId)->pluck('id')),
-                    'prescription_items' => $query->whereIn('prescription_id', \App\Models\Prescription::whereIn('customer_id', Customer::where('user_id', $ownerId)->pluck('id'))->pluck('id')),
-                    'purchase_orders' => $query->whereIn('ordered_by', $userIds),
-                    'purchase_order_items' => $query->whereIn('purchase_order_id', PurchaseOrder::whereIn('ordered_by', $userIds)->pluck('id')),
-                    'stock_movements' => $query->whereIn('performed_by', $userIds),
-                    'stock_batches' => $query->whereIn('product_id', Product::where('user_id', $ownerId)->pluck('id')),
-                    'supplier_payments' => $query->whereIn('supplier_id', Supplier::where('user_id', $ownerId)->pluck('id')),
+                    // These 11 tables now carry a real store_id column (see
+                    // add_store_id_to_domain_tables migration) — scope directly
+                    // by store rather than by an owner/cashier user-id chain, so
+                    // a multi-store owner's stores actually stay separated
+                    // instead of merging under "anything this owner touched."
+                    'products' => $query->whereIn('store_id', $storeIds),
+                    'sales' => $query->whereIn('store_id', $storeIds),
+                    'customers' => $query->whereIn('store_id', $storeIds),
+                    'categories' => $query->whereIn('store_id', $storeIds),
+                    'suppliers' => $query->whereIn('store_id', $storeIds),
+                    'expenses' => $query->whereIn('store_id', $storeIds),
+                    'purchase_orders' => $query->whereIn('store_id', $storeIds),
+                    'prescriptions' => $query->whereIn('store_id', $storeIds),
+                    'returns' => $query->whereIn('store_id', $storeIds),
+                    'stock_movements' => $query->whereIn('store_id', $storeIds),
+                    'supplier_payments' => $query->whereIn('store_id', $storeIds),
+                    // Child tables still derive scoping through their now
+                    // correctly store-scoped parent — no store_id of their own.
+                    'sale_items' => $query->whereIn('sale_id', Sale::whereIn('store_id', $storeIds)->pluck('id')),
+                    'return_items' => $query->whereIn('return_id', \App\Models\SaleReturn::whereIn('store_id', $storeIds)->pluck('id')),
+                    'prescription_items' => $query->whereIn('prescription_id', \App\Models\Prescription::whereIn('store_id', $storeIds)->pluck('id')),
+                    'purchase_order_items' => $query->whereIn('purchase_order_id', PurchaseOrder::whereIn('store_id', $storeIds)->pluck('id')),
+                    'stock_batches' => $query->whereIn('product_id', Product::whereIn('store_id', $storeIds)->pluck('id')),
+                    'sale_item_batches' => $query->whereIn('sale_item_id', SaleItem::whereIn('sale_id', Sale::whereIn('store_id', $storeIds)->pluck('id'))->pluck('id')),
                     'requested_products' => $query->whereIn('store_id', $storeIds),
                     'loyalty_tiers' => $query->where('user_id', $ownerId),
                     'loyalty_redemption_options' => $query->where('user_id', $ownerId),
-                    'sale_item_batches' => $query->whereIn('sale_item_id', SaleItem::whereIn('sale_id', Sale::whereIn('cashier_id', $userIds)->pluck('id'))->pluck('id')),
                     default => $query->where('user_id', $ownerId),
                 };
             }

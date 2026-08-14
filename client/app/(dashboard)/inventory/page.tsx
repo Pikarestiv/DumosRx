@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation"
+import { StockBatchManagement } from "@/components/stock-batch"
 
 export default function InventoryRootPage() {
-  redirect("/inventory/overview")
+  return <StockBatchManagement currentTab="overview" />
 }

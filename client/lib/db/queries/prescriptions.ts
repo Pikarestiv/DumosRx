@@ -1,4 +1,5 @@
 import { query } from "@/lib/db/local-database";
+import { getActiveStoreId } from "@/lib/db/core";
 import type {
   PrescriptionItem,
   PrescriptionRow,
@@ -22,8 +23,10 @@ export async function getPrescriptionItems(prescriptionId: string) {
 }
 
 export async function getQueueCount() {
+  const storeId = getActiveStoreId();
   const result = await query<{ count: number }>(
-    "SELECT COUNT(*) as count FROM prescriptions WHERE _deleted = 0 AND status IN ('pending', 'processing')"
+    `SELECT COUNT(*) as count FROM prescriptions WHERE _deleted = 0 AND status IN ('pending', 'processing')${storeId ? " AND store_id = ?" : ""}`,
+    storeId ? [storeId] : [],
   );
   return result[0]?.count || 0;
 }
@@ -59,9 +62,12 @@ export async function deletePrescriptionItems(prescriptionId: string) {
 }
 
 export async function insertPrescriptionItem(data: PrescriptionItemInsertPayload) {
+  // Raw INSERT (not base-helpers' insert()), so store_id isn't auto-injected
+  // — set it explicitly here to stay scoped like every other write path.
+  const storeId = getActiveStoreId();
   return await query(
-    `INSERT INTO prescription_items (id, prescription_id, product_name, strength, dosage, quantity, instructions, cost, refills_authorized, refill_interval_days, next_refill_date, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO prescription_items (id, prescription_id, product_name, strength, dosage, quantity, instructions, cost, refills_authorized, refill_interval_days, next_refill_date, created_at, updated_at, store_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       data.id,
       data.prescription_id,
@@ -76,6 +82,7 @@ export async function insertPrescriptionItem(data: PrescriptionItemInsertPayload
       data.next_refill_date ?? null,
       data.created_at ?? null,
       data.updated_at ?? null,
+      storeId,
     ]
   );
 }
@@ -100,6 +107,7 @@ export interface RefillManagementRow {
 }
 
 export async function getRefillManagementData() {
+  const storeId = getActiveStoreId();
   return query<RefillManagementRow>(
     `SELECT
       pi.id,
@@ -121,7 +129,8 @@ export async function getRefillManagementData() {
       p.updated_at
      FROM prescription_items pi
      JOIN prescriptions p ON pi.prescription_id = p.id
-     WHERE pi.refills_authorized > 0 AND p.status IN ('completed', 'dispensed') AND pi._deleted = 0`
+     WHERE pi.refills_authorized > 0 AND p.status IN ('completed', 'dispensed') AND pi._deleted = 0${storeId ? " AND p.store_id = ?" : ""}`,
+    storeId ? [storeId] : [],
   );
 }
 
@@ -129,20 +138,26 @@ export async function getActivePrescriptions() {
   // Includes completed prescriptions too — the queue view filters by status
   // client-side (including the "History" chip), so excluding completed here
   // made that chip always render empty.
+  const storeId = getActiveStoreId();
   return query<PrescriptionRow>(
-    "SELECT * FROM prescriptions WHERE _deleted = 0 ORDER BY created_at DESC"
+    `SELECT * FROM prescriptions WHERE _deleted = 0${storeId ? " AND store_id = ?" : ""} ORDER BY created_at DESC`,
+    storeId ? [storeId] : [],
   );
 }
 
 export async function getHistoryPrescriptions() {
+  const storeId = getActiveStoreId();
   return query<PrescriptionRow>(
-    "SELECT * FROM prescriptions WHERE _deleted = 0 AND status = 'completed' ORDER BY created_at DESC"
+    `SELECT * FROM prescriptions WHERE _deleted = 0 AND status = 'completed'${storeId ? " AND store_id = ?" : ""} ORDER BY created_at DESC`,
+    storeId ? [storeId] : [],
   );
 }
 
 export async function getAllPrescriptionItems() {
+  const storeId = getActiveStoreId();
   return await query<PrescriptionItem>(
-    "SELECT * FROM prescription_items WHERE _deleted = 0"
+    `SELECT * FROM prescription_items WHERE _deleted = 0${storeId ? " AND store_id = ?" : ""}`,
+    storeId ? [storeId] : [],
   );
 }
 
@@ -186,6 +201,7 @@ export async function dispensePrescriptionRefill(prescriptionId: string) {
 
 /** Prescription items with at least one refill remaining and due today or earlier. */
 export async function getRefillsDue() {
+  const storeId = getActiveStoreId();
   return query<PrescriptionItem & { prescription_number?: string; patient_name?: string; prescription_status?: string }>(
     `SELECT pi.*, p.prescription_number, p.patient_name, p.status as prescription_status
      FROM prescription_items pi
@@ -194,7 +210,7 @@ export async function getRefillsDue() {
        AND p.status IN ('dispensed', 'completed')
        AND pi.refills_authorized > pi.refills_used
        AND pi.next_refill_date IS NOT NULL
-       AND pi.next_refill_date <= ?`,
-    [new Date().toISOString()]
+       AND pi.next_refill_date <= ?${storeId ? " AND p.store_id = ?" : ""}`,
+    storeId ? [new Date().toISOString(), storeId] : [new Date().toISOString()],
   );
 }

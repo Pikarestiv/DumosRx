@@ -1,4 +1,5 @@
 import { query, execute, insert } from "@/lib/db/local-database";
+import { getActiveStoreId } from "@/lib/db/core";
 import { ParsedIIF } from "@/lib/utils/iif-parser";
 import type { PaymentAccount } from "@/lib/types/payment-account";
 import type { StoreOption } from "@/lib/types/store";
@@ -44,6 +45,7 @@ export async function getAllStores() {
 }
 
 export async function getPaymentAccounts(storeId?: string) {
+  storeId = storeId ?? getActiveStoreId() ?? undefined;
   if (storeId) {
     return query<PaymentAccount>(
       "SELECT * FROM payment_accounts WHERE _deleted = 0 AND store_id = ? ORDER BY created_at DESC",
@@ -87,10 +89,14 @@ export async function importQuickbooksData(
   duplicateStrategy: "skip" | "overwrite"
 ) {
   const now = new Date().toISOString();
+  const storeId = getActiveStoreId();
 
   // Import Products
   if (importProducts && parsedData.products.length > 0) {
-    const existingProducts = await query<{ id: string; name: string }>("SELECT id, name FROM products");
+    const existingProducts = await query<{ id: string; name: string }>(
+      `SELECT id, name FROM products${storeId ? " WHERE store_id = ?" : ""}`,
+      storeId ? [storeId] : [],
+    );
     const existingNames = new Set(existingProducts.map((m) => m.name.toLowerCase()));
 
     for (const med of parsedData.products) {
@@ -161,7 +167,10 @@ export async function importQuickbooksData(
 
   // Import Customers
   if (importCustomers && parsedData.customers.length > 0) {
-    const existingCustomers = await query<{ first_name?: string; last_name?: string }>("SELECT first_name, last_name FROM customers");
+    const existingCustomers = await query<{ first_name?: string; last_name?: string }>(
+      `SELECT first_name, last_name FROM customers${storeId ? " WHERE store_id = ?" : ""}`,
+      storeId ? [storeId] : [],
+    );
     // Must match the SQL-side comparison below exactly: SQLite's `||` returns NULL
     // if any operand is NULL, so a customer with no last_name would never match
     // here unless both sides treat a missing last_name as an empty string.
@@ -175,8 +184,8 @@ export async function importQuickbooksData(
       if (isDuplicate) {
         if (duplicateStrategy === "overwrite") {
           await execute(
-            "UPDATE customers SET phone = ?, outstanding_balance = ?, updated_at = ? WHERE TRIM(LOWER(first_name || ' ' || COALESCE(last_name, ''))) = ?",
-            [cust.phone, cust.outstanding_balance, now, fullName]
+            `UPDATE customers SET phone = ?, outstanding_balance = ?, updated_at = ? WHERE TRIM(LOWER(first_name || ' ' || COALESCE(last_name, ''))) = ?${storeId ? " AND store_id = ?" : ""}`,
+            storeId ? [cust.phone, cust.outstanding_balance, now, fullName, storeId] : [cust.phone, cust.outstanding_balance, now, fullName],
           );
         }
       } else {

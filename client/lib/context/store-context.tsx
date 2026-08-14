@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, ReactNode } from "react";
+import * as Sentry from "@sentry/nextjs";
 import { update, insert } from "@/lib/db/local-database";
 import { useQuery } from "@tanstack/react-query";
 import { getStoreById, getFirstStore, getAllStores } from "@/lib/db/queries/setup";
@@ -121,6 +122,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return getFirstStore();
     }
   });
+
+  React.useEffect(() => {
+    Sentry.setTag("store_id", storeProfile?.id);
+    Sentry.setTag("store_type", storeProfile?.store_type);
+  }, [storeProfile]);
 
   const { data: allStores } = useQuery({
     ...queryKeys.stores.all(user?.store_id),

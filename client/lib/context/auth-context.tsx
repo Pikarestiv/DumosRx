@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
+import * as Sentry from "@sentry/nextjs";
 import { setCurrentUser as setDbUser, logAction } from "@/lib/db/local-database";
 import { apiClient } from "@/lib/api/client";
 import { getUserByUsernameOrEmail, createDefaultAdmin, getUserPin, updateUserPin } from "@/lib/db/queries/auth";
@@ -132,6 +133,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       setUser(userProfile);
       setDbUser(userProfile);
+      Sentry.setUser({ id: userProfile.id, username: userProfile.username, role: userProfile.role });
       localStorage.setItem("dumos_user", JSON.stringify(userProfile));
       // Marks this tab as already having gone through a real auth/unlock this
       // session — DashboardLayout's fresh-load lock check reads this so it
@@ -251,6 +253,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     setUser(null);
     setDbUser(null);
+    Sentry.setUser(null);
     localStorage.removeItem("dumos_user");
     sessionStorage.removeItem("dumos_session_authenticated");
   };

@@ -2,6 +2,7 @@
  * Global Crash & Error Logger
  */
 
+import * as Sentry from "@sentry/nextjs";
 import { SYSTEM_EMAIL } from "@/lib/constants";
 
 interface CrashInfo {
@@ -61,6 +62,15 @@ export async function logCrash(error: unknown, isFatal = false) {
   };
 
   console.error(`[CRASH LOGGER] Capturing error: ${message}`, info);
+
+  // Forward to Sentry — never let it break local crash logging, which must
+  // keep working offline regardless of network/DSN availability.
+  try {
+    Sentry.captureException(error instanceof Error ? error : new Error(message), {
+      tags: { platform: info.platform, fatal: String(isFatal) },
+      extra: { url: info.url, userAgent: info.userAgent },
+    });
+  } catch (_) {}
 
   // Try to find user_id
   let userId = "anonymous";

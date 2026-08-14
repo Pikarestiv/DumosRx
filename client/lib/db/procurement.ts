@@ -348,9 +348,18 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
 export async function getSuppliers() {
   const results = await query<SupplierDbRow>(
     `SELECT s.*,
-            COALESCE(SUM(po.total_amount - po.amount_paid), 0) as total_debt
+            COALESCE(SUM(po.total_amount - po.amount_paid), 0) as total_debt,
+            COALESCE(po_stats.total_orders, 0) as total_orders,
+            COALESCE(po_stats.total_value, 0) as total_value,
+            po_stats.last_order_date as last_order_date
      FROM suppliers s
      LEFT JOIN purchase_orders po ON s.id = po.supplier_id AND po._deleted = 0 AND po.payment_status != 'paid'
+     LEFT JOIN (
+       SELECT supplier_id, COUNT(*) as total_orders, SUM(total_amount) as total_value, MAX(order_date) as last_order_date
+       FROM purchase_orders
+       WHERE _deleted = 0
+       GROUP BY supplier_id
+     ) po_stats ON po_stats.supplier_id = s.id
      WHERE s._deleted = 0
      GROUP BY s.id
      ORDER BY s.created_at DESC`,

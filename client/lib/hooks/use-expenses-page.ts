@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
+import { startOfMonth, addMonths } from "date-fns";
 import { useStore } from "@/lib/context/store-context";
 import { useExpenseList } from "@/lib/hooks/use-finance-data";
-import { Expense } from "@/lib/db/queries/finance";
+import { Expense, getSmoothedAmountInWindow } from "@/lib/db/queries/finance";
 import { usePullToRefreshHandler } from "@/lib/context/pull-to-refresh-context";
 
 const CATEGORIES = [
@@ -45,36 +46,37 @@ export function useExpensesPage() {
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [expenses, searchTerm, selectedCategory]);
 
+  // Lifetime total: a real ledger figure (how much cash has actually been
+  // recorded as spent, ever), deliberately NOT smoothed — smoothing only
+  // makes sense when attributing an expense to a specific period.
   const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
 
-  const thisMonthExpenses = expenses
-    .filter((exp) => {
-      const expDate = new Date(exp.date);
-      const now = new Date();
-      return (
-        expDate.getMonth() === now.getMonth() &&
-        expDate.getFullYear() === now.getFullYear()
-      );
-    })
-    .reduce((sum, exp) => sum + exp.amount, 0);
+  // "This month" and the category breakdown below both need smoothing,
+  // same as Net Profit elsewhere: a prepaid expense (covers_months set)
+  // must not dump its full amount into whichever single month it was
+  // logged. Iterates every expense (not pre-filtered to this month's
+  // dates) because an expense logged in an earlier month can still have an
+  // installment recognized this month.
+  const now = new Date();
+  const monthStart = startOfMonth(now);
+  const monthEnd = startOfMonth(addMonths(now, 1));
+
+  const thisMonthExpenses = expenses.reduce(
+    (sum, exp) => sum + getSmoothedAmountInWindow(exp, monthStart, monthEnd),
+    0,
+  );
 
   // Calculate top category this month
-  const categoryTotals = expenses
-    .filter((exp) => {
-      const expDate = new Date(exp.date);
-      const now = new Date();
-      return (
-        expDate.getMonth() === now.getMonth() &&
-        expDate.getFullYear() === now.getFullYear()
-      );
-    })
-    .reduce(
-      (acc, exp) => {
-        acc[exp.category] = (acc[exp.category] || 0) + exp.amount;
-        return acc;
-      },
-      {} as Record<string, number>,
-    );
+  const categoryTotals = expenses.reduce(
+    (acc, exp) => {
+      const smoothed = getSmoothedAmountInWindow(exp, monthStart, monthEnd);
+      if (smoothed > 0) {
+        acc[exp.category] = (acc[exp.category] || 0) + smoothed;
+      }
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
 
   const topCategoryStr =
     Object.keys(categoryTotals).length > 0

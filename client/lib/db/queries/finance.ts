@@ -45,14 +45,45 @@ export async function getCurrentMonthExpensesByCategory() {
 }
 
 /**
- * Sums expenses for a [from, to) window, but a "prepaid" expense (one with
- * `covers_months` set) is never counted as a lump sum in whichever single
- * period it was logged — it's split into `covers_months` equal calendar-
- * month installments starting from its own date, and only the installments
- * whose calendar month overlaps the window are counted. A ₦270,000 rent
- * payment logged in January with covers_months=12 contributes ₦22,500 to
- * January's total, ₦22,500 to February's, and so on through December —
- * never the full ₦270,000 to any single period.
+ * How much of a single expense counts toward a [windowStart, windowEnd)
+ * period. A plain expense counts in full if its date falls in the window.
+ * A "prepaid" expense (`covers_months` set) is never counted as a lump sum
+ * in whichever single period it was logged — it's split into
+ * `covers_months` equal calendar-month installments starting from its own
+ * date, and only the installments whose calendar month overlaps the window
+ * are counted. A ₦270,000 rent payment logged in January with
+ * covers_months=12 contributes ₦22,500 to January's total, ₦22,500 to
+ * February's, and so on through December — never the full ₦270,000 to any
+ * single period. Pure/synchronous so it works equally on a DB row or an
+ * already-loaded in-memory `Expense`, without a second query.
+ */
+export function getSmoothedAmountInWindow(
+  expense: Pick<Expense, "amount" | "date" | "covers_months">,
+  windowStart: Date,
+  windowEnd: Date,
+): number {
+  const expenseDate = new Date(expense.date);
+
+  if (!expense.covers_months || expense.covers_months <= 0) {
+    return expenseDate >= windowStart && expenseDate < windowEnd ? expense.amount : 0;
+  }
+
+  const monthlyAmount = expense.amount / expense.covers_months;
+  let total = 0;
+  for (let i = 0; i < expense.covers_months; i++) {
+    const bucketMonth = addMonths(expenseDate, i);
+    const bucketStart = startOfMonth(bucketMonth);
+    const bucketEnd = endOfMonth(bucketMonth);
+    if (bucketStart < windowEnd && bucketEnd >= windowStart) {
+      total += monthlyAmount;
+    }
+  }
+  return total;
+}
+
+/**
+ * Sums expenses for a [from, to) window using {@link getSmoothedAmountInWindow}
+ * for each row.
  *
  * @param viewerId - when provided, restricts results to expenses recorded by
  * this user (pass undefined for viewers allowed to see everyone's activity,
@@ -90,19 +121,10 @@ export async function getSmoothedExpensesTotal({
   const windowStart = new Date(from);
   const windowEnd = new Date(to);
 
-  let smoothedTotal = 0;
-  for (const exp of amortized) {
-    const monthlyAmount = exp.amount / exp.covers_months;
-    const expenseDate = new Date(exp.date);
-    for (let i = 0; i < exp.covers_months; i++) {
-      const bucketMonth = addMonths(expenseDate, i);
-      const bucketStart = startOfMonth(bucketMonth);
-      const bucketEnd = endOfMonth(bucketMonth);
-      if (bucketStart < windowEnd && bucketEnd >= windowStart) {
-        smoothedTotal += monthlyAmount;
-      }
-    }
-  }
+  const smoothedTotal = amortized.reduce(
+    (sum, exp) => sum + getSmoothedAmountInWindow(exp, windowStart, windowEnd),
+    0,
+  );
 
   return (plainResult[0]?.total || 0) + smoothedTotal;
 }

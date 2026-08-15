@@ -8,7 +8,7 @@ import { AdminLoginForm } from "../../../components/auth/admin-login-form";
 import { Suspense } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
-import { useAdminAuthStore, checkCanAccessAdmin } from "@/lib/store/use-admin-auth-store";
+import { useAdminAuthStore, checkCanAccessAdmin, checkIsSuperAdmin } from "@/lib/store/use-admin-auth-store";
 import { APP_VERSION } from "@/lib/constants";
 
 export default function AdminLoginPage() {
@@ -28,7 +28,7 @@ export default function AdminLoginPage() {
       } finally {
         const finalUser = useAdminAuthStore.getState().user;
         if (checkCanAccessAdmin(finalUser?.role)) {
-          router.push("/admin");
+          router.push(checkIsSuperAdmin(finalUser?.role) ? "/admin" : "/admin/referrals");
         } else {
           setChecking(false);
         }

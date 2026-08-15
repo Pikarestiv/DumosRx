@@ -8,7 +8,7 @@ import { Loader2, AlertCircle, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { webApiClient } from "@/lib/api/client";
 import { motion } from "framer-motion";
-import { useAdminAuthStore, checkCanAccessAdmin } from "@/lib/store/use-admin-auth-store";
+import { useAdminAuthStore, checkCanAccessAdmin, checkIsSuperAdmin } from "@/lib/store/use-admin-auth-store";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -56,7 +56,9 @@ export function AdminLoginForm() {
       localStorage.setItem("drx_admin_token", response.token);
       setToken(response.token);
       setUser(response.user);
-      router.push("/admin");
+      // Overview (/admin) is super_admin-only (admin/summary requires it
+      // server-side) — platform_admin/agent would land on a 403 immediately.
+      router.push(checkIsSuperAdmin(response.user.role) ? "/admin" : "/admin/referrals");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Invalid administrative credentials.");
     } finally {

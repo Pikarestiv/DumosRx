@@ -27,13 +27,25 @@ import { APP_VERSION } from "@/lib/constants";
 // that just 403. Items with no `roles` are super_admin-only, the default —
 // only explicitly list roles for what platform_admin/agent should see.
 export const sidebarItems = [
-  { id: "dashboard", name: "Overview", icon: LayoutDashboard, href: "/admin", roles: ["super_admin", "platform_admin", "agent"] },
+  // Overview's data (admin/summary) is super_admin-only server-side (platform
+  // revenue, etc.) — no roles override here, so it stays super_admin-only too.
+  { id: "dashboard", name: "Overview", icon: LayoutDashboard, href: "/admin" },
+  // The full fleet list (GET /admin/stores) surfaces platform-wide revenue
+  // and every store's data — stays super_admin-only. platform_admin/agent
+  // get a direct link to registration instead (create_accounts permission
+  // covers that endpoint), not the list.
   {
     id: "stores",
     name: "Stores",
     icon: Store,
     href: "/admin/stores",
-    roles: ["super_admin", "platform_admin", "agent"],
+  },
+  {
+    id: "register-store",
+    name: "Register Store",
+    icon: Store,
+    href: "/admin/stores/new",
+    roles: ["platform_admin", "agent"],
   },
   {
     id: "referrals",
@@ -118,7 +130,7 @@ export function AdminSidebar() {
 
       <nav className="flex-1 px-4 py-4 space-y-1">
         {sidebarItems
-          .filter((item) => !item.roles || item.roles.includes(user?.role || ""))
+          .filter((item) => (item.roles || ["super_admin"]).includes(user?.role || ""))
           .map((item) => {
           const normalizedPathname = pathname?.replace(/\/$/, "") || "";
           const normalizedHref = item.href.replace(/\/$/, "");

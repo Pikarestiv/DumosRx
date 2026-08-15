@@ -14,10 +14,11 @@ import {
   subYears,
   endOfYear,
 } from "date-fns";
-import { Calendar as CalendarIcon } from "lucide-react";
+import { Calendar as CalendarIcon, X } from "lucide-react";
 import type { DateRange } from "react-day-picker";
 
 import { cn } from "@/lib/utils";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
@@ -26,6 +27,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
 import { sanitizeDateDigits } from "@/components/ui/date-picker-input";
 
 export interface DateRangeValue {
@@ -143,61 +151,119 @@ export function DateRangePicker({ value, onChange, className }: DateRangePickerP
         ? format(range.from, "d MMM yyyy")
         : "Select date range";
 
-  return (
-    <Popover open={isOpen} onOpenChange={setIsOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          className={cn("h-9 justify-start gap-2 text-[13px] font-normal", className)}
-        >
-          <CalendarIcon className="h-4 w-4 text-muted-foreground shrink-0 group-hover:text-accent-foreground" />
-          <span className="truncate">{label}</span>
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
-        <div className="flex flex-col sm:flex-row">
-          <div className="flex sm:flex-col gap-1 p-2 border-b sm:border-b-0 sm:border-r border-border overflow-x-auto sm:w-[150px] shrink-0">
-            {PRESETS.map((p) => (
-              <button
-                key={p.label}
-                type="button"
-                onClick={() => handlePreset(p.getRange)}
-                className="text-left px-2.5 py-1.5 rounded-md text-[12.5px] whitespace-nowrap text-foreground hover:bg-accent transition-colors"
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
+  // Desktop check, not mobile check — matches ResponsiveModal's convention
+  // (defaults to the mobile/Drawer branch during SSR and before the media
+  // query resolves, which is the safer default on a touch-first app).
+  const isDesktop = useMediaQuery("(min-width: 768px)");
 
-          <div className="p-3 flex flex-col gap-2.5">
-            <div className="flex items-center gap-2">
-              <Input
-                value={fromInput}
-                onChange={(e) => handleTextInput("from", e.target.value)}
-                placeholder="DD/MM/YYYY"
-                className="w-[120px] h-8 text-[12.5px]"
-                inputMode="numeric"
-              />
-              <span className="text-muted-foreground">→</span>
-              <Input
-                value={toInput}
-                onChange={(e) => handleTextInput("to", e.target.value)}
-                placeholder="DD/MM/YYYY"
-                className="w-[120px] h-8 text-[12.5px]"
-                inputMode="numeric"
-              />
+  const trigger = (
+    <Button
+      variant="outline"
+      onClick={!isDesktop ? () => setIsOpen(true) : undefined}
+      className={cn("h-9 justify-start gap-2 text-[13px] font-normal", className)}
+    >
+      <CalendarIcon className="h-4 w-4 text-muted-foreground shrink-0 group-hover:text-accent-foreground" />
+      <span className="truncate">{label}</span>
+    </Button>
+  );
+
+  const dateInputs = (
+    <div className="flex items-center gap-2">
+      <Input
+        value={fromInput}
+        onChange={(e) => handleTextInput("from", e.target.value)}
+        placeholder="DD/MM/YYYY"
+        className="w-[120px] h-8 text-[12.5px]"
+        inputMode="numeric"
+      />
+      <span className="text-muted-foreground">→</span>
+      <Input
+        value={toInput}
+        onChange={(e) => handleTextInput("to", e.target.value)}
+        placeholder="DD/MM/YYYY"
+        className="w-[120px] h-8 text-[12.5px]"
+        inputMode="numeric"
+      />
+    </div>
+  );
+
+  if (isDesktop) {
+    return (
+      <Popover open={isOpen} onOpenChange={setIsOpen}>
+        <PopoverTrigger asChild>{trigger}</PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <div className="flex">
+            <div className="flex flex-col gap-1 p-2 border-r border-border w-[150px] shrink-0">
+              {PRESETS.map((p) => (
+                <button
+                  key={p.label}
+                  type="button"
+                  onClick={() => handlePreset(p.getRange)}
+                  className="text-left px-2.5 py-1.5 rounded-md text-[12.5px] whitespace-nowrap text-foreground hover:bg-accent transition-colors"
+                >
+                  {p.label}
+                </button>
+              ))}
             </div>
 
+            <div className="p-3 flex flex-col gap-2.5">
+              {dateInputs}
+              <Calendar
+                mode="range"
+                numberOfMonths={2}
+                selected={range}
+                onSelect={applyRange}
+                defaultMonth={range?.from}
+              />
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
+    );
+  }
+
+  // Mobile: a dual-month calendar + sidebar of presets doesn't fit a phone
+  // viewport (it was opening off-screen, unreachable — see the bug this
+  // replaced). A bottom Drawer with a single month and presets as a
+  // horizontal chip row, matching ResponsiveModal's established
+  // Popover-on-desktop/Drawer-on-mobile split, fixes that.
+  return (
+    <>
+      {trigger}
+      <Drawer open={isOpen} onOpenChange={setIsOpen}>
+        <DrawerContent className="max-h-[85vh] flex flex-col px-4">
+          <DrawerHeader className="text-left mb-2 px-0 flex flex-row items-start justify-between">
+            <DrawerTitle>Select Date Range</DrawerTitle>
+            <DrawerClose className="p-1">
+              <X className="h-5 w-5 opacity-70" />
+              <span className="sr-only">Close</span>
+            </DrawerClose>
+          </DrawerHeader>
+          <div className="flex-1 overflow-y-auto flex flex-col gap-3 pb-4">
+            <div className="flex gap-1.5 overflow-x-auto pb-1">
+              {PRESETS.map((p) => (
+                <button
+                  key={p.label}
+                  type="button"
+                  onClick={() => handlePreset(p.getRange)}
+                  className="shrink-0 px-3 py-1.5 rounded-full text-[12.5px] whitespace-nowrap text-foreground bg-muted hover:bg-accent transition-colors"
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+            {dateInputs}
             <Calendar
               mode="range"
-              numberOfMonths={2}
+              numberOfMonths={1}
               selected={range}
               onSelect={applyRange}
               defaultMonth={range?.from}
+              className="mx-auto"
             />
           </div>
-        </div>
-      </PopoverContent>
-    </Popover>
+        </DrawerContent>
+      </Drawer>
+    </>
   );
 }

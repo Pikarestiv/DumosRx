@@ -43,6 +43,14 @@ This document tracks the proposed features for the DumosRx system, sorted by imp
 - **Status:** Already built, not hypothetical — `AdminController::impersonateStore` + `AdminService` (backend), and `web/app/admin/stores` already has a working impersonate button (`useImpersonateStoreMutation`) that swaps in the store's session cookie. Manually click-tested end to end: start impersonation → correct scoped store/account data shown, "IMPERSONATION MODE" banner visible throughout → "End Session" cleanly restores the super-admin session with no leftover state.
 - **Scope limitation (by design, not a bug):** This only impersonates `web/` (the cloud account/admin dashboard) — it has zero effect on `client/` (the actual offline-first POS app running on a store's device). Confirmed via grep: no impersonation-awareness anywhere in `client/`. The two apps use entirely separate auth (`drx_token`/`drx_admin_token` + a Sanctum session for `web/`, vs. `auth_token` + a local PIN-unlock backed by local SQLite for `client/`), on separate origins, so there's no token crossover even in principle. Impersonation gets you "see this store's account/business data as an admin," not "become this store's cashier" — a POS-specific bug (UI glitch, local sync issue, PIN-gated flow) still needs the actual device or the store's PIN.
 
+### Date Range Filters for Recent-Window Lists — DONE (2026-08-15)
+
+Surfaced while discussing navigation in virtualized lists: virtualization keeps scrolling smooth on a long list, but doesn't help you *reach* an arbitrary point in it — you still have to scroll past everything in between. The previous escape hatch for that was text search, which only helps if you know what you're looking for, not "show me last March."
+
+- **Status:** Shipped and verified live — both `components/customers/activity-tab.tsx` (customer transaction activity) and `components/stock-batch/stock-movements.tsx` (stock movement ledger) now have a `DateRangePicker` (reused as-is from Reports, no new component). An explicit range takes precedence over both the 30-day default window and full-history mode.
+- **Behavior note:** Picking a range is a deliberate choice, so search/filter no longer silently discards it — previously, typing a search term while browsing the recent-window default would force-upgrade to full history; that upgrade is now skipped while a custom range is active, so search stays scoped within the range the user picked. A "Clear date range" control resets back to the default window.
+- **Also fixed in the same pass:** the shared `DateRangePicker`'s calendar icon wasn't tracking the trigger button's hover text color (stayed muted while the label darkened) — now uses `group-hover:text-accent-foreground` to match.
+
 ---
 
 ## 🟢 Quick Wins (hours – ~1 day)
@@ -52,14 +60,6 @@ This document tracks the proposed features for the DumosRx system, sorted by imp
 - **Description:** Add PostHog (funnel analytics, session replays) alongside the now-live Sentry crash reporting.
 - **Cost:** Free tier: 1M events/mo.
 - **Effort:** ~half a day.
-
-### Date Range Filters for Recent-Window Lists (Deferred 2026-08-13)
-
-Surfaced while discussing navigation in virtualized lists: virtualization keeps scrolling smooth on a long list, but doesn't help you *reach* an arbitrary point in it — you still have to scroll past everything in between. The current escape hatch for that is text search, which only helps if you know what you're looking for, not "show me last March."
-
-- **Current state:** Several list views default to a rolling window (`RECENT_ACTIVITY_WINDOW_DAYS = 30`) and only load full history once the user searches or filters to a specific entity — e.g. `components/customers/activity-tab.tsx` (customer transaction activity) and `components/stock-batch/stock-movements.tsx` (stock movement ledger). Neither has a way to jump straight to an arbitrary date range; the only escape hatch is text search. Reports already solved this properly for its own use case (`components/reports/*` has a real dual-month date-range picker), so there's a working component/pattern to reuse rather than invent.
-- **Action:** Add a date-range filter (reusing the existing date-picker pattern from Reports) to these recent-window list views, replacing or supplementing the "search to look further back" note with a direct way to select a period.
-- **Effort:** Small — ~half a day per list (2 lists ≈ 1 day total), mostly wiring an existing date-picker component to each view's query (`getStockMovements`, customer transactions fetch), not new infrastructure.
 
 ### Prepaid / Amortized Expense Recognition — Tier 1 (Deferred 2026-08-02)
 

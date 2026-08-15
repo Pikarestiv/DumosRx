@@ -199,16 +199,18 @@ export function StockMovements() {
               />
             </div>
             <DateRangePicker value={dateRange} onChange={setDateRange} className="bg-muted/30 border-border" />
-            <div className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground/70 bg-muted/30 border border-border rounded-[10px] px-3 py-2.5 whitespace-nowrap w-max">
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <StockMovementTypeFilter
+              typeFilter={typeFilter}
+              setTypeFilter={setTypeFilter}
+              triggerClassName="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none data-[state=inactive]:border-border data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground"
+            />
+            <div className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground/70 whitespace-nowrap shrink-0">
               <Lock className="w-3.5 h-3.5" />
-              Immutable log — entries can't be edited
+              Immutable log — entries can&apos;t be edited
             </div>
           </div>
-          <StockMovementTypeFilter
-            typeFilter={typeFilter}
-            setTypeFilter={setTypeFilter}
-            triggerClassName="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none data-[state=inactive]:border-border data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground"
-          />
           {dateRange.from && (
             <button
               onClick={() => setDateRange({})}

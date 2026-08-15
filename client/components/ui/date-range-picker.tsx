@@ -215,6 +215,10 @@ export function DateRangePicker({ value, onChange, className }: DateRangePickerP
                 selected={range}
                 onSelect={applyRange}
                 defaultMonth={range?.from}
+                // The shared Calendar highlights today's cell by default —
+                // easy to mistake for a 3rd selection alongside a real
+                // from/to pick in range mode, so switch it off here only.
+                classNames={{ today: "" }}
               />
             </div>
           </div>
@@ -262,6 +266,7 @@ export function DateRangePicker({ value, onChange, className }: DateRangePickerP
               onSelect={applyRange}
               defaultMonth={range?.from}
               className="mx-auto"
+              classNames={{ today: "" }}
             />
           </div>
         </DrawerContent>

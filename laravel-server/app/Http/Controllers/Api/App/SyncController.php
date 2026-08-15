@@ -239,10 +239,16 @@ class SyncController extends Controller
                         }
                     }
 
-                // Inject device_id for stores if missing
+                // Inject device_id for stores if missing. device_id is NOT NULL +
+                // UNIQUE — a shared literal fallback ('web-client' for every browser
+                // session with no X-Device-Id header) collides the instant a second
+                // store hits this same path, permanently failing that store's every
+                // sync (confirmed in production via a stuck-sync-item Sentry alert).
+                // Derived from the change's own (already-unique) record_id instead,
+                // so it can never collide and stays stable across retries.
                 if ($change['table_name'] === 'stores') {
                     if (empty($payload['device_id'])) {
-                        $payload['device_id'] = $request->header('X-Device-Id') ?? 'web-client';
+                        $payload['device_id'] = $request->header('X-Device-Id') ?? ('web-client-' . $change['record_id']);
                     }
                 }
                 }
@@ -423,7 +429,9 @@ class SyncController extends Controller
                         
                         if ($change['table_name'] === 'stores') {
                             if (empty($model->device_id)) {
-                                $model->device_id = $request->header('X-Device-Id') ?? 'web-client';
+                                // See the identical guard in the payload-injection stage
+                                // above for why this can't be a shared literal fallback.
+                                $model->device_id = $request->header('X-Device-Id') ?? ('web-client-' . $model->id);
                             }
                         }
 
@@ -540,10 +548,12 @@ class SyncController extends Controller
 
                         if ($change['table_name'] === 'stores') {
                             if (empty($model->device_id)) {
-                                $model->device_id = $request->header('X-Device-Id') ?? 'web-client';
+                                // See the identical guard in the payload-injection stage
+                                // above for why this can't be a shared literal fallback.
+                                $model->device_id = $request->header('X-Device-Id') ?? ('web-client-' . $model->id);
                             }
                         }
-                        
+
                         $model->save();
 
                         // Handle _deleted flag for soft deletes on update

@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { format } from 'date-fns';
+import { format, startOfMonth, addMonths } from 'date-fns';
 import {
   getCurrentMonthRevenue,
   getCurrentMonthCOGS,
   getCurrentMonthExpensesByCategory,
+  getSmoothedExpensesTotal,
   getAllExpenses,
   Expense
 } from '../db/queries/finance';
@@ -26,14 +27,20 @@ export function usePnLReport() {
   const fetchRealData = async () => {
     setLoading(true);
     try {
-      const [revenue, cogs, expensesResult] = await Promise.all([
+      const now = new Date();
+      const monthStart = startOfMonth(now).toISOString();
+      const nextMonthStart = startOfMonth(addMonths(now, 1)).toISOString();
+
+      const [revenue, cogs, expensesResult, totalExpenses] = await Promise.all([
         getCurrentMonthRevenue(),
         getCurrentMonthCOGS(),
-        getCurrentMonthExpensesByCategory()
+        getCurrentMonthExpensesByCategory(),
+        // Category breakdown above still shows each expense's full amount in
+        // whichever category/month it was logged — only this headline total
+        // (and therefore Net Profit) accounts for prepaid smoothing.
+        getSmoothedExpensesTotal({ from: monthStart, to: nextMonthStart }),
       ]);
 
-      const totalExpenses = expensesResult.reduce((acc, curr) => acc + (curr.total || 0), 0);
-      
       setReportData({
         period: format(new Date(), "MMMM yyyy"),
         revenue,

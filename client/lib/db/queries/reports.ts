@@ -5,6 +5,7 @@ import type { DashboardActivity } from "@/lib/types/dashboard-activity";
 import type { SaleWithDetails } from "@/lib/types/sale";
 import type { StockMovementHistoryRow } from "@/lib/types/stock-movement";
 import type { PurchaseOrder } from "@/lib/db/procurement";
+import { getSmoothedExpensesTotal } from "@/lib/db/queries/finance";
 import type { Expense } from "@/lib/db/queries/finance";
 import type { PrescriptionRow } from "@/lib/types/prescription";
 
@@ -278,7 +279,15 @@ export async function getBIMetrics(dateFilter: string, prevDateFilter: string) {
   const totalRefundsData = await query<{ total: number }>(`SELECT SUM(total_refunded) as total FROM returns WHERE created_at >= ? AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}`, s1);
   const cogsData = await query<{ total: number }>(`SELECT SUM(si.cost_price * si.quantity) as total FROM sale_items si JOIN sales s ON si.sale_id = s.id WHERE s.transaction_date >= ? AND (s._deleted = 0 OR s._deleted IS NULL)${storeId ? " AND s.store_id = ?" : ""}`, s1);
   const returnedCogsData = await query<{ total: number }>(`SELECT SUM(ri.quantity * IFNULL((SELECT AVG(cost_price) FROM stock_batches WHERE product_id = m.id AND is_active = 1), 0)) as total FROM return_items ri JOIN returns r ON ri.return_id = r.id LEFT JOIN products m ON ri.product_id = m.id WHERE r.created_at >= ? AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND r.store_id = ?" : ""}`, s1);
-  const expensesData = await query<{ total: number }>(`SELECT SUM(amount) as total FROM expenses WHERE date >= ? AND _deleted = 0${storeId ? " AND store_id = ?" : ""}`, s1);
+  // Smoothed, not a raw SUM: a prepaid expense (covers_months set) is split
+  // into equal calendar-month installments instead of hitting this whole
+  // window as a lump sum wherever it happened to be logged. See
+  // getSmoothedExpensesTotal for the "why".
+  const smoothedExpensesTotal = await getSmoothedExpensesTotal({
+    from: dateFilter,
+    to: new Date().toISOString(),
+  });
+  const expensesData = [{ total: smoothedExpensesTotal }];
   const transactionData = await query<{ count: number }>(`SELECT COUNT(*) as count FROM sales WHERE transaction_date >= ? AND _deleted = 0${storeId ? " AND store_id = ?" : ""}`, s1);
   const stock_batchValueData = await query<{ value: number }>(`SELECT SUM(inv.cost_price * inv.quantity) as value FROM stock_batches inv WHERE (inv._deleted = 0 OR inv._deleted IS NULL)${storeId ? " AND inv.store_id = ?" : ""}`, storeOnly);
   const customerData = await query<{ count: number }>(`SELECT COUNT(*) as count FROM customers WHERE _deleted = 0${storeId ? " AND store_id = ?" : ""}`, storeOnly);

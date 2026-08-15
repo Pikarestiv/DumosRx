@@ -43,6 +43,7 @@ export function AddExpenseDialog({
     date: new Date().toISOString().split("T")[0],
     payment_method: "Cash",
     notes: "",
+    covers_months: "",
   });
 
   useEffect(() => {
@@ -56,6 +57,7 @@ export function AddExpenseDialog({
           : new Date().toISOString().split("T")[0],
         payment_method: expenseToEdit.payment_method || "Cash",
         notes: expenseToEdit.notes || "",
+        covers_months: expenseToEdit.covers_months?.toString() || "",
       });
     } else if (!open) {
       // Reset form when closed
@@ -66,6 +68,7 @@ export function AddExpenseDialog({
         date: new Date().toISOString().split("T")[0],
         payment_method: "Cash",
         notes: "",
+        covers_months: "",
       });
     }
   }, [expenseToEdit, open]);
@@ -82,6 +85,9 @@ export function AddExpenseDialog({
       const data = {
         ...formData,
         amount: parseFloat(formData.amount),
+        covers_months: formData.covers_months
+          ? parseInt(formData.covers_months, 10)
+          : null,
         user_id: user?.id,
       };
 
@@ -236,6 +242,44 @@ export function AddExpenseDialog({
 
           <div>
             <label className="text-[12.5px] font-semibold mb-1.5 block text-foreground">
+              Spread over how many months? (optional)
+            </label>
+            <input
+              type="number"
+              min="2"
+              step="1"
+              placeholder="e.g. 12 for a year's rent paid up front"
+              className="w-full h-11 border border-border rounded-[10px] px-3.5 text-[13px] outline-none focus:border-primary bg-background text-foreground placeholder:text-muted-foreground"
+              value={formData.covers_months}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  covers_months: e.target.value,
+                }))
+              }
+            />
+            {!!(
+              formData.covers_months &&
+              Number(formData.covers_months) > 1 &&
+              formData.amount
+            ) && (
+              <p className="text-[11.5px] text-muted-foreground mt-1.5">
+                Reports will count ₦
+                {(
+                  parseFloat(formData.amount) / Number(formData.covers_months)
+                ).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                /month for {formData.covers_months} months starting{" "}
+                {new Date(formData.date).toLocaleDateString(undefined, {
+                  month: "long",
+                  year: "numeric",
+                })}
+                , instead of the full amount in one period.
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label className="text-[12.5px] font-semibold mb-1.5 block text-foreground">
               Notes (optional)
             </label>
             <input
@@ -249,11 +293,11 @@ export function AddExpenseDialog({
             />
           </div>
 
-          <div className="text-[11.5px] text-muted-foreground bg-primary/5 border border-primary/20 rounded-[10px] px-3.5 py-3 flex gap-2 items-start mt-2">
+          {/* <div className="text-[11.5px] text-muted-foreground bg-primary/5 border border-primary/20 rounded-[10px] px-3.5 py-3 flex gap-2 items-start mt-2">
             <Info className="w-[15px] h-[15px] text-primary shrink-0 mt-0.5" />
             Attach a receipt later from the expense detail view — file upload
             coming soon.
-          </div>
+          </div> */}
         </div>
       </form>
     </ResponsiveModal>

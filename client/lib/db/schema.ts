@@ -335,7 +335,9 @@ CREATE TABLE IF NOT EXISTS expenses (
   _version INTEGER DEFAULT 1,
   _synced INTEGER DEFAULT 0,
   _synced_at TEXT,
-  _deleted INTEGER DEFAULT 0
+  _deleted INTEGER DEFAULT 0,
+  store_id TEXT,
+  covers_months INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS users (

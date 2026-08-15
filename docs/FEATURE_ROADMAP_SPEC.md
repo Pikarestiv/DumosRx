@@ -63,6 +63,17 @@ This was previously listed under v2.0+ Hold as "not started," which was wrong �
 
 **Still a real, unaddressed gap:** stock is only deducted at *fulfillment* time (when a merchant clicks the button in the POS modal), not at storefront checkout time. Two customers can still both successfully place an order for the last unit online before either gets fulfilled. True prevention needs either a stock hold at order time or a live-stock check at checkout — both are nontrivial given `client/`'s offline-first architecture (the server doesn't have real-time-accurate stock counts between syncs), so this wasn't attempted here. Worth its own scoped design pass if overselling becomes a real complaint, not a quick fix.
 
+### Prepaid / Amortized Expense Recognition — Tier 1 — DONE (2026-08-15)
+
+Surfaced during demo prep: a store logged a full year's rent (₦270,000) as one lump-sum expense entry. Because the P&L/Analytics views window by calendar period (e.g. "Last 30 Days"), the entire amount hit that one period's Net Profit, showing a large one-time paper loss that doesn't reflect actual monthly burn.
+
+- **Status:** Shipped and verified live. Added an optional "Spread over how many months?" field to the expense form (`add-expense-dialog.tsx`) — a live preview shows exactly what will happen (e.g. "Reports will count ₦22,500/month for 12 months starting August 2026") before saving. Backed by a new `expenses.covers_months` column (migration on both sides + local SQLite schema/sync).
+- **Behavior, per discussion:** not a display-hint alongside the lump sum — the smoothed figure *is* the reported number everywhere Net Profit is computed (Analytics BI dashboard, the P&L report hook), replacing the lump sum outright for any expense with `covers_months` set. Opt-in per expense — nothing changes for expenses that don't use the field, and the raw expense entry (real date, real full amount) is untouched in the expense list itself; only the P&L rollup reads it smoothed.
+- **How it's computed:** `getSmoothedExpensesTotal()` (`lib/db/queries/finance.ts`) splits the amount into `covers_months` equal calendar-month installments starting from the expense's own date, and sums whichever installments' calendar month overlaps the requested report window — not day-prorated, discrete month buckets, matching how the user described wanting it to work.
+- **Verified live:** added a real ₦270,000/12-month test expense; the Analytics BI dashboard's Net Profit immediately showed -₦22,500 (one month's installment), not -₦270,000.
+- **Known accepted tradeoff:** Net Profit is now an accrual number that can diverge from actual cash movement in the period it was paid — inherent to smoothing at all, not a bug.
+- **Scope note:** applied to the two live "Net Profit" surfaces (Analytics BI dashboard, P&L report hook). A `p-and-l-report-dialog.tsx` component also exists and was updated for consistency, but turned out to be dead code — nothing in the app currently renders it, so it couldn't be verified live.
+
 ---
 
 ## 🟢 Quick Wins (hours – ~1 day)
@@ -72,16 +83,6 @@ This was previously listed under v2.0+ Hold as "not started," which was wrong �
 - **Description:** Add PostHog (funnel analytics, session replays) alongside the now-live Sentry crash reporting.
 - **Cost:** Free tier: 1M events/mo.
 - **Effort:** ~half a day.
-
-### Prepaid / Amortized Expense Recognition — Tier 1 (Deferred 2026-08-02)
-
-Surfaced during demo prep: a store logged a full year's rent (₦270,000) as one lump-sum expense entry. Because the P&L/Analytics views window by calendar period (e.g. "Last 30 Days"), the entire amount hit that one period's Net Profit, showing a large one-time paper loss that doesn't reflect actual monthly burn. This is a reporting-accuracy gap, not a data-entry mistake — the current `expenses` model has no concept of an expense covering more than the period it's logged in.
-
-**How real-world accounting software handles this:** this is the standard treatment of a **prepaid expense**. QuickBooks/Xero post the payment to a "Prepaid Expenses" asset account, then auto-generate a scheduled monthly journal entry that recognizes a portion of it as a real expense each period. Zoho Books/FreshBooks offer a simpler framing: mark an expense as spread over N months and the reports auto-smooth it. Wave (closest to DumosRx's target market) does *not* do this — cash-basis only — which is exactly the failure mode we hit.
-
-- **Tier 1 (Minimal, display-hint only, recommended first pass):** Add an optional `covers_months` (or `recognition_period_months`) field to an expense entry. No accounting logic changes — purely a *reporting* hint. P&L/Analytics views detect a large one-time expense and either (a) show a "spread over N months" note, or (b) offer a toggle between "as-paid" (cash) and "smoothed" (recognized-to-date) Net Profit. Low risk, no migration of historical data required.
-- **Recommendation:** Ship tier 1 first — DumosRx's users are small retail/pharmacy owners, not accountants, so the reporting-accuracy fix matters more than full GAAP-style accrual books. Tier 2 (full accrual) is listed separately below under Medium.
-- **Effort:** ~1 day.
 
 ### Measurement units → per-store custom list (Deferred 2026-08-14)
 
@@ -181,9 +182,9 @@ Surfaced during demo prep: a store logged a full year's rent (₦270,000) as one
 
 ### Prepaid / Amortized Expense Recognition — Tier 2 (full accrual)
 
-- **Full accrual (real feature, do later):** Proper `prepaid_expenses` concept — record the cash payment once, generate N real monthly recognition ledger rows automatically, and switch every P&L query (`use-bi-data.ts`, `use-daily-close-data.ts`, `use-finance-data.ts`, `lib/db/queries/reports.ts`) from summing `expenses.amount` directly to summing recognized-to-date. Requires a migration for existing large expense entries, new UI for entering "amortize over X months," and careful handling of cash-flow reports (which should still reflect the real one-time payment, not the smoothed figure).
-- **Revisit if:** there's demand for accountant-facing exports. Tier 1 (already listed under Quick Wins) covers the actual demo-facing problem more cheaply.
-- **Effort:** ~3–5 days (schema + migration + query rewrites across multiple report hooks).
+- **Full accrual (real feature, do later):** Proper `prepaid_expenses` concept — a dedicated recognition ledger with real monthly rows generated automatically, rather than Tier 1's compute-on-read smoothing. Would let cash-flow reports diverge correctly from smoothed P&L (Tier 1 doesn't distinguish the two — everywhere Net Profit is computed now shows the smoothed figure, including anything that conceptually wants the real cash movement instead).
+- **Revisit if:** there's demand for accountant-facing exports or a genuine cash-flow-vs-accrual distinction. Tier 1 (done, see above) already covers the actual demo-facing problem.
+- **Effort:** ~3–5 days (new ledger table + migration + query rewrites).
 
 ---
 

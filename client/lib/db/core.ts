@@ -256,6 +256,7 @@ export async function initDatabase(): Promise<any> {
         "_deleted INTEGER DEFAULT 0",
         "user_id TEXT",
         "store_id TEXT",
+        "covers_months INTEGER",
       ],
     },
     {

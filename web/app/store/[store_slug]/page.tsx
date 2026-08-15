@@ -48,7 +48,17 @@ export default async function StorefrontPage({ params }: StorefrontProps) {
       {/* Custom simplified header for storefront */}
       <header className="bg-white border-b sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="font-bold text-xl text-emerald-700">{store.name}</div>
+          <div className="flex items-center gap-3">
+            {store.logo_url && (
+              // eslint-disable-next-line @next/next/no-img-element -- static export, arbitrary base64 data URI, next/image's domain allowlisting doesn't apply
+              <img
+                src={store.logo_url}
+                alt={`${store.name} logo`}
+                className="h-9 w-9 object-contain rounded"
+              />
+            )}
+            <div className="font-bold text-xl text-emerald-700">{store.name}</div>
+          </div>
           <div className="flex items-center space-x-4">
             <StorefrontCart storeSlug={params.store_slug} />
           </div>

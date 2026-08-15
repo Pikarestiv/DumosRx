@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { AdminStoreSummary } from "@/lib/types/admin";
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
+import { useAdminAuthStore, checkIsSuperAdmin } from "@/lib/store/use-admin-auth-store";
 
 interface StoreTableProps {
   storeList: AdminStoreSummary[];
@@ -55,6 +56,13 @@ export function StoreTable({
   handleUnsuspend,
   router,
 }: StoreTableProps) {
+  // Suspend/unsuspend is super_admin-exclusive server-side — hiding it for
+  // platform_admin/agent avoids a dead menu item that would just 403.
+  const { user } = useAdminAuthStore();
+  const isSuperAdmin = checkIsSuperAdmin(user?.role);
+  // grant_trials is shared by super_admin/platform_admin, not agent.
+  const canGrantTrials = isSuperAdmin || user?.role === "platform_admin";
+
   return (
     <Table>
       <TableHeader>
@@ -193,36 +201,42 @@ export function StoreTable({
                     <History className="h-4 w-4 text-blue-500" />
                     System Logs
                   </DropdownMenuItem>
-                  <DropdownMenuItem 
-                    className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold text-amber-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors"
-                    onClick={() => {
-                      setSelectedStore(store);
-                      setIsTrialDialogOpen(true);
-                    }}
-                  >
-                    <Gift className="h-4 w-4" />
-                    Grant Trial
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator className="my-2 bg-slate-100 dark:bg-slate-800" />
-                  {store.status === "Suspended" ? (
-                    <DropdownMenuItem 
-                      className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors"
-                      onClick={() => handleUnsuspend(store)}
-                    >
-                      <CheckCircle className="h-4 w-4" />
-                      Unsuspend Account
-                    </DropdownMenuItem>
-                  ) : (
-                    <DropdownMenuItem 
-                      className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors"
+                  {canGrantTrials && (
+                    <DropdownMenuItem
+                      className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold text-amber-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors"
                       onClick={() => {
                         setSelectedStore(store);
-                        setIsSuspendDialogOpen(true);
+                        setIsTrialDialogOpen(true);
                       }}
                     >
-                      <Ban className="h-4 w-4" />
-                      Suspend Account
+                      <Gift className="h-4 w-4" />
+                      Grant Trial
                     </DropdownMenuItem>
+                  )}
+                  {isSuperAdmin && (
+                    <>
+                      <DropdownMenuSeparator className="my-2 bg-slate-100 dark:bg-slate-800" />
+                      {store.status === "Suspended" ? (
+                        <DropdownMenuItem
+                          className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors"
+                          onClick={() => handleUnsuspend(store)}
+                        >
+                          <CheckCircle className="h-4 w-4" />
+                          Unsuspend Account
+                        </DropdownMenuItem>
+                      ) : (
+                        <DropdownMenuItem
+                          className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors"
+                          onClick={() => {
+                            setSelectedStore(store);
+                            setIsSuspendDialogOpen(true);
+                          }}
+                        >
+                          <Ban className="h-4 w-4" />
+                          Suspend Account
+                        </DropdownMenuItem>
+                      )}
+                    </>
                   )}
                 </DropdownMenuContent>
               </DropdownMenu>

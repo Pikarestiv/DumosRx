@@ -74,6 +74,7 @@ class StorefrontController extends Controller
                 'address' => $store->address,
                 'phone' => $store->phone,
                 'email' => $store->email,
+                'logo_url' => $store->logo_url,
             ],
             'products' => $products
         ]);

@@ -63,6 +63,51 @@ This was previously listed under v2.0+ Hold as "not started," which was wrong �
 
 **Still a real, unaddressed gap:** stock is only deducted at *fulfillment* time (when a merchant clicks the button in the POS modal), not at storefront checkout time. Two customers can still both successfully place an order for the last unit online before either gets fulfilled. True prevention needs either a stock hold at order time or a live-stock check at checkout — both are nontrivial given `client/`'s offline-first architecture (the server doesn't have real-time-accurate stock counts between syncs), so this wasn't attempted here. Worth its own scoped design pass if overselling becomes a real complaint, not a quick fix.
 
+### Roles & Permissions cleanup — DONE (2026-08-15)
+
+Scope was significantly larger than originally estimated once audited against live code, not just the ~18 `AdminController` checks the doc previously called out:
+
+- **Server (`laravel-server/`):** replaced raw `role !== 'super_admin'` string checks with `hasRole('super_admin')` across 10 files — `AdminController.php` (23 checks, not ~18), `AuthController.php` (2), `SyncController.php` (2), `CheckSubscription.php`, `EnsureEmailIsVerified.php`, `CheckAccountStatus.php`, `StaffController.php`, `NotificationController.php`, `BroadcastController.php` (1 each). `User.php`'s own internal `hasRole()`/`hasPermission()` implementation was left untouched (it's the canonical helper, not a call site). Verified `hasRole()`'s normalization first — `store_owner`/`admin` are treated as equivalent to each other but never to `super_admin`, ruling out privilege escalation before the bulk swap.
+- **`manage_platform` permission gap — fixed.** The `permission:manage_platform` middleware on `admin/*` routes referenced a permission that was never actually seeded to anyone — it only ever worked via `super_admin`'s unconditional bypass in `CheckPermission`, not a real grant. Seeded it, explicitly excluded from `admin`/`store_owner`'s permission lists (only `super_admin` holds it).
+- **Client (`client/`):** `pos-transaction-history.tsx`'s `canReturn` check was an exact-string allowlist (`store_owner|admin|manager`) that silently excluded `super_admin` — a real bug (the platform's own top role couldn't process a POS return). Fixed via the existing `checkIsAdmin()` helper from `auth-context.tsx`. Also fixed `staff-list.tsx` (cosmetic-only checks).
+- **`web/` (not in the original doc scope at all):** had no shared role-helper before this — added `checkIsSuperAdmin()` and used it in `admin/layout.tsx`, `admin/login/page.tsx`, `admin-login-form.tsx` (4 raw checks total). Also found and fixed a real, confirmed-live bug in `user-table.tsx`: it compared the *display label* (`user.role`, e.g. `"Store Admin"`) against a literal that the server's `ucwords()` transform never actually produces for the `admin` slug (it produces `"Admin"`) — so the "Grant Free Trial" menu item and badge styling had never once worked for any actual admin-role platform user. Root-caused to `AdminService::getGlobalUsers()` and fixed by adding a raw `role_slug` field to the API response, switching frontend logic to key off that instead of the label.
+- **Explicitly left alone:** `staff-table.tsx`'s 3 `role === 'store_owner'` checks — verified these check the raw slug correctly already, not worth the churn.
+- **Verification:** `web/` typechecked clean, all 11 touched Laravel files lint-clean. Full `php artisan test` run surfaced two *pre-existing, unrelated* migrations (`make_customers_last_name_nullable`, `add_partial_to_sales_payment_status_enum`) using MySQL-only `ALTER TABLE ... MODIFY` syntax that crashed the entire suite on SQLite — fixed both with the same `DB::getDriverName() !== 'sqlite'` guard already used elsewhere in the migrations directory. One more pre-existing, unrelated bug found but *not* fixed (out of scope): `SyncController::push()` can leave a PDO transaction open under some exception path, which cascades into unrelated test failures only when specific test classes run in the same process — flagged for a future pass.
+
+### New "agent" role (app installers) — DONE (2026-08-15)
+
+- **Correction to the doc's original premise:** `referral_code`/`referred_by_id`/`referral_credits` are *not* an unused foundation — they already power a live, separate **customer** referral program (store owners referring other store owners for account credit; `ReferralController`, `referral-tab.tsx`, `referrals-relationships-table.tsx`). Reusing them for platform staff would have conflated two different relationships and risked agents surfacing in customer-facing referral UI. Built entirely separate columns instead, per discussion.
+- **Three platform-level roles** (no store of their own, same shape as the pre-existing `super_admin`): `super_admin`, `platform_admin` (partners/co-founders — distinct slug from the pre-existing store-level `admin`, which always has a store and means something different), and `agent` (recruited onboarding agents). Seeded with `create_accounts`/`grant_trials` permissions (`super_admin` gets both plus everything else, `platform_admin` gets both, `agent` gets `create_accounts` only).
+- **Attribution, not commission math** — per explicit instruction, no rate/payout calculation was built. New `users.platform_referral_code` (unique, auto-generated for all three roles) + `users.registered_by_id` (nullable FK) track which platform user created or referred each account; the actual charge/remittance/commission happens outside the platform.
+- **Two attribution paths, both wired:**
+  - Direct creation: `AdminController::registerStore` (already existed, was super_admin-only) now checks `create_accounts` instead, open to all three roles, and records `registered_by_id`.
+  - Self-serve: `AuthController::register` accepts a new `agent_ref` param, resolved against `platform_referral_code` — wired into `web/`'s `/register` form via `?agent_ref=` (a pre-existing gap was found and left alone: that same form doesn't forward the *customer* `ref` param either, despite `referral-tab.tsx` generating links that imply it does — not fixed here, out of scope).
+- **Permission split implemented exactly as specified:** `grantTrial`/`grantUserTrial` now check `grant_trials` (super_admin + platform_admin, not agent). `suspendStore`/`unsuspendStore`/`deactivateUser`/`reactivateUser`/`createPlatformAdmin` (creating *other* platform accounts) stay `hasRole('super_admin')`-only, unchanged — platform_admin can create customer accounts but not manage other platform accounts.
+- **`web/` admin dashboard opened up:** was `super_admin`-only end to end (`checkIsSuperAdmin` gated login + layout). Added `checkCanAccessAdmin` for the three roles to get in at all, while `checkIsSuperAdmin` still gates the specific super_admin-exclusive actions (suspend/unsuspend buttons hidden for non-super_admin in `store-table.tsx`, grant-trial button additionally hidden for `agent`). Sidebar nav (`admin-sidebar.tsx`) now per-item role-scoped — platform_admin/agent see only Overview, Stores, and the new "My Referrals" page; everything else stays super_admin-only, avoiding dead links that would just 403.
+- **New `/admin/my-referrals` endpoint + `/admin/referrals` page:** shows the caller's own referral link and the accounts they've registered/referred; `super_admin` can pass `?user_id=` to view any platform user's.
+- **`admin/users/new`** (already existed, previously hardcoded to create another `super_admin` despite being labeled "Add Platform Admin") now has a real role selector for all three roles.
+- **Verified live** via tinker: created a real `platform_admin` and `agent`, confirmed `create_accounts`/`grant_trials` resolve exactly per the split above, confirmed referral code generation and resolution round-trips correctly, confirmed `registered_by_id` attribution. Test accounts cleaned up afterward. `web/` typechecks clean, all touched Laravel files lint-clean, full test suite unchanged from baseline.
+
+### Measurement units → per-store custom list — DONE (2026-08-15)
+
+Reversed the doc's earlier "suggest, don't restrict" recommendation per direct request — two products silently ending up with "Tablet" vs "tablet" vs "Tabs" was worse than occasionally blocking an edge case.
+
+- New `UnitSelect` (`client/components/products/unit-select.tsx`) replaces `SearchableInput` for both `baseUnit` and `bulkUnit` in `product-packaging-fields.tsx`. Dropdown-only — typing filters the list but can never commit a value that isn't a real option; blur reverts to the last valid value.
+- Options are `FORM_SUGGESTIONS.common.units` merged with the store's own `custom_units` (new `stores.custom_units` JSON column, same pattern as the existing `enabled_payment_methods`). A "+ Add "X" as a new unit" row appears inline whenever the typed text doesn't match an existing option — one click persists it to the store's list via `updateStoreProfile()` and selects it immediately, no separate settings trip required.
+- `bulkUnit` previously had its own separate hardcoded 4-item list (`["Carton", "Pack", "Box", "Roll"]`), inconsistent with `baseUnit`'s suggestions-backed list — now unified onto the same combined list.
+- Scope, per discussion: units only, not a generalized creatable-dropdown pattern — `SearchableInput` (still free-text/suggest-only) is untouched and still used elsewhere (categories, dosage forms, etc.).
+- Cleanup: `commonSuggestions` prop threading (`add-product-dialog.tsx` → `ProductFormFields` → `ProductPackagingFields`) removed — `UnitSelect` sources its own options directly, the prop had no other consumer.
+
+### Business Information card — DONE (2026-08-15)
+
+- **Structure, per discussion:** kept in `client/` rather than moving to `web/` as originally recommended — nested instead of split, since the two apps aren't part of the same page tree and a "nest under" relationship only makes sense within one. `store-information-card.tsx` was replaced by `business-information-card.tsx`: a "Business Information" card (name, new `registration_number`/CAC field, address, phone, email, logo) with a visually nested "Store Profile" sub-section inside it (store URL slug, PCN license, online-store toggle, retail-suggestions toggle). One save action, one edit-mode toggle, same as before.
+- **Known tradeoff, accepted:** `registration_number` lives on `stores`, not a separate business/account entity (none exists in the schema) — same limitation `name`/`phone`/`address` already had. A business running multiple stores re-enters it per store. A real fix would mean extracting a `Business` model shared across a user's stores — a substantially larger, separate project, not attempted here.
+- **Logo — two real bugs found and fixed, not just gated:**
+  - It was already gated (`canCustomizeTheme`/`custom_branding`, same tier as everywhere else) — upload UI just moved from `ReceiptCustomizationCard` to the new card; `ReceiptCustomizationCard` now only shows a read-only preview + the existing "Show Logo on Receipt" toggle.
+  - **`stores.logo_url` was never in `Store::$fillable`.** A synced logo silently vanished server-side on every save. (Sync's own `push()` path uses `forceFill()`, which bypasses this — so this specifically would have broken any *other* code path that saves a store via normal mass assignment, e.g. an admin-side edit.) Fixed by adding it to `$fillable`.
+  - **`stores.logo_url` was `VARCHAR(255)`** — nowhere near enough for the base64 data URI a 1MB upload actually produces (~1.4MB of text). This is the real reason logos never reliably reached the server at all. Migrated to `LONGTEXT` (MySQL; no-op on SQLite, which has no fixed-length string type).
+  - **Never rendered on the public storefront** — only ever showed on printed POS receipts. Added `logo_url` to `StorefrontController::show`'s response and rendered it in `web/app/store/[store_slug]/page.tsx`'s header.
+
 ### Prepaid / Amortized Expense Recognition — Tier 1 — DONE (2026-08-15)
 
 Surfaced during demo prep: a store logged a full year's rent (₦270,000) as one lump-sum expense entry. Because the P&L/Analytics views window by calendar period (e.g. "Last 30 Days"), the entire amount hit that one period's Net Profit, showing a large one-time paper loss that doesn't reflect actual monthly burn.
@@ -85,18 +130,6 @@ Surfaced during demo prep: a store logged a full year's rent (₦270,000) as one
 - **Cost:** Free tier: 1M events/mo.
 - **Effort:** ~half a day.
 
-### Measurement units → per-store custom list (Deferred 2026-08-14)
-
-- **Current state:** `client/lib/constants/suggestions.ts` provides a static `FORM_SUGGESTIONS.common.units` list; `product-packaging-fields.tsx` uses `SearchableInput` for both `baseUnit` and `bulkUnit` — suggest-but-not-restrict free text, no way to manage a store's own reusable unit list.
-- **Recommendation discussed:** Keep the suggest-not-restrict UX (avoids blocking real-world edge cases), but let a store add its own custom units that then persist as first-class suggestions for that store, rather than only the hardcoded global list.
-- **Effort:** ~1 day — small store-scoped table + wiring into the existing `SearchableInput`, no new UX pattern.
-
-### Business Information card (Deferred 2026-08-14)
-
-- **Current state:** No dedicated place to store business-level info (registration/CAC number, business address, business phone distinct from a user's phone, logo for receipts, etc.).
-- **Action:** Likely belongs in `web/` (account/business level) rather than `client/` (per-device), consistent with how business-wide concepts like subscriptions are already split from store-floor settings.
-- **Effort:** ~1 day — standard form, no new architecture.
-
 ---
 
 ## 🟡 Small (1–3 days)
@@ -106,20 +139,6 @@ Surfaced during demo prep: a store logged a full year's rent (₦270,000) as one
 - **Current state:** DumosRx already has "Require Payment Destination Account" (`payment-settings-card.tsx`) — this only enforces that cashiers pick which bank/till account a payment landed in, for reconciliation. It does not restrict *which payment methods* are allowed, by whom, or above what transaction threshold.
 - **Action:** If wanted, add a genuine payment-method restriction layer (e.g. disable cash above ₦X, restrict certain methods to certain roles) as a separate setting from the destination-account toggle.
 - **Effort:** ~1–2 days — new setting + enforcement at checkout, no new subsystem.
-
-### Roles & Permissions cleanup (Deferred 2026-08-02)
-
-- **Current state:** A real `Role`/`Permission` system already exists server-side (`app/Models/Role.php`, `Permission.php`, `RolesAndPermissionsSeeder`) with roles `super_admin`, `admin`, `store_owner`, `manager`, `specialist`, `sales_staff`, `auditor`, each mapped to permissions (`manage_staff`, `view_reports`, `manage_inventory`, `process_sales`, `dispense_prescriptions`, `view_own_sales`), plus a `permission:` middleware wired to some routes (`routes/api.php`).
-- **Gap:** Enforcement is inconsistent. `AdminController` checks `$user->role !== 'super_admin'` as a raw string in ~18 places instead of using `hasRole()`/`hasPermission()` uniformly. The client (`pos-transaction-history.tsx`, `staff-list.tsx`) only recognizes `store_owner|admin|manager`, not the full seeded role list.
-- **Action:** Audit every raw `role ===` / `role !==` check (client and server) and replace with the permission-based helpers so the seeded roles actually take effect everywhere.
-- **Effort:** ~2–3 days — mechanical but wide (many call sites), not conceptually hard.
-
-### New "agent" role (app installers) (Deferred 2026-08-02)
-
-- **Description:** A role for people who install/onboard DumosRx for new pharmacies (co-founders would be `admin`, you `super_admin`, installers get this new role).
-- **Foundation already present:** `users` table already has `referral_code` / `referred_by_id` / `referral_credits` columns — likely the intended basis for tracking who onboarded which store.
-- **Action:** Add an `agent` (or better name — "installer"? "onboarding_partner"?) role/permission scoped to store registration only (no access to a store's sales/financial data), and a simple attribution view (which agent onboarded which stores).
-- **Effort:** ~2–3 days.
 
 ### Pricing groups / bulk-vs-unit pricing (Deferred 2026-08-14)
 
@@ -259,7 +278,7 @@ Surfaced during demo prep: a store logged a full year's rent (₦270,000) as one
 
 ### Roles & Permissions UI (Deferred 2026-08-14)
 
-- **Current state:** Real `Role`/`Permission` system already exists server-side (see [Roles & Permissions cleanup](#roles--permissions-cleanup-deferred-2026-08-02) above) but enforcement is inconsistent and the client only recognizes a subset of roles.
+- **Current state:** Real `Role`/`Permission` system already exists server-side, and enforcement is now consistent (see [Roles & Permissions cleanup](#roles--permissions-cleanup--done-2026-08-15) above).
 - **Open question:** Whether a dedicated Settings-tab "Roles & Permissions" UI is worth building depends on a concrete use case where the current role set doesn't cut it — not yet identified. Not sizeable until a use case surfaces.
 
 ---

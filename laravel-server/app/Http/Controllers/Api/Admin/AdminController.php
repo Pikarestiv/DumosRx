@@ -104,14 +104,14 @@ class AdminController extends Controller
         )),
         responses: [
             new OA\Response(response: 201, description: 'Created', content: new OA\JsonContent(type: 'object')),
-            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Caller lacks create_accounts permission'),
             new OA\Response(response: 422, ref: '#/components/responses/ValidationError'),
             new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
         ],
     )]
     public function registerStore(Request $request)
     {
-        if (!$request->user()->hasRole('super_admin')) {
+        if (!$request->user()->hasPermission('create_accounts')) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -125,7 +125,7 @@ class AdminController extends Controller
         ]);
 
         try {
-            $store = $this->adminService->registerStore($validated);
+            $store = $this->adminService->registerStore($validated, $request->user()->id);
             return response()->json([
                 'message' => 'Store registered successfully',
                 'store' => $store
@@ -329,6 +329,100 @@ class AdminController extends Controller
     }
 
     #[OA\Get(
+        path: '/admin/my-referrals',
+        summary: "Accounts the caller registered or that signed up via the caller's referral link",
+        description: 'Available to super_admin/platform_admin/agent (the manage_platform gate on this whole route group already covers that). Defaults to the caller\'s own attribution; super_admin may pass user_id to view any platform user\'s.',
+        tags: ['Admin'],
+        security: [['sanctum' => []]],
+        parameters: [new OA\Parameter(name: 'user_id', in: 'query', description: 'super_admin only — view another platform user\'s referrals', schema: new OA\Schema(type: 'string'))],
+        responses: [
+            new OA\Response(response: 200, description: 'Referral code + attributed accounts', content: new OA\JsonContent(type: 'object')),
+            new OA\Response(response: 403, description: 'Requested another user\'s referrals without being super_admin'),
+        ],
+    )]
+    public function myReferrals(Request $request)
+    {
+        $caller = $request->user();
+        $targetId = $caller->id;
+
+        if ($request->filled('user_id') && $request->query('user_id') !== $caller->id) {
+            if (!$caller->hasRole('super_admin')) {
+                return response()->json(['error' => 'Unauthorized'], 403);
+            }
+            $targetId = $request->query('user_id');
+        }
+
+        try {
+            return response()->json($this->adminService->getReferralsFor($targetId));
+        } catch (\Exception $e) {
+            Log::error("Admin My Referrals Error: " . $e->getMessage());
+            return response()->json(['error' => 'Failed to fetch referrals'], 500);
+        }
+    }
+
+    #[OA\Get(
+        path: '/admin/referral-code/check',
+        summary: 'Check whether a custom platform referral code is available',
+        description: 'Available to super_admin/platform_admin/agent. Normalizes the same way updateReferralCode does, so what\'s reported available is exactly what would be saved.',
+        tags: ['Admin'],
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'code', in: 'query', required: true, schema: new OA\Schema(type: 'string')),
+            new OA\Parameter(name: 'user_id', in: 'query', description: 'Exclude this user\'s own current code from the collision check (i.e. re-saving your own code as-is)', schema: new OA\Schema(type: 'string')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Availability + normalized code', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'available', type: 'boolean'),
+                new OA\Property(property: 'code', type: 'string'),
+            ])),
+        ],
+    )]
+    public function checkReferralCode(Request $request)
+    {
+        $request->validate(['code' => 'required|string']);
+
+        return response()->json(
+            $this->adminService->checkReferralCodeAvailable($request->query('code'), $request->query('user_id'))
+        );
+    }
+
+    #[OA\Post(
+        path: '/admin/referral-code',
+        summary: 'Set a custom platform referral code',
+        description: 'Self-service — defaults to the caller\'s own code. super_admin may pass user_id to set another platform user\'s.',
+        tags: ['Admin'],
+        security: [['sanctum' => []]],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            required: ['code'],
+            properties: [
+                new OA\Property(property: 'code', type: 'string', minLength: 3, maxLength: 32),
+                new OA\Property(property: 'user_id', type: 'string', nullable: true, description: 'super_admin only'),
+            ],
+        )),
+        responses: [
+            new OA\Response(response: 200, description: 'Updated', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'platform_referral_code', type: 'string'),
+            ])),
+            new OA\Response(response: 403, description: 'Tried to edit another user\'s code without being super_admin'),
+            new OA\Response(response: 422, description: 'Invalid format or already taken'),
+        ],
+    )]
+    public function updateReferralCode(Request $request)
+    {
+        $request->validate(['code' => 'required|string']);
+        $caller = $request->user();
+        $targetId = $request->filled('user_id') ? $request->input('user_id') : $caller->id;
+
+        try {
+            $code = $this->adminService->updateReferralCode($targetId, $request->input('code'), $caller->id);
+            return response()->json(['platform_referral_code' => $code]);
+        } catch (\Exception $e) {
+            $status = str_contains($e->getMessage(), 'super_admin') ? 403 : 422;
+            return response()->json(['error' => $e->getMessage()], $status);
+        }
+    }
+
+    #[OA\Get(
         path: '/admin/search',
         summary: 'Global platform search (stores, users, etc.)',
         tags: ['Admin'],
@@ -442,7 +536,7 @@ class AdminController extends Controller
     )]
     public function grantTrial(Request $request, $id)
     {
-        if (!$request->user()->hasRole('super_admin')) {
+        if (!$request->user()->hasPermission('grant_trials')) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -485,7 +579,7 @@ class AdminController extends Controller
     )]
     public function grantUserTrial(Request $request, $id)
     {
-        if (!$request->user()->hasRole('super_admin')) {
+        if (!$request->user()->hasPermission('grant_trials')) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -506,7 +600,8 @@ class AdminController extends Controller
 
     #[OA\Post(
         path: '/admin/users',
-        summary: 'Create a new platform admin account',
+        summary: 'Create a new platform-level account (super_admin, platform_admin, or agent)',
+        description: 'super_admin-only — creating platform-level accounts (including other super_admins) is a privilege-escalation-sensitive action kept exclusive to super_admin, unlike account creation for customers (create_accounts permission, shared with platform_admin/agent).',
         tags: ['Admin'],
         security: [['sanctum' => []]],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
@@ -517,6 +612,7 @@ class AdminController extends Controller
                 new OA\Property(property: 'email', type: 'string', format: 'email'),
                 new OA\Property(property: 'phone', type: 'string', nullable: true),
                 new OA\Property(property: 'password', type: 'string', format: 'password', minLength: 8),
+                new OA\Property(property: 'role', type: 'string', enum: ['super_admin', 'platform_admin', 'agent'], default: 'platform_admin'),
             ],
         )),
         responses: [
@@ -538,17 +634,18 @@ class AdminController extends Controller
             'email' => 'required|email|unique:users,email',
             'phone' => 'nullable|string',
             'password' => 'required|string|min:8',
+            'role' => 'nullable|string|in:super_admin,platform_admin,agent',
         ]);
 
         try {
-            $user = $this->adminService->createPlatformAdmin($validated);
+            $user = $this->adminService->createPlatformAdmin($validated, $request->user()->id);
             return response()->json([
-                'message' => 'Platform admin created successfully',
+                'message' => 'Platform account created successfully',
                 'user' => $user
             ], 201);
         } catch (\Exception $e) {
             Log::error("Admin Create Platform Admin Error: " . $e->getMessage());
-            return response()->json(['error' => 'Failed to create platform admin'], 500);
+            return response()->json(['error' => 'Failed to create platform account'], 500);
         }
     }
 

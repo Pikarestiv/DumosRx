@@ -22,9 +22,6 @@ interface ProductFormFieldsProps {
   isPharmacy: boolean;
   isQuickAdd?: boolean;
   suggestions: ProductSuggestions;
-  commonSuggestions: {
-    units: string[];
-  };
   t: (key: string) => string;
 }
 
@@ -34,7 +31,6 @@ export function ProductFormFields({
   isPharmacy,
   isQuickAdd = false,
   suggestions,
-  commonSuggestions,
   t,
 }: ProductFormFieldsProps) {
   const [isScannerOpen, setIsScannerOpen] = useState(false);
@@ -64,7 +60,6 @@ export function ProductFormFields({
       <ProductPackagingFields
         formData={formData}
         onInputChange={onInputChange}
-        commonSuggestions={commonSuggestions}
       />
 
       <CameraScannerDialog

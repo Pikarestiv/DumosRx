@@ -1,4 +1,4 @@
-import { Save, Upload, X, Info, Lock, Pencil } from "lucide-react";
+import { Save, Upload, X, Info, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,8 +35,6 @@ interface ReceiptCustomizationCardProps {
   localAddress: string;
   localPhone: string;
   localLogo: string;
-  handleLogoUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  handleRemoveLogo: () => void;
   localReceiptHeader: string;
   setLocalReceiptHeader: (val: string) => void;
   localReceiptFooter: string;
@@ -55,8 +53,6 @@ export function ReceiptCustomizationCard({
   localAddress,
   localPhone,
   localLogo,
-  handleLogoUpload,
-  handleRemoveLogo,
   localReceiptHeader,
   setLocalReceiptHeader,
   localReceiptFooter,
@@ -123,69 +119,20 @@ export function ReceiptCustomizationCard({
             <div className="space-y-3">
               <Label>Store Logo</Label>
               <div className="flex items-center gap-4">
-                {!!(localLogo) && (
-                                                <div className="relative group">
-                                                  <img
-                                                    src={localLogo}
-                                                    alt="Logo Preview"
-                                                    className="h-20 w-20 object-contain border rounded-lg p-1 bg-white"
-                                                  />
-                                                  {isEditing && (
-                                                    <button
-                                                      onClick={handleRemoveLogo}
-                                                      className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                    >
-                                                      <X className="h-3 w-3 cursor-pointer" />
-                                                    </button>
-                                                  )}
-                                                </div>
-                                              )}
-                              {!(localLogo) && (
-                                                <div className="h-20 w-20 border-2 border-dashed rounded-lg flex items-center justify-center text-muted-foreground bg-muted/30">
-                                                  <Upload className="h-6 w-6" />
-                                                </div>
-                                              )}
-                {isEditing && (
-                  <div className="flex-1">
-                    <TooltipProvider delayDuration={0}>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div className="inline-block">
-                            <Label
-                              htmlFor={
-                                canCustomizeTheme ? "logo-upload" : undefined
-                              }
-                              className={`cursor-pointer inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3 ${!canCustomizeTheme ? "opacity-50 cursor-not-allowed" : ""}`}
-                            >
-                              {!canCustomizeTheme && (
-                                <Lock className="h-3 w-3 mr-2" />
-                              )}
-                              {!!(localLogo) && "Change Logo"}
-                                                          {!(localLogo) && "Upload Logo"}
-                            </Label>
-                          </div>
-                        </TooltipTrigger>
-                        {!canCustomizeTheme && (
-                          <TooltipContent>
-                            <p>{getUpgradeMessage("custom_branding")}</p>
-                          </TooltipContent>
-                        )}
-                      </Tooltip>
-                    </TooltipProvider>
-
-                    <input
-                      id="logo-upload"
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      disabled={!canCustomizeTheme}
-                      onChange={handleLogoUpload}
-                    />
-                    <p className="text-[10px] text-muted-foreground mt-1">
-                      SVG, PNG or JPG (Max 1MB)
-                    </p>
+                {localLogo ? (
+                  <img
+                    src={localLogo}
+                    alt="Logo Preview"
+                    className="h-20 w-20 object-contain border rounded-lg p-1 bg-white"
+                  />
+                ) : (
+                  <div className="h-20 w-20 border-2 border-dashed rounded-lg flex items-center justify-center text-muted-foreground bg-muted/30">
+                    <Upload className="h-6 w-6" />
                   </div>
                 )}
+                <p className="text-sm text-muted-foreground">
+                  Managed under Business Information above.
+                </p>
               </div>
             </div>
 

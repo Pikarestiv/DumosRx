@@ -18,6 +18,98 @@ use Illuminate\Support\Str;
 
 class AdminService
 {
+    /** Accounts a platform user (super_admin/platform_admin/agent) either
+     * registered directly (AdminController::registerStore) or that signed up
+     * themselves using that user's platform_referral_code link. */
+    public function getReferralsFor($userId)
+    {
+        $user = User::findOrFail($userId);
+
+        $referredUsers = User::where('registered_by_id', $userId)
+            ->with('store')
+            ->orderByDesc('created_at')
+            ->get(['id', 'first_name', 'last_name', 'email', 'role', 'store_id', 'created_at']);
+
+        return [
+            'platform_referral_code' => $user->platform_referral_code,
+            'referral_link' => $user->platform_referral_code
+                ? (config('app.frontend_url') . '/register?agent_ref=' . $user->platform_referral_code)
+                : null,
+            'total' => $referredUsers->count(),
+            'accounts' => $referredUsers->map(function ($u) {
+                return [
+                    'id' => $u->id,
+                    'name' => trim($u->first_name . ' ' . $u->last_name),
+                    'email' => $u->email,
+                    'role' => $u->role,
+                    'store_name' => $u->store->name ?? null,
+                    'registered_at' => $u->created_at,
+                ];
+            }),
+        ];
+    }
+
+    /** Normalizes a candidate platform_referral_code to lowercase-alphanumeric
+     * + hyphens the same way StoreController::checkSlug normalizes store
+     * slugs, so both "Pika Restiv" and "pika_restiv" land on "pika-restiv". */
+    public static function normalizeReferralCode($code)
+    {
+        return Str::slug($code);
+    }
+
+    public function checkReferralCodeAvailable($code, $ignoreUserId = null)
+    {
+        $normalized = self::normalizeReferralCode($code);
+
+        $query = User::where('platform_referral_code', $normalized);
+        if ($ignoreUserId) {
+            $query->where('id', '!=', $ignoreUserId);
+        }
+
+        return [
+            'available' => strlen($normalized) >= 3 && strlen($normalized) <= 32 && !$query->exists(),
+            'code' => $normalized,
+        ];
+    }
+
+    /** $callerId edits their own code unless they're super_admin, in which
+     * case $targetUserId can be anyone's. Enforced in the controller too
+     * (defense in depth) but re-checked here since this is the actual write. */
+    public function updateReferralCode($targetUserId, $code, $callerId)
+    {
+        $caller = User::findOrFail($callerId);
+        if ($targetUserId !== $callerId && !$caller->hasRole('super_admin')) {
+            throw new \Exception('Only super_admin can edit another user\'s referral code.');
+        }
+
+        $target = User::findOrFail($targetUserId);
+        if (!in_array($target->role, ['super_admin', 'platform_admin', 'agent'])) {
+            throw new \Exception('Referral codes are only for platform-level accounts.');
+        }
+
+        $normalized = self::normalizeReferralCode($code);
+        if (strlen($normalized) < 3 || strlen($normalized) > 32) {
+            throw new \Exception('Referral code must be 3-32 characters (letters, numbers, hyphens).');
+        }
+
+        $taken = User::where('platform_referral_code', $normalized)->where('id', '!=', $targetUserId)->exists();
+        if ($taken) {
+            throw new \Exception('That referral code is already taken.');
+        }
+
+        $target->platform_referral_code = $normalized;
+        $target->save();
+
+        ActivityLog::create([
+            'user_id' => $callerId,
+            'action' => 'REFERRAL_CODE_UPDATED',
+            'description' => "Set referral code for {$target->email} ({$target->id}) to \"{$normalized}\"",
+            'status' => 'success',
+        ]);
+
+        return $target->platform_referral_code;
+    }
+
     public function getGlobalSummary()
     {
         $last7Days = now()->subDays(7);
@@ -670,9 +762,9 @@ class AdminService
         return $map[$action] ?? 'Security Alert';
     }
 
-    public function registerStore($data)
+    public function registerStore($data, $registeredById = null)
     {
-        return DB::transaction(function () use ($data) {
+        return DB::transaction(function () use ($data, $registeredById) {
             // Create the owner user
             $roleObj = Role::where('slug', 'admin')->first();
             $user = User::create([
@@ -683,6 +775,7 @@ class AdminService
                 'password' => Hash::make($data['password']),
                 'role' => 'admin',
                 'role_id' => $roleObj ? $roleObj->id : null,
+                'registered_by_id' => $registeredById,
             ]);
 
             // Create the store
@@ -696,6 +789,15 @@ class AdminService
 
             // Create trial subscription
             app(\App\Services\SubscriptionService::class)->createTrial($user);
+
+            if ($registeredById) {
+                ActivityLog::create([
+                    'user_id' => $registeredById,
+                    'action' => 'ACCOUNT_REGISTERED_BY_STAFF',
+                    'description' => "Registered store account: {$store->name} ({$store->id}) for {$user->email}",
+                    'status' => 'success',
+                ]);
+            }
 
             return $store;
         });
@@ -859,10 +961,11 @@ class AdminService
         });
     }
 
-    public function createPlatformAdmin($data)
+    public function createPlatformAdmin($data, $createdById = null)
     {
-        return DB::transaction(function () use ($data) {
-            $roleObj = Role::where('slug', 'super_admin')->first();
+        return DB::transaction(function () use ($data, $createdById) {
+            $roleSlug = $data['role'] ?? 'platform_admin';
+            $roleObj = Role::where('slug', $roleSlug)->first();
 
             $user = User::create([
                 'first_name' => $data['first_name'],
@@ -870,15 +973,16 @@ class AdminService
                 'email' => $data['email'],
                 'phone' => $data['phone'] ?? null,
                 'password' => Hash::make($data['password']),
-                'role' => 'super_admin',
+                'role' => $roleSlug,
                 'role_id' => $roleObj ? $roleObj->id : null,
                 'is_active' => true,
+                'registered_by_id' => $createdById,
             ]);
 
             ActivityLog::create([
                 'user_id' => Auth::id(),
-                'action' => 'PLATFORM_ADMIN_CREATED',
-                'description' => "Created new platform admin: {$user->email} ({$user->id})",
+                'action' => 'PLATFORM_ACCOUNT_CREATED',
+                'description' => "Created new {$roleSlug} account: {$user->email} ({$user->id})",
                 'status' => 'success',
             ]);
 

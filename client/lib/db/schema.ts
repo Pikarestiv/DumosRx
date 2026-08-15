@@ -295,6 +295,7 @@ CREATE TABLE IF NOT EXISTS stores (
   subscription_tier TEXT DEFAULT 'free',
   last_monotonic_time TEXT,
   pcn_license TEXT,
+  registration_number TEXT,
   receipt_header TEXT,
   receipt_footer TEXT,
   show_logo_on_receipt INTEGER DEFAULT 1,
@@ -316,7 +317,8 @@ CREATE TABLE IF NOT EXISTS stores (
   show_retail_suggestions INTEGER DEFAULT 0,
   require_payment_account INTEGER DEFAULT 0,
   enabled_payment_methods TEXT DEFAULT '["cash","card","transfer","credit","mixed"]',
-  online_store_enabled INTEGER DEFAULT 0
+  online_store_enabled INTEGER DEFAULT 0,
+  custom_units TEXT DEFAULT '[]'
 );
 
 CREATE TABLE IF NOT EXISTS expenses (

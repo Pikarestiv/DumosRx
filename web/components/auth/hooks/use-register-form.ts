@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -41,6 +41,7 @@ export type RegisterFormValues = z.infer<typeof registerSchema>;
 
 export function useRegisterForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const isSubmittingRef = useRef(false);
@@ -69,7 +70,13 @@ export function useRegisterForm() {
     setError(null);
 
     try {
-      const response = await webApiClient.register(values);
+      // Attribution for a platform staff member's (super_admin/platform_admin/
+      // agent) referral link, e.g. dumosrx.com/register?agent_ref=AGT-XXXXXX —
+      // separate from the customer referral program, which this form doesn't
+      // currently wire up at all (a pre-existing gap, not touched here).
+      const agentRef = searchParams.get("agent_ref");
+      const payload = agentRef ? { ...values, agent_ref: agentRef } : values;
+      const response = await webApiClient.register(payload);
       localStorage.setItem("drx_token", response.token);
 
       if (response.user?.require_email_verification) {

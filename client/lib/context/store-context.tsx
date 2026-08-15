@@ -26,6 +26,8 @@ export interface StoreProfile {
   phone?: string;
   email?: string;
   pcn_license?: string;
+  registration_number?: string;
+  custom_units?: string;
   receipt_header?: string;
   receipt_footer?: string;
   show_logo_on_receipt?: number;

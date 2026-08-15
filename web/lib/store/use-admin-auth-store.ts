@@ -12,11 +12,21 @@ interface User {
   require_email_verification?: boolean;
 }
 
-/** Platform admin dashboard (web/app/admin/*) is super_admin-only — a store
- * owner/admin/manager has zero access here regardless of how permissive
- * their store-level role is. Single source of truth instead of four
- * separate `role !== 'super_admin'` literals across layout/login files. */
+/** Store-level admin/manager/etc. have zero access to the platform admin
+ * dashboard (web/app/admin/*) regardless of how permissive their store-level
+ * role is. Single source of truth instead of raw `role !== 'super_admin'`
+ * literals across layout/login files. Kept narrow (super_admin only) for
+ * actions that are genuinely super_admin-exclusive — suspending/deactivating
+ * other platform accounts, creating new platform accounts. */
 export const checkIsSuperAdmin = (role?: string) => role === "super_admin";
+
+/** The three platform-level roles (no store of their own) that can reach
+ * *some* part of the admin dashboard — super_admin sees everything, while
+ * platform_admin/agent see a narrower nav scoped to their own permissions
+ * (create_accounts / grant_trials), enforced server-side per endpoint. This
+ * only gates whether the dashboard shell loads at all. */
+export const checkCanAccessAdmin = (role?: string) =>
+  role === "super_admin" || role === "platform_admin" || role === "agent";
 
 interface AdminAuthState {
   user: User | null;

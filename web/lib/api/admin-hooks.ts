@@ -11,6 +11,7 @@ import type {
   Coupon,
   EmailTemplatesResponse,
   FeedbackItem,
+  PlatformReferrals,
 } from "@/lib/types/admin";
 import type {
   ReferralSummary,
@@ -46,6 +47,32 @@ export const useAdminUsers = (page = 1, search = "") => {
   return useQuery({
     queryKey: ["admin-users", page, search],
     queryFn: () => webApiClient.request<PaginatedResponse<AdminUser>>(`admin/users?page=${page}${search ? `&search=${search}` : ""}`),
+  });
+};
+
+export const useMyReferrals = (userId?: string) => {
+  return useQuery({
+    queryKey: ["admin-my-referrals", userId],
+    queryFn: () => webApiClient.request<PlatformReferrals>(`admin/my-referrals${userId ? `?user_id=${userId}` : ""}`),
+  });
+};
+
+export const checkReferralCode = (code: string, userId?: string) =>
+  webApiClient.request<{ available: boolean; code: string }>(
+    `admin/referral-code/check?code=${encodeURIComponent(code)}${userId ? `&user_id=${userId}` : ""}`
+  );
+
+export const useUpdateReferralCodeMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { code: string; userId?: string }) =>
+      webApiClient.request<{ platform_referral_code: string }>("admin/referral-code", {
+        method: "POST",
+        body: { code: payload.code, user_id: payload.userId },
+      }),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["admin-my-referrals", variables.userId] });
+    },
   });
 };
 

@@ -38,6 +38,8 @@ class User extends Authenticatable
         'referred_by_id',
         'referral_code',
         'referral_credits',
+        'platform_referral_code',
+        'registered_by_id',
     ];
 
     /**
@@ -183,6 +185,14 @@ class User extends Authenticatable
             if (in_array($user->role, ['admin', 'store_owner'])) {
                 $user->referral_code = self::generateUniqueReferralCode();
             }
+
+            // Platform-level referral code — separate program from the customer
+            // one above. Every super_admin/platform_admin/agent gets one so
+            // stores they onboard (in person via "Register Store", or self-serve
+            // via their link) can be attributed to them.
+            if (in_array($user->role, ['super_admin', 'platform_admin', 'agent'])) {
+                $user->platform_referral_code = self::generateUniquePlatformReferralCode();
+            }
         });
 
         static::deleting(function ($user) {
@@ -214,6 +224,31 @@ class User extends Authenticatable
     public function referrals()
     {
         return $this->hasMany(User::class, 'referred_by_id');
+    }
+
+    public static function generateUniquePlatformReferralCode()
+    {
+        do {
+            $code = 'AGT-' . strtoupper(Str::random(6));
+        } while (self::where('platform_referral_code', $code)->exists());
+
+        return $code;
+    }
+
+    /** The platform staff member (super_admin/platform_admin/agent) who
+     * registered this account — either directly via the admin "Register
+     * Store" tool, or via this user signing up themselves using that
+     * platform user's referral link. */
+    public function registeredBy()
+    {
+        return $this->belongsTo(User::class, 'registered_by_id');
+    }
+
+    /** Accounts this platform user has registered or been credited for via
+     * their referral link. */
+    public function registeredAccounts()
+    {
+        return $this->hasMany(User::class, 'registered_by_id');
     }
 
     public function creditTransactions()

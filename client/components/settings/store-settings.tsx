@@ -3,7 +3,7 @@
 import { StoreType } from "@/lib/context/store-context";
 
 import { BusinessVerticalCard } from "./store/business-vertical-card";
-import { StoreInformationCard } from "./store/store-information-card";
+import { BusinessInformationCard } from "./store/business-information-card";
 import { CategoriesCard } from "./store/categories-card";
 import { ReceiptCustomizationCard } from "./store/receipt-customization-card";
 import { PaymentSettingsCard } from "./store/payment-settings-card";
@@ -25,6 +25,8 @@ interface StoreSettingsProps {
   setLocalStoreSlug: (val: string) => void;
   localPcn: string;
   setLocalPcn: (val: string) => void;
+  localRegistrationNumber: string;
+  setLocalRegistrationNumber: (val: string) => void;
   handleSaveProfile: () => void;
   localLogo: string;
   handleLogoUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -65,6 +67,8 @@ export function StoreSettings({
   setLocalStoreSlug,
   localPcn,
   setLocalPcn,
+  localRegistrationNumber,
+  setLocalRegistrationNumber,
   handleSaveProfile,
   localLogo,
   handleLogoUpload,
@@ -96,7 +100,7 @@ export function StoreSettings({
         handleSwitchVertical={handleSwitchVertical}
       />
 
-      <StoreInformationCard
+      <BusinessInformationCard
         storeType={storeType}
         localName={localName}
         setLocalName={setLocalName}
@@ -106,6 +110,11 @@ export function StoreSettings({
         setLocalPhone={setLocalPhone}
         localEmail={localEmail}
         setLocalEmail={setLocalEmail}
+        localRegistrationNumber={localRegistrationNumber}
+        setLocalRegistrationNumber={setLocalRegistrationNumber}
+        localLogo={localLogo}
+        handleLogoUpload={handleLogoUpload}
+        handleRemoveLogo={handleRemoveLogo}
         localStoreSlug={localStoreSlug}
         setLocalStoreSlug={setLocalStoreSlug}
         localPcn={localPcn}
@@ -124,8 +133,6 @@ export function StoreSettings({
         localAddress={localAddress}
         localPhone={localPhone}
         localLogo={localLogo}
-        handleLogoUpload={handleLogoUpload}
-        handleRemoveLogo={handleRemoveLogo}
         localReceiptHeader={localReceiptHeader}
         setLocalReceiptHeader={setLocalReceiptHeader}
         localReceiptFooter={localReceiptFooter}

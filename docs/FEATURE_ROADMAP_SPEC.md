@@ -22,7 +22,6 @@ This document tracks the proposed features for the DumosRx system, sorted by imp
 - **Source maps:** `withSentryConfig` wraps `next.config.mjs` for build-time source-map upload, gated on `SENTRY_AUTH_TOKEN` (CI secret).
 - **CI wiring:** DSN + environment env vars added to both `.github/workflows/deploy-client.yml` (web build → `app.dumosrx.com`) and `.github/workflows/release.yml` (Tauri desktop/mobile releases) — both deploy targets report.
 - **Tooling:** Project-scoped Sentry MCP configured for Claude Code (`.mcp.json`), Cursor (`.cursor/mcp.json`), and VS Code (`.vscode/mcp.json`).
-- **Remaining gap:** Errors land in Sentry's own dashboard, not surfaced inside `web/app/admin` — "is anything broken right now" still means checking a second, separate dashboard.
 
 ### Sentry on `laravel-server/` — DONE (2026-08-14)
 
@@ -30,7 +29,14 @@ This document tracks the proposed features for the DumosRx system, sorted by imp
 - **Separate project:** Uses its own Sentry project (`dumosrx-server`) rather than the client's, so PHP errors don't mix into the client's JS issue stream — but it's in the same org, so it shares the same free-tier event quota, not an additional one.
 - **Traces:** `SENTRY_TRACES_SAMPLE_RATE=0` — error capture only, no perf tracing, matching the client's config.
 - **`.env.example`** documents `SENTRY_LARAVEL_DSN` / `SENTRY_TRACES_SAMPLE_RATE`.
-- **Remaining step (infra, not code):** Neither backend deploy workflow (`deploy-backend.yml`, `deploy-dev.yml`) touches `.env` on the server — it's excluded from the FTP sync — so the DSN must be added directly to the persistent `.env` on `api.dumosrx.com` and `api.dev.dumosrx.com` by hand, not via CI secrets. Confirm this is done on both before treating server-side coverage as fully live.
+- **Deployed:** DSN confirmed added to the persistent `.env` on both `api.dumosrx.com` and `api.dev.dumosrx.com` (backend deploy workflows exclude `.env` from their FTP sync, so this was a manual step, not CI-driven).
+
+### Sentry issues surfaced in the super-admin dashboard — DONE (2026-08-15)
+
+- **Status:** Shipped and verified live — closes the last piece of the remote-visibility gap ("is anything broken right now" no longer means checking a second, separate dashboard). `AdminService::getRecentErrors()` calls Sentry's REST API for both `dumosrx-client` and `dumosrx-server` projects, gated behind a `super_admin`-only `GET /admin/errors` endpoint (`AdminController::errors`), consumed by a new "Recent Errors" card on `web/app/admin/system`.
+- **Why server-side, not direct from `web/`:** `web/` is also a static export (`output: "export"`) with no server of its own — a Sentry API token embedded in its browser bundle would be extractable by anyone with access to the app. Routing through `laravel-server` (which already holds the crash-reporting DSN server-side) keeps the read-token off the client entirely.
+- **Auth:** A read-only Sentry internal integration token (`Issue & Event: Read`, `Project: Read` — no write/webhook scopes) stored as `SENTRY_API_TOKEN` in `laravel-server/.env`, distinct from `SENTRY_LARAVEL_DSN` (that one reports crashes; this one reads them back out).
+- **Verified:** Real issues from both Sentry projects (including the `ENOENT` dev-cache error hit earlier this session) render correctly in the dashboard with level, project, culprit, event count, and a link out to Sentry.
 
 ### Impersonate feature — already built
 

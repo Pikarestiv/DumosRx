@@ -11,6 +11,7 @@ export function useSettingsForm(storeProfile: StoreProfile | null, minimumSyncIn
   const [localCurrency, setLocalCurrency] = useState(storeProfile?.currency || "NGN");
   const [localVat, setLocalVat] = useState(storeProfile?.vat_percentage?.toString() || "7.5");
   const [localPcn, setLocalPcn] = useState(storeProfile?.pcn_license || "");
+  const [localRegistrationNumber, setLocalRegistrationNumber] = useState(storeProfile?.registration_number || "");
   const [localReceiptHeader, setLocalReceiptHeader] = useState(storeProfile?.receipt_header || "");
   const [localReceiptFooter, setLocalReceiptFooter] = useState(storeProfile?.receipt_footer || "");
   const [showLogo, setShowLogo] = useState(storeProfile?.show_logo_on_receipt === 1);
@@ -40,6 +41,7 @@ export function useSettingsForm(storeProfile: StoreProfile | null, minimumSyncIn
       setLocalCurrency(storeProfile.currency || "NGN");
       setLocalVat(storeProfile.vat_percentage?.toString() || "7.5");
       setLocalPcn(storeProfile.pcn_license || "");
+      setLocalRegistrationNumber(storeProfile.registration_number || "");
       setLocalReceiptHeader(storeProfile.receipt_header || "");
       setLocalReceiptFooter(storeProfile.receipt_footer || "");
       setShowLogo(storeProfile.show_logo_on_receipt === 1);
@@ -76,6 +78,7 @@ export function useSettingsForm(storeProfile: StoreProfile | null, minimumSyncIn
     localCurrency, setLocalCurrency,
     localVat, setLocalVat,
     localPcn, setLocalPcn,
+    localRegistrationNumber, setLocalRegistrationNumber,
     localReceiptHeader, setLocalReceiptHeader,
     localReceiptFooter, setLocalReceiptFooter,
     showLogo, setShowLogo,

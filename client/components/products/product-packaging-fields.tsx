@@ -1,6 +1,6 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { SearchableInput } from "@/components/ui/searchable-input";
+import { UnitSelect } from "./unit-select";
 import { Info } from "lucide-react";
 import {
   Tooltip,
@@ -13,10 +13,9 @@ import type { Product } from "./types";
 interface Props {
   formData: Product;
   onInputChange: (field: keyof Product, value: string | number | boolean | null) => void;
-  commonSuggestions: { units: string[] };
 }
 
-export function ProductPackagingFields({ formData, onInputChange, commonSuggestions }: Props) {
+export function ProductPackagingFields({ formData, onInputChange }: Props) {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-1 border-b pb-2">
@@ -53,11 +52,10 @@ export function ProductPackagingFields({ formData, onInputChange, commonSuggesti
               </Tooltip>
             </TooltipProvider>
           </div>
-          <SearchableInput
+          <UnitSelect
             id="bulkUnit"
             value={formData.bulkUnit || ""}
             onValueChange={(val) => onInputChange("bulkUnit", val)}
-            options={["Carton", "Pack", "Box", "Roll"]}
             placeholder="e.g., Carton"
           />
         </div>
@@ -101,11 +99,10 @@ export function ProductPackagingFields({ formData, onInputChange, commonSuggesti
               </Tooltip>
             </TooltipProvider>
           </div>
-          <SearchableInput
+          <UnitSelect
             id="baseUnit"
             value={formData.baseUnit || ""}
             onValueChange={(val) => onInputChange("baseUnit", val)}
-            options={commonSuggestions.units}
             placeholder="e.g., Tablet"
           />
         </div>

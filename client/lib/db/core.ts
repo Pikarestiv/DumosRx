@@ -402,6 +402,8 @@ export async function initDatabase(): Promise<any> {
         "require_payment_account INTEGER DEFAULT 0",
         'enabled_payment_methods TEXT DEFAULT \'["cash","card","transfer","credit","mixed"]\'',
         "online_store_enabled INTEGER DEFAULT 0",
+        "registration_number TEXT",
+        "custom_units TEXT DEFAULT '[]'",
       ],
     },
     {

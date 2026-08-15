@@ -183,8 +183,6 @@ export function AddProductDialog({
       .catch(console.error);
   }, [isPharmacy, storeProfile?.show_retail_suggestions]);
 
-  const commonSuggestions = FORM_SUGGESTIONS.common;
-
   const handleSubmit = (e?: React.FormEvent, keepOpen = false) => {
     if (e) e.preventDefault();
 
@@ -331,7 +329,6 @@ export function AddProductDialog({
               isPharmacy={isPharmacy}
               isQuickAdd={!initialData && !editingProduct}
               suggestions={suggestions}
-              commonSuggestions={commonSuggestions}
               t={t}
             />
           </div>

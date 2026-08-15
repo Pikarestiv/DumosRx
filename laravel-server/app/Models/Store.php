@@ -27,6 +27,8 @@ class Store extends Model
         'currency',
         'vat_percentage',
         'pcn_license',
+        'registration_number',
+        'logo_url',
         'receipt_header',
         'receipt_footer',
         'show_logo_on_receipt',
@@ -48,10 +50,12 @@ class Store extends Model
         'require_payment_account',
         'enabled_payment_methods',
         'online_store_enabled',
+        'custom_units',
     ];
 
     protected $casts = [
         'enabled_payment_methods' => 'array',
+        'custom_units' => 'array',
         'require_payment_account' => 'boolean',
         'online_store_enabled' => 'boolean',
         'last_sync_at' => 'datetime',

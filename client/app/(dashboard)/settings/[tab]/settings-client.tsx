@@ -56,6 +56,8 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
     setLocalVat,
     localPcn,
     setLocalPcn,
+    localRegistrationNumber,
+    setLocalRegistrationNumber,
     localReceiptHeader,
     setLocalReceiptHeader,
     localReceiptFooter,
@@ -187,6 +189,8 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
                   setLocalStoreSlug={setLocalStoreSlug}
                   localPcn={localPcn}
                   setLocalPcn={setLocalPcn}
+                  localRegistrationNumber={localRegistrationNumber}
+                  setLocalRegistrationNumber={setLocalRegistrationNumber}
                   handleSaveProfile={handleSaveProfile}
                   localLogo={localLogo}
                   handleLogoUpload={handleLogoUpload}

@@ -13,7 +13,9 @@ import type { PrescriptionRow } from "@/lib/types/prescription";
  * performed by this user (pass undefined for viewers allowed to see everyone's
  * activity, i.e. checkCanViewAllActivity(role) === true). Today's revenue/
  * refund totals are NOT scoped by this — those stay store-wide regardless of
- * role, since cashiers need accurate shift/till totals for reconciliation. */
+ * role, since cashiers need accurate shift/till totals for reconciliation.
+ * Product-catalog additions are also unscoped by viewerId — products have no
+ * creator/user column, unlike the other feed sources. */
 export async function getDashboardOverviewData(viewerId?: string) {
   const today = getLocalTodayDate();
   const storeId = getActiveStoreId();
@@ -123,13 +125,27 @@ export async function getDashboardOverviewData(viewerId?: string) {
     [...(viewerId ? [viewerId] : []), ...(storeId ? [storeId] : [])],
   );
 
+  const recentProducts = await query<{
+    id: string;
+    name: string;
+    selling_price?: number;
+    created_at: string;
+  }>(
+    `SELECT id, name, selling_price, created_at
+     FROM products
+     WHERE _deleted = 0${storeId ? " AND store_id = ?" : ""}
+     ORDER BY created_at DESC LIMIT 5`,
+    storeId ? [storeId] : [],
+  );
+
   const allActivities: DashboardActivity[] = [
     ...(recentSales || []).map((s): DashboardActivity => ({ ...s, activity_type: 'sale' })),
     ...(recentMovements || []).map((m): DashboardActivity => ({ ...m, activity_type: 'stock_movement' })),
     ...(recentReturns || []).map((r): DashboardActivity => ({ ...r, activity_type: 'return' })),
     ...(recentPurchaseOrders || []).map((po): DashboardActivity => ({ ...po, activity_type: 'purchase_order' })),
     ...(recentExpenses || []).map((e): DashboardActivity => ({ ...e, activity_type: 'expense' })),
-    ...(recentPrescriptions || []).map((p): DashboardActivity => ({ ...p, activity_type: 'prescription' }))
+    ...(recentPrescriptions || []).map((p): DashboardActivity => ({ ...p, activity_type: 'prescription' })),
+    ...(recentProducts || []).map((p): DashboardActivity => ({ ...p, activity_type: 'product' }))
   ].sort((a, b) => {
     const timeA = new Date(a.created_at || a.date || a.transaction_date || 0).getTime();
     const timeB = new Date(b.created_at || b.date || b.transaction_date || 0).getTime();

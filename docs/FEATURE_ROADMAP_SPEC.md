@@ -38,19 +38,14 @@ This document tracks the proposed features for the DumosRx system, sorted by imp
 - **Auth:** A read-only Sentry internal integration token (`Issue & Event: Read`, `Project: Read` — no write/webhook scopes) stored as `SENTRY_API_TOKEN` in `laravel-server/.env`, distinct from `SENTRY_LARAVEL_DSN` (that one reports crashes; this one reads them back out).
 - **Verified:** Real issues from both Sentry projects (including the `ENOENT` dev-cache error hit earlier this session) render correctly in the dashboard with level, project, culprit, event count, and a link out to Sentry.
 
-### Impersonate feature — already built
+### Impersonate feature — DONE, verified (2026-08-15)
 
-- **Current state:** Already built, not hypothetical — `AdminController::impersonateStore` + `AdminService` (backend), and `web/app/admin/stores` already has a working impersonate button (`useImpersonateStoreMutation`) that swaps in the store's session cookie.
-- **Action:** No build needed. Just needs a deliberate test pass (start impersonation, confirm scoped access, end session cleanly) — treat as verification work, not a new feature.
+- **Status:** Already built, not hypothetical — `AdminController::impersonateStore` + `AdminService` (backend), and `web/app/admin/stores` already has a working impersonate button (`useImpersonateStoreMutation`) that swaps in the store's session cookie. Manually click-tested end to end: start impersonation → correct scoped store/account data shown, "IMPERSONATION MODE" banner visible throughout → "End Session" cleanly restores the super-admin session with no leftover state.
+- **Scope limitation (by design, not a bug):** This only impersonates `web/` (the cloud account/admin dashboard) — it has zero effect on `client/` (the actual offline-first POS app running on a store's device). Confirmed via grep: no impersonation-awareness anywhere in `client/`. The two apps use entirely separate auth (`drx_token`/`drx_admin_token` + a Sanctum session for `web/`, vs. `auth_token` + a local PIN-unlock backed by local SQLite for `client/`), on separate origins, so there's no token crossover even in principle. Impersonation gets you "see this store's account/business data as an admin," not "become this store's cashier" — a POS-specific bug (UI glitch, local sync issue, PIN-gated flow) still needs the actual device or the store's PIN.
 
 ---
 
 ## 🟢 Quick Wins (hours – ~1 day)
-
-### Impersonate feature — verification pass
-
-- **Effort:** ~half a day.
-- Already built end-to-end (see above) — this is a manual test pass only, zero code: start impersonation, confirm scoped access, end session cleanly.
 
 ### PostHog Integration
 

@@ -47,6 +47,7 @@ function NoMovementsFound() {
 export function StockMovements() {
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [loading, setLoading] = useState(true);
+  const [initialLoad, setInitialLoad] = useState(true);
   const [hasFullHistory, setHasFullHistory] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
@@ -73,6 +74,7 @@ export function StockMovements() {
       console.error("Failed to fetch stock movements:", error);
     } finally {
       setLoading(false);
+      setInitialLoad(false);
     }
   };
 
@@ -144,7 +146,12 @@ export function StockMovements() {
     {} as Record<string, StockMovement[]>,
   );
 
-  if (loading) {
+  // Only the very first load shows the full-page skeleton. Later refetches
+  // (date-range picks, pull-to-refresh, search-driven full-history upgrade)
+  // must NOT swap out the whole component tree — that would unmount the
+  // DateRangePicker's open Popover mid-selection, closing it before the
+  // user can click a second date to complete the range.
+  if (loading && initialLoad) {
     return <StockMovementsSkeleton />;
   }
 

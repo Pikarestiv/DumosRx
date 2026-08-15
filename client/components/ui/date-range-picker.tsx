@@ -211,6 +211,7 @@ export function DateRangePicker({ value, onChange, className }: DateRangePickerP
               <Calendar
                 mode="range"
                 numberOfMonths={2}
+                min={1}
                 selected={range}
                 onSelect={applyRange}
                 defaultMonth={range?.from}
@@ -256,6 +257,7 @@ export function DateRangePicker({ value, onChange, className }: DateRangePickerP
             <Calendar
               mode="range"
               numberOfMonths={1}
+              min={1}
               selected={range}
               onSelect={applyRange}
               defaultMonth={range?.from}

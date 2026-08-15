@@ -8,7 +8,7 @@ import { AdminLoginForm } from "../../../components/auth/admin-login-form";
 import { Suspense } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
-import { useAdminAuthStore, checkIsSuperAdmin } from "@/lib/store/use-admin-auth-store";
+import { useAdminAuthStore, checkCanAccessAdmin } from "@/lib/store/use-admin-auth-store";
 import { APP_VERSION } from "@/lib/constants";
 
 export default function AdminLoginPage() {
@@ -27,7 +27,7 @@ export default function AdminLoginPage() {
         console.error("Auto-auth check failed:", e);
       } finally {
         const finalUser = useAdminAuthStore.getState().user;
-        if (checkIsSuperAdmin(finalUser?.role)) {
+        if (checkCanAccessAdmin(finalUser?.role)) {
           router.push("/admin");
         } else {
           setChecking(false);

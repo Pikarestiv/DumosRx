@@ -27,6 +27,19 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+const ROLE_OPTIONS = [
+  { value: "platform_admin", label: "Platform Admin", description: "Partner/co-founder — can register accounts and grant trials" },
+  { value: "agent", label: "Agent", description: "Onboarding agent — can register accounts, has a referral link" },
+  { value: "super_admin", label: "Super Admin", description: "Full platform access, including managing other platform accounts" },
+] as const;
 
 const adminSchema = z
   .object({
@@ -38,6 +51,7 @@ const adminSchema = z
       .min(2, { message: "Last name must be at least 2 characters" }),
     email: z.string().email({ message: "Invalid email address" }),
     phone: z.string().optional(),
+    role: z.enum(["super_admin", "platform_admin", "agent"]),
     password: z
       .string()
       .min(8, { message: "Password must be at least 8 characters" }),
@@ -59,6 +73,7 @@ export default function AdminNewUserPage() {
       last_name: "",
       email: "",
       phone: "",
+      role: "platform_admin",
       password: "",
       password_confirmation: "",
     },
@@ -92,10 +107,10 @@ export default function AdminNewUserPage() {
         </Button>
         <div>
           <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-            Add Platform Admin
+            Add Platform Account
           </h1>
           <p className="text-slate-500 font-medium">
-            Create a new Super Admin account for platform management
+            Create a new super admin, platform admin, or agent account
           </p>
         </div>
       </div>
@@ -205,6 +220,36 @@ export default function AdminNewUserPage() {
 
               <FormField
                 control={form.control}
+                name="role"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-slate-600 dark:text-slate-400 font-bold uppercase text-[10px] tracking-widest">
+                      Role
+                    </FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-800 rounded-2xl h-12 font-bold focus-visible:ring-indigo-500 w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {ROLE_OPTIONS.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            <div>
+                              <div className="font-semibold">{opt.label}</div>
+                              <div className="text-xs text-muted-foreground">{opt.description}</div>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
                 name="password"
                 render={({ field }) => (
                   <FormItem>
@@ -263,7 +308,7 @@ export default function AdminNewUserPage() {
                 ) : (
                   <Save className="mr-2 h-5 w-5" />
                 )}
-                Create Platform Admin
+                Create Account
               </Button>
             </div>
           </form>

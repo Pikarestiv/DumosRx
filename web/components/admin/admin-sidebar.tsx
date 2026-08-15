@@ -15,19 +15,32 @@ import {
   Megaphone,
   Download,
   ScrollText,
+  Link2,
 } from "lucide-react";
 import { useAdminAuthStore } from "@/lib/store/use-admin-auth-store";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { APP_VERSION } from "@/lib/constants";
 
+// Everything platform_admin/agent can't reach is still enforced server-side
+// per endpoint (AdminController), but hiding it from nav avoids dead links
+// that just 403. Items with no `roles` are super_admin-only, the default —
+// only explicitly list roles for what platform_admin/agent should see.
 export const sidebarItems = [
-  { id: "dashboard", name: "Overview", icon: LayoutDashboard, href: "/admin" },
+  { id: "dashboard", name: "Overview", icon: LayoutDashboard, href: "/admin", roles: ["super_admin", "platform_admin", "agent"] },
   {
     id: "stores",
     name: "Stores",
     icon: Store,
     href: "/admin/stores",
+    roles: ["super_admin", "platform_admin", "agent"],
+  },
+  {
+    id: "referrals",
+    name: "My Referrals",
+    icon: Link2,
+    href: "/admin/referrals",
+    roles: ["super_admin", "platform_admin", "agent"],
   },
   { id: "users", name: "Platform Users", icon: Users, href: "/admin/users" },
   {
@@ -104,7 +117,9 @@ export function AdminSidebar() {
       </Link>
 
       <nav className="flex-1 px-4 py-4 space-y-1">
-        {sidebarItems.map((item) => {
+        {sidebarItems
+          .filter((item) => !item.roles || item.roles.includes(user?.role || ""))
+          .map((item) => {
           const normalizedPathname = pathname?.replace(/\/$/, "") || "";
           const normalizedHref = item.href.replace(/\/$/, "");
 

@@ -8,7 +8,7 @@ import { Loader2, AlertCircle, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { webApiClient } from "@/lib/api/client";
 import { motion } from "framer-motion";
-import { useAdminAuthStore, checkIsSuperAdmin } from "@/lib/store/use-admin-auth-store";
+import { useAdminAuthStore, checkCanAccessAdmin } from "@/lib/store/use-admin-auth-store";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -49,7 +49,7 @@ export function AdminLoginForm() {
     try {
       const response = await webApiClient.login(values);
       
-      if (!checkIsSuperAdmin(response.user.role)) {
+      if (!checkCanAccessAdmin(response.user.role)) {
         throw new Error("Access Denied: Administrative privileges required.");
       }
 

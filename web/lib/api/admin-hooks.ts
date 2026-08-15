@@ -11,6 +11,7 @@ import type {
   Coupon,
   EmailTemplatesResponse,
   FeedbackItem,
+  PlatformReferrals,
 } from "@/lib/types/admin";
 import type {
   ReferralSummary,
@@ -46,6 +47,13 @@ export const useAdminUsers = (page = 1, search = "") => {
   return useQuery({
     queryKey: ["admin-users", page, search],
     queryFn: () => webApiClient.request<PaginatedResponse<AdminUser>>(`admin/users?page=${page}${search ? `&search=${search}` : ""}`),
+  });
+};
+
+export const useMyReferrals = (userId?: string) => {
+  return useQuery({
+    queryKey: ["admin-my-referrals", userId],
+    queryFn: () => webApiClient.request<PlatformReferrals>(`admin/my-referrals${userId ? `?user_id=${userId}` : ""}`),
   });
 };
 

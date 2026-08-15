@@ -67,6 +67,7 @@ class AuthController extends Controller
             'phone' => 'nullable|string|max:20',
             'ref' => 'nullable|string',
             'referrer' => 'nullable|string',
+            'agent_ref' => 'nullable|string',
         ]);
 
         $referredById = null;
@@ -77,6 +78,19 @@ class AuthController extends Controller
                 ->first();
             if ($referrerUser) {
                 $referredById = $referrerUser->id;
+            }
+        }
+
+        // Separate from the customer referral program above — attributes this
+        // signup to the platform staff member (super_admin/platform_admin/agent)
+        // whose link they used, tracked via registered_by_id rather than
+        // referred_by_id so it can never surface in customer-facing referral UI
+        // or credit logic.
+        $registeredById = null;
+        if (!empty($request->agent_ref)) {
+            $agentUser = User::where('platform_referral_code', $request->agent_ref)->first();
+            if ($agentUser) {
+                $registeredById = $agentUser->id;
             }
         }
 
@@ -95,6 +109,7 @@ class AuthController extends Controller
             'role_id' => $roleObj ? $roleObj->id : null,
             'is_active' => true,
             'referred_by_id' => $referredById,
+            'registered_by_id' => $registeredById,
         ]);
 
         if ($request->filled('store_name')) {

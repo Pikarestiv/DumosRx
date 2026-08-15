@@ -267,6 +267,23 @@ export interface ActivityLog {
   store?: { name: string };
 }
 
+/** A platform user's (super_admin/platform_admin/agent) own attribution —
+ * separate from the customer-facing ReferralSummary in marketing/types.ts,
+ * which is a different program (customer-to-customer, account credit). */
+export interface PlatformReferrals {
+  platform_referral_code: string | null;
+  referral_link: string | null;
+  total: number;
+  accounts: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    store_name: string | null;
+    registered_at: string;
+  }[];
+}
+
 export interface Coupon {
   id: string;
   code: string;

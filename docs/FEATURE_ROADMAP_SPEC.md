@@ -74,6 +74,20 @@ Scope was significantly larger than originally estimated once audited against li
 - **Explicitly left alone:** `staff-table.tsx`'s 3 `role === 'store_owner'` checks — verified these check the raw slug correctly already, not worth the churn.
 - **Verification:** `web/` typechecked clean, all 11 touched Laravel files lint-clean. Full `php artisan test` run surfaced two *pre-existing, unrelated* migrations (`make_customers_last_name_nullable`, `add_partial_to_sales_payment_status_enum`) using MySQL-only `ALTER TABLE ... MODIFY` syntax that crashed the entire suite on SQLite — fixed both with the same `DB::getDriverName() !== 'sqlite'` guard already used elsewhere in the migrations directory. One more pre-existing, unrelated bug found but *not* fixed (out of scope): `SyncController::push()` can leave a PDO transaction open under some exception path, which cascades into unrelated test failures only when specific test classes run in the same process — flagged for a future pass.
 
+### New "agent" role (app installers) — DONE (2026-08-15)
+
+- **Correction to the doc's original premise:** `referral_code`/`referred_by_id`/`referral_credits` are *not* an unused foundation — they already power a live, separate **customer** referral program (store owners referring other store owners for account credit; `ReferralController`, `referral-tab.tsx`, `referrals-relationships-table.tsx`). Reusing them for platform staff would have conflated two different relationships and risked agents surfacing in customer-facing referral UI. Built entirely separate columns instead, per discussion.
+- **Three platform-level roles** (no store of their own, same shape as the pre-existing `super_admin`): `super_admin`, `platform_admin` (partners/co-founders — distinct slug from the pre-existing store-level `admin`, which always has a store and means something different), and `agent` (recruited onboarding agents). Seeded with `create_accounts`/`grant_trials` permissions (`super_admin` gets both plus everything else, `platform_admin` gets both, `agent` gets `create_accounts` only).
+- **Attribution, not commission math** — per explicit instruction, no rate/payout calculation was built. New `users.platform_referral_code` (unique, auto-generated for all three roles) + `users.registered_by_id` (nullable FK) track which platform user created or referred each account; the actual charge/remittance/commission happens outside the platform.
+- **Two attribution paths, both wired:**
+  - Direct creation: `AdminController::registerStore` (already existed, was super_admin-only) now checks `create_accounts` instead, open to all three roles, and records `registered_by_id`.
+  - Self-serve: `AuthController::register` accepts a new `agent_ref` param, resolved against `platform_referral_code` — wired into `web/`'s `/register` form via `?agent_ref=` (a pre-existing gap was found and left alone: that same form doesn't forward the *customer* `ref` param either, despite `referral-tab.tsx` generating links that imply it does — not fixed here, out of scope).
+- **Permission split implemented exactly as specified:** `grantTrial`/`grantUserTrial` now check `grant_trials` (super_admin + platform_admin, not agent). `suspendStore`/`unsuspendStore`/`deactivateUser`/`reactivateUser`/`createPlatformAdmin` (creating *other* platform accounts) stay `hasRole('super_admin')`-only, unchanged — platform_admin can create customer accounts but not manage other platform accounts.
+- **`web/` admin dashboard opened up:** was `super_admin`-only end to end (`checkIsSuperAdmin` gated login + layout). Added `checkCanAccessAdmin` for the three roles to get in at all, while `checkIsSuperAdmin` still gates the specific super_admin-exclusive actions (suspend/unsuspend buttons hidden for non-super_admin in `store-table.tsx`, grant-trial button additionally hidden for `agent`). Sidebar nav (`admin-sidebar.tsx`) now per-item role-scoped — platform_admin/agent see only Overview, Stores, and the new "My Referrals" page; everything else stays super_admin-only, avoiding dead links that would just 403.
+- **New `/admin/my-referrals` endpoint + `/admin/referrals` page:** shows the caller's own referral link and the accounts they've registered/referred; `super_admin` can pass `?user_id=` to view any platform user's.
+- **`admin/users/new`** (already existed, previously hardcoded to create another `super_admin` despite being labeled "Add Platform Admin") now has a real role selector for all three roles.
+- **Verified live** via tinker: created a real `platform_admin` and `agent`, confirmed `create_accounts`/`grant_trials` resolve exactly per the split above, confirmed referral code generation and resolution round-trips correctly, confirmed `registered_by_id` attribution. Test accounts cleaned up afterward. `web/` typechecks clean, all touched Laravel files lint-clean, full test suite unchanged from baseline.
+
 ### Measurement units → per-store custom list — DONE (2026-08-15)
 
 Reversed the doc's earlier "suggest, don't restrict" recommendation per direct request — two products silently ending up with "Tablet" vs "tablet" vs "Tabs" was worse than occasionally blocking an edge case.
@@ -125,13 +139,6 @@ Surfaced during demo prep: a store logged a full year's rent (₦270,000) as one
 - **Current state:** DumosRx already has "Require Payment Destination Account" (`payment-settings-card.tsx`) — this only enforces that cashiers pick which bank/till account a payment landed in, for reconciliation. It does not restrict *which payment methods* are allowed, by whom, or above what transaction threshold.
 - **Action:** If wanted, add a genuine payment-method restriction layer (e.g. disable cash above ₦X, restrict certain methods to certain roles) as a separate setting from the destination-account toggle.
 - **Effort:** ~1–2 days — new setting + enforcement at checkout, no new subsystem.
-
-### New "agent" role (app installers) (Deferred 2026-08-02)
-
-- **Description:** A role for people who install/onboard DumosRx for new pharmacies (co-founders would be `admin`, you `super_admin`, installers get this new role).
-- **Foundation already present:** `users` table already has `referral_code` / `referred_by_id` / `referral_credits` columns — likely the intended basis for tracking who onboarded which store.
-- **Action:** Add an `agent` (or better name — "installer"? "onboarding_partner"?) role/permission scoped to store registration only (no access to a store's sales/financial data), and a simple attribution view (which agent onboarded which stores).
-- **Effort:** ~2–3 days.
 
 ### Pricing groups / bulk-vs-unit pricing (Deferred 2026-08-14)
 

@@ -144,6 +144,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/users/bulk-notify', [AdminController::class, 'bulkNotify']);
             Route::get('/search', [AdminController::class, 'search']);
             Route::get('/activity-logs', [AdminController::class, 'activityLogs']);
+            Route::get('/my-referrals', [AdminController::class, 'myReferrals']);
             Route::post('/stores/{id}/impersonate', [AdminController::class, 'impersonateStore']);
 
             // Email Templates

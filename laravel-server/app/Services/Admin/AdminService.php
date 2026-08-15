@@ -18,6 +18,37 @@ use Illuminate\Support\Str;
 
 class AdminService
 {
+    /** Accounts a platform user (super_admin/platform_admin/agent) either
+     * registered directly (AdminController::registerStore) or that signed up
+     * themselves using that user's platform_referral_code link. */
+    public function getReferralsFor($userId)
+    {
+        $user = User::findOrFail($userId);
+
+        $referredUsers = User::where('registered_by_id', $userId)
+            ->with('store')
+            ->orderByDesc('created_at')
+            ->get(['id', 'first_name', 'last_name', 'email', 'role', 'store_id', 'created_at']);
+
+        return [
+            'platform_referral_code' => $user->platform_referral_code,
+            'referral_link' => $user->platform_referral_code
+                ? (config('app.frontend_url') . '/register?agent_ref=' . $user->platform_referral_code)
+                : null,
+            'total' => $referredUsers->count(),
+            'accounts' => $referredUsers->map(function ($u) {
+                return [
+                    'id' => $u->id,
+                    'name' => trim($u->first_name . ' ' . $u->last_name),
+                    'email' => $u->email,
+                    'role' => $u->role,
+                    'store_name' => $u->store->name ?? null,
+                    'registered_at' => $u->created_at,
+                ];
+            }),
+        ];
+    }
+
     public function getGlobalSummary()
     {
         $last7Days = now()->subDays(7);
@@ -670,9 +701,9 @@ class AdminService
         return $map[$action] ?? 'Security Alert';
     }
 
-    public function registerStore($data)
+    public function registerStore($data, $registeredById = null)
     {
-        return DB::transaction(function () use ($data) {
+        return DB::transaction(function () use ($data, $registeredById) {
             // Create the owner user
             $roleObj = Role::where('slug', 'admin')->first();
             $user = User::create([
@@ -683,6 +714,7 @@ class AdminService
                 'password' => Hash::make($data['password']),
                 'role' => 'admin',
                 'role_id' => $roleObj ? $roleObj->id : null,
+                'registered_by_id' => $registeredById,
             ]);
 
             // Create the store
@@ -696,6 +728,15 @@ class AdminService
 
             // Create trial subscription
             app(\App\Services\SubscriptionService::class)->createTrial($user);
+
+            if ($registeredById) {
+                ActivityLog::create([
+                    'user_id' => $registeredById,
+                    'action' => 'ACCOUNT_REGISTERED_BY_STAFF',
+                    'description' => "Registered store account: {$store->name} ({$store->id}) for {$user->email}",
+                    'status' => 'success',
+                ]);
+            }
 
             return $store;
         });
@@ -859,10 +900,11 @@ class AdminService
         });
     }
 
-    public function createPlatformAdmin($data)
+    public function createPlatformAdmin($data, $createdById = null)
     {
-        return DB::transaction(function () use ($data) {
-            $roleObj = Role::where('slug', 'super_admin')->first();
+        return DB::transaction(function () use ($data, $createdById) {
+            $roleSlug = $data['role'] ?? 'platform_admin';
+            $roleObj = Role::where('slug', $roleSlug)->first();
 
             $user = User::create([
                 'first_name' => $data['first_name'],
@@ -870,15 +912,16 @@ class AdminService
                 'email' => $data['email'],
                 'phone' => $data['phone'] ?? null,
                 'password' => Hash::make($data['password']),
-                'role' => 'super_admin',
+                'role' => $roleSlug,
                 'role_id' => $roleObj ? $roleObj->id : null,
                 'is_active' => true,
+                'registered_by_id' => $createdById,
             ]);
 
             ActivityLog::create([
                 'user_id' => Auth::id(),
-                'action' => 'PLATFORM_ADMIN_CREATED',
-                'description' => "Created new platform admin: {$user->email} ({$user->id})",
+                'action' => 'PLATFORM_ACCOUNT_CREATED',
+                'description' => "Created new {$roleSlug} account: {$user->email} ({$user->id})",
                 'status' => 'success',
             ]);
 

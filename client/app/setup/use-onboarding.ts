@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/context/auth-context";
 import { generateId, execute } from "@/lib/db/core";
 
-import { checkIfTableExists, getActiveUserCount, getTotalUserCount, getLocalStores } from "@/lib/db/queries/setup";
+import { getTotalUserCount, getLocalStores } from "@/lib/db/queries/setup";
 import { sync } from "@/lib/db/sync-engine";
 import { restoreDatabase, clearDatabaseForNewStore } from "@/lib/db/core";
 import { apiClient } from "@/lib/api/client";
@@ -17,7 +17,6 @@ export type OnboardingStep = "welcome" | "register" | "cloud" | "backup" | "sync
 export function useOnboarding() {
   const [onboardingStep, setOnboardingStep] = useState<OnboardingStep>("welcome");
   const [isLoading, setIsLoading] = useState(false);
-  const [isCheckingStatus, setIsCheckingStatus] = useState(true);
   const [syncProgress, setSyncProgress] = useState(0);
   const [syncStatus, setSyncStatus] = useState("Initializing sync...");
   const [existingStores, setExistingStores] = useState<StoreOption[]>([]);
@@ -35,6 +34,17 @@ export function useOnboarding() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  // `isCloudLinked` from auth-context is a device-wide flag (true whenever a
+  // cloud auth token is cached in localStorage) — it can be stale from an
+  // earlier session on this device. "Set Up New Business" and "Create an
+  // account" always mean "create a brand-new cloud account," regardless of
+  // any leftover token, so they must never be treated as already-linked.
+  // Only the automatic zero-local-users fallback inside startSyncProcess
+  // (reached right after this session's own successful cloud link) is a
+  // genuine already-linked case — it sets this flag itself.
+  const [justCloudLinkedForRegister, setJustCloudLinkedForRegister] = useState(false);
+  const registerIsCloudLinked = isCloudLinked && justCloudLinkedForRegister;
+
   useEffect(() => {
     const step = searchParams.get("step") as OnboardingStep;
     if (step && ["welcome", "register", "cloud", "backup", "syncing", "select-store"].includes(step)) {
@@ -42,39 +52,29 @@ export function useOnboarding() {
     } else {
       setOnboardingStep("welcome");
     }
-    checkStatus();
   }, [searchParams]);
-
-  const checkStatus = async () => {
-    try {
-      const tableExists = await checkIfTableExists("users");
-      if (tableExists) {
-        const count = await getActiveUserCount();
-        if (
-          count > 0 &&
-          searchParams.get("step") !== "backup" &&
-          searchParams.get("step") !== "cloud" &&
-          searchParams.get("step") !== "syncing"
-        ) {
-          router.replace("/login");
-          return;
-        }
-      }
-    } catch (e) {
-      console.error("Status check failed", e);
-    } finally {
-      setIsCheckingStatus(false);
-    }
-  };
 
   const setStep = (step: OnboardingStep) => {
     const params = new URLSearchParams(searchParams.toString());
+    // Always land on the setup tab — setStep can now be called from the
+    // login tab (e.g. TraditionalLoginForm's "Create account" / "Restore
+    // Backup" links), which has no `tab=setup` in its URL yet, unlike every
+    // other setStep caller that's already inside the setup tab.
+    params.set("tab", "setup");
     if (step === "welcome") {
       params.delete("step");
     } else {
       params.set("step", step);
     }
     router.push(`?${params.toString()}`);
+  };
+
+  // Explicit entry point for "Set Up New Business" / "Create an account" —
+  // always a fresh cloud account, never the already-linked local-admin-only
+  // variant, no matter what stale token this device might be holding.
+  const goToRegister = () => {
+    setJustCloudLinkedForRegister(false);
+    setStep("register");
   };
 
   const handleRegister = async (
@@ -86,6 +86,8 @@ export function useOnboarding() {
     existingStoreId?: string,
     email?: string,
     password?: string,
+    storeType?: string,
+    phone?: string,
   ) => {
     setIsLoading(true);
     try {
@@ -98,9 +100,15 @@ export function useOnboarding() {
       // as a foreign key (sales.cashier_id, stock_movements.performed_by,
       // etc.) becomes permanently unsyncable. See reconcile-identity.ts for
       // the one-time recovery this exact failure mode required.
-      if (!isCloudLinked) {
+      if (!registerIsCloudLinked) {
         if (!email || !password) {
           toast.error("Email and password are required to create your account");
+          setIsLoading(false);
+          return;
+        }
+
+        if (typeof navigator !== "undefined" && !navigator.onLine) {
+          toast.error("You're offline. Connect to the internet to create your cloud account.");
           setIsLoading(false);
           return;
         }
@@ -113,6 +121,8 @@ export function useOnboarding() {
           pin,
           password,
           store_name: storeName,
+          store_type: storeType,
+          phone,
         });
 
         apiClient.setToken(response.token);
@@ -180,7 +190,16 @@ export function useOnboarding() {
       }
     } catch (_err) {
       console.error("Registration failed", _err);
-      toast.error("Failed to complete setup");
+      const message = _err instanceof Error ? _err.message : "";
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        toast.error("You're offline. Connect to the internet to create your cloud account.");
+      } else if (message) {
+        // Surface the real reason (e.g. a server validation error like
+        // "email already taken") instead of a generic message that hides it.
+        toast.error(message);
+      } else {
+        toast.error("Failed to complete setup");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -311,8 +330,9 @@ export function useOnboarding() {
           
           setSyncStatus("No account data found");
           toast.warning("Synchronization finished, but no staff accounts were found. Let's set up your local account.");
-          
+
           await new Promise((r) => setTimeout(r, 1500));
+          setJustCloudLinkedForRegister(true);
           setStep("register");
           return;
         }
@@ -341,8 +361,7 @@ export function useOnboarding() {
   };
 
   const goBack = () => {
-    const fromLogin = searchParams.get("from") === "login";
-    if (fromLogin || onboardingStep === "welcome") {
+    if (onboardingStep === "welcome") {
       router.push("/login");
     } else if (onboardingStep === "select-store") {
       setStep("cloud");
@@ -370,14 +389,15 @@ export function useOnboarding() {
   return {
     onboardingStep,
     isLoading,
-    isCheckingStatus,
     syncProgress,
     syncStatus,
     setStep,
+    goToRegister,
     handleRegister,
     handleCloudRestore,
     handleLocalRestore,
-    goBack, isCloudLinked,
+    goBack,
+    isCloudLinked: registerIsCloudLinked,
     existingStores,
     searchParams,
     showConfirmSwitch,

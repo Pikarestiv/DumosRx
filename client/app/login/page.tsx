@@ -3,16 +3,25 @@
 import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardHeader } from "@/components/ui/card";
-import { Lock, Loader2, ArrowLeft } from "lucide-react";
-import { motion } from "framer-motion";
+import { Lock, Loader2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
-import Link from "next/link";
 import { TraditionalLoginForm } from "@/components/auth/traditional-login-form";
+import { AuthTabHeader } from "@/components/auth/auth-tab-header";
 import {
   SetupPromptHeader,
   SetupPromptContent,
 } from "@/components/auth/setup-prompt";
 import { useLogin } from "@/hooks/use-login";
+import { useDeviceAuthStatus } from "@/hooks/use-device-auth-status";
+import { useOnboarding } from "@/app/setup/use-onboarding";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { WelcomeStep } from "@/components/setup/steps/welcome-step";
+import { RegisterStep } from "@/components/setup/steps/register-step";
+import { CloudStep } from "@/components/setup/steps/cloud-step";
+import { BackupStep } from "@/components/setup/steps/backup-step";
+import { SyncingStep } from "@/components/setup/steps/syncing-step";
+import { SelectStoreStep } from "@/components/setup/steps/select-store-step";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -23,20 +32,48 @@ export default function LoginPage() {
   // accounts already exist, to avoid ever showing two separate lock screens.
   const isNewCredentialsMode = searchParams.get("mode") === "new";
 
+  const { isChecking, userCount, recentUsers } = useDeviceAuthStatus();
+
   const {
     username,
     setUsername,
     pin,
     setPin,
     isLoading,
-    isCheckingStatus,
-    userCount,
-    recentUsers,
     showTraditionalLogin,
     handleLogin,
   } = useLogin();
 
+  const onboarding = useOnboarding();
+
+  // Login and Setup are tabs on this one page, not separate routes — no
+  // navigation, no remount, no second loading spinner when switching.
+  // Guard: a device that already has accounts can't land on setup's
+  // welcome/select-store steps (that flow assumes a brand-new device and
+  // risks clobbering real local data) — only backup/cloud/syncing/register
+  // are safe entry points there. `register` is included because
+  // handleRegister() is purely additive (inserts a new store + admin) even
+  // when the device already has other local accounts — unlike
+  // select-store's cloud-switch flow, it never wipes existing data.
+  // Computed here instead of redirecting after mount, so an unsafe request
+  // never flashes setup content before bouncing back.
+  const requestedTab = searchParams.get("tab") === "setup" ? "setup" : "login";
+  const step = searchParams.get("step");
+  const isSafeSetupEntry =
+    step === "backup" ||
+    step === "cloud" ||
+    step === "syncing" ||
+    step === "register";
+  const activeTab =
+    requestedTab === "setup" && userCount > 0 && !isSafeSetupEntry
+      ? "login"
+      : requestedTab;
+
+  const setupHref =
+    userCount > 0 ? "/login?tab=setup&step=cloud" : "/login?tab=setup";
+
   const showAccountSelection =
+    activeTab === "login" &&
     userCount > 0 &&
     recentUsers.length > 0 &&
     !showTraditionalLogin &&
@@ -48,7 +85,7 @@ export default function LoginPage() {
     }
   }, [showAccountSelection, router]);
 
-  if (isCheckingStatus || showAccountSelection) {
+  if (isChecking || showAccountSelection) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -56,9 +93,41 @@ export default function LoginPage() {
     );
   }
 
+  const showBack =
+    activeTab === "setup"
+      ? onboarding.onboardingStep !== "syncing"
+      : !recentUsers.length || showTraditionalLogin || isNewCredentialsMode;
+
+  const handleBack = () => {
+    if (activeTab === "setup") {
+      onboarding.goBack();
+    } else {
+      router.push("/");
+    }
+  };
+
+  // Cloud Restore and Local Backup are the two setup steps that render a
+  // single simple Card (like the login tab), so the tab header is injected
+  // inside their Card for visual consistency. Other setup steps (welcome,
+  // register, select-store, syncing) have more complex/multi-card layouts,
+  // so the header stays floated above them.
+  const isCardSetupStep =
+    onboarding.onboardingStep === "cloud" ||
+    onboarding.onboardingStep === "backup";
+
+  const authHeader = !isNewCredentialsMode ? (
+    <AuthTabHeader
+      variant={activeTab === "login" || isCardSetupStep ? "card" : "standalone"}
+      active={activeTab === "login" ? "login" : "setup"}
+      showBack={showBack}
+      onBack={handleBack}
+      setupHref={setupHref}
+    />
+  ) : null;
+
   return (
     <div
-      className="fixed inset-0 flex flex-col sm:items-center sm:justify-center p-0 sm:p-4 overflow-hidden bg-background"
+      className="fixed inset-0 flex flex-col sm:items-center sm:justify-center p-0 sm:p-4 overflow-y-auto bg-background"
       style={{
         paddingTop: "calc(var(--tauri-top, env(safe-area-inset-top, 0px)))",
         paddingBottom:
@@ -74,18 +143,7 @@ export default function LoginPage() {
       </div>
 
       {/* Mobile Top Section (1/4 height) */}
-      <div className="sm:hidden relative z-10 flex flex-col items-center justify-center shrink-0 min-h-[25dvh] pt-4 pb-6">
-        {(!recentUsers.length ||
-          showTraditionalLogin ||
-          isNewCredentialsMode) && (
-          <Link
-            href="/"
-            className="absolute left-6 top-6 inline-flex items-center text-sm font-medium text-primary-foreground/90 hover:text-primary-foreground transition-colors group"
-          >
-            <ArrowLeft className="h-5 w-5 mr-1 transform group-hover:-translate-x-1 transition-transform" />
-            Back
-          </Link>
-        )}
+      <div className="sm:hidden relative z-10 flex flex-col items-center justify-center shrink-0 min-h-[25dvh] py-4">
         <motion.div
           initial={{ scale: 0, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -108,74 +166,180 @@ export default function LoginPage() {
         transition={{ duration: 0.5 }}
         className="w-full h-full sm:h-auto sm:max-w-md z-10 flex flex-col mx-auto"
       >
-        {/* Desktop Back Link */}
-        {(!recentUsers.length ||
-          showTraditionalLogin ||
-          isNewCredentialsMode) && (
-          <div className="hidden sm:block px-4 sm:px-0">
-            <Link
-              href="/"
-              className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors group"
-            >
-              <ArrowLeft className="h-4 w-4 mr-2 transform group-hover:-translate-x-1 transition-transform" />
-              Back
-            </Link>
-          </div>
-        )}
+        {activeTab === "login" ? (
+          <>
+            <Card className="py-0 flex-1 sm:flex-initial flex flex-col border-none sm:border-solid sm:border-border shadow-[0_-20px_40px_rgba(0,0,0,0.15)] sm:shadow-2xl bg-background sm:bg-card/60 sm:backdrop-blur-2xl rounded-t-[2.5rem] sm:rounded-xl max-h-[85dvh] overflow-y-auto relative">
+              {/* Header: Back + Login/Setup switcher, integrated into the
+                  card itself rather than floating above it. Hidden entirely
+                  for ?mode=new — that flow is for re-authenticating on a
+                  device that's already fully set up, not for someone who
+                  might want to set up a new store. */}
+              <div className="px-4">{authHeader}</div>
 
-        <Card className="flex-1 sm:flex-initial flex flex-col border-none sm:border-solid sm:border-border shadow-[0_-20px_40px_rgba(0,0,0,0.15)] sm:shadow-2xl bg-background sm:bg-card/60 sm:backdrop-blur-2xl rounded-t-[2.5rem] sm:rounded-xl overflow-hidden relative">
-          {/* Desktop Logo */}
-          <div className="hidden sm:flex flex-col items-center pt-6 pb-2">
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{
-                type: "spring",
-                stiffness: 260,
-                damping: 20,
-                delay: 0.2,
+              {/* Desktop Logo */}
+              <div className="hidden sm:flex flex-col items-center pt-6 pb-2">
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{
+                    type: "spring",
+                    stiffness: 260,
+                    damping: 20,
+                    delay: 0.2,
+                  }}
+                  className="mb-1 overflow-hidden"
+                >
+                  <Image
+                    src="/logo.png"
+                    alt="Logo"
+                    width={150}
+                    height={58}
+                    className="object-contain"
+                    style={{ filter: "var(--logo-filter)", height: "auto" }}
+                  />
+                </motion.div>
+              </div>
+
+              {userCount === 0 && (
+                <CardHeader className="pt-8 sm:pt-2 pb-2 items-center text-center">
+                  <SetupPromptHeader />
+                </CardHeader>
+              )}
+
+              {userCount === 0 && <SetupPromptContent />}
+
+              {userCount > 0 &&
+                (recentUsers.length === 0 ||
+                  showTraditionalLogin ||
+                  isNewCredentialsMode) && (
+                  <TraditionalLoginForm
+                    username={username}
+                    setUsername={setUsername}
+                    pin={pin}
+                    setPin={setPin}
+                    isLoading={isLoading}
+                    onSubmit={handleLogin}
+                    onGoToRegister={
+                      isNewCredentialsMode ? undefined : onboarding.goToRegister
+                    }
+                    onGoToBackup={
+                      isNewCredentialsMode
+                        ? undefined
+                        : () => onboarding.setStep("backup")
+                    }
+                  />
+                )}
+            </Card>
+
+            {userCount > 0 &&
+              (showTraditionalLogin || isNewCredentialsMode) && (
+                <div className="hidden sm:flex mt-4 items-center justify-center gap-2 text-xs font-medium text-muted-foreground/60 uppercase tracking-widest">
+                  <Lock className="w-3 h-3" />
+                  Terminal Access • Secure Login
+                </div>
+              )}
+          </>
+        ) : (
+          <>
+            {/* Cloud Restore and Local Backup get the header injected inside
+                their own Card (see isCardSetupStep) for consistency with the
+                login tab. Every other setup step renders a more complex
+                layout the header can't be injected into, so it floats above
+                instead. */}
+            {!isCardSetupStep && authHeader}
+
+            <AnimatePresence mode="wait">
+              {onboarding.onboardingStep === "welcome" && (
+                <WelcomeStep
+                  onSetStep={onboarding.setStep}
+                  onGoToRegister={onboarding.goToRegister}
+                />
+              )}
+
+              {onboarding.onboardingStep === "register" && (
+                <RegisterStep
+                  onRegister={onboarding.handleRegister}
+                  isLoading={onboarding.isLoading}
+                  isCloudLinked={onboarding.isCloudLinked}
+                  existingStores={onboarding.existingStores}
+                />
+              )}
+
+              {onboarding.onboardingStep === "cloud" && (
+                <CloudStep
+                  onCloudRestore={onboarding.handleCloudRestore}
+                  isLoading={onboarding.isLoading}
+                  onGoToRegister={onboarding.goToRegister}
+                  onGoToBackup={() => onboarding.setStep("backup")}
+                  header={authHeader}
+                />
+              )}
+
+              {onboarding.onboardingStep === "backup" && (
+                <BackupStep
+                  onCancel={() => onboarding.setStep("welcome")}
+                  onRestore={onboarding.handleLocalRestore}
+                  onGoToCloud={() => onboarding.setStep("cloud")}
+                  isLoading={onboarding.isLoading}
+                  header={authHeader}
+                />
+              )}
+
+              {onboarding.onboardingStep === "syncing" && (
+                <SyncingStep
+                  progress={onboarding.syncProgress}
+                  status={onboarding.syncStatus}
+                />
+              )}
+
+              {onboarding.onboardingStep === "select-store" && (
+                <SelectStoreStep
+                  stores={onboarding.cloudStores}
+                  selectedStoreId={onboarding.selectedStoreId}
+                  setSelectedStoreId={onboarding.setSelectedStoreId}
+                  onConfirm={onboarding.handleSelectStoreConfirm}
+                  onCancel={() => onboarding.setStep("cloud")}
+                  isLoading={onboarding.isLoading}
+                />
+              )}
+            </AnimatePresence>
+
+            <ConfirmDialog
+              open={onboarding.showConfirmSwitch}
+              onOpenChange={(open) => {
+                if (!open) {
+                  onboarding.cancelCloudRestoreSwitch();
+                }
               }}
-              className="mb-1 overflow-hidden"
-            >
-              <Image
-                src="/logo.png"
-                alt="Logo"
-                width={150}
-                height={58}
-                className="object-contain"
-                style={{ filter: "var(--logo-filter)", height: "auto" }}
-              />
-            </motion.div>
-          </div>
-
-          {userCount === 0 && (
-            <CardHeader className="pt-8 sm:pt-2 pb-2 items-center text-center">
-              <SetupPromptHeader />
-            </CardHeader>
-          )}
-
-          {userCount === 0 && <SetupPromptContent />}
-
-          {userCount > 0 &&
-            (recentUsers.length === 0 ||
-              showTraditionalLogin ||
-              isNewCredentialsMode) && (
-              <TraditionalLoginForm
-                username={username}
-                setUsername={setUsername}
-                pin={pin}
-                setPin={setPin}
-                isLoading={isLoading}
-                onSubmit={handleLogin}
-              />
-            )}
-        </Card>
-
-        {userCount > 0 && (showTraditionalLogin || isNewCredentialsMode) && (
-          <div className="hidden sm:flex mt-4 items-center justify-center gap-2 text-xs font-medium text-muted-foreground/60 uppercase tracking-widest">
-            <Lock className="w-3 h-3" />
-            Terminal Access • Secure Login
-          </div>
+              title="Confirm Store Switch"
+              description={
+                <div className="space-y-3 text-sm leading-relaxed text-muted-foreground">
+                  <p>
+                    This device is already configured with local data for{" "}
+                    <strong className="text-foreground font-semibold">
+                      &ldquo;{onboarding.pendingStoreName}&rdquo;
+                    </strong>
+                    .
+                  </p>
+                  <p>
+                    Syncing a different store will{" "}
+                    <strong className="text-destructive font-semibold">
+                      permanently DELETE
+                    </strong>{" "}
+                    all current local data (products, batches, sales, and
+                    accounts) and replace it with the new store&apos;s data.
+                  </p>
+                  <p className="font-semibold text-foreground mt-2">
+                    Do you want to proceed?
+                  </p>
+                </div>
+              }
+              confirmLabel="Wipe & Sync New Store"
+              cancelLabel="Keep Current Store"
+              variant="destructive"
+              onConfirm={onboarding.confirmCloudRestoreSwitch}
+            />
+          </>
         )}
       </motion.div>
     </div>

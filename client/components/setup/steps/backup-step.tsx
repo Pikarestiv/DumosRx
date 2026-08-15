@@ -18,6 +18,7 @@ interface BackupStepProps {
   onRestore: (file: File) => Promise<void>;
   onGoToCloud?: () => void;
   isLoading: boolean;
+  header?: React.ReactNode;
 }
 
 export function BackupStep({
@@ -25,6 +26,7 @@ export function BackupStep({
   onRestore,
   onGoToCloud,
   isLoading,
+  header,
 }: BackupStepProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -43,9 +45,10 @@ export function BackupStep({
       exit={{ opacity: 0, x: -20 }}
       className="flex-1 flex flex-col w-full"
     >
-      <Card className="flex-1 px-4 sm:px-6 py-6 sm:flex-initial flex flex-col border-none sm:border-solid sm:border-border shadow-[0_-20px_40px_rgba(0,0,0,0.15)] sm:shadow-2xl bg-background sm:bg-card/60 sm:backdrop-blur-2xl rounded-t-[2.5rem] sm:rounded-xl overflow-hidden relative">
+      <Card className="flex-1 p-0 px-4 sm:px-6 sm:flex-initial flex flex-col border-none sm:border-solid sm:border-border shadow-[0_-20px_40px_rgba(0,0,0,0.15)] sm:shadow-2xl bg-background sm:bg-card/60 sm:backdrop-blur-2xl rounded-t-[2.5rem] sm:rounded-xl max-h-[85dvh] overflow-y-auto relative">
+        {header}
         <CardHeader className="space-y-1 flex flex-col items-center text-center pb-2">
-          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
+          <div className="hidden md:flex w-12 h-12 rounded-xl bg-primary/10 items-center justify-center mb-4">
             <FileUp className="h-6 w-6 text-primary" />
           </div>
           <CardTitle className="text-2xl font-bold">Local Backup</CardTitle>
@@ -53,9 +56,9 @@ export function BackupStep({
             Restore from a previous backup file
           </CardDescription>
         </CardHeader>
-        <CardContent className="py-8 px-6 pt-6">
+        <CardContent className="md:py-4 px-6">
           <div
-            className={`flex flex-col items-center justify-center border-2 border-dashed border-border rounded-xl p-8 transition-colors ${isLoading ? "bg-background/10 cursor-not-allowed opacity-70" : "bg-background/30 hover:bg-background/50 cursor-pointer group"}`}
+            className={`flex flex-col items-center justify-center border-2 border-dashed border-border rounded-xl p-4 md:p-8 transition-colors ${isLoading ? "bg-background/10 cursor-not-allowed opacity-70" : "bg-background/30 hover:bg-background/50 cursor-pointer group"}`}
             onClick={() => {
               if (!isLoading) fileInputRef.current?.click();
             }}

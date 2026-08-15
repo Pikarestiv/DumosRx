@@ -17,8 +17,15 @@ import { UserPlus, Loader2 } from "lucide-react";
 import { useState } from "react";
 import type { StoreOption } from "@/lib/types/store";
 
+const STORE_TYPES = [
+  { value: "pharmacy", label: "Pharmacy" },
+  { value: "supermarket", label: "Supermarket" },
+  { value: "grocery", label: "Grocery" },
+  { value: "general", label: "General Store" },
+];
+
 interface RegisterStepProps {
-  onRegister: (firstName: string, lastName: string, username: string, pin: string, storeName: string, existingStoreId?: string, email?: string, password?: string) => Promise<void>;
+  onRegister: (firstName: string, lastName: string, username: string, pin: string, storeName: string, existingStoreId?: string, email?: string, password?: string, storeType?: string, phone?: string) => Promise<void>;
   isLoading: boolean;
   isCloudLinked?: boolean;
   existingStores?: StoreOption[];
@@ -30,12 +37,23 @@ export function RegisterStep({ onRegister, isLoading, isCloudLinked, existingSto
   const [username, setUsername] = useState("");
   const [pin, setPin] = useState("");
   const [storeName, setStoreName] = useState("");
+  const [storeType, setStoreType] = useState("pharmacy");
   const [selectedStoreId, setSelectedStoreId] = useState<string>("new");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!isCloudLinked && password !== confirmPassword) {
+      setPasswordError("Passwords do not match");
+      return;
+    }
+    setPasswordError("");
+
     onRegister(
       firstName.trim(),
       lastName.trim(),
@@ -45,6 +63,8 @@ export function RegisterStep({ onRegister, isLoading, isCloudLinked, existingSto
       selectedStoreId === "new" ? undefined : selectedStoreId,
       isCloudLinked ? undefined : email.trim().toLowerCase(),
       isCloudLinked ? undefined : password,
+      isCloudLinked ? undefined : storeType,
+      isCloudLinked ? undefined : phone.trim(),
     );
   };
 
@@ -56,7 +76,7 @@ export function RegisterStep({ onRegister, isLoading, isCloudLinked, existingSto
       exit={{ opacity: 0, x: -20 }}
       className="flex-1 flex flex-col w-full"
     >
-      <Card className="flex-1 sm:flex-initial flex flex-col border-none sm:border-solid sm:border-border shadow-[0_-20px_40px_rgba(0,0,0,0.15)] sm:shadow-2xl bg-background sm:bg-card/60 sm:backdrop-blur-2xl rounded-t-[2.5rem] sm:rounded-xl overflow-hidden relative">
+      <Card className="flex-1 sm:flex-initial flex flex-col border-none sm:border-solid sm:border-border shadow-[0_-20px_40px_rgba(0,0,0,0.15)] sm:shadow-2xl bg-background sm:bg-card/60 sm:backdrop-blur-2xl rounded-t-[2.5rem] sm:rounded-xl max-h-[85dvh] overflow-y-auto relative">
         <CardHeader className="space-y-1 flex flex-col items-center text-center pb-1 pt-4">
           <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-2">
             <UserPlus className="h-5 w-5 text-primary" />
@@ -116,6 +136,19 @@ export function RegisterStep({ onRegister, isLoading, isCloudLinked, existingSto
             {!isCloudLinked && (
               <>
                 <div className="space-y-1">
+                  <Label htmlFor="store-type" className="text-xs">Store Type</Label>
+                  <select
+                    id="store-type"
+                    className="w-full h-10 bg-background/50 border border-input rounded-md px-3 text-sm focus:ring-2 focus:ring-primary outline-none transition-all"
+                    value={storeType}
+                    onChange={(e) => setStoreType(e.target.value)}
+                  >
+                    {STORE_TYPES.map((type) => (
+                      <option key={type.value} value={type.value}>{type.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1">
                   <Label htmlFor="reg-email" className="text-xs">Email Address</Label>
                   <Input
                     id="reg-email"
@@ -128,6 +161,19 @@ export function RegisterStep({ onRegister, isLoading, isCloudLinked, existingSto
                   />
                 </div>
                 <div className="space-y-1">
+                  <Label htmlFor="reg-phone" className="text-xs">Phone Number</Label>
+                  <Input
+                    id="reg-phone"
+                    type="tel"
+                    placeholder="08012345678"
+                    className="bg-background/50 h-10"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    required
+                    minLength={10}
+                  />
+                </div>
+                <div className="space-y-1">
                   <Label htmlFor="reg-password" className="text-xs">Password</Label>
                   <Input
                     id="reg-password"
@@ -135,10 +181,32 @@ export function RegisterStep({ onRegister, isLoading, isCloudLinked, existingSto
                     placeholder="••••••••"
                     className="bg-background/50 h-10"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      setPasswordError("");
+                    }}
                     required
                     minLength={8}
                   />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="reg-password-confirm" className="text-xs">Confirm Password</Label>
+                  <Input
+                    id="reg-password-confirm"
+                    type="password"
+                    placeholder="••••••••"
+                    className="bg-background/50 h-10"
+                    value={confirmPassword}
+                    onChange={(e) => {
+                      setConfirmPassword(e.target.value);
+                      setPasswordError("");
+                    }}
+                    required
+                    minLength={8}
+                  />
+                  {passwordError && (
+                    <p className="text-xs text-destructive">{passwordError}</p>
+                  )}
                 </div>
               </>
             )}

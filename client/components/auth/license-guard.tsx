@@ -70,8 +70,7 @@ function MobileRestrictionGuard() {
         !isMobile ||
         canUseMobileApp ||
         !isAuthenticated ||
-        pathname === "/login" ||
-        pathname === "/setup"
+        pathname === "/login"
       ) {
         return;
       }

@@ -73,6 +73,7 @@ Surfaced during demo prep: a store logged a full year's rent (₦270,000) as one
 - **Verified live:** added a real ₦270,000/12-month test expense; the Analytics BI dashboard's Net Profit immediately showed -₦22,500 (one month's installment), not -₦270,000.
 - **Known accepted tradeoff:** Net Profit is now an accrual number that can diverge from actual cash movement in the period it was paid — inherent to smoothing at all, not a bug.
 - **Scope note:** applied to the two live "Net Profit" surfaces (Analytics BI dashboard, P&L report hook). A `p-and-l-report-dialog.tsx` component also exists and was updated for consistency, but turned out to be dead code — nothing in the app currently renders it, so it couldn't be verified live.
+- **Follow-up catch:** the Expenses list page (`use-expenses-page.ts`) had its own separate, unsmoothed "This month" / top-category computation that reproduced the exact same bug one screen over — missed in the first pass since it doesn't compute Net Profit, just an expense-totals summary. Fixed by extracting the per-expense smoothing math into a pure `getSmoothedAmountInWindow()` reusable on an already-loaded in-memory `Expense[]`, not just via a DB query. "Total expenses (all time)" and the transaction count are deliberately left raw — a lifetime cash total and a row count aren't period-attribution questions.
 
 ---
 

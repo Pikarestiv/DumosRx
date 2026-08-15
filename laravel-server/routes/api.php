@@ -145,6 +145,8 @@ Route::prefix('v1')->group(function () {
             Route::get('/search', [AdminController::class, 'search']);
             Route::get('/activity-logs', [AdminController::class, 'activityLogs']);
             Route::get('/my-referrals', [AdminController::class, 'myReferrals']);
+            Route::get('/referral-code/check', [AdminController::class, 'checkReferralCode']);
+            Route::post('/referral-code', [AdminController::class, 'updateReferralCode']);
             Route::post('/stores/{id}/impersonate', [AdminController::class, 'impersonateStore']);
 
             // Email Templates

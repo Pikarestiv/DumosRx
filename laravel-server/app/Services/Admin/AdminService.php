@@ -49,6 +49,67 @@ class AdminService
         ];
     }
 
+    /** Normalizes a candidate platform_referral_code to lowercase-alphanumeric
+     * + hyphens the same way StoreController::checkSlug normalizes store
+     * slugs, so both "Pika Restiv" and "pika_restiv" land on "pika-restiv". */
+    public static function normalizeReferralCode($code)
+    {
+        return Str::slug($code);
+    }
+
+    public function checkReferralCodeAvailable($code, $ignoreUserId = null)
+    {
+        $normalized = self::normalizeReferralCode($code);
+
+        $query = User::where('platform_referral_code', $normalized);
+        if ($ignoreUserId) {
+            $query->where('id', '!=', $ignoreUserId);
+        }
+
+        return [
+            'available' => strlen($normalized) >= 3 && strlen($normalized) <= 32 && !$query->exists(),
+            'code' => $normalized,
+        ];
+    }
+
+    /** $callerId edits their own code unless they're super_admin, in which
+     * case $targetUserId can be anyone's. Enforced in the controller too
+     * (defense in depth) but re-checked here since this is the actual write. */
+    public function updateReferralCode($targetUserId, $code, $callerId)
+    {
+        $caller = User::findOrFail($callerId);
+        if ($targetUserId !== $callerId && !$caller->hasRole('super_admin')) {
+            throw new \Exception('Only super_admin can edit another user\'s referral code.');
+        }
+
+        $target = User::findOrFail($targetUserId);
+        if (!in_array($target->role, ['super_admin', 'platform_admin', 'agent'])) {
+            throw new \Exception('Referral codes are only for platform-level accounts.');
+        }
+
+        $normalized = self::normalizeReferralCode($code);
+        if (strlen($normalized) < 3 || strlen($normalized) > 32) {
+            throw new \Exception('Referral code must be 3-32 characters (letters, numbers, hyphens).');
+        }
+
+        $taken = User::where('platform_referral_code', $normalized)->where('id', '!=', $targetUserId)->exists();
+        if ($taken) {
+            throw new \Exception('That referral code is already taken.');
+        }
+
+        $target->platform_referral_code = $normalized;
+        $target->save();
+
+        ActivityLog::create([
+            'user_id' => $callerId,
+            'action' => 'REFERRAL_CODE_UPDATED',
+            'description' => "Set referral code for {$target->email} ({$target->id}) to \"{$normalized}\"",
+            'status' => 'success',
+        ]);
+
+        return $target->platform_referral_code;
+    }
+
     public function getGlobalSummary()
     {
         $last7Days = now()->subDays(7);

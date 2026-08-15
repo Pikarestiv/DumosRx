@@ -361,6 +361,68 @@ class AdminController extends Controller
     }
 
     #[OA\Get(
+        path: '/admin/referral-code/check',
+        summary: 'Check whether a custom platform referral code is available',
+        description: 'Available to super_admin/platform_admin/agent. Normalizes the same way updateReferralCode does, so what\'s reported available is exactly what would be saved.',
+        tags: ['Admin'],
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'code', in: 'query', required: true, schema: new OA\Schema(type: 'string')),
+            new OA\Parameter(name: 'user_id', in: 'query', description: 'Exclude this user\'s own current code from the collision check (i.e. re-saving your own code as-is)', schema: new OA\Schema(type: 'string')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Availability + normalized code', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'available', type: 'boolean'),
+                new OA\Property(property: 'code', type: 'string'),
+            ])),
+        ],
+    )]
+    public function checkReferralCode(Request $request)
+    {
+        $request->validate(['code' => 'required|string']);
+
+        return response()->json(
+            $this->adminService->checkReferralCodeAvailable($request->query('code'), $request->query('user_id'))
+        );
+    }
+
+    #[OA\Post(
+        path: '/admin/referral-code',
+        summary: 'Set a custom platform referral code',
+        description: 'Self-service — defaults to the caller\'s own code. super_admin may pass user_id to set another platform user\'s.',
+        tags: ['Admin'],
+        security: [['sanctum' => []]],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            required: ['code'],
+            properties: [
+                new OA\Property(property: 'code', type: 'string', minLength: 3, maxLength: 32),
+                new OA\Property(property: 'user_id', type: 'string', nullable: true, description: 'super_admin only'),
+            ],
+        )),
+        responses: [
+            new OA\Response(response: 200, description: 'Updated', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'platform_referral_code', type: 'string'),
+            ])),
+            new OA\Response(response: 403, description: 'Tried to edit another user\'s code without being super_admin'),
+            new OA\Response(response: 422, description: 'Invalid format or already taken'),
+        ],
+    )]
+    public function updateReferralCode(Request $request)
+    {
+        $request->validate(['code' => 'required|string']);
+        $caller = $request->user();
+        $targetId = $request->filled('user_id') ? $request->input('user_id') : $caller->id;
+
+        try {
+            $code = $this->adminService->updateReferralCode($targetId, $request->input('code'), $caller->id);
+            return response()->json(['platform_referral_code' => $code]);
+        } catch (\Exception $e) {
+            $status = str_contains($e->getMessage(), 'super_admin') ? 403 : 422;
+            return response()->json(['error' => $e->getMessage()], $status);
+        }
+    }
+
+    #[OA\Get(
         path: '/admin/search',
         summary: 'Global platform search (stores, users, etc.)',
         tags: ['Admin'],

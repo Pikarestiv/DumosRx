@@ -57,6 +57,25 @@ export const useMyReferrals = (userId?: string) => {
   });
 };
 
+export const checkReferralCode = (code: string, userId?: string) =>
+  webApiClient.request<{ available: boolean; code: string }>(
+    `admin/referral-code/check?code=${encodeURIComponent(code)}${userId ? `&user_id=${userId}` : ""}`
+  );
+
+export const useUpdateReferralCodeMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { code: string; userId?: string }) =>
+      webApiClient.request<{ platform_referral_code: string }>("admin/referral-code", {
+        method: "POST",
+        body: { code: payload.code, user_id: payload.userId },
+      }),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["admin-my-referrals", variables.userId] });
+    },
+  });
+};
+
 export const useAdminHealth = () => {
   return useQuery({
     queryKey: ["admin-health"],

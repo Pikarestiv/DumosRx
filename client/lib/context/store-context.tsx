@@ -192,6 +192,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     // invalidation (not a table-filtered one) because switching stores is a
     // deliberate, infrequent action, not a hot path — correctness here is
     // worth more than avoiding a refetch.
+    //
+    // Must set the resolver synchronously here rather than relying on the
+    // useEffect above (which mirrors targetId into it) — that effect only
+    // runs after React commits the re-render, which is after
+    // invalidateQueries() below has already kicked off refetches. Without
+    // this, those refetches would read the OLD store id (stale resolver),
+    // cache the old store's data under the same query keys, and never
+    // refetch again — the exact "needs a reload to reflect" bug.
+    setResolvedStoreId(storeId);
     queryClient.invalidateQueries();
 
     // Pulls this store's data down if this device has never synced it

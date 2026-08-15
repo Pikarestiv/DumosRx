@@ -82,8 +82,11 @@ export const queryKeys = {
   },
   customers: {
     all: () => resource(["customers"] as const, ["customers"]),
-    transactions: (fullHistory: boolean) =>
-      resource(["customerTransactions", fullHistory] as const, ["sales", "sale_items"]),
+    transactions: (fullHistory: boolean, range?: { from?: string; to?: string }) =>
+      resource(
+        ["customerTransactions", fullHistory, range?.from, range?.to] as const,
+        ["sales", "sale_items"],
+      ),
     posList: () => resource(["posCustomers"] as const, ["customers"]),
   },
   expenses: {

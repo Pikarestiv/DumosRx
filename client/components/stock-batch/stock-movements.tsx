@@ -15,6 +15,7 @@ import { StockMovementDesktopRow } from "./stock-movement-desktop-row";
 import { StockMovementMobileGroup } from "./stock-movement-mobile-group";
 import { StockMovementDetailModal } from "./stock-movement-detail-modal";
 import { usePullToRefreshHandler } from "@/lib/context/pull-to-refresh-context";
+import { DateRangePicker, type DateRangeValue } from "@/components/ui/date-range-picker";
 import type { StockMovementDbRow } from "@/lib/types/stock-movement";
 
 const RECENT_ACTIVITY_WINDOW_DAYS = 30;
@@ -49,20 +50,24 @@ export function StockMovements() {
   const [hasFullHistory, setHasFullHistory] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [dateRange, setDateRange] = useState<DateRangeValue>({});
   const [selectedMovement, setSelectedMovement] =
     useState<StockMovement | null>(null);
   const router = useRouter();
 
   // Default view is bounded to recent activity since this log grows every sale/receive/adjustment.
-  // Respects whatever window is currently active (30-day or full history), so a manual/pull
-  // refresh doesn't quietly revert someone back out of full-history mode.
+  // Respects whatever window is currently active (30-day, custom range, or full history), so a
+  // manual/pull refresh doesn't quietly revert someone back out of it. An explicit date range
+  // takes precedence over full-history mode — it's a bounded window the user picked on purpose.
   const fetchMovements = async () => {
     setLoading(true);
     try {
       const { getStockMovements } = await import("@/lib/db/local-database");
-      const res = hasFullHistory
-        ? await getStockMovements()
-        : await getStockMovements({ sinceDays: RECENT_ACTIVITY_WINDOW_DAYS });
+      const res = dateRange.from
+        ? await getStockMovements(dateRange)
+        : hasFullHistory
+          ? await getStockMovements()
+          : await getStockMovements({ sinceDays: RECENT_ACTIVITY_WINDOW_DAYS });
       setMovements((res.data || []).map(mapMovement));
     } catch (error) {
       console.error("Failed to fetch stock movements:", error);
@@ -74,14 +79,16 @@ export function StockMovements() {
   useEffect(() => {
     fetchMovements();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [dateRange]);
 
   usePullToRefreshHandler(fetchMovements);
 
   // Searching or filtering must match the entire log, not just the recent-activity window
   // that's loaded by default — so upgrade to full history the first time either is used.
+  // Skipped while a custom date range is active: that's a bounded window the user picked on
+  // purpose, so search/filter should stay scoped within it rather than silently discarding it.
   useEffect(() => {
-    if (hasFullHistory || (!searchTerm && typeFilter === "all")) return;
+    if (dateRange.from || hasFullHistory || (!searchTerm && typeFilter === "all")) return;
     let cancelled = false;
     async function fetchFullHistory() {
       try {
@@ -98,7 +105,7 @@ export function StockMovements() {
     return () => {
       cancelled = true;
     };
-  }, [searchTerm, typeFilter, hasFullHistory]);
+  }, [searchTerm, typeFilter, hasFullHistory, dateRange.from]);
 
   const preFilteredMovements = movements.filter((movement) => {
     return typeFilter === "all" || movement.type === typeFilter;
@@ -160,10 +167,19 @@ export function StockMovements() {
           setTypeFilter={setTypeFilter}
           triggerClassName="data-[state=inactive]:bg-card data-[state=inactive]:border-border"
         />
-        {!hasFullHistory && (
+        <DateRangePicker value={dateRange} onChange={setDateRange} className="w-full" />
+        {dateRange.from && (
+          <button
+            onClick={() => setDateRange({})}
+            className="text-[11.5px] text-muted-foreground hover:text-foreground underline px-0.5"
+          >
+            Clear date range
+          </button>
+        )}
+        {!hasFullHistory && !dateRange.from && (
           <p className="text-[11.5px] text-muted-foreground/70 px-0.5">
-            Showing last {RECENT_ACTIVITY_WINDOW_DAYS} days. Search to look
-            further back.
+            Showing last {RECENT_ACTIVITY_WINDOW_DAYS} days. Search or select
+            a date range to look further back.
           </p>
         )}
       </div>
@@ -182,6 +198,7 @@ export function StockMovements() {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
+            <DateRangePicker value={dateRange} onChange={setDateRange} className="bg-muted/30 border-border" />
             <div className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground/70 bg-muted/30 border border-border rounded-[10px] px-3 py-2.5 whitespace-nowrap w-max">
               <Lock className="w-3.5 h-3.5" />
               Immutable log — entries can't be edited
@@ -192,10 +209,18 @@ export function StockMovements() {
             setTypeFilter={setTypeFilter}
             triggerClassName="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none data-[state=inactive]:border-border data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground"
           />
-          {!hasFullHistory && (
+          {dateRange.from && (
+            <button
+              onClick={() => setDateRange({})}
+              className="text-[11.5px] text-muted-foreground hover:text-foreground underline mt-2"
+            >
+              Clear date range
+            </button>
+          )}
+          {!hasFullHistory && !dateRange.from && (
             <p className="text-[11.5px] text-muted-foreground/70 mt-2">
-              Showing last {RECENT_ACTIVITY_WINDOW_DAYS} days. Search to look
-              further back.
+              Showing last {RECENT_ACTIVITY_WINDOW_DAYS} days. Search or
+              select a date range to look further back.
             </p>
           )}
         </div>

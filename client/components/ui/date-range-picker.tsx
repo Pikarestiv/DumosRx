@@ -150,7 +150,7 @@ export function DateRangePicker({ value, onChange, className }: DateRangePickerP
           variant="outline"
           className={cn("h-9 justify-start gap-2 text-[13px] font-normal", className)}
         >
-          <CalendarIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+          <CalendarIcon className="h-4 w-4 text-muted-foreground shrink-0 group-hover:text-accent-foreground" />
           <span className="truncate">{label}</span>
         </Button>
       </PopoverTrigger>

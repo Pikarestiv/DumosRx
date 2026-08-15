@@ -257,12 +257,29 @@ export async function deleteUser(id: string) {
  * searching/filtering, so those still match against every record, not just what's
  * been loaded for browsing.
  */
-export async function getStockMovements(options: { sinceDays?: number } = {}) {
-  const { sinceDays } = options;
+/**
+ * `from`/`to` (YYYY-MM-DD) take precedence over `sinceDays` when both are passed —
+ * an explicit date-range pick from the UI overrides the relative window.
+ */
+export async function getStockMovements(
+  options: { sinceDays?: number; from?: string; to?: string } = {},
+) {
+  const { sinceDays, from, to } = options;
   const storeId = getActiveStoreId();
-  const dateFilter = sinceDays
-    ? `AND sm.created_at >= datetime('now', '-${sinceDays} days')`
-    : "";
+  const params: string[] = [];
+  let dateFilter = "";
+  if (from || to) {
+    if (from) {
+      dateFilter += " AND sm.created_at >= ?";
+      params.push(`${from} 00:00:00`);
+    }
+    if (to) {
+      dateFilter += " AND sm.created_at <= ?";
+      params.push(`${to} 23:59:59`);
+    }
+  } else if (sinceDays) {
+    dateFilter = `AND sm.created_at >= datetime('now', '-${sinceDays} days')`;
+  }
   const results = await query<StockMovementDbRow>(
     `SELECT sm.*, m.name as product_name,
             TRIM(u.first_name || ' ' || COALESCE(u.last_name, '')) as performed_by_name,
@@ -274,7 +291,7 @@ export async function getStockMovements(options: { sinceDays?: number } = {}) {
      LEFT JOIN suppliers sp ON sb.supplier_id = sp.id
      WHERE sm._deleted = 0 ${dateFilter}${storeId ? " AND sm.store_id = ?" : ""}
      ORDER BY sm.created_at DESC`,
-    storeId ? [storeId] : [],
+    [...params, ...(storeId ? [storeId] : [])],
   );
   return { data: results };
 }

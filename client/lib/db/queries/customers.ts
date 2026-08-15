@@ -24,13 +24,29 @@ export async function getCustomers() {
  * view. Omit it for full history, which the caller should only do when the user
  * is actively searching or filtering to a specific customer, so those still
  * match against every record, not just what's been loaded for browsing.
+ *
+ * `from`/`to` (YYYY-MM-DD) take precedence over `sinceDays` when both are passed —
+ * an explicit date-range pick from the UI overrides the relative window.
  */
-export async function getCustomerTransactions(options: { sinceDays?: number } = {}) {
-  const { sinceDays } = options;
+export async function getCustomerTransactions(
+  options: { sinceDays?: number; from?: string; to?: string } = {},
+) {
+  const { sinceDays, from, to } = options;
   const storeId = getActiveStoreId();
-  const dateFilter = sinceDays
-    ? `AND s.transaction_date >= datetime('now', '-${sinceDays} days')`
-    : "";
+  const params: string[] = [];
+  let dateFilter = "";
+  if (from || to) {
+    if (from) {
+      dateFilter += " AND s.transaction_date >= ?";
+      params.push(`${from} 00:00:00`);
+    }
+    if (to) {
+      dateFilter += " AND s.transaction_date <= ?";
+      params.push(`${to} 23:59:59`);
+    }
+  } else if (sinceDays) {
+    dateFilter = `AND s.transaction_date >= datetime('now', '-${sinceDays} days')`;
+  }
   return query<CustomerTransactionRow>(
     `SELECT
       s.id,
@@ -47,7 +63,7 @@ export async function getCustomerTransactions(options: { sinceDays?: number } = 
     JOIN customers c ON s.customer_id = c.id
     WHERE s.customer_id IS NOT NULL AND (s._deleted = 0 OR s._deleted IS NULL) ${dateFilter}${storeId ? " AND s.store_id = ?" : ""}
     ORDER BY s.transaction_date DESC`,
-    storeId ? [storeId] : [],
+    [...params, ...(storeId ? [storeId] : [])],
   );
 }
 

@@ -268,17 +268,20 @@ const TRANSACTIONS_RECENT_WINDOW_DAYS = 30;
 
 export function useCustomerTransactions() {
   const [hasFullHistory, setHasFullHistory] = useState(false);
+  const [dateRange, setDateRange] = useState<{ from?: string; to?: string }>({});
 
   const {
     data: transactions = [],
     isLoading: loading,
     refetch,
   } = useQuery({
-    ...queryKeys.customers.transactions(hasFullHistory),
+    ...queryKeys.customers.transactions(hasFullHistory, dateRange),
     queryFn: async () => {
-      const data = hasFullHistory
-        ? await getCustomerTransactions()
-        : await getCustomerTransactions({ sinceDays: TRANSACTIONS_RECENT_WINDOW_DAYS });
+      const data = dateRange.from
+        ? await getCustomerTransactions(dateRange)
+        : hasFullHistory
+          ? await getCustomerTransactions()
+          : await getCustomerTransactions({ sinceDays: TRANSACTIONS_RECENT_WINDOW_DAYS });
       return data.map(transformTransaction);
     },
   });
@@ -293,6 +296,8 @@ export function useCustomerTransactions() {
     loading,
     hasFullHistory,
     loadFullHistory,
+    dateRange,
+    setDateRange,
     refetch: async () => {
       await refetch();
     },

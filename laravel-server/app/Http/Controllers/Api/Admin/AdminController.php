@@ -228,6 +228,32 @@ class AdminController extends Controller
     }
 
     #[OA\Get(
+        path: '/admin/errors',
+        summary: 'Recent unresolved Sentry issues across client + server projects',
+        tags: ['Admin'],
+        security: [['sanctum' => []]],
+        responses: [
+            new OA\Response(response: 200, description: 'Issues', content: new OA\JsonContent(type: 'object')),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
+        ],
+    )]
+    public function errors(Request $request)
+    {
+        if ($request->user()->role !== 'super_admin') {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        try {
+            $data = $this->adminService->getRecentErrors();
+            return response()->json($data);
+        } catch (\Exception $e) {
+            Log::error("Admin Errors Error: " . $e->getMessage());
+            return response()->json(['error' => 'Failed to fetch recent errors'], 500);
+        }
+    }
+
+    #[OA\Get(
         path: '/admin/users',
         summary: 'List/search users platform-wide',
         tags: ['Admin'],

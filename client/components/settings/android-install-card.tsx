@@ -29,7 +29,7 @@ export function AndroidInstallCard() {
         <CardTitle>Install App</CardTitle>
         <CardDescription>
           Install DumosRx as an app for faster access and a full-screen
-          experience — no browser tabs, no APK download or "unknown sources"
+          experience. No browser tabs, no APK download or "unknown sources"
           setting required.
         </CardDescription>
       </CardHeader>

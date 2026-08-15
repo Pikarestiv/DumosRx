@@ -11,6 +11,7 @@ import {
   Truck,
   Pill,
   RotateCcw,
+  Package,
 } from "lucide-react";
 import type { ActivityFeedItem as ActivityItem } from "@/lib/types/dashboard-activity";
 
@@ -42,6 +43,8 @@ export function DashboardRecentActivity({
         return Truck;
       case "return":
         return RotateCcw;
+      case "product":
+        return Package;
       default:
         return Activity;
     }

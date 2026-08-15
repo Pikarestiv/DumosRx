@@ -96,6 +96,11 @@ export function useDashboardOverview() {
       amount = activity.total_refunded
         ? formatCurrency(activity.total_refunded, storeProfile?.currency)
         : "";
+    } else if (activity.activity_type === "product") {
+      message = `Product added: ${activity.name || "Unnamed product"}`;
+      amount = activity.selling_price
+        ? formatCurrency(activity.selling_price, storeProfile?.currency)
+        : "";
     }
 
     return {
@@ -133,6 +138,8 @@ export function useDashboardOverview() {
         return "bg-orange-500/10 text-orange-600";
       case "return":
         return "bg-amber-500/10 text-amber-600";
+      case "product":
+        return "bg-teal-500/10 text-teal-600";
       case "alert":
         return "bg-red-500/10 text-red-600";
       default:

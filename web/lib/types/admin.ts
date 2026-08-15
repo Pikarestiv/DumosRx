@@ -69,6 +69,24 @@ export interface AdminHealth {
   nodes: ServiceNode[];
 }
 
+export interface SentryIssue {
+  id: string | null;
+  project: string;
+  title: string;
+  culprit: string | null;
+  level: string;
+  count: number;
+  userCount: number;
+  lastSeen: string | null;
+  firstSeen: string | null;
+  permalink: string | null;
+}
+
+export interface AdminErrors {
+  configured: boolean;
+  issues: SentryIssue[];
+}
+
 export interface AdminUser {
   id: string;
   name: string;

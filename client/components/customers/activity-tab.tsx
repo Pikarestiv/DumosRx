@@ -11,6 +11,7 @@ import {
   useCustomerTransactions,
 } from "@/lib/hooks/use-customer-data";
 import { usePullToRefreshHandler } from "@/lib/context/pull-to-refresh-context";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
 
 const MAX_ITEMS_SHOWN = 2;
 const DESKTOP_ROW_HEIGHT = 44;
@@ -70,18 +71,29 @@ export function ActivityTab({
   filterCustomerName,
   onClearFilter,
 }: ActivityTabProps) {
-  const { transactions, loading, hasFullHistory, loadFullHistory, refetch } =
-    useCustomerTransactions();
+  const {
+    transactions,
+    loading,
+    hasFullHistory,
+    loadFullHistory,
+    dateRange,
+    setDateRange,
+    refetch,
+  } = useCustomerTransactions();
   const [searchTerm, setSearchTerm] = useState("");
 
   usePullToRefreshHandler(refetch);
 
   // Filtering to one customer or searching must match their entire history, not
-  // just the recent-activity window loaded by default.
+  // just the recent-activity window loaded by default — unless a custom date
+  // range is already active, in which case that's the window the user
+  // explicitly asked for, so search/filter should stay scoped within it
+  // rather than silently discarding the range for full history.
   useEffect(() => {
+    if (dateRange.from) return;
     if (filterCustomerId || searchTerm) loadFullHistory();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterCustomerId, searchTerm]);
+  }, [filterCustomerId, searchTerm, dateRange.from]);
 
   const scopedTransactions = useMemo(() => {
     if (!filterCustomerId) return transactions;
@@ -103,36 +115,53 @@ export function ActivityTab({
   });
 
   const SearchInput = (
-    <div className="relative">
-      <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-      <input
-        type="text"
-        placeholder="Search by customer or transaction ID"
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-        className="w-full bg-card border border-border md:bg-muted md:border-none rounded-[10px] pl-9 pr-4 py-2 text-[13px] focus:ring-1 focus:ring-primary outline-none"
+    <div className="flex flex-col sm:flex-row gap-2">
+      <div className="relative flex-1">
+        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        <input
+          type="text"
+          placeholder="Search by customer or transaction ID"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full bg-card border border-border md:bg-muted md:border-none rounded-[10px] pl-9 pr-4 py-2 text-[13px] focus:ring-1 focus:ring-primary outline-none"
+        />
+      </div>
+      <DateRangePicker
+        value={dateRange}
+        onChange={setDateRange}
+        className="md:bg-muted md:border-none"
       />
     </div>
   );
 
-  const FilterChip = filterCustomerId && (
+  const FilterChip = (filterCustomerId || dateRange.from) && (
     <div className="flex items-center gap-2">
-      <div className="inline-flex items-center gap-1.5 bg-primary/10 text-primary px-3 py-1 rounded-full text-[12px] font-medium">
-        Showing history for {filterCustomerName || "customer"}
+      {filterCustomerId && (
+        <div className="inline-flex items-center gap-1.5 bg-primary/10 text-primary px-3 py-1 rounded-full text-[12px] font-medium">
+          Showing history for {filterCustomerName || "customer"}
+          <button
+            onClick={onClearFilter}
+            className="hover:bg-primary/20 rounded-full p-0.5 transition-colors"
+          >
+            <X className="w-3 h-3" />
+          </button>
+        </div>
+      )}
+      {dateRange.from && (
         <button
-          onClick={onClearFilter}
-          className="hover:bg-primary/20 rounded-full p-0.5 transition-colors"
+          onClick={() => setDateRange({})}
+          className="text-[11.5px] text-muted-foreground hover:text-foreground underline"
         >
-          <X className="w-3 h-3" />
+          Clear date range
         </button>
-      </div>
+      )}
     </div>
   );
 
-  const RecentWindowNote = !hasFullHistory && (
+  const RecentWindowNote = !hasFullHistory && !dateRange.from && (
     <p className="text-[11.5px] text-muted-foreground/70">
-      Showing last {RECENT_ACTIVITY_WINDOW_DAYS} days. Search or select a
-      customer to look further back.
+      Showing last {RECENT_ACTIVITY_WINDOW_DAYS} days. Search, select a date
+      range, or select a customer to look further back.
     </p>
   );
 

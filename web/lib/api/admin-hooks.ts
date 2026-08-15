@@ -3,6 +3,7 @@ import { webApiClient } from "./client";
 import type {
   AdminSummary,
   AdminHealth,
+  AdminErrors,
   AdminUser,
   AdminProductsResponse,
   PaginatedResponse,
@@ -53,6 +54,14 @@ export const useAdminHealth = () => {
     queryKey: ["admin-health"],
     queryFn: () => webApiClient.request<AdminHealth>("admin/health"),
     refetchInterval: 30000, // Every 30 seconds
+  });
+};
+
+export const useAdminErrors = () => {
+  return useQuery({
+    queryKey: ["admin-errors"],
+    queryFn: () => webApiClient.request<AdminErrors>("admin/errors"),
+    refetchInterval: 60000, // Every minute — Sentry issue counts don't need 30s freshness
   });
 };
 

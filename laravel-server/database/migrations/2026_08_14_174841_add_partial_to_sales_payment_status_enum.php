@@ -16,11 +16,15 @@ return new class extends Migration
 {
     public function up(): void
     {
-        DB::statement("ALTER TABLE sales MODIFY payment_status ENUM('pending','partial','completed','failed','refunded','partially_refunded') DEFAULT 'completed'");
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement("ALTER TABLE sales MODIFY payment_status ENUM('pending','partial','completed','failed','refunded','partially_refunded') DEFAULT 'completed'");
+        }
     }
 
     public function down(): void
     {
-        DB::statement("ALTER TABLE sales MODIFY payment_status ENUM('pending','completed','failed','refunded','partially_refunded') DEFAULT 'completed'");
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement("ALTER TABLE sales MODIFY payment_status ENUM('pending','completed','failed','refunded','partially_refunded') DEFAULT 'completed'");
+        }
     }
 };

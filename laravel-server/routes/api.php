@@ -54,6 +54,7 @@ Route::prefix('v1')->group(function () {
     Route::post('/track/download', [\App\Http\Controllers\Api\TrackController::class, 'download']);
 
     // Public Storefront
+    Route::get('/storefront-slugs', [\App\Http\Controllers\Api\Public\StorefrontController::class, 'slugs']);
     Route::get('/storefront/{store_slug}', [\App\Http\Controllers\Api\Public\StorefrontController::class, 'show']);
     Route::post('/storefront/{store_slug}/checkout', [\App\Http\Controllers\Api\Public\StorefrontController::class, 'checkout']);
 

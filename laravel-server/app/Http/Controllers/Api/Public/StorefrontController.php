@@ -12,6 +12,27 @@ use OpenApi\Attributes as OA;
 class StorefrontController extends Controller
 {
     #[OA\Get(
+        path: '/storefront-slugs',
+        summary: 'List every store slug with an active online store',
+        description: 'Used at build time by the static-export storefront site (web/) to enumerate which `[store_slug]` pages to pre-render — a static export cannot render arbitrary dynamic routes at request time, so any slug missing from this list 404s in production regardless of whether the store itself exists.',
+        tags: ['Storefront'],
+        responses: [
+            new OA\Response(response: 200, description: 'Slugs', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'slugs', type: 'array', items: new OA\Items(type: 'string')),
+            ])),
+        ],
+    )]
+    public function slugs()
+    {
+        $slugs = Store::where('status', '!=', 'suspended')
+            ->where('online_store_enabled', true)
+            ->whereNotNull('store_slug')
+            ->pluck('store_slug');
+
+        return response()->json(['slugs' => $slugs]);
+    }
+
+    #[OA\Get(
         path: '/storefront/{store_slug}',
         summary: 'Get a public storefront (store info + browsable products)',
         tags: ['Storefront'],
@@ -32,6 +53,10 @@ class StorefrontController extends Controller
         // Check if store is suspended
         if ($store->status === 'suspended') {
             return response()->json(['error' => 'Store unavailable'], 403);
+        }
+
+        if (! $store->online_store_enabled) {
+            return response()->json(['error' => 'Store unavailable'], 404);
         }
 
         // We fetch products that are active and marked to show online
@@ -92,6 +117,10 @@ class StorefrontController extends Controller
 
         if ($store->status === 'suspended') {
             return response()->json(['error' => 'Store unavailable'], 403);
+        }
+
+        if (! $store->online_store_enabled) {
+            return response()->json(['error' => 'Store unavailable'], 404);
         }
 
         $validated = $request->validate([

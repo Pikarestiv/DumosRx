@@ -51,6 +51,30 @@ Surfaced while discussing navigation in virtualized lists: virtualization keeps 
 - **Behavior note:** Picking a range is a deliberate choice, so search/filter no longer silently discards it — previously, typing a search term while browsing the recent-window default would force-upgrade to full history; that upgrade is now skipped while a custom range is active, so search stays scoped within the range the user picked. A "Clear date range" control resets back to the default window.
 - **Also fixed in the same pass:** the shared `DateRangePicker`'s calendar icon wasn't tracking the trigger button's hover text color (stayed muted while the label darkened) — now uses `group-hover:text-accent-foreground` to match.
 
+### E-commerce Integration Layer — core gaps closed (2026-08-15)
+
+This was previously listed under v2.0+ Hold as "not started," which was wrong — investigation found a substantial partial build already existed (public storefront page, checkout with 3 payment methods including server-verified Paystack, an online-orders fulfillment modal in `client/`'s POS that creates a real `sales` row and deducts stock). It just had specific, concrete gaps making it non-functional end-to-end for any real store. Those are now closed:
+
+- **No way to ever enable a store's online store — fixed.** Added `stores.online_store_enabled` (migration + local SQLite schema/sync column, `Store` model `$fillable`/`$casts`) and a real "Enable Online Store" toggle in `client/`'s Store Information settings (gated behind the existing `canUseEcommerce` plan feature, same gate as the storefront URL). `StorefrontController::show`/`checkout` now 404 when it's off. Previously, access was only ever implicit (whether a `store_slug` happened to be set), with no explicit on/off control.
+- **No way to ever list a product on the storefront — fixed.** `show_online` was wired end-to-end in the data layer but had zero UI control anywhere. Added a "Show Online" switch to `product-additional-details-fields.tsx` (same gate as above), for every store type, not just pharmacy.
+- **Storefront URLs 404'd for every real store in production — fixed at the code level, with a real caveat.** `web/` is a static export; `generateStaticParams` for both `/store/[store_slug]` and its `/checkout` route was hardcoded to a single literal `"demo"` slug that no real store ever had. Added `GET /storefront-slugs` (public, lists slugs for non-suspended stores with `online_store_enabled`) and a shared `getStorefrontSlugs()` helper that both routes now call at build time — verified with a real local build, which correctly generated `/store/pikarestiv-test` instead of `/store/demo`. **Caveat that's inherent to static export, not fixed:** this fetch runs at *build* time. Toggling a store's online store on doesn't make its page exist until the next `web/` deploy actually runs — there's no mechanism yet to trigger a redeploy when the toggle flips.
+- **"No UI to view/fulfill orders" and "no order-to-sale pipeline" — these were never actually gaps.** Corrected a mistake from earlier investigation (only searched `web/`, missed `client/`): `client/components/pos/online-orders-modal.tsx` already lists orders and has a working "Fulfill & Deduct Stock" button that creates a real local `sales`/`sale_items` row and decrements `stock_batches` — so fulfilled online orders do surface in POS reports and inventory movement going forward.
+- **Test coverage:** `StorefrontControllerTest.php`'s store fixture didn't set `online_store_enabled`, which would have made every existing test in that file silently fail against the new gate once fixed — updated the fixture, plus added two new tests asserting the gate itself (`show`/`checkout` both 404 when disabled).
+
+**Still a real, unaddressed gap:** stock is only deducted at *fulfillment* time (when a merchant clicks the button in the POS modal), not at storefront checkout time. Two customers can still both successfully place an order for the last unit online before either gets fulfilled. True prevention needs either a stock hold at order time or a live-stock check at checkout — both are nontrivial given `client/`'s offline-first architecture (the server doesn't have real-time-accurate stock counts between syncs), so this wasn't attempted here. Worth its own scoped design pass if overselling becomes a real complaint, not a quick fix.
+
+### Prepaid / Amortized Expense Recognition — Tier 1 — DONE (2026-08-15)
+
+Surfaced during demo prep: a store logged a full year's rent (₦270,000) as one lump-sum expense entry. Because the P&L/Analytics views window by calendar period (e.g. "Last 30 Days"), the entire amount hit that one period's Net Profit, showing a large one-time paper loss that doesn't reflect actual monthly burn.
+
+- **Status:** Shipped and verified live. Added an optional "Spread over how many months?" field to the expense form (`add-expense-dialog.tsx`) — a live preview shows exactly what will happen (e.g. "Reports will count ₦22,500/month for 12 months starting August 2026") before saving. Backed by a new `expenses.covers_months` column (migration on both sides + local SQLite schema/sync).
+- **Behavior, per discussion:** not a display-hint alongside the lump sum — the smoothed figure *is* the reported number everywhere Net Profit is computed (Analytics BI dashboard, the P&L report hook), replacing the lump sum outright for any expense with `covers_months` set. Opt-in per expense — nothing changes for expenses that don't use the field, and the raw expense entry (real date, real full amount) is untouched in the expense list itself; only the P&L rollup reads it smoothed.
+- **How it's computed:** `getSmoothedExpensesTotal()` (`lib/db/queries/finance.ts`) splits the amount into `covers_months` equal calendar-month installments starting from the expense's own date, and sums whichever installments' calendar month overlaps the requested report window — not day-prorated, discrete month buckets, matching how the user described wanting it to work.
+- **Verified live:** added a real ₦270,000/12-month test expense; the Analytics BI dashboard's Net Profit immediately showed -₦22,500 (one month's installment), not -₦270,000.
+- **Known accepted tradeoff:** Net Profit is now an accrual number that can diverge from actual cash movement in the period it was paid — inherent to smoothing at all, not a bug.
+- **Scope note:** applied to the two live "Net Profit" surfaces (Analytics BI dashboard, P&L report hook). A `p-and-l-report-dialog.tsx` component also exists and was updated for consistency, but turned out to be dead code — nothing in the app currently renders it, so it couldn't be verified live.
+- **Follow-up catch:** the Expenses list page (`use-expenses-page.ts`) had its own separate, unsmoothed "This month" / top-category computation that reproduced the exact same bug one screen over — missed in the first pass since it doesn't compute Net Profit, just an expense-totals summary. Fixed by extracting the per-expense smoothing math into a pure `getSmoothedAmountInWindow()` reusable on an already-loaded in-memory `Expense[]`, not just via a DB query. "Total expenses (all time)" and the transaction count are deliberately left raw — a lifetime cash total and a row count aren't period-attribution questions.
+
 ---
 
 ## 🟢 Quick Wins (hours – ~1 day)
@@ -60,16 +84,6 @@ Surfaced while discussing navigation in virtualized lists: virtualization keeps 
 - **Description:** Add PostHog (funnel analytics, session replays) alongside the now-live Sentry crash reporting.
 - **Cost:** Free tier: 1M events/mo.
 - **Effort:** ~half a day.
-
-### Prepaid / Amortized Expense Recognition — Tier 1 (Deferred 2026-08-02)
-
-Surfaced during demo prep: a store logged a full year's rent (₦270,000) as one lump-sum expense entry. Because the P&L/Analytics views window by calendar period (e.g. "Last 30 Days"), the entire amount hit that one period's Net Profit, showing a large one-time paper loss that doesn't reflect actual monthly burn. This is a reporting-accuracy gap, not a data-entry mistake — the current `expenses` model has no concept of an expense covering more than the period it's logged in.
-
-**How real-world accounting software handles this:** this is the standard treatment of a **prepaid expense**. QuickBooks/Xero post the payment to a "Prepaid Expenses" asset account, then auto-generate a scheduled monthly journal entry that recognizes a portion of it as a real expense each period. Zoho Books/FreshBooks offer a simpler framing: mark an expense as spread over N months and the reports auto-smooth it. Wave (closest to DumosRx's target market) does *not* do this — cash-basis only — which is exactly the failure mode we hit.
-
-- **Tier 1 (Minimal, display-hint only, recommended first pass):** Add an optional `covers_months` (or `recognition_period_months`) field to an expense entry. No accounting logic changes — purely a *reporting* hint. P&L/Analytics views detect a large one-time expense and either (a) show a "spread over N months" note, or (b) offer a toggle between "as-paid" (cash) and "smoothed" (recognized-to-date) Net Profit. Low risk, no migration of historical data required.
-- **Recommendation:** Ship tier 1 first — DumosRx's users are small retail/pharmacy owners, not accountants, so the reporting-accuracy fix matters more than full GAAP-style accrual books. Tier 2 (full accrual) is listed separately below under Medium.
-- **Effort:** ~1 day.
 
 ### Measurement units → per-store custom list (Deferred 2026-08-14)
 
@@ -169,9 +183,9 @@ Surfaced during demo prep: a store logged a full year's rent (₦270,000) as one
 
 ### Prepaid / Amortized Expense Recognition — Tier 2 (full accrual)
 
-- **Full accrual (real feature, do later):** Proper `prepaid_expenses` concept — record the cash payment once, generate N real monthly recognition ledger rows automatically, and switch every P&L query (`use-bi-data.ts`, `use-daily-close-data.ts`, `use-finance-data.ts`, `lib/db/queries/reports.ts`) from summing `expenses.amount` directly to summing recognized-to-date. Requires a migration for existing large expense entries, new UI for entering "amortize over X months," and careful handling of cash-flow reports (which should still reflect the real one-time payment, not the smoothed figure).
-- **Revisit if:** there's demand for accountant-facing exports. Tier 1 (already listed under Quick Wins) covers the actual demo-facing problem more cheaply.
-- **Effort:** ~3–5 days (schema + migration + query rewrites across multiple report hooks).
+- **Full accrual (real feature, do later):** Proper `prepaid_expenses` concept — a dedicated recognition ledger with real monthly rows generated automatically, rather than Tier 1's compute-on-read smoothing. Would let cash-flow reports diverge correctly from smoothed P&L (Tier 1 doesn't distinguish the two — everywhere Net Profit is computed now shows the smoothed figure, including anything that conceptually wants the real cash movement instead).
+- **Revisit if:** there's demand for accountant-facing exports or a genuine cash-flow-vs-accrual distinction. Tier 1 (done, see above) already covers the actual demo-facing problem.
+- **Effort:** ~3–5 days (new ledger table + migration + query rewrites).
 
 ---
 
@@ -253,14 +267,6 @@ Surfaced during demo prep: a store logged a full year's rent (₦270,000) as one
 ## 🛑 FUTURE ROADMAP — v2.0+ (Hold)
 
 These change the core business model. Hold until core ERP/POS is dominant.
-
-### 🛒 E-commerce Integration Layer
-
-- **Description:** "Enable Online Store" toggle — turns store inventory into a browsable online store.
-- **Plan Gating:** Lock behind **Enterprise plan** (or a dedicated Commerce add-on).
-- **v1 Shortcut:** Start with **WhatsApp Catalog Export** — generates a shareable product list from live inventory, zero infrastructure needed.
-- **Full implementation:** Public storefront, SEO, Paystack checkout, delivery logistics, order-to-sale pipeline.
-- **Complexity:** High. Treat online store as another "branch" — inventory is the source of truth.
 
 ### 🔊 Voice Input System *(Hold)*
 

@@ -256,6 +256,7 @@ export async function initDatabase(): Promise<any> {
         "_deleted INTEGER DEFAULT 0",
         "user_id TEXT",
         "store_id TEXT",
+        "covers_months INTEGER",
       ],
     },
     {
@@ -400,6 +401,7 @@ export async function initDatabase(): Promise<any> {
         "show_retail_suggestions INTEGER DEFAULT 0",
         "require_payment_account INTEGER DEFAULT 0",
         'enabled_payment_methods TEXT DEFAULT \'["cash","card","transfer","credit","mixed"]\'',
+        "online_store_enabled INTEGER DEFAULT 0",
       ],
     },
     {

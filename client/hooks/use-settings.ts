@@ -56,6 +56,7 @@ export function useSettings() {
     localPcn,
     showRetailSuggestions,
     requirePaymentAccount,
+    onlineStoreEnabled,
     enabledPaymentMethods,
     autoSyncEnabled,
     autoSyncInterval,
@@ -148,6 +149,7 @@ export function useSettings() {
       pcn_license: localPcn,
       show_retail_suggestions: showRetailSuggestions ? 1 : 0,
       require_payment_account: requirePaymentAccount ? 1 : 0,
+      online_store_enabled: onlineStoreEnabled ? 1 : 0,
       enabled_payment_methods: JSON.stringify(enabledPaymentMethods),
       updated_at: new Date().toISOString(),
     });

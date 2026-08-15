@@ -47,11 +47,13 @@ class Store extends Model
         'show_retail_suggestions',
         'require_payment_account',
         'enabled_payment_methods',
+        'online_store_enabled',
     ];
 
     protected $casts = [
         'enabled_payment_methods' => 'array',
         'require_payment_account' => 'boolean',
+        'online_store_enabled' => 'boolean',
         'last_sync_at' => 'datetime',
         '_synced_at' => 'datetime',
     ];

@@ -34,6 +34,8 @@ interface StoreInformationCardProps {
   setLocalPcn: (val: string) => void;
   showRetailSuggestions?: boolean;
   setShowRetailSuggestions?: (val: boolean) => void;
+  onlineStoreEnabled?: boolean;
+  setOnlineStoreEnabled?: (val: boolean) => void;
   handleSaveProfile: () => void;
 }
 
@@ -53,6 +55,8 @@ export function StoreInformationCard({
   setLocalPcn,
   showRetailSuggestions = false,
   setShowRetailSuggestions,
+  onlineStoreEnabled = false,
+  setOnlineStoreEnabled,
   handleSaveProfile,
 }: StoreInformationCardProps) {
   const { canUseEcommerce, withRestriction, getUpgradeMessage } = useFeatureGate();
@@ -170,6 +174,43 @@ export function StoreInformationCard({
                                  </Button>
                                </div>
                             )}
+        </div>
+        <div className="flex items-center justify-between rounded-lg border p-4">
+          <div className="space-y-0.5">
+            <div className="flex items-center gap-2">
+              <Label className="text-base">Enable Online Store</Label>
+              <TooltipProvider delayDuration={0}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>When off, your storefront link above is unreachable — customers see a 404 even with the correct URL. Products also need &quot;Show Online&quot; turned on individually in each product&apos;s Additional Details.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Let customers browse and order from {STOREFRONT_BASE_URL}/{localStoreSlug || "your-store"}
+            </p>
+          </div>
+          {!!(isEditingProfile) && (
+            <Switch
+              id="online-store-enabled"
+              checked={onlineStoreEnabled}
+              onCheckedChange={(val) => {
+                if (!canUseEcommerce) {
+                  toast.error(getUpgradeMessage('ecommerce', "Upgrade to a premium plan to enable your online store."));
+                  return;
+                }
+                setOnlineStoreEnabled?.(val);
+              }}
+            />
+          )}
+          {!(isEditingProfile) && (
+            <p className="text-sm font-medium py-2">{!!(onlineStoreEnabled) && "Enabled"}
+              {!(onlineStoreEnabled) && "Disabled"}</p>
+          )}
         </div>
         <div className="grid gap-2">
           <Label htmlFor="address">Address</Label>

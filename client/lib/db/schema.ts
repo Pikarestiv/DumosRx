@@ -315,7 +315,8 @@ CREATE TABLE IF NOT EXISTS stores (
   suspension_reason TEXT,
   show_retail_suggestions INTEGER DEFAULT 0,
   require_payment_account INTEGER DEFAULT 0,
-  enabled_payment_methods TEXT DEFAULT '["cash","card","transfer","credit","mixed"]'
+  enabled_payment_methods TEXT DEFAULT '["cash","card","transfer","credit","mixed"]',
+  online_store_enabled INTEGER DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS expenses (
@@ -334,7 +335,9 @@ CREATE TABLE IF NOT EXISTS expenses (
   _version INTEGER DEFAULT 1,
   _synced INTEGER DEFAULT 0,
   _synced_at TEXT,
-  _deleted INTEGER DEFAULT 0
+  _deleted INTEGER DEFAULT 0,
+  store_id TEXT,
+  covers_months INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS users (

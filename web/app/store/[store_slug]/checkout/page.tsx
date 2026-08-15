@@ -2,6 +2,7 @@
 import { FooterSection } from "@/components/landing/footer-section";
 import { StorefrontCart } from "@/components/storefront/storefront-cart";
 import { CheckoutForm } from "@/components/storefront/checkout-form";
+import { getStorefrontSlugs } from "@/lib/api/storefront-slugs";
 
 interface CheckoutPageProps {
   params: {
@@ -10,11 +11,7 @@ interface CheckoutPageProps {
 }
 
 export async function generateStaticParams() {
-  // See the matching comment on the parent storefront page — output:
-  // "export" requires at least one entry here.
-  return [
-    { store_slug: 'demo' },
-  ];
+  return getStorefrontSlugs();
 }
 
 export default function CheckoutPage({ params }: CheckoutPageProps) {

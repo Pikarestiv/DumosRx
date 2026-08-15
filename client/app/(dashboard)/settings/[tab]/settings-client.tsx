@@ -81,6 +81,8 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
     setShowRetailSuggestions,
     requirePaymentAccount,
     setRequirePaymentAccount,
+    onlineStoreEnabled,
+    setOnlineStoreEnabled,
     enabledPaymentMethods,
     setEnabledPaymentMethods,
     handleSaveProfile,
@@ -204,6 +206,8 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
                   setShowRetailSuggestions={setShowRetailSuggestions}
                   requirePaymentAccount={requirePaymentAccount}
                   setRequirePaymentAccount={setRequirePaymentAccount}
+                  onlineStoreEnabled={onlineStoreEnabled}
+                  setOnlineStoreEnabled={setOnlineStoreEnabled}
                   enabledPaymentMethods={enabledPaymentMethods}
                   setEnabledPaymentMethods={setEnabledPaymentMethods}
                 />

@@ -9,13 +9,23 @@ import {
   Wifi,
   Server,
   Database,
+  Bug,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useAdminHealth } from "@/lib/api/admin-hooks";
+import { useAdminHealth, useAdminErrors } from "@/lib/api/admin-hooks";
 import { AdminSkeleton } from "@/components/admin/admin-skeleton";
+
+const LEVEL_STYLES: Record<string, string> = {
+  fatal: "bg-rose-500/10 text-rose-500",
+  error: "bg-rose-500/10 text-rose-500",
+  warning: "bg-amber-500/10 text-amber-500",
+  info: "bg-blue-500/10 text-blue-500",
+};
 
 export default function SystemPage() {
   const { data: health, isLoading, error, refetch } = useAdminHealth();
+  const { data: errorsData, isLoading: errorsLoading } = useAdminErrors();
 
   if (isLoading && !health) {
     return <AdminSkeleton />;
@@ -222,6 +232,72 @@ export default function SystemPage() {
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-3xl p-8">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-xl font-black flex items-center gap-2">
+            <Bug className="h-5 w-5 text-slate-400" />
+            Recent Errors (Sentry, last 14 days)
+          </h3>
+          <a
+            href="https://sentry.io/organizations/dumos-technologies/issues/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm font-bold text-indigo-500 hover:underline flex items-center gap-1"
+          >
+            Open in Sentry
+            <ExternalLink className="h-3.5 w-3.5" />
+          </a>
+        </div>
+
+        {errorsLoading && !errorsData ? (
+          <p className="text-sm text-slate-500 font-medium">Loading…</p>
+        ) : errorsData && !errorsData.configured ? (
+          <p className="text-sm text-slate-500 font-medium">
+            Sentry API token not configured — set{" "}
+            <code className="text-xs bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+              SENTRY_API_TOKEN
+            </code>{" "}
+            on the server to enable this.
+          </p>
+        ) : errorsData && errorsData.issues.length === 0 ? (
+          <p className="text-sm text-emerald-500 font-bold">
+            No unresolved issues. Clean slate.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {errorsData?.issues.map((issue, i) => (
+              <a
+                key={issue.id || i}
+                href={issue.permalink || undefined}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <span
+                    className={`text-xs font-bold px-2 py-1 rounded-lg shrink-0 ${LEVEL_STYLES[issue.level] || LEVEL_STYLES.error}`}
+                  >
+                    {issue.level}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="font-bold truncate">{issue.title}</p>
+                    <p className="text-xs text-slate-500 truncate">
+                      {issue.project}
+                      {issue.culprit ? ` — ${issue.culprit}` : ""}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4 text-sm font-medium shrink-0 ml-4">
+                  <span className="text-slate-400">
+                    {issue.count} event{issue.count === 1 ? "" : "s"}
+                  </span>
+                </div>
+              </a>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

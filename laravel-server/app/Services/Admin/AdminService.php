@@ -413,6 +413,70 @@ class AdminService
         ];
     }
 
+    /**
+     * Recent unresolved issues across both Sentry projects (client + server),
+     * for the super-admin dashboard. Requires SENTRY_API_TOKEN (an internal
+     * integration token scoped to event:read/project:read) — never exposed
+     * to the browser, since `web/` is a static export with no server of its
+     * own to keep it secret.
+     */
+    public function getRecentErrors()
+    {
+        $token = config('dumos.sentry.api_token');
+        $org = config('dumos.sentry.org_slug');
+
+        if (! $token || ! $org) {
+            return [
+                'configured' => false,
+                'issues' => [],
+            ];
+        }
+
+        $projects = ['dumosrx-client', 'dumosrx-server'];
+        $issues = [];
+
+        foreach ($projects as $project) {
+            try {
+                $response = \Illuminate\Support\Facades\Http::withToken($token)
+                    ->timeout(5)
+                    ->get("https://sentry.io/api/0/projects/{$org}/{$project}/issues/", [
+                        'query' => 'is:unresolved',
+                        'sort' => 'freq',
+                        'statsPeriod' => '14d',
+                        'limit' => 10,
+                    ]);
+
+                if ($response->successful()) {
+                    foreach ($response->json() as $issue) {
+                        $issues[] = [
+                            'id' => $issue['id'] ?? null,
+                            'project' => $project,
+                            'title' => $issue['title'] ?? 'Unknown error',
+                            'culprit' => $issue['culprit'] ?? null,
+                            'level' => $issue['level'] ?? 'error',
+                            'count' => (int) ($issue['count'] ?? 0),
+                            'userCount' => (int) ($issue['userCount'] ?? 0),
+                            'lastSeen' => $issue['lastSeen'] ?? null,
+                            'firstSeen' => $issue['firstSeen'] ?? null,
+                            'permalink' => $issue['permalink'] ?? null,
+                        ];
+                    }
+                } else {
+                    Log::error("Sentry issues fetch failed for {$project}: ".$response->status());
+                }
+            } catch (\Throwable $e) {
+                Log::error("Sentry issues fetch error for {$project}: ".$e->getMessage());
+            }
+        }
+
+        usort($issues, fn ($a, $b) => strtotime($b['lastSeen'] ?? 'now') <=> strtotime($a['lastSeen'] ?? 'now'));
+
+        return [
+            'configured' => true,
+            'issues' => $issues,
+        ];
+    }
+
     public function standardizeCatalog()
     {
         $updatedCount = 0;

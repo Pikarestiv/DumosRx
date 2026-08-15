@@ -134,6 +134,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/users', [AdminController::class, 'users']);
             Route::post('/users', [AdminController::class, 'createPlatformAdmin']);
             Route::get('/health', [AdminController::class, 'health']);
+            Route::get('/errors', [AdminController::class, 'errors']);
             Route::delete('/users/{id}', [AdminController::class, 'deleteUser']);
             Route::post('/users/{id}/deactivate', [AdminController::class, 'deactivateUser']);
             Route::post('/users/{id}/reactivate', [AdminController::class, 'reactivateUser']);

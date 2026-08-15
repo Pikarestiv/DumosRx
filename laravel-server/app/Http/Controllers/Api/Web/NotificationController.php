@@ -62,7 +62,7 @@ class NotificationController extends Controller
                 });
 
             // Fetch activity logs
-            if ($user->role === 'super_admin') {
+            if ($user->hasRole('super_admin')) {
                 // Super admins see global system security alerts from all users
                 $activityLogs = ActivityLog::whereIn('action', [
                     'LOGIN_FAILURE',

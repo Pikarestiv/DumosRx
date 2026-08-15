@@ -688,8 +688,8 @@ class SyncController extends Controller
 
             // Multi-tenant filtering
             $user = $request->user();
-            if ($user->role !== 'super_admin') {
-                $ownerId = $user->store_id 
+            if (!$user->hasRole('super_admin')) {
+                $ownerId = $user->store_id
                     ? Store::where('id', $user->store_id)->value('user_id') 
                     : $user->id;
                 
@@ -889,7 +889,7 @@ class SyncController extends Controller
     private function validateSync(Request $request, $isPush = true)
     {
         $user = $request->user();
-        if ($user && $user->role !== 'super_admin') {
+        if ($user && !$user->hasRole('super_admin')) {
             $subscriptionService = app(\App\Services\SubscriptionService::class);
             $owner = $subscriptionService->getSubscriptionOwner($user);
             

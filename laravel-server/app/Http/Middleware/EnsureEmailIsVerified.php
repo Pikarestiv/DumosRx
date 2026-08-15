@@ -15,7 +15,7 @@ class EnsureEmailIsVerified
 
         if ($requireVerification) {
             $user = $request->user();
-            if ($user && $user->role !== 'super_admin' && is_null($user->email_verified_at)) {
+            if ($user && !$user->hasRole('super_admin') && is_null($user->email_verified_at)) {
                 // If it's a GET request, we might allow it (soft block on web dashboard)
                 // But we definitely block POST/PUT/DELETE
                 // OR we can block specific syncing routes.

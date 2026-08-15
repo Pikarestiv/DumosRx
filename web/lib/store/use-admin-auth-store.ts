@@ -12,6 +12,12 @@ interface User {
   require_email_verification?: boolean;
 }
 
+/** Platform admin dashboard (web/app/admin/*) is super_admin-only — a store
+ * owner/admin/manager has zero access here regardless of how permissive
+ * their store-level role is. Single source of truth instead of four
+ * separate `role !== 'super_admin'` literals across layout/login files. */
+export const checkIsSuperAdmin = (role?: string) => role === "super_admin";
+
 interface AdminAuthState {
   user: User | null;
   token: string | null;

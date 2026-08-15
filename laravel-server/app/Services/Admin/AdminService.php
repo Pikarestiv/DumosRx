@@ -547,6 +547,13 @@ class AdminService
                     'name' => $user->first_name.' '.$user->last_name,
                     'email' => $user->email,
                     'role' => ucwords(str_replace('_', ' ', $user->role)),
+                    // Raw slug alongside the humanized label above — the
+                    // frontend was comparing against display-text literals
+                    // like 'Store Admin' that ucwords() never actually
+                    // produces for the 'admin' role slug (it produces
+                    // 'Admin'), silently breaking role-gated UI for every
+                    // admin-role user. Logic should key off this, not text.
+                    'role_slug' => $user->role,
                     'store' => $user->store ? $user->store->name : 'Platform Admin',
                     'lastActive' => $user->last_login_at ? $user->last_login_at->diffForHumans() : 'Never',
                     'status' => $user->is_active ? 'Active' : 'Inactive',

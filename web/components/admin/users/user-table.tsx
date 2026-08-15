@@ -87,7 +87,7 @@ export function UserTable({
           <TableRow key={user.id} className="border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 group transition-colors">
             <TableCell className="pl-6 py-5">
               <div className="flex items-center gap-4">
-                <div className={`h-10 w-10 rounded-xl ${user.role === 'Super Admin' ? 'bg-indigo-600 shadow-indigo-600/20' : 'bg-slate-100 dark:bg-slate-800'} border border-slate-200 dark:border-slate-700 flex items-center justify-center font-black ${user.role === 'Super Admin' ? 'text-white' : 'text-slate-400'} text-xs shadow-sm`}>
+                <div className={`h-10 w-10 rounded-xl ${user.role_slug === 'super_admin' ? 'bg-indigo-600 shadow-indigo-600/20' : 'bg-slate-100 dark:bg-slate-800'} border border-slate-200 dark:border-slate-700 flex items-center justify-center font-black ${user.role_slug === 'super_admin' ? 'text-white' : 'text-slate-400'} text-xs shadow-sm`}>
                   {user.name.charAt(0)}
                 </div>
                 <div className="flex flex-col">
@@ -106,8 +106,8 @@ export function UserTable({
             </TableCell>
             <TableCell>
               <Badge variant="outline" className={
-                user.role === 'Super Admin' ? 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20 font-black' :
-                user.role === 'Store Admin' ? 'bg-blue-500/10 text-blue-500 border-blue-500/20 font-black' :
+                user.role_slug === 'super_admin' ? 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20 font-black' :
+                user.role_slug === 'admin' ? 'bg-blue-500/10 text-blue-500 border-blue-500/20 font-black' :
                 'bg-slate-500/10 text-slate-500 border-slate-500/20 font-bold'
               }>
                 <Shield className="h-3 w-3 mr-1.5" />
@@ -175,7 +175,7 @@ export function UserTable({
                     Force Password Reset
                   </DropdownMenuItem>
                   
-                  {(user.role === 'Store Owner' || user.role === 'Store Admin') && (
+                  {(user.role_slug === 'store_owner' || user.role_slug === 'admin') && (
                     <DropdownMenuItem 
                       className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold"
                       onClick={() => {

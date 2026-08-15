@@ -23,7 +23,7 @@ class CheckAccountStatus
         }
 
         // Super Admin bypasses status checks
-        if ($user->role === 'super_admin') {
+        if ($user->hasRole('super_admin')) {
             return $next($request);
         }
 

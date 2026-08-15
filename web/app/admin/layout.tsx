@@ -2,7 +2,7 @@
 
 import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import { AdminHeader } from "@/components/admin/admin-header";
-import { useAdminAuthStore } from "@/lib/store/use-admin-auth-store";
+import { useAdminAuthStore, checkIsSuperAdmin } from "@/lib/store/use-admin-auth-store";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
@@ -48,7 +48,7 @@ export default function AdminLayout({
   useEffect(() => {
     if (isLoginPage) return;
 
-    if (!checking && (!user || user.role !== "super_admin")) {
+    if (!checking && (!user || !checkIsSuperAdmin(user.role))) {
       router.push("/admin/login");
     }
   }, [user, checking, router, isLoginPage]);
@@ -66,7 +66,7 @@ export default function AdminLayout({
     );
   }
 
-  if (!user || user.role !== "super_admin") {
+  if (!user || !checkIsSuperAdmin(user.role)) {
     return null;
   }
 

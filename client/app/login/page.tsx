@@ -7,7 +7,9 @@ import { Lock, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { TraditionalLoginForm } from "@/components/auth/traditional-login-form";
+import { LockScreen } from "@/components/auth/lock-screen";
 import { AuthTabHeader } from "@/components/auth/auth-tab-header";
+import { useAuth } from "@/lib/context/auth-context";
 import {
   SetupPromptHeader,
   SetupPromptContent,
@@ -33,6 +35,7 @@ export default function LoginPage() {
   const isNewCredentialsMode = searchParams.get("mode") === "new";
 
   const { isChecking, userCount, recentUsers } = useDeviceAuthStatus();
+  const { isAuthenticated } = useAuth();
 
   const {
     username,
@@ -41,6 +44,8 @@ export default function LoginPage() {
     setPin,
     isLoading,
     showTraditionalLogin,
+    setShowTraditionalLogin,
+    hasError,
     handleLogin,
   } = useLogin();
 
@@ -72,8 +77,24 @@ export default function LoginPage() {
   const setupHref =
     userCount > 0 ? "/login?tab=setup&step=cloud" : "/login?tab=setup";
 
+  // Only bounce to the dashboard's own lock overlay when there's actually a
+  // live (but idle-locked) session to hand off to — i.e. `isAuthenticated`.
+  // Without this check, a real logout (user cleared, recentUsers/userCount
+  // untouched) looked identical to "idle-locked", so /login redirected to
+  // /dashboard, which immediately redirected back to /login (no `user`),
+  // forever — the flicker loop. When there's no live session, this page
+  // renders its own account-tile picker (LockScreen) instead of redirecting.
   const showAccountSelection =
     activeTab === "login" &&
+    isAuthenticated &&
+    userCount > 0 &&
+    recentUsers.length > 0 &&
+    !showTraditionalLogin &&
+    !isNewCredentialsMode;
+
+  const showRecentUserSelection =
+    activeTab === "login" &&
+    !isAuthenticated &&
     userCount > 0 &&
     recentUsers.length > 0 &&
     !showTraditionalLogin &&
@@ -208,6 +229,15 @@ export default function LoginPage() {
 
               {userCount === 0 && <SetupPromptContent />}
 
+              {showRecentUserSelection && (
+                <div className="flex-1 flex flex-col pt-1 pb-0 px-4 sm:pb-6 sm:px-6">
+                  <LockScreen
+                    recentUsers={recentUsers}
+                    onLoginAsOther={() => setShowTraditionalLogin(true)}
+                  />
+                </div>
+              )}
+
               {userCount > 0 &&
                 (recentUsers.length === 0 ||
                   showTraditionalLogin ||
@@ -218,6 +248,7 @@ export default function LoginPage() {
                     pin={pin}
                     setPin={setPin}
                     isLoading={isLoading}
+                    hasError={hasError}
                     onSubmit={handleLogin}
                     onGoToRegister={
                       isNewCredentialsMode ? undefined : onboarding.goToRegister

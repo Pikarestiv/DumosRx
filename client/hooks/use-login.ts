@@ -11,6 +11,7 @@ export function useLogin() {
   const [pin, setPin] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showTraditionalLogin, setShowTraditionalLogin] = useState(false);
+  const [hasError, setHasError] = useState(false);
 
   const { login } = useAuth();
   const router = useRouter();
@@ -25,6 +26,9 @@ export function useLogin() {
         toast.success("Welcome back!");
         router.push("/dashboard");
       } else {
+        setPin("");
+        setHasError(true);
+        setTimeout(() => setHasError(false), 500);
         toast.error("Invalid credentials. Please try again.");
       }
     } catch {
@@ -42,6 +46,7 @@ export function useLogin() {
     isLoading,
     showTraditionalLogin,
     setShowTraditionalLogin,
+    hasError,
     handleLogin,
   };
 }

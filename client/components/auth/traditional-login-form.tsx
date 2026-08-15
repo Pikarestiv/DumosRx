@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/input-otp";
 import { User, Loader2 } from "lucide-react";
 import { APP_VERSION } from "@/lib/constants";
+import { motion } from "framer-motion";
 
 interface TraditionalLoginFormProps {
   username: string;
@@ -16,6 +17,7 @@ interface TraditionalLoginFormProps {
   pin: string;
   setPin: (value: string) => void;
   isLoading: boolean;
+  hasError?: boolean;
   onSubmit: (e: React.FormEvent) => void;
   onGoToRegister?: () => void;
   onGoToBackup?: () => void;
@@ -27,6 +29,7 @@ export function TraditionalLoginForm({
   pin,
   setPin,
   isLoading,
+  hasError = false,
   onSubmit,
   onGoToRegister,
   onGoToBackup,
@@ -66,24 +69,29 @@ export function TraditionalLoginForm({
           <Label htmlFor="pin" className="text-sm font-medium">
             PIN
           </Label>
-          <InputOTP
-            id="pin"
-            maxLength={4}
-            pattern="^[0-9]+$"
-            inputMode="numeric"
-            value={pin}
-            onChange={(value) => setPin(value)}
+          <motion.div
+            animate={hasError ? { x: [-10, 10, -10, 10, -5, 5, 0] } : {}}
+            transition={{ duration: 0.4 }}
           >
-            <InputOTPGroup className="gap-3 w-full">
-              {[0, 1, 2, 3].map((idx) => (
-                <InputOTPSlot
-                  key={idx}
-                  index={idx}
-                  className="flex-1 min-w-0 h-auto aspect-square text-xl font-semibold rounded-md border border-border bg-background/50 transition-all focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary shadow-sm"
-                />
-              ))}
-            </InputOTPGroup>
-          </InputOTP>
+            <InputOTP
+              id="pin"
+              maxLength={4}
+              pattern="^[0-9]+$"
+              inputMode="numeric"
+              value={pin}
+              onChange={(value) => setPin(value)}
+            >
+              <InputOTPGroup className="gap-3 w-full">
+                {[0, 1, 2, 3].map((idx) => (
+                  <InputOTPSlot
+                    key={idx}
+                    index={idx}
+                    className="flex-1 min-w-0 h-auto aspect-square text-xl font-semibold rounded-md border border-border bg-background/50 transition-all focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary shadow-sm"
+                  />
+                ))}
+              </InputOTPGroup>
+            </InputOTP>
+          </motion.div>
         </div>
       </CardContent>
       <CardFooter className="flex flex-col space-y-4 pt-4 px-10 pb-6">

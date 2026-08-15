@@ -37,7 +37,7 @@ class AdminController extends Controller
     public function summary(Request $request)
     {
         // Ensure only super_admin can access
-        if ($request->user()->role !== 'super_admin') {
+        if (!$request->user()->hasRole('super_admin')) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -69,7 +69,7 @@ class AdminController extends Controller
     )]
     public function stores(Request $request)
     {
-        if ($request->user()->role !== 'super_admin') {
+        if (!$request->user()->hasRole('super_admin')) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -111,7 +111,7 @@ class AdminController extends Controller
     )]
     public function registerStore(Request $request)
     {
-        if ($request->user()->role !== 'super_admin') {
+        if (!$request->user()->hasRole('super_admin')) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -157,7 +157,7 @@ class AdminController extends Controller
     )]
     public function products(Request $request)
     {
-        if ($request->user()->role !== 'super_admin') {
+        if (!$request->user()->hasRole('super_admin')) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -188,7 +188,7 @@ class AdminController extends Controller
     )]
     public function standardize(Request $request)
     {
-        if ($request->user()->role !== 'super_admin') {
+        if (!$request->user()->hasRole('super_admin')) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -214,7 +214,7 @@ class AdminController extends Controller
     )]
     public function health(Request $request)
     {
-        if ($request->user()->role !== 'super_admin') {
+        if (!$request->user()->hasRole('super_admin')) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -240,7 +240,7 @@ class AdminController extends Controller
     )]
     public function errors(Request $request)
     {
-        if ($request->user()->role !== 'super_admin') {
+        if (!$request->user()->hasRole('super_admin')) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -270,7 +270,7 @@ class AdminController extends Controller
     )]
     public function users(Request $request)
     {
-        if ($request->user()->role !== 'super_admin') {
+        if (!$request->user()->hasRole('super_admin')) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -307,7 +307,7 @@ class AdminController extends Controller
     )]
     public function activityLogs(Request $request)
     {
-        if ($request->user()->role !== 'super_admin') {
+        if (!$request->user()->hasRole('super_admin')) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -342,7 +342,7 @@ class AdminController extends Controller
     )]
     public function search(Request $request)
     {
-        if ($request->user()->role !== 'super_admin') {
+        if (!$request->user()->hasRole('super_admin')) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -374,7 +374,7 @@ class AdminController extends Controller
     )]
     public function suspendStore(Request $request, $id)
     {
-        if ($request->user()->role !== 'super_admin') {
+        if (!$request->user()->hasRole('super_admin')) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -405,7 +405,7 @@ class AdminController extends Controller
     )]
     public function unsuspendStore(Request $request, $id)
     {
-        if ($request->user()->role !== 'super_admin') {
+        if (!$request->user()->hasRole('super_admin')) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -442,7 +442,7 @@ class AdminController extends Controller
     )]
     public function grantTrial(Request $request, $id)
     {
-        if ($request->user()->role !== 'super_admin') {
+        if (!$request->user()->hasRole('super_admin')) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -485,7 +485,7 @@ class AdminController extends Controller
     )]
     public function grantUserTrial(Request $request, $id)
     {
-        if ($request->user()->role !== 'super_admin') {
+        if (!$request->user()->hasRole('super_admin')) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -528,7 +528,7 @@ class AdminController extends Controller
     )]
     public function createPlatformAdmin(Request $request)
     {
-        if ($request->user()->role !== 'super_admin') {
+        if (!$request->user()->hasRole('super_admin')) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -566,7 +566,7 @@ class AdminController extends Controller
     )]
     public function deactivateUser(Request $request, $id)
     {
-        if ($request->user()->role !== 'super_admin') {
+        if (!$request->user()->hasRole('super_admin')) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -593,7 +593,7 @@ class AdminController extends Controller
     )]
     public function reactivateUser(Request $request, $id)
     {
-        if ($request->user()->role !== 'super_admin') {
+        if (!$request->user()->hasRole('super_admin')) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -621,7 +621,7 @@ class AdminController extends Controller
     )]
     public function deleteUser(Request $request, $id)
     {
-        if ($request->user()->role !== 'super_admin') {
+        if (!$request->user()->hasRole('super_admin')) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -652,7 +652,7 @@ class AdminController extends Controller
     )]
     public function forcePasswordReset(Request $request, $id)
     {
-        if ($request->user()->role !== 'super_admin') {
+        if (!$request->user()->hasRole('super_admin')) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -690,7 +690,7 @@ class AdminController extends Controller
     )]
     public function notifyUser(Request $request, $id)
     {
-        if ($request->user()->role !== 'super_admin') {
+        if (!$request->user()->hasRole('super_admin')) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -733,7 +733,7 @@ class AdminController extends Controller
     )]
     public function bulkNotify(Request $request)
     {
-        if ($request->user()->role !== 'super_admin') {
+        if (!$request->user()->hasRole('super_admin')) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -770,7 +770,7 @@ class AdminController extends Controller
     )]
     public function impersonateStore(Request $request, $id)
     {
-        if ($request->user()->role !== 'super_admin') {
+        if (!$request->user()->hasRole('super_admin')) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -825,7 +825,7 @@ class AdminController extends Controller
         $accessToken = PersonalAccessToken::findToken($validated['token']);
         $admin = $accessToken?->tokenable;
 
-        if (!$admin || $admin->role !== 'super_admin') {
+        if (!$admin || !$admin->hasRole('super_admin')) {
             return response()->json(['error' => 'Invalid restore token.'], 403);
         }
 

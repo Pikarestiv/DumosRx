@@ -213,7 +213,7 @@ class AuthController extends Controller
         $user->last_login_at = now();
         $user->save();
 
-        if ($user->role !== 'super_admin') {
+        if (!$user->hasRole('super_admin')) {
             $subService = app(SubscriptionService::class);
             $owner = $subService->getSubscriptionOwner($user);
             $subService->enforceStaffLimits($owner);
@@ -259,7 +259,7 @@ class AuthController extends Controller
             'require_email_verification' => \App\Models\SystemConfig::getVal('require_email_verification', false) === true || \App\Models\SystemConfig::getVal('require_email_verification', false) === 'true'
         ]);
 
-        if ($request->device_name === 'web' || $user->role === 'super_admin') {
+        if ($request->device_name === 'web' || $user->hasRole('super_admin')) {
             // Set an HttpOnly cookie for admin sessions
             // expire in 24 hours
             $response->withCookie(cookie(

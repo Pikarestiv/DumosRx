@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { Edit2, Trash2, Shield, Loader2, Users } from "lucide-react";
 import { toast } from "sonner";
+import { checkIsAdmin } from "@/lib/context/auth-context";
 import type { StaffListItem } from "@/lib/types/user";
 
 interface StaffListProps {
@@ -87,11 +88,11 @@ export function StaffList({ users, isLoading, onEdit, onDelete }: StaffListProps
                                           </TableCell>
                                           <TableCell>
                                             <div className="flex items-center gap-2">
-                                              {user.role === "admin" && (
+                                              {checkIsAdmin(user.role) && (
                                                 <Shield className="w-3 h-3 text-emerald-500" />
                                               )}
                                               <Badge
-                                                variant={user.role === "admin" ? "default" : "secondary"}
+                                                variant={checkIsAdmin(user.role) ? "default" : "secondary"}
                                                 className="capitalize"
                                               >
                                                 {user.role?.replace("_", " ") || "Staff"}

@@ -7,7 +7,7 @@ import React, { useState, useMemo } from "react";
 import { isToday, isYesterday, parseISO } from "date-fns";
 
 
-import { useAuth } from "@/lib/context/auth-context";
+import { useAuth, checkIsAdmin } from "@/lib/context/auth-context";
 import { TransactionDetailsDialog } from "./transaction-details-dialog";
 import { calculateNetSaleAmount, calculateAvgBasket } from "@/lib/utils/pos-calculations";
 import type { SaleWithDetails } from "@/lib/types/sale";
@@ -39,10 +39,11 @@ export function POSTransactionHistory({
   const [paymentFilter, setPaymentFilter] = useState<string>("All");
 
   const { user } = useAuth();
-  const canReturn =
-    user?.role === "store_owner" ||
-    user?.role === "admin" ||
-    user?.role === "manager";
+  // Was only checking the literal strings "store_owner"/"admin"/"manager" —
+  // silently excluded super_admin (a real bug: the platform's own top role
+  // couldn't process a return) and every other seeded role, since exact-
+  // string checks don't recognize role variants the way checkIsAdmin does.
+  const canReturn = checkIsAdmin(user?.role);
 
   // Compute metrics for "Today"
   const todayMetrics = useMemo(() => {

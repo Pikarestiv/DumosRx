@@ -42,7 +42,7 @@ class BroadcastController extends Controller
                 });
 
                 // Show to store owners (admin/store_owner)
-                if ($user->role === 'store_owner' || $user->role === 'admin') {
+                if ($user->hasRole('admin')) {
                     $q->orWhereIn('target_type', ['pharmacies', 'stores']);
                 }
             });

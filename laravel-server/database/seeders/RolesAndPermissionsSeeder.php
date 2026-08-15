@@ -22,6 +22,13 @@ class RolesAndPermissionsSeeder extends Seeder
             'process_sales' => 'Can create and process sales',
             'dispense_prescriptions' => 'Can view and dispense prescriptions',
             'view_own_sales' => 'Can view sales processed by themselves',
+            // Platform-level (not store-level) — the `permission:manage_platform`
+            // middleware on the admin/* route group was previously referencing a
+            // permission that was never seeded to anyone, so it only ever worked
+            // via super_admin's unconditional bypass in CheckPermission, not
+            // because anyone actually held the permission. Seeded here so that
+            // gate reflects a real grant instead of silently being dead wiring.
+            'manage_platform' => 'Can access the platform-wide super-admin dashboard',
         ];
 
         foreach ($permissions as $slug => $desc) {
@@ -41,12 +48,14 @@ class RolesAndPermissionsSeeder extends Seeder
             'admin' => [
                 'name' => 'Store Admin',
                 'description' => 'Store owner or high-level manager',
-                'permissions' => array_keys($permissions) // Gets all
+                // Every store-level permission, but NOT manage_platform —
+                // that one's platform-wide (super_admin only).
+                'permissions' => ['manage_staff', 'view_reports', 'manage_inventory', 'process_sales', 'dispense_prescriptions', 'view_own_sales']
             ],
             'store_owner' => [
                 'name' => 'Store Owner',
                 'description' => 'Store owner with full permissions',
-                'permissions' => array_keys($permissions) // Gets all
+                'permissions' => ['manage_staff', 'view_reports', 'manage_inventory', 'process_sales', 'dispense_prescriptions', 'view_own_sales']
             ],
             'manager' => [
                 'name' => 'Store Manager',

@@ -34,7 +34,7 @@ class StaffController extends Controller
     {
         $user = $request->user();
 
-        if ($user->role === 'super_admin') {
+        if ($user->hasRole('super_admin')) {
             $query = User::where('role', '!=', 'super_admin');
 
             if ($request->has('store_id') && $request->store_id !== 'all') {

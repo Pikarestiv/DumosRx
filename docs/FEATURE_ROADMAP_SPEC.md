@@ -51,6 +51,18 @@ Surfaced while discussing navigation in virtualized lists: virtualization keeps 
 - **Behavior note:** Picking a range is a deliberate choice, so search/filter no longer silently discards it — previously, typing a search term while browsing the recent-window default would force-upgrade to full history; that upgrade is now skipped while a custom range is active, so search stays scoped within the range the user picked. A "Clear date range" control resets back to the default window.
 - **Also fixed in the same pass:** the shared `DateRangePicker`'s calendar icon wasn't tracking the trigger button's hover text color (stayed muted while the label darkened) — now uses `group-hover:text-accent-foreground` to match.
 
+### E-commerce Integration Layer — core gaps closed (2026-08-15)
+
+This was previously listed under v2.0+ Hold as "not started," which was wrong — investigation found a substantial partial build already existed (public storefront page, checkout with 3 payment methods including server-verified Paystack, an online-orders fulfillment modal in `client/`'s POS that creates a real `sales` row and deducts stock). It just had specific, concrete gaps making it non-functional end-to-end for any real store. Those are now closed:
+
+- **No way to ever enable a store's online store — fixed.** Added `stores.online_store_enabled` (migration + local SQLite schema/sync column, `Store` model `$fillable`/`$casts`) and a real "Enable Online Store" toggle in `client/`'s Store Information settings (gated behind the existing `canUseEcommerce` plan feature, same gate as the storefront URL). `StorefrontController::show`/`checkout` now 404 when it's off. Previously, access was only ever implicit (whether a `store_slug` happened to be set), with no explicit on/off control.
+- **No way to ever list a product on the storefront — fixed.** `show_online` was wired end-to-end in the data layer but had zero UI control anywhere. Added a "Show Online" switch to `product-additional-details-fields.tsx` (same gate as above), for every store type, not just pharmacy.
+- **Storefront URLs 404'd for every real store in production — fixed at the code level, with a real caveat.** `web/` is a static export; `generateStaticParams` for both `/store/[store_slug]` and its `/checkout` route was hardcoded to a single literal `"demo"` slug that no real store ever had. Added `GET /storefront-slugs` (public, lists slugs for non-suspended stores with `online_store_enabled`) and a shared `getStorefrontSlugs()` helper that both routes now call at build time — verified with a real local build, which correctly generated `/store/pikarestiv-test` instead of `/store/demo`. **Caveat that's inherent to static export, not fixed:** this fetch runs at *build* time. Toggling a store's online store on doesn't make its page exist until the next `web/` deploy actually runs — there's no mechanism yet to trigger a redeploy when the toggle flips.
+- **"No UI to view/fulfill orders" and "no order-to-sale pipeline" — these were never actually gaps.** Corrected a mistake from earlier investigation (only searched `web/`, missed `client/`): `client/components/pos/online-orders-modal.tsx` already lists orders and has a working "Fulfill & Deduct Stock" button that creates a real local `sales`/`sale_items` row and decrements `stock_batches` — so fulfilled online orders do surface in POS reports and inventory movement going forward.
+- **Test coverage:** `StorefrontControllerTest.php`'s store fixture didn't set `online_store_enabled`, which would have made every existing test in that file silently fail against the new gate once fixed — updated the fixture, plus added two new tests asserting the gate itself (`show`/`checkout` both 404 when disabled).
+
+**Still a real, unaddressed gap:** stock is only deducted at *fulfillment* time (when a merchant clicks the button in the POS modal), not at storefront checkout time. Two customers can still both successfully place an order for the last unit online before either gets fulfilled. True prevention needs either a stock hold at order time or a live-stock check at checkout — both are nontrivial given `client/`'s offline-first architecture (the server doesn't have real-time-accurate stock counts between syncs), so this wasn't attempted here. Worth its own scoped design pass if overselling becomes a real complaint, not a quick fix.
+
 ---
 
 ## 🟢 Quick Wins (hours – ~1 day)
@@ -253,14 +265,6 @@ Surfaced during demo prep: a store logged a full year's rent (₦270,000) as one
 ## 🛑 FUTURE ROADMAP — v2.0+ (Hold)
 
 These change the core business model. Hold until core ERP/POS is dominant.
-
-### 🛒 E-commerce Integration Layer
-
-- **Description:** "Enable Online Store" toggle — turns store inventory into a browsable online store.
-- **Plan Gating:** Lock behind **Enterprise plan** (or a dedicated Commerce add-on).
-- **v1 Shortcut:** Start with **WhatsApp Catalog Export** — generates a shareable product list from live inventory, zero infrastructure needed.
-- **Full implementation:** Public storefront, SEO, Paystack checkout, delivery logistics, order-to-sale pipeline.
-- **Complexity:** High. Treat online store as another "branch" — inventory is the source of truth.
 
 ### 🔊 Voice Input System *(Hold)*
 

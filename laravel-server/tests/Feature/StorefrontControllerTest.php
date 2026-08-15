@@ -38,6 +38,7 @@ class StorefrontControllerTest extends TestCase
         $this->storeA = Store::create([
             'user_id' => $this->ownerA->id, 'name' => 'Store A',
             'store_slug' => 'store-a', 'device_id' => 'WEB-A',
+            'online_store_enabled' => true,
         ]);
 
         $this->ownerB = User::create([
@@ -195,5 +196,30 @@ class StorefrontControllerTest extends TestCase
         ]);
 
         $response->assertStatus(403);
+    }
+
+    public function test_show_rejects_a_store_with_online_store_disabled()
+    {
+        $this->storeA->update(['online_store_enabled' => false]);
+
+        $response = $this->getJson('/api/v1/storefront/store-a');
+
+        $response->assertStatus(404);
+    }
+
+    public function test_checkout_rejects_a_store_with_online_store_disabled()
+    {
+        $this->storeA->update(['online_store_enabled' => false]);
+        $product = Product::create(['name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);
+
+        $response = $this->postJson('/api/v1/storefront/store-a/checkout', [
+            'customer_name' => 'Jane Doe',
+            'customer_phone' => '08000000000',
+            'payment_method' => 'in_store',
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+        ]);
+
+        $response->assertStatus(404);
+        $this->assertDatabaseCount('online_orders', 0);
     }
 }

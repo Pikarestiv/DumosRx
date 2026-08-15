@@ -24,6 +24,7 @@ export function useSettingsForm(storeProfile: StoreProfile | null, minimumSyncIn
   const [autoSyncInterval, setAutoSyncInterval] = useState(storeProfile?.auto_sync_interval?.toString() || minimumSyncIntervalMinutes.toString());
   const [showRetailSuggestions, setShowRetailSuggestions] = useState(storeProfile?.show_retail_suggestions === 1);
   const [requirePaymentAccount, setRequirePaymentAccount] = useState(storeProfile?.require_payment_account === 1);
+  const [onlineStoreEnabled, setOnlineStoreEnabled] = useState(storeProfile?.online_store_enabled === 1);
   const [enabledPaymentMethods, setEnabledPaymentMethods] = useState<string[]>(
     storeProfile?.enabled_payment_methods ? JSON.parse(storeProfile.enabled_payment_methods) : ["cash", "card", "transfer", "credit", "mixed"]
   );
@@ -51,6 +52,7 @@ export function useSettingsForm(storeProfile: StoreProfile | null, minimumSyncIn
       setAutoSyncEnabled(storeProfile.auto_sync_enabled !== 0);
       setShowRetailSuggestions(storeProfile.show_retail_suggestions === 1);
       setRequirePaymentAccount(storeProfile.require_payment_account === 1);
+      setOnlineStoreEnabled(storeProfile.online_store_enabled === 1);
       try {
         setEnabledPaymentMethods(storeProfile.enabled_payment_methods ? JSON.parse(storeProfile.enabled_payment_methods) : ["cash", "card", "transfer", "credit", "mixed"]);
       } catch (_e) {
@@ -87,6 +89,7 @@ export function useSettingsForm(storeProfile: StoreProfile | null, minimumSyncIn
     autoSyncInterval, setAutoSyncInterval,
     showRetailSuggestions, setShowRetailSuggestions,
     requirePaymentAccount, setRequirePaymentAccount,
+    onlineStoreEnabled, setOnlineStoreEnabled,
     enabledPaymentMethods, setEnabledPaymentMethods,
   };
 }

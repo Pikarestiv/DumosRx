@@ -4,6 +4,8 @@ import { SearchableInput } from "@/components/ui/searchable-input";
 import { Switch } from "@/components/ui/switch";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
+import { toast } from "sonner";
 import type { Product } from "./types";
 import type { ProductSuggestions } from "./product-form-fields";
 
@@ -26,6 +28,8 @@ export function ProductAdditionalDetailsFields({
   isOpen,
   onToggle,
 }: Props) {
+  const { canUseEcommerce, getUpgradeMessage } = useFeatureGate();
+
   return (
     <div className="space-y-4">
       <button
@@ -114,6 +118,26 @@ export function ProductAdditionalDetailsFields({
             </div>
           </div>
         )}
+
+        <div className="pt-2 md:col-span-2 flex items-center gap-2">
+          <Label htmlFor="showOnline" className="cursor-pointer whitespace-nowrap">
+            Show Online
+          </Label>
+          <Switch
+            id="showOnline"
+            checked={formData.showOnline}
+            onCheckedChange={(checked) => {
+              if (checked && !canUseEcommerce) {
+                toast.error(getUpgradeMessage('ecommerce', "Upgrade to a premium plan to sell this product on your online store."));
+                return;
+              }
+              onInputChange("showOnline", checked);
+            }}
+          />
+          <span className="text-xs text-muted-foreground">
+            List this product on your online store (also requires Online Store enabled in Settings)
+          </span>
+        </div>
       </div>
     </div>
   );

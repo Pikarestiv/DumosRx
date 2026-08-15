@@ -4,6 +4,7 @@ import { FooterSection } from "@/components/landing/footer-section";
 import { Badge } from "@/components/ui/badge";
 import { ProductCard } from "@/components/storefront/product-card";
 import { StorefrontCart } from "@/components/storefront/storefront-cart";
+import { getStorefrontSlugs } from "@/lib/api/storefront-slugs";
 import type { StorefrontProduct } from "@/lib/types/storefront";
 
 interface StorefrontProps {
@@ -30,16 +31,7 @@ async function getStorefrontData(store_slug: string) {
 }
 
 export async function generateStaticParams() {
-  // output: "export" (static export) requires at least one entry for every
-  // dynamic route — an empty array isn't valid here, unlike a normal
-  // server-rendered Next.js deploy. The real fix for a stale/missing "demo"
-  // store taking down the whole build is the content-type guard in
-  // getStorefrontData() above: it now degrades to notFound() instead of
-  // throwing on a non-JSON API response, regardless of which slug this is.
-  return [
-    { store_slug: "demo" },
-    // { store_slug: 'another-store' },
-  ];
+  return getStorefrontSlugs();
 }
 
 export default async function StorefrontPage({ params }: StorefrontProps) {

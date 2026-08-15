@@ -44,6 +44,8 @@ interface StoreSettingsProps {
   setShowRetailSuggestions?: (val: boolean) => void;
   requirePaymentAccount: boolean;
   setRequirePaymentAccount: (val: boolean) => void;
+  onlineStoreEnabled?: boolean;
+  setOnlineStoreEnabled?: (val: boolean) => void;
   enabledPaymentMethods: string[];
   setEnabledPaymentMethods: (val: string[]) => void;
 }
@@ -82,6 +84,8 @@ export function StoreSettings({
   setShowRetailSuggestions,
   requirePaymentAccount,
   setRequirePaymentAccount,
+  onlineStoreEnabled = false,
+  setOnlineStoreEnabled,
   enabledPaymentMethods,
   setEnabledPaymentMethods,
 }: StoreSettingsProps) {
@@ -108,6 +112,8 @@ export function StoreSettings({
         setLocalPcn={setLocalPcn}
         showRetailSuggestions={showRetailSuggestions}
         setShowRetailSuggestions={setShowRetailSuggestions}
+        onlineStoreEnabled={onlineStoreEnabled}
+        setOnlineStoreEnabled={setOnlineStoreEnabled}
         handleSaveProfile={handleSaveProfile}
       />
 

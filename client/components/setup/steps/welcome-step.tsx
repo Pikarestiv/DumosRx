@@ -17,9 +17,10 @@ import type { OnboardingStep } from "@/app/setup/use-onboarding";
 
 interface WelcomeStepProps {
   onSetStep: (step: OnboardingStep) => void;
+  onGoToRegister: () => void;
 }
 
-export function WelcomeStep({ onSetStep }: WelcomeStepProps) {
+export function WelcomeStep({ onSetStep, onGoToRegister }: WelcomeStepProps) {
   return (
     <motion.div
       key="welcome"
@@ -28,7 +29,7 @@ export function WelcomeStep({ onSetStep }: WelcomeStepProps) {
       exit={{ opacity: 0, scale: 0.95 }}
       className="flex-1 flex flex-col w-full"
     >
-      <Card className="flex-1 sm:flex-initial flex flex-col border-none sm:border-solid sm:border-border shadow-[0_-20px_40px_rgba(0,0,0,0.15)] sm:shadow-2xl bg-background sm:bg-card/60 sm:backdrop-blur-2xl rounded-t-[2.5rem] sm:rounded-xl overflow-hidden relative">
+      <Card className="flex-1 sm:flex-initial flex flex-col border-none sm:border-solid sm:border-border shadow-[0_-20px_40px_rgba(0,0,0,0.15)] sm:shadow-2xl bg-background sm:bg-card/60 sm:backdrop-blur-2xl rounded-t-[2.5rem] sm:rounded-xl max-h-[85dvh] overflow-y-auto relative">
         <CardHeader className="text-center pb-2 mb-">
           <div className="flex justify-center mb-6">
             <Image
@@ -50,7 +51,7 @@ export function WelcomeStep({ onSetStep }: WelcomeStepProps) {
           <Button
             variant="outline"
             className="h-auto p-4 flex flex-col items-start text-left gap-1 hover:border-primary/50 hover:bg-primary/5 group"
-            onClick={() => onSetStep("register")}
+            onClick={onGoToRegister}
           >
             <div className="flex items-center gap-2 font-bold text-foreground">
               <UserPlus className="h-4 w-4 text-primary" />

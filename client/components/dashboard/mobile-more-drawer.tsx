@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -10,19 +9,15 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { useStore } from "@/lib/context/store-context";
-import { useQuery } from "@tanstack/react-query";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { getSyncQueueCount } from "@/lib/db/queries/setup";
-import { queryKeys } from "@/lib/query-keys";
 import { useAuth } from "@/lib/context/auth-context";
+import { useAccountActions } from "@/lib/hooks/use-account-actions";
+import { UnsyncedLogoutDialog } from "./unsynced-logout-dialog";
 import { SyncIndicator } from "./sync-indicator";
 import { cn } from "@/lib/utils";
 import {
   Wallet,
   BarChart3,
   Settings,
-  LogOut,
-  MessageSquare,
   ClipboardPlus,
   PackagePlus,
 } from "lucide-react";
@@ -40,23 +35,18 @@ export function MobileMoreDrawer({
 }: MobileMoreDrawerProps) {
   const pathname = usePathname();
   const { storeType } = useStore();
-  const { logout, isAdmin, canManageStockBatch } = useAuth();
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const { isAdmin, canManageStockBatch } = useAuth();
 
-  const { data: pendingCountData } = useQuery({
-    ...queryKeys.sync.queueCount(),
-    queryFn: () => getSyncQueueCount(),
+  const {
+    navActions,
+    pendingCount,
+    showLogoutConfirm,
+    setShowLogoutConfirm,
+    confirmFullLogout,
+  } = useAccountActions({
+    onClose: () => onOpenChange(false),
+    onOpenFeedback,
   });
-  const pendingCount = pendingCountData || 0;
-
-  const handleLogoutAttempt = () => {
-    if (pendingCount > 0) {
-      setShowLogoutConfirm(true);
-    } else {
-      onOpenChange(false);
-      logout();
-    }
-  };
 
   const allModules = [
     ...(storeType === "pharmacy"
@@ -85,7 +75,7 @@ export function MobileMoreDrawer({
             </DrawerTitle>
           </DrawerHeader>
 
-          <div className="flex-1 overflow-y-auto px-4">
+          <div className="flex-1 overflow-y-auto pl-4 pr-2 mr-2">
             <div className="space-y-1">
               {allModules.map((item) => {
                 const isActive = pathname.startsWith(item.href);
@@ -109,44 +99,36 @@ export function MobileMoreDrawer({
               })}
             </div>
 
-            <div className="mt-8 mb-4 border-t border-border pt-4 space-y-1">
-              <button
-                onClick={() => {
-                  onOpenChange(false);
-                  onOpenFeedback();
-                }}
-                className="w-full flex items-center gap-4 px-4 py-4 rounded-xl font-medium text-foreground hover:bg-muted transition-colors"
-              >
-                <MessageSquare className="h-5 w-5 opacity-90" />
-                <span>Help & Feedback</span>
-              </button>
-              <button
-                onClick={handleLogoutAttempt}
-                className="w-full flex items-center gap-4 px-4 py-4 rounded-xl font-medium text-destructive hover:bg-destructive hover:text-white transition-colors"
-              >
-                <LogOut className="h-5 w-5 opacity-90" />
-                <span>Sign Out</span>
-              </button>
+            <div className="my-4 border-t border-border pt-4 space-y-1">
+              {navActions.map((action) => (
+                <button
+                  key={action.key}
+                  onClick={action.onClick}
+                  className={cn(
+                    "w-full flex items-center gap-4 px-4 py-4 rounded-xl font-medium transition-colors",
+                    action.destructive
+                      ? "text-destructive hover:bg-destructive hover:text-white"
+                      : "text-foreground hover:bg-muted",
+                  )}
+                >
+                  <action.icon className="h-5 w-5 opacity-90" />
+                  <span>{action.label}</span>
+                </button>
+              ))}
             </div>
           </div>
 
           {/* Sync Indicator at the bottom */}
-          <div className="px-6 mt-auto">
+          <div className="px-6 pt-3 mt-auto">
             <SyncIndicator collapsed={false} />
           </div>
         </DrawerContent>
       </Drawer>
-      <ConfirmDialog
+      <UnsyncedLogoutDialog
         open={showLogoutConfirm}
         onOpenChange={setShowLogoutConfirm}
-        title="Unsynced Changes Detected"
-        description={`You have ${pendingCount} offline transaction${pendingCount > 1 ? "s" : ""} pending sync. If you log out now, another user logging into this device will sync them on their account. Are you sure you want to sign out?`}
-        confirmLabel="Sign Out Anyway"
-        variant="destructive"
-        onConfirm={() => {
-          onOpenChange(false);
-          logout();
-        }}
+        pendingCount={pendingCount}
+        onConfirm={confirmFullLogout}
       />
     </>
   );

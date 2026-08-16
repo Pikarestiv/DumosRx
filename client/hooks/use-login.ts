@@ -1,49 +1,20 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { useAuth, RecentUser } from "@/lib/context/auth-context";
-import { checkIfTableExists, getActiveUserCount } from "@/lib/db/queries/setup";
+import { useAuth } from "@/lib/context/auth-context";
 
+// Device/account status (userCount, recentUsers, isChecking) now lives in
+// useDeviceAuthStatus, shared with the setup tab on the merged /login page —
+// this hook only owns the login form itself.
 export function useLogin() {
   const [username, setUsername] = useState("");
   const [pin, setPin] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isCheckingStatus, setIsCheckingStatus] = useState(true);
-  const [userCount, setUserCount] = useState(0);
-  const [recentUsers, setRecentUsers] = useState<RecentUser[]>([]);
   const [showTraditionalLogin, setShowTraditionalLogin] = useState(false);
+  const [hasError, setHasError] = useState(false);
 
   const { login } = useAuth();
   const router = useRouter();
-
-  useEffect(() => {
-    checkStatus();
-    const storedUsers = localStorage.getItem("dumos_recent_users");
-    if (storedUsers) {
-      try {
-        setRecentUsers(JSON.parse(storedUsers));
-      } catch (e) {
-        console.error("Failed to parse recent users", e);
-      }
-    }
-  }, []);
-
-  const checkStatus = async () => {
-    try {
-      const exists = await checkIfTableExists("users");
-      if (!exists) {
-        setUserCount(0);
-        return;
-      }
-
-      const count = await getActiveUserCount();
-      setUserCount(count);
-    } catch (e) {
-      console.error("Status check failed", e);
-    } finally {
-      setIsCheckingStatus(false);
-    }
-  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,6 +26,9 @@ export function useLogin() {
         toast.success("Welcome back!");
         router.push("/dashboard");
       } else {
+        setPin("");
+        setHasError(true);
+        setTimeout(() => setHasError(false), 500);
         toast.error("Invalid credentials. Please try again.");
       }
     } catch {
@@ -70,11 +44,9 @@ export function useLogin() {
     pin,
     setPin,
     isLoading,
-    isCheckingStatus,
-    userCount,
-    recentUsers,
     showTraditionalLogin,
     setShowTraditionalLogin,
+    hasError,
     handleLogin,
   };
 }

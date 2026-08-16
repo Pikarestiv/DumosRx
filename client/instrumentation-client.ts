@@ -8,7 +8,15 @@ import * as Sentry from "@sentry/nextjs";
 
 const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
 
-if (dsn) {
+// Skip Sentry entirely when running the local dev server (`next dev`) —
+// every error hit while building out an incomplete feature was getting
+// reported, burning through the free-tier event quota before any real
+// store even started using the app. `next dev` is the only environment
+// where NODE_ENV is "development"; the deployed dev/staging build and
+// production are both `next build` static-export output (NODE_ENV
+// "production"), so this leaves Sentry active there regardless of
+// NEXT_PUBLIC_SENTRY_ENVIRONMENT.
+if (dsn && process.env.NODE_ENV !== "development") {
   Sentry.init({
     dsn,
     environment: process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT || "production",

@@ -3,10 +3,8 @@
 import { Fragment, useState, useEffect } from "react";
 import { useAuth, type User } from "@/lib/context/auth-context";
 import { useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
-import { getSyncQueueCount } from "@/lib/db/queries/setup";
-import { queryKeys } from "@/lib/query-keys";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useAccountActions } from "@/lib/hooks/use-account-actions";
+import { UnsyncedLogoutDialog } from "./unsynced-logout-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,28 +22,12 @@ import {
 } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import {
-  LogOut,
-  Repeat,
-  Settings2,
-  Settings,
-  MessageSquare,
-  type LucideIcon,
-} from "lucide-react";
+import { LogOut, Settings2, Settings } from "lucide-react";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { ThemeCustomizer } from "@/components/ui/theme-customizer";
 import { getUserInitials } from "@/lib/utils";
 import { useIsTouchDevice } from "@/lib/hooks/use-is-touch-device";
-import { useAutoLockStore } from "@/lib/hooks/use-auto-lock";
 import { cn } from "@/lib/utils";
-
-interface NavAction {
-  key: string;
-  label: string;
-  icon: LucideIcon;
-  onClick: () => void;
-  destructive?: boolean;
-}
 
 const NavTrigger = ({
   initials,
@@ -130,7 +112,7 @@ export function UserNav({
   onOpenFeedback,
   onOpenChange,
 }: UserNavProps) {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const router = useRouter();
   // Touch capability decides Drawer vs Dropdown, not viewport width — see the
   // comment in notification-bell.tsx for why (Radix DropdownMenu's outside-tap
@@ -138,17 +120,21 @@ export function UserNav({
   const isTouchDevice = useIsTouchDevice();
 
   const [open, setOpen] = useState(false);
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   useEffect(() => {
     onOpenChange?.(open);
   }, [open, onOpenChange]);
 
-  const { data: pendingCountData } = useQuery({
-    ...queryKeys.sync.queueCount(),
-    queryFn: () => getSyncQueueCount(),
+  const {
+    navActions,
+    pendingCount,
+    showLogoutConfirm,
+    setShowLogoutConfirm,
+    confirmFullLogout,
+  } = useAccountActions({
+    onClose: () => setOpen(false),
+    onOpenFeedback,
   });
-  const pendingCount = pendingCountData || 0;
 
   // A broken/incomplete auth state (e.g. a corrupted localStorage write from
   // a connection drop mid-save) shouldn't leave this spot blank with no way
@@ -178,65 +164,10 @@ export function UserNav({
 
   const initials = getUserInitials(user.first_name, user.last_name);
 
-  const performFullLogout = () => {
-    localStorage.removeItem("dumos_recent_users"); // Clear lock screen history
-    logout();
-    router.push("/login");
-  };
-
-  // Not destructive — the local session/data stays intact, this just shows
-  // the same lock screen used for idle re-auth, forced to account-selection
-  // mode instead of defaulting to the current user's PIN entry. No
-  // logout/unsynced-changes warning needed since nothing is being cleared.
-  const handleSwitchAccount = () => {
-    setOpen(false);
-    useAutoLockStore.getState().lockForSwitch();
-  };
-
-  const handleFullLogout = () => {
-    setOpen(false);
-    if (pendingCount > 0) {
-      setShowLogoutConfirm(true);
-    } else {
-      performFullLogout();
-    }
-  };
-
   const goToSettings = () => {
     setOpen(false);
     router.push("/settings");
   };
-
-  // Shared between the desktop dropdown and the mobile drawer so the two
-  // don't drift out of sync — only the surrounding markup differs per surface.
-  const navActions: NavAction[] = [
-    ...(onOpenFeedback
-      ? [
-          {
-            key: "feedback",
-            label: "Help & Feedback",
-            icon: MessageSquare,
-            onClick: () => {
-              setOpen(false);
-              onOpenFeedback();
-            },
-          },
-        ]
-      : []),
-    {
-      key: "switch",
-      label: "Switch Account",
-      icon: Repeat,
-      onClick: handleSwitchAccount,
-    },
-    {
-      key: "logout",
-      label: "Log out completely",
-      icon: LogOut,
-      onClick: handleFullLogout,
-      destructive: true,
-    },
-  ];
 
   const renderDesktopMenu = () => (
     <div className={cn("flex items-center gap-1", showDetails ? "w-full" : "")}>
@@ -380,14 +311,11 @@ export function UserNav({
     <>
       {!isTouchDevice ? renderDesktopMenu() : renderMobileDrawer()}
 
-      <ConfirmDialog
+      <UnsyncedLogoutDialog
         open={showLogoutConfirm}
         onOpenChange={setShowLogoutConfirm}
-        title="Unsynced Changes Detected"
-        description={`You have ${pendingCount} offline transaction${pendingCount > 1 ? "s" : ""} pending sync. If you log out now, another user logging into this device will sync them on their account. Are you sure you want to sign out?`}
-        confirmLabel="Sign Out Anyway"
-        variant="destructive"
-        onConfirm={performFullLogout}
+        pendingCount={pendingCount}
+        onConfirm={confirmFullLogout}
       />
     </>
   );

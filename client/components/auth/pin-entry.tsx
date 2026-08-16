@@ -121,11 +121,11 @@ export function PinEntry({
           </div>
         )}
 
-        <div className="pt-1 pb-2 sm:pt-4 sm:pb-0">
+        <div className="pt-1 pb-2 sm:pt-4 sm:pb-0 flex">
           <Button
             type="button"
             variant="outline"
-            className="w-full h-11 rounded-lg border-border font-medium hover:bg-muted/50 hover:text-foreground hover:font-bold"
+            className="w-full h-11 rounded-lg border-border font-medium hover:bg-muted/50 hover:text-foreground hover:font-bold max-w-[280px] mx-auto"
             onClick={onBack}
             disabled={isLoading}
           >

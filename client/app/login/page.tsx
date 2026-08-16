@@ -2,17 +2,226 @@
 
 import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Card, CardHeader } from "@/components/ui/card";
-import { Lock, Loader2, ArrowLeft } from "lucide-react";
-import { motion } from "framer-motion";
+import { CardHeader } from "@/components/ui/card";
+import { Loader2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
-import Link from "next/link";
 import { TraditionalLoginForm } from "@/components/auth/traditional-login-form";
+import { LockScreen } from "@/components/auth/lock-screen";
+import { AuthTabHeader } from "@/components/auth/auth-tab-header";
+import { AuthCardShell } from "@/components/auth/auth-card-shell";
+import { useAuth, type RecentUser } from "@/lib/context/auth-context";
 import {
   SetupPromptHeader,
   SetupPromptContent,
 } from "@/components/auth/setup-prompt";
 import { useLogin } from "@/hooks/use-login";
+import { useDeviceAuthStatus } from "@/hooks/use-device-auth-status";
+import { useOnboarding } from "@/app/setup/use-onboarding";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { WelcomeStep } from "@/components/setup/steps/welcome-step";
+import { RegisterStep } from "@/components/setup/steps/register-step";
+import { CloudStep } from "@/components/setup/steps/cloud-step";
+import { BackupStep } from "@/components/setup/steps/backup-step";
+import { SyncingStep } from "@/components/setup/steps/syncing-step";
+import { SelectStoreStep } from "@/components/setup/steps/select-store-step";
+
+type Onboarding = ReturnType<typeof useOnboarding>;
+
+interface LoginTabProps {
+  authHeader: React.ReactNode;
+  userCount: number;
+  showRecentUserSelection: boolean;
+  recentUsers: RecentUser[];
+  showTraditionalLogin: boolean;
+  isNewCredentialsMode: boolean;
+  username: string;
+  setUsername: (value: string) => void;
+  pin: string;
+  setPin: (value: string) => void;
+  isLoading: boolean;
+  hasError: boolean;
+  handleLogin: (e: React.FormEvent) => void;
+  setShowTraditionalLogin: (value: boolean) => void;
+  onGoToRegister?: () => void;
+  onGoToCloud?: () => void;
+  onCancel?: () => void;
+}
+
+function LoginTab({
+  authHeader,
+  userCount,
+  showRecentUserSelection,
+  recentUsers,
+  showTraditionalLogin,
+  isNewCredentialsMode,
+  username,
+  setUsername,
+  pin,
+  setPin,
+  isLoading,
+  hasError,
+  handleLogin,
+  setShowTraditionalLogin,
+  onGoToRegister,
+  onGoToCloud,
+  onCancel,
+}: LoginTabProps) {
+  const showTraditionalForm =
+    userCount > 0 &&
+    (recentUsers.length === 0 || showTraditionalLogin || isNewCredentialsMode);
+
+  return (
+    <AuthCardShell
+      variant="page"
+      header={<div className="px-4">{authHeader}</div>}
+    >
+      {userCount === 0 && (
+        <CardHeader className="pt-8 sm:pt-2 pb-2 items-center text-center">
+          <SetupPromptHeader />
+        </CardHeader>
+      )}
+
+      {userCount === 0 && <SetupPromptContent />}
+
+      {showRecentUserSelection && (
+        <div className="flex-1 flex flex-col pt-1 pb-0 px-4 sm:pb-6 sm:px-6">
+          <LockScreen
+            recentUsers={recentUsers}
+            onLoginAsOther={() => setShowTraditionalLogin(true)}
+          />
+        </div>
+      )}
+
+      {showTraditionalForm && (
+        <TraditionalLoginForm
+          username={username}
+          setUsername={setUsername}
+          pin={pin}
+          setPin={setPin}
+          isLoading={isLoading}
+          hasError={hasError}
+          onSubmit={handleLogin}
+          onGoToRegister={onGoToRegister}
+          onGoToCloud={onGoToCloud}
+          onCancel={onCancel}
+        />
+      )}
+    </AuthCardShell>
+  );
+}
+
+interface SetupTabProps {
+  isCardSetupStep: boolean;
+  authHeader: React.ReactNode;
+  onboarding: Onboarding;
+}
+
+function SetupTab({ isCardSetupStep, authHeader, onboarding }: SetupTabProps) {
+  return (
+    <>
+      {/* Cloud Restore, Local Backup, and Register get the header injected
+          inside their own Card (see isCardSetupStep) for consistency with
+          the login tab. Every other setup step renders a more complex
+          layout the header can't be injected into, so it floats above
+          instead. */}
+      {!isCardSetupStep && authHeader}
+
+      <AnimatePresence mode="wait">
+        {onboarding.onboardingStep === "welcome" && (
+          <WelcomeStep
+            onSetStep={onboarding.setStep}
+            onGoToRegister={onboarding.goToRegister}
+          />
+        )}
+
+        {onboarding.onboardingStep === "register" && (
+          <RegisterStep
+            onRegister={onboarding.handleRegister}
+            isLoading={onboarding.isLoading}
+            isCloudLinked={onboarding.isCloudLinked}
+            existingStores={onboarding.existingStores}
+            header={authHeader}
+          />
+        )}
+
+        {onboarding.onboardingStep === "cloud" && (
+          <CloudStep
+            onCloudRestore={onboarding.handleCloudRestore}
+            isLoading={onboarding.isLoading}
+            onGoToRegister={onboarding.goToRegister}
+            onGoToBackup={() => onboarding.setStep("backup")}
+            header={authHeader}
+          />
+        )}
+
+        {onboarding.onboardingStep === "backup" && (
+          <BackupStep
+            onCancel={() => onboarding.setStep("welcome")}
+            onRestore={onboarding.handleLocalRestore}
+            onGoToCloud={() => onboarding.setStep("cloud")}
+            isLoading={onboarding.isLoading}
+            header={authHeader}
+          />
+        )}
+
+        {onboarding.onboardingStep === "syncing" && (
+          <SyncingStep
+            progress={onboarding.syncProgress}
+            status={onboarding.syncStatus}
+          />
+        )}
+
+        {onboarding.onboardingStep === "select-store" && (
+          <SelectStoreStep
+            stores={onboarding.cloudStores}
+            selectedStoreId={onboarding.selectedStoreId}
+            setSelectedStoreId={onboarding.setSelectedStoreId}
+            onConfirm={onboarding.handleSelectStoreConfirm}
+            onCancel={() => onboarding.setStep("cloud")}
+            isLoading={onboarding.isLoading}
+          />
+        )}
+      </AnimatePresence>
+
+      <ConfirmDialog
+        open={onboarding.showConfirmSwitch}
+        onOpenChange={(open) => {
+          if (!open) {
+            onboarding.cancelCloudRestoreSwitch();
+          }
+        }}
+        title="Confirm Store Switch"
+        description={
+          <div className="space-y-3 text-sm leading-relaxed text-muted-foreground">
+            <p>
+              This device is already configured with local data for{" "}
+              <strong className="text-foreground font-semibold">
+                &ldquo;{onboarding.pendingStoreName}&rdquo;
+              </strong>
+              .
+            </p>
+            <p>
+              Syncing a different store will{" "}
+              <strong className="text-destructive font-semibold">
+                permanently DELETE
+              </strong>{" "}
+              all current local data (products, batches, sales, and accounts)
+              and replace it with the new store&apos;s data.
+            </p>
+            <p className="font-semibold text-foreground mt-2">
+              Do you want to proceed?
+            </p>
+          </div>
+        }
+        confirmLabel="Wipe & Sync New Store"
+        cancelLabel="Keep Current Store"
+        variant="destructive"
+        onConfirm={onboarding.confirmCloudRestoreSwitch}
+      />
+    </>
+  );
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -23,24 +232,64 @@ export default function LoginPage() {
   // accounts already exist, to avoid ever showing two separate lock screens.
   const isNewCredentialsMode = searchParams.get("mode") === "new";
 
+  const { isChecking, userCount, recentUsers } = useDeviceAuthStatus();
+  const { isAuthenticated } = useAuth();
+
   const {
     username,
     setUsername,
     pin,
     setPin,
     isLoading,
-    isCheckingStatus,
-    userCount,
-    recentUsers,
     showTraditionalLogin,
+    setShowTraditionalLogin,
+    hasError,
     handleLogin,
   } = useLogin();
 
-  const showAccountSelection =
+  const onboarding = useOnboarding();
+
+  // Login and Setup are tabs on this one page, not separate routes — no
+  // navigation, no remount, no second loading spinner when switching.
+  // Guard: a device that already has accounts can't land on setup's
+  // welcome/select-store steps (that flow assumes a brand-new device and
+  // risks clobbering real local data) — only backup/cloud/syncing/register
+  // are safe entry points there. `register` is included because
+  // handleRegister() is purely additive (inserts a new store + admin) even
+  // when the device already has other local accounts — unlike
+  // select-store's cloud-switch flow, it never wipes existing data.
+  // Computed here instead of redirecting after mount, so an unsafe request
+  // never flashes setup content before bouncing back.
+  const requestedTab = searchParams.get("tab") === "setup" ? "setup" : "login";
+  const step = searchParams.get("step");
+  const isSafeSetupEntry =
+    step === "backup" ||
+    step === "cloud" ||
+    step === "syncing" ||
+    step === "register";
+  const activeTab: "login" | "setup" =
+    requestedTab === "setup" && userCount > 0 && !isSafeSetupEntry
+      ? "login"
+      : requestedTab;
+
+  const setupHref =
+    userCount > 0 ? "/login?tab=setup&step=cloud" : "/login?tab=setup";
+
+  // Only bounce to the dashboard's own lock overlay when there's actually a
+  // live (but idle-locked) session to hand off to — i.e. `isAuthenticated`.
+  // Without this check, a real logout (user cleared, recentUsers/userCount
+  // untouched) looked identical to "idle-locked", so /login redirected to
+  // /dashboard, which immediately redirected back to /login (no `user`),
+  // forever — the flicker loop. When there's no live session, this page
+  // renders its own account-tile picker (LockScreen) instead of redirecting.
+  const canHandOffToDashboardLock =
+    activeTab === "login" &&
     userCount > 0 &&
     recentUsers.length > 0 &&
     !showTraditionalLogin &&
     !isNewCredentialsMode;
+  const showAccountSelection = canHandOffToDashboardLock && isAuthenticated;
+  const showRecentUserSelection = canHandOffToDashboardLock && !isAuthenticated;
 
   useEffect(() => {
     if (showAccountSelection) {
@@ -48,13 +297,73 @@ export default function LoginPage() {
     }
   }, [showAccountSelection, router]);
 
-  if (isCheckingStatus || showAccountSelection) {
+  if (isChecking || showAccountSelection) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
+
+  const setupAllowsBack = onboarding.onboardingStep !== "syncing";
+  const loginAllowsBack =
+    !recentUsers.length || showTraditionalLogin || isNewCredentialsMode;
+  const showBack = activeTab === "setup" ? setupAllowsBack : loginAllowsBack;
+
+  const handleBack = () => {
+    if (activeTab === "setup") {
+      onboarding.goBack();
+    } else if (isNewCredentialsMode) {
+      // Arrived here via "Login as someone else" — that only calls
+      // unlock() before navigating, it never logs the current user out, so
+      // `user` is still set and /dashboard renders normally. Backing out
+      // just cancels the account switch and resumes the existing session,
+      // rather than going to "/" (which has nothing to do with this flow).
+      router.push("/dashboard");
+    } else {
+      router.push("/");
+    }
+  };
+
+  // Cloud Restore, Local Backup, and Register are the setup steps that
+  // render a single simple Card (like the login tab), so the tab header is
+  // injected inside their Card for visual consistency. Other setup steps
+  // (welcome, select-store, syncing) have more complex/multi-card layouts,
+  // so the header stays floated above them.
+  const isCardSetupStep =
+    onboarding.onboardingStep === "cloud" ||
+    onboarding.onboardingStep === "backup" ||
+    onboarding.onboardingStep === "register";
+  const headerVariant: "card" | "standalone" =
+    activeTab === "login" || isCardSetupStep ? "card" : "standalone";
+  const headerActiveTab: "login" | "setup" =
+    activeTab === "login" ? "login" : "setup";
+
+  // Header (Back + Login/Setup switcher) is hidden entirely for ?mode=new —
+  // a lone back arrow with no switcher looked unbalanced, especially on
+  // mobile. The way off this screen instead is a secondary "Cancel" button
+  // in the login form itself (see TraditionalLoginForm's onCancel).
+  const authHeader = isNewCredentialsMode ? null : (
+    <AuthTabHeader
+      variant={headerVariant}
+      active={headerActiveTab}
+      showBack={showBack}
+      onBack={handleBack}
+      setupHref={setupHref}
+    />
+  );
+
+  // ?mode=new only re-authenticates as a different existing user on an
+  // already-set-up device — registering, cloud setup, and cancelling all
+  // mean something else there (or nothing), so these are only wired up
+  // outside that mode.
+  const registerHandler = isNewCredentialsMode
+    ? undefined
+    : onboarding.goToRegister;
+  const cloudSetupHandler = isNewCredentialsMode
+    ? undefined
+    : () => onboarding.setStep("cloud");
+  const cancelHandler = isNewCredentialsMode ? handleBack : undefined;
 
   return (
     <div
@@ -74,18 +383,7 @@ export default function LoginPage() {
       </div>
 
       {/* Mobile Top Section (1/4 height) */}
-      <div className="sm:hidden relative z-10 flex flex-col items-center justify-center shrink-0 min-h-[25dvh] pt-4 pb-6">
-        {(!recentUsers.length ||
-          showTraditionalLogin ||
-          isNewCredentialsMode) && (
-          <Link
-            href="/"
-            className="absolute left-6 top-6 inline-flex items-center text-sm font-medium text-primary-foreground/90 hover:text-primary-foreground transition-colors group"
-          >
-            <ArrowLeft className="h-5 w-5 mr-1 transform group-hover:-translate-x-1 transition-transform" />
-            Back
-          </Link>
-        )}
+      <div className="sm:hidden relative z-10 flex flex-col items-center justify-center shrink-0 min-h-[25dvh] py-4">
         <motion.div
           initial={{ scale: 0, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -108,74 +406,32 @@ export default function LoginPage() {
         transition={{ duration: 0.5 }}
         className="w-full h-full sm:h-auto sm:max-w-md z-10 flex flex-col mx-auto"
       >
-        {/* Desktop Back Link */}
-        {(!recentUsers.length ||
-          showTraditionalLogin ||
-          isNewCredentialsMode) && (
-          <div className="hidden sm:block px-4 sm:px-0">
-            <Link
-              href="/"
-              className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors group"
-            >
-              <ArrowLeft className="h-4 w-4 mr-2 transform group-hover:-translate-x-1 transition-transform" />
-              Back
-            </Link>
-          </div>
-        )}
-
-        <Card className="flex-1 sm:flex-initial flex flex-col border-none sm:border-solid sm:border-border shadow-[0_-20px_40px_rgba(0,0,0,0.15)] sm:shadow-2xl bg-background sm:bg-card/60 sm:backdrop-blur-2xl rounded-t-[2.5rem] sm:rounded-xl overflow-hidden relative">
-          {/* Desktop Logo */}
-          <div className="hidden sm:flex flex-col items-center pt-6 pb-2">
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{
-                type: "spring",
-                stiffness: 260,
-                damping: 20,
-                delay: 0.2,
-              }}
-              className="mb-1 overflow-hidden"
-            >
-              <Image
-                src="/logo.png"
-                alt="Logo"
-                width={150}
-                height={58}
-                className="object-contain"
-                style={{ filter: "var(--logo-filter)", height: "auto" }}
-              />
-            </motion.div>
-          </div>
-
-          {userCount === 0 && (
-            <CardHeader className="pt-8 sm:pt-2 pb-2 items-center text-center">
-              <SetupPromptHeader />
-            </CardHeader>
-          )}
-
-          {userCount === 0 && <SetupPromptContent />}
-
-          {userCount > 0 &&
-            (recentUsers.length === 0 ||
-              showTraditionalLogin ||
-              isNewCredentialsMode) && (
-              <TraditionalLoginForm
-                username={username}
-                setUsername={setUsername}
-                pin={pin}
-                setPin={setPin}
-                isLoading={isLoading}
-                onSubmit={handleLogin}
-              />
-            )}
-        </Card>
-
-        {userCount > 0 && (showTraditionalLogin || isNewCredentialsMode) && (
-          <div className="hidden sm:flex mt-4 items-center justify-center gap-2 text-xs font-medium text-muted-foreground/60 uppercase tracking-widest">
-            <Lock className="w-3 h-3" />
-            Terminal Access • Secure Login
-          </div>
+        {activeTab === "login" ? (
+          <LoginTab
+            authHeader={authHeader}
+            userCount={userCount}
+            showRecentUserSelection={showRecentUserSelection}
+            recentUsers={recentUsers}
+            showTraditionalLogin={showTraditionalLogin}
+            isNewCredentialsMode={isNewCredentialsMode}
+            username={username}
+            setUsername={setUsername}
+            pin={pin}
+            setPin={setPin}
+            isLoading={isLoading}
+            hasError={hasError}
+            handleLogin={handleLogin}
+            setShowTraditionalLogin={setShowTraditionalLogin}
+            onGoToRegister={registerHandler}
+            onGoToCloud={cloudSetupHandler}
+            onCancel={cancelHandler}
+          />
+        ) : (
+          <SetupTab
+            isCardSetupStep={isCardSetupStep}
+            authHeader={authHeader}
+            onboarding={onboarding}
+          />
         )}
       </motion.div>
     </div>

@@ -147,6 +147,12 @@ Surfaced during demo prep: a store logged a full year's rent (₦270,000) as one
 - **Action:** Add a bulk selling price field alongside the existing unit selling price, and surface bulk-vs-unit as a line-item choice at checkout.
 - **Effort:** ~2–3 days — real schema + POS/checkout logic change, touches a core sale-item path.
 
+### Pending-sync warning is noisy and incomplete (Deferred 2026-08-16)
+
+- **Current state:** Confirmed via code trace — the "you have unsynced changes" confirm dialog only exists on the full logout path (`useAccountActions`, `client/lib/hooks/use-account-actions.ts`), gated on `getSyncQueueCount()` (`client/lib/db/queries/setup.ts`), which is `SELECT COUNT(*) FROM _sync_queue` with no filtering by table. "Switch Account" (`lockForSwitch()`) never checks at all — by design, since it doesn't clear anything. Separately, `logAction()` (`client/lib/db/core.ts`) unconditionally queues a `_sync_queue` row for every audit event, including `LOGIN` — so the pending count is virtually guaranteed to be ≥1 immediately after any login, meaning the logout warning fires almost every time even when the only "pending" item is the audit trail of the login that just happened. No auto-sync-on-logout exists anywhere in the codebase today.
+- **Action:** Root fix is filtering `getSyncQueueCount()` (or the query behind it) to exclude low-value `audit_logs` entries like `LOGIN`/`LOGOUT` — or restrict it to business-critical tables (sales, products, stock movements, etc.) — so the warning reflects real data at risk, not just an audit-trail footnote. A best-effort background sync attempt on logout is a reasonable addition on top of that, but doesn't replace the filtering fix (still needs connectivity, and doesn't fix the count being meaningless offline).
+- **Effort:** ~1 day — query filtering change + verification that legitimate pending business-data cases still warn correctly.
+
 ---
 
 ## 🟠 Medium (3–5 days)

@@ -160,17 +160,6 @@ export default function HomePage() {
                   Launch System
                 </Button>
               </Link>
-              <div className="text-center flex items-center justify-center gap-2 group text-sm">
-                Already have an account?{" "}
-                <Link
-                  href="/login"
-                  className="text-muted-foreground hover:text-primary transition-colors"
-                >
-                  <span className="font-semibold underline decoration-muted-foreground hover:decoration-primary transition-all">
-                    Log In
-                  </span>
-                </Link>
-              </div>
             </CardContent>
           </Card>
 

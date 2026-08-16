@@ -4,7 +4,11 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+} from "@/components/ui/input-otp";
 import {
   Card,
   CardContent,
@@ -25,13 +29,29 @@ const STORE_TYPES = [
 ];
 
 interface RegisterStepProps {
-  onRegister: (firstName: string, lastName: string, username: string, pin: string, storeName: string, existingStoreId?: string, email?: string, password?: string, storeType?: string, phone?: string) => Promise<void>;
+  onRegister: (
+    firstName: string,
+    lastName: string,
+    username: string,
+    pin: string,
+    storeName: string,
+    existingStoreId?: string,
+    email?: string,
+    password?: string,
+    storeType?: string,
+    phone?: string,
+  ) => Promise<void>;
   isLoading: boolean;
   isCloudLinked?: boolean;
   existingStores?: StoreOption[];
 }
 
-export function RegisterStep({ onRegister, isLoading, isCloudLinked, existingStores = [] }: RegisterStepProps) {
+export function RegisterStep({
+  onRegister,
+  isLoading,
+  isCloudLinked,
+  existingStores = [],
+}: RegisterStepProps) {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [username, setUsername] = useState("");
@@ -76,33 +96,39 @@ export function RegisterStep({ onRegister, isLoading, isCloudLinked, existingSto
       exit={{ opacity: 0, x: -20 }}
       className="flex-1 flex flex-col w-full"
     >
-      <Card className="flex-1 sm:flex-initial flex flex-col border-none sm:border-solid sm:border-border shadow-[0_-20px_40px_rgba(0,0,0,0.15)] sm:shadow-2xl bg-background sm:bg-card/60 sm:backdrop-blur-2xl rounded-t-[2.5rem] sm:rounded-xl max-h-[85dvh] overflow-y-auto relative">
+      <Card className="p-0 flex-1 sm:flex-initial flex flex-col border-none sm:border-solid sm:border-border shadow-[0_-20px_40px_rgba(0,0,0,0.15)] sm:shadow-2xl bg-background sm:bg-card/60 sm:backdrop-blur-2xl rounded-t-[2.5rem] sm:rounded-xl max-h-[85dvh] overflow-y-auto relative">
         <CardHeader className="space-y-1 flex flex-col items-center text-center pb-1 pt-4">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-2">
+          <div className="hidden md:flex w-10 h-10 rounded-xl bg-primary/10 items-center justify-center mb-2">
             <UserPlus className="h-5 w-5 text-primary" />
           </div>
           <CardTitle className="text-xl font-bold">
-            {!!(isCloudLinked) && "Cloud Setup"}
-                      {!(isCloudLinked) && "Create Your Business"}
+            {!!isCloudLinked && "Cloud Setup"}
+            {!isCloudLinked && "Create Your Business"}
           </CardTitle>
           <CardDescription className="text-muted-foreground text-xs">
-            {!!(isCloudLinked) && "Account linked! Now create your local master login."}
-                      {!(isCloudLinked) && "Requires internet — creates your DumosRx cloud account and store"}
+            {!!isCloudLinked &&
+              "Account linked! Now create your local master login."}
+            {!isCloudLinked &&
+              "Requires internet. Creates your DumosRx cloud account and store"}
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-2.5 pt-3 pb-3">
             {existingStores.length > 0 && (
               <div className="space-y-1">
-                <Label htmlFor="store-select" className="text-xs">Assign to Shop</Label>
-                <select 
+                <Label htmlFor="store-select" className="text-xs">
+                  Assign to Shop
+                </Label>
+                <select
                   id="store-select"
                   className="w-full h-10 bg-background/50 border border-input rounded-md px-3 text-sm font-bold focus:ring-2 focus:ring-primary outline-none transition-all"
                   value={selectedStoreId}
                   onChange={(e) => {
                     setSelectedStoreId(e.target.value);
                     if (e.target.value !== "new") {
-                      const store = existingStores.find(s => s.id === e.target.value);
+                      const store = existingStores.find(
+                        (s) => s.id === e.target.value,
+                      );
                       setStoreName(store?.name || "");
                     } else {
                       setStoreName("");
@@ -110,8 +136,10 @@ export function RegisterStep({ onRegister, isLoading, isCloudLinked, existingSto
                   }}
                 >
                   <option value="new">+ Create New Shop Profile</option>
-                  {existingStores.map(store => (
-                    <option key={store.id} value={store.id}>Use Existing: {store.name}</option>
+                  {existingStores.map((store) => (
+                    <option key={store.id} value={store.id}>
+                      Use Existing: {store.name}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -120,7 +148,7 @@ export function RegisterStep({ onRegister, isLoading, isCloudLinked, existingSto
             <div className="space-y-1">
               <Label htmlFor="store-name" className="text-xs">
                 {selectedStoreId === "new" && "New Store / Store Name"}
-                              {!(selectedStoreId === "new") && "Shop Name (Selected)"}
+                {!(selectedStoreId === "new") && "Shop Name (Selected)"}
               </Label>
               <Input
                 id="store-name"
@@ -136,7 +164,9 @@ export function RegisterStep({ onRegister, isLoading, isCloudLinked, existingSto
             {!isCloudLinked && (
               <>
                 <div className="space-y-1">
-                  <Label htmlFor="store-type" className="text-xs">Store Type</Label>
+                  <Label htmlFor="store-type" className="text-xs">
+                    Store Type
+                  </Label>
                   <select
                     id="store-type"
                     className="w-full h-10 bg-background/50 border border-input rounded-md px-3 text-sm focus:ring-2 focus:ring-primary outline-none transition-all"
@@ -144,12 +174,16 @@ export function RegisterStep({ onRegister, isLoading, isCloudLinked, existingSto
                     onChange={(e) => setStoreType(e.target.value)}
                   >
                     {STORE_TYPES.map((type) => (
-                      <option key={type.value} value={type.value}>{type.label}</option>
+                      <option key={type.value} value={type.value}>
+                        {type.label}
+                      </option>
                     ))}
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="reg-email" className="text-xs">Email Address</Label>
+                  <Label htmlFor="reg-email" className="text-xs">
+                    Email Address
+                  </Label>
                   <Input
                     id="reg-email"
                     type="email"
@@ -161,7 +195,9 @@ export function RegisterStep({ onRegister, isLoading, isCloudLinked, existingSto
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="reg-phone" className="text-xs">Phone Number</Label>
+                  <Label htmlFor="reg-phone" className="text-xs">
+                    Phone Number
+                  </Label>
                   <Input
                     id="reg-phone"
                     type="tel"
@@ -174,7 +210,9 @@ export function RegisterStep({ onRegister, isLoading, isCloudLinked, existingSto
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="reg-password" className="text-xs">Password</Label>
+                  <Label htmlFor="reg-password" className="text-xs">
+                    Password
+                  </Label>
                   <Input
                     id="reg-password"
                     type="password"
@@ -190,7 +228,9 @@ export function RegisterStep({ onRegister, isLoading, isCloudLinked, existingSto
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="reg-password-confirm" className="text-xs">Confirm Password</Label>
+                  <Label htmlFor="reg-password-confirm" className="text-xs">
+                    Confirm Password
+                  </Label>
                   <Input
                     id="reg-password-confirm"
                     type="password"
@@ -213,7 +253,9 @@ export function RegisterStep({ onRegister, isLoading, isCloudLinked, existingSto
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label htmlFor="first_name" className="text-xs">First Name</Label>
+                <Label htmlFor="first_name" className="text-xs">
+                  First Name
+                </Label>
                 <Input
                   id="first_name"
                   placeholder="e.g. John"
@@ -224,7 +266,9 @@ export function RegisterStep({ onRegister, isLoading, isCloudLinked, existingSto
                 />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="last_name" className="text-xs">Last Name</Label>
+                <Label htmlFor="last_name" className="text-xs">
+                  Last Name
+                </Label>
                 <Input
                   id="last_name"
                   placeholder="e.g. Doe"
@@ -236,7 +280,9 @@ export function RegisterStep({ onRegister, isLoading, isCloudLinked, existingSto
               </div>
             </div>
             <div className="space-y-1">
-              <Label htmlFor="reg-username" className="text-xs">Username</Label>
+              <Label htmlFor="reg-username" className="text-xs">
+                Username
+              </Label>
               <Input
                 id="reg-username"
                 placeholder="admin"
@@ -247,7 +293,9 @@ export function RegisterStep({ onRegister, isLoading, isCloudLinked, existingSto
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="reg-pin" className="text-xs">Secure PIN</Label>
+              <Label htmlFor="reg-pin" className="text-xs">
+                Secure PIN
+              </Label>
               <div className="flex justify-start">
                 <InputOTP
                   maxLength={4}
@@ -255,10 +303,22 @@ export function RegisterStep({ onRegister, isLoading, isCloudLinked, existingSto
                   onChange={(value) => setPin(value)}
                 >
                   <InputOTPGroup className="gap-2">
-                    <InputOTPSlot index={0} className="w-10 h-10 text-lg font-semibold rounded-md border border-input bg-background/50 transition-all focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary shadow-sm" />
-                    <InputOTPSlot index={1} className="w-10 h-10 text-lg font-semibold rounded-md border border-input bg-background/50 transition-all focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary shadow-sm" />
-                    <InputOTPSlot index={2} className="w-10 h-10 text-lg font-semibold rounded-md border border-input bg-background/50 transition-all focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary shadow-sm" />
-                    <InputOTPSlot index={3} className="w-10 h-10 text-lg font-semibold rounded-md border border-input bg-background/50 transition-all focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary shadow-sm" />
+                    <InputOTPSlot
+                      index={0}
+                      className="w-10 h-10 text-lg font-semibold rounded-md border border-input bg-background/50 transition-all focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary shadow-sm"
+                    />
+                    <InputOTPSlot
+                      index={1}
+                      className="w-10 h-10 text-lg font-semibold rounded-md border border-input bg-background/50 transition-all focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary shadow-sm"
+                    />
+                    <InputOTPSlot
+                      index={2}
+                      className="w-10 h-10 text-lg font-semibold rounded-md border border-input bg-background/50 transition-all focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary shadow-sm"
+                    />
+                    <InputOTPSlot
+                      index={3}
+                      className="w-10 h-10 text-lg font-semibold rounded-md border border-input bg-background/50 transition-all focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary shadow-sm"
+                    />
                   </InputOTPGroup>
                 </InputOTP>
               </div>
@@ -270,12 +330,8 @@ export function RegisterStep({ onRegister, isLoading, isCloudLinked, existingSto
               className="w-full h-11 text-base font-bold shadow-lg"
               disabled={isLoading}
             >
-              {!!(isLoading) && (
-                                          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                                        )}
-                          {!(isLoading) && (
-                                          "Complete Setup"
-                                        )}
+              {!!isLoading && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
+              {!isLoading && "Complete Setup"}
             </Button>
           </CardFooter>
         </form>

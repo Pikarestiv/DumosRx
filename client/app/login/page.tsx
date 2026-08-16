@@ -10,7 +10,7 @@ import { TraditionalLoginForm } from "@/components/auth/traditional-login-form";
 import { LockScreen } from "@/components/auth/lock-screen";
 import { AuthTabHeader } from "@/components/auth/auth-tab-header";
 import { AuthCardShell } from "@/components/auth/auth-card-shell";
-import { useAuth } from "@/lib/context/auth-context";
+import { useAuth, type RecentUser } from "@/lib/context/auth-context";
 import {
   SetupPromptHeader,
   SetupPromptContent,
@@ -25,6 +25,202 @@ import { CloudStep } from "@/components/setup/steps/cloud-step";
 import { BackupStep } from "@/components/setup/steps/backup-step";
 import { SyncingStep } from "@/components/setup/steps/syncing-step";
 import { SelectStoreStep } from "@/components/setup/steps/select-store-step";
+
+type Onboarding = ReturnType<typeof useOnboarding>;
+
+interface LoginTabProps {
+  authHeader: React.ReactNode;
+  userCount: number;
+  showRecentUserSelection: boolean;
+  recentUsers: RecentUser[];
+  showTraditionalLogin: boolean;
+  isNewCredentialsMode: boolean;
+  username: string;
+  setUsername: (value: string) => void;
+  pin: string;
+  setPin: (value: string) => void;
+  isLoading: boolean;
+  hasError: boolean;
+  handleLogin: (e: React.FormEvent) => void;
+  setShowTraditionalLogin: (value: boolean) => void;
+  onGoToRegister?: () => void;
+  onGoToCloud?: () => void;
+  onCancel?: () => void;
+}
+
+function LoginTab({
+  authHeader,
+  userCount,
+  showRecentUserSelection,
+  recentUsers,
+  showTraditionalLogin,
+  isNewCredentialsMode,
+  username,
+  setUsername,
+  pin,
+  setPin,
+  isLoading,
+  hasError,
+  handleLogin,
+  setShowTraditionalLogin,
+  onGoToRegister,
+  onGoToCloud,
+  onCancel,
+}: LoginTabProps) {
+  const showTraditionalForm =
+    userCount > 0 &&
+    (recentUsers.length === 0 || showTraditionalLogin || isNewCredentialsMode);
+
+  return (
+    <AuthCardShell
+      variant="page"
+      header={<div className="px-4">{authHeader}</div>}
+    >
+      {userCount === 0 && (
+        <CardHeader className="pt-8 sm:pt-2 pb-2 items-center text-center">
+          <SetupPromptHeader />
+        </CardHeader>
+      )}
+
+      {userCount === 0 && <SetupPromptContent />}
+
+      {showRecentUserSelection && (
+        <div className="flex-1 flex flex-col pt-1 pb-0 px-4 sm:pb-6 sm:px-6">
+          <LockScreen
+            recentUsers={recentUsers}
+            onLoginAsOther={() => setShowTraditionalLogin(true)}
+          />
+        </div>
+      )}
+
+      {showTraditionalForm && (
+        <TraditionalLoginForm
+          username={username}
+          setUsername={setUsername}
+          pin={pin}
+          setPin={setPin}
+          isLoading={isLoading}
+          hasError={hasError}
+          onSubmit={handleLogin}
+          onGoToRegister={onGoToRegister}
+          onGoToCloud={onGoToCloud}
+          onCancel={onCancel}
+        />
+      )}
+    </AuthCardShell>
+  );
+}
+
+interface SetupTabProps {
+  isCardSetupStep: boolean;
+  authHeader: React.ReactNode;
+  onboarding: Onboarding;
+}
+
+function SetupTab({ isCardSetupStep, authHeader, onboarding }: SetupTabProps) {
+  return (
+    <>
+      {/* Cloud Restore and Local Backup get the header injected inside
+          their own Card (see isCardSetupStep) for consistency with the
+          login tab. Every other setup step renders a more complex
+          layout the header can't be injected into, so it floats above
+          instead. */}
+      {!isCardSetupStep && authHeader}
+
+      <AnimatePresence mode="wait">
+        {onboarding.onboardingStep === "welcome" && (
+          <WelcomeStep
+            onSetStep={onboarding.setStep}
+            onGoToRegister={onboarding.goToRegister}
+          />
+        )}
+
+        {onboarding.onboardingStep === "register" && (
+          <RegisterStep
+            onRegister={onboarding.handleRegister}
+            isLoading={onboarding.isLoading}
+            isCloudLinked={onboarding.isCloudLinked}
+            existingStores={onboarding.existingStores}
+          />
+        )}
+
+        {onboarding.onboardingStep === "cloud" && (
+          <CloudStep
+            onCloudRestore={onboarding.handleCloudRestore}
+            isLoading={onboarding.isLoading}
+            onGoToRegister={onboarding.goToRegister}
+            onGoToBackup={() => onboarding.setStep("backup")}
+            header={authHeader}
+          />
+        )}
+
+        {onboarding.onboardingStep === "backup" && (
+          <BackupStep
+            onCancel={() => onboarding.setStep("welcome")}
+            onRestore={onboarding.handleLocalRestore}
+            onGoToCloud={() => onboarding.setStep("cloud")}
+            isLoading={onboarding.isLoading}
+            header={authHeader}
+          />
+        )}
+
+        {onboarding.onboardingStep === "syncing" && (
+          <SyncingStep
+            progress={onboarding.syncProgress}
+            status={onboarding.syncStatus}
+          />
+        )}
+
+        {onboarding.onboardingStep === "select-store" && (
+          <SelectStoreStep
+            stores={onboarding.cloudStores}
+            selectedStoreId={onboarding.selectedStoreId}
+            setSelectedStoreId={onboarding.setSelectedStoreId}
+            onConfirm={onboarding.handleSelectStoreConfirm}
+            onCancel={() => onboarding.setStep("cloud")}
+            isLoading={onboarding.isLoading}
+          />
+        )}
+      </AnimatePresence>
+
+      <ConfirmDialog
+        open={onboarding.showConfirmSwitch}
+        onOpenChange={(open) => {
+          if (!open) {
+            onboarding.cancelCloudRestoreSwitch();
+          }
+        }}
+        title="Confirm Store Switch"
+        description={
+          <div className="space-y-3 text-sm leading-relaxed text-muted-foreground">
+            <p>
+              This device is already configured with local data for{" "}
+              <strong className="text-foreground font-semibold">
+                &ldquo;{onboarding.pendingStoreName}&rdquo;
+              </strong>
+              .
+            </p>
+            <p>
+              Syncing a different store will{" "}
+              <strong className="text-destructive font-semibold">
+                permanently DELETE
+              </strong>{" "}
+              all current local data (products, batches, sales, and accounts)
+              and replace it with the new store&apos;s data.
+            </p>
+            <p className="font-semibold text-foreground mt-2">
+              Do you want to proceed?
+            </p>
+          </div>
+        }
+        confirmLabel="Wipe & Sync New Store"
+        cancelLabel="Keep Current Store"
+        variant="destructive"
+        onConfirm={onboarding.confirmCloudRestoreSwitch}
+      />
+    </>
+  );
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -70,7 +266,7 @@ export default function LoginPage() {
     step === "cloud" ||
     step === "syncing" ||
     step === "register";
-  const activeTab =
+  const activeTab: "login" | "setup" =
     requestedTab === "setup" && userCount > 0 && !isSafeSetupEntry
       ? "login"
       : requestedTab;
@@ -85,21 +281,14 @@ export default function LoginPage() {
   // /dashboard, which immediately redirected back to /login (no `user`),
   // forever — the flicker loop. When there's no live session, this page
   // renders its own account-tile picker (LockScreen) instead of redirecting.
-  const showAccountSelection =
+  const canHandOffToDashboardLock =
     activeTab === "login" &&
-    isAuthenticated &&
     userCount > 0 &&
     recentUsers.length > 0 &&
     !showTraditionalLogin &&
     !isNewCredentialsMode;
-
-  const showRecentUserSelection =
-    activeTab === "login" &&
-    !isAuthenticated &&
-    userCount > 0 &&
-    recentUsers.length > 0 &&
-    !showTraditionalLogin &&
-    !isNewCredentialsMode;
+  const showAccountSelection = canHandOffToDashboardLock && isAuthenticated;
+  const showRecentUserSelection = canHandOffToDashboardLock && !isAuthenticated;
 
   useEffect(() => {
     if (showAccountSelection) {
@@ -115,10 +304,10 @@ export default function LoginPage() {
     );
   }
 
-  const showBack =
-    activeTab === "setup"
-      ? onboarding.onboardingStep !== "syncing"
-      : !recentUsers.length || showTraditionalLogin || isNewCredentialsMode;
+  const setupAllowsBack = onboarding.onboardingStep !== "syncing";
+  const loginAllowsBack =
+    !recentUsers.length || showTraditionalLogin || isNewCredentialsMode;
+  const showBack = activeTab === "setup" ? setupAllowsBack : loginAllowsBack;
 
   const handleBack = () => {
     if (activeTab === "setup") {
@@ -143,20 +332,36 @@ export default function LoginPage() {
   const isCardSetupStep =
     onboarding.onboardingStep === "cloud" ||
     onboarding.onboardingStep === "backup";
+  const headerVariant: "card" | "standalone" =
+    activeTab === "login" || isCardSetupStep ? "card" : "standalone";
+  const headerActiveTab: "login" | "setup" =
+    activeTab === "login" ? "login" : "setup";
 
   // Header (Back + Login/Setup switcher) is hidden entirely for ?mode=new —
   // a lone back arrow with no switcher looked unbalanced, especially on
   // mobile. The way off this screen instead is a secondary "Cancel" button
   // in the login form itself (see TraditionalLoginForm's onCancel).
-  const authHeader = !isNewCredentialsMode ? (
+  const authHeader = isNewCredentialsMode ? null : (
     <AuthTabHeader
-      variant={activeTab === "login" || isCardSetupStep ? "card" : "standalone"}
-      active={activeTab === "login" ? "login" : "setup"}
+      variant={headerVariant}
+      active={headerActiveTab}
       showBack={showBack}
       onBack={handleBack}
       setupHref={setupHref}
     />
-  ) : null;
+  );
+
+  // ?mode=new only re-authenticates as a different existing user on an
+  // already-set-up device — registering, cloud setup, and cancelling all
+  // mean something else there (or nothing), so these are only wired up
+  // outside that mode.
+  const registerHandler = isNewCredentialsMode
+    ? undefined
+    : onboarding.goToRegister;
+  const cloudSetupHandler = isNewCredentialsMode
+    ? undefined
+    : () => onboarding.setStep("cloud");
+  const cancelHandler = isNewCredentialsMode ? handleBack : undefined;
 
   return (
     <div
@@ -200,152 +405,31 @@ export default function LoginPage() {
         className="w-full h-full sm:h-auto sm:max-w-md z-10 flex flex-col mx-auto"
       >
         {activeTab === "login" ? (
-          <AuthCardShell
-            variant="page"
-            header={<div className="px-4">{authHeader}</div>}
-          >
-            {userCount === 0 && (
-              <CardHeader className="pt-8 sm:pt-2 pb-2 items-center text-center">
-                <SetupPromptHeader />
-              </CardHeader>
-            )}
-
-            {userCount === 0 && <SetupPromptContent />}
-
-            {showRecentUserSelection && (
-              <div className="flex-1 flex flex-col pt-1 pb-0 px-4 sm:pb-6 sm:px-6">
-                <LockScreen
-                  recentUsers={recentUsers}
-                  onLoginAsOther={() => setShowTraditionalLogin(true)}
-                />
-              </div>
-            )}
-
-            {userCount > 0 &&
-              (recentUsers.length === 0 ||
-                showTraditionalLogin ||
-                isNewCredentialsMode) && (
-                <TraditionalLoginForm
-                  username={username}
-                  setUsername={setUsername}
-                  pin={pin}
-                  setPin={setPin}
-                  isLoading={isLoading}
-                  hasError={hasError}
-                  onSubmit={handleLogin}
-                  onGoToRegister={
-                    isNewCredentialsMode ? undefined : onboarding.goToRegister
-                  }
-                  onGoToCloud={
-                    isNewCredentialsMode
-                      ? undefined
-                      : () => onboarding.setStep("cloud")
-                  }
-                  onCancel={isNewCredentialsMode ? handleBack : undefined}
-                />
-              )}
-          </AuthCardShell>
+          <LoginTab
+            authHeader={authHeader}
+            userCount={userCount}
+            showRecentUserSelection={showRecentUserSelection}
+            recentUsers={recentUsers}
+            showTraditionalLogin={showTraditionalLogin}
+            isNewCredentialsMode={isNewCredentialsMode}
+            username={username}
+            setUsername={setUsername}
+            pin={pin}
+            setPin={setPin}
+            isLoading={isLoading}
+            hasError={hasError}
+            handleLogin={handleLogin}
+            setShowTraditionalLogin={setShowTraditionalLogin}
+            onGoToRegister={registerHandler}
+            onGoToCloud={cloudSetupHandler}
+            onCancel={cancelHandler}
+          />
         ) : (
-          <>
-            {/* Cloud Restore and Local Backup get the header injected inside
-                their own Card (see isCardSetupStep) for consistency with the
-                login tab. Every other setup step renders a more complex
-                layout the header can't be injected into, so it floats above
-                instead. */}
-            {!isCardSetupStep && authHeader}
-
-            <AnimatePresence mode="wait">
-              {onboarding.onboardingStep === "welcome" && (
-                <WelcomeStep
-                  onSetStep={onboarding.setStep}
-                  onGoToRegister={onboarding.goToRegister}
-                />
-              )}
-
-              {onboarding.onboardingStep === "register" && (
-                <RegisterStep
-                  onRegister={onboarding.handleRegister}
-                  isLoading={onboarding.isLoading}
-                  isCloudLinked={onboarding.isCloudLinked}
-                  existingStores={onboarding.existingStores}
-                />
-              )}
-
-              {onboarding.onboardingStep === "cloud" && (
-                <CloudStep
-                  onCloudRestore={onboarding.handleCloudRestore}
-                  isLoading={onboarding.isLoading}
-                  onGoToRegister={onboarding.goToRegister}
-                  onGoToBackup={() => onboarding.setStep("backup")}
-                  header={authHeader}
-                />
-              )}
-
-              {onboarding.onboardingStep === "backup" && (
-                <BackupStep
-                  onCancel={() => onboarding.setStep("welcome")}
-                  onRestore={onboarding.handleLocalRestore}
-                  onGoToCloud={() => onboarding.setStep("cloud")}
-                  isLoading={onboarding.isLoading}
-                  header={authHeader}
-                />
-              )}
-
-              {onboarding.onboardingStep === "syncing" && (
-                <SyncingStep
-                  progress={onboarding.syncProgress}
-                  status={onboarding.syncStatus}
-                />
-              )}
-
-              {onboarding.onboardingStep === "select-store" && (
-                <SelectStoreStep
-                  stores={onboarding.cloudStores}
-                  selectedStoreId={onboarding.selectedStoreId}
-                  setSelectedStoreId={onboarding.setSelectedStoreId}
-                  onConfirm={onboarding.handleSelectStoreConfirm}
-                  onCancel={() => onboarding.setStep("cloud")}
-                  isLoading={onboarding.isLoading}
-                />
-              )}
-            </AnimatePresence>
-
-            <ConfirmDialog
-              open={onboarding.showConfirmSwitch}
-              onOpenChange={(open) => {
-                if (!open) {
-                  onboarding.cancelCloudRestoreSwitch();
-                }
-              }}
-              title="Confirm Store Switch"
-              description={
-                <div className="space-y-3 text-sm leading-relaxed text-muted-foreground">
-                  <p>
-                    This device is already configured with local data for{" "}
-                    <strong className="text-foreground font-semibold">
-                      &ldquo;{onboarding.pendingStoreName}&rdquo;
-                    </strong>
-                    .
-                  </p>
-                  <p>
-                    Syncing a different store will{" "}
-                    <strong className="text-destructive font-semibold">
-                      permanently DELETE
-                    </strong>{" "}
-                    all current local data (products, batches, sales, and
-                    accounts) and replace it with the new store&apos;s data.
-                  </p>
-                  <p className="font-semibold text-foreground mt-2">
-                    Do you want to proceed?
-                  </p>
-                </div>
-              }
-              confirmLabel="Wipe & Sync New Store"
-              cancelLabel="Keep Current Store"
-              variant="destructive"
-              onConfirm={onboarding.confirmCloudRestoreSwitch}
-            />
-          </>
+          <SetupTab
+            isCardSetupStep={isCardSetupStep}
+            authHeader={authHeader}
+            onboarding={onboarding}
+          />
         )}
       </motion.div>
     </div>

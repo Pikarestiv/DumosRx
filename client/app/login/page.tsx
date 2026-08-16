@@ -2,13 +2,14 @@
 
 import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Card, CardHeader } from "@/components/ui/card";
-import { Lock, Loader2 } from "lucide-react";
+import { CardHeader } from "@/components/ui/card";
+import { Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { TraditionalLoginForm } from "@/components/auth/traditional-login-form";
 import { LockScreen } from "@/components/auth/lock-screen";
 import { AuthTabHeader } from "@/components/auth/auth-tab-header";
+import { AuthCardShell } from "@/components/auth/auth-card-shell";
 import { useAuth } from "@/lib/context/auth-context";
 import {
   SetupPromptHeader,
@@ -122,6 +123,13 @@ export default function LoginPage() {
   const handleBack = () => {
     if (activeTab === "setup") {
       onboarding.goBack();
+    } else if (isNewCredentialsMode) {
+      // Arrived here via "Login as someone else" — that only calls
+      // unlock() before navigating, it never logs the current user out, so
+      // `user` is still set and /dashboard renders normally. Backing out
+      // just cancels the account switch and resumes the existing session,
+      // rather than going to "/" (which has nothing to do with this flow).
+      router.push("/dashboard");
     } else {
       router.push("/");
     }
@@ -136,6 +144,10 @@ export default function LoginPage() {
     onboarding.onboardingStep === "cloud" ||
     onboarding.onboardingStep === "backup";
 
+  // Header (Back + Login/Setup switcher) is hidden entirely for ?mode=new —
+  // a lone back arrow with no switcher looked unbalanced, especially on
+  // mobile. The way off this screen instead is a secondary "Cancel" button
+  // in the login form itself (see TraditionalLoginForm's onCancel).
   const authHeader = !isNewCredentialsMode ? (
     <AuthTabHeader
       variant={activeTab === "login" || isCardSetupStep ? "card" : "standalone"}
@@ -188,88 +200,51 @@ export default function LoginPage() {
         className="w-full h-full sm:h-auto sm:max-w-md z-10 flex flex-col mx-auto"
       >
         {activeTab === "login" ? (
-          <>
-            <Card className="py-0 flex-1 sm:flex-initial flex flex-col border-none sm:border-solid sm:border-border shadow-[0_-20px_40px_rgba(0,0,0,0.15)] sm:shadow-2xl bg-background sm:bg-card/60 sm:backdrop-blur-2xl rounded-t-[2.5rem] sm:rounded-xl max-h-[85dvh] overflow-y-auto relative">
-              {/* Header: Back + Login/Setup switcher, integrated into the
-                  card itself rather than floating above it. Hidden entirely
-                  for ?mode=new — that flow is for re-authenticating on a
-                  device that's already fully set up, not for someone who
-                  might want to set up a new store. */}
-              <div className="px-4">{authHeader}</div>
+          <AuthCardShell
+            variant="page"
+            header={<div className="px-4">{authHeader}</div>}
+          >
+            {userCount === 0 && (
+              <CardHeader className="pt-8 sm:pt-2 pb-2 items-center text-center">
+                <SetupPromptHeader />
+              </CardHeader>
+            )}
 
-              {/* Desktop Logo */}
-              <div className="hidden sm:flex flex-col items-center pt-6 pb-2">
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{
-                    type: "spring",
-                    stiffness: 260,
-                    damping: 20,
-                    delay: 0.2,
-                  }}
-                  className="mb-1 overflow-hidden"
-                >
-                  <Image
-                    src="/logo.png"
-                    alt="Logo"
-                    width={150}
-                    height={58}
-                    className="object-contain"
-                    style={{ filter: "var(--logo-filter)", height: "auto" }}
-                  />
-                </motion.div>
+            {userCount === 0 && <SetupPromptContent />}
+
+            {showRecentUserSelection && (
+              <div className="flex-1 flex flex-col pt-1 pb-0 px-4 sm:pb-6 sm:px-6">
+                <LockScreen
+                  recentUsers={recentUsers}
+                  onLoginAsOther={() => setShowTraditionalLogin(true)}
+                />
               </div>
-
-              {userCount === 0 && (
-                <CardHeader className="pt-8 sm:pt-2 pb-2 items-center text-center">
-                  <SetupPromptHeader />
-                </CardHeader>
-              )}
-
-              {userCount === 0 && <SetupPromptContent />}
-
-              {showRecentUserSelection && (
-                <div className="flex-1 flex flex-col pt-1 pb-0 px-4 sm:pb-6 sm:px-6">
-                  <LockScreen
-                    recentUsers={recentUsers}
-                    onLoginAsOther={() => setShowTraditionalLogin(true)}
-                  />
-                </div>
-              )}
-
-              {userCount > 0 &&
-                (recentUsers.length === 0 ||
-                  showTraditionalLogin ||
-                  isNewCredentialsMode) && (
-                  <TraditionalLoginForm
-                    username={username}
-                    setUsername={setUsername}
-                    pin={pin}
-                    setPin={setPin}
-                    isLoading={isLoading}
-                    hasError={hasError}
-                    onSubmit={handleLogin}
-                    onGoToRegister={
-                      isNewCredentialsMode ? undefined : onboarding.goToRegister
-                    }
-                    onGoToBackup={
-                      isNewCredentialsMode
-                        ? undefined
-                        : () => onboarding.setStep("backup")
-                    }
-                  />
-                )}
-            </Card>
+            )}
 
             {userCount > 0 &&
-              (showTraditionalLogin || isNewCredentialsMode) && (
-                <div className="hidden sm:flex mt-4 items-center justify-center gap-2 text-xs font-medium text-muted-foreground/60 uppercase tracking-widest">
-                  <Lock className="w-3 h-3" />
-                  Terminal Access • Secure Login
-                </div>
+              (recentUsers.length === 0 ||
+                showTraditionalLogin ||
+                isNewCredentialsMode) && (
+                <TraditionalLoginForm
+                  username={username}
+                  setUsername={setUsername}
+                  pin={pin}
+                  setPin={setPin}
+                  isLoading={isLoading}
+                  hasError={hasError}
+                  onSubmit={handleLogin}
+                  onGoToRegister={
+                    isNewCredentialsMode ? undefined : onboarding.goToRegister
+                  }
+                  onGoToBackup={
+                    isNewCredentialsMode
+                      ? undefined
+                      : () => onboarding.setStep("backup")
+                  }
+                  onCancel={isNewCredentialsMode ? handleBack : undefined}
+                />
               )}
-          </>
+          </AuthCardShell>
         ) : (
           <>
             {/* Cloud Restore and Local Backup get the header injected inside

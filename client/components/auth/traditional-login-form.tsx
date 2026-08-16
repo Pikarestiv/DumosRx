@@ -21,6 +21,7 @@ interface TraditionalLoginFormProps {
   onSubmit: (e: React.FormEvent) => void;
   onGoToRegister?: () => void;
   onGoToBackup?: () => void;
+  onCancel?: () => void;
 }
 
 export function TraditionalLoginForm({
@@ -33,10 +34,11 @@ export function TraditionalLoginForm({
   onSubmit,
   onGoToRegister,
   onGoToBackup,
+  onCancel,
 }: TraditionalLoginFormProps) {
   return (
-    <form onSubmit={onSubmit} className="flex-1 flex flex-col justify-center">
-      <div className="sm:hidden px-10 pb-3 text-center space-y-1.5">
+    <form onSubmit={onSubmit} className="flex flex-col justify-center">
+      <div className="px-10 pb-3 text-center space-y-1.5">
         <h2 className="text-2xl font-bold tracking-tight text-foreground">
           Sign In
         </h2>
@@ -128,6 +130,17 @@ export function TraditionalLoginForm({
           {!!isLoading && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
           {!isLoading && "Authorize Entry"}
         </Button>
+        {onCancel && (
+          <Button
+            type="button"
+            variant="outline"
+            className="h-11 text-base font-medium w-[276px] mx-auto"
+            onClick={onCancel}
+            disabled={isLoading}
+          >
+            Cancel
+          </Button>
+        )}
         {/* <div className="flex items-center gap-2 text-[10px] text-muted-foreground uppercase tracking-widest">
           <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
           System Online • Encrypted Session

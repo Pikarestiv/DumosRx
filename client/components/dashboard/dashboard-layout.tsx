@@ -4,12 +4,10 @@ import type React from "react";
 
 import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import Image from "next/image";
 import { motion } from "framer-motion";
 import { useAuth, type RecentUser } from "@/lib/context/auth-context";
 import { FeedbackForm } from "@/components/feedback/feedback-form";
 import { OnlineOrdersModal } from "@/components/pos/online-orders-modal";
-import { Lock } from "lucide-react";
 import { BroadcastBanner } from "./broadcast-banner";
 import { DashboardHeader } from "./dashboard-header";
 import { DashboardSidebar } from "./dashboard-sidebar";
@@ -35,6 +33,7 @@ import { PullToRefreshIndicator } from "@/components/ui/pull-to-refresh-indicato
 import { sync } from "@/lib/db/sync-engine";
 import { queryClient } from "@/lib/query-client";
 import { LockScreen } from "@/components/auth/lock-screen";
+import { AuthCardShell } from "@/components/auth/auth-card-shell";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -64,7 +63,9 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
   // Selectors, not a destructured whole-store call — see the comment in
   // useAutoLockTimer for why (this component wraps the entire app).
   const isLocked = useAutoLockStore((s) => s.isLocked);
-  const forceAccountSelection = useAutoLockStore((s) => s.forceAccountSelection);
+  const forceAccountSelection = useAutoLockStore(
+    (s) => s.forceAccountSelection,
+  );
   const unlock = useAutoLockStore((s) => s.unlock);
   const [recentUsers, setRecentUsers] = useState<RecentUser[]>([]);
 
@@ -217,38 +218,9 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
             transition={{ duration: 0.5 }}
             className="w-full h-[100dvh] sm:h-auto sm:max-w-md z-10 flex flex-col sm:justify-center"
           >
-            <div className="flex-1 sm:flex-initial flex flex-col rounded-none sm:rounded-xl border-none sm:border-solid border-border shadow-none sm:shadow-2xl bg-transparent sm:bg-card/60 sm:backdrop-blur-2xl text-card-foreground">
-              <div className="space-y-1 flex flex-col items-center text-center pb-2 p-6">
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{
-                    type: "spring",
-                    stiffness: 260,
-                    damping: 20,
-                    delay: 0.2,
-                  }}
-                  className="mb-6 overflow-hidden"
-                >
-                  <Image
-                    src="/logo.png"
-                    alt="Logo"
-                    width={180}
-                    height={70}
-                    className="object-contain"
-                    style={{ filter: "var(--logo-filter)", height: "auto" }}
-                  />
-                </motion.div>
-              </div>
-
-              <div className="flex-1 flex flex-col pt-1 pb-0 px-4 sm:pb-6 sm:px-6">
+            <AuthCardShell variant="overlay">
+              <div className="flex-1 flex flex-col pt-1 pb-0 px-4 sm:py-6 sm:px-6">
                 <LockScreen
-                  // Force a remount when forceAccountSelection flips —
-                  // LockScreen's selectedUser state only reads defaultUser
-                  // on its initial render, so without this key, the fresh-
-                  // load effect (which sets forceAccountSelection true one
-                  // tick after mount, once it knows there are multiple
-                  // recent users) would arrive too late to have any effect.
                   key={forceAccountSelection ? "select" : "default"}
                   recentUsers={recentUsers}
                   defaultUser={
@@ -258,20 +230,12 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
                   }
                   onLoginAsOther={() => {
                     unlock();
-                    // "New credentials" mode — distinct from a plain /login
-                    // visit, which otherwise redirects straight back here
-                    // when recent accounts already exist (see app/login).
                     router.push("/login?mode=new");
                   }}
                   onUnlockSuccess={() => unlock()}
                 />
               </div>
-            </div>
-
-            <div className="mt-4 sm:mt-8 flex items-center justify-center gap-2 text-xs font-medium text-muted-foreground/60 uppercase tracking-widest">
-              <Lock className="w-3 h-3" />
-              Terminal Access • Secure Login
-            </div>
+            </AuthCardShell>
           </motion.div>
         </div>
       )}
@@ -282,10 +246,7 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
         logicalCollapsed={isLogicallyCollapsed}
         onToggleCollapse={handleToggleCollapse}
         onMouseEnter={() =>
-          !isPosRoute &&
-          !isTouchDevice &&
-          peekEnabled &&
-          setHoverExpanded(true)
+          !isPosRoute && !isTouchDevice && peekEnabled && setHoverExpanded(true)
         }
         onMouseLeave={() => setHoverExpanded(false)}
         onUserNavOpenChange={setUserNavOpen}

@@ -236,10 +236,10 @@ export default function LoginPage() {
                   onGoToRegister={
                     isNewCredentialsMode ? undefined : onboarding.goToRegister
                   }
-                  onGoToBackup={
+                  onGoToCloud={
                     isNewCredentialsMode
                       ? undefined
-                      : () => onboarding.setStep("backup")
+                      : () => onboarding.setStep("cloud")
                   }
                   onCancel={isNewCredentialsMode ? handleBack : undefined}
                 />

@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   Drawer,
   DrawerContent,
@@ -10,23 +9,17 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { useStore } from "@/lib/context/store-context";
-import { useQuery } from "@tanstack/react-query";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { getSyncQueueCount } from "@/lib/db/queries/setup";
-import { queryKeys } from "@/lib/query-keys";
 import { useAuth } from "@/lib/context/auth-context";
-import { useAutoLockStore } from "@/lib/hooks/use-auto-lock";
+import { useAccountActions } from "@/lib/hooks/use-account-actions";
+import { UnsyncedLogoutDialog } from "./unsynced-logout-dialog";
 import { SyncIndicator } from "./sync-indicator";
 import { cn } from "@/lib/utils";
 import {
   Wallet,
   BarChart3,
   Settings,
-  LogOut,
-  MessageSquare,
   ClipboardPlus,
   PackagePlus,
-  Repeat,
 } from "lucide-react";
 
 interface MobileMoreDrawerProps {
@@ -41,45 +34,19 @@ export function MobileMoreDrawer({
   onOpenFeedback,
 }: MobileMoreDrawerProps) {
   const pathname = usePathname();
-  const router = useRouter();
   const { storeType } = useStore();
-  const { logout, isAdmin, canManageStockBatch } = useAuth();
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const { isAdmin, canManageStockBatch } = useAuth();
 
-  const { data: pendingCountData } = useQuery({
-    ...queryKeys.sync.queueCount(),
-    queryFn: () => getSyncQueueCount(),
+  const {
+    navActions,
+    pendingCount,
+    showLogoutConfirm,
+    setShowLogoutConfirm,
+    confirmFullLogout,
+  } = useAccountActions({
+    onClose: () => onOpenChange(false),
+    onOpenFeedback,
   });
-  const pendingCount = pendingCountData || 0;
-
-  // Matches user-nav.tsx's desktop "Log out completely" — also clears the
-  // recent-users tile cache, not just the session, so /login lands on the
-  // full username+PIN form rather than the tile picker. Without clearing
-  // that cache, this looked identical to Switch Account (which intentionally
-  // keeps it, since nothing is actually being logged out there).
-  const performFullLogout = () => {
-    localStorage.removeItem("dumos_recent_users");
-    logout();
-    router.push("/login");
-  };
-
-  const handleLogoutAttempt = () => {
-    if (pendingCount > 0) {
-      setShowLogoutConfirm(true);
-    } else {
-      onOpenChange(false);
-      performFullLogout();
-    }
-  };
-
-  // Not destructive — the local session/data stays intact, this just shows
-  // the same lock screen used for idle re-auth, forced to account-selection
-  // mode instead of defaulting to the current user's PIN entry. No
-  // logout/unsynced-changes warning needed since nothing is being cleared.
-  const handleSwitchAccount = () => {
-    onOpenChange(false);
-    useAutoLockStore.getState().lockForSwitch();
-  };
 
   const allModules = [
     ...(storeType === "pharmacy"
@@ -133,30 +100,21 @@ export function MobileMoreDrawer({
             </div>
 
             <div className="my-4 border-t border-border pt-4 space-y-1">
-              <button
-                onClick={() => {
-                  onOpenChange(false);
-                  onOpenFeedback();
-                }}
-                className="w-full flex items-center gap-4 px-4 py-4 rounded-xl font-medium text-foreground hover:bg-muted transition-colors"
-              >
-                <MessageSquare className="h-5 w-5 opacity-90" />
-                <span>Help & Feedback</span>
-              </button>
-              <button
-                onClick={handleSwitchAccount}
-                className="w-full flex items-center gap-4 px-4 py-4 rounded-xl font-medium text-foreground hover:bg-muted transition-colors"
-              >
-                <Repeat className="h-5 w-5 opacity-90" />
-                <span>Switch Account</span>
-              </button>
-              <button
-                onClick={handleLogoutAttempt}
-                className="w-full flex items-center gap-4 px-4 py-4 rounded-xl font-medium text-destructive hover:bg-destructive hover:text-white transition-colors"
-              >
-                <LogOut className="h-5 w-5 opacity-90" />
-                <span>Sign Out</span>
-              </button>
+              {navActions.map((action) => (
+                <button
+                  key={action.key}
+                  onClick={action.onClick}
+                  className={cn(
+                    "w-full flex items-center gap-4 px-4 py-4 rounded-xl font-medium transition-colors",
+                    action.destructive
+                      ? "text-destructive hover:bg-destructive hover:text-white"
+                      : "text-foreground hover:bg-muted",
+                  )}
+                >
+                  <action.icon className="h-5 w-5 opacity-90" />
+                  <span>{action.label}</span>
+                </button>
+              ))}
             </div>
           </div>
 
@@ -166,17 +124,11 @@ export function MobileMoreDrawer({
           </div>
         </DrawerContent>
       </Drawer>
-      <ConfirmDialog
+      <UnsyncedLogoutDialog
         open={showLogoutConfirm}
         onOpenChange={setShowLogoutConfirm}
-        title="Unsynced Changes Detected"
-        description={`You have ${pendingCount} offline transaction${pendingCount > 1 ? "s" : ""} pending sync. If you log out now, another user logging into this device will sync them on their account. Are you sure you want to sign out?`}
-        confirmLabel="Sign Out Anyway"
-        variant="destructive"
-        onConfirm={() => {
-          onOpenChange(false);
-          performFullLogout();
-        }}
+        pendingCount={pendingCount}
+        onConfirm={confirmFullLogout}
       />
     </>
   );

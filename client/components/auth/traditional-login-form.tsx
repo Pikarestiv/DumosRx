@@ -20,7 +20,7 @@ interface TraditionalLoginFormProps {
   hasError?: boolean;
   onSubmit: (e: React.FormEvent) => void;
   onGoToRegister?: () => void;
-  onGoToBackup?: () => void;
+  onGoToCloud?: () => void;
   onCancel?: () => void;
 }
 
@@ -33,7 +33,7 @@ export function TraditionalLoginForm({
   hasError = false,
   onSubmit,
   onGoToRegister,
-  onGoToBackup,
+  onGoToCloud,
   onCancel,
 }: TraditionalLoginFormProps) {
   return (
@@ -47,10 +47,6 @@ export function TraditionalLoginForm({
         </p>
       </div>
       <CardContent className="space-y-3 px-10 sm:pt-4">
-        {/* Username and the PIN boxes share a fixed width (matching the PIN
-            boxes' own natural size) and are centered as a block within the
-            card, independently of the submit button below, which always
-            spans the full card width edge-to-edge. */}
         <div className="space-y-1.5 w-[276px] mx-auto">
           <Label htmlFor="username" className="text-sm font-medium">
             Username
@@ -97,7 +93,7 @@ export function TraditionalLoginForm({
         </div>
       </CardContent>
       <CardFooter className="flex flex-col space-y-4 pt-4 px-10 pb-6">
-        {(onGoToRegister || onGoToBackup) && (
+        {(onGoToRegister || onGoToCloud) && (
           <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-center text-sm text-muted-foreground">
             {onGoToRegister && (
               <button
@@ -108,16 +104,16 @@ export function TraditionalLoginForm({
                 Create account
               </button>
             )}
-            {onGoToRegister && onGoToBackup && (
+            {onGoToRegister && onGoToCloud && (
               <span className="text-muted-foreground/40">•</span>
             )}
-            {onGoToBackup && (
+            {onGoToCloud && (
               <button
                 type="button"
-                onClick={onGoToBackup}
+                onClick={onGoToCloud}
                 className="text-primary hover:underline font-semibold animate-pulse hover:animate-none bg-transparent border-0 p-0 cursor-pointer"
               >
-                Restore Backup
+                Cloud Setup
               </button>
             )}
           </div>

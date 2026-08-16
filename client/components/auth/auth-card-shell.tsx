@@ -51,7 +51,7 @@ export function AuthCardShell({
           className={cn(
             "flex flex-col items-center overflow-hidden",
             isOverlay
-              ? "text-center pb-2 p-6 flex sm:hidden"
+              ? "text-center pb-2 p-0 flex sm:hidden"
               : "hidden sm:flex pt-6 pb-2",
           )}
         >

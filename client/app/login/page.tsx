@@ -120,9 +120,9 @@ interface SetupTabProps {
 function SetupTab({ isCardSetupStep, authHeader, onboarding }: SetupTabProps) {
   return (
     <>
-      {/* Cloud Restore and Local Backup get the header injected inside
-          their own Card (see isCardSetupStep) for consistency with the
-          login tab. Every other setup step renders a more complex
+      {/* Cloud Restore, Local Backup, and Register get the header injected
+          inside their own Card (see isCardSetupStep) for consistency with
+          the login tab. Every other setup step renders a more complex
           layout the header can't be injected into, so it floats above
           instead. */}
       {!isCardSetupStep && authHeader}
@@ -141,6 +141,7 @@ function SetupTab({ isCardSetupStep, authHeader, onboarding }: SetupTabProps) {
             isLoading={onboarding.isLoading}
             isCloudLinked={onboarding.isCloudLinked}
             existingStores={onboarding.existingStores}
+            header={authHeader}
           />
         )}
 
@@ -324,14 +325,15 @@ export default function LoginPage() {
     }
   };
 
-  // Cloud Restore and Local Backup are the two setup steps that render a
-  // single simple Card (like the login tab), so the tab header is injected
-  // inside their Card for visual consistency. Other setup steps (welcome,
-  // register, select-store, syncing) have more complex/multi-card layouts,
+  // Cloud Restore, Local Backup, and Register are the setup steps that
+  // render a single simple Card (like the login tab), so the tab header is
+  // injected inside their Card for visual consistency. Other setup steps
+  // (welcome, select-store, syncing) have more complex/multi-card layouts,
   // so the header stays floated above them.
   const isCardSetupStep =
     onboarding.onboardingStep === "cloud" ||
-    onboarding.onboardingStep === "backup";
+    onboarding.onboardingStep === "backup" ||
+    onboarding.onboardingStep === "register";
   const headerVariant: "card" | "standalone" =
     activeTab === "login" || isCardSetupStep ? "card" : "standalone";
   const headerActiveTab: "login" | "setup" =
@@ -365,7 +367,7 @@ export default function LoginPage() {
 
   return (
     <div
-      className="fixed inset-0 flex flex-col sm:items-center sm:justify-center p-0 sm:p-4 overflow-y-auto bg-background"
+      className="fixed inset-0 flex flex-col sm:items-center sm:justify-center p-0 sm:p-4 overflow-hidden bg-background"
       style={{
         paddingTop: "calc(var(--tauri-top, env(safe-area-inset-top, 0px)))",
         paddingBottom:

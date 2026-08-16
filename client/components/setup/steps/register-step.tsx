@@ -44,6 +44,7 @@ interface RegisterStepProps {
   isLoading: boolean;
   isCloudLinked?: boolean;
   existingStores?: StoreOption[];
+  header?: React.ReactNode;
 }
 
 export function RegisterStep({
@@ -51,6 +52,7 @@ export function RegisterStep({
   isLoading,
   isCloudLinked,
   existingStores = [],
+  header,
 }: RegisterStepProps) {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -97,6 +99,7 @@ export function RegisterStep({
       className="flex-1 flex flex-col w-full"
     >
       <Card className="p-0 flex-1 sm:flex-initial flex flex-col border-none sm:border-solid sm:border-border shadow-[0_-20px_40px_rgba(0,0,0,0.15)] sm:shadow-2xl bg-background sm:bg-card/60 sm:backdrop-blur-2xl rounded-t-[2.5rem] sm:rounded-xl max-h-[85dvh] overflow-y-auto relative">
+        {header}
         <CardHeader className="space-y-1 flex flex-col items-center text-center pb-1 pt-4">
           <div className="hidden md:flex w-10 h-10 rounded-xl bg-primary/10 items-center justify-center mb-2">
             <UserPlus className="h-5 w-5 text-primary" />

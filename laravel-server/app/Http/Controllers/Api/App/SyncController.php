@@ -516,6 +516,14 @@ class SyncController extends Controller
 
                         if ($isOlder) {
                             Log::info("Sync push: Ignored older update for {$change['table_name']} {$recordId}");
+                            // Must close the per-change savepoint opened above
+                            // before skipping to the next change — a bare
+                            // `continue` here left it dangling every time an
+                            // older update was ignored (a routine, expected
+                            // occurrence in multi-device sync, not an edge
+                            // case), stacking unclosed savepoints for the
+                            // rest of the request.
+                            DB::commit();
                             continue;
                         }
 

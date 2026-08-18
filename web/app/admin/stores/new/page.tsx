@@ -29,6 +29,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAdminStore } from "@/lib/store/use-admin-store";
 
@@ -56,6 +57,7 @@ const registerSchema = z
       .string()
       .min(8, { message: "Password must be at least 8 characters" }),
     password_confirmation: z.string(),
+    is_demo: z.boolean(),
   })
   .refine((data) => data.password === data.password_confirmation, {
     message: "Passwords do not match",
@@ -79,6 +81,7 @@ export default function AdminNewStorePage() {
       pin: "",
       password: "",
       password_confirmation: "",
+      is_demo: false,
     },
   });
 
@@ -343,6 +346,29 @@ export default function AdminNewStorePage() {
                 )}
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="is_demo"
+              render={({ field }) => (
+                <FormItem className="flex items-center justify-between rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 p-4">
+                  <div>
+                    <FormLabel className="text-slate-900 dark:text-white font-bold">
+                      Demo account
+                    </FormLabel>
+                    <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">
+                      Flags this store as a demo account so it can be seeded with demo data from the client app.
+                    </p>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
 
             <div className="flex justify-end pt-4">
               <Button

@@ -11,6 +11,7 @@ import { AppearanceSettings } from "@/components/settings/appearance-settings";
 import { StoreSettings } from "@/components/settings/store-settings";
 import { AlertSettings } from "@/components/settings/alert-settings";
 import { DataSettings } from "@/components/settings/data-settings";
+import { DemoDataSettings } from "@/components/settings/demo-data-settings";
 import { SecuritySettings } from "@/components/settings/security-settings";
 import { SystemSettings } from "@/components/settings/system-settings";
 import { useSettings } from "@/hooks/use-settings";
@@ -248,6 +249,9 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
                   setIsCloudLinkOpen={setIsCloudLinkOpen}
                   setSyncAfterLink={setSyncAfterLink}
                 />
+                <div className="mt-6">
+                  <DemoDataSettings />
+                </div>
               </TabsContent>
             )}
 

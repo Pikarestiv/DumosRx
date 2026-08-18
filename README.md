@@ -119,6 +119,7 @@ All deployment is via GitHub Actions (`.github/workflows/`), FTP-syncing static 
 | `web/` | push to `main` | `dumosrx.com` |
 | `laravel-server/` | push to `main` | `api.dumosrx.com` |
 | `web/` + `laravel-server/` | push to `dev` | `dev.dumosrx.com` / `api.dev.dumosrx.com` |
+| `client/` (web build) | push to `dev` | `app.dev.dumosrx.com` |
 | `client/` (Tauri desktop/Android) | git tag `v*` | GitHub Releases + in-app updater |
 
 Branch convention: feature work merges into `dev`; a `dev → main` PR is raised when a batch is ready to release.

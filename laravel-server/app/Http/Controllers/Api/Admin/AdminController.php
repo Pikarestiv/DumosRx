@@ -122,6 +122,7 @@ class AdminController extends Controller
             'email' => 'required|email|unique:users,email',
             'phone' => 'required|string|min:10',
             'password' => 'required|string|min:8',
+            'is_demo' => 'nullable|boolean',
         ]);
 
         try {
@@ -509,6 +510,60 @@ class AdminController extends Controller
         } catch (\Exception $e) {
             Log::error("Admin Unsuspend Error: " . $e->getMessage());
             return response()->json(['error' => 'Failed to unsuspend store'], 500);
+        }
+    }
+
+    #[OA\Post(
+        path: '/admin/stores/{id}/mark-demo',
+        summary: 'Flag a store as a demo account',
+        tags: ['Admin'],
+        security: [['sanctum' => []]],
+        parameters: [new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
+        responses: [
+            new OA\Response(response: 200, description: 'Marked', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
+        ],
+    )]
+    public function markStoreDemo(Request $request, $id)
+    {
+        if (!$request->user()->hasRole('super_admin')) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        try {
+            $this->adminService->markStoreDemo($id);
+            return response()->json(['message' => 'Store marked as demo']);
+        } catch (\Exception $e) {
+            Log::error("Admin Mark Demo Error: " . $e->getMessage());
+            return response()->json(['error' => 'Failed to mark store as demo'], 500);
+        }
+    }
+
+    #[OA\Post(
+        path: '/admin/stores/{id}/unmark-demo',
+        summary: 'Remove the demo flag from a store',
+        tags: ['Admin'],
+        security: [['sanctum' => []]],
+        parameters: [new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
+        responses: [
+            new OA\Response(response: 200, description: 'Unmarked', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
+        ],
+    )]
+    public function unmarkStoreDemo(Request $request, $id)
+    {
+        if (!$request->user()->hasRole('super_admin')) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        try {
+            $this->adminService->unmarkStoreDemo($id);
+            return response()->json(['message' => 'Demo flag removed']);
+        } catch (\Exception $e) {
+            Log::error("Admin Unmark Demo Error: " . $e->getMessage());
+            return response()->json(['error' => 'Failed to remove demo flag'], 500);
         }
     }
 

@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { useAdminStores, useSuspendStoreMutation, useUnsuspendStoreMutation, useImpersonateStoreMutation, useGrantTrialMutation } from "@/lib/api/admin-hooks";
+import { useAdminStores, useSuspendStoreMutation, useUnsuspendStoreMutation, useImpersonateStoreMutation, useGrantTrialMutation, useMarkStoreDemoMutation, useUnmarkStoreDemoMutation } from "@/lib/api/admin-hooks";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useDebounce } from "@/hooks/use-debounce";
 import { StoreTable } from "@/components/admin/stores/store-table";
@@ -46,6 +46,8 @@ export default function StoresManagement() {
   const unsuspendMutation = useUnsuspendStoreMutation();
   const impersonateMutation = useImpersonateStoreMutation();
   const grantTrialMutation = useGrantTrialMutation();
+  const markDemoMutation = useMarkStoreDemoMutation();
+  const unmarkDemoMutation = useUnmarkStoreDemoMutation();
 
   useEffect(() => {
     if (initialSearch && initialSearch !== search) {
@@ -165,6 +167,23 @@ export default function StoresManagement() {
     });
   };
 
+  const handleToggleDemo = (store: AdminStoreSummary) => {
+    const mutation = store.is_demo ? unmarkDemoMutation : markDemoMutation;
+    mutation.mutate(store.id, {
+      onSuccess: () => {
+        toast.success(store.is_demo ? "Demo Flag Removed" : "Marked as Demo", {
+          description: `${store.name} ${store.is_demo ? "is no longer" : "is now"} flagged as a demo account.`,
+        });
+        refetch();
+      },
+      onError: (err) => {
+        toast.error("Action Failed", {
+          description: err.message || "Failed to update demo flag.",
+        });
+      }
+    });
+  };
+
   const handleViewBilling = (store: AdminStoreSummary) => {
     toast.info("Billing History", {
       description: `Fetching billing records for ${store.name}...`,
@@ -242,6 +261,7 @@ export default function StoresManagement() {
               setIsTrialDialogOpen={setIsTrialDialogOpen}
               setIsViewDialogOpen={setIsViewDialogOpen}
               handleUnsuspend={handleUnsuspend}
+              handleToggleDemo={handleToggleDemo}
               router={router}
             />
             )}

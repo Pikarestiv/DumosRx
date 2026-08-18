@@ -51,6 +51,7 @@ export interface StoreProfile {
   license_token?: string;
   last_monotonic_time?: string;
   device_id?: string;
+  is_demo?: number;
 }
 
 interface StoreContextType {

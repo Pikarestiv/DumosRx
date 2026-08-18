@@ -287,6 +287,7 @@ class AdminService
                     'stores' => 1,
                     'revenue' => '₦'.number_format($store->total_revenue ?? 0),
                     'date' => $store->created_at->format('M d, Y'),
+                    'is_demo' => (bool) $store->is_demo,
                 ];
             }),
             'meta' => [
@@ -785,6 +786,7 @@ class AdminService
                 'device_id' => 'WEB-'.strtoupper(Str::random(8)),
                 'status' => 'Active',
                 'auto_sync_enabled' => true,
+                'is_demo' => !empty($data['is_demo']),
             ]);
 
             // Create trial subscription
@@ -848,6 +850,42 @@ class AdminService
                 'user_id' => Auth::id(),
                 'action' => 'ACCOUNT_UNSUSPENSION',
                 'description' => "Unsuspended store account: {$store->name} ({$store->id})",
+                'status' => 'success',
+            ]);
+
+            return true;
+        });
+    }
+
+    public function markStoreDemo($id)
+    {
+        return DB::transaction(function () use ($id) {
+            $store = Store::findOrFail($id);
+            $store->is_demo = true;
+            $store->save();
+
+            ActivityLog::create([
+                'user_id' => Auth::id(),
+                'action' => 'STORE_MARKED_DEMO',
+                'description' => "Marked store account as demo: {$store->name} ({$store->id})",
+                'status' => 'success',
+            ]);
+
+            return true;
+        });
+    }
+
+    public function unmarkStoreDemo($id)
+    {
+        return DB::transaction(function () use ($id) {
+            $store = Store::findOrFail($id);
+            $store->is_demo = false;
+            $store->save();
+
+            ActivityLog::create([
+                'user_id' => Auth::id(),
+                'action' => 'STORE_UNMARKED_DEMO',
+                'description' => "Unmarked store account as demo: {$store->name} ({$store->id})",
                 'status' => 'success',
             ]);
 

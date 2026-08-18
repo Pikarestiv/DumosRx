@@ -404,6 +404,7 @@ export async function initDatabase(): Promise<any> {
         "online_store_enabled INTEGER DEFAULT 0",
         "registration_number TEXT",
         "custom_units TEXT DEFAULT '[]'",
+        "is_demo INTEGER DEFAULT 0",
       ],
     },
     {

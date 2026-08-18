@@ -52,6 +52,48 @@ jobs:
             **/.git*/**
             **/node_modules/**
 
+  deploy-client:
+    name: Build & Deploy Client App (Dev)
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🚚 Get latest code
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8 # v4.0.2
+        with:
+          node-version: 20
+          cache: "npm"
+          cache-dependency-path: client/package-lock.json
+
+      - name: 📦 Install Dependencies
+        run: |
+          cd client
+          rm package-lock.json
+          npm install --legacy-peer-deps
+
+      - name: 🏗️ Build Application
+        run: |
+          cd client
+          npm run build
+        env:
+          NEXT_PUBLIC_API_URL: https://api.dev.dumosrx.com/api/v1
+          NEXT_PUBLIC_SENTRY_DSN: https://8be353a77abf446cb9f6a52e08fb89b3@o4511910923796480.ingest.us.sentry.io/4511910931464192
+          NEXT_PUBLIC_SENTRY_ENVIRONMENT: development
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          # Ignore SSL errors during build (since the dev subdomain might still be provisioning AutoSSL)
+          NODE_TLS_REJECT_UNAUTHORIZED: "0"
+
+      - name: 📂 Sync files
+        uses: SamKirkland/FTP-Deploy-Action@8e83cea8672e3fbcbb9fdafff34debf6ae4c5f65 # v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          server-dir: /app.dev.dumosrx.com/
+          local-dir: ./client/out/
+          timeout: 1200000
+
   deploy-backend:
     name: Build & Deploy Backend (Dev)
     runs-on: ubuntu-latest

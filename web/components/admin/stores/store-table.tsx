@@ -8,6 +8,7 @@ import {
   Store as StoreIcon,
   CheckCircle,
   Gift,
+  FlaskConical,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -41,6 +42,7 @@ interface StoreTableProps {
   setIsTrialDialogOpen: (open: boolean) => void;
   setIsViewDialogOpen: (open: boolean) => void;
   handleUnsuspend: (store: AdminStoreSummary) => void;
+  handleToggleDemo: (store: AdminStoreSummary) => void;
   router: AppRouterInstance;
 }
 
@@ -54,6 +56,7 @@ export function StoreTable({
   setIsTrialDialogOpen,
   setIsViewDialogOpen,
   handleUnsuspend,
+  handleToggleDemo,
   router,
 }: StoreTableProps) {
   // Suspend/unsuspend is super_admin-exclusive server-side — hiding it for
@@ -100,9 +103,20 @@ export function StoreTable({
                   {store.name.charAt(0)}
                 </div>
                 <div className="flex flex-col">
-                  <span className="font-bold text-slate-900 dark:text-slate-100 group-hover:text-indigo-600 transition-colors">
-                    {store.name}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-slate-900 dark:text-slate-100 group-hover:text-indigo-600 transition-colors">
+                      {store.name}
+                    </span>
+                    {store.is_demo && (
+                      <Badge
+                        variant="outline"
+                        className="bg-purple-50 text-purple-600 border-purple-100 dark:bg-purple-500/10 dark:border-purple-500/20 font-bold text-[9px] py-0 px-1.5 gap-1"
+                      >
+                        <FlaskConical className="h-2.5 w-2.5" />
+                        Demo
+                      </Badge>
+                    )}
+                  </div>
                   <span className="text-[10px] font-mono text-slate-400 uppercase tracking-tighter">
                     {store.id}
                   </span>
@@ -216,6 +230,13 @@ export function StoreTable({
                   {isSuperAdmin && (
                     <>
                       <DropdownMenuSeparator className="my-2 bg-slate-100 dark:bg-slate-800" />
+                      <DropdownMenuItem
+                        className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold text-purple-500 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-500/10 transition-colors"
+                        onClick={() => handleToggleDemo(store)}
+                      >
+                        <FlaskConical className="h-4 w-4" />
+                        {store.is_demo ? "Unmark as Demo" : "Mark as Demo"}
+                      </DropdownMenuItem>
                       {store.status === "Suspended" ? (
                         <DropdownMenuItem
                           className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors"

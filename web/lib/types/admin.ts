@@ -28,6 +28,7 @@ export interface AdminStoreSummary {
   date: string;
   stores?: number;
   revenue?: string;
+  is_demo?: boolean;
 }
 
 export interface SecurityAlert {

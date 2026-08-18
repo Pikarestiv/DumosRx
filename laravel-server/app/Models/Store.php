@@ -46,6 +46,7 @@ class Store extends Model
         '_synced_at',
         'status',
         'suspension_reason',
+        'is_demo',
         'show_retail_suggestions',
         'require_payment_account',
         'enabled_payment_methods',
@@ -58,6 +59,7 @@ class Store extends Model
         'custom_units' => 'array',
         'require_payment_account' => 'boolean',
         'online_store_enabled' => 'boolean',
+        'is_demo' => 'boolean',
         'last_sync_at' => 'datetime',
         '_synced_at' => 'datetime',
     ];

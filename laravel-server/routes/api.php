@@ -128,6 +128,8 @@ Route::prefix('v1')->group(function () {
             Route::post('/stores', [AdminController::class, 'registerStore']);
             Route::post('/stores/{id}/suspend', [AdminController::class, 'suspendStore']);
             Route::post('/stores/{id}/unsuspend', [AdminController::class, 'unsuspendStore']);
+            Route::post('/stores/{id}/mark-demo', [AdminController::class, 'markStoreDemo']);
+            Route::post('/stores/{id}/unmark-demo', [AdminController::class, 'unmarkStoreDemo']);
             Route::post('/stores/{id}/grant-trial', [AdminController::class, 'grantTrial']);
             Route::post('/users/{id}/grant-trial', [AdminController::class, 'grantUserTrial']);
             Route::get('/products', [AdminController::class, 'products']);

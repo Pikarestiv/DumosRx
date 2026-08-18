@@ -130,6 +130,30 @@ export const useUnsuspendStoreMutation = () => {
   });
 };
 
+export const useMarkStoreDemoMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      webApiClient.request<unknown>(`admin/stores/${id}/mark-demo`, { method: "POST" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-stores"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
+    },
+  });
+};
+
+export const useUnmarkStoreDemoMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      webApiClient.request<unknown>(`admin/stores/${id}/unmark-demo`, { method: "POST" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-stores"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
+    },
+  });
+};
+
 export const useGrantTrialMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({

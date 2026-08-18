@@ -88,7 +88,7 @@ export function CloudStep({
               />
             </div>
           </CardContent>
-          <CardFooter className="flex flex-col gap-y-4 mt-6 mb-8 sm:mb-4">
+          <CardFooter className="flex flex-col gap-y-4 mt-6 mb-8 sm:mb-4 p-0">
             <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-center text-sm text-muted-foreground">
               <button
                 type="button"

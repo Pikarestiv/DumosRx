@@ -60,7 +60,7 @@ export function BackupStep({
             Restore from a previous backup file
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           <div
             className={`flex flex-col items-center justify-center border-2 border-dashed border-border rounded-xl p-4 md:p-8 transition-colors ${isLoading ? "bg-background/10 cursor-not-allowed opacity-70" : "bg-background/30 hover:bg-background/50 cursor-pointer group"}`}
             onClick={() => {
@@ -98,7 +98,7 @@ export function BackupStep({
             )}
           </div>
         </CardContent>
-        <CardFooter className="flex flex-col space-y-4 mb-12 sm:mb-0">
+        <CardFooter className="flex flex-col space-y-4 mb-12 sm:mb-0 p-0">
           <Button
             variant="outline"
             className="w-full h-11"

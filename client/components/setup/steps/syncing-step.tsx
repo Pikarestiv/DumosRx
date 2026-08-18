@@ -18,6 +18,19 @@ interface SyncingStepProps {
   header?: React.ReactNode;
 }
 
+const SyncingVisual = () => (
+  <div className="flex justify-center relative">
+    <div className="absolute inset-0 flex items-center justify-center animate-pulse">
+      <div className="w-24 h-24 rounded-full bg-primary/5 blur-xl" />
+    </div>
+    <div className="relative flex items-center gap-4 bg-background/50 p-4 rounded-2xl border border-primary/20">
+      <Cloud className="h-8 w-8 text-primary animate-bounce" />
+      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+      <Database className="h-8 w-8 text-accent animate-pulse" />
+    </div>
+  </div>
+);
+
 export function SyncingStep({ progress, status, header }: SyncingStepProps) {
   return (
     <motion.div
@@ -27,18 +40,8 @@ export function SyncingStep({ progress, status, header }: SyncingStepProps) {
       exit={{ opacity: 0, scale: 1.1 }}
       className="flex-1 flex flex-col w-full"
     >
-      <AuthCardShell variant="page" header={header} padding="py-5" icon={null}>
-        <CardHeader className="text-center pb-2">
-          <div className="flex justify-center mb-8 relative">
-            <div className="absolute inset-0 flex items-center justify-center animate-pulse">
-              <div className="w-24 h-24 rounded-full bg-primary/5 blur-xl" />
-            </div>
-            <div className="relative flex items-center gap-4 bg-background/50 p-4 rounded-2xl border border-primary/20">
-              <Cloud className="h-8 w-8 text-primary animate-bounce" />
-              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-              <Database className="h-8 w-8 text-accent animate-pulse" />
-            </div>
-          </div>
+      <AuthCardShell variant="page" header={header} icon={<SyncingVisual />}>
+        <CardHeader className="text-center p-0">
           <CardTitle className="text-2xl font-bold tracking-tight">
             Synchronizing Data
           </CardTitle>
@@ -46,16 +49,14 @@ export function SyncingStep({ progress, status, header }: SyncingStepProps) {
             Bringing your DumosRx cloud environment to this device
           </CardDescription>
         </CardHeader>
-        <CardContent className="pt-10 pb-8 space-y-6">
+        <CardContent className="p-0 space-y-6">
           <div className="space-y-2">
             <div className="flex justify-between text-xs font-medium">
               <span className="text-muted-foreground flex items-center gap-2">
-                {progress < 100 && (
-                                                <Loader2 className="h-3 w-3 animate-spin" />
-                                              )}
-                              {!(progress < 100) && (
-                                                <CheckCircle2 className="h-3 w-3 text-green-500" />
-                                              )}
+                {progress < 100 && <Loader2 className="h-3 w-3 animate-spin" />}
+                {!(progress < 100) && (
+                  <CheckCircle2 className="h-3 w-3 text-green-500" />
+                )}
                 {status}
               </span>
               <span className="text-primary font-bold">{progress}%</span>
@@ -72,7 +73,7 @@ export function SyncingStep({ progress, status, header }: SyncingStepProps) {
             </p>
           </div>
         </CardContent>
-        <CardFooter className="pb-8 justify-center">
+        <CardFooter className="mb-16 sm:mb-0 p-0 justify-center">
           <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-muted-foreground/40 flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-primary/40" />
             Secure End-to-End Encryption

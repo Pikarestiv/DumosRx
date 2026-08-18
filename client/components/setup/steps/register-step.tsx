@@ -101,7 +101,6 @@ export function RegisterStep({
       <AuthCardShell
         variant="page"
         header={header}
-        padding="p-4 sm:p-6"
         icon={
           <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
             <UserPlus className="h-5 w-5 text-primary" />

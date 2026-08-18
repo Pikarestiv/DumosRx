@@ -60,7 +60,7 @@ export function AuthCardShell({
   children,
   header,
   variant,
-  padding = "p-4 sm:p-6",
+  padding = "p-8",
   icon = DEFAULT_LOGO,
 }: AuthCardShellProps) {
   const isOverlay = variant === "overlay";

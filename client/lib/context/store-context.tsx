@@ -105,15 +105,19 @@ const terminology: Record<StoreType, Record<string, string>> = {
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const [activeStoreId, setActiveStoreId] = React.useState<string | null>(null);
-
-  // Load from localStorage on mount
-  React.useEffect(() => {
-    if (typeof window !== "undefined" && user && !user.store_id) {
-      const saved = localStorage.getItem("dumos_active_store_id");
-      if (saved) setActiveStoreId(saved);
-    }
-  }, [user]);
+  // Lazy-initialized (not a useEffect) so the saved choice is already in
+  // state on the very first render, before `user` has even hydrated from
+  // its own localStorage read. Previously this started at null and was
+  // only populated by a later effect gated on `user` — during that gap,
+  // targetId below was null, so the profile query fell back to
+  // getFirstStore() (arbitrary row), and the "sync activeStoreId back"
+  // effect further down then persisted THAT as the real choice, silently
+  // overwriting a real selection (e.g. from the multi-store cloud-restore
+  // picker) with whatever SQLite happened to return first. Reading
+  // synchronously here closes that window instead of racing it.
+  const [activeStoreId, setActiveStoreId] = React.useState<string | null>(() =>
+    typeof window !== "undefined" ? localStorage.getItem("dumos_active_store_id") : null,
+  );
 
   // If user has a specific store_id (like a cashier), fetch that store.
   // Otherwise, use activeStoreId if set, else fallback to LIMIT 1

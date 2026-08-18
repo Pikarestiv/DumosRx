@@ -10,26 +10,31 @@ Pushing a `v*` tag triggers `.github/workflows/release.yml`, which:
 2. **`release-android`** — builds the Android APK, signs it with the keystore secrets if present (falls back to an unsigned APK otherwise), and uploads it to the same GitHub Release.
 3. **`deploy-ftp`** (needs both of the above) — downloads every asset from the GitHub Release, regenerates `updater.json` from the `.sig` files Tauri produced, and FTP-uploads the binaries + `updater.json` to `downloads.dumosrx.com/<tag>/` (and the index page to the site root). This `updater.json` is what `AutoUpdater` (`components/tauri/auto-updater.tsx`) and the mobile "check for update" fallback actually poll — it's the source of truth in production, not anything committed in the repo.
 
-## Before tagging: bump the version in lockstep
+## Cutting the release
 
-There is no automated bump script yet — these must be updated together, or the build will succeed but ship a mismatched version:
+`client/scripts/release.ts` (wired up as the `release` script in `client/package.json`) automates the whole thing — bumping the version in lockstep, committing, pushing, tagging, and pushing the tag:
+
+```bash
+cd client
+npm run release -- 0.0.34
+```
+
+- `--dry-run` — preview every file it would change and the git commands it would run, with zero writes/commits/push.
+- `--yes` / `-y` — skip its "Proceed?" confirmation prompt.
+
+It bumps these together (the build will succeed but ship a mismatched version if any of them drift):
 
 - `client/package.json` → `"version"`
 - `client/src-tauri/tauri.conf.json` → `"version"` (this is what Tauri actually stamps on the shipped app/installers)
-- `client/src-tauri/Cargo.toml` → `[package].version`, and then run `cd client/src-tauri && cargo metadata --no-deps --format-version 1 >/dev/null` (or any cargo command) once so `Cargo.lock`'s `app` entry picks up the new version too
+- `client/src-tauri/Cargo.toml` → `[package].version`, then re-verifies `Cargo.lock`'s `app` entry via `cargo metadata` (falls back to a direct string replace if `cargo` isn't available)
 - `client/lib/constants.ts` → `APP_VERSION` (no `v` prefix)
 - `web/lib/constants.ts` → `APP_VERSION` (with `v` prefix — used in the marketing site's footer/download links)
 
-Commit that as its own change before tagging.
+Before touching any files it checks the working tree is clean, the tag doesn't already exist locally, and the requested version actually differs from the current one. After bumping it re-reads every edited file to confirm no old-version string remains, then runs `tsc --noEmit` — all of that fails loudly (no commit) rather than shipping a half-bumped or type-broken release. Only after you confirm the prompt does it commit (`chore: bump version to X.Y.Z`), `git push origin <branch>`, then `git tag vX.Y.Z && git push origin vX.Y.Z` — that last push is what actually triggers the release workflow below.
 
-## Cutting the release
+The tag name must match `v*` and match the version just bumped to (the workflow uses `github.ref_name` verbatim as the release name and the FTP folder name) — the script guarantees this since it derives the tag from the version argument itself.
 
-```bash
-git tag v0.0.27
-git push origin v0.0.27
-```
-
-The tag name must match `v*` and should match the version you just bumped to (the workflow uses `github.ref_name` verbatim as the release name and the FTP folder name).
+If the script is ever unavailable/broken, the manual fallback is to make the same 5 edits by hand, commit, then `git tag vX.Y.Z && git push origin vX.Y.Z`.
 
 ## Required secrets
 

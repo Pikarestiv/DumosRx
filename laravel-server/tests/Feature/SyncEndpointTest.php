@@ -555,4 +555,123 @@ class SyncEndpointTest extends TestCase
             'notes' => 'Campaign Q3'
         ]);
     }
+
+    /**
+     * Regression test: createSale() on the client never set performed_by on
+     * the stock_movements row it inserts (harmless locally — that column is
+     * nullable there — but a required FK with no default on the cloud DB),
+     * so every sale's movement silently failed this INSERT and sat stuck in
+     * _sync_queue forever. Every other stock_movements fixture in this file
+     * hand-includes performed_by, which is exactly why this never got
+     * caught — none of them matched what the client actually sends. This
+     * one deliberately omits it, matching real createSale() output, to
+     * assert the server's fallback (inject from the authenticated user)
+     * actually works. Asserting only `success: true` at the top level
+     * (as the other tests here do) would NOT have caught the original bug —
+     * per-item failures land in the `failed` array while `success` stays
+     * true, so this also asserts that array is empty.
+     */
+    public function test_push_sync_backfills_performed_by_on_stock_movements_when_missing()
+    {
+        DB::table('products')->insert([
+            'id' => 'prod_perf',
+            'user_id' => $this->user->id,
+            'name' => 'Paracetamol',
+            '_version' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('stock_batches')->insert([
+            'id' => 'batch_perf',
+            'user_id' => $this->user->id,
+            'product_id' => 'prod_perf',
+            'quantity' => 100,
+            'cost_price' => 50.00,
+            'expiry_date' => now()->addYear()->toDateString(),
+            'batch_number' => 'B001',
+            '_version' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $movementId = 'mov_perf';
+        $payload = [
+            'setup' => true,
+            'changes' => [
+                [
+                    'table_name' => 'stock_movements',
+                    'operation' => 'INSERT',
+                    'record_id' => $movementId,
+                    'payload' => [
+                        'id' => $movementId,
+                        'stock_batch_id' => 'batch_perf',
+                        'product_id' => 'prod_perf',
+                        'movement_type' => 'sale',
+                        'quantity' => -1,
+                        // Deliberately no 'performed_by' — this is the bug.
+                        'created_at' => now()->toDateTimeString(),
+                        'updated_at' => now()->toDateTimeString(),
+                    ],
+                ],
+            ],
+        ];
+
+        $response = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', $payload);
+
+        $response->assertStatus(200);
+        $response->assertJson(['success' => true]);
+        $response->assertJsonCount(0, 'failed');
+
+        $this->assertDatabaseHas('stock_movements', [
+            'id' => $movementId,
+            'performed_by' => $this->user->id,
+        ]);
+    }
+
+    /**
+     * Regression test: local staff accounts are explicitly allowed to have
+     * no email ("Optional for local staff" in the web staff form), so
+     * $payload['email'] is then simply absent from the push — but the
+     * duplicate-account check accessed it unguarded and crashed with
+     * "Undefined array key" instead of skipping the check.
+     */
+    public function test_push_sync_handles_user_insert_without_email()
+    {
+        $newUserId = (string) \Illuminate\Support\Str::uuid();
+        $payload = [
+            'setup' => true,
+            'changes' => [
+                [
+                    'table_name' => 'users',
+                    'operation' => 'INSERT',
+                    'record_id' => $newUserId,
+                    'payload' => [
+                        'id' => $newUserId,
+                        'first_name' => 'Demo',
+                        'last_name' => 'Cashier',
+                        'username' => 'demo_cashier',
+                        'pin' => '1234',
+                        'role' => 'sales_staff',
+                        'store_id' => $this->store->id,
+                        // Deliberately no 'email' — this is the bug.
+                        'created_at' => now()->toDateTimeString(),
+                        'updated_at' => now()->toDateTimeString(),
+                    ],
+                ],
+            ],
+        ];
+
+        $response = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', $payload);
+
+        $response->assertStatus(200);
+        $response->assertJson(['success' => true]);
+        $response->assertJsonCount(0, 'failed');
+
+        $this->assertDatabaseHas('users', [
+            'id' => $newUserId,
+            'username' => 'demo_cashier',
+            'email' => null,
+        ]);
+    }
 }

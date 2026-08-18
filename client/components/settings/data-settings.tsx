@@ -254,7 +254,7 @@ export function DataSettings({
 
           <div className="space-y-4">
             <h3 className="font-medium text-destructive">Danger Zone</h3>
-            <div className="p-4 border border-destructive/20 rounded-lg bg-destructive/5 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="p-4 border border-destructive/20 rounded-lg bg-destructive/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="space-y-1">
                 <p className="text-sm font-semibold">Factory Reset</p>
                 <p className="text-xs text-muted-foreground">

@@ -310,11 +310,7 @@ console.log(
 
   const filesToAdd = edits.map((e) => path.relative(REPO_ROOT, e.file));
   runInherit("git", ["add", ...filesToAdd]);
-  runInherit("git", [
-    "commit",
-    "-m",
-    `chore: bump version to ${newVersion}\n\nCo-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>`,
-  ]);
+  runInherit("git", ["commit", "-m", `chore: bump version to ${newVersion}`]);
 
   console.log(`\nPushing ${currentBranch}...`);
   runInherit("git", ["push", "origin", currentBranch]);

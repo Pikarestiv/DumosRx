@@ -266,6 +266,16 @@ class SyncController extends Controller
                     }
                 }
 
+                // stock_movements.performed_by is a required FK on the cloud
+                // DB with no default, but createSale() on the client never
+                // set it — every sale-triggered movement has been failing
+                // this INSERT and sitting stuck in _sync_queue. Fixed
+                // client-side too, but this backfills already-queued rows
+                // from devices that haven't picked up that fix yet.
+                if ($change['table_name'] === 'stock_movements' && empty($payload['performed_by']) && $currentUser) {
+                    $payload['performed_by'] = $currentUser->id;
+                }
+
                 // Prevent NULL constraint violations for products
                 if ($change['table_name'] === 'products') {
                     if (empty($payload['pack_size'])) {
@@ -341,16 +351,25 @@ class SyncController extends Controller
                     // Re-calculate exists for normal INSERT flow just in case
                     $exists = false;
 
-                    // Prevent duplicate email/username crashes for users
+                    // Prevent duplicate email/username crashes for users.
+                    // Local staff accounts are explicitly allowed to have no
+                    // email ("Optional for local staff" in the web staff
+                    // form) — $payload['email'] is then simply absent, so
+                    // this must not access it unguarded like the sibling
+                    // username/store_id checks already don't.
                     if (!$exists && $change['table_name'] === 'users') {
-                        $conflict = $modelClass::where('email', $payload['email'])
+                        $conflict = $modelClass::where(function ($q) use ($payload) {
+                                                 if (!empty($payload['email'])) {
+                                                     $q->where('email', $payload['email']);
+                                                 }
+                                             })
                                              ->orWhere(function ($q) use ($payload) {
                                                  $q->where('username', $payload['username'] ?? null)
                                                    ->where('store_id', $payload['store_id'] ?? null);
                                              })
                                              ->first();
                         if ($conflict) {
-                            Log::warning("Sync push skipped user insert due to duplicate email/username: {$payload['email']}");
+                            Log::warning("Sync push skipped user insert due to duplicate email/username: " . ($payload['email'] ?? $payload['username'] ?? $recordId));
                             $exists = true; // Pretend it exists to skip insertion
                             $idMap[$recordId] = $conflict->id;
                         }
@@ -497,6 +516,14 @@ class SyncController extends Controller
 
                         if ($isOlder) {
                             Log::info("Sync push: Ignored older update for {$change['table_name']} {$recordId}");
+                            // Must close the per-change savepoint opened above
+                            // before skipping to the next change — a bare
+                            // `continue` here left it dangling every time an
+                            // older update was ignored (a routine, expected
+                            // occurrence in multi-device sync, not an edge
+                            // case), stacking unclosed savepoints for the
+                            // rest of the request.
+                            DB::commit();
                             continue;
                         }
 

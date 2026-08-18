@@ -7,6 +7,14 @@ import { apiClient } from "@/lib/api/client";
 import { getUserByUsernameOrEmail, createDefaultAdmin, getUserPin, updateUserPin } from "@/lib/db/queries/auth";
 import { useAutoLockStore } from "@/lib/hooks/use-auto-lock";
 import { AUDIT_ACTIONS } from "@/lib/db/audit-actions";
+import { sync } from "@/lib/db/sync-engine";
+
+// Throttles the PIN-mismatch recovery sync below (module-scope, not per
+// component instance, since a locked screen can remount). Without this, a
+// user mashing a genuinely wrong PIN would fire a network sync on every
+// single attempt.
+let lastPinRecoverySyncAt = 0;
+const PIN_RECOVERY_SYNC_COOLDOWN_MS = 10_000;
 
 export interface User {
   id: string;
@@ -116,17 +124,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (identifier: string, pin?: string) => {
     // For local-first, we check both username and email
     const cleanIdentifier = identifier.trim();
-    const dbUser = await getUserByUsernameOrEmail(cleanIdentifier);
-    
+    let dbUser = await getUserByUsernameOrEmail(cleanIdentifier);
+
     if (dbUser) {
       // If PIN is provided, check it
       if (pin && dbUser.pin !== pin) {
+        // A PIN reset via the web dashboard writes straight to the cloud
+        // DB — this device only sees it once it next syncs down, which
+        // could otherwise be minutes away. Rather than make a locked-out
+        // owner know to reload the app, pull once on a mismatch (throttled,
+        // and only when there's a cloud link to pull from) and recheck
+        // before actually failing the login.
+        const now = Date.now();
+        const hasCloudLink =
+          typeof window !== "undefined" && !!localStorage.getItem("auth_token");
+        if (hasCloudLink && now - lastPinRecoverySyncAt > PIN_RECOVERY_SYNC_COOLDOWN_MS) {
+          lastPinRecoverySyncAt = now;
+          await sync().catch(() => {});
+          dbUser = await getUserByUsernameOrEmail(cleanIdentifier);
+        }
+      }
+
+      if (!dbUser || (pin && dbUser.pin !== pin)) {
         // The acting user_id on this row will be whoever was previously
         // logged in on this device (or null), not the failed identifier —
         // audit_logs attributes actions to the current session, and there
         // isn't one yet at this point. record_id + details.username still
-        // identify which account the attempt was against.
-        logAction(AUDIT_ACTIONS.LOGIN_FAILED, "users", dbUser.id, {
+        // identify which account the attempt was against. Falls back to the
+        // typed identifier itself in the (practically unreachable) case
+        // where the recovery sync above made the user row disappear.
+        logAction(AUDIT_ACTIONS.LOGIN_FAILED, "users", dbUser?.id || cleanIdentifier, {
           username: cleanIdentifier,
           reason: "invalid_pin",
         }).catch(() => {});

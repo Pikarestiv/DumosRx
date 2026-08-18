@@ -766,15 +766,20 @@ class AdminService
     public function registerStore($data, $registeredById = null)
     {
         return DB::transaction(function () use ($data, $registeredById) {
-            // Create the owner user
-            $roleObj = Role::where('slug', 'admin')->first();
+            // Create the owner user — 'store_owner', matching the role
+            // self-serve signup assigns (AuthController::register), so an
+            // admin-registered store reads identically to one a customer
+            // signed up for themselves. Permissions are the same either way
+            // (RolesAndPermissionsSeeder grants 'admin' and 'store_owner'
+            // an identical permission set); this only fixes the label.
+            $roleObj = Role::where('slug', 'store_owner')->first();
             $user = User::create([
                 'first_name' => $data['first_name'],
                 'last_name' => $data['last_name'],
                 'email' => $data['email'],
                 'phone' => $data['phone'],
                 'password' => Hash::make($data['password']),
-                'role' => 'admin',
+                'role' => 'store_owner',
                 'role_id' => $roleObj ? $roleObj->id : null,
                 'registered_by_id' => $registeredById,
             ]);

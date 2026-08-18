@@ -5,12 +5,12 @@ import { CardContent, CardDescription, CardTitle } from "@/components/ui/card";
 export function SetupPromptHeader() {
   return (
     <>
-      <CardTitle className="text-xl font-bold mt-2">
+      <CardTitle className="text-xl font-bold">
         No Local Accounts Found
       </CardTitle>
-      <CardDescription className="text-muted-foreground mt-2">
-        This device hasn't been set up yet. Would you like to create a
-        new store or restore from a backup?
+      <CardDescription className="text-muted-foreground">
+        This device hasn't been set up yet. Would you like to create a new store
+        or restore from a backup?
       </CardDescription>
     </>
   );
@@ -18,27 +18,27 @@ export function SetupPromptHeader() {
 
 export function SetupPromptContent() {
   return (
-    <CardContent className="flex flex-col space-y-3 pt-4 pb-6">
+    <CardContent className="flex flex-col space-y-3 p-0 mb-12 sm:mb-0">
       <Link href="/login?tab=setup">
         <Button className="w-full h-11 text-base font-bold shadow-lg">
           Setup New Store
         </Button>
       </Link>
-      <Link href="/login?tab=setup&step=backup">
+      <Link href="/login?tab=setup&step=cloud">
         <Button
           variant="outline"
-          className="w-full h-11 text-base font-bold"
+          className="w-full h-11 text-base font-bold hover:bg-primary/30"
         >
-          Restore from Backup
+          Restore from Cloud
         </Button>
       </Link>
       <div className="pt-2 text-center font-semibold text-xs text-muted-foreground">
-        Already have a cloud account?{" "}
+        Have a local backup file?{" "}
         <Link
-          href="/login?tab=setup&step=cloud"
+          href="/login?tab=setup&step=backup"
           className="underline hover:text-primary transition-colors"
         >
-          Sync Now
+          Restore Now
         </Link>
       </div>
     </CardContent>

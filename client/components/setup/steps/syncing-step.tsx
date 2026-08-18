@@ -2,22 +2,23 @@
 
 import { motion } from "framer-motion";
 import {
-  Card,
   CardContent,
   CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { AuthCardShell } from "@/components/auth/auth-card-shell";
 import { Cloud, Loader2, Database, CheckCircle2 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 
 interface SyncingStepProps {
   progress: number;
   status: string;
+  header?: React.ReactNode;
 }
 
-export function SyncingStep({ progress, status }: SyncingStepProps) {
+export function SyncingStep({ progress, status, header }: SyncingStepProps) {
   return (
     <motion.div
       key="syncing"
@@ -26,7 +27,7 @@ export function SyncingStep({ progress, status }: SyncingStepProps) {
       exit={{ opacity: 0, scale: 1.1 }}
       className="flex-1 flex flex-col w-full"
     >
-      <Card className="flex-1 sm:flex-initial flex flex-col border-none sm:border-solid sm:border-border shadow-[0_-20px_40px_rgba(0,0,0,0.15)] sm:shadow-2xl bg-background sm:bg-card/60 sm:backdrop-blur-2xl rounded-t-[2.5rem] sm:rounded-xl max-h-[85dvh] overflow-y-auto relative">
+      <AuthCardShell variant="page" header={header} padding="py-5" icon={null}>
         <CardHeader className="text-center pb-2">
           <div className="flex justify-center mb-8 relative">
             <div className="absolute inset-0 flex items-center justify-center animate-pulse">
@@ -77,7 +78,7 @@ export function SyncingStep({ progress, status }: SyncingStepProps) {
             Secure End-to-End Encryption
           </p>
         </CardFooter>
-      </Card>
+      </AuthCardShell>
     </motion.div>
   );
 }

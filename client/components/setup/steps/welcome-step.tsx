@@ -1,26 +1,85 @@
 "use client";
 
 import { motion } from "framer-motion";
-import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import {
-  Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { UserPlus, CloudDownload, FileUp } from "lucide-react";
+import { AuthCardShell } from "@/components/auth/auth-card-shell";
+import { UserPlus, CloudDownload, FileUp, type LucideIcon } from "lucide-react";
 import { APP_NAME } from "@/lib/constants";
 import type { OnboardingStep } from "@/app/setup/use-onboarding";
 
 interface WelcomeStepProps {
   onSetStep: (step: OnboardingStep) => void;
   onGoToRegister: () => void;
+  header?: React.ReactNode;
 }
 
-export function WelcomeStep({ onSetStep, onGoToRegister }: WelcomeStepProps) {
+interface OnboardingOptionCardProps {
+  icon: LucideIcon;
+  title: string;
+  description: string;
+  onClick: () => void;
+}
+
+/** One tappable "how would you like to get started" option — pulled out
+ * since welcome-step just repeated this button markup three times. */
+function OnboardingOptionCard({
+  icon: Icon,
+  title,
+  description,
+  onClick,
+}: OnboardingOptionCardProps) {
+  return (
+    <Button
+      variant="outline"
+      className="h-auto p-4 flex flex-col items-start text-left gap-1 hover:border-primary/50 hover:bg-primary/5 group"
+      onClick={onClick}
+    >
+      <div className="flex items-center gap-2 font-bold text-foreground">
+        <Icon className="h-4 w-4 text-primary" />
+        {title}
+      </div>
+      <p className="text-xs text-muted-foreground text-wrap">{description}</p>
+    </Button>
+  );
+}
+
+const ONBOARDING_OPTIONS: Omit<OnboardingOptionCardProps, "onClick">[] = [
+  {
+    icon: UserPlus,
+    title: "Set Up New Business",
+    description:
+      "Create your DumosRx cloud account and store. Requires internet.",
+  },
+  {
+    icon: CloudDownload,
+    title: "Sign In to Existing Account",
+    description:
+      "Already have a DumosRx account? Pull your data from the cloud.",
+  },
+  {
+    icon: FileUp,
+    title: "Restore from Backup",
+    description: "Upload a .drx manual backup file to restore your database.",
+  },
+];
+
+export function WelcomeStep({
+  onSetStep,
+  onGoToRegister,
+  header,
+}: WelcomeStepProps) {
+  const handlers: Array<() => void> = [
+    onGoToRegister,
+    () => onSetStep("cloud"),
+    () => onSetStep("backup"),
+  ];
+
   return (
     <motion.div
       key="welcome"
@@ -29,73 +88,26 @@ export function WelcomeStep({ onSetStep, onGoToRegister }: WelcomeStepProps) {
       exit={{ opacity: 0, scale: 0.95 }}
       className="flex-1 flex flex-col w-full"
     >
-      <Card className="flex-1 sm:flex-initial flex flex-col border-none sm:border-solid sm:border-border shadow-[0_-20px_40px_rgba(0,0,0,0.15)] sm:shadow-2xl bg-background sm:bg-card/60 sm:backdrop-blur-2xl rounded-t-[2.5rem] sm:rounded-xl max-h-[85dvh] overflow-y-auto relative">
-        <CardHeader className="text-center pb-2 mb-">
-          <div className="flex justify-center mb-6">
-            <Image
-              src="/logo.png"
-              alt="DumosRx Logo"
-              width={180}
-              height={70}
-              className="object-contain"
-              style={{ filter: "var(--logo-filter)", height: "auto" }}
-            />
-          </div>
-          <CardTitle className="text-2xl font-bold">
+      <AuthCardShell variant="page" header={header}>
+        <CardHeader className="text-center p-0">
+          <CardTitle className="text-xl font-bold">
             Welcome to {APP_NAME}
           </CardTitle>
-          <CardDescription>How would you like to get started?</CardDescription>
+          <CardDescription className="text-muted-foreground">
+            How would you like to get started?
+          </CardDescription>
         </CardHeader>
 
-        <CardContent className="flex flex-col space-y-3 pt-2 md:pt-6 pb-2 md:pb-8">
-          <Button
-            variant="outline"
-            className="h-auto p-4 flex flex-col items-start text-left gap-1 hover:border-primary/50 hover:bg-primary/5 group"
-            onClick={onGoToRegister}
-          >
-            <div className="flex items-center gap-2 font-bold text-foreground">
-              <UserPlus className="h-4 w-4 text-primary" />
-              Set Up New Business
-            </div>
-            <p className="text-xs text-muted-foreground text-wrap">
-              Create your DumosRx cloud account and store. Requires internet.
-            </p>
-          </Button>
-
-          <Button
-            variant="outline"
-            className="h-auto p-4 flex flex-col items-start text-left gap-1 hover:border-primary/50 hover:bg-primary/5 group"
-            onClick={() => onSetStep("cloud")}
-          >
-            <div className="flex items-center gap-2 font-bold text-foreground">
-              <CloudDownload className="h-4 w-4 text-primary" />
-              Sign In to Existing Account
-            </div>
-            <p className="text-xs text-muted-foreground text-wrap">
-              Already have a DumosRx account? Pull your data from the cloud.
-            </p>
-          </Button>
-
-          <Button
-            variant="outline"
-            className="h-auto p-4 flex flex-col items-start text-left gap-1 hover:border-primary/50 hover:bg-primary/5 group"
-            onClick={() => onSetStep("backup")}
-          >
-            <div className="flex items-center gap-2 font-bold text-foreground">
-              <FileUp className="h-4 w-4 text-primary" />
-              Restore from Backup
-            </div>
-            <p className="text-xs text-muted-foreground text-wrap">
-              Upload a .drx manual backup file to restore your database.
-            </p>
-          </Button>
+        <CardContent className="flex flex-col space-y-3 mb-14 sm:mb-2 px-0">
+          {ONBOARDING_OPTIONS.map((option, index) => (
+            <OnboardingOptionCard
+              key={option.title}
+              {...option}
+              onClick={handlers[index]}
+            />
+          ))}
         </CardContent>
-        <CardFooter>
-          <p className="text-[10px] text-muted-foreground text-center w-full uppercase tracking-widest font-medium opacity-50">
-            Secure Offline-First Intelligence
-          </p>
-        </CardFooter>
-      </Card>
+      </AuthCardShell>
     </motion.div>
   );
 }

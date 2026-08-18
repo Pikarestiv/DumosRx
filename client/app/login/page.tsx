@@ -72,12 +72,9 @@ function LoginTab({
     (recentUsers.length === 0 || showTraditionalLogin || isNewCredentialsMode);
 
   return (
-    <AuthCardShell
-      variant="page"
-      header={<div className="px-4">{authHeader}</div>}
-    >
+    <AuthCardShell variant="page" header={authHeader}>
       {userCount === 0 && (
-        <CardHeader className="pt-8 sm:pt-2 pb-2 items-center text-center">
+        <CardHeader className="px-0 py-0 items-center text-center">
           <SetupPromptHeader />
         </CardHeader>
       )}
@@ -112,26 +109,22 @@ function LoginTab({
 }
 
 interface SetupTabProps {
-  isCardSetupStep: boolean;
   authHeader: React.ReactNode;
   onboarding: Onboarding;
 }
 
-function SetupTab({ isCardSetupStep, authHeader, onboarding }: SetupTabProps) {
+// Every setup step renders through AuthCardShell now, so the header is
+// always injected inside the step's own Card (see each step's `header`
+// prop) — no per-step special-casing needed here to decide where it goes.
+function SetupTab({ authHeader, onboarding }: SetupTabProps) {
   return (
     <>
-      {/* Cloud Restore, Local Backup, and Register get the header injected
-          inside their own Card (see isCardSetupStep) for consistency with
-          the login tab. Every other setup step renders a more complex
-          layout the header can't be injected into, so it floats above
-          instead. */}
-      {!isCardSetupStep && authHeader}
-
       <AnimatePresence mode="wait">
         {onboarding.onboardingStep === "welcome" && (
           <WelcomeStep
             onSetStep={onboarding.setStep}
             onGoToRegister={onboarding.goToRegister}
+            header={authHeader}
           />
         )}
 
@@ -169,6 +162,7 @@ function SetupTab({ isCardSetupStep, authHeader, onboarding }: SetupTabProps) {
           <SyncingStep
             progress={onboarding.syncProgress}
             status={onboarding.syncStatus}
+            header={authHeader}
           />
         )}
 
@@ -180,6 +174,7 @@ function SetupTab({ isCardSetupStep, authHeader, onboarding }: SetupTabProps) {
             onConfirm={onboarding.handleSelectStoreConfirm}
             onCancel={() => onboarding.setStep("cloud")}
             isLoading={onboarding.isLoading}
+            header={authHeader}
           />
         )}
       </AnimatePresence>
@@ -325,17 +320,6 @@ export default function LoginPage() {
     }
   };
 
-  // Cloud Restore, Local Backup, and Register are the setup steps that
-  // render a single simple Card (like the login tab), so the tab header is
-  // injected inside their Card for visual consistency. Other setup steps
-  // (welcome, select-store, syncing) have more complex/multi-card layouts,
-  // so the header stays floated above them.
-  const isCardSetupStep =
-    onboarding.onboardingStep === "cloud" ||
-    onboarding.onboardingStep === "backup" ||
-    onboarding.onboardingStep === "register";
-  const headerVariant: "card" | "standalone" =
-    activeTab === "login" || isCardSetupStep ? "card" : "standalone";
   const headerActiveTab: "login" | "setup" =
     activeTab === "login" ? "login" : "setup";
 
@@ -343,9 +327,14 @@ export default function LoginPage() {
   // a lone back arrow with no switcher looked unbalanced, especially on
   // mobile. The way off this screen instead is a secondary "Cancel" button
   // in the login form itself (see TraditionalLoginForm's onCancel).
+  //
+  // Every login/setup step now renders through AuthCardShell and injects
+  // this header as its first child (see each step's `header` prop), so
+  // there's only ever one placement to style for — no more
+  // card/standalone variant to keep in sync with which steps happen to
+  // use a Card.
   const authHeader = isNewCredentialsMode ? null : (
     <AuthTabHeader
-      variant={headerVariant}
       active={headerActiveTab}
       showBack={showBack}
       onBack={handleBack}
@@ -428,7 +417,6 @@ export default function LoginPage() {
           />
         ) : (
           <SetupTab
-            isCardSetupStep={isCardSetupStep}
             authHeader={authHeader}
             onboarding={onboarding}
           />

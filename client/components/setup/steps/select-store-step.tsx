@@ -4,13 +4,13 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
-  Card,
   CardContent,
   CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { AuthCardShell } from "@/components/auth/auth-card-shell";
 import {
   Select,
   SelectContent,
@@ -28,6 +28,7 @@ interface SelectStoreStepProps {
   onConfirm: () => void;
   onCancel: () => void;
   isLoading: boolean;
+  header?: React.ReactNode;
 }
 
 export function SelectStoreStep({
@@ -37,6 +38,7 @@ export function SelectStoreStep({
   onConfirm,
   onCancel,
   isLoading,
+  header,
 }: SelectStoreStepProps) {
   return (
     <motion.div
@@ -46,7 +48,7 @@ export function SelectStoreStep({
       exit={{ opacity: 0, x: -20 }}
       className="flex-1 flex flex-col w-full"
     >
-      <Card className="flex-1 sm:flex-initial flex flex-col border-none sm:border-solid sm:border-border shadow-[0_-20px_40px_rgba(0,0,0,0.15)] sm:shadow-2xl bg-background sm:bg-card/60 sm:backdrop-blur-2xl rounded-t-[2.5rem] sm:rounded-xl max-h-[85dvh] overflow-y-auto relative">
+      <AuthCardShell variant="page" header={header} padding="py-5" icon={null}>
         <CardHeader className="space-y-1 flex flex-col items-center text-center pb-2">
           <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
             <StoreIcon className="h-6 w-6 text-primary" />
@@ -99,7 +101,7 @@ export function SelectStoreStep({
             Back to Cloud Login
           </Button>
         </CardFooter>
-      </Card>
+      </AuthCardShell>
     </motion.div>
   );
 }

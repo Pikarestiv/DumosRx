@@ -111,7 +111,11 @@ class AdminController extends Controller
     )]
     public function registerStore(Request $request)
     {
-        if (!$request->user()->hasPermission('create_accounts')) {
+        // hasRole('super_admin') checks the raw `role` string column, so it
+        // can't be blocked by stale/missing role_id or permission_role data
+        // the way hasPermission() can — matches the bypass the route's own
+        // `permission:manage_platform` middleware already grants super_admin.
+        if (!$request->user()->hasRole('super_admin') && !$request->user()->hasPermission('create_accounts')) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -591,7 +595,7 @@ class AdminController extends Controller
     )]
     public function grantTrial(Request $request, $id)
     {
-        if (!$request->user()->hasPermission('grant_trials')) {
+        if (!$request->user()->hasRole('super_admin') && !$request->user()->hasPermission('grant_trials')) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -634,7 +638,7 @@ class AdminController extends Controller
     )]
     public function grantUserTrial(Request $request, $id)
     {
-        if (!$request->user()->hasPermission('grant_trials')) {
+        if (!$request->user()->hasRole('super_admin') && !$request->user()->hasPermission('grant_trials')) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 

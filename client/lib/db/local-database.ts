@@ -131,6 +131,11 @@ interface CreateSaleItem {
 export async function createSale(saleData: Record<string, unknown>, items: CreateSaleItem[]) {
   return transaction(async () => {
     const saleId = await insert("sales", saleData);
+    // stock_movements.performed_by is a required foreign key on the cloud
+    // DB (no default) — reading it here the same way receivePurchaseOrder()
+    // does, since it was never set on this insert before and every sale's
+    // movement row was silently failing to sync as a result.
+    const dumosUser = JSON.parse(localStorage.getItem("dumos_user") || "{}");
 
     for (const item of items) {
       await insert("sale_items", {
@@ -158,6 +163,7 @@ export async function createSale(saleData: Record<string, unknown>, items: Creat
         reference_id: saleId,
         reference_type: "sale",
         reason: "Customer sale",
+        performed_by: dumosUser?.id || null,
         movement_date: new Date().toISOString(),
         created_at: new Date().toISOString(),
         _version: 1,

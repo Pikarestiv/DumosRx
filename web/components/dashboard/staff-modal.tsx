@@ -72,12 +72,28 @@ export function StaffModal({
     e.preventDefault();
     setLoading(true);
 
+    // A PIN change writes straight to the cloud DB — the terminal that
+    // account actually logs in on only sees it once its device pulls that
+    // change down, which the login screen itself has no way to prompt for.
+    // Flag it here instead, where the person making the change can act on it.
+    const pinChanged =
+      isEditing &&
+      formData.pin !== (staffMember?.pin || "") &&
+      formData.pin.length > 0;
+
     const onSettled = () => setLoading(false);
     const onMutationSuccess = () => {
       toast.success(
         isEditing
           ? "Staff account updated successfully"
           : "Staff account created successfully",
+        pinChanged
+          ? {
+              description:
+                "PIN changed. Restart the app (or refresh the tab, if using it in a browser) on that person's device to apply it right away.",
+              duration: 8000,
+            }
+          : undefined,
       );
       onSuccess();
       onClose();
@@ -322,7 +338,7 @@ export function StaffModal({
               </Button>
               <Button
                 type="submit"
-                className="font-black min-w-[140px]"
+                className="font-black min-w-35"
                 disabled={loading}
               >
                 {loading ? (

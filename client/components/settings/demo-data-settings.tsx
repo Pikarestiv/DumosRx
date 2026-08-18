@@ -35,7 +35,8 @@ export function DemoDataSettings() {
       const result = await runDemoSeed(user.id, { force: !seedable });
       if (result.ok) {
         toast.success("Demo data loaded", {
-          description: "Products, procurement, sales, customers and expenses have been seeded.",
+          description:
+            "Products, procurement, sales, customers and expenses have been seeded.",
         });
       } else if (result.reason === "not_empty") {
         toast.error("Store already has data — seeding skipped.");
@@ -57,21 +58,29 @@ export function DemoDataSettings() {
             Demo Data
           </CardTitle>
           <CardDescription>
-            This account is flagged as a demo account. Load a full set of demo products,
-            suppliers, purchase orders, sales, customers and expenses so it's ready to show.
+            This account is flagged as a demo account. Load a full set of demo
+            products, suppliers, purchase orders, sales, customers and expenses
+            so it's ready to show.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-between rounded-lg border p-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between rounded-lg border gap-4 p-4">
             <div>
               <p className="text-sm font-medium">Seed Demo Data</p>
               <p className="text-xs text-muted-foreground">
-                Safe to run on an empty store. Running it again on a store that already has data
-                will ask for confirmation first.
+                Safe to run on an empty store. Running it again on a store that
+                already has data will ask for confirmation first.
               </p>
             </div>
-            <Button size="sm" onClick={() => setShowConfirm(true)} disabled={loading}>
-              {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+
+            <Button
+              size="sm"
+              onClick={() => setShowConfirm(true)}
+              disabled={loading}
+            >
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : null}
               Seed Demo Data
             </Button>
           </div>

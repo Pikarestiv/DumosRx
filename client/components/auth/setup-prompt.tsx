@@ -19,17 +19,18 @@ export function SetupPromptHeader() {
 export function SetupPromptContent() {
   return (
     <CardContent className="flex flex-col space-y-3 p-0 mb-12 sm:mb-0">
-      <Link href="/login?tab=setup">
+      <Link href="/login?tab=setup&step=cloud">
         <Button className="w-full h-11 text-base font-bold shadow-lg">
-          Setup New Store
+          Restore from Cloud
         </Button>
       </Link>
-      <Link href="/login?tab=setup&step=cloud">
+
+      <Link href="/login?tab=setup">
         <Button
           variant="outline"
           className="w-full h-11 text-base font-bold hover:bg-primary/30"
         >
-          Restore from Cloud
+          Setup New Store
         </Button>
       </Link>
       <div className="pt-2 text-center font-semibold text-xs text-muted-foreground">

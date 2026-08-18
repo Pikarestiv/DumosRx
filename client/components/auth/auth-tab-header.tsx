@@ -8,37 +8,23 @@ interface AuthTabHeaderProps {
   showBack: boolean;
   onBack: () => void;
   setupHref: string;
-  // "card": header sits as the first child inside a <Card> (matches the
-  // login tab and, now, the Cloud/Backup setup steps for visual
-  // consistency). "standalone": header floats above a step's own Card —
-  // needed for setup steps (welcome, register, select-store, syncing) that
-  // each render their own separate Card the header can't be injected into.
-  variant: "card" | "standalone";
 }
 
+// Always rendered as the first child inside a step's AuthCardShell — every
+// login/setup step goes through that shell now, so there's no longer a
+// "floats above a bare Card" case to style differently.
 export function AuthTabHeader({
   active,
   showBack,
   onBack,
   setupHref,
-  variant,
 }: AuthTabHeaderProps) {
   return (
-    <div
-      className={
-        variant === "card"
-          ? "relative flex items-center justify-center px-4 pt-6"
-          : "relative flex items-center justify-center px-4 sm:px-0 mb-4"
-      }
-    >
+    <div className="relative flex items-center justify-center">
       {showBack && (
         <button
           onClick={onBack}
-          className={
-            variant === "card"
-              ? "absolute left-4 inline-flex items-center justify-center h-8 w-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer bg-transparent border-0"
-              : "absolute left-4 sm:left-0 inline-flex items-center justify-center h-8 w-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer bg-transparent border-0"
-          }
+          className="absolute left-0 inline-flex items-center justify-center h-10 w-10 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer bg-transparent border-0"
         >
           <ArrowLeft className="h-4 w-4" />
         </button>

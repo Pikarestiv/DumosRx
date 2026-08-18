@@ -2,22 +2,36 @@
 
 import { motion } from "framer-motion";
 import {
-  Card,
   CardContent,
   CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { AuthCardShell } from "@/components/auth/auth-card-shell";
 import { Cloud, Loader2, Database, CheckCircle2 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 
 interface SyncingStepProps {
   progress: number;
   status: string;
+  header?: React.ReactNode;
 }
 
-export function SyncingStep({ progress, status }: SyncingStepProps) {
+const SyncingVisual = () => (
+  <div className="flex justify-center relative">
+    <div className="absolute inset-0 flex items-center justify-center animate-pulse">
+      <div className="w-24 h-24 rounded-full bg-primary/5 blur-xl" />
+    </div>
+    <div className="relative flex items-center gap-4 bg-background/50 p-4 rounded-2xl border border-primary/20">
+      <Cloud className="h-8 w-8 text-primary animate-bounce" />
+      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+      <Database className="h-8 w-8 text-accent animate-pulse" />
+    </div>
+  </div>
+);
+
+export function SyncingStep({ progress, status, header }: SyncingStepProps) {
   return (
     <motion.div
       key="syncing"
@@ -26,18 +40,8 @@ export function SyncingStep({ progress, status }: SyncingStepProps) {
       exit={{ opacity: 0, scale: 1.1 }}
       className="flex-1 flex flex-col w-full"
     >
-      <Card className="flex-1 sm:flex-initial flex flex-col border-none sm:border-solid sm:border-border shadow-[0_-20px_40px_rgba(0,0,0,0.15)] sm:shadow-2xl bg-background sm:bg-card/60 sm:backdrop-blur-2xl rounded-t-[2.5rem] sm:rounded-xl max-h-[85dvh] overflow-y-auto relative">
-        <CardHeader className="text-center pb-2">
-          <div className="flex justify-center mb-8 relative">
-            <div className="absolute inset-0 flex items-center justify-center animate-pulse">
-              <div className="w-24 h-24 rounded-full bg-primary/5 blur-xl" />
-            </div>
-            <div className="relative flex items-center gap-4 bg-background/50 p-4 rounded-2xl border border-primary/20">
-              <Cloud className="h-8 w-8 text-primary animate-bounce" />
-              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-              <Database className="h-8 w-8 text-accent animate-pulse" />
-            </div>
-          </div>
+      <AuthCardShell variant="page" header={header} icon={<SyncingVisual />}>
+        <CardHeader className="text-center p-0">
           <CardTitle className="text-2xl font-bold tracking-tight">
             Synchronizing Data
           </CardTitle>
@@ -45,16 +49,14 @@ export function SyncingStep({ progress, status }: SyncingStepProps) {
             Bringing your DumosRx cloud environment to this device
           </CardDescription>
         </CardHeader>
-        <CardContent className="pt-10 pb-8 space-y-6">
+        <CardContent className="p-0 space-y-6">
           <div className="space-y-2">
             <div className="flex justify-between text-xs font-medium">
               <span className="text-muted-foreground flex items-center gap-2">
-                {progress < 100 && (
-                                                <Loader2 className="h-3 w-3 animate-spin" />
-                                              )}
-                              {!(progress < 100) && (
-                                                <CheckCircle2 className="h-3 w-3 text-green-500" />
-                                              )}
+                {progress < 100 && <Loader2 className="h-3 w-3 animate-spin" />}
+                {!(progress < 100) && (
+                  <CheckCircle2 className="h-3 w-3 text-green-500" />
+                )}
                 {status}
               </span>
               <span className="text-primary font-bold">{progress}%</span>
@@ -71,13 +73,13 @@ export function SyncingStep({ progress, status }: SyncingStepProps) {
             </p>
           </div>
         </CardContent>
-        <CardFooter className="pb-8 justify-center">
+        <CardFooter className="mb-16 sm:mb-0 p-0 justify-center">
           <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-muted-foreground/40 flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-primary/40" />
             Secure End-to-End Encryption
           </p>
         </CardFooter>
-      </Card>
+      </AuthCardShell>
     </motion.div>
   );
 }

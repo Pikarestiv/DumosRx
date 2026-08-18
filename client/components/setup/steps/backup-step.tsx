@@ -3,13 +3,13 @@
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import {
-  Card,
   CardContent,
   CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { AuthCardShell } from "@/components/auth/auth-card-shell";
 import { useRef } from "react";
 import { FileUp, Loader2 } from "lucide-react";
 
@@ -45,18 +45,22 @@ export function BackupStep({
       exit={{ opacity: 0, x: -20 }}
       className="flex-1 flex flex-col w-full"
     >
-      <Card className="flex-1 p-0 px-4 sm:px-6 sm:flex-initial flex flex-col border-none sm:border-solid sm:border-border shadow-[0_-20px_40px_rgba(0,0,0,0.15)] sm:shadow-2xl bg-background sm:bg-card/60 sm:backdrop-blur-2xl rounded-t-[2.5rem] sm:rounded-xl max-h-[85dvh] overflow-y-auto relative">
-        {header}
-        <CardHeader className="space-y-1 flex flex-col items-center text-center pb-2">
-          <div className="hidden md:flex w-12 h-12 rounded-xl bg-primary/10 items-center justify-center mb-4">
+      <AuthCardShell
+        variant="page"
+        header={header}
+        icon={
+          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
             <FileUp className="h-6 w-6 text-primary" />
           </div>
+        }
+      >
+        <CardHeader className="space-y-1 flex flex-col items-center text-center p-0">
           <CardTitle className="text-2xl font-bold">Local Backup</CardTitle>
           <CardDescription className="text-muted-foreground">
             Restore from a previous backup file
           </CardDescription>
         </CardHeader>
-        <CardContent className="md:py-4 px-6">
+        <CardContent className="p-0">
           <div
             className={`flex flex-col items-center justify-center border-2 border-dashed border-border rounded-xl p-4 md:p-8 transition-colors ${isLoading ? "bg-background/10 cursor-not-allowed opacity-70" : "bg-background/30 hover:bg-background/50 cursor-pointer group"}`}
             onClick={() => {
@@ -94,7 +98,7 @@ export function BackupStep({
             )}
           </div>
         </CardContent>
-        <CardFooter className="pb-8 px-6 flex flex-col space-y-4">
+        <CardFooter className="flex flex-col space-y-4 mb-12 sm:mb-0 p-0">
           <Button
             variant="outline"
             className="w-full h-11"
@@ -118,7 +122,7 @@ export function BackupStep({
             </div>
           )}
         </CardFooter>
-      </Card>
+      </AuthCardShell>
     </motion.div>
   );
 }

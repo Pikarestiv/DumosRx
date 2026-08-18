@@ -10,13 +10,13 @@ import {
   InputOTPSlot,
 } from "@/components/ui/input-otp";
 import {
-  Card,
   CardContent,
   CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { AuthCardShell } from "@/components/auth/auth-card-shell";
 import { UserPlus, Loader2 } from "lucide-react";
 import { useState } from "react";
 import type { StoreOption } from "@/lib/types/store";
@@ -98,12 +98,16 @@ export function RegisterStep({
       exit={{ opacity: 0, x: -20 }}
       className="flex-1 flex flex-col w-full"
     >
-      <Card className="p-0 flex-1 sm:flex-initial flex flex-col border-none sm:border-solid sm:border-border shadow-[0_-20px_40px_rgba(0,0,0,0.15)] sm:shadow-2xl bg-background sm:bg-card/60 sm:backdrop-blur-2xl rounded-t-[2.5rem] sm:rounded-xl max-h-[85dvh] overflow-y-auto relative">
-        {header}
-        <CardHeader className="space-y-1 flex flex-col items-center text-center pb-1 pt-4">
-          <div className="hidden md:flex w-10 h-10 rounded-xl bg-primary/10 items-center justify-center mb-2">
+      <AuthCardShell
+        variant="page"
+        header={header}
+        icon={
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
             <UserPlus className="h-5 w-5 text-primary" />
           </div>
+        }
+      >
+        <CardHeader className="space-y-1 flex flex-col items-center text-center">
           <CardTitle className="text-xl font-bold">
             {!!isCloudLinked && "Cloud Setup"}
             {!isCloudLinked && "Create Your Business"}
@@ -116,7 +120,7 @@ export function RegisterStep({
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-2.5 pt-3 pb-3">
+          <CardContent className="space-y-2.5 p-0">
             {existingStores.length > 0 && (
               <div className="space-y-1">
                 <Label htmlFor="store-select" className="text-xs">
@@ -327,7 +331,7 @@ export function RegisterStep({
               </div>
             </div>
           </CardContent>
-          <CardFooter className="flex flex-col space-y-4 pt-3 pb-5">
+          <CardFooter className="flex flex-col space-y-4 px-0 pt-3 mb-18 sm:mb-6">
             <Button
               type="submit"
               className="w-full h-11 text-base font-bold shadow-lg"
@@ -338,7 +342,7 @@ export function RegisterStep({
             </Button>
           </CardFooter>
         </form>
-      </Card>
+      </AuthCardShell>
     </motion.div>
   );
 }

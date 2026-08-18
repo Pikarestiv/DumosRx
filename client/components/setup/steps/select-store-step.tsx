@@ -4,13 +4,13 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
-  Card,
   CardContent,
   CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { AuthCardShell } from "@/components/auth/auth-card-shell";
 import {
   Select,
   SelectContent,
@@ -28,6 +28,7 @@ interface SelectStoreStepProps {
   onConfirm: () => void;
   onCancel: () => void;
   isLoading: boolean;
+  header?: React.ReactNode;
 }
 
 export function SelectStoreStep({
@@ -37,6 +38,7 @@ export function SelectStoreStep({
   onConfirm,
   onCancel,
   isLoading,
+  header,
 }: SelectStoreStepProps) {
   return (
     <motion.div
@@ -46,27 +48,39 @@ export function SelectStoreStep({
       exit={{ opacity: 0, x: -20 }}
       className="flex-1 flex flex-col w-full"
     >
-      <Card className="flex-1 sm:flex-initial flex flex-col border-none sm:border-solid sm:border-border shadow-[0_-20px_40px_rgba(0,0,0,0.15)] sm:shadow-2xl bg-background sm:bg-card/60 sm:backdrop-blur-2xl rounded-t-[2.5rem] sm:rounded-xl max-h-[85dvh] overflow-y-auto relative">
-        <CardHeader className="space-y-1 flex flex-col items-center text-center pb-2">
-          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
+      <AuthCardShell
+        variant="page"
+        header={header}
+        icon={
+          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
             <StoreIcon className="h-6 w-6 text-primary" />
           </div>
+        }
+      >
+        <CardHeader className="space-y-1 flex flex-col items-center text-center p-0">
           <CardTitle className="text-2xl font-bold">Select Store</CardTitle>
           <CardDescription className="text-muted-foreground">
             Choose which store layout/data to initialize on this device
           </CardDescription>
         </CardHeader>
 
-        <CardContent className="space-y-4 pt-6">
+        <CardContent className="space-y-4 p-0">
           <div className="space-y-2">
             <Label htmlFor="store-select">Available Locations</Label>
             <Select value={selectedStoreId} onValueChange={setSelectedStoreId}>
-              <SelectTrigger id="store-select" className="w-full bg-background/50 h-12">
+              <SelectTrigger
+                id="store-select"
+                className="w-full bg-background/50 h-12"
+              >
                 <SelectValue placeholder="Choose a store..." />
               </SelectTrigger>
               <SelectContent>
                 {stores.map((store) => (
-                  <SelectItem key={store.id} value={store.id} className="cursor-pointer">
+                  <SelectItem
+                    key={store.id}
+                    value={store.id}
+                    className="cursor-pointer"
+                  >
                     {store.name}
                   </SelectItem>
                 ))}
@@ -75,31 +89,27 @@ export function SelectStoreStep({
           </div>
         </CardContent>
 
-        <CardFooter className="flex flex-col space-y-3 pt-6 pb-8">
+        <CardFooter className="flex flex-col space-y-3 p-0 mt-2">
           <Button
             onClick={onConfirm}
             className="w-full h-12 text-lg font-bold shadow-lg"
             disabled={isLoading || !selectedStoreId}
           >
-            {!!(isLoading) && (
-                                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                                  )}
-                      {!(isLoading) && (
-                                    "Initialize Selected Store"
-                                  )}
+            {!!isLoading && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
+            {!isLoading && "Initialize Selected Store"}
           </Button>
 
           <Button
-            variant="ghost"
+            variant="outline"
             onClick={onCancel}
-            className="w-full h-10 text-sm text-muted-foreground hover:text-foreground"
+            className="w-full h-10 text-sm text-muted-foreground hover:text-foreground hover:bg-primary/30"
             disabled={isLoading}
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Cloud Login
           </Button>
         </CardFooter>
-      </Card>
+      </AuthCardShell>
     </motion.div>
   );
 }

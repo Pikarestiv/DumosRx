@@ -6,13 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Card,
   CardContent,
   CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { AuthCardShell } from "@/components/auth/auth-card-shell";
 import { CloudDownload, Loader2 } from "lucide-react";
 
 interface CloudStepProps {
@@ -46,19 +46,23 @@ export function CloudStep({
       exit={{ opacity: 0, x: -20 }}
       className="flex-1 flex flex-col w-full"
     >
-      <Card className="p-0 flex-1 px-4 sm:px-6 sm:flex-initial flex flex-col border-none sm:border-solid sm:border-border shadow-[0_-20px_40px_rgba(0,0,0,0.15)] sm:shadow-2xl bg-background sm:bg-card/60 sm:backdrop-blur-2xl rounded-t-[2.5rem] sm:rounded-xl max-h-[85dvh] overflow-y-auto relative">
-        {header}
-        <CardHeader className="space-y-1 flex flex-col items-center text-center pb-2">
-          <div className="hidden md:flex w-12 h-12 rounded-xl bg-primary/10 items-center justify-center mb-4">
+      <AuthCardShell
+        variant="page"
+        header={header}
+        icon={
+          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
             <CloudDownload className="h-6 w-6 text-primary" />
           </div>
+        }
+      >
+        <CardHeader className="space-y-1 flex flex-col items-center text-center p-0">
           <CardTitle className="text-2xl font-bold">Cloud Restore</CardTitle>
           <CardDescription className="text-muted-foreground">
             Login with your DumosRx Cloud ID
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-4 pt-6">
+          <CardContent className="space-y-4 p-0">
             <div className="space-y-2">
               <Label htmlFor="cloud-email">Email Address</Label>
               <Input
@@ -84,7 +88,7 @@ export function CloudStep({
               />
             </div>
           </CardContent>
-          <CardFooter className="flex flex-col space-y-4 pt-6 pb-8">
+          <CardFooter className="flex flex-col gap-y-4 mt-6 mb-8 sm:mb-4 p-0">
             <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-center text-sm text-muted-foreground">
               <button
                 type="button"
@@ -116,7 +120,7 @@ export function CloudStep({
             </Button>
           </CardFooter>
         </form>
-      </Card>
+      </AuthCardShell>
     </motion.div>
   );
 }

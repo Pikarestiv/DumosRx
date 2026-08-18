@@ -411,3 +411,5 @@ export function useOnboarding() {
     handleSelectStoreConfirm,
   };
 }
+
+export type Onboarding = ReturnType<typeof useOnboarding>;
